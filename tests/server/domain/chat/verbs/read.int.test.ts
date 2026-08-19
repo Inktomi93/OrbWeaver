@@ -135,9 +135,12 @@ describe("read — listings (membership-scoped, D18)", () => {
       const [mine] = (await listChats({ principal: principal(me) })).items;
       const [theirs] = (await listChats({ principal: principal(friend) })).items;
 
-      // PER-CALLER, from the SAME row: each viewer's own name is the one that's gone.
+      // PER-CALLER, from the SAME row: each viewer's own name is the one that's gone. Both answers are in
+      // SEAT ORDER (joinSeq, then participant id) — the second line used to expect `["user_me", …]`, which
+      // was the test double's INSERTION order rather than the roster's; the double orders like production
+      // now (`makeLoadParticipantViews`), and production has never answered that way.
       expect(mine?.participantNames).toEqual(["character_shared_char", "user_friend"]);
-      expect(theirs?.participantNames).toEqual(["user_me", "character_shared_char"]);
+      expect(theirs?.participantNames).toEqual(["character_shared_char", "user_me"]);
     });
 
     test("a SOLO chat keeps the viewer's name — suppression never empties the cast", async () => {
@@ -468,6 +471,34 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     expect([...hers.items.map((c) => c.id)].sort()).toEqual([sheLeft, withHer].sort());
     expect(hers.totalCount).toBe(2);
     expect(hers.items.map((c) => c.id)).not.toContain(withHim);
+  });
+
+  // #192 — THE ROW CARRIES ITS OWN FACES. The client used to paint the leading slot by fetching the WHOLE
+  // character library (`character.list {limit: 500}`) on every surface showing a chat row and indexing
+  // `participantCharacterIds` into it; past that ceiling the faces simply stopped resolving. The seats ride
+  // the projection now, off the roster views it already loads — so this pins the two properties the row
+  // renders with (SEAT ORDER, and character seats only) plus the deliberate split from
+  // `participantCharacterIds`, which keeps departed seats for the reverse read and must NOT gain a face.
+  test("`participantPortraits` carries the PRESENT character seats in seat order — humans and departed seats excluded", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const her = await seedCharacter(db, me, "azarael");
+    const him = await seedCharacter(db, me, "kai");
+    const gone = await seedCharacter(db, me, "vanished");
+
+    const chatId = await seedChat(db, "faces", { title: "The Ashen Spire" });
+    await seedParticipant(db, { chatId, key: "fa_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId, key: "fa_c2", characterId: him, joinSeq: 2 });
+    await seedParticipant(db, { chatId, key: "fa_c1", characterId: her, joinSeq: 1 });
+    await seedParticipant(db, { chatId, key: "fa_c0", characterId: gone, joinSeq: 0, leftSeq: 3 });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const row = (await listChats({ principal: principal(me), limit: 50 })).items[0];
+
+    expect(row?.participantPortraits.map((seat) => seat.characterId)).toEqual([her, him]);
+    // The human host holds a seat and a name, but not a FACE: the leading slot is the room's CAST.
+    expect(row?.participantPortraits.some((seat) => seat.characterId === castId<CharacterId>(me))).toBe(false);
+    // …while the reverse read keeps the departed seat, exactly as its own promise says.
+    expect([...(row?.participantCharacterIds ?? [])].sort()).toEqual([gone, her, him].sort());
   });
 
   test("`characterId` never duplicates a row when a character holds TWO seats in one chat", async () => {

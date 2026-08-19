@@ -161,14 +161,49 @@ function flagDirtyAnimationsOn(el: Element): void {
   }
 }
 
+// THE TWO SPELLINGS DIFFER and the dedupe key must be in `animatedProperties`'. VERIFIED live, not assumed
+// (`snap --eval`, real room open): one transition reports `propertyName: "scrollbar-color"` and keyframe
+// key `"scrollbarColor"`. `COMPOSITOR_SAFE_PROPS` is single words and spelling-blind; a mismatch HERE
+// would silently make the fast path never hit.
+const CSS_DASH_RE = /-([a-z])/gu;
+
+/** Nothing left to learn from this transitionstart? (#219 — the cheap half of the classification, see
+ *  {@link installAnimationFlagger}.) Attribute reads only: no `getAnimations`, no computed style, no flush. */
+function skipTransition(el: Element, propertyName: string): boolean {
+  if (COMPOSITOR_SAFE_PROPS.has(propertyName)) {
+    return true;
+  }
+  const idl = propertyName.replace(CSS_DASH_RE, (_match, letter: string) => letter.toUpperCase());
+  return raised.has(`anim|${surfaceLabelOf(el)}|${idl}`);
+}
+
 /** Both start events, one handler. Capture phase + passive: this must never be the reason a frame is
- *  late, and animations on a portalled popup do not bubble to a listener bound late in the tree. */
+ *  late, and animations on a portalled popup do not bubble to a listener bound late in the tree.
+ *
+ *  THE PASSIVE LISTENER WAS NOT THE COST — `getAnimations()` WAS (#219, measured 2026-08-18): it flushes
+ *  pending style + resolves the animation timeline, and the handler answered EVERY start event with one.
+ *  `perf-meter / --open-chat latest --cpuprofile`, live dev stack: **534.9ms of self time inside
+ *  `getAnimations`, called from here**, of 640ms blocking / 1190ms long tasks — 84% of the jank the
+ *  instrument exists to report. `snap --eval` tally, same room: **1,108 transitionstart events, 1,064 of
+ *  them `scrollbar-color`**, each paying a full classify before `raise` discarded it as a duplicate. (That
+ *  1,064 is ALSO an APP finding, paid in production too, and not this handler's to fix — reported.)
+ *  THE FIX IS THE EVENT'S OWN DATUM: a `transitionstart` NAMES its property, so both verdicts are reachable
+ *  without touching the DOM — compositor-safe is never flaggable, and one ALREADY FLAGGED on this surface
+ *  has nothing new to say (`raise` dedupes on `anim|<label>|<property>`). The check moves in FRONT of the
+ *  expensive work; the FIRST event per surface+property still takes the full path, so console output is
+ *  unchanged. `animationstart` is untouched (keyframe properties only the effect can read; census: none).
+ *  Behaviour change: a compositor-safe transition on an element that ALSO has a dirty animation running no
+ *  longer classifies it — the dirty one's own start event does. */
 function installAnimationFlagger(): void {
   const onStart = (event: Event): void => {
     const target = event.target;
-    if (target instanceof Element) {
-      flagDirtyAnimationsOn(target);
+    if (!(target instanceof Element)) {
+      return;
     }
+    if (event instanceof TransitionEvent && skipTransition(target, event.propertyName)) {
+      return;
+    }
+    flagDirtyAnimationsOn(target);
   };
   document.addEventListener("animationstart", onStart, { capture: true, passive: true });
   document.addEventListener("transitionstart", onStart, { capture: true, passive: true });

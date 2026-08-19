@@ -26,10 +26,10 @@ import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { RowActionsMenu } from "#components";
+import { useRef, useState } from "react";
+import { HIDE_AT_COARSE, ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { cn, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
@@ -106,17 +106,30 @@ export interface MessageActionsRowProps {
   readonly modelCredit?: string | null | undefined;
 }
 
-/** THE MODEL CREDIT (#167, owner ruling 2026-08-18). It used to be a datum in the metadata row, printed as
+/** THE MODEL CREDIT (#167, owner rulings 2026-08-18). It used to be a datum in the metadata row, printed as
  *  the RAW identifier — which for a self-hosted engine is a 106-character absolute weights path, and which
  *  sat under every single reply at 1.59:1 over background art (measured live, the owner's room). It is an
  *  attribution about the reply, not a fact the reader came for, so it belongs in the row's reveal cluster
  *  with the other per-message affordances: nothing at rest, name on hover / keyboard focus-within (the
  *  cluster's own `messageActionsRevealClass` posture — no new tab stop, no tooltip, no fake button).
  *
- *  It PRINTS through `@orb/kit/model-name` and keeps the full identifier on `title` only when the
- *  derivation actually shortened it (the #115 stutter rule the refinery masthead uses). The glyph carries
- *  the accessible name because the derived text alone ("Qwen3.6-27B · W8A8") does not say what it IS.
- *  Keeps the `message-metadata-model` slot on this semantically-equivalent element (rule 0.7). */
+ *  THEN THE TEXT ITSELF WENT (second ruling, same day, verbatim-adjacent): "we have our model icon with
+ *  model name on hover, but we ALSO have a long-ass raw model name text — the latter is ugly and needs to
+ *  go." Moving the string into the reveal cluster made it quieter; it did not make it not-a-string. The
+ *  ONE rendering is the GLYPH; the name lives on `title` (pointer) and in an sr-only sentence (AT). The
+ *  earlier ruling's shape is intact — same slot, same `showModelIcon` gate, same cluster — only its text
+ *  node is gone, so this is a narrowing of #167 rather than a reversal of it.
+ *
+ *  Keeps the `message-metadata-model` slot on this semantically-equivalent element (rule 0.7).
+ *
+ *  #220 — IT STANDS DOWN AT A COARSE POINTER, and that is #167's own ruling carried through rather than an
+ *  exception to it. The credit's whole posture is "nothing at rest, name on hover"; at a touch pointer
+ *  there is no hover, so `REVEAL_AT_COARSE` was printing it permanently — a rest-visible weights string in
+ *  the middle of the name band (measured centre-stage on --mobile, with the speaker's own name down to 65px
+ *  and three wrapped lines). It is a DATUM, not a verb, so it takes `HIDE_AT_COARSE` (a plain drop) rather
+ *  than an overflow twin: there is no action to move into the menu, and a menu item that only states a
+ *  string would be a fake affordance. The datum stays reachable on any fine pointer and, for a host, in
+ *  the kebab's wire trace. */
 function renderModelCredit(model: string | null | undefined): ReactElement | null {
   if (model === null || model === undefined || model.trim() === "") {
     return null;
@@ -126,18 +139,26 @@ function renderModelCredit(model: string | null | undefined): ReactElement | nul
     <Text
       as="span"
       voice="gloss"
-      className="inline-flex min-w-0 items-center gap-field font-mono"
+      className={cn("inline-flex items-center", HIDE_AT_COARSE)}
       data-slot="message-metadata-model"
-      {...(shown === model ? {} : { title: model })}
+      // THE NAME LIVES ON HOVER NOW, UNCONDITIONALLY. #167 put it on `title` only when the derivation
+      // shortened the identifier (the #115 stutter rule): with the string also printed, a title that
+      // repeated it verbatim was noise. The printed string is gone, so `title` is the ONLY door the name
+      // has and it is always open. The DERIVED name, not the raw identifier — the 106-character weights
+      // path is exactly what the owner ruled out of the transcript; a host who needs the exact identity
+      // has the kebab's wire trace.
+      title={shown}
     >
-      {/* The glyph is decorative; the sr-only lead is what says WHAT the derived string is, because
-          "Qwen3.6-27B · W8A8" read aloud on its own is a noise. */}
+      {/* THE GLYPH IS THE WHOLE RENDERING (owner ruling, 2026-08-18): "we have our model icon with model
+          name on hover, but we ALSO have a long-ass raw model name text — the latter is ugly and needs to
+          go." The visible `{shown}` span is DELETED here, at the transcript's one model-text site (swept:
+          `pnpm ast refs modelDisplayName` — every other caller is outside the transcript, in
+          credentials/preset/refinery/stats). The datum is not lost, it has two doors that are not rest
+          text: `title` above for a pointer, and the sr-only lead below for AT — which is why the glyph
+          carries `aria-hidden` and the sentence carries the name. */}
       <Icon aria-hidden={true} className={MESSAGE_ACTION_ICON_CLASS} icon={Cpu} size="sm" />
       <Text as="span" className="sr-only">
-        Generated by{" "}
-      </Text>
-      <Text as="span" className="truncate">
-        {shown}
+        Generated by {shown}
       </Text>
     </Text>
   );
@@ -152,6 +173,7 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   const undoContinue = useUndoContinueMutation({ trpc, invalidation });
   const revertContinue = useRevertContinueMutation({ trpc, invalidation });
   const [wireOpen, setWireOpen] = useState(false);
+  const clusterRef = useRef<HTMLDivElement | null>(null);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
   const editable = isEditableRole(role);
@@ -167,8 +189,23 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   // "what did this send?" about. Not a disabled-with-reason item: this is APPLICABILITY, not a phase gate.
   const showWireTrace = viewerIsHost && role === "assistant";
 
+  // #245 — MEASURE THE ROW'S FOOTPRINT HERE, in the click handler, because this is the last moment it
+  // exists: React has already committed the read→edit swap by the time any effect runs, and a render-time
+  // ref read is illegal (react-hooks/refs). THIS click is the one frame where the read-mode box is still on
+  // screen.
+  //
+  // The measured box is the CONTENT COLUMN, not the bubble. Everything edit mode removes or replaces lives
+  // inside it — the action cluster (suppressed by this very row), the metadata row, the tool records, the
+  // swipe pager, and the prose the editor stands in for — and the column is content-sized, so losing any of
+  // them shrinks it. Measured on the shared-track stage: a two-word reply's column went 221px → 114px
+  // (bubble skin) and 221px → 138px plus a 42px sideways slide (flat).
+  // Measured off the CLUSTER's own node, not the clicked control: the coarse arm's door is a `MenuItem`
+  // inside a PORTALLED popup, which has no ancestor column to walk up to. This element is inside the
+  // column at every pointer, so both doors reserve the same box.
   const onEdit = (): void => {
-    startEditingMessage(messageId, content);
+    const column = clusterRef.current?.closest('[data-slot="message-content-column"]') ?? null;
+    const width = column === null ? 0 : column.getBoundingClientRect().width;
+    startEditingMessage(messageId, content, width > 0 ? width : null);
   };
 
   const onToggleHidden = (): void => {
@@ -222,17 +259,23 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   };
 
   return (
-    <Row gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
+    <Row ref={clusterRef} gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
       {renderModelCredit(modelCredit)}
       {editable ? (
-        <Button intent="ghost" size="icon" aria-label="Edit message" onClick={onEdit}>
-          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
-        </Button>
-      ) : null}
-      {editable ? (
-        <Button intent="ghost" size="icon" loading={fork.isPending} aria-label="Fork chat here" onClick={(): void => void onFork()}>
-          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
-        </Button>
+        // #220 THE COARSE COLLAPSE (row-reveal.ts). At a touch pointer `REVEAL_AT_COARSE` pins this whole
+        // cluster ON, and every icon button is a ≥44px box by token construction — measured on --mobile,
+        // the pair plus the ⋯ plus the credit held 297px of a 407px band and left the speaker's name 65px,
+        // wrapped to three lines. Both verbs ride the ⋯ menu below at EVERY pointer (the chats row's
+        // mirror-parity ruling: one item, never a coarse-only twin), so the collapse costs one tap and
+        // nothing leaves the a11y tree.
+        <Row align="center" className={ROW_ACTION_INLINE}>
+          <Button intent="ghost" size="icon" aria-label="Edit message" onClick={onEdit}>
+            <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
+          </Button>
+          <Button intent="ghost" size="icon" loading={fork.isPending} aria-label="Fork chat here" onClick={(): void => void onFork()}>
+            <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
+          </Button>
+        </Row>
       ) : null}
       <RowActionsMenu
         label="More message actions"
@@ -243,6 +286,21 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
           onConfirm: onDelete,
         }}
       >
+        {/* The collapsed pair's one door. Present at BOTH pointers by the mirror-parity ruling
+            (chat-list-row-menu.tsx) — a `ROW_ACTION_OVERFLOW` twin here would put a verb in the menu
+            twice on touch and nowhere on desktop the moment the inline arm is ever reworked. */}
+        {editable ? (
+          <MenuItem onClick={onEdit}>
+            <Icon icon={Pencil} size="sm" />
+            Edit message
+          </MenuItem>
+        ) : null}
+        {editable ? (
+          <MenuItem onClick={(): void => void onFork()}>
+            <Icon icon={GitFork} size="sm" />
+            Fork chat here
+          </MenuItem>
+        ) : null}
         {editable ? (
           <MenuItem onClick={onToggleHidden}>
             <Icon icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />

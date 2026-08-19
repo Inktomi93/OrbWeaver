@@ -11,11 +11,11 @@ import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
-import type { ReactElement } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { Fragment } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
-import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useSelectionActive } from "#state";
+import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useMessageEditReservedInlineSize, useSelectionActive } from "#state";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { isNarratorVoiced, resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
@@ -133,6 +133,13 @@ function resolveModelCredit(message: MessageView, visibility: MessageMetadataVis
   return visibility.showModelIcon ? message.model : null;
 }
 
+/** #245 — the content column's style: the skin's own width override (echo's art pane) plus, while this row
+ *  is being EDITED, the read-mode width the Edit action measured. A bare helper, not inlined, so the row
+ *  body stays under the cognitive-complexity ceiling. */
+function resolveColumnStyle(skinStyle: CSSProperties | undefined, reservedInlineSize: number | null): CSSProperties | undefined {
+  return reservedInlineSize === null ? skinStyle : { ...skinStyle, minInlineSize: reservedInlineSize };
+}
+
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showTimestamps: false,
   showMessageId: false,
@@ -214,6 +221,9 @@ export function MessageRow({
   // Edit mode lives in the external draft store, not local useState — a windowed row unmounts on
   // scroll and would silently drop mid-edit state.
   const editing = useIsEditingMessage(message.id);
+  // #245 — the footprint the Edit action measured off the read-mode bubble. Read from the same external
+  // store as the mode flag so a row windowed out and back mid-edit re-renders at the SAME width.
+  const reservedInlineSize = useMessageEditReservedInlineSize(message.id);
   const selecting = useSelectionActive();
   const selected = useIsMessageSelected(message.id);
   const renderContext = resolveMessageRenderContext({
@@ -293,7 +303,14 @@ export function MessageRow({
         {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
         <Row align="start" className="@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6" gap="row" data-slot="message-row-body">
           {leadingAvatar}
-          <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1" style={skin.columnStyle}>
+          {/* #245 — THE ROW HOLDS ITS OWN BOX OPEN WHILE IT IS EDITED. The column is content-sized (the
+              row body shrink-wraps inside the track), and its max-content is usually the NAME ROW — whose
+              action cluster is suppressed while editing, deliberately (the editor carries its own
+              Save/Cancel). Measured on the shared-track stage: a two-word reply's column went 221px → 114px
+              the instant the reader clicked Edit, and in `flat` it slid 42px sideways as well. The
+              suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
+              longer draft can still grow the box out to the column's own cap. */}
+          <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1" style={resolveColumnStyle(skin.columnStyle, reservedInlineSize)}>
             {renderRowNameRow({
               attribution,
               message,
@@ -315,6 +332,7 @@ export function MessageRow({
               renderContext,
               speakerThemes,
               narratorVoiced,
+              editing,
             })}
             {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
             {/* #106 — the two chrome bands BELOW the bubble. Unlike the name row they are outside any

@@ -8,10 +8,15 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store.ts";
 
-/** The active per-character chat-list filter — `null` = the full list. `name` backs the clear-chip label. */
+/** The active per-character chat-list filter — `null` = the full list. `name` backs the clear-chip label;
+ *  `avatarHash` is the scoped character's FACE on the pane's strip. It rides the filter (both writers — a
+ *  strip face and the picker row — already have it) because the strip must show the character it is
+ *  filtering by even when she has NO chats yet, and since #192 the pane resolves faces from its chat ROWS,
+ *  which by definition carry nothing about a character with no rows. */
 export interface ChatListCharacterFilter {
   readonly id: CharacterId;
   readonly name: string;
+  readonly avatarHash: string | null;
 }
 
 interface ChatListFilterState {
