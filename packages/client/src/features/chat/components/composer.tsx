@@ -32,7 +32,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
-import { IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
+import { cn, IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
 import { setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import type { PendingAttachment } from "../hooks/use-composer-attachments.ts";
@@ -44,6 +44,7 @@ import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
+import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashCompletionAria } from "../lib/slash-command.ts";
@@ -357,7 +358,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             the text CHANGE announces (its own header states the never-unmount rule). */}
         <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
         {hasAttachments ? (
-          <Row gap="field" align="center" data-slot="composer-attachments" className="mx-auto w-full max-w-(--width-shell-content) flex-wrap">
+          <Row gap="field" align="center" data-slot="composer-attachments" className={cn(CHAT_TRACK, "flex-wrap")}>
             {attachments.map((attachment, index) => (
               <AttachmentPreview key={attachment.url} attachment={attachment} onRemove={(): void => removeAttachment(index)} />
             ))}
@@ -372,7 +373,10 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
           // leaning on the background scrim for legibility — the translucent `bg-input` tint left the typed
           // text unreadable over a bright background picture with scrim=0 (side-eye, 2026-07-18). The
           // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
-          className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+          className={cn(
+            CHAT_TRACK,
+            "rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
+          )}
         >
           {/* ROW 1 — D111 §3's control map, drawn left→right: the ⋯ chat-options menu in the LEFT gutter, then
               the guided cluster (four dual-mode icons impersonate·swipe·response·continue + the ✨ utility

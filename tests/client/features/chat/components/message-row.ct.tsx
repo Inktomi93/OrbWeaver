@@ -476,38 +476,56 @@ test("whisper: the header band renders a 3:1 aspect box (matches the server's ba
   expect(bgImage).toContain("?v=banner&w=");
 });
 
-test("echo: the bubble's padding-right resolves to --immersive-echo-feather (of the content column's width)", async ({ mount }) => {
+// ⚑ THIS PAIR REPLACES TWO PINS THAT HELD THE #212 DEFECTS IN PLACE, and the reversal is stated rather
+// than hidden. The first asserted "padding-right resolves to `--immersive-echo-feather`, a PERCENTAGE of
+// the content column" — that percentage (55%) is exactly what left 239px of a 558px box for prose, i.e.
+// 28 characters per line against the house 65-75ch law. The second asserted "a persona-kind row never
+// bleeds portrait art (hide-user-portrait)"; measured against the owner's reference renders, that rule is
+// why echo was "half-built" — the references decorate BOTH roles, mirrored to each row's outer edge
+// (#212-3/-5). The MECHANISM both pins really guarded is intact and still pinned below: the decoration is
+// kind-gated, and the reading geometry of the with-art and no-art arms is identical.
+test("echo: the art pane is a FIXED column outside the prose measure, sized to the art-width token", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const bubble = component.locator(BUBBLE);
-  const column = component.locator(CONTENT_COLUMN);
-  // The feather is authored as a PERCENTAGE (of the bubble's containing block width, message-row-
-  // variants.ts) — read the resolved token off the element, then compare the rendered padding against
-  // that percentage of the real containing block (`message-content-column`, since the ThemeScope
-  // wrapper between them is `display: contents` and contributes no box of its own).
-  const featherPct = await cssVar(bubble, "--immersive-echo-feather");
-  const pct = Number.parseFloat(featherPct) / 100;
-  expect(pct).toBeGreaterThan(0);
+  const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
   const paddingRightPx = await bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingRight));
-  const columnBox = await column.boundingBox();
-  const expectedPx = (columnBox?.width ?? 0) * pct;
-  expect(paddingRightPx).toBeGreaterThan(0);
-  expect(Math.abs(paddingRightPx - expectedPx)).toBeLessThan(2);
+  expect(paddingRightPx).toBe(artWidthPx);
+  // The art layer is sized to that pane and anchored to its TOP outer corner — never `cover` over the
+  // whole bubble, which upscaled a 400x600 portrait 4.94x and cropped past the subject on a long turn.
+  const [bgSize, bgPos] = await bubble.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return [cs.backgroundSize, cs.backgroundPosition];
+  });
+  // Chrome serialises a `<width> auto` layer as the bare width, so the assertion is the layer pair:
+  // the fade covers the box, the ART layer is the pane's width (never `cover`, the 4.94x upscale).
+  expect(bgSize).toBe(`100% 100%, ${artWidthPx}px`);
+  // …anchored to the pane's top OUTER corner (Chrome serialises `right top` as `100% 0%`).
+  expect(bgPos).toBe("0px 0px, 100% 0%");
 });
 
-test("echo: a persona-kind (user) row never bleeds portrait art — padding-right reverts to the base (hide-user-portrait)", async ({ mount }) => {
+test("echo: a persona-kind (user) row is decorated too, mirrored to its own outer edge", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="echo" messageRole="user" personaId={NATE_PERSONA_ID} personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]} />,
   );
   const bubble = component.locator(BUBBLE);
-  // No decoration ⇒ no inline paddingRight override (echoDecoration returns null for a non-character
-  // kind, message-row-variants.ts) — only the symmetric `px-block` utility applies.
-  const inlinePaddingRight = await bubble.evaluate((el) => (el as HTMLElement).style.paddingRight);
-  expect(inlinePaddingRight).toBe("");
+  const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
   const [paddingLeft, paddingRight] = await bubble.evaluate((el) => {
     const cs = getComputedStyle(el);
     return [Number.parseFloat(cs.paddingLeft), Number.parseFloat(cs.paddingRight)];
   });
-  expect(paddingRight).toBe(paddingLeft);
+  // The user's pane sits on the LEFT (the row's outer side for a right-aligned row) — the mirror of the
+  // character arm above, at the same width.
+  expect(paddingLeft).toBe(artWidthPx);
+  expect(paddingRight).toBeLessThan(artWidthPx);
+});
+
+test("echo: an UNATTRIBUTED row still gets no art (the kind gate survives the both-roles change)", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="echo" messageRole="system" content="System notice." />);
+  const bubble = component.locator(BUBBLE);
+  const inlinePaddingLeft = await bubble.evaluate((el) => (el as HTMLElement).style.paddingLeft);
+  const inlinePaddingRight = await bubble.evaluate((el) => (el as HTMLElement).style.paddingRight);
+  expect(inlinePaddingLeft).toBe("");
+  expect(inlinePaddingRight).toBe("");
 });
 
 test("ripple: the welded avatar's boundingBox width resolves to --immersive-ripple-portrait-width; position is sticky", async ({ mount }) => {
@@ -537,6 +555,88 @@ test("tide: a blank-line-separated body renders N stacked, non-overlapping bubbl
   for (let i = 1; i < ys.length; i++) {
     expect(ys[i]).toBeGreaterThan(ys[i - 1] as number);
   }
+});
+
+// TIDE'S OWN SUBJECT (#212-1). The skin used to give up past 12 paragraphs and render one bubble — i.e.
+// look exactly like `bubble` — on 69% of the drive chat's real assistant turns (census: 71/11/15/16/6/16/
+// 24/10/44/19/17/4). A rendered pill count is the honest pin: the splitter's unit test can only prove the
+// array, this proves the reader sees a train.
+test("tide: a LONG-form turn (past the retired 12-paragraph cap) still trains every paragraph", async ({ mount }) => {
+  const paragraphs = Array.from({ length: 24 }, (_, i) => `Paragraph ${i} of a long RP turn.`);
+  const component = await mount(<MessageRowStory chatStyle="tide" messageRole="assistant" content={paragraphs.join("\n\n")} />);
+  const bubbles = component.locator('[data-slot="message-bubble-train"] [data-slot="message-bubble"]');
+  await expect(bubbles).toHaveCount(24);
+});
+
+// The orphan pill (#212-5): every ST-imported assistant message opens with `---`, which rendered as an
+// `<hr>` inside its own 24x17px EMPTY pill above the train. A pill boundary already says what a rule says.
+const RULE_LED_BODY = "---\n\nFirst.\n\nSecond.";
+
+test("tide: a leading thematic break makes no empty orphan pill", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="tide" messageRole="assistant" content={RULE_LED_BODY} />);
+  const bubbles = component.locator('[data-slot="message-bubble-train"] [data-slot="message-bubble"]');
+  await expect(bubbles).toHaveCount(2);
+  await expect(bubbles.first()).toContainText("First.");
+  // No `<hr>` survives as a pill of its own, and no pill is empty.
+  await expect(component.locator('[data-slot="message-bubble-train"] hr')).toHaveCount(0);
+  const texts = await bubbles.evaluateAll((els) => els.map((el) => (el.textContent ?? "").trim()));
+  expect(texts.every((t) => t.length > 0)).toBe(true);
+});
+
+// NARRATION IS NOT DIALOGUE (#212-4, side-eye C2). `colorForCharacter` returned ONE hash colour for
+// speaker + dialogue + narration and the row's ThemeScope wrote all three, so an `<em>` narration run
+// painted in the speaker's dialogue red — contradicting `markdown.tsx`'s own stated law ("the base
+// className tints every rendered <em> with --color-narration") and collapsing the speech/emphasis
+// distinction every reference render keeps.
+test("narration ink is DISTINCT from the speaker's dialogue ink (the em run keeps the theme's narration colour)", async ({ mount }) => {
+  const body = 'She looks up. *The lamp gutters.* "You came back," she says.';
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" content={body} characterId={ALICE_ID} participants={[alice()]} />);
+  const bubble = component.locator(BUBBLE);
+  const em = bubble.locator("em");
+  await expect(em).toHaveText("The lamp gutters.");
+  const dialogue = bubble.locator(DIALOGUE_SPAN);
+  await expect(dialogue).toHaveCount(1);
+
+  const emColor = await em.evaluate((el) => getComputedStyle(el).color);
+  const dialogueColor = await dialogue.evaluate((el) => getComputedStyle(el).color);
+  const speakerVar = await cssVar(bubble, "--color-speaker");
+  const narrationVar = await cssVar(bubble, "--color-narration");
+  // The two inks differ…
+  expect(emColor).not.toBe(dialogueColor);
+  // …because the row scope no longer overwrites the palette's narration token with the speaker hash.
+  expect(parseOklch(narrationVar)).not.toEqual(parseOklch(speakerVar));
+  expect(parseOklch(emColor)).toEqual(parseOklch(narrationVar));
+});
+
+// THE AVATARS-OFF RULING (owner, 2026-08-18 — #212-6): `showInChatAvatars` governs ALL identity art, not
+// just the chip. It used to mean three different things: six skins dropped the chip, ripple lost its whole
+// treatment, and echo/whisper ignored it entirely — so a reader who turned avatars off still got two of
+// eight modes dominated by character art. Chrome that is not art of anybody (the speaker stripe) survives.
+test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band, ripple's portrait", async ({ mount }) => {
+  const echo = await mount(
+    <MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} showInChatAvatars={false} />,
+  );
+  const echoBubble = echo.locator(BUBBLE);
+  expect(await echoBubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
+  expect(await echoBubble.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
+  await expect(echo.locator(EDGE_TILE)).toHaveCount(0);
+  await echo.unmount();
+
+  const whisper = await mount(
+    <MessageRowStory chatStyle="whisper" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} showInChatAvatars={false} />,
+  );
+  await expect(whisper.locator(BAND)).toHaveCount(0);
+  // …but the speaker STRIPE is chrome, not identity art, and stays.
+  const stripe = await whisper.locator(BUBBLE).evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopWidth));
+  expect(stripe).toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
+  await whisper.unmount();
+
+  const ripple = await mount(
+    <MessageRowStory chatStyle="ripple" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} showInChatAvatars={false} />,
+  );
+  await expect(ripple.locator(AVATAR)).toHaveCount(0);
+  // The card degrades cleanly — no reserved-but-empty portrait column left behind.
+  await expect(ripple.locator(BUBBLE)).toHaveCount(1);
 });
 
 // ── The no-avatar FALLBACK as a first-class avatar (owner ruling 2026-07-09) ──────────────────────
@@ -628,9 +728,9 @@ test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initia
   const glyphPx = await tile.locator('[data-slot="text"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
   expect(glyphPx).toBe(remTokenPx(TOKENS["spacing.avatar-hero"].value));
   // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
-  // clear by the feather token, never a reserved-but-empty gap.
+  // clear by the art pane's own width token, never a reserved-but-empty gap.
   const inlinePaddingRight = await bubble.evaluate((el) => (el as HTMLElement).style.paddingRight);
-  expect(inlinePaddingRight).toBe("var(--immersive-echo-feather)");
+  expect(inlinePaddingRight).toBe("var(--immersive-echo-art-width)");
   // The tile's field is the entity's deterministic hue — the SAME color the row's chip paints (one
   // entity, one hue everywhere).
   const chip = component.locator(`${AVATAR} ${FALLBACK}`);
