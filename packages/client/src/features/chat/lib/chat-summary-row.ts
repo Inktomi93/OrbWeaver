@@ -8,6 +8,8 @@ import type { Trpc } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
+/** One seat on that row, straight off the wire — the base {@link ChatRowPortrait} extends. */
+type ChatSummarySeat = ChatSummaryItem["participantPortraits"][number];
 
 // `deriveChatTitle` MOVED to `#lib/chat-title` (2026-08-09) and is imported from there above, NOT re-exported
 // from here (a re-export would make this a barrel file, which biome forbids): the regex library's room
@@ -20,31 +22,20 @@ type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 // cards. Every room has a row from the creation click, so `deriveChatTitle` — over the real roster — is the
 // one answer, and its "Untitled chat" fallback is honest for a blank room that legitimately exists.
 
-/** One resolved character SEAT for the row's leading slot — the name backs the avatar's initials fallback
- *  and its accessible label; `hash` is the CAS portrait key (null = this seat has no portrait). */
-export interface ChatRowPortrait {
-  readonly name: string;
-  readonly hash: string | null;
-}
-
-/** The row's LEADING slot source (visual-blech audit F7 + D3): the chat's character
- *  seats resolved against the character list, IN SEAT ORDER. A single seat paints one portrait; two or more
- *  paint an `AvatarStack`, because a shared room must read SHARED at rest — the differentiator between a
- *  1:1 and a group is exactly who else is in it.
+/** One resolved character SEAT for the row's leading slot (visual-blech audit F7 + D3) — the name backs the
+ *  avatar's initials fallback and its accessible label; `avatarHash` is the CAS portrait key (null = this
+ *  seat has no portrait, which paints the hue-seeded initials blob).
  *
- *  Seats the caller's character page doesn't carry (an un-landed list, a foreign row) are DROPPED rather
- *  than guessed: an unnamed avatar would be a blank chip claiming a person. Ids compare as plain strings
- *  (the character list's own `id`s), so a caller builds the map straight off `character.list`. */
-export function chatPortraits(participantCharacterIds: readonly string[], characterById: ReadonlyMap<string, ChatRowPortrait>): readonly ChatRowPortrait[] {
-  const resolved: ChatRowPortrait[] = [];
-  for (const characterId of participantCharacterIds) {
-    const seat = characterById.get(characterId);
-    if (seat !== undefined) {
-      resolved.push(seat);
-    }
-  }
-  return resolved;
-}
+ *  DERIVED from the wire, never re-spelled (#192). The seats arrive ON the chat row now
+ *  (`ChatSummary.participantPortraits`, resolved by the roster read the list projection already runs); the
+ *  client used to build them by fetching the whole character library and indexing
+ *  `participantCharacterIds` into it, which is the map this alias replaced. A single seat paints one
+ *  portrait; two or more paint an `AvatarStack`, because a shared room must read SHARED at rest.
+ *
+ *  An INTERFACE extending the derived member, not a `type` alias of it: an exported type ALIAS outside a
+ *  type home is `no-inline-types` RED anywhere in the tree, while an exported interface is RED only inside
+ *  a server domain — and the alias it extends is the derive, so the wire still owns the shape. */
+export interface ChatRowPortrait extends ChatSummarySeat {}
 
 /** The mock's cast register: a character's SHORT display name, i.e. everything before its first appositive
  *  comma ("Calamity, Doomblade of the Ninth Epoch" → "Calamity"; "Sabine Veyra" → "Sabine Veyra"). A comma

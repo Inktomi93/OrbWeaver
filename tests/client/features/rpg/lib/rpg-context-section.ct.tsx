@@ -14,7 +14,7 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
 
@@ -3727,4 +3727,46 @@ test("side-eye 2026-08-16: the PHASE-lock glyph keeps a gutter off the pane's ow
   });
   expect(field).toBeGreaterThan(0);
   expect(gutter).toBeGreaterThanOrEqual(Math.round(field) - 1);
+});
+
+// ── #149: THE HUD BAND RESERVES ITS BOX WHILE THE TRACKER READ IS IN FLIGHT ──────────────────────────
+//
+// The band suspends on `rpg.getTrackerView` behind its OWN boundary, and that boundary's fallback was
+// `null` — so the band opened as a bare 2px rule and then grew ~120-192px when the read landed, shoving the
+// game rail, the viewport and every tab body down. MEASURED by side-eye-tracker 2026-08-17: a
+// `nonVirtualizedCls` contribution of 0.1143 on room open, and at a coarse pointer
+// `[cls] shift 0.1056 unexpected … OVER BUDGET` — the one over-budget unexpected shift on the surface.
+//
+// The band's settled height is DATA-dependent (trackers, orbs, cast chips), so this is the box-memory class
+// of fix (home tiles' `useSurfaceBox`): this device's own last measurement, or — on a first-ever open, which
+// is what this test drives — an ESTIMATE at the top of the measured range. The estimate over-reserves on
+// purpose: what lands is then a SHRINK, and #129-R1 ruled shrink beats push.
+//
+// Asserted through rendered geometry with the read HELD OPEN, which is the only state where the defect
+// exists — a settled band looks identical before and after the fix.
+
+const HUD_BAND = '[data-slot="rpg-hud-band"]';
+const HUD_BAND_RESERVATION = '[data-slot="rpg-hud-band-reservation"]';
+
+test("#149 the band holds its box open while `getTrackerView` is in flight, and the read SHRINKS it — never pushes", async ({ mount, page }) => {
+  const tracker = trpcHold();
+  await stubTakeover(page, { tracker });
+
+  const component = await mount(<RpgTakeoverStory />);
+  const band = component.locator(HUD_BAND);
+  await expect(band).toBeVisible();
+
+  // IN FLIGHT: the reservation is what is holding the band open, and it says WHICH source held it — a
+  // first-ever open has no measurement, so this is the declared estimate (`data-band-reserve-source`).
+  const reservation = component.locator(HUD_BAND_RESERVATION);
+  await expect(reservation).toBeVisible();
+  await expect(reservation).toHaveAttribute("data-band-reserve-source", "estimate");
+  const pending = await band.evaluate((el) => el.getBoundingClientRect().height);
+
+  tracker.release(trackerView(false));
+  // SETTLED: the reservation is gone (the real band replaced it), and the band did not grow into the rail
+  // below it. Pre-fix the pending band was chrome-only and this delta was the whole ~120-192px jump.
+  await expect(reservation).toHaveCount(0);
+  const settled = await band.evaluate((el) => el.getBoundingClientRect().height);
+  expect(settled).toBeLessThanOrEqual(pending);
 });

@@ -92,6 +92,7 @@ import type {
   ChatEventAttach,
   ChatLineageView,
   ChatListPage,
+  ChatSeatPortrait,
   ChatStreamReplayEvent,
   ChatSummary,
   MessagesPage,
@@ -254,6 +255,30 @@ function summaryCast(participants: readonly ParticipantView[], viewerUserId: Use
   return (others.length > 0 ? others : participants).map((p) => p.displayName);
 }
 
+/**
+ * The row's own faces (#192) — the PRESENT character seats, in seat order, off the roster views this
+ * projection already loaded.
+ *
+ * It replaces a client-side whole-library join: every surface showing a chat row fetched
+ * `character.list {limit: 500}` and indexed `participantCharacterIds` into it, which cost a library-sized
+ * read to decorate six rows and silently stopped resolving faces past the page ceiling. The roster resolver
+ * already reads exactly these cards (it is what `participantNames` comes from), so the join belongs here.
+ *
+ * A human/agent/observer seat carries no character (`characterId === null`) and is not a face this slot
+ * paints — the leading slot is the room's CAST, and the viewer's own avatar on their own row would be the
+ * same constant-prefix noise `summaryCast` suppresses from the title.
+ */
+function seatPortraits(participants: readonly ParticipantView[]): ChatSeatPortrait[] {
+  const portraits: ChatSeatPortrait[] = [];
+  for (const participant of participants) {
+    if (participant.kind !== "character" || participant.characterId === null) {
+      continue;
+    }
+    portraits.push({ characterId: participant.characterId, name: participant.displayName, avatarHash: participant.avatarHash });
+  }
+  return portraits;
+}
+
 function toChatSummary({ row, stat, participants, participantCharacterIds, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
   return {
     id: row.id,
@@ -269,6 +294,7 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
     isGame: isRpgEngaged(row.metadata.rpg),
     participantNames: summaryCast(participants, viewerUserId),
     participantCharacterIds,
+    participantPortraits: seatPortraits(participants),
     // Derive the caller's role from the present roster already loaded for this row — no extra read. The
     // caller is a present member on every listing path (membership-gated), so the `find` resolves; fail to
     // the least-privileged `member` on the impossible miss (never grant host by default).

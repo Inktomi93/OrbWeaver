@@ -33,9 +33,8 @@ import type { CharacterChatsProjectionView } from "#lib";
 import { useDebouncedValue } from "#lib";
 import { selectChatFromList, setActiveSection, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
-import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
-import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
 import { ChatListRow } from "./chat-list-row.tsx";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
@@ -58,7 +57,6 @@ const SEARCH_THRESHOLD = 8;
 export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }: CharacterChatsProjectionView): ReactElement {
   const trpc = useTRPC();
   const activeChatId = useActiveChatId();
-  const characterById = useChatPortraitMap();
   const [query, setQuery] = useState("");
   const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const collection = useChatListCollection({ trpc }, { characterId, search: settledQuery });
@@ -105,7 +103,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
         selectChatFromList(chatId);
         setActiveSection("chats");
       }}
-      portraits={chatPortraits(chat.participantCharacterIds, characterById)}
+      portraits={chat.participantPortraits}
       qualifier={qualifiers[index]}
       selected={chat.id === activeChatId}
     />

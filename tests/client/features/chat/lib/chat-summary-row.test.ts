@@ -1,4 +1,4 @@
-// Unit: `chatSummaryRowView` + `chatPortraits` (features/chat/lib/chat-summary-row) — the chats-list row
+// Unit: `chatSummaryRowView` (features/chat/lib/chat-summary-row) — the chats-list row
 // projection. When the title falls back to participant names, the row subtitle switches to the message
 // count so the names never print twice.
 //
@@ -8,7 +8,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { chatPortraits, chatSummaryRowView } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row.ts";
+import { chatSummaryRowView } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type SummaryItem = Parameters<typeof chatSummaryRowView>[0];
@@ -24,6 +24,7 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
     messageCount: 0,
     participantNames: [],
     participantCharacterIds: [],
+    participantPortraits: [],
     lastMessagePreview: null,
     isGame: false,
     viewerRole: "host",
@@ -79,28 +80,8 @@ test("chatSummaryRowView: `when` prefers lastMessageAt, falling back to updatedA
   expect(chatSummaryRowView(makeSummary({ lastMessageAt: null, updatedAt: 2 })).when).toBe(2);
 });
 
-// F7 + D3 — the LEADING-slot arm: the seat ids resolve to real faces (one portrait, or a stack for a
-// shared room) instead of one hue blob standing in for a whole cast.
-const SEATS = new Map<string, { readonly name: string; readonly hash: string | null }>([
-  ["char_faceless", { name: "Faceless", hash: null }],
-  ["char_azarael", { name: "Azarael", hash: "hash_azarael" }],
-  ["char_niko", { name: "Niko", hash: "hash_niko" }],
-]);
-
-test("chatPortraits: resolves every known seat, IN SEAT ORDER (the stack's paint order)", () => {
-  expect(chatPortraits(["char_niko", "char_azarael"], SEATS).map((seat) => seat.name)).toEqual(["Niko", "Azarael"]);
-});
-
-test("chatPortraits: a portrait-LESS seat is kept (its initials are the datum), not dropped", () => {
-  expect(chatPortraits(["char_faceless", "char_niko"], SEATS)).toEqual([
-    { name: "Faceless", hash: null },
-    { name: "Niko", hash: "hash_niko" },
-  ]);
-});
-
-test("chatPortraits: an UNRESOLVED seat is dropped — an unnamed chip would claim a person we can't name", () => {
-  // The un-landed character list / foreign-row case: the row degrades to what it CAN name.
-  expect(chatPortraits(["char_departed", "char_azarael"], SEATS)).toEqual([{ name: "Azarael", hash: "hash_azarael" }]);
-  expect(chatPortraits([], SEATS)).toEqual([]);
-  expect(chatPortraits(["char_departed"], SEATS)).toEqual([]);
-});
+// F7 + D3's LEADING-slot arm no longer has a client-side derivation to unit-test: `chatPortraits` (which
+// indexed `participantCharacterIds` into a whole-library `character.list` map) was retired with that read in
+// #192. The seats arrive resolved on the row, and the SEAT-ORDER + portrait-less-seat properties it pinned
+// are now the server's (`seatPortraits`, tests/server/domain/chat/verbs/read.int.test.ts) plus the rendered
+// stack pin in tests/client/features/chat/surfaces/chat-list-surface.ct.tsx.

@@ -43,10 +43,8 @@ import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRow } from "../components/chat-list-row.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
-import { useChatPortraitMap, useChatPortraitMapPending } from "../hooks/use-chat-portrait-map.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
-import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
-import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
 import { recentFaces } from "../lib/recent-faces.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
@@ -136,15 +134,14 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
 function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
   const trpc = useTRPC();
   const { data: page, isPending: chatsPending } = useQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
-  const characterById = useChatPortraitMap();
-  // BOTH reads decide a face: a chat names a character id, the portrait map turns it into a face. Gating
-  // the reservation on the chats read alone still shifted, because entering the section refetches
-  // `character.list` at the portrait map's own limit and the strip popped in when THAT landed (measured).
-  const portraitsPending = useChatPortraitMapPending();
-  const recent = recentFaces(page?.items ?? [], characterById);
+  // ONE read decides a face now (#192): the chat rows carry their own seats, so there is no second
+  // `character.list` landing for the strip to pop in on — which is what the reservation used to have to
+  // wait for as well. The scoped character still comes from the FILTER (she may have no chats at all yet,
+  // and a row-sourced strip knows nothing about a character with no rows), so her face rides it too.
+  const recent = recentFaces(page?.items ?? []);
   const scopedFace =
     characterFilter !== null && !recent.some((face) => face.id === characterFilter.id)
-      ? [{ avatarHash: characterById.get(characterFilter.id)?.hash ?? null, id: characterFilter.id, name: characterFilter.name }]
+      ? [{ avatarHash: characterFilter.avatarHash, id: characterFilter.id, name: characterFilter.name }]
       : [];
   const faces = [...scopedFace, ...recent];
   const scopeToFace = (id: string): void => {
@@ -158,7 +155,7 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
       clearChatListCharacterFilter();
       return;
     }
-    setChatListCharacterFilter({ id: castId<CharacterId>(id), name: face.name });
+    setChatListCharacterFilter({ avatarHash: face.avatarHash, id: castId<CharacterId>(id), name: face.name });
   };
   // Captions on: this strip is a NAMED shortcut list (the library's favorites strip stays portraits-only),
   // so a face you haven't opened in a week is still identifiable without hovering it. The kicker is the
@@ -190,7 +187,7 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
       // arrival — the strip mounted above the search field and pushed the field + the whole row list down,
       // §4.3 rule 7). `isPending` is "no answer yet", never "no faces": a settled empty answer still renders
       // nothing, which is this strip's own ruling.
-      pending={chatsPending || portraitsPending}
+      pending={chatsPending}
       overflow={{
         label: "Filter by another character",
         // EXCLUDE THE FACES ALREADY ON THE ROW (side-eye 2026-08-03 P3): the tile says `+N More` and then
@@ -202,8 +199,8 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
             emptyText="No other characters to filter by."
             excludeIds={shownIds.map((id) => castId<CharacterId>(id))}
             label="Filter by another character"
-            onSelect={(id, name): void => {
-              setChatListCharacterFilter({ id, name });
+            onSelect={(id, name, avatarHash): void => {
+              setChatListCharacterFilter({ avatarHash, id, name });
               close();
             }}
             placeholder="Search characters…"
@@ -250,7 +247,6 @@ interface ChatListBodyProps {
 function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, onNewChat, onClearSearch, query }: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
   const collection = useChatListCollection({ trpc }, { characterId: characterFilter?.id ?? null, search: query });
-  const characterById = useChatPortraitMap();
 
   if (collection.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -289,7 +285,6 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
       <Stack className="min-h-0 flex-1">
         <ChatRows
           activeChatId={activeChatId}
-          characterById={characterById}
           items={collection.items}
           listProps={collection.listProps}
           onClearSearch={onClearSearch}
@@ -304,7 +299,6 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
 
 interface ChatRowsProps {
   readonly activeChatId: ChatId | null;
-  readonly characterById: ReadonlyMap<string, ChatRowPortrait>;
   readonly items: readonly ChatListItem[];
   readonly listProps: ReturnType<typeof useChatListCollection>["listProps"];
   readonly onSelect: (chatId: ChatId) => void;
@@ -314,7 +308,7 @@ interface ChatRowsProps {
 }
 
 /** The search-empty → rows ladder. */
-function ChatRows({ activeChatId, characterById, items, listProps, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
+function ChatRows({ activeChatId, items, listProps, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
   const actions = useChatListRowActions();
   if (items.length === 0) {
     // An HONEST claim now that the predicate is the server's: the whole library was searched, not the pages
@@ -342,7 +336,7 @@ function ChatRows({ activeChatId, characterById, items, listProps, onClearSearch
       chat={chat}
       onDeletedChat={onDeletedChat}
       onSelect={onSelect}
-      portraits={chatPortraits(chat.participantCharacterIds, characterById)}
+      portraits={chat.participantPortraits}
       qualifier={qualifiers[index]}
       selected={chat.id === activeChatId}
     />

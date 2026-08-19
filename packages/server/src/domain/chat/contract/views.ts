@@ -48,6 +48,15 @@ export type {
   VariantWireView,
 } from "@orb/contracts/chat";
 
+/** ONE character seat's face on a chat-list row (#192): the CAS portrait key plus the card name that backs
+ *  its initials fallback and its accessible label (a stacked avatar needs both). `avatarHash` null = this
+ *  seat has no portrait, which the row paints as its hue-seeded initials blob — never a broken image. */
+export interface ChatSeatPortrait {
+  readonly characterId: CharacterId;
+  readonly name: string;
+  readonly avatarHash: string | null;
+}
+
 /** The library-list row (listChats) — light, membership-scoped (D18: a chat I host OR am a member of; there
  *  is no `ownerId`). `lastMessageAt`/`messageCount` drive the list ordering + the unread chrome; `parentChatId`
  *  marks a fork in the list. */
@@ -92,6 +101,19 @@ export interface ChatSummary {
    *  which also counts past seats). Character seats only (`kind='character'`) — human/agent/observer excluded;
    *  deduped. Populated via ONE junction bulk read per page (no N+1 — the `canonicalTagsFor` precedent). */
   readonly participantCharacterIds: readonly CharacterId[];
+  /** The row's own PORTRAITS — one entry per PRESENT character seat, in seat order (#192). The list row
+   *  paints a face per seat (one seat = a portrait, two or more = an `AvatarStack`), and until now the
+   *  client resolved those faces by fetching the WHOLE character library (`character.list {limit: 500}`)
+   *  on every surface that shows a chat row, then indexing `participantCharacterIds` into it — a
+   *  whole-library read to decorate six rows, and one that simply stopped resolving past the page ceiling.
+   *  A row carries what it is about, so the seats ride the row.
+   *
+   *  Derived from the roster views this projection ALREADY loads (`loadParticipantViews` — the same read
+   *  that produces `participantNames`), so it costs no extra query and its name/avatar resolution is the
+   *  one the room itself uses. PRESENT seats only, unlike `participantCharacterIds` above, which
+   *  deliberately keeps departed seats for the reverse "every chat you've had with them" read: a face is a
+   *  statement about who is IN the room, and the roster resolver only decorates present seats. */
+  readonly participantPortraits: readonly ChatSeatPortrait[];
   /** The CALLER's own role in this chat (D18 membership), derived per-caller from the `chat_participants`
    *  FK truth in the listing projection — never stamped. Drives the Automation pane's chat picker (which
    *  offers only HOSTED chats, since v1 rule authoring IS room-host authority) and any future

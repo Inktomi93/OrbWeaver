@@ -460,7 +460,7 @@ export function ChatListFilterProbe(): ReactElement {
   return (
     <div>
       <output>{`filter=${filter === null ? "none" : `${filter.id}:${filter.name}`}`}</output>
-      <button type="button" onClick={(): void => setChatListCharacterFilter({ id: PROBE_FILTER_CHARACTER, name: "Aria" })}>
+      <button type="button" onClick={(): void => setChatListCharacterFilter({ avatarHash: null, id: PROBE_FILTER_CHARACTER, name: "Aria" })}>
         set filter
       </button>
       <button type="button" onClick={(): void => clearChatListCharacterFilter()}>

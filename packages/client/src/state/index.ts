@@ -141,7 +141,7 @@ export { clearDocumentSelection, databankSectionSelection, selectDocumentFromLis
 // of those is now the COMMITTED verb it always shadowed.
 export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-local.ts";
 export { __resetDurableLocal, activeDurableLocalUserId, bindDurableLocalToUser, durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
-export { __readHomeTileBoxForTest, __resetHomeTileBoxes, rememberHomeTileBox, useHomeTileBox } from "./home-tile-box-store.ts";
+export { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox, useSurfaceBox } from "./home-tile-box-store.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
 export {
@@ -151,6 +151,7 @@ export {
   startEditingMessage,
   useIsEditingMessage,
   useMessageEditDraftText,
+  useMessageEditReservedInlineSize,
 } from "./message-edit-draft.ts";
 export {
   __resetSelection,

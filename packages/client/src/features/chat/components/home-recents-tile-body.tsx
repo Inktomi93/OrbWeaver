@@ -37,8 +37,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
-import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
-import { chatPortraits } from "../lib/chat-summary-row.ts";
 import { HomeHearthRoom } from "./home-hearth-room.tsx";
 
 /** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
@@ -53,13 +51,10 @@ function openRecent(chatId: ChatId): void {
 export function HomeRecentsTileBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
-  // THE PORTRAIT READ IS BACK, FOR A DIFFERENT CONSUMER (#205; it was removed by rail sweep P2-5/P2-6 when
-  // the hero's 3-face cover-crop STRIP was deleted). The strip stays deleted — this feeds the hero's
-  // `aria-hidden` art BLEED, which renders one portrait as chroma at the island's far edge and no cast
-  // datum at all. It costs no network either way: `useChatPortraitMap` is a plain non-blocking `useQuery`
-  // on the same key the also-open list beside it and both chats panes already run, so this is the same
-  // cache entry, and a slow or failed character read simply means the island has no bleed.
-  const characterById = useChatPortraitMap();
+  // THE HERO'S ART BLEED (#205; the 3-face cover-crop STRIP it replaced stays deleted). It renders one
+  // portrait as chroma at the island's far edge — `aria-hidden` art, no cast datum at all. Since #192 the
+  // face rides the chat ROW itself, so it costs no network at all: the whole-library `character.list` read
+  // this used to index into is gone, and a room whose seats have no portrait simply has no bleed.
   const hearth = page.items[0];
 
   if (hearth === undefined) {
@@ -82,7 +77,7 @@ export function HomeRecentsTileBody(): ReactElement {
   // row applies to a single-avatar chat, so the island and the rows below it never disagree about which
   // portrait represents a room. Seats with no portrait are skipped rather than ending the search: a room
   // whose lead character has no card image still has a face to show if anyone else in it does.
-  const artHash = chatPortraits(hearth.participantCharacterIds, characterById).find((seat) => seat.hash !== null)?.hash ?? null;
+  const artHash = hearth.participantPortraits.find((seat) => seat.avatarHash !== null)?.avatarHash ?? null;
 
   return <HomeHearthRoom artSrc={artHash === null ? undefined : blobUrl(artHash)} chat={hearth} onResume={openRecent} />;
 }

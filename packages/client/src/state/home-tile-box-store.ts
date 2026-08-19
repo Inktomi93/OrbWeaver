@@ -1,5 +1,9 @@
-// HOME-TILE BOX MEMORY — the per-tile settled body height, remembered per device so a tile's LOADING
-// state reserves the same box its content will occupy on the next boot.
+// SURFACE BOX MEMORY — the per-surface settled body height, remembered per device so a LOADING state
+// reserves the same box its content will occupy on the next open. Keyed by an opaque surface id: home's
+// tiles were its first consumers (and its file name), the rpg HUD's waystone band is the second (#149).
+// THE FILE NAME AND THE PERSIST KEY STILL SAY "home-tile" — they are the historical spelling, kept because
+// renaming the persist key discards every device's measurements and renaming the file is a test-baseline
+// `deletions` edit; the CONCEPT is one box memory with one home, which is what the exported names say.
 //
 // WHY IT EXISTS (measured, 2026-08-02 F14): home's tiles each suspend behind their own QueryBoundary
 // (home-tile.tsx §3.7) and fall back to a fixed 3-row skeleton. When the reads land, the full-span
@@ -21,13 +25,13 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
-/** Heights above this are a bug (a mis-measured detached node), not a tile — never reserve them. */
+/** Heights above this are a bug (a mis-measured detached node), not a surface — never reserve them. */
 const MAX_REMEMBERED_PX = 4000;
 /** Sub-pixel churn is not a new box; ignore writes inside this band so a re-measure isn't a storage write. */
 const WRITE_EPSILON_PX = 1;
 
 interface HomeTileBoxState {
-  /** tile id → the last settled body height in CSS px. */
+  /** surface id → the last settled body height in CSS px. */
   readonly boxes: Readonly<Record<string, number>>;
 }
 
@@ -61,30 +65,31 @@ const useHomeTileBoxStore = createPersistedStore<HomeTileBoxState>("home-tile-bo
   partialize: (s): HomeTileBoxState => ({ boxes: s.boxes }),
 });
 
-/** The height to reserve for `tileId`'s loading state, or `null` when this device has never seen it settle. */
-export function useHomeTileBox(tileId: string): number | null {
-  return useHomeTileBoxStore((s) => s.boxes[tileId] ?? null);
+/** The height to reserve for `surfaceId`'s loading state, or `null` when this device has never seen it
+ *  settle. */
+export function useSurfaceBox(surfaceId: string): number | null {
+  return useHomeTileBoxStore((s) => s.boxes[surfaceId] ?? null);
 }
 
-/** Record a tile body's settled height. Out-of-range or unchanged measurements are dropped (no write). */
-export function rememberHomeTileBox(tileId: string, height: number): void {
+/** Record a surface body's settled height. Out-of-range or unchanged measurements are dropped (no write). */
+export function rememberSurfaceBox(surfaceId: string, height: number): void {
   if (!(Number.isFinite(height) && height > 0 && height <= MAX_REMEMBERED_PX)) {
     return;
   }
   const { boxes } = useHomeTileBoxStore.getState();
-  const current = boxes[tileId];
+  const current = boxes[surfaceId];
   if (current !== undefined && Math.abs(current - height) < WRITE_EPSILON_PX) {
     return;
   }
-  useHomeTileBoxStore.setState({ boxes: { ...boxes, [tileId]: height } }, false, "homeTileBox/remember");
+  useHomeTileBoxStore.setState({ boxes: { ...boxes, [surfaceId]: height } }, false, "surfaceBox/remember");
 }
 
-/** Test seam: the remembered box WITHOUT a React render (the `useHomeTileBox` hook needs one). */
-export function __readHomeTileBoxForTest(tileId: string): number | null {
-  return useHomeTileBoxStore.getState().boxes[tileId] ?? null;
+/** Test seam: the remembered box WITHOUT a React render (the `useSurfaceBox` hook needs one). */
+export function __readSurfaceBoxForTest(surfaceId: string): number | null {
+  return useHomeTileBoxStore.getState().boxes[surfaceId] ?? null;
 }
 
 /** Test seam: drop every remembered box (a CT/unit run must not inherit another test's measurements). */
-export function __resetHomeTileBoxes(): void {
-  useHomeTileBoxStore.setState({ boxes: {} }, false, "homeTileBox/__reset");
+export function __resetSurfaceBoxes(): void {
+  useHomeTileBoxStore.setState({ boxes: {} }, false, "surfaceBox/__reset");
 }
