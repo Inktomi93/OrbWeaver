@@ -3,9 +3,11 @@
 #
 # MODE-AWARE ENTRY (see the MODE + --debug dispatch block below for the grammar):
 #
-#   pnpm stack up|down|restart|status [dev|prod] [--debug]
+#   pnpm stack up|start-fg|down|restart|status [dev|prod] [--debug]
 #     dev  (default)  this file — watched server + vite + engines posture, exactly as before
 #     prod            scripts/dev/stack-prod.ts — detached production server, no vite, no build step
+#     start-fg prod   scripts/dev/stack-prod.ts — the production server in the FOREGROUND (this terminal
+#                     owns it, Ctrl-C stops it, no pidfile) — the on-box direct run that replaced `pnpm start`
 #     --debug         arms DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE as a spawn env OVERLAY (never edits .env)
 #
 # `up`/`down` are aliases for `start`/`stop`; the original spellings stay first-class (playwright's
@@ -111,10 +113,11 @@ mkdir -p "$RUN_DIR"
 # multi-user-fixture.sh are untouched. `up`/`down` are aliases of `start`/`stop`, which stay first-class
 # forever — those three callers spell them by name.
 #
-# PROD routes the WHOLE invocation to scripts/dev/stack-prod.ts and never returns. That supervisor owns
-# the production lifecycle (identity-verified adopt/stop, bounded drain watch, client-dist preflight);
-# nothing below this block runs in prod mode, because prod has no vite, no engines management, and no
-# dev env pins.
+# PROD routes the WHOLE invocation to scripts/dev/stack-prod.ts and never returns — INCLUDING `start-fg
+# prod`, the FOREGROUND on-box run (`NODE_ENV=production node <entry>.ts` in this terminal, no pidfile)
+# that replaced `pnpm start`. That supervisor owns the production lifecycle (identity-verified adopt/stop,
+# bounded drain watch, client-dist preflight, and the foreground run); nothing below this block runs in
+# prod mode, because prod has no vite, no engines management, and no dev env pins.
 #
 # --debug is ORTHOGONAL to mode: it arms DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE as a PROCESS ENV OVERLAY on
 # the stack we are about to spawn. It NEVER edits `.env` (the workflow this replaces did, and left the

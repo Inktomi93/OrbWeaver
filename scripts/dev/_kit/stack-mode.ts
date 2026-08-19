@@ -86,10 +86,11 @@ export type StackVerb = (typeof STACK_VERBS)[number];
  *  (`stack.sh start-fg`), snap-stage's boot/teardown and multi-user-fixture.sh all call them by name.
  *  `up`/`down` are the owner-facing spelling added with modes.
  *
- *  `up-fg` (`start-fg`) and `_leader` are DEV-ONLY internals — the Playwright webServer entrypoint and
- *  the setsid re-exec target. They live in this table because `stack.sh` classifies EVERY invocation
- *  through this one parser (see `formatDispatch`); a verb the parser does not know must exit 2, and
- *  these two are known-and-dev-only rather than unknown. */
+ *  `up-fg` (`start-fg`) is FOREGROUND: in dev it is the Playwright webServer entrypoint (server + vite in
+ *  the foreground, caller reaps); in prod it is the on-box direct run — `NODE_ENV=production node <entry>.ts`
+ *  in this terminal — that replaced the removed `pnpm start`. `_leader` is the DEV-ONLY setsid re-exec
+ *  target. Both live in this table because `stack.sh` classifies EVERY invocation through this one parser
+ *  (see `formatDispatch`); a verb the parser does not know must exit 2, so a known-internal is not unknown. */
 const VERB_ALIASES: Readonly<Record<string, StackVerb>> = {
   up: "up",
   start: "up",
@@ -103,9 +104,11 @@ const VERB_ALIASES: Readonly<Record<string, StackVerb>> = {
   _leader: "_leader",
 };
 
-/** The dev-only verbs: they have no prod implementation at all (prod has no vite to foreground and no
- *  setsid leader — the supervisor detaches the server itself). */
-const DEV_ONLY_VERBS: ReadonlySet<StackVerb> = new Set<StackVerb>(["up-fg", "_leader"]);
+/** The dev-only verbs. `_leader` is the setsid re-exec target — prod has no setsid leader (its supervisor
+ *  either detaches the server itself, for `up prod`, or runs it in this terminal, for `start-fg prod`).
+ *  `up-fg`/`start-fg` is NO LONGER dev-only: in prod it is the FOREGROUND on-box run that replaced the
+ *  removed `pnpm start`. */
+const DEV_ONLY_VERBS: ReadonlySet<StackVerb> = new Set<StackVerb>(["_leader"]);
 
 /** The `stack.sh` case-label each verb maps back to. The shell no longer classifies anything itself —
  *  it asks this parser and switches on the answer, so there is exactly ONE grammar and the tests that
@@ -161,7 +164,7 @@ export function parseStackArgv(argv: readonly string[]): StackParse {
   if (mode === "prod" && DEV_ONLY_VERBS.has(verb)) {
     return {
       ok: false,
-      error: `'${rawVerb ?? ""}' is dev-only: prod has no foreground vite to own and no setsid leader (the prod supervisor detaches the server itself)`,
+      error: `'${rawVerb ?? ""}' is an internal dev-only re-exec target: prod has no setsid leader (its supervisor detaches the server for 'up prod', or runs it in the foreground for 'start-fg prod')`,
     };
   }
   if (force && mode === "prod") {

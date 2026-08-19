@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# ── pnpm dev — ONE command: vLLM engines + the watched server ────────────────
+# ── the dev server boot: vLLM engines + the watched server ───────────────────
+#
+# This is the SERVER half of the dev stack — `pnpm stack up` runs it (via `bash
+# scripts/dev/stack.sh` → this file by path) and adds vite on top. There is no
+# `pnpm dev` alias any more: `pnpm stack` is the ONE front door (a foreground,
+# vite-less server run is `bash scripts/dev/dev.sh` by hand).
 #
 # The reload-on-save problem: `node --watch` kills + respawns the SERVER on every
 # file save. If the server owned the vLLM engines, each save would cold-respawn
 # the trio (~1-2 min). FLEET MODEL (A.4): the engines are a box-level SINGLETON
 # spawned DETACHED (`engines:start` → setsid + pidfile), owned by NOBODY — so a
-# `pnpm dev` restart (or a dev Ctrl-C) leaves the fleet warm for the next orb, and
+# dev restart (or a dev Ctrl-C) leaves the fleet warm for the next orb, and
 # the in-server supervisor merely ADOPTS the running ports. A save restarts only
 # the server; it re-adopts the same engines. No engine reload, one command.
 #
@@ -44,7 +49,7 @@ bash "$REPO/scripts/dev/engines.sh" start || echo "dev: engines:start reported a
 # The watched server. Restarts re-adopt the warm engines. Process-sub for the
 # pretty pipe so SERVER_PID is NODE ITSELF (killable in cleanup), not pino-pretty;
 # pino-pretty exits on its own when the pipe closes. Explicit bin paths so this
-# works whether invoked via `pnpm dev` or by hand — `node` is the platform binary, so no $BIN
+# works whether invoked via `pnpm stack` or by hand — `node` is the platform binary, so no $BIN
 # prefix (and no loader). Explicit workspace watch roots keep Node out of imported `node_modules`: tooling
 # legitimately touches installed package files, and recursive dependency watching was restarting the server
 # mid-turn and erasing its in-memory wire/RPG flight recorders. `--watch-preserve-output` keeps the
@@ -57,7 +62,7 @@ bash "$REPO/scripts/dev/engines.sh" start || echo "dev: engines:start reported a
 # terminal instead of being blasted through the pretty parser as junk lines.
 # pino-pretty opts make it usable, not a firehose: drop pid/hostname, local-time
 # stamps, and --singleLine so each log (with its bound requestId/userId) is ONE
-# scannable line instead of an exploded object. Prod (`pnpm start`) stays raw JSON.
+# scannable line instead of an exploded object. Prod (`pnpm stack start-fg prod`) stays raw JSON.
 node --watch --watch-preserve-output \
   --watch-path="$REPO/packages/server/src" \
   --watch-path="$REPO/packages/contracts/src" \

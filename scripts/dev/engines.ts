@@ -7,7 +7,7 @@
  *
  * Dev tooling (throwaway launcher; global KISS applies — NOT the architecture). It boots the three loopback
  * engines SEQUENTIALLY and stays in the foreground OWNING them, OUTSIDE the tsx-watch server loop, so a
- * `pnpm dev` restart ADOPTS the already-warm ports instead of cold-respawning them (~1-2 min each save).
+ * a dev-server restart (`pnpm stack up`) ADOPTS the already-warm ports instead of cold-respawning them (~1-2 min each save).
  * The in-server adoptive supervisor adopts these; on an admin "restart to apply" it takes over the one
  * engine it bounces. This launcher NEVER owns the watched process's engines — the HMR-topology INVARIANT.
  *
@@ -236,7 +236,7 @@ async function main(): Promise<void> {
   }
 
   // Foreground mode (default) owns the children + group-kills them on a signal (the pre-fleet behavior for
-  // `pnpm dev` adoption). --detach records the pidfile and exits, leaving the engines warm (fleet model).
+  // dev-server adoption). --detach records the pidfile and exits, leaving the engines warm (fleet model).
   if (!DETACH) {
     const cleanup = (): void => {
       log("stopping…");
@@ -299,7 +299,7 @@ async function main(): Promise<void> {
     return; // exit WITHOUT the kill trap; the engines keep running, owned by nothing.
   }
   releaseBootLock();
-  log("owning them in the foreground; `pnpm dev` will ADOPT. Ctrl-C to stop.");
+  log("owning them in the foreground; the dev server (`pnpm stack up`) will ADOPT. Ctrl-C to stop.");
   // Hold the process open owning the children until a signal tears it down.
   await new Promise<void>(() => undefined);
 }
