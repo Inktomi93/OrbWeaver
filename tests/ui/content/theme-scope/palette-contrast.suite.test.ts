@@ -8,7 +8,7 @@
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
-import { READING_BAND_ALPHA, readingBandSurface, readingPlateAlpha } from "@orb/kit/theme-derivation";
+import { READING_BAND_ALPHA, readingBandSurface, readingPlateAlpha, shadowIngredients } from "@orb/kit/theme-derivation";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { Rgb } from "../../../../scripts/probes/design-audit-checks.ts";
@@ -396,6 +396,88 @@ test.each(
       const ratio = contrastRatio(resolveTokenRgb(ink, palette), composited);
       expect(ratio, `${ink} over the plate over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
+  }
+});
+
+// ── #243: THE ELEVATION INGREDIENTS — polarity-derived, so a CUSTOM light theme stops wearing dark smoke ──
+const SHADOW_HAIRLINE_VAR = "--color-shadow-hairline";
+const SHADOW_AMBIENT_FAR_VAR = "--color-shadow-ambient-far";
+/** The emitted relative-colour ingredient RESOLVED against its base — `oklch(from <base> L C h / A)` with
+ *  the base's hue substituted, i.e. exactly what the browser computes, then composited over the base. */
+const RELATIVE_INGREDIENT_RE = /^oklch\(from .+? ([\d.]+) ([\d.]+) h \/ ([\d.]+)\)$/u;
+function resolvedIngredientOver(emitted: string | undefined, base: Oklch): Rgb {
+  const m = RELATIVE_INGREDIENT_RE.exec(emitted ?? "");
+  if (m === null) {
+    throw new Error(`not an emitted relative-colour ingredient: ${String(emitted)}`);
+  }
+  const ingredient: Oklch = { l: Number(m[1]), c: Number(m[2]), h: base.h, alpha: Number(m[3]) };
+  return compositeOver(ingredient, oklchToRgb(base));
+}
+
+/** The five ingredient token paths, paired with the derivation role each must equal. */
+const SHADOW_INGREDIENT_PATHS = [
+  ["color.shadow-hairline", "hairline"],
+  ["color.shadow-highlight", "highlight"],
+  ["color.shadow-ambient-near", "ambientNear"],
+  ["color.shadow-ambient-far", "ambientFar"],
+  ["color.shadow-cta-highlight", "ctaHighlight"],
+] as const satisfies ReadonlyArray<readonly [keyof typeof TOKENS, keyof ReturnType<typeof shadowIngredients>]>;
+
+test.each(PALETTES.map((p) => [p.name, p] as const))("#243 %s: the five elevation-ingredient literals ARE shadowIngredients(background)", (_name, palette) => {
+  const base = parseOklch(palette.vars[TOKENS["color.background"].cssVar] ?? TOKENS["color.background"].value);
+  const derived = shadowIngredients(base);
+  for (const [path, role] of SHADOW_INGREDIENT_PATHS) {
+    const shipped = parseOklch(palette.vars[TOKENS[path].cssVar] ?? TOKENS[path].value);
+    const want = derived[role];
+    expect(shipped.l, `${path} L @ ${palette.name}`).toBeCloseTo(want.l, 4);
+    expect(shipped.c, `${path} chroma @ ${palette.name}`).toBeCloseTo(want.c, 4);
+    expect(shipped.alpha, `${path} alpha @ ${palette.name}`).toBeCloseTo(want.alpha, 4);
+    // Hue is asserted through the RENDERED colour rather than the number, because hue is POWERLESS at
+    // chroma 0: the dark arm is pure white/black, so its shipped literals spell hue 0 while the
+    // derivation carries the palette's — identical pixels, and the reason the dark rooms cannot move.
+    // Where the arm HAS chroma (the light arm's warm hairline/ambient) this pins the hue to the palette's.
+    const shippedRgb = oklchToRgb(shipped);
+    const wantRgb = oklchToRgb(want);
+    expect([shippedRgb.r, shippedRgb.g, shippedRgb.b], `${path} renders the derivation's colour @ ${palette.name}`).toEqual([
+      expect.closeTo(wantRgb.r, 3),
+      expect.closeTo(wantRgb.g, 3),
+      expect.closeTo(wantRgb.b, 3),
+    ]);
+  }
+});
+
+test("#243 the derived hairline ring falls on the CORRECT side of the base — light-from-above on dark, a dark ring on light", () => {
+  for (const baseStr of REALISTIC_BASES) {
+    const base = parseOklch(baseStr);
+    const ring = resolvedIngredientOver(clampThemeTokens({ background: baseStr }).vars[SHADOW_HAIRLINE_VAR], base);
+    const baseRgb = oklchToRgb(base);
+    // Luminance, not a channel: the ring must READ as edge light on a dark surface and as a hairline
+    // border on a light one. The pre-#243 inherited dark recipe is a WHITE ring on a light base — the
+    // 1.29:1 ghost #232 measured — so this assertion is the defect, stated directionally.
+    const brighter = contrastRatio(ring, baseRgb) > 1 && ring.r > baseRgb.r;
+    expect(brighter, `hairline ring lighter than the base @ ${baseStr}`).toBe(base.l <= D.fgPivotL);
+  }
+});
+
+test("#243 the derived ingredients BEAT the inherited dark recipe on the two properties #232 measured", () => {
+  // Not a floor pulled out of the air: on every realistic LIGHT base the derivation must make the ring
+  // MORE visible and the ambient drop LESS heavy than the base-theme (dark) recipe a custom light theme
+  // inherited before #243. Measured at the shipped values: ring 1.00-1.02 -> 1.32-1.34, far ambient
+  // 3.73-3.93 (a black halo, the "sticker" side-eye finding) -> 1.26-1.27.
+  const inheritedHairline = parseOklch(TOKENS["color.shadow-hairline"].value);
+  const inheritedAmbientFar = parseOklch(TOKENS["color.shadow-ambient-far"].value);
+  for (const baseStr of LIGHT_BASES) {
+    const base = parseOklch(baseStr);
+    const baseRgb = oklchToRgb(base);
+    const { vars } = clampThemeTokens({ background: baseStr });
+    const inheritedRing = compositeOver(inheritedHairline, baseRgb);
+    const derivedRing = resolvedIngredientOver(vars[SHADOW_HAIRLINE_VAR], base);
+    expect(contrastRatio(derivedRing, baseRgb), `ring visibility @ ${baseStr}`).toBeGreaterThan(contrastRatio(inheritedRing, baseRgb));
+    const inheritedDrop = compositeOver(inheritedAmbientFar, baseRgb);
+    const derivedDrop = resolvedIngredientOver(vars[SHADOW_AMBIENT_FAR_VAR], base);
+    expect(contrastRatio(derivedDrop, baseRgb), `ambient weight @ ${baseStr}`).toBeLessThan(contrastRatio(inheritedDrop, baseRgb));
+    // …and the drop is still a DROP: an ambient layer darkens its surroundings on either polarity.
+    expect(derivedDrop.r, `the ambient drop darkens @ ${baseStr}`).toBeLessThan(baseRgb.r);
   }
 });
 
