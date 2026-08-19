@@ -8,9 +8,11 @@
 // Character-Card V2 AND V3 are read first-class into the ONE canonical model: V3 is a strict SUPERSET of V2,
 // so the shared `data.*` reads cover both, and cardFromJson captures the source `spec` so buildCardV3
 // round-trips it (V2→V2, V3→V3). V3-native content is now DECOMPOSED into typed columns: `nickname`/`source`/
-// `creation_date`/`modification_date` are first-class card fields (read here, emitted by buildCardV3);
-// `creator_notes_multilingual` folds into `creator_notes` (the default-language note is the one home — the
-// map is NOT separately stored). `assets` remains on the `residualData` passthrough (preserved verbatim,
+// `creation_date`/`modification_date` are first-class card fields (read here, emitted by buildCardV3).
+// `creator_notes_multilingual` has NO typed column: it rides the `residualData` passthrough verbatim and only
+// FEEDS `creator_notes` when that is empty (#266 D-1 — it was promoted out of residual and never folded, so a
+// map-only card imported with its notes destroyed; the `en`-first pick is a display fallback, not a locale
+// policy). `assets` remains on the `residualData` passthrough (preserved verbatim,
 // non-lossy) pending its own lane; `group_only_greetings` folds into the `greetings` array (`groupOnly:true`
 // entries — V3 promotion Phase B), re-split on export. V3 `data.assets[]` is PARSED + PRESERVED only:
 // resolving an asset URI (charx ZIP embed, `http(s)`, `ccdefault:`) → expression sprites / the gallery is a
@@ -25,7 +27,7 @@ import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema, toRegexScriptCa
 import { isPlainObject } from "@orb/kit/guards";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
-import { resolveEntryInjection, resolveEntryScope } from "@orb/kit/world-info";
+import { resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
@@ -61,6 +63,7 @@ interface RawCard {
   post_history_instructions?: unknown;
   creator?: unknown;
   creator_notes?: unknown;
+  creator_notes_multilingual?: unknown;
   creatorcomment?: unknown;
   alternate_greetings?: unknown;
   group_only_greetings?: unknown;
@@ -207,13 +210,13 @@ const PROMOTED_DATA_KEYS = new Set([
   // so it doesn't double-ride the residual passthrough AND re-emit on export (V3 promotion Phase B).
   "group_only_greetings",
   // V3-additive `data.*` fields with a typed column now (were residual until the card-import expansion). Kept
-  // out of `residualData` so they don't double-emit on a round-trip. `creator_notes_multilingual` is here too
-  // (folded into `creator_notes` — the map is intentionally not stored, so it drops from residual).
+  // out of `residualData` so they don't double-emit on a round-trip. `creator_notes_multilingual` is NOT here
+  // (#266 D-1): it has no typed column, so promoting it out DESTROYED it — it rides the residual passthrough
+  // and only FEEDS `creatorNotes` as a fallback (see {@link foldMultilingualNotes}).
   "nickname",
   "source",
   "creation_date",
   "modification_date",
-  "creator_notes_multilingual",
   "extensions",
   "regex_scripts",
   "tags",
@@ -227,9 +230,10 @@ const PROMOTED_DATA_KEYS = new Set([
 
 /** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (PD-127 — the top-level sibling of
  *  {@link residualExtensions}, which only covers `data.extensions.*`). The known ST-V3 `data.*` fields
- *  (`nickname`/`source`/`creation_date`/`modification_date`/`creator_notes_multilingual`) are promoted OUT
- *  via {@link PROMOTED_DATA_KEYS}; what remains here is genuinely-unknown vendor residue (`assets` pending its
- *  lane; `group_only_greetings` folds into the `greetings` array). Null when nothing is left. */
+ *  (`nickname`/`source`/`creation_date`/`modification_date`) are promoted OUT via {@link PROMOTED_DATA_KEYS};
+ *  what remains here is genuinely-unknown vendor residue PLUS the column-less V3 fields kept verbatim
+ *  (`assets` pending its lane; `creator_notes_multilingual`, #266 D-1; `group_only_greetings` folds into the
+ *  `greetings` array). Null when nothing is left. */
 function residualData(data: RawCard): Record<string, unknown> | null {
   const rest: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
@@ -242,6 +246,32 @@ function residualData(data: RawCard): Record<string, unknown> | null {
 
 // ST stamps this placeholder in `creator_notes`; strip it so it doesn't ride into the canonical card.
 const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
+
+// The language whose note is preferred when `creator_notes` is empty and the V3 map has to supply one. The
+// app is single-language, so this is a DISPLAY fallback, not a locale policy — a real per-user language
+// preference (V3 says the app should pick the reader's language) is an owner call and would live in settings.
+const DEFAULT_NOTES_LANGUAGE = "en";
+
+/** V3 `data.creator_notes_multilingual` → the ONE note to display when `creator_notes` carries none (#266
+ *  D-1 — a map-only card used to import with its notes destroyed). `en` first, else the first non-empty value
+ *  in key order; a malformed map yields "" and never throws (tolerant IN). The map itself is NOT consumed —
+ *  it rides `residualData` verbatim and re-emits on export, so the fold is additive, never lossy. */
+function foldMultilingualNotes(raw: unknown): string {
+  if (!isPlainObject(raw)) {
+    return "";
+  }
+  const preferred = str(raw[DEFAULT_NOTES_LANGUAGE]);
+  if (preferred.trim().length > 0) {
+    return preferred;
+  }
+  for (const value of Object.values(raw)) {
+    const note = str(value);
+    if (note.trim().length > 0) {
+      return note;
+    }
+  }
+  return "";
+}
 
 /** The wire spec a card was READ from — keyed on the top-level `spec` marker (ST's discriminator). V2/V3 are
  *  preserved so export round-trips them; V1 / Pygmalion / app-authored cards (no `spec`) return `undefined`
@@ -287,7 +317,12 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
     systemPrompt: nullIfEmpty(str(data.system_prompt)),
     postHistoryInstructions: nullIfEmpty(str(data.post_history_instructions)),
     depthPrompt: parseDepthPrompt(data.extensions?.depth_prompt),
-    creatorNotes: nullIfEmpty(str(data.creator_notes).replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim()),
+    // The placeholder-stripped `creator_notes` is the one home; the V3 multilingual map only fills an EMPTY
+    // one (#266 D-1). The map survives regardless — it rides `residualData`.
+    creatorNotes: firstNonEmpty(
+      str(data.creator_notes).replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim(),
+      foldMultilingualNotes(data.creator_notes_multilingual),
+    ),
     creator: nullIfEmpty(str(data.creator)),
     cardVersion: nullIfEmpty(str(data.character_version)),
     nickname: nullIfEmpty(str(data.nickname)),
@@ -349,9 +384,9 @@ export function cardContentHash(card: CharacterCard): string {
  *  `data.group_only_greetings` on export. `tags` are the ACCEPTED `character_tags` names
  *  (pending tags are NOT serialized). The typed promotions (`creator` / `cardVersion` /
  *  `regexScripts` / `extensions` / `depthPrompt`) are read straight off the flat row — no `raw` blob.
- *  `residualData` (PD-127) is the preserved top-level `data.*` blob — re-emitted at the `data` root. There
- *  is NO backing `characters` column yet (hygiene-only at the serde boundary), so it's optional — an
- *  export call site that predates PD-127 doesn't need to source it from anywhere. */
+ *  `residualData` (PD-127) is the preserved top-level `data.*` blob — re-emitted at the `data` root, backed by
+ *  the `characters.residual_data` column. Optional so an export call site with nothing to preserve (a
+ *  synthesized/app-authored card) can omit it. */
 export interface ExportCardFields {
   readonly name: string;
   readonly description: string | null;
@@ -439,6 +474,9 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
     insertion_order: entry.priority,
     comment: entry.title,
     constant: scope === "always",
+    // The V3 key-compile flag, re-derived from the RESOLVED mode (the `constant` precedent) so an entry whose
+    // keys are patterns says so on the wire even if the stored blob only carries orb's `keyMode`.
+    use_regex: resolveEntryKeyMode(meta) === "regex",
     ...(entry.ignoreBudget ? { ignoreBudget: true } : {}),
     extensions,
   };
@@ -609,6 +647,9 @@ export function loreEntryMetadata(entry: Record<string, unknown>): Record<string
     if (inject !== null) {
       meta["inject"] = inject;
     }
+  }
+  if (meta["keyMode"] === undefined && entry["use_regex"] === true) {
+    meta["keyMode"] = "regex";
   }
   return meta;
 }

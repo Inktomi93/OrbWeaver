@@ -12,6 +12,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import { messageRoleToSt } from "@orb/kit/message-role";
+import { matchEntryKeys } from "@orb/kit/world-info";
 import type { ExportCardFields } from "@orb/server/kit/serde/card";
 import {
   buildCardV3,
@@ -159,13 +160,14 @@ describe("V3 content promotions + residualData (card-import expansion / PD-127)"
     expect(card.source).toEqual(["https://example.com/aria.png"]);
     expect(card.creationDate).toBe(1_700_000_000);
     expect(card.modificationDate).toBe(1_700_100_000);
-    // … creator_notes_multilingual FOLDS into creator_notes (default-language note is the one home; the map
-    // is intentionally not stored) …
+    // … creator_notes stays the one home for the DISPLAYED note (the multilingual map is a FALLBACK only,
+    // #266 D-1) …
     expect(card.creatorNotes).toBe("the default-language note");
     // … group_only_greetings FOLDS into the greetings array as a `groupOnly:true` entry (V3 promotion Phase B) …
     expect(card.greetings).toContainEqual({ text: "*waves to the group*", groupOnly: true });
-    // … and residualData holds ONLY genuinely-unknown / deferred keys — never a promoted or folded field.
-    expect(card.residualData).toEqual({ vendor_unknown: { foo: 1 } });
+    // … and residualData holds the genuinely-unknown keys PLUS the preserved multilingual map (#266 D-1 —
+    // it is no longer promoted out, so nothing is destroyed on import).
+    expect(card.residualData).toEqual({ vendor_unknown: { foo: 1 }, creator_notes_multilingual: { en: "hi", fr: "salut" } });
   });
 
   test("no residual data.* keys → null (not an empty object)", () => {
@@ -229,6 +231,49 @@ describe("V3 content promotions + residualData (card-import expansion / PD-127)"
     expect("group_only_greetings" in card.data).toBe(false);
     expect("creation_date" in card.data).toBe(false);
     expect("modification_date" in card.data).toBe(false);
+  });
+
+  test("a multilingual-ONLY notes card keeps its notes and PRESERVES the map (#266 D-1)", () => {
+    // Red-first: `creator_notes_multilingual` was stripped from the residual passthrough by the promotion
+    // AND never folded, so a card whose notes live only in the map lost them outright on import.
+    const card = cardFromJson(
+      {
+        spec: "chara_card_v3",
+        spec_version: "3.0",
+        data: { name: "Aria", creator_notes: "", creator_notes_multilingual: { fr: "la note", en: "the english note" } },
+      },
+      "fallback",
+    );
+    // The fold is a FALLBACK for an empty `creator_notes`: `en` first (the app's one language), else the
+    // first non-empty value in insertion order.
+    expect(card.creatorNotes).toBe("the english note");
+    // …and the whole map still rides the residual passthrough — nothing is destroyed.
+    expect(card.residualData).toEqual({ creator_notes_multilingual: { fr: "la note", en: "the english note" } });
+  });
+
+  test("creator_notes WINS when present; the multilingual map still rides residual", () => {
+    const card = cardFromJson({ data: { name: "Aria", creator_notes: "the default-language note", creator_notes_multilingual: { en: "hi" } } }, "fallback");
+    expect(card.creatorNotes).toBe("the default-language note");
+    expect(card.residualData).toEqual({ creator_notes_multilingual: { en: "hi" } });
+  });
+
+  test("the multilingual fallback picks the first non-empty value when there is no `en` key", () => {
+    const card = cardFromJson({ data: { name: "Aria", creator_notes_multilingual: { de: "", ja: "ノート", fr: "la note" } } }, "fallback");
+    expect(card.creatorNotes).toBe("ノート");
+  });
+
+  test("a malformed multilingual map neither folds nor throws (tolerant IN)", () => {
+    expect(cardFromJson({ data: { name: "Aria", creator_notes_multilingual: "not a map" } }, "fallback").creatorNotes).toBeNull();
+    expect(cardFromJson({ data: { name: "Aria", creator_notes_multilingual: { en: 7 } } }, "fallback").creatorNotes).toBeNull();
+  });
+
+  test("round-trip: the multilingual map survives import → export → re-import", () => {
+    const imported = cardFromJson({ data: { name: "Aria", creator_notes_multilingual: { en: "the english note" } } }, "fallback");
+    const exported = buildCardV3({ ...fullFields(), creatorNotes: imported.creatorNotes, residualData: imported.residualData ?? null }, []);
+    expect(exported.data["creator_notes_multilingual"]).toEqual({ en: "the english note" });
+    const reimported = cardFromJson(exported, "fallback");
+    expect(reimported.creatorNotes).toBe("the english note");
+    expect(reimported.residualData).toEqual({ creator_notes_multilingual: { en: "the english note" } });
   });
 
   test("typed columns win on key collision (a stale residual can't shadow a real field)", () => {
@@ -692,5 +737,48 @@ describe("the WI-entry round-trip (IN ∘ OUT is the exact inverse — byte-iden
     const meta = loreEntryMetadata({ content: "c", keys: ["k"], position: 4, depth: 3, role: 0 });
     expect(meta["inject"]).toEqual({ depth: 3, role: "system" }); // ST role 0 → "system"
     expect(meta).not.toHaveProperty("position"); // at-depth is not an anchor bucket
+  });
+
+  test("V3 `use_regex:true` normalizes to metadata.keyMode='regex' and the matcher honors it (#266 D-2)", () => {
+    // Red-first: `use_regex` used to ride through as an inert unknown metadata key — the entry imported
+    // enabled with a genuine pattern key and could never fire, because the matcher escapes every key.
+    const stEntry: Record<string, unknown> = {
+      keys: ["he(llo|y)"],
+      content: "A greeting.",
+      comment: "Greetings",
+      insertion_order: 0,
+      enabled: true,
+      use_regex: true,
+    };
+    const columns = loreEntryColumns(stEntry);
+    const metadata = loreEntryMetadata(stEntry);
+    expect(metadata["keyMode"]).toBe("regex");
+    // lossless: the source ST flag rides through beside the normalized orb key.
+    expect(metadata["use_regex"]).toBe(true);
+
+    // The stored columns + metadata are exactly what the per-turn pool feeds the matcher. `he(llo|y)` matches
+    // "hey" ONLY under regex semantics — escaped, it is an unmatchable literal.
+    expect(matchEntryKeys(columns.keys, "hey there", { keyMode: "regex" })).toEqual(["he(llo|y)"]);
+
+    // OUT re-emits the ST flag from the RESOLVED mode (the `constant` precedent), so a re-import is a fixpoint.
+    const out = exportBookEntry({
+      keys: columns.keys,
+      content: columns.content,
+      enabled: columns.enabled,
+      priority: columns.priority,
+      title: columns.title,
+      ignoreBudget: columns.ignoreBudget,
+      metadata,
+    });
+    expect(out["use_regex"]).toBe(true);
+    expect(loreEntryMetadata(out)["keyMode"]).toBe("regex");
+  });
+
+  test("an entry WITHOUT use_regex stays literal-keyed on both halves", () => {
+    const meta = loreEntryMetadata({ keys: ["dr."], content: "c" });
+    expect(meta).not.toHaveProperty("keyMode");
+    expect(matchEntryKeys(["dr."], "the dru walked in")).toEqual([]);
+    const out = exportBookEntry({ keys: ["dr."], content: "c", enabled: true, priority: 0, title: "t", ignoreBudget: false, metadata: meta });
+    expect(out["use_regex"]).toBe(false);
   });
 });

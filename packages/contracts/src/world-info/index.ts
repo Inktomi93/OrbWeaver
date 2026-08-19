@@ -6,7 +6,7 @@
 
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
-import { ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
+import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
 import { z } from "zod";
 
 const NAME_MAX = 200;
@@ -65,6 +65,9 @@ export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 // upsert spreads `prior.metadata` forward rather than stripping retired keys.)
 export const entryMetadataSchema = z.looseObject({
   scopeMode: z.enum(ENTRY_SCOPE_MODES).optional(),
+  /** How the entry's keys compile — the orb spelling of Character-Card-V3 `use_regex`, normalized in by the
+   *  card serde (`loreEntryMetadata`). Absent ⇒ `literal`. */
+  keyMode: z.enum(ENTRY_KEY_MODES).optional(),
   inject: injectionDirectiveSchema.optional(),
   position: z.enum(ENTRY_POSITIONS).optional(),
   provenance: loreEntryProvenanceSchema.optional(),

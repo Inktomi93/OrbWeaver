@@ -28,6 +28,7 @@ import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
+import type { MatchEntryKeysOptions } from "@orb/kit/world-info";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
@@ -46,6 +47,12 @@ interface MatchedKey {
 /** Logs a ReDoS-watchdog/bad-regex failure; the pass proceeds fail-open on the text as-is. */
 function onHostRegexFailure(placement: "WORLD_INFO" | "USER_INPUT"): (err: unknown, script: RegexScriptInput) => void {
   return (err, script) => getLog().warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+}
+
+/** Logs a bad user-authored world-info REGEX KEY (a V3 `use_regex` entry); the matcher falls back to a
+ *  literal compare for that key, so the turn proceeds fail-open. */
+function onWorldInfoKeyCompileFailure(key: string, reason: string): void {
+  getLog().warn({ key, reason }, "chat: world-info regex key failed to compile — matched literally");
 }
 
 /** Logs a macro-engine depth-cap/output-size trip; fail-open, output stays bounded. */
@@ -189,9 +196,16 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
   return { injection, ...meta, bucket: null };
 }
 
+/** The per-entry key-compile options: a V3 `use_regex` entry's keys compile as PATTERNS, and a bad pattern
+ *  warns + falls back to a literal compare rather than failing the turn. */
+function keyMatchOptions(entry: AssembleWorldEntry): MatchEntryKeysOptions {
+  return { keyMode: entry.keyMode ?? "literal", onKeyCompileFailure: onWorldInfoKeyCompileFailure };
+}
+
 /** Records a keyword entry's fired keys, noting which fired on the latest user text, into the trace. */
 function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: WiConvEnv): void {
-  const userHits = env.haystacks.latestUser.length > 0 ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser)) : new Set<string>();
+  const userHits =
+    env.haystacks.latestUser.length > 0 ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser, keyMatchOptions(entry))) : new Set<string>();
   for (const key of hits) {
     env.matchedKeys.push({ key, matchedLatestUserMessage: userHits.has(key) });
   }
@@ -201,7 +215,7 @@ function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: 
  *  once via macro → regex(WORLD_INFO) → wiFormat-wrap. */
 function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCandidate | null {
   if (entry.scope === "keyword") {
-    const hits = matchEntryKeys(entry.keys, env.haystacks.full);
+    const hits = matchEntryKeys(entry.keys, env.haystacks.full, keyMatchOptions(entry));
     if (hits.length === 0) {
       return null;
     }

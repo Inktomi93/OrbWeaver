@@ -378,7 +378,9 @@ const characterBookEntrySchema = z
     comment: z.string().optional(),
     constant: z.boolean().optional(),
     extensions: z.record(z.string(), z.unknown()).optional(),
-    // V3-additive lorebook fields. `use_regex` marks the entry's keys as regex (ST keys are always regex).
+    // V3-additive lorebook fields. `use_regex` marks the entry's keys as REGEX PATTERNS rather than literals —
+    // honored on both halves of the serde (#266 D-2): it normalizes into `world_entries.metadata.keyMode` on
+    // import and is re-derived from the resolved mode on export, and the keyword matcher compiles accordingly.
     // Decorators are NOT a wire field — V3 embeds them as `@@`-prefixed lines INSIDE `content`, so they ride
     // through verbatim with the content (no separate column). `.catch` keeps a malformed value non-throwing.
     use_regex: z.boolean().optional().catch(undefined),
