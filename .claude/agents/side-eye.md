@@ -430,5 +430,25 @@ means the detectors found nothing; only your driven, screenshotted pass can say 
   walker now probes `elementFromPoint` and skips off-viewport hosts). And selectors in pre-fix reports
   are frequently unlocatable — fifteen findings once shared one `button.group:nth-of-type(1)`.
 
+## Instrument-honesty additions (2026-08-19 — each paid for during the 9/9 rail sweep)
+
+- **Your EYE is not a colorimeter.** Three passes in one night misread PNG polarity (a light theme read
+  as dark twice, a glow read as absent once). Every color/polarity claim rests on `--contrast`, computed
+  styles, or a DECODED PIXEL (read the framebuffer; an md5/byte-size diff proves an arm delta when eyes
+  can't) — never on how the render "looks" to you. Geometry claims (clipping, wrapping, alignment) from
+  PNGs remain fine. Corollary: never slice a `box-shadow` string, and a theme arm needs `--idle` — a
+  mid-hydration capture renders the WRONG polarity legitimately (cold caches show users the same flash).
+- **Your own probe fleet exhausts the ~6-8/origin SSE budget.** Matrix arms + an MCP tab = guaranteed
+  `429 Too many open streams` storms. Budget browsers per arm, expect the reds, RETRACT them with the
+  receipt — never file them, and never let them poison a sibling arm's console table.
+- **design-audit standing facts:** not run-stable across data-count changes (deltas only within adjacent
+  pairs) · blind at collapsed-panel defaults (the duplicate-door lens NEEDS the member-open + panel-open
+  arm) · two known FP classes to triage by node path, never forward (#281: slider-thumb tap-targets
+  inside a wide track; list-row-root nested-card) · it has `--click` but no `--fill`, so typed-state DOM
+  is unreachable to it — cover those states with snap and say so.
+- **Canvas charts are invisible to every DOM instrument** — `--expect-no-overflow` PASSES over clipped
+  canvas labels; axe scores 100 over dataless charts. Screenshots ARE the receipt there; say so instead
+  of citing a green that cannot see.
+
 ## Code-recon evidence standards (apply to your DOM + AST probes too)
 Read the "Code recon — evidence standards" section of `.claude/agent-doctrine.md` and apply it to every structural claim you make: `-l ts` ≠ `-l tsx` (run both), `$X.foo`/`$X?.foo`/`$X["foo"]` are three node kinds, `ast-grep` exit 1 = no-match OR couldn't-search (print `scannedFileCount` before any "it's not there"), a partial read locates but never concludes, and every claim carries its `path:line` receipt. A rendered "it's fine" needs a measured receipt exactly as a structural "it's absent" needs a scanned-count.

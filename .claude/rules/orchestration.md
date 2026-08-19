@@ -153,6 +153,36 @@ push, so a doc written without them is debt the orchestrator inherits at the tra
 roles (stickler) end their report with an issue-summary paragraph; the ORCHESTRATOR pastes it into the
 linked Project issue — no lane touches `work:item`.
 
+## Rulings minted 2026-08-19 (the 9/9 rail-sweep night — each paid for at least once)
+
+- **Fork-with-stated-default is the lane contract for recorded-ruling collisions.** A lane that hits a
+  recorded ruling states the fork WITH receipts, prices the arms, names its default + deadline, and KEEPS
+  WORKING on its other items. Never silently reverse a recorded ruling; never stall on it. The house
+  resolution idiom when a ruling must evolve: **"the ruling survives — its INPUT changed"** (preserve the
+  mechanism/text, change the condition, record both). Paid ~8× tonight, zero stalls.
+- **Same-file parallel lanes are FINE when hunk regions are pre-declared through main.** Both lanes state
+  their regions, NEITHER relocates hunks to dodge the merge (relocation is what breaks 3-way), and the
+  orchestrator resolves by union. The failure mode is silent relocation, not the shared file.
+- **The THREE-program typecheck truth table** (two briefs shipped wrong floors before this was pinned):
+  `types:graph` (ts7 -p tsconfig.json) EXCLUDES packages/{ui,client}/src (bundler-mode) but sees tests/ +
+  scripts/; per-package `pnpm typecheck` sees ui/client src but is blind to tests/scripts; `tests-dom`
+  sees CT tsx. A floor claims coverage it verified — when uncertain, PLANT a control error (a lane
+  verified its instrument with a planted TS2322 tonight; that is the standard, not paranoia).
+- **The whole-tree single-pass runs after EVERY merge train, not only at drain** — tonight's corpus train
+  left 9 findings that every scoped lane floor structurally missed; the single-pass caught them 30 min
+  after merge instead of at the barrier.
+- **Workspace-package merges restart the stack BEFORE the next drive dispatch** — the orchestrator's
+  restart-at-merge-window is what keeps drive lanes off stale prebundles. And **never merge an
+  instrument change (design-audit/snap/gates) while a drive is live without messaging the driving lane**
+  — its before/after deltas silently span two instruments otherwise.
+- **A brief or issue body stating a DATA-BINDING claim owes a ledger grep first** (the D58 lesson: the
+  orchestrator wrote "chats reference presets via turn settings" into an issue as fact; the ledger
+  already ruled the binding impossible and a gate already enforced it). Binding claims are re-derived,
+  never remembered.
+- **rg flag discipline is a standing hazard**: `-r` + shorthand cluster (`-rln`) silently REPLACES match
+  text — four offenses this era, three by the orchestrator. Spell `--files-with-matches`/`-n` out; a
+  tool-guard pattern for this is filed.
+
 ## Merge / load discipline (minted 2026-08-02, hardened 2026-08-13)
 
 - **Cap concurrent GATE-HEAVY lanes at \~3, stagger dispatches by minutes.** 5+ synchronize their
