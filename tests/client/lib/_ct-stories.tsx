@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 // re-export would drag the dev-only introspection handle into the prod bundle).
 import type { RouteResolution } from "../../../packages/client/src/lib/agent-bridge.ts";
 import { installAppReadySignal } from "../../../packages/client/src/lib/agent-bridge.ts";
+import { __resetBootReads, setBootReadPending } from "../../../packages/client/src/lib/boot-reads.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
@@ -466,6 +467,41 @@ export function AppReadySignalStory(): ReactElement {
         }}
       >
         land the read
+      </button>
+    </div>
+  );
+}
+
+/** The `data-app-ready` signal under a BOOT-CRITICAL DEPENDENT read that is still pending after the parent
+ *  query has settled (#282) — the chained-query false-idle the boot-read gate closes. A boot read is
+ *  registered pending from the start (the theme, chained off settings); the parent query lands on a click,
+ *  which idles the cache, but the flag must NOT go up until the dependent read is resolved (the second
+ *  button). Under the OLD signal an idle cache + a seen fetch settled here, lifting the boot veil onto the
+ *  base theme polarity a beat before the resolved theme swapped it. */
+export function AppReadyBootReadStory(): ReactElement {
+  const [graceElapsed, setGraceElapsed] = useState(false);
+  const [client] = useState(() => new QueryClient());
+  const [parentGate] = useState(() => Promise.withResolvers<string>());
+  useEffect(() => {
+    __resetBootReads();
+    // The dependent (theme-shaped) read is pending from boot — it is chained off the parent below.
+    setBootReadPending("ct-boot", true);
+    installAppReadySignal(client, SETTLED_ROUTE);
+    void client.fetchQuery({ queryKey: ["ct-boot-parent"], queryFn: () => parentGate.promise });
+    const marker = setTimeout(() => setGraceElapsed(true), GRACE_MARKER_MS);
+    return (): void => {
+      clearTimeout(marker);
+      __resetBootReads();
+    };
+  }, [client, parentGate]);
+  return (
+    <div>
+      {graceElapsed ? <div data-testid="grace-elapsed">grace elapsed</div> : null}
+      <button type="button" onClick={(): void => parentGate.resolve("parent landed")}>
+        land the parent read
+      </button>
+      <button type="button" onClick={(): void => setBootReadPending("ct-boot", false)}>
+        resolve the dependent read
       </button>
     </div>
   );

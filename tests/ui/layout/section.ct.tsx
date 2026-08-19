@@ -63,7 +63,12 @@ test("kicker renders the section NAME as a real heading in the micro-caps voice,
     return { actual: getComputedStyle(el).fontSize, micro };
   });
   expect(sized.actual).toBe(sized.micro);
-  await expect(component.getByRole("separator")).toBeVisible();
+  // The hairline still PAINTS — it is a real element in the DOM (`data-slot="separator"`, visible).
+  await expect(component.locator('[data-slot="separator"]')).toBeVisible();
+  // …but it is DECORATIVE (a11y #199): the `<h3>` kicker beside it already carries the section name +
+  // the document outline, so the rule is `aria-hidden` and MUST NOT surface as an orphan `role="separator"`
+  // to a screen reader (it announced as an anonymous divider on every kicker surface before this).
+  await expect(component.getByRole("separator")).toHaveCount(0);
 });
 
 test("no hint → no info trigger beside the heading", async ({ mount }) => {

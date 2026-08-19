@@ -103,6 +103,36 @@ export function AppShellStory(): ReactElement {
   );
 }
 
+/** ARRIVAL FOCUS + THE LIST-PANE PRIMARY (a11y #283). Corpus (a library section, list docked by default)
+ *  carries a FOCUSABLE primary in its LIST pane — the stand-in for its "New …" create action, which lives
+ *  in the band DOM-before `<main>`. The CT navigates to it through a real, KEYBOARD-activated rail button and
+ *  asserts the section swap does not yank focus into `<main>` past that primary. chats is the landing
+ *  section (its content pane is the barrier the CT waits on before navigating). */
+export function AppShellListPrimaryStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: { content: <p>chats content pane</p> },
+          corpus: {
+            // The pane's PRIMARY — a real focusable control inside the LIST panel (DOM-before `<main>`), the
+            // same tab-order position the production `listHeader` band's create button occupies.
+            list: (
+              <button type="button" data-testid="list-primary">
+                New corpus item
+              </button>
+            ),
+            content: <p>corpus content pane</p>,
+          },
+        }}
+      >
+        <LandOn section="chats" />
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** THE NOTICE BAND (#193): the real shell + the real toast outlet, plus one control that raises a notice.
  *  The content pane carries a bottom-anchored stand-in for the composer, because the defect being retired
  *  is precisely "an overlay stack must cover the transcript OR the composer, and both are load-bearing" —

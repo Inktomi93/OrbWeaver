@@ -21,7 +21,11 @@ import type { ThemeId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useGatedQuery, useTRPC } from "#data";
+import { setBootReadPending } from "#lib";
 import { rememberDataThemeHint, useAppearanceBootHint } from "#state";
+
+/** The boot-read key this hook owns (`boot-reads.ts`): the theme chain, held until it settles. */
+const THEME_BOOT_READ = "theme";
 
 /** The `[data-theme]` value for a resolved theme row: a SEED palette paints from its generated block. */
 function dataThemeOf(theme: Theme | null): string | null {
@@ -37,9 +41,11 @@ function dataThemeOf(theme: Theme | null): string | null {
  */
 export function useSelectedTheme(): { readonly theme: Theme | null; readonly dataTheme: string | null } {
   const trpc = useTRPC();
-  const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const settings = settingsQuery.data;
   const selectedThemeId = (settings?.config.theme.selectedThemeId ?? null) as ThemeId | null;
-  const { data } = useGatedQuery(selectedThemeId, (id) => trpc.settings.getTheme.queryOptions({ id }));
+  const themeQuery = useGatedQuery(selectedThemeId, (id) => trpc.settings.getTheme.queryOptions({ id }));
+  const data = themeQuery.data;
   const { dataTheme: hinted } = useAppearanceBootHint();
   // RESOLVED means: the settings read landed AND (there is no selection, or the theme row itself landed).
   const settingsLanded = settings !== undefined;
@@ -50,5 +56,20 @@ export function useSelectedTheme(): { readonly theme: Theme | null; readonly dat
       rememberDataThemeHint(authoritative);
     }
   }, [resolved, authoritative]);
+  // THE BOOT-CRITICAL READ (#282). Readiness (`data-app-ready`, agent-bridge.ts) must not settle in the GAP
+  // between `settings.getUserSettings` resolving and the CHAINED `settings.getTheme` STARTING — the cache is
+  // momentarily idle there and the boot veil would lift onto the base palette a beat before the resolved
+  // theme swaps it (the cold-cache polarity flash on a device with no boot hint). Hold readiness while the
+  // theme chain is still resolving. The condition is deliberately SETTLED-EITHER-WAY (a `status` leaving
+  // `"pending"` is success OR error), NOT `resolved` above: `resolved` stays false on a settings/theme
+  // ERROR, and gating on it would hang readiness to the 20s ceiling instead of degrading to the default
+  // palette. A skipped (id === null) theme query never leaves `"pending"`, so it is excluded explicitly.
+  const themeChainSettled = settingsQuery.status !== "pending" && (selectedThemeId === null || themeQuery.status !== "pending");
+  useEffect((): void => {
+    setBootReadPending(THEME_BOOT_READ, !themeChainSettled);
+  }, [themeChainSettled]);
+  // Clear on unmount ONLY (a separate empty-dep effect, never a cleanup on the setter above — a cleanup
+  // there would fire on every re-run, momentarily clearing the read and racing an early settle).
+  useEffect((): (() => void) => (): void => setBootReadPending(THEME_BOOT_READ, false), []);
   return { theme: data ?? null, dataTheme: resolved ? authoritative : hinted };
 }
