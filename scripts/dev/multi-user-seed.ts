@@ -79,7 +79,8 @@ async function listUsers(): Promise<readonly UserRow[]> {
 async function canLogin(handle: string, password: string): Promise<boolean> {
   const res = await fetch(`${BASE}/api/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    // The login route requires the custom CSRF header (blocks login-CSRF); a non-browser client just sends it.
+    headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" },
     body: new URLSearchParams({ handle, password }).toString(),
   });
   return res.ok && (res.headers.get("set-cookie") ?? "").includes(`${SESSION_COOKIE}=`);

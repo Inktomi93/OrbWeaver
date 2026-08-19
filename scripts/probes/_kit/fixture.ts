@@ -207,7 +207,8 @@ export async function loginFixtureUser(
   try {
     res = await fetch(`${baseServerUrl}/api/auth/login`, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
+      // The login route requires the custom CSRF header (blocks login-CSRF); a non-browser probe just sends it.
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" },
       body: new URLSearchParams({ handle, password }).toString(),
     });
   } catch (e) {

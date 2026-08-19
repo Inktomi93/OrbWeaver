@@ -989,18 +989,19 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-        "assignedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
+        "assignedSha256": "b54c627dae9d2f021e50ba737910f458bf65b7e8eb541ea8f02ddf6726cae786",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "8c7a0fec8247851dbc374f05d9ec2d60803dfe880c80b06622c05daad10c745c",
-        "verifiedCommit": "fd71a395d129d21e26e47cdd657cdf0faf5bb3d0",
+        "verifiedSha256": "b54c627dae9d2f021e50ba737910f458bf65b7e8eb541ea8f02ddf6726cae786",
+        "verifiedCommit": "621ac2218f767d8cb3b4313276b20199740465ad",
         "verifiedAt": "2026-08-19",
         "evidence": [
-          "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; re-attested after #298 f2 / #300 / #301 merged at 6ef448dd6)",
-          "invariants #1/#7/#8/#9/#10 re-derived against packages/server/src: the loopback-peer fallback gate, the three enabled gates, the CSRF arms, and the two provisionIdentity callers",
-          "vitest: tests/server/infra/auth/dispatch.test.ts + tests/server/entry/debug-gate.suite.test.ts + tests/server/foundation/env/index.test.ts (127 passed, 2026-08-19)",
-          "REPAIRED at fd71a395d: invariant #9's multipart census was short one route, and its tRPC preflight premise is FALSE for @trpc/server 11.18 (recorded in-doc as an OPEN finding)"
+          "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
+          "invariant #9 re-derived: the tRPC CSRF gate keys on via==='cookie' only (packages/server/src/transport/trpc/trpc.ts:141), legitimate ONLY because of the load-bearing content-type belt at the mount (entry/app.ts trpcJsonOnly — refuses any /api/trpc/* POST not selecting tRPC's JSON handler); the four CORS-simple byte-ingest registrars gate via!=='header' (upload.ts:88 for /api/assets/upload+/api/databank/upload+/api/import, import-tree.ts:101, import-chat.ts:142, import.ts /api/import/bundle)",
+          "ENFORCER verified live: tests/server/entry/app.test.ts — 'the tRPC mount refuses a non-JSON mutation (CSRF content-type belt)' describe (multipart/form-data + application/octet-stream POST on the via:fallback arm -> 415, resolver never runs; the pre-belt tag.pruneUnusedTags 200 is the recorded proof)",
+          "invariants #4/#7/#8/#10 re-confirmed unchanged/accurate: MODE_RESOLVERS exhaustive over the four AuthModes, the loopback-peer owner fallback (#298 f2, infra/auth peer gate + entry/auth/seam.ts), the three enabled gates, and the two provisionIdentity callers (auth-routes.ts:642 oidc, seam.ts forward-header)",
+          "OPEN finding from fd71a395d is now CLOSED in-doc: invariant #9's tRPC preflight premise (FALSE for @trpc/server 11.18) and the short-by-one multipart census are both resolved by the belt; the doc reads CLOSED and matches the tree"
         ],
         "claims": [
           {
@@ -1065,7 +1066,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
