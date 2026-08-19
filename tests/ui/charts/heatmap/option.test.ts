@@ -11,6 +11,8 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const COLORS: ChartColors = {
   series: "rgb(1, 2, 3)",
+  seriesPositive: "rgb(13, 14, 15)",
+  seriesNegative: "rgb(16, 17, 18)",
   axisLabel: "rgb(4, 5, 6)",
   axisLabelMuted: "rgb(7, 8, 9)",
   axisLine: "rgb(10, 11, 12)",

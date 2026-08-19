@@ -6,6 +6,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { readCanvasBandInk, solidColumns } from "../../../../support/ct/canvas-ink.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
@@ -41,10 +42,22 @@ const WRAPPED = {
   costUsd: 1.25,
   genTimeMs: 90_000,
   topCharacter: null,
-  temporal: { activeDays: 4, currentStreak: 2, longestStreak: 3, busiestDay: null, byDayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
+  // `longestStreakDays` is the CONTRACT's spelling (rhythm-figures.tsx:18). The stub said `longestStreak`
+  // and the Rhythm band rendered "undefinedd" through every green run — a test double whose shape doesn't
+  // match the contract hides the very field it is meant to exercise.
+  temporal: { activeDays: 4, currentStreak: 2, longestStreakDays: 3, busiestDay: null, byDayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
 };
 
 const MOMENTUM = { latestMonth: null, prevMonth: null, rising: [], falling: [] };
+
+/** The report's own live shape: a small rise beside a large fall. Independently auto-scaled, +10 and −184
+ *  drew as near-identical full-width bars in the same colour. */
+const MOMENTUM_LOPSIDED = {
+  latestMonth: "2026-08",
+  prevMonth: "2026-07",
+  rising: [{ characterId: "character_ct_rising", name: "Morgatha", delta: 10 }],
+  falling: [{ characterId: "character_ct_falling", name: "Kate", delta: -184 }],
+};
 
 test("the dashboard's Recompute now button fires stats.reconcile", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -165,9 +178,54 @@ test("the momentum band names its months and the freshness line carries the abso
   await expect(component.getByText("Updated", { exact: false })).toHaveAttribute("title", ABSOLUTE_STAMP);
 });
 
+// ── P1d: RISING vs FALLING IS A COMPARISON, OR IT IS THE SAME PICTURE TWICE ───────────────────────────
+// Two <BarList>s side by side, each auto-scaled to its OWN maximum, each in the accent colour, with the
+// sign living only in a bar-end label that narrow panes clip: +10 and −184 rendered as near-identical
+// full-width orange bars (side-eye ANALYTICS 2026-08-19, P1d). The fix is at THIS call site — the surface
+// is what knows the two columns belong to one reading — so the receipt is here, not on the primitive.
+// Read from the FRAMEBUFFER: there is no DOM per bar.
+
+/** How much longer the −184 bar must be than the +10 bar once they share one scale. The true ratio is
+ *  18.4×; the floor is deliberately loose because ECharts rounds the axis maximum up to a nice value. */
+const MIN_SHARED_SCALE_RATIO = 5;
+/** ECharts' size-sensor swallows its first resize and debounces 60ms (#263) — settle before measuring. */
+const CANVAS_SETTLE_MS = 400;
+
+test("Rising and Falling share ONE value scale and read as different intents (P1d)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM_LOPSIDED,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  // SETTLED: the dashboard renders its bands only once all four suspense reads have landed.
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  const rising = component.locator('[data-slot="bar-list"]').filter({ hasText: "Rising" });
+  const falling = component.locator('[data-slot="bar-list"]').filter({ hasText: "Falling" });
+  // The sign survives in TEXT regardless of pane width — the label alone never was enough, but it is
+  // still the reading a screen reader gets, so it is pinned here too.
+  await expect(falling.getByRole("table", { name: "Falling" }).getByRole("cell").first()).toHaveText("-184");
+  await expect(rising.getByRole("table", { name: "Rising" }).getByRole("cell").first()).toHaveText("+10");
+
+  await new Promise((resolve) => setTimeout(resolve, CANVAS_SETTLE_MS));
+  const risingBand = await readCanvasBandInk(rising.locator("canvas"), 0.4, 0.6);
+  const fallingBand = await readCanvasBandInk(falling.locator("canvas"), 0.4, 0.6);
+  const risingBar = solidColumns(risingBand).length;
+  const fallingBar = solidColumns(fallingBand).length;
+
+  expect(risingBar).toBeGreaterThan(0);
+  expect(fallingBar).toBeGreaterThanOrEqual(risingBar * MIN_SHARED_SCALE_RATIO);
+  // …and the two columns are not the same picture in the same paint.
+  expect(fallingBand.dominantColor).not.toBe(risingBand.dominantColor);
+});
+})
+
 /** Park the `stats.reconcile` response until the returned release fires; everything else falls through to
  *  routeTrpc. Registered AFTER routeTrpc (later routes run first), the `route.fallback()` precedent. */
-async function holdReconcile(page: Page): Promise<() => void> {
+async
+function holdReconcile(page: Page): Promise<() => void> {
   // Definite-assignment: the executor runs synchronously, so `release` is bound before the route is added.
   let release!: () => void;
   const parked = new Promise<void>((resolve) => {
