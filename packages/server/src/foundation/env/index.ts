@@ -125,7 +125,8 @@ const RATE_LIMIT_AUTHED_DEFAULT = 600;
 const RATE_LIMIT_LOGIN_DEFAULT = 10;
 
 // The `.env` file the loader below reads, cwd-relative — exactly the path dotenv resolved
-// (`path.resolve(process.cwd(), ".env")`), so `pnpm start` from the repo root keeps finding it.
+// (`path.resolve(process.cwd(), ".env")`), so a prod launch (`pnpm stack up prod` / `start-fg prod`, both
+// cwd = repo root via buildProdSpawnPlan) keeps finding it.
 const ENV_FILE = ".env";
 // A leading UTF-8 byte-order mark. parseEnv does NOT strip it (dotenv did) — see loadEnvFileWithOverride.
 const UTF8_BOM = "﻿";
@@ -283,7 +284,8 @@ const envSchema = z
 
     DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
-    // ASSETS_DIR (`pnpm start` runs at the repo root). Missing bundle: prod boot-fatal, dev skipped.
+    // ASSETS_DIR (a prod launch runs at the repo root — buildProdSpawnPlan sets cwd). Missing bundle: prod
+    // boot-fatal, dev skipped.
     CLIENT_DIST_DIR: z.string().min(1).default("./packages/client/dist"),
     // Content-addressed asset blob root (card PNGs, avatars); the DB holds metadata, bytes live here.
     ASSETS_DIR: z.string().min(1).default("./data/assets"),
@@ -557,10 +559,12 @@ const envSchema = z
     // stays the SSO modes' secure prod default.
     //
     // OWNER RULING 2026-08-19 (the HELD discriminator decision): KEEP NODE_ENV, do NOT add a PUBLIC_DEPLOYMENT
-    // flag. Both supported prod launchers set NODE_ENV=production — `pnpm start` (package.json) directly, and
-    // `pnpm stack up prod` via `buildProdSpawnPlan` (`scripts/dev/_kit/stack-mode.ts:369` — `env: {...inherited,
-    // NODE_ENV: "production", ...}`, in the spawn plan itself, not just the status log) — so the signal bites on
-    // every real prod path; a second flag would only be a source of disagreement. The one residual (a bare
+    // flag. The ruling SURVIVES the launch-centralize consolidation (#309) — its INPUT changed: `pnpm start`
+    // was removed, so BOTH supported prod launchers now route through `buildProdSpawnPlan`
+    // (`scripts/dev/_kit/stack-mode.ts` — `env: {...inherited, NODE_ENV: "production", ...}`, in the spawn plan
+    // itself, not just the status log): `pnpm stack up prod` (detached) and `pnpm stack start-fg prod`
+    // (foreground). The discriminator bites on every real prod path even more cleanly than before; a second
+    // flag would only be a source of disagreement. The one residual (a bare
     // hand-rolled `node entry/index.ts` that omits NODE_ENV, behind a loopback proxy, with default owner) is
     // ACCEPTED defense-in-depth risk, documented (containerize-prod-image-spec.md §4), not guarded — the
     // supported launchers all set it, and #301 makes the effective mode/fallback legible per launch.
