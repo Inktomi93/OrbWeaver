@@ -41,7 +41,26 @@ const EMITTED = new Set(THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--colo
 //     slab beside derived chrome. Each seed block still re-authors it so the seed palettes stay coherent.
 //     The over-art TEXT plate that used to share this token is `color.reading-plate` — EMITTED (class 1),
 //     because a reading plate must FOLLOW the palette's polarity (a token names ONE polarity semantic).
-const SEED_COVERED = new Set<string>(["color.backdrop"]);
+//   • shadow-hairline / shadow-highlight / shadow-ambient-near / shadow-ambient-far / shadow-cta-highlight
+//     (#232): the ELEVATION INGREDIENTS the `--shadow-overlay` / `--shadow-cta` recipes reference. They
+//     are colour tokens rather than part of the composite because Tailwind v4 INLINES a `--shadow-*`
+//     @theme value into the `.shadow-*` utility at build time — overriding the composite per theme is a
+//     measured no-op, while a `var()` ingredient survives the inlining and resolves inside the
+//     `[data-theme]` scope. Every seed block re-authors all five (the Light seed's whole point: a white
+//     hairline measured 1.29:1 on its page and two black ambient layers made a card read as a sticker).
+//     STATED LIMIT, not a claim of harmlessness: a CUSTOM light theme keeps the base DARK ingredients,
+//     because the clamp does not derive them — that is a filed follow-up (derive them from the picked
+//     base's polarity in kit/theme-derivation), not a silent acceptance. The accent GLOW is deliberately
+//     NOT here: it derives from `--color-primary` via relative colour, so it follows EVERY theme, custom
+//     ones included, with no token of its own.
+const SEED_COVERED = new Set<string>([
+  "color.backdrop",
+  "color.shadow-hairline",
+  "color.shadow-highlight",
+  "color.shadow-ambient-near",
+  "color.shadow-ambient-far",
+  "color.shadow-cta-highlight",
+]);
 
 // Class 3 — static with rationale (semantic-intent or theme-independent).
 //   • destructive/success/warning/info/highlight (+ their foregrounds): SEMANTIC-intent colours — a

@@ -853,7 +853,15 @@ const BLUR_STRENGTH_MIN = 4;
 const BLUR_STRENGTH_MAX = 28;
 const BLUR_STRENGTH_DEFAULT = 14;
 
-const appearanceSchema = z
+/**
+ * EXPORTED for the client's device-local BOOT HINT (#231): the hint replays a few appearance axes onto
+ * `<html>` before React mounts, and a durable-local blob is untrusted input, so it is re-validated
+ * through THIS schema rather than through a second set of bounds in the client. Every key here
+ * `.catch()`es to its default, so `appearanceSettingsSchema.parse({})` is TOTAL — which is exactly the
+ * "an invalid persisted state is DISCARDED, never trusted, never allowed to crash" posture the persisted
+ * stores owe. Any other consumer still reads the parsed `UserSettings.appearance`, never this directly.
+ */
+export const appearanceSettingsSchema = z
   .object({
     chatWidthPct: z.number().int().min(CHAT_WIDTH_PCT_MIN).max(CHAT_WIDTH_PCT_MAX).catch(CHAT_WIDTH_PCT_DEFAULT).default(CHAT_WIDTH_PCT_DEFAULT),
     fontScale: z.number().min(FONT_SCALE_MIN).max(FONT_SCALE_MAX).catch(FONT_SCALE_DEFAULT).default(FONT_SCALE_DEFAULT),
@@ -942,7 +950,7 @@ const appearanceSchema = z
   })
   .prefault({});
 
-export type AppearanceSettings = z.infer<typeof appearanceSchema>;
+export type AppearanceSettings = z.infer<typeof appearanceSettingsSchema>;
 
 export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
@@ -971,7 +979,7 @@ export const userSettingsSchema = z.object({
   onboarding: onboardingSchema,
   workloads: workloadsSchema,
   profile: profileSchema,
-  appearance: appearanceSchema,
+  appearance: appearanceSettingsSchema,
   theme: themeSettingsSchema,
 });
 

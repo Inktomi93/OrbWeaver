@@ -33,7 +33,7 @@ import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { BootVeil } from "#features/app-shell";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
-import { activeChatId, activeDurableLocalUserId, stampReducedMotionHint } from "#state";
+import { activeChatId, activeDurableLocalUserId, stampAppearanceBootHint } from "#state";
 import { buildAgentNav } from "./agent-nav/index.ts";
 import { buildAgentRpg } from "./agent-rpg/index.ts";
 import { buildAgentSeed } from "./agent-seed/index.ts";
@@ -81,13 +81,16 @@ function reportClientError(error: Error, ownerStack: string | null): void {
   });
 }
 
-// BEFORE THE FIRST RENDER, ON PURPOSE (#188 N-1). The app's own reduced-motion pref is a synced setting,
-// so the shell can only stamp `<html data-reduced-motion>` once `settings.getUserSettings` resolves — and
-// the boot veil weaves, animates and (measured) drops two over-budget frames ~1.2s before that. This
-// replays THIS DEVICE's remembered answer off localStorage synchronously, so a user who asked for no
-// motion is answered by the first frame; the server value reconciles the moment it lands and always wins,
-// and a device that has never seen the pref ON stamps nothing (`#state` reduced-motion-hint).
-stampReducedMotionHint();
+// BEFORE THE FIRST RENDER, ON PURPOSE (#188 N-1, widened by #231). Reduced motion, font scale and the
+// selected theme are SYNCED settings, so the shell can only stamp `<html>` once `settings.getUserSettings`
+// (and, for the theme, the chained `settings.getTheme`) resolves — and the boot veil weaves, animates and
+// drops frames a beat before that, while `--font-scale` resizes every rem-derived shell dimension when it
+// finally lands (measured boot CLS 0.20–0.34 at scale 1.25, 209ms AFTER the veil's own exit stamp) and the
+// theme swaps the whole palette dark→light on the first screen of every visit. This replays THIS DEVICE's
+// remembered answers off localStorage synchronously — the strict CSP forbids an inline pre-hydration
+// script, so this module IS the pre-paint window. The server value reconciles the moment it lands and
+// always wins, and an axis this device has never been told stamps nothing (`#state` appearance-boot-hint).
+stampAppearanceBootHint();
 
 const rootEl = document.getElementById("root");
 if (rootEl === null) {

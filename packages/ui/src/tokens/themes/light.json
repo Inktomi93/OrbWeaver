@@ -1,5 +1,5 @@
 {
-  "$description": "Light seed-theme VALUE-SET (UI-Architecture §3, D42/D44 §12.1). A light [data-theme] palette override consumed by tokens.build.ts, which emits it into src/styles/theme.css as `[data-theme=\"light\"] {…}` (with `color-scheme: light` so native controls/scrollbars flip) — NOT hand-written CSS. Only EMITTED-class colors (THEME_SCOPE_EMIT_VARS) plus color.backdrop may appear; the set is validated at build time (exact path coverage · paths exist in tokens.json · every $value is oklch()). reading-plate MUST equal derive(background) per THEME_DERIVATION.readingPlate, at the POLARITY-DERIVED alpha readingPlateAlpha(background) — 0.921 for this light base, not the 0.65 dark floor, because a light plate's composite over dark art is what fails AA (#217) — pinned by palette-contrast.suite.test.ts. Edit here + run `pnpm --filter @orb/ui tokens:build`.",
+  "$description": "Light seed-theme VALUE-SET (UI-Architecture §3, D42/D44 §12.1). A light [data-theme] palette override consumed by tokens.build.ts, which emits it into src/styles/theme.css as `[data-theme=\"light\"] {…}` (with `color-scheme: light` so native controls/scrollbars flip) — NOT hand-written CSS. Only EMITTED-class colors (THEME_SCOPE_EMIT_VARS) plus the SEED-COVERED extras (color.backdrop and the five shadow INGREDIENT colours, #232 — this palette's elevation: a DARK hairline because a white one measured 1.29:1 and vanished, NO inset top-highlight because white on a 0.995 card paints nothing, and warm-dark ambient at 0.10/0.14 instead of the dark theme's 0.4/0.5 black, which made the resume card read as a sticker floating over the page) may appear; the set is validated at build time (exact path coverage · paths exist in tokens.json · every $value is oklch()). reading-plate MUST equal derive(background) per THEME_DERIVATION.readingPlate, at the POLARITY-DERIVED alpha readingPlateAlpha(background) — 0.921 for this light base, not the 0.65 dark floor, because a light plate's composite over dark art is what fails AA (#217) — pinned by palette-contrast.suite.test.ts. Edit here + run `pnpm --filter @orb/ui tokens:build`.",
   "$colorScheme": "light",
   "color": {
     "background": { "$value": "oklch(0.98 0.004 75)" },
@@ -26,6 +26,11 @@
     "sidebar-border": { "$value": "oklch(0.2 0.01 60 / 0.1)" },
     "backdrop": { "$value": "oklch(0.3 0.01 60 / 0.4)" },
     "reading-plate": { "$value": "oklch(0.942 0.004 75 / 0.921)" },
+    "shadow-hairline": { "$value": "oklch(0.2 0.01 60 / 0.14)" },
+    "shadow-highlight": { "$value": "oklch(1 0 0 / 0)" },
+    "shadow-ambient-near": { "$value": "oklch(0.35 0.02 60 / 0.1)" },
+    "shadow-ambient-far": { "$value": "oklch(0.35 0.02 60 / 0.14)" },
+    "shadow-cta-highlight": { "$value": "oklch(1 0 0 / 0.22)" },
     "user-bubble": { "$value": "oklch(0.93 0.02 60)" },
     "user-bubble-foreground": { "$value": "oklch(0.25 0.02 60)" },
     "ai-bubble": { "$value": "oklch(0.97 0.006 60)" },

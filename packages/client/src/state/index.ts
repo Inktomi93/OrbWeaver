@@ -27,6 +27,17 @@ export {
   selectAnalyticsCharacter,
   useSelectedAnalyticsCharacterId,
 } from "./analytics-selection-store.ts";
+export type { AppearanceBootAxes, AppearanceBootHintState } from "./appearance-boot-hint.ts";
+export {
+  __resetAppearanceBootHint,
+  DATA_THEME_ATTR,
+  FONT_SCALE_VAR,
+  REDUCED_MOTION_ATTR,
+  rememberAppearanceBootHint,
+  rememberDataThemeHint,
+  stampAppearanceBootHint,
+  useAppearanceBootHint,
+} from "./appearance-boot-hint.ts";
 export type { AssembleChromeInput } from "./assemble-chrome.ts";
 export { assembleChrome } from "./assemble-chrome.ts";
 export type { CharacterViewMode } from "./character-library-store.ts";
@@ -198,13 +209,6 @@ export {
   RECENT_MODELS_CAP,
   useRecentModels,
 } from "./recent-models-store.ts";
-export {
-  __resetReducedMotionHint,
-  REDUCED_MOTION_ATTR,
-  rememberReducedMotionHint,
-  stampReducedMotionHint,
-  useReducedMotionHint,
-} from "./reduced-motion-hint.ts";
 export {
   clearRefinerySelection,
   refinerySectionSelection,
