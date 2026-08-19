@@ -311,6 +311,58 @@ test("a CORRECTED ink CLOSES THE LOOP: the emission itself clears AA, even when 
   expect(proseInkLightness(lightRendered.ink, lightRendered.alpha, lightBase)).toBeNull();
 });
 
+// ── #236: the AMBIENT-BASE arm of §7a — an ink-only card judged against the app theme it lands on. ──
+// The population is the ST-imported library: a card carries `--color-speaker/dialogue/narration` and NO
+// background (a 113-116 byte theme-scope payload, measured on 4/4 probed rooms), so the pre-#236 clamp
+// failed open and a dark-authored ink landed raw on the Light seed base at 2.11-2.43:1.
+const LIGHT_SEED_BASE = "oklch(0.98 0.004 75)"; // SEED_THEME_VALUE_SETS.light --color-background
+const ST_DARK_INK = "oklch(0.72 0.16 174)"; // the measured ST ink (all three voices carry it)
+
+test("an INK-ONLY override is judged against the AMBIENT app base — the emitted correction closes the loop at AA", () => {
+  const { vars } = clampThemeTokens({ speaker: ST_DARK_INK, dialogueColor: ST_DARK_INK, narrationColor: ST_DARK_INK }, LIGHT_SEED_BASE);
+  // Not the mechanism, the GUARANTEE (D144c): re-judge the EMITTED value against the ambient base.
+  const ambient = { l: 0.98, c: 0.004, h: 75 };
+  const ambientRgb = oklchToSrgb(ambient);
+  for (const name of ["--color-speaker", "--color-dialogue", "--color-narration"]) {
+    const emitted = vars[name] ?? "";
+    const rendered = renderedInk(ST_DARK_INK, emitted);
+    const painted = compositeSrgb(oklchToSrgb(rendered.ink), rendered.alpha, ambientRgb);
+    expect(wcagContrastRatio(painted, ambientRgb), `${name} over the ambient Light base`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    expect(proseInkLightness(rendered.ink, rendered.alpha, ambient), `${name} settles in ONE correction`).toBeNull();
+  }
+  // A SENSIBLE ink against the ambient still passes through byte-identical — the ambient arm judges, it
+  // does not repaint: a dark ink authored for a dark card is legible on the dark app base.
+  expect(clampThemeTokens({ dialogueColor: ST_DARK_INK }, "oklch(0.158 0.006 60)").vars["--color-dialogue"]).toBe(ST_DARK_INK);
+});
+
+test("the ambient base NEVER emits and NEVER overrides a CARRIED background (the owner arm cannot move)", () => {
+  // The ambient is a JUDGING input only: no surface ramp, no plate, no --color-background, no colorScheme.
+  const inkOnly = clampThemeTokens({ narrationColor: ST_DARK_INK }, LIGHT_SEED_BASE);
+  expect(inkOnly.vars["--color-background"]).toBeUndefined();
+  expect(inkOnly.vars["--color-reading-plate"]).toBeUndefined();
+  expect(inkOnly.vars["--color-sidebar"]).toBeUndefined();
+  expect(inkOnly.vars["--color-foreground"]).toBeUndefined();
+  expect(inkOnly.colorScheme).toBeUndefined();
+  // A carried background wins OUTRIGHT: the full-palette rooms (Rust/Ashen) are byte-identical with or
+  // without an ambient, every var, both polarities. This is the D144 "theme-immune transcript" pin.
+  const carried = { background: "oklch(0.158 0.006 60)", speaker: "oklch(0.9 0.05 60)", dialogueColor: ST_DARK_INK, narrationColor: "oklch(0.3 0.1 40)" };
+  expect(clampThemeTokens(carried, LIGHT_SEED_BASE)).toStrictEqual(clampThemeTokens(carried));
+  const carriedLight = { background: "oklch(0.98 0.004 78)", dialogueColor: "oklch(0.4 0.1 40)", narrationColor: "oklch(0.92 0.02 60)" };
+  expect(clampThemeTokens(carriedLight, "oklch(0.158 0.006 60)")).toStrictEqual(clampThemeTokens(carriedLight));
+});
+
+test("the TRUE fail-open survives: no ambient, an unreadable ambient, and an unreadable CARRIED base all pass through", () => {
+  // No ambient at all (a provider-less mount / a caller that cannot name the base) — the pre-#236 rule.
+  expect(clampThemeTokens({ dialogueColor: "oklch(0.3 0.1 40)" }).vars["--color-dialogue"]).toBe("oklch(0.3 0.1 40)");
+  // An ambient no reader resolves (a named colour) is not a polarity — never guess one.
+  expect(clampThemeTokens({ dialogueColor: ST_DARK_INK }, "rebeccapurple").vars["--color-dialogue"]).toBe(ST_DARK_INK);
+  // A CARRIED-but-unreadable base is still the ink's own surface: the ambient must NOT sneak in behind it
+  // (the card DID pick a base; that it is unreadable is a fail-open, not an invitation to judge elsewhere).
+  expect(clampThemeTokens({ background: "rebeccapurple", dialogueColor: ST_DARK_INK }, LIGHT_SEED_BASE).vars["--color-dialogue"]).toBe(ST_DARK_INK);
+  // An ink no reader resolves stays untouched even with a readable ambient.
+  expect(clampThemeTokens({ narrationColor: "wheat" }, LIGHT_SEED_BASE).vars["--color-narration"]).toBe("wheat");
+});
+
 test("colorScheme derives for every NUMERIC base format, and is omitted only where no static value exists", () => {
   // A NAMED base is legal for the vars but has no statically-readable value — fail open to the
   // inherited scheme rather than guess (kit's parser is numeric-only by design).
