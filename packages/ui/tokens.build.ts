@@ -40,22 +40,15 @@ const THEMES_MODULE = "./themes.gen.ts";
  * never derives them for a custom theme. Each entry owes a reason, because every one of them is a
  * palette decision a custom theme silently inherits from the base ramp:
  *   • `color.backdrop` — the polarity-FIXED dimming smoke (D144(a)); each palette tunes its own smoke.
- *   • the five `color.shadow-*` ELEVATION INGREDIENTS (#232) — `--shadow-overlay`/`--shadow-cta` are
- *     GEOMETRY plus colour, and Tailwind v4 inlines a `--shadow-*` @theme value into the `.shadow-*`
- *     utility at build time, so overriding the composite per theme is a measured no-op. Splitting the
- *     colour out as `var()` ingredients is what makes elevation polarity-aware at all: the Light seed
- *     wore the dark recipe (white hairline at 1.29:1, two black ambient layers) until this landed.
- * The GLOW is deliberately absent: it derives from `--color-primary` via relative colour, so it follows
- * every theme — including custom ones — without a value-set entry.
+ * The five `color.shadow-*` ELEVATION INGREDIENTS (#232) LEFT this list at #243: the clamp now derives
+ * them per polarity (`kit/theme-derivation` `shadowIngredients`), so they are EMITTED-class and arrive
+ * through `THEME_SCOPE_EMIT_VARS` below — a seed value-set still carries all five, but so does a custom
+ * theme. (They are colours rather than per-theme `--shadow-*` composites because Tailwind v4 inlines a
+ * `--shadow-*` @theme value into its `.shadow-*` utility at build time — a measured no-op to override.)
+ * The GLOW is deliberately in neither list: it derives from `--color-primary` via relative colour, so it
+ * follows every theme — including custom ones — without a value-set entry.
  */
-const SEED_COVERED_PATHS = [
-  "color.backdrop",
-  "color.shadow-hairline",
-  "color.shadow-highlight",
-  "color.shadow-ambient-near",
-  "color.shadow-ambient-far",
-  "color.shadow-cta-highlight",
-] as const;
+const SEED_COVERED_PATHS = ["color.backdrop"] as const;
 
 // The exact token-path coverage every seed value-set must carry: each EMITTED `--color-*` (the
 // themeable surface, from clamp.ts — since #204 that includes color.reading-plate, the derived over-art

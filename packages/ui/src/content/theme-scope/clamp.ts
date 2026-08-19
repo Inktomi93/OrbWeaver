@@ -2,6 +2,10 @@
 // here before it reaches the DOM (color must parse as a color, dimension snaps to the token scale,
 // font is allowlisted) — anything that fails is dropped, never applied raw.
 //
+// THE FILE OWNS THE POLICY, NOT THE SPELLINGS: what a picked base DERIVES (the neutral ramp, the
+// foregrounds, the plate/band, the #243 elevation ingredients) lives in `derive-vars.ts`, and the colour
+// READERS live in `color-parse.ts` — the same seam, cut twice, so this stays the boundary decision.
+//
 // THE READING-SURFACE DERIVE LAW (#204): every PLATE the transcript paints text on derives from the one
 // picked base surface — the neutral ramp (opaque chrome), and `--color-reading-plate` (the over-art text
 // backing, base + readingPlate.deltaL at the polarity-derived `readingPlateAlpha`) — and every INK on such a plate comes from
@@ -23,11 +27,12 @@
 // `--color-backdrop` (the polarity-FIXED dimming smoke behind modals/dismiss/wallpaper-dim): one token
 // serving both jobs is exactly how #204 happened — a light palette's dark inks landed on the app's fixed
 // dark smoke. A token names ONE polarity semantic.
-import { THEME_DERIVATION as KIT_THEME_DERIVATION, proseInkLightness, READING_BAND_ALPHA, readingPlateAlpha } from "@orb/kit/theme-derivation";
+import { THEME_DERIVATION as KIT_THEME_DERIVATION, proseInkLightness } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 import type { ParsedOklch } from "./color-parse.ts";
 import { parseOklchL, toOklch } from "./color-parse.ts";
+import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
 
 /** Fonts a user may pick — an allowlist; anything else is dropped. */
 export const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
@@ -126,46 +131,20 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-border",
   "--color-sidebar-border",
   "--color-input",
+  // The five ELEVATION INGREDIENTS of `--shadow-overlay` / `--shadow-cta` (#243, closing #232's recorded
+  // residual). Derived from the picked base's POLARITY, never picked: a custom light theme used to
+  // inherit the base palette's dark smoke (a 1.00:1 white ring, a near-black halo). They are colours
+  // rather than the composite because Tailwind v4 inlines a `--shadow-*` @theme value into its utility at
+  // build time — only a var() ingredient survives that and resolves in scope.
+  "--color-shadow-hairline",
+  "--color-shadow-highlight",
+  "--color-shadow-ambient-near",
+  "--color-shadow-ambient-far",
+  "--color-shadow-cta-highlight",
   "--font-sans",
   "--radius-card",
 ] as const;
 
-// OKLCH lightness deltas of the neutral surface ramp relative to the base `background`, applied via
-// CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma held).
-const RAMP_DL_SIDEBAR = KIT_THEME_DERIVATION.ramp.sidebar;
-const RAMP_DL_SURFACE_RAISED = KIT_THEME_DERIVATION.ramp.surfaceRaised;
-const RAMP_DL_CARD = KIT_THEME_DERIVATION.ramp.card;
-const RAMP_DL_POPOVER = KIT_THEME_DERIVATION.ramp.popover;
-const RAMP_DL_ACCENT = KIT_THEME_DERIVATION.ramp.accent;
-const RAMP_DL_SIDEBAR_ACCENT = KIT_THEME_DERIVATION.ramp.sidebarAccent;
-const RAMP_DL_SECONDARY = KIT_THEME_DERIVATION.ramp.secondary;
-const RAMP_DL_MUTED = KIT_THEME_DERIVATION.ramp.muted;
-const SURFACE_RAMP_DELTAS: ReadonlyArray<readonly [name: string, deltaL: number]> = [
-  ["--color-sidebar", RAMP_DL_SIDEBAR],
-  ["--color-surface-raised", RAMP_DL_SURFACE_RAISED],
-  ["--color-card", RAMP_DL_CARD],
-  ["--color-popover", RAMP_DL_POPOVER],
-  ["--color-accent", RAMP_DL_ACCENT],
-  ["--color-sidebar-accent", RAMP_DL_SIDEBAR_ACCENT],
-  ["--color-secondary", RAMP_DL_SECONDARY],
-  ["--color-muted", RAMP_DL_MUTED],
-];
-
-// Contrast-safe foreground derivation: L flips light↔dark around a pivot with a steep step, so any
-// surface lighter than the pivot gets near-black text and darker gets near-white — a foreground is
-// never picked directly, only derived, so "set everything white" can't produce invisible text.
-const FG_PIVOT_L = KIT_THEME_DERIVATION.fgPivotL;
-const FG_STEEPNESS = KIT_THEME_DERIVATION.fgSteepness;
-const FG_L_MIN = KIT_THEME_DERIVATION.fgLMin;
-const FG_L_MAX = KIT_THEME_DERIVATION.fgLMax;
-const CONTRAST_L = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
-const BORDER_ALPHA = KIT_THEME_DERIVATION.borderAlpha;
-const INPUT_ALPHA = KIT_THEME_DERIVATION.inputAlpha;
-// Muted foreground: same pivot flip, softer band, tuned to clear WCAG AA (>=4.5:1) against the
-// derived input fill on both light and dark bases.
-const MUTED_L_MIN = KIT_THEME_DERIVATION.mutedLMin;
-const MUTED_L_MAX = KIT_THEME_DERIVATION.mutedLMax;
-const MUTED_CONTRAST_L = `clamp(${MUTED_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${MUTED_L_MAX})`;
 /**
  * The numeric derivation constants, exported so the seed-palette-contrast test recomputes the
  * derived colors independently and proves every pairing clears WCAG AA against the real constants.
@@ -185,7 +164,8 @@ export const THEME_DERIVATION = KIT_THEME_DERIVATION;
  * arm (a custom LIGHT theme needs the light arms, or intent text renders in its dark-arm tone and goes
  * illegible on the light surface), and (2) native controls/scrollbars match the surface polarity.
  *
- * The pivot MUST be `FG_PIVOT_L` — the SAME threshold the derived foreground flips on — so scheme
+ * The pivot MUST be `THEME_DERIVATION.fgPivotL` — the SAME threshold the derived foreground flips on
+ * (`derive-vars.ts`) and the elevation arm flips on (`shadowIngredients`, #243) — so scheme
  * polarity and text polarity can never disagree: a surface lighter than the pivot already gets
  * near-black text (a LIGHT surface ⇒ "light"), darker gets near-white (⇒ "dark"). Boundary: strictly
  * ABOVE the pivot is light, so L of exactly 0.62 resolves "dark" (the pivot itself yields near-black
@@ -198,71 +178,7 @@ function colorSchemeFor(background: string): "light" | "dark" | null {
   if (l === null) {
     return null;
   }
-  return l > FG_PIVOT_L ? "light" : "dark";
-}
-
-/** A contrast-safe foreground for text sitting on `surface` (any validated color) — browser-computed. */
-function foregroundOn(surface: string): string {
-  return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
-}
-// Computed single-level off the base (the pivot flip reads l + deltaL, never a nested relative-color
-// of an already-derived surface) so it stays the same shape as every other derived token.
-function foregroundOnShifted(base: string, deltaL: number): string {
-  const shiftedL = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - (l + ${deltaL})) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
-  return `oklch(from ${base} ${shiftedL} 0 h)`;
-}
-/** A contrast-safe muted foreground (secondary text/placeholders) for `surface`. */
-function mutedForegroundOn(surface: string): string {
-  return `oklch(from ${surface} ${MUTED_CONTRAST_L} 0 h)`;
-}
-/** A subtle contrast border derived from `surface`. */
-function borderOn(surface: string): string {
-  return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${BORDER_ALPHA})`;
-}
-/** The input-field surface lift derived from `surface`, composited over any surface. */
-function inputSurfaceOn(surface: string): string {
-  return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${INPUT_ALPHA})`;
-}
-/** An unjudgeable base gets an OPAQUE plate — see {@link readingPlateOn}. */
-const UNJUDGEABLE_PLATE_ALPHA = 1;
-/**
- * The over-art reading plate for a picked base: the same one-base L shift the ramp rides, but carrying
- * its own alpha (it composites over wallpaper art), so it is spelled here rather than in the alphaless
- * ramp loop.
- *
- * The ALPHA is polarity-aware and DERIVED IN NODE (#217, `readingPlateAlpha` — the algebra and the
- * dark-arm owner ruling live on that function): a LIGHT plate's composite over DARK art is the failing
- * case (the same ink measured 3.48:1 and 4.94:1 in one room at two scroll positions), so a light base
- * gets the alpha that keeps the reference ink at AA over worst-case art while a dark base keeps the
- * measured 0.65 floor. It is the one derived number the browser CANNOT compute for us — relative-colour
- * syntax has no contrast operator — so it lands as a literal, judged off the parsed base.
- *
- * A base neither reader resolves (`base === null`: a named colour, modern unitless `hsl()`) cannot be
- * judged at all, so it gets an OPAQUE plate. Failing open on POLARITY is the safe direction
- * (`colorSchemeFor`); failing open on the READING FLOOR would ship the #217 defect on exactly the
- * palettes nothing can prove. Opacity costs the art, never the reader.
- */
-function readingPlateOn(background: string, base: ParsedOklch | null): string {
-  const alpha = base === null ? UNJUDGEABLE_PLATE_ALPHA : readingPlateAlpha({ l: base.l, c: base.c, h: base.h });
-  return `oklch(from ${background} calc(l + ${KIT_THEME_DERIVATION.readingPlate.deltaL}) c h / ${alpha})`;
-}
-
-/**
- * The STICKY ATTRIBUTION BAND for a picked base (#241): the plate's colour at `READING_BAND_ALPHA`.
- *
- * It is spelled as the SAME one-base L shift rather than as a relative colour off the emitted plate
- * (`oklch(from var(--color-reading-plate) l c h / 1)`) for two reasons, both load-bearing: the plate's
- * alpha is polarity-DERIVED in node, so a var-origin form would make the band's value depend on a
- * substitution this function cannot judge; and every other derived token here is computed single-level
- * off the base, never nested off an already-derived surface (see `foregroundOnShifted`). The alpha slot
- * is spelled EXPLICITLY — relative-colour syntax inherits the ORIGIN's alpha for an omitted slot, and
- * the origin here is a background that may itself be translucent.
- *
- * It needs no `base` and no fail-open arm: unlike the plate's alpha there is nothing to solve, so an
- * unjudgeable base (a named colour) still gets a correct band.
- */
-function readingBandOn(background: string): string {
-  return `oklch(from ${background} calc(l + ${KIT_THEME_DERIVATION.readingPlate.deltaL}) c h / ${READING_BAND_ALPHA})`;
+  return l > KIT_THEME_DERIVATION.fgPivotL ? "light" : "dark";
 }
 
 /**
@@ -363,25 +279,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string): Clam
     putBubble(t.systemBubble.bg, "--color-system-bubble", "--color-system-bubble-foreground");
   }
   if (t.background !== undefined) {
-    vars["--color-background"] = t.background;
-    for (const [name, deltaL] of SURFACE_RAMP_DELTAS) {
-      vars[name] = `oklch(from ${t.background} calc(l + ${deltaL}) c h)`;
-    }
-    // The plate derives from the CARRIED base only — never the ambient one (#236): this branch runs
-    // only when a background IS carried, and its alpha must answer the art behind THIS scope's surface.
-    vars["--color-reading-plate"] = readingPlateOn(t.background, carriedBase);
-    vars["--color-reading-band"] = readingBandOn(t.background);
-    vars["--color-accent-foreground"] = foregroundOnShifted(t.background, RAMP_DL_ACCENT);
-    const fg = foregroundOn(t.background);
-    vars["--color-foreground"] = fg;
-    vars["--color-card-foreground"] = fg;
-    vars["--color-popover-foreground"] = fg;
-    vars["--color-sidebar-foreground"] = fg;
-    vars["--color-secondary-foreground"] = fg;
-    vars["--color-muted-foreground"] = mutedForegroundOn(t.background);
-    vars["--color-border"] = borderOn(t.background);
-    vars["--color-sidebar-border"] = borderOn(t.background);
-    vars["--color-input"] = inputSurfaceOn(t.background);
+    Object.assign(vars, surfaceVarsOn(t.background, carriedBase));
   }
   // An explicit border color wins over the derived hairline, for both border scopes.
   put("--color-border", t.borderColor);

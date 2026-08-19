@@ -20,6 +20,7 @@ import {
   rampSurface,
   readingBandSurface,
   readingPlateAlpha,
+  shadowIngredients,
   srgbToOklch,
   THEME_DERIVATION,
   wcagContrastRatio,
@@ -33,6 +34,61 @@ describe("THEME_DERIVATION", () => {
     // If clamp.ts ever re-declares its own numbers, this identity check fails before the divergence can
     // reach a rendered pixel or a wrong import decision.
     expect(UI_THEME_DERIVATION).toBe(THEME_DERIVATION);
+  });
+});
+
+describe("shadowIngredients (#243 — the polarity-derived elevation recipe)", () => {
+  const darkBase = { l: 0.158, c: 0.006, h: 60 };
+  const lightBase = { l: 0.98, c: 0.004, h: 75 };
+  const roles = ["hairline", "highlight", "ambientNear", "ambientFar", "ctaHighlight"] as const;
+
+  test("the DARK arm is the base @theme recipe, digit for digit (the sacred rooms cannot move)", () => {
+    const { hairline, highlight, ambientNear, ambientFar, ctaHighlight } = shadowIngredients(darkBase);
+    // These five ARE `--color-shadow-*` in theme.css's @theme block. Every one is chroma 0, which is what
+    // makes the emitted relative colour (`oklch(from <base> l 0 h / a)`) the same white/black pixel the
+    // literal spells: hue is powerless at chroma 0, so a dark custom theme's ingredients are unchanged.
+    expect([hairline.l, hairline.c, hairline.alpha]).toEqual([1, 0, 0.06]);
+    expect([highlight.l, highlight.c, highlight.alpha]).toEqual([1, 0, 0.08]);
+    expect([ambientNear.l, ambientNear.c, ambientNear.alpha]).toEqual([0, 0, 0.4]);
+    expect([ambientFar.l, ambientFar.c, ambientFar.alpha]).toEqual([0, 0, 0.5]);
+    expect([ctaHighlight.l, ctaHighlight.c, ctaHighlight.alpha]).toEqual([1, 0, 0.15]);
+  });
+
+  test("the LIGHT arm inverts the ring, mutes the drop, and switches the inset OFF", () => {
+    const light = shadowIngredients(lightBase);
+    const dark = shadowIngredients(darkBase);
+    // The ring stops being light-from-above: a DARK hairline (the white one measured 1.00-1.02:1 against
+    // a light page — invisible), at more than twice the alpha because a dark ring at 0.06 is a whisper.
+    expect(light.hairline.l).toBeLessThan(dark.hairline.l);
+    expect(light.hairline.alpha).toBeGreaterThan(dark.hairline.alpha);
+    // The inset top-highlight paints nothing on a near-white card, so it is spent to zero rather than
+    // left as a value nobody can see.
+    expect(light.highlight.alpha).toBe(0);
+    // The drops stay DROPS (darker than the surface) but lift off pure black at a third of the alpha —
+    // the "torn-out sticker" the Light seed was retuned to kill.
+    for (const role of ["ambientNear", "ambientFar"] as const) {
+      expect(light[role].l).toBeGreaterThan(dark[role].l);
+      expect(light[role].l).toBeLessThan(lightBase.l);
+      expect(light[role].alpha).toBeLessThan(dark[role].alpha);
+    }
+    // …and the CTA catch is on the PRIMARY fill, not a surface, so the light arm STRENGTHENS it.
+    expect(light.ctaHighlight.alpha).toBeGreaterThan(dark.ctaHighlight.alpha);
+  });
+
+  test("every ingredient carries the PALETTE's hue — elevation tints with the theme, never with Hearth", () => {
+    for (const base of [darkBase, lightBase, { l: 0.95, c: 0.03, h: 280 }]) {
+      for (const role of roles) {
+        expect(shadowIngredients(base)[role].h, role).toBe(base.h);
+      }
+    }
+  });
+
+  test("the polarity flip rides fgPivotL — the SAME threshold as the foreground and color-scheme", () => {
+    const { fgPivotL } = THEME_DERIVATION;
+    // Strictly above the pivot is light (colorSchemeFor's boundary), so the pivot itself is the dark
+    // arm's ceiling — text polarity and elevation polarity can never disagree about one base.
+    expect(shadowIngredients({ l: fgPivotL, c: 0.01, h: 60 }).highlight.alpha).toBe(THEME_DERIVATION.shadow.dark.highlight.alpha);
+    expect(shadowIngredients({ l: fgPivotL + 0.01, c: 0.01, h: 60 }).highlight.alpha).toBe(THEME_DERIVATION.shadow.light.highlight.alpha);
   });
 });
 

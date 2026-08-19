@@ -334,6 +334,65 @@ test("the ambient chain re-bases at a CARRIED palette: an ink-only scope inside 
   await expect.poll(() => cmp.getByTestId("in-room").evaluate(renderedContrast), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(4.5);
 });
 
+// ── #243: THE ELEVATION INGREDIENTS UNDER A CUSTOM LIGHT THEME (rendered — done ≠ emitted) ─────────
+// A custom (non-seed) light theme used to inherit the base DARK ingredients: `--shadow-overlay`'s ring
+// is `oklch(1 0 0 / 0.06)` white, which over a 0.98 base composites to a 1.00:1 ghost (#232 measured the
+// same class at 1.29:1 on the Light seed before it got its own block). Only the browser resolves the
+// emitted relative colour, so this is asserted on PAINTED pixels: the ring is painted over the base in a
+// canvas and the composite is compared to the base itself.
+const RING_PROBE_BASE = "oklch(0.98 0.004 75)";
+
+/** The ring custom property, PAINTED over `base` in a 1x1 canvas → [composite luminance, base luminance]. */
+const paintedRingVsBase = (el: Element, base: string): readonly [number, number] => {
+  const ring = getComputedStyle(el).getPropertyValue("--color-shadow-hairline").trim();
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("no 2d context");
+  }
+  const lumOfPixel = (): number => {
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    const [lr, lg, lb] = [r ?? 0, g ?? 0, b ?? 0].map((v) => {
+      const c = v / 255;
+      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    }) as [number, number, number];
+    return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+  };
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, 1, 1);
+  const baseLum = lumOfPixel();
+  if (ring === "") {
+    throw new Error("no --color-shadow-hairline in scope");
+  }
+  ctx.fillStyle = ring; // translucent — the canvas composites it over the base already painted
+  ctx.fillRect(0, 0, 1, 1);
+  return [lumOfPixel(), baseLum];
+};
+
+test("#243 a CUSTOM light theme paints a DARK elevation ring — not the base theme's white ghost", async ({ mount }) => {
+  const cmp = await mount(
+    <ThemeScope tokens={{ background: RING_PROBE_BASE }}>
+      <span data-testid="ring-probe">card</span>
+    </ThemeScope>,
+  );
+  const [composite, base] = await cmp.getByTestId("ring-probe").evaluate(paintedRingVsBase, RING_PROBE_BASE);
+  // Pre-#243 the inherited white ring composited to the base's own luminance (1.00:1, invisible).
+  expect(composite).toBeLessThan(base);
+  expect((base + 0.05) / (composite + 0.05)).toBeGreaterThan(1.2);
+});
+
+test("#243 a CUSTOM dark theme's elevation ring stays light-from-above (the dark arm does not move)", async ({ mount }) => {
+  const cmp = await mount(
+    <ThemeScope tokens={{ background: DARK_SEED_BASE }}>
+      <span data-testid="ring-probe-dark">card</span>
+    </ThemeScope>,
+  );
+  const [composite, base] = await cmp.getByTestId("ring-probe-dark").evaluate(paintedRingVsBase, DARK_SEED_BASE);
+  expect(composite).toBeGreaterThan(base);
+});
+
 test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte-identically", async ({ mount }) => {
   // Nothing named the surface (a preview, a CT story, any mount outside the shell) ⇒ the pre-#236 rule
   // stands: never guess a polarity. The author's value reaches the DOM untouched.
