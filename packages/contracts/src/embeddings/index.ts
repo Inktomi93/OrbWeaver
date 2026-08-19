@@ -14,6 +14,23 @@ export type ImageLens = (typeof IMAGE_LENSES)[number];
 
 export const imageLensSchema = z.enum(IMAGE_LENSES);
 
+/** Why the image indexer REFUSED to caption+embed an asset — a durable, attributable skip-record (the
+ *  `image_index_skips.reason` column derives this tuple, as `lens` does IMAGE_LENSES). Promoted here so
+ *  `@orb/db` can build the column's `{ enum }` + CHECK without importing a server-tier `domain/<x>/contract/`.
+ *
+ *  `below-dimension-floor` is the admission floor: an asset whose header-parsed shorter edge is under the
+ *  indexer's minimum (`substrate/image-admission`) carries no visual signal — a 1×1 tracking-pixel or
+ *  placeholder — so captioning + embedding it would burn VL/embed compute and write a degenerate vector
+ *  into the retrieval + discovery substrate. Recorded (not silently skipped) so the content-hash self-heal
+ *  never re-attempts it every pass and so the refusal is visible/attributable. It is a TUPLE, not a bare
+ *  string, so a future reason (a corrupt/unparseable asset, say) is a tsc error at every consumer that has
+ *  not handled it (§5.5 dispatch discipline). */
+export const IMAGE_SKIP_REASONS = ["below-dimension-floor"] as const;
+
+export type ImageSkipReason = (typeof IMAGE_SKIP_REASONS)[number];
+
+export const imageSkipReasonSchema = z.enum(IMAGE_SKIP_REASONS);
+
 // ── The VL image breakdown (`image_embeddings.caption_meta`) ──────────────────────────────────────────
 //
 // WHY THIS LIVES IN CONTRACTS AND NOT IN EITHER DOMAIN. `caption_meta` is a domain↔domain wire column:

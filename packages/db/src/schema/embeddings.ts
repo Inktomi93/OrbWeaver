@@ -42,7 +42,7 @@
 // identity-keyed join (composite PK — there is no TypeID brand for it).
 
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
-import { IMAGE_LENSES } from "@orb/contracts/embeddings";
+import { IMAGE_LENSES, IMAGE_SKIP_REASONS } from "@orb/contracts/embeddings";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -79,6 +79,9 @@ const VECTOR_DIM = 1024;
 
 // CHECK list derived from the canonical tuple (NOT re-spelled): `lens in ('image-raw', 'image-captioned')`.
 const IMAGE_LENS_CHECK_LIST = checkList(IMAGE_LENSES);
+
+// CHECK list derived from the canonical tuple (NOT re-spelled): `reason in ('below-dimension-floor')`.
+const IMAGE_SKIP_REASON_CHECK_LIST = checkList(IMAGE_SKIP_REASONS);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // character_embeddings — the CARD lens (one lens: `card-text`). FK `characters.id` (D28 — NOT a cv). NO
@@ -363,5 +366,48 @@ export const documentChunks = sqliteTable(
     // The idempotent upsert key: one chunk per (document, chunkIdx, model).
     uniqueIndex("document_chunks_doc_chunk_model_unique").on(t.documentId, t.chunkIdx, t.model),
     index("document_chunks_document_idx").on(t.documentId),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// image_index_skips — the image indexer's ADMISSION-FLOOR skip-log (producer: domain/embeddings indexer).
+// NOT a vector table: it records assets the indexer REFUSED to caption+embed so the skip is idempotent and
+// visible, never a silently-dropped asset the content-hash self-heal re-attempts every pass. An asset below
+// the dimension floor (`substrate/image-admission` — a 1×1 tracking-pixel / placeholder) carries no visual
+// signal, so captioning + embedding it burns VL/embed compute and poisons the retrieval + discovery
+// substrate with a degenerate vector; the floor gate writes a row here instead and both admission paths
+// (on-write `onAssetCreated` + the bulk `embedAssets` sweep) honor it.
+//
+// KEYED BY assetId ALONE (its PK), MODEL-AGNOSTIC: the verdict is about the immutable CAS bytes (an assetId
+// maps to fixed bytes — a degenerate image is degenerate under every embed model), so — unlike the vector
+// tables — it carries NO `(model, dim)` space tag and SURVIVES a PD-104 model change / purge+reindex (the
+// asset stays below the floor). NO ownerId (D20 — scope derives via `assets.ownerId`); CASCADE on asset
+// delete drops the skip with its asset. `reason` derives IMAGE_SKIP_REASONS (D34 — the same promote-to-
+// contracts-so-db-can-derive rule as `image_embeddings.lens`) + a tuple-built CHECK; `width`/`height` are
+// the header-parsed dimensions that failed (nullable — attribution, not a key).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const imageIndexSkips = sqliteTable(
+  "image_index_skips",
+  {
+    // The producer FK AND the natural PK — one skip verdict per asset (the bytes are immutable per assetId,
+    // so the dimension verdict is permanent). CASCADE: a deleted asset drops its skip row. The ONLY
+    // ownership link (owner-scope derives via the owned asset — no ownerId column, D20/D21).
+    assetId: text("asset_id")
+      .$type<AssetId>()
+      .primaryKey()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    // Why the indexer refused — derives IMAGE_SKIP_REASONS (@orb/contracts/embeddings, D34). The `enum`
+    // option is type-only; the CHECK below is the SQL-level guard.
+    reason: text("reason", { enum: IMAGE_SKIP_REASONS }).notNull(),
+    // The header-parsed dimensions that tripped the floor (attribution only, never a key). Nullable — a
+    // skip whose dimensions were unparseable would carry nulls (the current floor never records that case).
+    width: integer("width"),
+    height: integer("height"),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  () => [
+    // SQL-side enum enforcement derived from the tuple (mirrors the drizzle `{ enum }` type-side).
+    check("image_index_skips_reason_check", sql.raw(`reason in (${IMAGE_SKIP_REASON_CHECK_LIST})`)),
   ],
 );

@@ -128,6 +128,12 @@ export interface EmbeddingsService {
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */
 export interface EmbeddingsIndexerContext {
   readonly store: EmbeddingsService["store"];
+  /** The indexer's OWN skip-log table (`image_index_skips`) — read/written directly (not through an injected
+   *  op) because it is this domain's own table, exactly as the bulk `embedAssets` sweep touches it via
+   *  `ctx.db`. The cross-domain canon re-reads stay injected (loadCardText/loadAssetBytes/loadAssetMime). */
+  readonly db: Db;
+  /** The injected clock — the admission-floor skip-record's `created_at`. */
+  readonly now: () => number;
   readonly loadCardText: LoadCardText;
   readonly loadAssetMime: LoadAssetMime;
   readonly loadAssetBytes: LoadAssetBytes;
