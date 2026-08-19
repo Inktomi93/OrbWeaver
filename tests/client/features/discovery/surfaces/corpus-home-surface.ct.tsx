@@ -341,6 +341,10 @@ test("the masthead never prints a number its own sentence just said (§5 distill
 
 /** More bars than any single-line fallback could produce — the claim is "a composition", not "a bar". */
 const SKELETON_BAR_FLOOR = 5;
+/** The eyebrow bar is `w-1/6` of the pane: a band, not the exact sixth, so re-tuning the taste does not
+ *  re-red the test — what it must never be is 1 (an unregistered utility, so the bar filled the pane). */
+const SKELETON_EYEBROW_MIN_RATIO = 0.05;
+const SKELETON_EYEBROW_MAX_RATIO = 0.4;
 
 // ── §5: THE LOADING STATE IS THE SURFACE'S SHAPE, NOT A SENTENCE IN A VOID ───────────────────────────
 // The CONTENT pane fell back to a bare "Loading your corpus…" gloss in the corner of an 869x800 empty
@@ -359,6 +363,17 @@ test("the pending corpus renders a skeleton composition, not a lone sentence (§
   // not sampled — the bars mount with the fallback and a single count can read mid-commit.
   await expect.poll(() => skeleton.locator('[data-slot="skeleton"]').count()).toBeGreaterThan(SKELETON_BAR_FLOOR);
   await expect(component.getByText("Loading your corpus…")).toHaveCount(0);
+
+  // THE BARS ARE FRACTIONS OF THEIR OWN TRACK, and an unregistered utility fails SILENTLY — the div simply
+  // fills its parent, which no class-string assertion can see. Measured instead: the masthead eyebrow is a
+  // slice of the pane, not the whole of it (it is `w-1/6`; the band brackets the fraction without pinning
+  // the exact number, which is a taste call).
+  const eyebrow = skeleton.locator('[data-slot="skeleton"]').first();
+  const eyebrowWidth = (await eyebrow.boundingBox())?.width ?? 0;
+  const paneWidth = (await skeleton.boundingBox())?.width ?? 0;
+  expect(paneWidth).toBeGreaterThan(0);
+  expect(eyebrowWidth / paneWidth).toBeGreaterThan(SKELETON_EYEBROW_MIN_RATIO);
+  expect(eyebrowWidth / paneWidth).toBeLessThan(SKELETON_EYEBROW_MAX_RATIO);
 
   // …and it gives way to the real surface when the reads land (the fallback is a fallback, not a state).
   held.release((ANALYSED as Record<string, unknown>)["discovery.home"]);

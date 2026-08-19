@@ -9,6 +9,7 @@
 //     `totalCount` counts the filtered scope rather than the page, and a cursor minted under one sort is
 //     refused under the other instead of being applied to the wrong keyset.
 
+import type { BrowseSort } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
@@ -177,7 +178,7 @@ describe("browseCharacters", () => {
   async function walk(
     svc: ReturnType<typeof svcFor>,
     owner: UserId,
-    step: { readonly sort: "recent" | "name"; readonly cursor?: BrowseCursorOf; readonly guard?: number },
+    step: { readonly sort: BrowseSort; readonly cursor?: BrowseCursorOf; readonly guard?: number },
   ): Promise<string[]> {
     const guard = step.guard ?? 20;
     if (guard === 0) {

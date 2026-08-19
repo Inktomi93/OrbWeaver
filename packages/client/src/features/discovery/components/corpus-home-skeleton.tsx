@@ -14,7 +14,19 @@
 //
 // `aria-busy` rides the root: `Skeleton` is decorative/aria-hidden by contract, so without it the whole
 // region is silent to a screen reader for the entire wait.
+//
+// THE ISLAND IS A `Card`, not a hand-written box (train-debts, density-tier A1): the settled focal island
+// is `<Card>` (corpus-family-map.tsx), which resolves BOTH its radius and its padding from the surface tier
+// — a hand-spelled `rounded-card border p-block` claimed the elevated radius directly (D6: that step is the
+// floating family's) and pinned a padding the tier owns. Composing the primitive makes the placeholder
+// inherit whatever the settled island inherits, which is the only way the two can agree by construction.
+//
+// BAR WIDTHS ARE FRACTIONS OF THEIR OWN TRACK, never `w-32`/`w-48` (no-raw-container-widths): a shimmer bar
+// stands in for text whose length scales with the column it sits in, and the in-tree skeleton idiom is
+// fraction/`flex-1`/`w-full` throughout (packages/client/src/data/skeleton-rows.tsx, refinery's payload and
+// rewrite lanes). A fixed rem width would hold still while the pane around it moved.
 
+import { Card } from "@orb/ui/card";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import type { ReactElement } from "react";
@@ -38,29 +50,31 @@ export function CorpusHomeSkeleton(): ReactElement {
   return (
     <Stack aria-busy={true} data-slot="corpus-home-skeleton" gap="section">
       <Stack gap="tight">
-        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-3 w-1/6" />
         <Skeleton className="h-8 w-2/3" />
       </Stack>
       <Grid className="items-start" cols="leadEarly" gap="gutter">
-        <Stack className="min-w-0 rounded-card border border-border p-block" gap="row">
-          <Skeleton className="h-4 w-48" />
-          {slots(ISLAND_PLATES).map((i) => (
-            <Row align="center" gap="row" key={i}>
-              <Skeleton className="size-10 rounded-base" />
-              <Stack className="min-w-0 flex-1" gap="tight">
-                <Skeleton className="h-3 w-1/2" />
-                <Skeleton className="h-3 w-3/4" />
-              </Stack>
-            </Row>
-          ))}
-        </Stack>
+        <Card className="min-w-0">
+          <Stack gap="row">
+            <Skeleton className="h-4 w-1/3" />
+            {slots(ISLAND_PLATES).map((i) => (
+              <Row align="center" gap="row" key={i}>
+                <Skeleton className="size-10 rounded-base" />
+                <Stack className="min-w-0 flex-1" gap="tight">
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-3 w-3/4" />
+                </Stack>
+              </Row>
+            ))}
+          </Stack>
+        </Card>
         <Stack className="min-w-0" gap="row">
-          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-1/3" />
           <SkeletonRows count={READINESS_ROWS} shape="datum" />
         </Stack>
       </Grid>
       <Stack gap="row">
-        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-3 w-1/5" />
         <Grid cols="auto" gap="row">
           {slots(GEM_TILES).map((i) => (
             <Row align="center" gap="row" key={i}>
