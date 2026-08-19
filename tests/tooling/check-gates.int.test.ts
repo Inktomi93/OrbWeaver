@@ -310,6 +310,13 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_g3ctx/lib/g3-badge.ts", 'export const gBadgeCtx = { kind: "tabs", useResolved: () => null };\n');
   // state-files: a flat state/ file exporting the minted store handle (rule 3 — no exported handle).
   fx("packages/client/src/state/__g_state.ts", 'export const useGStore = createGatedStore("g", () => ({ n: 0 }));\n');
+  // duplicate-action-doors: one tRPC mutation wired from TWO components on one plane, with no baseline
+  // budget for the pair — the second door is a NEW door (#252).
+  fx("packages/client/src/features/__g_doors/components/__g_a.tsx", "export const A = () => trpc.chat.forkChat.mutationOptions();\n");
+  fx("packages/client/src/features/__g_doors/components/__g_b.tsx", "export const B = () => trpc.chat.forkChat.mutationOptions();\n");
+  // class-token-splice: a `${…}` spliced INSIDE a class token — the composed class never appears as a
+  // whole literal, so Tailwind registers no rule and it paints nothing (#249).
+  fx("packages/client/src/features/__g_splice/components/__g_c.tsx", 'const gSide = "end";\nexport const C = () => <div className={`inset-${gSide}-0`} />;\n');
   // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
   // component-size alone). 451 padded lines.
   fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));

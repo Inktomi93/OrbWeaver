@@ -17,8 +17,10 @@ import { collectFindings } from "../../scripts/probes/design-audit-checks.ts";
 import { COLLECT_SAMPLES_JS } from "../../scripts/probes/design-audit-walker.ts";
 import {
   WalkerAccentBorderStory,
+  WalkerAriaHiddenVisualStory,
   WalkerCapsTrackingStory,
   WalkerDimmedContrastStory,
+  WalkerDuplicateDoorStory,
   WalkerDuplicateSlotStory,
   WalkerGradientBackdropStory,
   WalkerNeighbourButtonsStory,
@@ -316,4 +318,76 @@ test("the rgb-authored twin stays clean — the normalizer widened the parse, it
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=rgb-gradient-line]" && (f.rule === "text-over-art" || f.rule === "contrast"));
   expect(onLine, `the rgb ramp was never blind and its contrast is the same ~14:1 — got ${JSON.stringify(onLine)}`).toEqual([]);
+});
+
+// ── aria-hidden is an ACCESSIBILITY fact, not a paint one (issue #253) ────────────────────────────
+// The text walk skipped every `aria-hidden` subtree outright, and `aria-hidden` also sat inside the
+// type-floor's code-context exemption. So three baseline findings (wide-tracking, line-length,
+// undersized-ui-text on the facet preview) VANISHED from the scan the day #230 marked that preview
+// aria-hidden — correctly, for naming — while it still rendered at 10.5px / 0.84px tracking / 1,283 chars.
+// Sighted users read what the scanner had stopped looking at. The split these two tests pin: the VISUAL
+// families judge rendered pixels regardless of the accessibility tree, and the NAME/target families keep
+// skipping aria-hidden, because that is where the attribute really decides the answer.
+test("the visual families judge aria-hidden text — pixels do not consult the accessibility tree", async ({ mount, page }) => {
+  await mount(<WalkerAriaHiddenVisualStory />);
+  const findings = collectFindings(await samplesOf(page));
+  const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
+
+  expect(selectorsFor(findings, "contrast"), `rgb(56,56,62) on rgb(16,16,20) is ~1.3:1 whether or not it is announced — got ${seen}`).toContain(
+    "[data-testid=hidden-low-contrast]",
+  );
+  expect(selectorsFor(findings, "text-below-ramp"), `a 9px aria-hidden paragraph is still 9px of paint — got ${seen}`).toContain(
+    "[data-testid=hidden-below-ramp]",
+  );
+  expect(selectorsFor(findings, "wide-tracking"), `0.08em on sentence-case prose is the tracking defect, announced or not — got ${seen}`).toContain(
+    "[data-testid=hidden-tracked-prose]",
+  );
+  expect(selectorsFor(findings, "undersized-ui-text"), `a 10px control label is below the 11px functional floor — got ${seen}`).toContain(
+    "[data-testid=hidden-small-control]",
+  );
+});
+
+test("the name/target census still skips aria-hidden — the split is per rule FAMILY, not global", async ({ mount, page }) => {
+  await mount(<WalkerAriaHiddenVisualStory />);
+  const targets = await tapTargets(page);
+  const findings = collectFindings(await samplesOf(page));
+
+  expect(
+    targets.map((t) => t.selector).filter((s) => s.includes("hidden-small-control")),
+    "an aria-hidden button is not an offered target: the tap-target census is an ACCESSIBILITY question and must keep its skip",
+  ).toEqual([]);
+  expect(
+    findings.filter((f) => f.selector === "[data-testid=shown-legible-line]"),
+    `the announced, legible control line must stay clean — a widened walk that flags it is a false-positive factory. got ${JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`))}`,
+  ).toEqual([]);
+});
+
+// ── The dual-home lens, runtime half (issue #252) ─────────────────────────────────────────────────
+// The static gate censuses tRPC call sites per rail section and cannot see a REGISTRY-RENDERED action: one
+// call site behind N rendered slots. That is exactly the founding complaint's shape — "new chat lives in
+// three places", all three calling one shared state action, which no call-site census can count as three.
+// This lens counts what the USER sees: the same (role, accessible name) offered more than once on one plane.
+// Its false-positive class is per-datum repetition, and the second test is the arm that keeps it honest.
+test("one action offered from three unrelated places on one plane is ONE finding naming all three", async ({ mount, page }) => {
+  await mount(<WalkerDuplicateDoorStory />);
+  const findings = collectFindings(await samplesOf(page));
+  const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.value}`));
+
+  const doors = findings.filter((f) => f.rule === "duplicate-action-door");
+  expect(doors.length, `three doors to one verb is one finding about one verb, not three — got ${seen}`).toBe(1);
+  expect(doors[0]?.value, `the name key folds case and trailing punctuation, so "New chat"/"new chat"/"New chat…" are one door — got ${seen}`).toBe(
+    '3x button "new chat"',
+  );
+  expect(doors[0]?.message, "the finding must name every door, or a reader cannot decide which one to delete").toContain(" AND ");
+});
+
+test("per-datum repeats and same-role-different-name controls are not duplicate doors", async ({ mount, page }) => {
+  await mount(<WalkerDuplicateDoorStory />);
+  const findings = collectFindings(await samplesOf(page));
+  const values = findings.filter((f) => f.rule === "duplicate-action-door").map((f) => f.value);
+
+  expect(values.join(" "), 'three list rows each offering "Open" are three chats, not three doors — flagging them makes the lens useless').not.toContain(
+    '"open"',
+  );
+  expect(values.join(" "), "a button whose name differs is a different door — the key is (role, NAME), never role alone").not.toContain('"import a card"');
 });
