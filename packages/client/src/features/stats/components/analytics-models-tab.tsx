@@ -49,21 +49,25 @@ function ModelsBody(): ReactElement {
         {models.length === 0 ? (
           <Text voice="gloss">No model usage recorded yet.</Text>
         ) : (
-          <Stack gap="row" role="list">
-            {models.map((model) => {
+          /* `role="list"` needs `listitem` CHILDREN or every row is generic to AT and the list announces
+             empty (side-eye ANALYTICS 2026-08-19, P2c — 50 rows, none of them a list item). The wrapper
+             carries the role, never the ListRow, and posinset/setsize is the collection-rows spelling. */
+          <Stack aria-label="Models" gap="row" role="list">
+            {models.map((model, index) => {
               const modelName = modelDisplayName(model.model);
               return (
-                <ListRow
-                  key={`${model.model}-${model.provider ?? "unknown"}`}
-                  title={modelName}
-                  {...(modelName === model.model ? {} : { fullTitle: model.model })}
-                  subtitle={`${model.provider ?? "unknown"} · ${formatCompact(model.generations)} gens · ${model.charactersUsedWith} characters`}
-                  actions={
-                    <Text voice="gloss" className="whitespace-nowrap font-mono">
-                      {formatCompact(model.tokensOut)} tok · {formatUsd(model.costUsd)}
-                    </Text>
-                  }
-                />
+                <Stack aria-posinset={index + 1} aria-setsize={models.length} key={`${model.model}-${model.provider ?? "unknown"}`} role="listitem">
+                  <ListRow
+                    title={modelName}
+                    {...(modelName === model.model ? {} : { fullTitle: model.model })}
+                    subtitle={`${model.provider ?? "unknown"} · ${formatCompact(model.generations)} gens · ${model.charactersUsedWith} characters`}
+                    actions={
+                      <Text voice="gloss" className="whitespace-nowrap font-mono">
+                        {formatCompact(model.tokensOut)} tok · {formatUsd(model.costUsd)}
+                      </Text>
+                    }
+                  />
+                </Stack>
               );
             })}
           </Stack>
