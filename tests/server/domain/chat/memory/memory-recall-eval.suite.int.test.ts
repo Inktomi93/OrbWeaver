@@ -21,6 +21,7 @@
 // mirror: the property under test spans `chat/memory/recall` AND `domain/search`'s cosine — retrieval QUALITY
 // is not a fact about any one module, which is exactly why nothing owned it before.
 
+import type { RoleClients } from "@orb/contracts/role-clients";
 import type { MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle } from "@orb/kit/ids";
@@ -28,9 +29,10 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import type { MsgRow } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
+import type { MemoryConfig, MsgRow, WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import type { FakeRoleClientControls } from "../../search/_support.ts";
 import { EMBED_MODEL, makeSearch, seedChatDigest, vec } from "../../search/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedUser } from "../_support.ts";
 import { GROUP_CHAR, seedSegment, sharedScope } from "./_support.ts";
@@ -108,25 +110,33 @@ beforeEach(async () => {
   }
 });
 
-/** A chat context whose `searchDigests` is the REAL search domain over the REAL db — only the EMBEDDER is
- *  scripted (the sanctioned "fake at the edges" seam). This is the whole point of the tier: the cosine, the
- *  candidate restriction and the floor all execute for real. */
-function evalContext(): ChatContext {
-  const search = makeSearch(db, {
-    embedVector: (input: string): Float32Array<ArrayBuffer> | null => {
-      if (input.includes(OFF_CORPUS_PROBE)) {
-        // A real vector on an UNOCCUPIED axis — not `null`, which is the embedder-filtered-the-query path and
-        // would make `digests` refuse before any scan (a different fact from "nothing scored high enough").
-        return vec(...new Array<number>(CORPUS.length).fill(0), 1);
-      }
-      const hit = LABELED.find((q) => input.includes(q.probe));
-      return hit === undefined ? null : queryVector(hit.target, hit.decoy);
-    },
-  });
+/** The labeled-set query embedder: map a query string onto its target topic's vector (with a decoy lean), or
+ *  the off-corpus axis for {@link OFF_CORPUS_PROBE}. Extracted so the knob sweeps can reuse the SAME scripted
+ *  embedder while overriding OTHER role-client seams (e.g. a scripted rerank for the mixC divergence proof). */
+function labeledEmbedder(input: string): Float32Array<ArrayBuffer> | null {
+  if (input.includes(OFF_CORPUS_PROBE)) {
+    // A real vector on an UNOCCUPIED axis — not `null`, which is the embedder-filtered-the-query path and
+    // would make `digests` refuse before any scan (a different fact from "nothing scored high enough").
+    return vec(...new Array<number>(CORPUS.length).fill(0), 1);
+  }
+  const hit = LABELED.find((q) => input.includes(q.probe));
+  return hit === undefined ? null : queryVector(hit.target, hit.decoy);
+}
+
+/** A chat context whose `searchDigests` is the REAL search domain over the REAL db, with the injected
+ *  role-client seams (`embedVector`, optional scripted `rerank`) supplied by the caller. This is the whole
+ *  point of the tier: the cosine, the candidate restriction and the floor all execute for real. */
+function contextFor(controls: FakeRoleClientControls): ChatContext {
+  const search = makeSearch(db, controls);
   return makeChatContext(db, {
     searchDigests: (query: MemoryQueryOptions): Promise<readonly ScoredBlock[]> =>
       search.digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
   });
+}
+
+/** The default eval context — the labeled embedder, the default (order-preserving) rerank. */
+function evalContext(): ChatContext {
+  return contextFor({ embedVector: labeledEmbedder });
 }
 
 /** Run one labeled query through recall and return the ADMITTED block indexes in rank order (the trace's own
@@ -141,6 +151,44 @@ async function rankedBlocks(probe: string, over?: { readonly liveWindowCutoffSeq
     config: { mode: "mixB", fanOut: 2, queryWindow: 4, minScore: 0.05 },
     ...(over?.liveWindowCutoffSeq === undefined ? {} : { liveWindowCutoffSeq: over.liveWindowCutoffSeq }),
   });
+  return trace.candidates.filter((c) => c.verdict === "admitted").map((c) => c.blockIdx);
+}
+
+type RecallTrace = Awaited<ReturnType<typeof recallMemory>>["trace"];
+
+/** A recent-history `MsgRow` (the seed for the recall query text) — a plain user line carrying `content`. */
+function msg(seq: number, content: string): MsgRow {
+  return { seq, role: "user", kind: "standard", characterId: null, authorUserId: null, personaId: null, content };
+}
+
+/** The shared mixB knobs the #311 sweeps perturb ONE at a time (fanOut 2 matches the segment grid the
+ *  fixtures seed; queryWindow 4 keeps a single-line `recent` fully inside the window; minScore 0.05 admits
+ *  every on-axis hit). */
+const BASE_CFG: MemoryConfig = { mode: "mixB", fanOut: 2, queryWindow: 4, minScore: 0.05 };
+
+/** Run recall over the fixtures with an explicit config + recent window + optional guards, returning the full
+ *  trace so a knob/boundary sweep can read count, order, `queryEmbedded`, and the per-candidate verdicts. */
+async function traceFor(args: {
+  readonly recent: readonly MsgRow[];
+  readonly config: MemoryConfig;
+  readonly ctx?: ChatContext;
+  readonly liveWindowCutoffSeq?: number;
+  readonly witnessing?: readonly WitnessInterval[];
+}): Promise<RecallTrace> {
+  const { trace } = await recallMemory(args.ctx ?? evalContext(), {
+    scope: sharedScope(chatId),
+    groupCharacterId: GROUP_CHAR,
+    recent: args.recent,
+    names: new Map<CharacterId, string>(),
+    config: args.config,
+    ...(args.liveWindowCutoffSeq === undefined ? {} : { liveWindowCutoffSeq: args.liveWindowCutoffSeq }),
+    ...(args.witnessing === undefined ? {} : { witnessing: args.witnessing }),
+  });
+  return trace;
+}
+
+/** The ADMITTED block indexes in rank order (the trace's own answer). */
+function admitted(trace: RecallTrace): readonly number[] {
   return trace.candidates.filter((c) => c.verdict === "admitted").map((c) => c.blockIdx);
 }
 
@@ -204,5 +252,115 @@ describe("memory retrieval eval — deterministic fixture-vector tier (#251)", (
     expect(text).toBe("");
     // Every candidate is accounted for BY NAME — the trace says "scanned and rejected", never nothing at all.
     expect(trace.candidates.every((c) => c.verdict === "below-floor")).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// #311 — THE KNOBS, each proven by a PLANTED CONTROL that flips the outcome. A knob-sweep where both arms are
+// green proves nothing (the value was accepted, not that it did anything); every assertion below contrasts two
+// knob values that MUST diverge, so a knob silently stopping being wired FAILS here.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+describe("recall knobs — each proven by a control that FLIPS the outcome (#311)", () => {
+  test("mode `off` recalls NOTHING; the SAME fixtures under mixB recall something — the switch is load-bearing (recall.ts:57)", async () => {
+    const off = await traceFor({ recent: [msg(100, "shared bathing")], config: { ...BASE_CFG, mode: "off" } });
+    expect(off.surfaced).toBe(0);
+    expect(off.poolSize).toBe(0);
+    expect(off.note).toBe("mode off");
+
+    // The control: identical fixtures + query, mode flipped to mixB → recall actually happens.
+    const on = await traceFor({ recent: [msg(100, "shared bathing")], config: { ...BASE_CFG, mode: "mixB" } });
+    expect(on.surfaced).toBeGreaterThan(0);
+  });
+
+  test("mixA / tiered are PURE-ASSEMBLY (no embed); mixA returns EVERY tier-0 block in order — diverging from mixB's one relevant scene", async () => {
+    const a = await traceFor({ recent: [msg(100, "shared bathing")], config: { ...BASE_CFG, mode: "mixA" } });
+    expect(a.queryEmbedded).toBe(false);
+    expect(admitted(a)).toEqual([0, 1, 2, 3, 4, 5]);
+
+    const tiered = await traceFor({ recent: [msg(100, "shared bathing")], config: { ...BASE_CFG, mode: "tiered" } });
+    expect(tiered.queryEmbedded).toBe(false);
+
+    // A retrieval mode embeds + returns the ONE relevant scene; a pure-assembly mode embeds nothing and returns
+    // the whole corpus — the two mode families genuinely diverge on the same input.
+    const b = await traceFor({ recent: [msg(100, "shared bathing")], config: { ...BASE_CFG, mode: "mixB" } });
+    expect(b.queryEmbedded).toBe(true);
+    expect(admitted(a)).not.toEqual(admitted(b));
+  });
+
+  test("mixB vs mixC DIVERGE on the same input — mixC routes through the cross-encoder rerank, mixB does not (digests.ts:86)", async () => {
+    // A rerank that REVERSES the CSLS order — so any effect of the rerank stage is unmistakable in the output.
+    const reversingRerank: RoleClients["rerank"] = (_query, documents) =>
+      Promise.resolve({ hits: [...documents].reverse().map((d, i) => ({ id: d.id, score: i })), model: "test-rerank-model", usage: { totalTokens: null } });
+
+    const b = admitted(
+      await traceFor({ ctx: contextFor({ embedVector: labeledEmbedder }), recent: [msg(100, "shared bathing")], config: { ...BASE_CFG, mode: "mixB" } }),
+    );
+    const c = admitted(
+      await traceFor({
+        ctx: contextFor({ embedVector: labeledEmbedder, rerank: reversingRerank }),
+        recent: [msg(100, "shared bathing")],
+        config: { ...BASE_CFG, mode: "mixC" },
+      }),
+    );
+
+    // Same candidates, same query — only the mode differs. mixB keeps CSLS order; mixC's rerank reordered it.
+    expect(b.length).toBeGreaterThan(1);
+    expect(c).toEqual([...b].reverse());
+    expect(c).not.toEqual(b);
+  });
+
+  test("the queryWindow knob changes the effective query — a narrower window retrieves a DIFFERENT scene (query.ts:24)", async () => {
+    // `recent` is oldest→newest: an earlier bath line, then a recent duel line. The query is the LAST
+    // `queryWindow` messages, so the window size decides which scene the embedded query leans on.
+    const recent = [msg(1, "shared bathing"), msg(2, "the fight on the bridge")];
+    const narrow = admitted(await traceFor({ recent, config: { ...BASE_CFG, queryWindow: 1 } }));
+    const wide = admitted(await traceFor({ recent, config: { ...BASE_CFG, queryWindow: 2 } }));
+
+    expect(narrow.at(0)).toBe(2); // window=1 → only the recent duel line is in the query → the duel scene
+    expect(wide.at(0)).toBe(0); // window=2 → the earlier bath line re-enters the window and dominates
+    expect(narrow.at(0)).not.toBe(wide.at(0));
+  });
+
+  test("the minScore floor is a GRADED count cut — raise it and exactly the strong match survives, raise it more and none do", async () => {
+    // "shared bathing" → the bath scene at relevance ≈0.95, the storm decoy at ≈0.32, every other scene at 0.
+    const recent = [msg(100, "shared bathing")];
+    const low = admitted(await traceFor({ recent, config: { ...BASE_CFG, minScore: 0.05 } }));
+    const mid = admitted(await traceFor({ recent, config: { ...BASE_CFG, minScore: 0.5 } }));
+    const high = admitted(await traceFor({ recent, config: { ...BASE_CFG, minScore: 0.99 } }));
+
+    expect(low).toEqual([0, 4]); // both the bath scene and the storm decoy clear a low floor
+    expect(mid).toEqual([0]); // only the strong match clears 0.5 — exactly N=1
+    expect(high).toEqual([]); // nothing clears 0.99 — exactly N=0
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// #314 — VALIDITY BOUNDARIES. These guards already exist; the coverage proves them by pinning the EXACT flip
+// point of each — the boundary case on one side is excluded, one step over is included. (The build-side
+// content-admission threshold the owner asked about is a separate finding — see the lane report; there is no
+// content-quality floor to pin here, so none is invented.)
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+describe("recall validity boundaries — each guard proven by a boundary case that FLIPS (#314)", () => {
+  test("live-window guard boundary: a digest AT the cutoff is dropped, one seq PAST it is surfaced (window.ts inLiveWindow `>=`)", async () => {
+    // The farewell scene is block 5, spanning seqs [21, 24] — its seqStart is 21.
+    const atCutoff = admitted(await traceFor({ recent: [msg(100, "riding away at dawn")], config: BASE_CFG, liveWindowCutoffSeq: 21 }));
+    expect(atCutoff).not.toContain(5); // seqStart 21 == cutoff 21 → still verbatim in the live window → dropped
+
+    const pastCutoff = admitted(await traceFor({ recent: [msg(100, "riding away at dawn")], config: BASE_CFG, liveWindowCutoffSeq: 22 }));
+    expect(pastCutoff).toContain(5); // seqStart 21 < cutoff 22 → aged out of the window → surfaced
+  });
+
+  test("witnessing horizon: a speaker cannot recall a scene past its LEAVE horizon; extend the horizon and the scene returns (recall.ts:73)", async () => {
+    const recent = [msg(100, "riding away at dawn")]; // targets the farewell scene, block 5 (seqs 21-24)
+
+    // Present only for seqs [1, 10): the farewell (seqs 21-24) is entirely past the leave point → unwitnessed.
+    const leftEarly: readonly WitnessInterval[] = [{ joinSeq: 1, leftSeq: 10 }];
+    const gone = admitted(await traceFor({ recent, config: BASE_CFG, witnessing: leftEarly }));
+    expect(gone).not.toContain(5);
+
+    // The control: same query, horizon extended to "still present" → the same scene is now recallable.
+    const stayed: readonly WitnessInterval[] = [{ joinSeq: 1, leftSeq: null }];
+    const seen = admitted(await traceFor({ recent, config: BASE_CFG, witnessing: stayed }));
+    expect(seen).toContain(5);
   });
 });

@@ -30,7 +30,7 @@ import { beforeAll, describe } from "vitest";
 import { recallMemory } from "../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import type { MsgRow } from "../../packages/server/src/domain/chat/memory/types.ts";
 import { makeChatContext, seedCharacter, seedChat, seedUser } from "../server/domain/chat/_support.ts";
-import { GROUP_CHAR, sharedScope } from "../server/domain/chat/memory/_support.ts";
+import { GROUP_CHAR, seedSegment, sharedScope } from "../server/domain/chat/memory/_support.ts";
 import { makeSearch, seedChatDigest } from "../server/domain/search/_support.ts";
 import { freshDb } from "../support/db.ts";
 import { makeResolvedCredential } from "../support/factories/resolved-connection.ts";
@@ -103,6 +103,8 @@ describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
         embedding: vector ?? new Float32Array(),
         model: embedModel,
       });
+      // The verbatim span the live-window guard reads: block N covers seqs [4N+1, 4N+4].
+      await seedSegment(db, { chatId, blockIdx: scene.blockIdx, seqStart: scene.blockIdx * 4 + 1, seqEnd: scene.blockIdx * 4 + 4 });
     }
 
     const queries = await embedAll(
@@ -120,7 +122,7 @@ describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
 
   /** One recall through the REAL path (real cosine, real CSLS, real bridge candidacy) over the REAL vectors
    *  embedded above — only the embed CALL is pre-resolved, because the harness's embedder seam is sync. */
-  async function recallFor(queryText: string): Promise<Awaited<ReturnType<typeof recallMemory>>["trace"]> {
+  async function recallFor(queryText: string, over?: { readonly liveWindowCutoffSeq?: number }): Promise<Awaited<ReturnType<typeof recallMemory>>["trace"]> {
     const search = makeSearch(db, {
       embedVector: (input: string): Float32Array<ArrayBuffer> | null => {
         const hit = [...queryVectors.entries()].find(([text]) => input.includes(text));
@@ -139,6 +141,7 @@ describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
       recent,
       names: new Map<CharacterId, string>(),
       config: { mode: "mixB", fanOut: 2, queryWindow: 4, minScore: 0.05 },
+      ...(over?.liveWindowCutoffSeq === undefined ? {} : { liveWindowCutoffSeq: over.liveWindowCutoffSeq }),
     });
     return trace;
   }
@@ -187,6 +190,22 @@ describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
       }
       expect(trace.queryEmbedded).toBe(true);
       expect(trace.queryText).toContain("bathe");
+    },
+    EMBED_TIMEOUT_MS,
+  );
+
+  test(
+    "the live-window guard operates over REAL vectors — everything in-window recalls NOTHING; nothing in-window recalls something (#314)",
+    async () => {
+      // Drift-robust by construction (no ranking or threshold assumption): a very LOW cutoff puts every scene
+      // still inside this turn's live history window → `{{memory}}` must inject none of them; a very HIGH cutoff
+      // ages them all out → recall proceeds normally. The guard's effect is thus visible end-to-end on the real
+      // retrieval path without depending on WHICH scene the embedding space ranks first.
+      const allInWindow = await recallFor("when Niko left", { liveWindowCutoffSeq: 1 });
+      expect(allInWindow.surfaced).toBe(0);
+
+      const noneInWindow = await recallFor("when Niko left", { liveWindowCutoffSeq: 10_000 });
+      expect(noneInWindow.surfaced).toBeGreaterThan(0);
     },
     EMBED_TIMEOUT_MS,
   );
