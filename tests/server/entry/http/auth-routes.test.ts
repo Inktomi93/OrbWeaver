@@ -330,7 +330,65 @@ describe("logout — CSRF gate", () => {
     };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
     expect(res.status).toBe(200);
+    // No forwarded-host on this ctx ⇒ the origin is unresolvable ⇒ no post_logout param, just the bare endpoint.
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBe(endSession);
+  });
+
+  // #141 — the owner-observed gap: the bare end_session_endpoint stranded the user on the IdP's logged-out
+  // page. With a request origin that matches OUR OIDC_REDIRECT_URIS allowlist, the end-session URL now carries
+  // post_logout_redirect_uri=<orb>/login on that SAME validated origin, so the IdP returns the browser to our
+  // login screen after ending the SSO session.
+  test("#141 with oidc deps + an allowlisted origin → end-session URL carries post_logout_redirect_uri=<orb>/login", async () => {
+    const rec = recordingSessions();
+    const endSession = "https://idp.example/application/o/orb/end-session/";
+    // fakeOidcDeps.redirectAllowlist = ["https://app.example/api/auth/oidc/callback"], so this origin resolves.
+    const oidc = fakeOidcDeps({
+      getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
+    });
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc,
+    };
+    const res = await handlerFor(
+      deps,
+      "POST /api/auth/logout",
+    )(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", "x-forwarded-proto": "https", "x-forwarded-host": "app.example" } }));
+    expect(res.status).toBe(200);
+    const { endSessionUrl } = (await res.json()) as { endSessionUrl: string | null };
+    const parsed = new URL(endSessionUrl ?? "");
+    expect(parsed.origin + parsed.pathname).toBe("https://idp.example/application/o/orb/end-session/");
+    expect(parsed.searchParams.get("post_logout_redirect_uri")).toBe("https://app.example/login");
+  });
+
+  // #141 open-redirect guard — a spoofed X-Forwarded-Host that is NOT in OUR callback allowlist must NEVER be
+  // reflected into post_logout_redirect_uri. The param is simply omitted (the bare endpoint stands); the origin
+  // is gated by the SAME allowlist deriveRedirectUri uses for the callback.
+  test("#141 an off-allowlist forwarded-host is NOT reflected — no post_logout_redirect_uri param", async () => {
+    const rec = recordingSessions();
+    const endSession = "https://idp.example/application/o/orb/end-session/";
+    const oidc = fakeOidcDeps({
+      getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
+    });
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc,
+    };
+    const res = await handlerFor(
+      deps,
+      "POST /api/auth/logout",
+    )(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", "x-forwarded-proto": "https", "x-forwarded-host": "evil.example" } }));
+    expect(res.status).toBe(200);
+    const { endSessionUrl } = (await res.json()) as { endSessionUrl: string | null };
+    expect(endSessionUrl).toBe(endSession);
+    expect(new URL(endSessionUrl ?? "").searchParams.get("post_logout_redirect_uri")).toBeNull();
   });
 });
 
