@@ -34,7 +34,7 @@ export function ConfigContextBody({ collections }: ConfigContextBodyProps): Reac
 }
 
 /** The CONTEXT BAND's identity for this workspace (`ContextDefinition.header`, the §6b P4 slot). It names
- *  what the pane ANSWERS for the OPEN member's collection — "Where it runs" over a regex script — instead of
+ *  what the pane ANSWERS for the OPEN member's collection — "Where it’s attached" over a regex script — instead of
  *  the shell's neutral "Details", which named nothing while the arms underneath it spoke different
  *  grammars (side-eye 2026-08-03 P3).
  *

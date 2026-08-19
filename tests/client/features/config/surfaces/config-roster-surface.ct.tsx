@@ -785,7 +785,8 @@ test("the busiest scent fits the docked default pane (307px) whole", async ({ mo
 });
 
 // FORK 1: ONE SETTING, ONE HOME. The "runs in every chat" switch rendered in the LIST row AND in the
-// CONTEXT panel's "Where it runs" header — two live controls for one fact, 990px apart on one screen, with
+// CONTEXT panel (headed "Where it’s attached" since the 2026-08-19 clarity fix) — two live controls for one
+// fact, 990px apart on one screen, with
 // no confirm and no undo behind the row's copy (the reviewer flipped one by accident driving the pane).
 // The panel keeps it; the row loses it, which is also where the P1's 48px comes from.
 //
@@ -870,14 +871,31 @@ for (const [collectionId, band, count] of [
 // a sibling span with no separator, so the accname computation concatenated it onto the label and the
 // disclosure announced "Regex scripts3" — one token, and a number a screen reader reads as part of a name.
 // The visible kicker keeps its micro-caps voice; only the announced name is spelled out.
+//
+// …AND THE SEPARATOR IS WHITESPACE, NOT A COMMA (side-eye 2026-08-19 P1-2). The first fix spelled the name
+// "Regex scripts, 3" while the band VISIBLY reads "Regex scripts 3", which breaks WCAG 2.5.3 Label in Name
+// — the visible label must be contained in the accessible name, and a comma the eye never sees is a
+// character a speech-input user cannot say. axe's `label-content-name-mismatch` went 1 node → 4 on the fix.
+// So the claim below is the MECHANISM, not three frozen strings: name and visible text must agree once
+// whitespace is discounted, which is exactly what un-gluing is allowed to change and nothing more.
 test("a group band's disclosure announces its label and its count as separate words", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   const roster = workspace.locator(ROSTER);
-  await expect(roster.getByRole("button", { name: `Regex scripts, ${String(SCRIPTS.length)}`, exact: true })).toBeVisible();
-  await expect(roster.getByRole("button", { name: `World Info, ${String(BOOKS.length)}`, exact: true })).toBeVisible();
+  await expect(roster.getByRole("button", { name: `Regex scripts ${String(SCRIPTS.length)}`, exact: true })).toBeVisible();
+  await expect(roster.getByRole("button", { name: `World Info ${String(BOOKS.length)}`, exact: true })).toBeVisible();
+
+  // Every band on the surface, by the rule rather than by name: the announced string and the rendered one
+  // are the same characters. A comma, a bullet or a dash added to "read better" fails here, as it should.
+  const mismatched = await roster.locator('[data-slot="collection-band"] button[aria-expanded][aria-label]').evaluateAll((bands) =>
+    bands
+      .map((band) => ({ name: band.getAttribute("aria-label") ?? "", visible: band.textContent ?? "" }))
+      .filter(({ name, visible }) => name.replaceAll(/\s+/g, "") !== visible.replaceAll(/\s+/g, ""))
+      .map(({ name, visible }) => `announced "${name}" ≠ visible "${visible}"`),
+  );
+  expect(mismatched, "the visible label is contained in the accessible name (WCAG 2.5.3)").toEqual([]);
 });
 
 // ARRIVING IN THE SECTION LANDS IN THE LIST (side-eye 2026-08-19 ARIA). Both panes called
@@ -893,6 +911,30 @@ test("arriving with nothing selected lands focus in the LIST, not in CONTENT", a
   await section.getByRole("button", { name: "Back to Configuration" }).click();
 
   await expect(section.locator(ROSTER)).toBeFocused();
+  // …AND IT SAYS WHERE YOU LANDED (side-eye 2026-08-19 P3). Focus arriving on an unnamed `tabIndex={-1}`
+  // scroller announces nothing at all, so the one affordance the arrival fix exists to deliver — "you are in
+  // the list" — was silent for the reader who cannot see the pane move. Naming the container is the whole
+  // fix; the roles inside it are unchanged.
+  await expect(section.locator(ROSTER)).toHaveAccessibleName(ANY_NAME);
+});
+
+// THE FILTER MISS IS ANNOUNCED (side-eye 2026-08-19 P3). Typing into the host's filter box changes the rows
+// below it and nothing else; when the needle matches nothing, the ONLY feedback is a line of copy the
+// keyboard user never hears, because focus stays in the input. The message is a polite status region, so it
+// is spoken when it appears — and it is the CONTRIBUTION's own sentence, in its own noun, unchanged.
+test("a filter that matches nothing announces itself", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  await workspace.locator(ROSTER).getByRole("button", { name: TAGS_BAND }).click();
+  await expect(firstRow(workspace)).toBeVisible();
+  await workspace.getByRole("textbox", { name: "Filter tags" }).fill("no-such-tag");
+
+  const miss = workspace.locator(ROSTER).getByRole("status");
+  await expect(miss).toHaveText("No tags match that filter.");
+  // The input keeps focus — which is exactly why the message has to speak for itself.
+  await expect(workspace.getByRole("textbox", { name: "Filter tags" })).toBeFocused();
 });
 
 // ── THE PHONE'S TEACHING FRAME (side-eye 2026-08-19 P2) ─────────────────────────────────────────────

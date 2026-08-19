@@ -133,7 +133,12 @@ test("a script that is NOT always-on is shown LAST, marked for where it really r
   await expect(stages.nth(1)).toContainText("2 · strip ooc");
   await expect(stages.nth(1)).toContainText("This script, wherever it’s attached");
   // …and it is a SENTENCE, not a caps clause: the inherited kicker transform is stood down on the badge.
-  await expect(stages.nth(1).locator('[data-slot="badge"]').filter({ hasText: "wherever" })).toHaveCSS("text-transform", "none");
+  const marker = stages.nth(1).locator('[data-slot="badge"]').filter({ hasText: "wherever" });
+  await expect(marker).toHaveCSS("text-transform", "none");
+  // …and the CAPS TRACKING goes with the caps (side-eye 2026-08-19 P3). `letter-spacing` inherits exactly
+  // like `text-transform` does, so standing down only the transform left a sentence wearing the kicker's
+  // 0.08em micro tracking — 0.84px of air between letters of running prose, at 13px.
+  await expect(marker).toHaveCSS("letter-spacing", "normal");
   await expect(page.getByText("This script isn’t in the always-on set")).toBeVisible();
 });
 

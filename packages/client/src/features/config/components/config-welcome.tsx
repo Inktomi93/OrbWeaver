@@ -269,6 +269,23 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
   const shown = entries ?? [];
   const remainder = count - shown.length;
   const open = (): void => goToCollection(collection.id);
+  // A DETAIL THAT IS THE SAME ON EVERY CHIP IS NOT A DATUM (side-eye 2026-08-19 P2-2). The regex library
+  // ranks by recency, so a library authored in one sitting printed twelve chips all reading "yesterday" —
+  // the ugliest block on the surface, and a column of one repeated value reads as a rendering bug rather
+  // than as information. The rank itself stays (the kicker still says what ordered the wall); only the
+  // per-chip echo of it goes, and the names carry the glance alone.
+  //
+  // THE HOST DECIDES THIS, NOT THE CONTRIBUTION, because it is a property of the RENDERED WALL — how much
+  // the twelve values it drew actually differ — which no owner can know from inside its own ranking. It
+  // holds for any collection: a tag wall whose totals vary keeps every detail, and the same wall on a
+  // library where they do not would drop them.
+  //
+  // ">1 CHIP" IS PART OF THE RULE, not an off-by-one: with a single chip there is no repetition to be
+  // about, and its datum is that member's own fact rather than a column of noise. (Stated as a deviation
+  // from the brief's bare "distinct ≤ 1", which would have silently deleted the detail from every
+  // one-member preview.)
+  const details = new Set(shown.map((entry) => entry.detail));
+  const showDetail = shown.length <= 1 || details.size > 1;
   return (
     // `data-collection` is the per-card hook the CTs address (a caller `data-slot` is silently overwritten
     // — `Card` writes `card-root` AFTER `{...props}`); `data-config-built` is the column's own `:has()`
@@ -288,8 +305,13 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
           </Heading>
         </Row>
         {/* CAPPED ON THE PARAGRAPH, like the masthead (side-eye 2026-08-19 P3: 161ch latent). A measure
-            belongs to the line — the lead column is 1.55fr of a 917px pane and grows with it. */}
-        <Text className="max-w-(--reading-measure)" voice="gloss">
+            belongs to the line — the lead column is 1.55fr of a 917px pane and grows with it.
+            …AND READ AT THE PROSE STEP (side-eye 2026-08-19 P3, the second pass). A blurb is this surface's
+            TEACHING sentence — what a library is for, read by someone who has not built it — and it was set
+            at the gloss voice's own 10.5px micro step, the footnote step. `prose` is the house statement for
+            exactly that ("this text is sentences, not a label"): it lifts the step and relaxes the leading
+            and changes nothing else, so the blurb is still unmistakably the gloss voice. */}
+        <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
           {collection.blurb}
         </Text>
         {shown.length === 0 ? null : (
@@ -303,12 +325,19 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
               {collection.preview?.label}
             </Text>
             <Row className="flex-wrap" gap="tight">
+              {/* KEYED ON THE MEMBER'S OWN ID (side-eye 2026-08-19 P1-1). This keyed on `entry.label`, and
+                  the owner's corpus has two books with the same name — so the surface logged React's
+                  duplicate-key error on every visit, the wall's membership was reconciliation's to decide,
+                  and `+N more` went on deriving the remainder from `shown.length`. The contract carries the
+                  id for exactly this. */}
               {shown.map((entry) => (
-                <Badge intent="neutral" key={entry.label} tone="soft">
+                <Badge intent="neutral" key={entry.id} tone="soft">
                   {entry.label}
-                  <Text as="span" voice="datum">
-                    {entry.detail}
-                  </Text>
+                  {showDetail ? (
+                    <Text as="span" voice="datum">
+                      {entry.detail}
+                    </Text>
+                  ) : null}
                 </Badge>
               ))}
               {/* The remainder is derived from the COUNT, never from a second query — which is also what
@@ -389,8 +418,9 @@ function UnbuiltLibrary({ collection }: { readonly collection: CollectionContrib
           </Text>
         )}
       </Row>
-      {/* Capped on the paragraph, the hero's rule and the masthead's (side-eye 2026-08-19 P3). */}
-      <Text className="max-w-(--reading-measure)" voice="gloss">
+      {/* Capped on the paragraph AND read at the prose step — the hero's rule and the masthead's (side-eye
+          2026-08-19 P3, both passes). This slot's blurb is the one a cold first-timer reads. */}
+      <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
         {collection.blurb}
       </Text>
       {/* THE VERB IS A BUTTON (side-eye 2026-08-06 P2). At `ghost` it was transparent, borderless and

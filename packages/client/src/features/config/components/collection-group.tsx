@@ -92,7 +92,17 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
             // the name is stated instead: the VISIBLE kicker keeps its micro-caps voice untouched, and
             // only what a screen reader hears is spelled out. Same trap, same fix as
             // `chat-documents-section.tsx`'s literal space — inverted, because here the join is deliberate.
-            aria-label={count === undefined ? collection.label : `${collection.label}, ${String(count)}`}
+            //
+            // ── THE SEPARATOR IS A SPACE, NOT A COMMA (side-eye 2026-08-19 P1-2; the fork is stated) ──
+            // The clause above ruled the comma in as the un-gluing character. That MECHANISM survives
+            // verbatim — the name is still stated here, the visible kicker is still untouched, and the join
+            // is still deliberate — but the character was wrong: the band VISIBLY reads "Tags 1736" and a
+            // name of "Tags, 1736" does not CONTAIN it, which fails WCAG 2.5.3 Label in Name (axe's
+            // `label-content-name-mismatch` went 1 node → 4 on all three bands, and Lighthouse's score hid
+            // it because the audit was already binary-failed). A speech-input user says what they see, and
+            // they cannot say a comma the render never draws. So the un-glue keeps its one job and spends
+            // the one character that is not part of the label: whitespace.
+            aria-label={count === undefined ? collection.label : `${collection.label} ${String(count)}`}
             // THE BAND IS AN ISLAND, NOT A LABELLED BUTTON (side-eye 2026-08-06 P3). `Button`'s base
             // `gap-field` (6px) × three joints plus `size="sm"`'s inline padding spent ten pixels of a
             // 271px pane on air, and "REGEX SCRIPTS" — the longest kicker in the door array, on the one
