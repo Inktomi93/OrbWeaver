@@ -160,7 +160,9 @@ async function stub(page: Page, shape: TrpcRoutes): Promise<TrpcRecorder> {
   // fallback when the image ERRORS, so an unstubbed 404 makes a correctly-joined portrait look exactly like
   // a missing one, and the assertion would pass for the wrong reason.
   await page.route("**/api/blob/*", async (route) => {
-    const hash = route.request().url().split("/").pop() ?? "";
+    // The PATHNAME's last segment, not the raw URL's: an avatar asks for a display rung (`?w=48`) since
+    // C6, and splitting the whole URL would hand this comparison "aaaa1111?w=48" and 404 a live portrait.
+    const hash = new URL(route.request().url()).pathname.split("/").pop() ?? "";
     if (hash === JFC_HASH || hash === ELIAS_HASH) {
       await route.fulfill({ body: PIXEL_PNG, contentType: "image/png", status: 200 });
       return;
@@ -276,8 +278,8 @@ test("THE PORTRAIT ON THE PAYLOAD: a member carrying a hash draws its blob; a nu
   await expect(component.getByRole("heading", { name: "The shape of your library" })).toBeVisible();
 
   // The hash off `visualArchetypes.members[].avatarHash` reached the <img> — no second read did this.
-  await expect(page.locator(`img[src="/api/blob/${JFC_HASH}"]`)).toHaveCount(1);
-  await expect(page.locator(`img[src="/api/blob/${ELIAS_HASH}"]`)).toHaveCount(1);
+  await expect(page.locator(`img[src^="/api/blob/${JFC_HASH}"]`)).toHaveCount(1);
+  await expect(page.locator(`img[src^="/api/blob/${ELIAS_HASH}"]`)).toHaveCount(1);
 
   // NULL hash — Morgatha's seat degrades to hue-seeded initials rather than a broken image or an invented
   // portrait. The plate that names her still renders.
@@ -327,7 +329,11 @@ test("THE ZERO WALL IS GONE: no coverage strip, no dead-end notes, no cost colum
   // anywhere. The label is pinned as tokens (#174) — the field is `tokensOut`, and it shipped calling
   // itself "words", which overstates a real word count by ~30-40% on the live corpus.
   await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
-  await expect(component.getByText("1,200 tokens returned · 42 exchanges · last opened 2w ago")).toBeVisible();
+  // TWO LINES SINCE B1 (side-eye corpus re-pass 2026-08-19): the magnitudes and the last-opened fact each
+  // get their own, because one truncating 10.5px line inside the tile's button always cut the tail — which
+  // is the very fact the shelf ranks by. Both are asserted; the split is the fix, not a loss.
+  await expect(component.getByText("1,200 tokens returned · 42 exchanges")).toBeVisible();
+  await expect(component.getByText("last opened 2w ago")).toBeVisible();
   await expect(component.getByText("1,200 words", { exact: false })).toHaveCount(0);
   // The lifetime framing is stated ONCE, so the aggregate is not mistaken for one conversation.
   await expect(component.getByText("Lifetime totals per character", { exact: false })).toBeVisible();

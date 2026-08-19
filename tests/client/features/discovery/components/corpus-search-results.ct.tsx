@@ -207,8 +207,12 @@ test("an image search SHOWS THE IMAGES — every hit renders its own blob", asyn
   await searchImages(component, page);
 
   // The hash off `ImageSearchHit.hash` reached an <img> — nothing else on this surface can produce that URL.
-  await expect(page.locator(`img[src="/api/blob/${AVATAR_HASH}"]`)).toHaveCount(1);
-  await expect(page.locator(`img[src="/api/blob/${ORPHAN_HASH}"]`)).toHaveCount(1);
+  // PREFIX match, not equality (C6, side-eye corpus re-pass 2026-08-19): a card-worn hit draws through
+  // `CharacterAvatar`, which asks the CAS route for a display RUNG (`?w=48`) instead of the full-size
+  // original — 1840x2752 decodes for a 24px box were part of the surface's mount long frame. The claim under
+  // test is unchanged: this hit's own hash reached an image element.
+  await expect(page.locator(`img[src^="/api/blob/${AVATAR_HASH}"]`)).toHaveCount(1);
+  await expect(page.locator(`img[src^="/api/blob/${ORPHAN_HASH}"]`)).toHaveCount(1);
 });
 
 test("an image WORN BY A CARD is a door that LANDS: clicking it opens that character's dossier", async ({ mount, page }) => {

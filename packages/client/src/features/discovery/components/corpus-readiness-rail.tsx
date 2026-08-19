@@ -47,8 +47,15 @@ export interface CorpusReadinessRailProps {
 
 export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailProps): ReactElement {
   return (
-    <Section kicker="Readiness" level={2}>
-      <Stack>
+    // IT FILLS ITS COLUMN (side-eye corpus re-pass 2026-08-19 §5 "the right column just stops"). The rail is
+    // the second track of the surface's `leadEarly` band, and its height is FIXED by construction — five
+    // stage rows and a button — while the track beside it grows with the family count. At the audited
+    // 1224px pane that left the column ending ~250px above the island's bottom: a two-column composition
+    // whose right side visibly gives up. The fix is distribution, not a count gate — `h-full` takes the
+    // row's height (the grid stretches its tracks) and the stage stack SPREADS its own hairline rows over
+    // it, so the rail ends where the island ends at every width and every stage count.
+    <Section className="h-full" data-slot="readiness-rail" kicker="Readiness" level={2}>
+      <Stack className="flex-1" justify="between">
         {stages.map((stage) => (
           <Row align="center" className="border-border border-b py-field last:border-b-0" gap="row" justify="between" key={stage.id}>
             <Row className="min-w-0" gap="field">

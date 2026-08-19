@@ -4,6 +4,7 @@ import {
   assetKindSchema,
   BLOB_ROUTE,
   blobBannerUrl,
+  blobIconUrl,
   blobPortraitUrl,
   blobUrl,
   storedAssetSchema,
@@ -115,6 +116,17 @@ test("variantKindSchema round-trips every valid kind and rejects non-members", (
 const VARIANT_KIND_SEEN: Record<VariantKind, true> = { icon: true, portrait: true, banner: true };
 test("VariantKind has no member beyond the tuple (exhaustive over VARIANT_KINDS)", () => {
   expect(Object.keys(VARIANT_KIND_SEEN).sort()).toEqual(VARIANT_KINDS.toSorted());
+});
+
+test("blobIconUrl composes the DEFAULT-variant width ask — no `v=`, because icon is the route's default", () => {
+  const url = blobIconUrl(SAMPLE_HASH, 48);
+  expect(url).toBe(`/api/blob/${SAMPLE_HASH}?w=48`);
+  // It is the same blob, at a rung: the prefix is the plain route, which is what a test asserting "this
+  // hash reached an <img>" matches on (the corpus avatars' own CTs).
+  expect(url.startsWith(blobUrl(SAMPLE_HASH))).toBe(true);
+  expect(url).not.toBe(blobUrl(SAMPLE_HASH));
+  // …and it is NOT a crop: the icon ladder is width-only, any source aspect.
+  expect(url).not.toBe(blobPortraitUrl(SAMPLE_HASH, 48));
 });
 
 test("blobPortraitUrl composes the portrait variant route, distinct from the plain blobUrl", () => {

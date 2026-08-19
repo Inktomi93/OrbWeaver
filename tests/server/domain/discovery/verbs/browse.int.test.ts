@@ -60,6 +60,9 @@ async function seedAvatarAsset(db: Db, id: string, ownerId: UserId, hash: string
   return assetId;
 }
 
+/** The keyset's refusal when a cursor's ordering is not the requested one. */
+const CURSOR_SORT_MISMATCH = /does not match/u;
+
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);
 }
@@ -115,7 +118,9 @@ describe("browseCharacters", () => {
     const other = await seedUser(db, "user_b");
     const c = await seedCharacter(db, { id: "character_1", ownerId: owner, name: "Mine" });
     await seedSummary(db, { characterId: c, genre: "fantasy" });
-    expect(await svcFor(db).browseCharacters(other)).toEqual([]);
+    const page = await svcFor(db).browseCharacters(other);
+    expect(page.items).toEqual([]);
+    expect(page.totalCount).toBe(0);
   });
 
   test("filters by genre/tone/tag and case-insensitive q, sorts by name", async () => {
@@ -139,16 +144,90 @@ describe("browseCharacters", () => {
     });
     const svc = svcFor(db);
 
-    expect((await svc.browseCharacters(owner, { genre: "fantasy" })).map((r) => r.name)).toEqual(["Bravo"]);
-    expect((await svc.browseCharacters(owner, { tone: "tense" })).map((r) => r.name)).toEqual(["Alpha"]);
+    const names = async (filter: Parameters<typeof svc.browseCharacters>[1]): Promise<string[]> =>
+      (await svc.browseCharacters(owner, filter)).items.map((r) => r.name);
+
+    expect(await names({ genre: "fantasy" })).toEqual(["Bravo"]);
+    expect(await names({ tone: "tense" })).toEqual(["Alpha"]);
     // exact tag membership, case-insensitive.
-    expect((await svc.browseCharacters(owner, { tag: "airships" })).map((r) => r.name)).toEqual(["Bravo"]);
+    expect(await names({ tag: "airships" })).toEqual(["Bravo"]);
     // q substring over name/pitch/tags.
-    expect((await svc.browseCharacters(owner, { q: "DREAD" })).map((r) => r.name)).toEqual(["Alpha"]);
+    expect(await names({ q: "DREAD" })).toEqual(["Alpha"]);
     // name sort.
-    expect((await svc.browseCharacters(owner, { sort: "name" })).map((r) => r.name)).toEqual(["Alpha", "Bravo"]);
-    // limit caps.
-    expect(await svc.browseCharacters(owner, { limit: 1 })).toHaveLength(1);
+    expect(await names({ sort: "name" })).toEqual(["Alpha", "Bravo"]);
+    // limit is the PAGE size, and the census still counts the whole filtered scope — the exact pair the
+    // corpus header needed: it prints `totalCount`-shaped numbers over a list that holds one page.
+    const firstPage = await svc.browseCharacters(owner, { limit: 1 });
+    expect(firstPage.items).toHaveLength(1);
+    expect(firstPage.totalCount).toBe(2);
+    // A filtered census counts the FILTER's scope, never the library.
+    expect((await svc.browseCharacters(owner, { genre: "fantasy" })).totalCount).toBe(1);
+  });
+
+  // ── A8: EVERY DISTILLED CARD IS REACHABLE ────────────────────────────────────────────────────────────
+  // The pane above this read prints the catalog census; the list used to stop at a silent 200-row ceiling
+  // with no cursor, so the difference was simply unreachable. These walk the keyset one row at a time —
+  // the harshest page size — in both orderings, over a fixture whose `createdAt` values COLLIDE (the seed
+  // helper stamps one frozen clock), which is the seam a keyset without a tie-break drops rows at.
+  type BrowseCursorOf = Awaited<ReturnType<ReturnType<typeof svcFor>["browseCharacters"]>>["nextCursor"];
+
+  /** Recursive rather than a loop: each page's request DEPENDS on the previous page's answer, which is what
+   *  a keyset is, and the lint that bans `await` in a loop is banning the parallelisable case. `guard` ends
+   *  a non-terminating keyset as a failure instead of a hang. */
+  async function walk(
+    svc: ReturnType<typeof svcFor>,
+    owner: UserId,
+    step: { readonly sort: "recent" | "name"; readonly cursor?: BrowseCursorOf; readonly guard?: number },
+  ): Promise<string[]> {
+    const guard = step.guard ?? 20;
+    if (guard === 0) {
+      throw new Error("the browse keyset did not terminate");
+    }
+    const cursor = step.cursor ?? null;
+    const page = await svc.browseCharacters(owner, { sort: step.sort, limit: 1, ...(cursor === null ? {} : { cursor }) });
+    const seen = page.items.map((r) => r.name);
+    if (page.nextCursor === null) {
+      return seen;
+    }
+    return [...seen, ...(await walk(svc, owner, { sort: step.sort, cursor: page.nextCursor, guard: guard - 1 }))];
+  }
+
+  /** Seed one distilled card. Named so the fixtures below can plant a set in one `Promise.all`. */
+  async function seedDistilled(db: Db, owner: UserId, name: string): Promise<void> {
+    const id = await seedCharacter(db, { id: `character_${name.toLowerCase()}`, ownerId: owner, name });
+    await seedSummary(db, { characterId: id, genre: "fantasy" });
+  }
+
+  test("walking the cursor reaches every row exactly once — in both orderings, across a createdAt tie", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    // Four cards collected at the SAME instant: `recent` alone cannot order them, so the tie-break is the
+    // only thing keeping the page boundary total.
+    await Promise.all(["Delta", "Alpha", "Charlie", "Bravo"].map((name) => seedDistilled(db, owner, name)));
+    const svc = svcFor(db);
+
+    const byName = await walk(svc, owner, { sort: "name" });
+    expect(byName).toEqual(["Alpha", "Bravo", "Charlie", "Delta"]);
+
+    const byRecent = await walk(svc, owner, { sort: "recent" });
+    expect(byRecent).toHaveLength(4);
+    expect([...byRecent].sort()).toEqual(["Alpha", "Bravo", "Charlie", "Delta"]);
+    // Reachability is the whole point: the walk's row count agrees with the census the header prints.
+    expect((await svc.browseCharacters(owner)).totalCount).toBe(byRecent.length);
+  });
+
+  test("a cursor minted under one sort is REFUSED under the other, never applied to the wrong keyset", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await Promise.all(["Alpha", "Bravo"].map((name) => seedDistilled(db, owner, name)));
+    const svc = svcFor(db);
+    const first = await svc.browseCharacters(owner, { sort: "name", limit: 1 });
+    expect(first.nextCursor).not.toBeNull();
+    const cursor = first.nextCursor;
+    if (cursor === null) {
+      throw new Error("expected a next cursor");
+    }
+    await expect(svc.browseCharacters(owner, { sort: "recent", limit: 1, cursor })).rejects.toThrow(CURSOR_SORT_MISMATCH);
   });
 });
 

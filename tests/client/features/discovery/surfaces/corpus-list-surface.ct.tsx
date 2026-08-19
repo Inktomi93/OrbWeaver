@@ -65,13 +65,19 @@ const ARIA_ROW = {
 };
 const BOLT_ROW = { ...ARIA_ROW, characterId: "char_bolt", name: "Bolt", elevatorPitch: "A hound." };
 
+/** `browseCharacters` is KEYSET-PAGED (A8) — one page, its boundary, and the census of the whole scope. */
+function browsePage(rows: readonly (typeof ARIA_ROW)[], nextCursor: unknown, totalCount = rows.length): unknown {
+  return { items: rows, nextCursor, totalCount };
+}
+const EMPTY_BROWSE = browsePage([], null, 0);
+
 const EMPTY_CATALOG = { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0 };
 
 test("the Characters target renders a character card hit", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [],
+    "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [],
     "search.search": searchResponder,
   });
@@ -86,7 +92,7 @@ test("switching to the Scenes target renders the per-chat evidence preview", asy
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [],
+    "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [],
     "search.search": searchResponder,
   });
@@ -112,7 +118,7 @@ test("the pane offers exactly ONE free-text search — the omnibox; the browse v
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [ARIA_ROW, BOLT_ROW],
+    "discovery.browseCharacters": browsePage([ARIA_ROW, BOLT_ROW], null),
     "search.suggest": [],
     "search.search": searchResponder,
   });
@@ -137,7 +143,7 @@ test("the Text target runs the lexical fields search and names the hits from the
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [],
+    "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [],
     // fields returns bare id+score; the picker names it against character.list.
     "search.fields": [{ characterId: "char_zed", score: 3.2 }],
@@ -163,7 +169,7 @@ test("a rail bounce restores the omnibox: the query, the target, and the results
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [],
+    "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [],
     "search.search": searchResponder,
   });
@@ -212,7 +218,7 @@ for (const width of [320, 360]) {
     await routeTrpc(page, {
       "discovery.characterFacets": { genres: [], tones: [] },
       "discovery.catalog": EMPTY_CATALOG,
-      "discovery.browseCharacters": [],
+      "discovery.browseCharacters": EMPTY_BROWSE,
       "search.suggest": [],
       "search.search": searchResponder,
     });
@@ -241,7 +247,7 @@ test("the typeahead renders only clean, non-echo suggestions — and never overf
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [],
+    "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [
       { suggestion: "elf elf<", score: 0.99 },
       { suggestion: "elf", score: 0.95 },
@@ -278,7 +284,7 @@ test("the result list owns listitem children and announces the REAL hit count", 
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [],
+    "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [{ suggestion: "aria nightshade", score: 0.9 }],
     "search.search": searchResponder,
   });
@@ -296,11 +302,113 @@ test("the result list owns listitem children and announces the REAL hit count", 
   await expect(page.locator('[data-slot="autocomplete-status"]')).toHaveText("1 suggestion");
 });
 
+// ── A8 + C5: EVERY DISTILLED CARD IS REACHABLE, AND THE DOM IS NOT ───────────────────────────────────
+// The two halves of the same defect. The header above this pane prints the catalog census (313 on the
+// audited library) while the list stopped at the verb's silent 200-row ceiling with no load-more, AND those
+// 200 rows all lived in the DOM at once (`region:list count 21, maxMs 99`, inside the 654ms mount frame).
+// The fix is one shape: a keyset page walked by `createCollectionSurface`, rendered through `VirtualList`.
+// This mounts a two-page catalog and reads both facts off the rendered list.
+const CATALOG_TOTAL = 60;
+const PAGE_SIZE = 30;
+/** `Card 01 … Card 60` — distinct, sortable names so a page boundary is visible in the assertions. */
+function catalogRow(index: number): typeof ARIA_ROW {
+  const n = String(index + 1).padStart(2, "0");
+  return { ...ARIA_ROW, characterId: `char_${n}`, name: `Card ${n}`, elevatorPitch: `Pitch ${n}` };
+}
+const PAGE_ONE = Array.from({ length: PAGE_SIZE }, (_, i) => catalogRow(i));
+const PAGE_TWO = Array.from({ length: CATALOG_TOTAL - PAGE_SIZE }, (_, i) => catalogRow(i + PAGE_SIZE));
+const TAIL_CURSOR = { sort: "recent", createdAt: 2000, characterId: "char_30" };
+/** The first catalog row's own name — the button the role chain has to reach. */
+const FIRST_CARD = /Card 01/u;
+
+/** Serves page two only when the request CARRIES the cursor the first page handed back — so a client that
+ *  never follows the boundary reads exactly the truncated list A8 is about. */
+function browseResponder(input: unknown): unknown {
+  const cursor = (input as { cursor?: unknown } | undefined)?.cursor;
+  return cursor === undefined || cursor === null ? browsePage(PAGE_ONE, TAIL_CURSOR, CATALOG_TOTAL) : browsePage(PAGE_TWO, null, CATALOG_TOTAL);
+}
+
+test("the browse list reaches the LAST card in the catalog — the tail pages itself in (A8)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": { ...EMPTY_CATALOG, totalDistilled: CATALOG_TOTAL },
+    "discovery.browseCharacters": browseResponder,
+    "search.suggest": [],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceStory />);
+
+  const list = component.getByRole("list", { name: "Distilled catalog" });
+  await expect(list.getByRole("listitem").first()).toBeVisible();
+
+  // Scroll to the end REPEATEDLY: each pass drives the window to the current tail, the tail-fetch appends
+  // the next page, and the list grows under it — which is exactly how a person reaches the bottom of a
+  // paged list, and why one jump to `scrollHeight` only ever reaches the end of what is already loaded.
+  // `Card 60` is the row the old 200-ceiling made unreachable at all.
+  await expect
+    .poll(
+      async () => {
+        await list.evaluate((node) => {
+          node.scrollTop = node.scrollHeight;
+        });
+        return await component.getByText("Card 60").count();
+      },
+      { message: "the catalog's last row never became reachable — the tail page did not load" },
+    )
+    .toBeGreaterThan(0);
+});
+
+test("…and the list is WINDOWED: sixty rows, a bounded DOM (C5)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": { ...EMPTY_CATALOG, totalDistilled: CATALOG_TOTAL },
+    "discovery.browseCharacters": browseResponder,
+    "search.suggest": [],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceStory />);
+
+  const list = component.getByRole("list", { name: "Distilled catalog" });
+  await expect(list.getByRole("listitem").first()).toBeVisible();
+  // The rendered count is the WINDOW, not the page: an unvirtualized list of the same data renders all 30
+  // of page one immediately (and 60 after the tail fetch). The 640px story pane holds ~11 rows at the 60px
+  // estimate; the bound is generous so a row-height change cannot make this flap, and it still fails
+  // outright the moment the list stops windowing.
+  const rendered = await list.getByRole("listitem").count();
+  expect(rendered, `the catalog rendered ${rendered} of ${PAGE_SIZE} loaded rows — a windowed list renders its viewport`).toBeLessThan(PAGE_SIZE);
+
+  // A6 SURVIVES THE MECHANISM CHANGE: the role chain is `VirtualList`'s own now (it emits role=list on the
+  // scroller and role=listitem + setsize/posinset on every measured row shell), not a hand-wrapped Stack.
+  await expect(list.getByRole("listitem").first().getByRole("button", { name: FIRST_CARD })).toBeVisible();
+});
+
+// ── C7: ARRIVING PUTS YOU IN THE SEARCH BOX ──────────────────────────────────────────────────────────
+// Focus used to land on the surface ROOT — a `tabIndex={-1}` div that announces nothing — so the pane's own
+// control was one more Tab away than it looked (the audited keyboard walk put the omnibox at stop 18). The
+// rail bounce is the honest vehicle: `useFocusOnMount` deliberately declines on a COLD load (activeElement
+// is `<body>`, and stealing focus there would move the start of the tab order past the rail nav), and it is
+// a real navigation that must land somewhere useful.
+test("coming back to Corpus lands focus in the omnibox, not on a wrapper (C7)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": EMPTY_BROWSE,
+    "search.suggest": [],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceRailBounceStory />);
+
+  await component.getByRole("button", { name: "Leave Corpus" }).click();
+  await component.getByRole("button", { name: "Back to Corpus" }).click();
+
+  await expect(component.getByRole("combobox", { name: "Search your corpus" })).toBeFocused();
+});
+
 test("the omnibox surfaces as-you-type suggestions from search.suggest", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": [],
+    "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [
       { suggestion: "night market", score: 0.9 },
       { suggestion: "nightshade", score: 0.8 },
