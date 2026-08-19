@@ -38,7 +38,16 @@ import { getLog } from "#foundation/observability";
 import type { ToolCallInput, WarningCode, WireTool } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
-import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape, TurnStreamChunk } from "../contract/results.ts";
+import type {
+  HistoryMacroNames,
+  ResolvedMediaRef,
+  TurnEconomics,
+  TurnKind,
+  TurnMessage,
+  TurnRequest,
+  TurnSpeakerShape,
+  TurnStreamChunk,
+} from "../contract/results.ts";
 import {
   buildHistoryBudget,
   buildPrompt,
@@ -61,8 +70,8 @@ interface RunTurnPipelineArgs {
    *  stream window. Injected, never ambient: no `Date.now()` in a verb (determinism law). */
   readonly now: () => number;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
-  /** Resolves a parsed message-image ref → a model-fetchable URL, or null to drop it. */
-  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
+  /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
+  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
   /** The immutable assemble ctx (never mutated here). */
   readonly assembleContext: AssembleContext;
   readonly canon: readonly MessageView[];
@@ -157,6 +166,9 @@ interface TurnPipelineResult {
    *  resolves). A display-only image (a card's greeting picture, narrator media) is NOT a drop — it was never
    *  eligible to ride, so it must not raise the `image_dropped` warning. */
   readonly imageDropped: boolean;
+  /** The video twin (#317): ≥1 USER-ATTACHED video (mp4/webm/animated-gif asset) was dropped because the
+   *  model lacks `input.video`. Same eligibility rule as {@link TurnPipelineResult.imageDropped}. */
+  readonly videoDropped: boolean;
   /** The turn's cumulative tool exchange across every recursion depth. */
   readonly toolRecords: readonly ToolCallRecord[];
   /** The calls the TERMINAL tools (R1) drew off this completion, or `null` when there is NO usable channel —
@@ -590,15 +602,16 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const fitUsedTokens = fitted.usedTokens + systemTokens + budget.reserveOutputTokens;
 
   // REQUEST — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
-  // content-class visibility registry): tokenize each row's spans, resolve USER-ATTACHMENT image refs by
-  // input.vision (every other image is display-only and collapses to its marker — `isUserAttachment`),
+  // content-class visibility registry): tokenize each row's spans, resolve USER-ATTACHMENT media refs by
+  // the asset's kind — input.vision for images, input.video for mp4/webm/animated-gif (#317); every other
+  // embedded image is display-only and collapses to its marker (`isUserAttachment`),
   // ride hidden/choices/unknown spans VERBATIM ({wire: full} — the model keeps its own memory), and collapse
   // card spans to the deterministic stub (except the M2 keep-last-X newest). This runs DOWNSTREAM of SHAPE
   // (squash joins with `\n\n` before tokenization — fences/tags survive the join) and of every string-body
   // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
   // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
   // uniform per backend.
-  const { history, imageDropped } = await buildWireHistory(args, fitted.history);
+  const { history, imageDropped, videoDropped } = await buildWireHistory(args, fitted.history);
   const baseRequest: TurnRequest = {
     connection: args.connection,
     chatId: args.chatId,
@@ -637,6 +650,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     fitUsedTokens,
     fitCeilingTokens: fitted.ceilingTokens,
     imageDropped,
+    videoDropped,
     // Array-wire records come from the recurse loop; stateful (agent-sdk) records from the MCP onRecord
     // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
     toolRecords: [...loop.records, ...attach.mcpRecords],
@@ -906,11 +920,16 @@ function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomics | nul
   };
 }
 
-/** An image-only row whose every part drops must not collapse to an empty text part — the runner's
+/** A media-only row whose every part drops must not collapse to an empty text part — the runner's
  *  empty-row wire filter would delete it, ending the delivered history on the prior assistant row (then
- *  400s on some providers). Substitute the dropped images' alt text (or a neutral marker) instead. */
-function droppedImagePlaceholder(droppedAlts: string[]): string {
-  return droppedAlts.length > 0 ? `[image: ${droppedAlts.join(", ")}]` : "[image omitted]";
+ *  400s on some providers). Substitute the dropped media's alt text (or a neutral marker) instead. The
+ *  label names the dropped KIND (`image`/`video`; a mixed drop says `media`) so the model's stand-in stays
+ *  honest about what it didn't see. */
+function droppedMediaPlaceholder(dropped: readonly DroppedMedia[]): string {
+  const kinds = new Set(dropped.map((d) => d.media));
+  const label = kinds.size === 1 ? (dropped[0]?.media ?? "image") : "media";
+  const named = dropped.filter((d) => d.alt.length > 0).map((d) => d.alt);
+  return named.length > 0 ? `[${label}: ${named.join(", ")}]` : `[${label} omitted]`;
 }
 
 /** The DISPLAY-ONLY image's wire stand-in (the ST-parity rule below): the reader keeps the real picture, the
@@ -940,10 +959,19 @@ function isUserAttachment(span: { readonly ref: ContentImageRef }, role: TurnMes
   return span.ref.kind === "asset" && role === "user" && userAuthored;
 }
 
+/** One dropped attachment: its alt text + which media kind the drop was (drives the per-kind warning
+ *  flags and the honest placeholder label). */
+interface DroppedMedia {
+  readonly alt: string;
+  readonly media: ResolvedMediaRef["media"];
+}
+
 /** The per-assembly wire environment for the span→part projection (§3.5 — the WIRE plane). */
 interface WirePartsEnv {
   readonly visionOk: boolean;
-  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
+  /** The video twin (#317): `capability.input.video === true` — gates video parts as `visionOk` gates images. */
+  readonly videoOk: boolean;
+  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
   /** The card spans riding FULL this assembly (the M2 keep-last-X window; empty = every card stubs). */
   readonly fullCards: ReadonlySet<ContentSpan>;
 }
@@ -1007,7 +1035,7 @@ function windowed(canonCards: readonly ContentSpan[], keepLastX: number | undefi
   return keepLastX > 0 ? canonCards.slice(-keepLastX) : [];
 }
 
-type WirePartResult = ChatContentPart | { droppedAlt: string } | null;
+type WirePartResult = ChatContentPart | { droppedAlt: string; droppedMedia: ResolvedMediaRef["media"] } | null;
 type SpanOfKind<K extends ContentSpanKind> = Extract<ContentSpan, { readonly kind: K }>;
 type WirePartHandler<K extends ContentSpanKind> = (span: SpanOfKind<K>, env: WirePartsEnv, row: WireRowFacts) => WirePartResult | Promise<WirePartResult>;
 
@@ -1031,7 +1059,9 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
   // inside the M2 keep-last-X window.
   card: (span, env) => ({ type: "text", text: env.fullCards.has(span) ? span.raw : cardWireStub(span.title) }),
   // wire:"drop" — ATTACHMENT-ONLY (owner ruling, ST parity): a non-attachment image is DISPLAY-ONLY and
-  // collapses to its short marker; an attachment resolves-or-drops-to-alt gated by vision.
+  // collapses to its short marker; an attachment resolves-or-drops-to-alt gated by the asset's media kind
+  // (`input.vision` for images, `input.video` for mp4/webm/animated-gif — #317). The KIND is only known
+  // after resolve (it is the asset row's stored fact), so the kind-gate runs on the resolver's answer.
   image: async (span, env, row) => {
     if (!isUserAttachment(span, row.role, row.userAuthored)) {
       // DISPLAY-ONLY, unconditionally — not a capability drop, so it never flags `imageDropped` (the
@@ -1039,11 +1069,19 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
       // every turn of a chat whose greeting embeds a picture would be a lie).
       return { type: "text", text: displayOnlyImageText(span.alt) };
     }
-    if (!env.visionOk) {
-      return { droppedAlt: span.alt };
+    if (!(env.visionOk || env.videoOk)) {
+      // Cheap short-circuit — a media-blind model must not pay asset I/O on every history re-resolve,
+      // so the kind is never learned here and the drop reports as the common case (image).
+      return { droppedAlt: span.alt, droppedMedia: "image" };
     }
-    const url = await env.resolveImageUrl(span.ref);
-    return url === null ? { droppedAlt: span.alt } : { type: "image", url };
+    const resolved = await env.resolveImageUrl(span.ref);
+    if (resolved === null) {
+      return { droppedAlt: span.alt, droppedMedia: "image" };
+    }
+    if (resolved.media === "video") {
+      return env.videoOk ? { type: "video", url: resolved.url } : { droppedAlt: span.alt, droppedMedia: "video" };
+    }
+    return env.visionOk ? { type: "image", url: resolved.url } : { droppedAlt: span.alt, droppedMedia: "image" };
   },
 };
 
@@ -1062,24 +1100,24 @@ export const __spanToWirePartForTest = spanToWirePart;
 /** Projects a row's spans into provider content-parts. Adjacent text parts MERGE, so a body whose spans all
  *  ride as text (the common no-image case — hidden tags and all) stays ONE text part, byte-identical to the
  *  pre-registry wire for every wire=full class. */
-async function toContentParts(spans: readonly ContentSpan[], env: WirePartsEnv, row: WireRowFacts): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
+async function toContentParts(
+  spans: readonly ContentSpan[],
+  env: WirePartsEnv,
+  row: WireRowFacts,
+): Promise<{ parts: ChatContentPart[]; imageDropped: boolean; videoDropped: boolean }> {
   const resolved = await Promise.all(spans.map((span) => spanToWirePart(span, env, row)));
   const parts: ChatContentPart[] = [];
-  let dropped = false;
   let mergeBlocked = false;
-  const droppedAlts: string[] = [];
+  const droppedMedia: DroppedMedia[] = [];
   for (const r of resolved) {
     if (r === null) {
       continue;
     }
     if ("droppedAlt" in r) {
-      dropped = true;
       // A drop is a part BOUNDARY (the pre-registry wire shape): text on either side of a dropped image
       // stays two parts — only text that was truly adjacent in the body merges.
       mergeBlocked = true;
-      if (r.droppedAlt.length > 0) {
-        droppedAlts.push(r.droppedAlt);
-      }
+      droppedMedia.push({ alt: r.droppedAlt, media: r.droppedMedia });
       continue;
     }
     const prev = parts.at(-1);
@@ -1092,9 +1130,13 @@ async function toContentParts(spans: readonly ContentSpan[], env: WirePartsEnv, 
   }
   if (parts.length === 0) {
     // Only substitute a placeholder when a drop emptied the row; a genuinely empty body keeps its empty text part.
-    parts.push({ type: "text", text: dropped ? droppedImagePlaceholder(droppedAlts) : "" });
+    parts.push({ type: "text", text: droppedMedia.length > 0 ? droppedMediaPlaceholder(droppedMedia) : "" });
   }
-  return { parts, dropped };
+  return {
+    parts,
+    imageDropped: droppedMedia.some((d) => d.media === "image"),
+    videoDropped: droppedMedia.some((d) => d.media === "video"),
+  };
 }
 
 /** The REQUEST-step history build (extracted): tokenize each fitted row ONCE, resolve the keep-last-X card
@@ -1107,22 +1149,23 @@ async function buildWireHistory(
     readonly name?: string | undefined;
     readonly messageId?: MessageId | undefined;
   }[],
-): Promise<{ history: TurnMessage[]; imageDropped: boolean }> {
+): Promise<{ history: TurnMessage[]; imageDropped: boolean; videoDropped: boolean }> {
   const visionOk = args.connection.capability.input?.vision === true;
+  const videoOk = args.connection.capability.input?.video === true;
   // COMMITTED canon (the fitted history is stored rows, never the in-flight stream), so an unterminated
   // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
   const tokenized = fittedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
-  const env: WirePartsEnv = { visionOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX) };
+  const env: WirePartsEnv = { visionOk, videoOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX) };
   // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
   // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
   const assistantMessageIds = new Set(args.canon.filter((m) => m.role === "assistant").map((m) => m.id));
   const built = await Promise.all(
     tokenized.map(async ({ h, spans }) => {
       const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
-      const { parts, dropped } = await toContentParts(spans, env, { role: h.role, userAuthored });
+      const { parts, imageDropped, videoDropped } = await toContentParts(spans, env, { role: h.role, userAuthored });
       const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
-      return { row, dropped };
+      return { row, imageDropped, videoDropped };
     }),
   );
-  return { history: built.map((b) => b.row), imageDropped: built.some((b) => b.dropped) };
+  return { history: built.map((b) => b.row), imageDropped: built.some((b) => b.imageDropped), videoDropped: built.some((b) => b.videoDropped) };
 }

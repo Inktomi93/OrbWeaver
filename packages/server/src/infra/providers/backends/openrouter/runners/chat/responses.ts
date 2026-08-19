@@ -90,6 +90,31 @@ function toolExchangeItems(content: readonly ChatContentPart[]): ResponsesInputI
   return items;
 }
 
+/** The Responses-dialect media detail level — `input_image.detail` is REQUIRED by the SDK shape; `auto`
+ *  delegates the resolution tier to the provider (the chat-completions dialect's implicit default). */
+const INPUT_IMAGE_DETAIL = "auto";
+
+/** The D45/#317 multimodal user content on the Responses dialect: `input_text`/`input_image`/`input_video`
+ *  items (SDK `EasyInputMessage.content` union — `InputVideo.videoUrl` accepts "a base64 data URL or remote
+ *  URL", per the SDK source) when media rides; the plain string otherwise (byte-stable bodies). */
+function responsesUserContent(content: readonly ChatContentPart[]): EasyInputMessage["content"] {
+  if (!content.some((part) => part.type === "image" || part.type === "video")) {
+    return chatHistoryText(content);
+  }
+  const items: Exclude<EasyInputMessage["content"], string | null | undefined> = [];
+  for (const part of content) {
+    if (part.type === "text") {
+      items.push({ type: "input_text", text: part.text });
+    } else if (part.type === "image") {
+      items.push({ type: "input_image", imageUrl: part.url, detail: INPUT_IMAGE_DETAIL });
+    } else if (part.type === "video") {
+      items.push({ type: "input_video", videoUrl: part.url });
+    }
+    // tool parts ride as function_call/function_call_output items (toolExchangeItems), never content.
+  }
+  return items;
+}
+
 // `EasyInputMessage` carries no per-participant `name`, so the completion-name label is dropped here.
 function buildResponsesInput(history: readonly ChatHistoryMessage[]): ResponsesInputItem[] {
   const items: ResponsesInputItem[] = [];
@@ -99,6 +124,14 @@ function buildResponsesInput(history: readonly ChatHistoryMessage[]): ResponsesI
       items.push(...exchange);
     }
     if (turn.role === "tool") {
+      continue;
+    }
+    if (turn.role === "user") {
+      const content = responsesUserContent(turn.content);
+      if (typeof content === "string" && content.trim().length === 0) {
+        continue;
+      }
+      items.push({ role: turn.role, content });
       continue;
     }
     const text = chatHistoryText(turn.content);

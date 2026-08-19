@@ -266,7 +266,9 @@ describe("resolveModelCapability — the four gapped axes (§U0 + IC-A synthesis
     // …AND the co-emission truth for this wire (D112 as amended, spike §4g): attaching tools costs the prose.
     expect(cap.tools).toEqual({ parallel: true, silencesProse: true });
     expect(coEmitsProseWithTools(cap)).toBe(false);
-    expect(cap.input).toBeUndefined();
+    // #317: the vllm arm advertises BOTH chat-input modalities (D143c errs-open — the gen slot is a VL
+    // checkpoint by deployment design; hiding the knob was the silent image_dropped-on-every-attach bug).
+    expect(cap.input).toEqual({ vision: true, video: true });
   });
 
   test("vLLM: tools axis holds on the agent-sdk protocol too (local loopback agent path, U0)", () => {

@@ -92,6 +92,17 @@ export type TurnPersist =
   | { readonly mode: "append-variant"; readonly targetMessageId: MessageId }
   | { readonly mode: "continue"; readonly targetMessageId: MessageId };
 
+/** A resolved attachment ref: the model-fetchable URL/data-URI plus its MEDIA KIND (#317). The kind is the
+ *  ASSET's stored fact (mime `video/*` → `video`; a gif that sniffs animated → `video`, the owner's
+ *  gif-as-motion rule; every other image → `image`), classified ONCE at the compose resolver so the
+ *  engine's kind-gate (`input.vision` vs `input.video`) and the wire-part constructor agree by
+ *  construction. The kind axis is DERIVED from the url-carrying `ChatContentPart` members, never re-spelled
+ *  (§5.5). Homed HERE (the D51 seam set) because it derives from the part union. */
+export interface ResolvedMediaRef {
+  readonly url: string;
+  readonly media: Extract<ChatContentPart, { readonly url: string }>["type"];
+}
+
 /** One shaped history message handed to the role on the wire. The content is the post-SHAPE text (squash +
  *  name-stamp applied). */
 export interface TurnMessage {

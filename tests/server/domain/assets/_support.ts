@@ -175,7 +175,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
       const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
       const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
       const rows = await db
-        .selectDistinct({ assetId: assets.id, hash: assets.hash })
+        .selectDistinct({ assetId: assets.id, hash: assets.hash, mime: assets.mime })
         .from(assets)
         .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
         .innerJoin(messages, eq(messages.id, messageAssets.messageId))

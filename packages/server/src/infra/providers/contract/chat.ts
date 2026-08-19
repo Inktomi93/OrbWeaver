@@ -30,6 +30,15 @@ export interface ChatHistoryMessage {
   readonly name?: string | undefined;
 }
 
+/** One OpenAI-compatible RAW-wire content part (snake_case wire field names — these objects go on the wire
+ *  verbatim; the D45/#317 multimodal send for the raw-wire runners, vLLM chat + custom-byo). Tool parts
+ *  never appear here: they ride the message-level `tool_calls` / `tool`-role seams. Built by the shared
+ *  `backends/kit/history.ts` projection; the OpenRouter runners use the SDK's own camelCase types instead. */
+export type OpenAiRawContentPart =
+  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "image_url"; readonly image_url: { readonly url: string } }
+  | { readonly type: "video_url"; readonly video_url: { readonly url: string } };
+
 /** One wire-projected tool (registry → `tools[]`). `parameters` is the JSON-Schema projection cached at registration. */
 export interface WireTool {
   readonly name: string;

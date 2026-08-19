@@ -297,6 +297,46 @@ describe("runResponsesTurn — wire shaping", () => {
     expect(first).toEqual({ role: "user", content: "" });
   });
 
+  test("D45/#317: a media-carrying user turn becomes input_text/input_image/input_video items", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(
+      client,
+      makeRequest({
+        history: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "look" },
+              { type: "image", url: "data:image/png;base64,AAAA" },
+              { type: "video", url: "data:video/mp4;base64,BBBB" },
+            ],
+          },
+        ],
+      }),
+      DEPS,
+    );
+    const input = captured.body?.["input"];
+    const first = Array.isArray(input) ? input[0] : undefined;
+    // The harness captures the PRE-serialize SDK request (camelCase — the `callId` pin below is the same
+    // convention); the SDK's outbound schema renames imageUrl→image_url / videoUrl→video_url on the wire.
+    expect(first).toEqual({
+      role: "user",
+      content: [
+        { type: "input_text", text: "look" },
+        { type: "input_image", imageUrl: "data:image/png;base64,AAAA", detail: "auto" },
+        { type: "input_video", videoUrl: "data:video/mp4;base64,BBBB" },
+      ],
+    });
+  });
+
+  test("D45/#317: a text-only user turn stays PLAIN-STRING content (byte-stable bodies)", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(client, makeRequest({ history: [{ role: "user", content: [{ type: "text", text: "Hi" }] }] }), DEPS);
+    const input = captured.body?.["input"];
+    const first = Array.isArray(input) ? input[0] : undefined;
+    expect(first).toEqual({ role: "user", content: "Hi" });
+  });
+
   // D41 (findings §4): `function_call_output` has no error slot either, so an isError tool result loses the
   // flag on this dialect too — dropped LOUDLY, never encoded onto a wire with nowhere to put it.
   test("a tool-result isError:true drops loudly as `tool_result_error_dropped` (D41)", async () => {

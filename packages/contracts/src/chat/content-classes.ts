@@ -38,7 +38,9 @@ export interface ContentClassPolicy {
 /** The shipped cells (§3.1 — the rationale column lives in the spec table):
  *  `text` show/full — the baseline; `image` show/drop — ATTACHMENT-ONLY (owner ruling, ST parity): only a
  *  deliberate user attachment (an owned-CAS `asset:` ref on a user-authored row) is a resolve-or-drop→alt
- *  candidate gated by `input.vision`; EVERY other embedded image — a character card's greeting picture, a
+ *  candidate gated by the asset's media kind (`input.vision` for images, `input.video` for mp4/webm/
+ *  animated-gif attachments — the kind is the ASSET's stored fact, classified by the resolve seam, #317);
+ *  EVERY other embedded image — a character card's greeting picture, a
  *  world-info illustration, narrator/`/imagine` media, a pasted link — is DISPLAY-ONLY: it renders in the
  *  transcript forever and rides as a short `[image: alt]` marker, never as a model-visible image part (the
  *  gate is `isUserAttachment` in the chat engine's pipeline); `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
