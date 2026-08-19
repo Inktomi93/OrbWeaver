@@ -18,6 +18,7 @@ import {
   createBulkImportLorebook,
   createImportStandaloneLorebook,
 } from "../../../../../packages/server/src/domain/world-info/persistence/import-write.ts";
+import { listCharacterBooks } from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -172,6 +173,101 @@ describe("createBulkImportLorebook", () => {
     const owner = await seedUser(db, {});
     const op = createBulkImportLorebook(importCtx(db));
     await expect(op({ ownerId: owner.id, characterId: castId("character_missing"), book: book() })).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+});
+
+// ── CENTRAL DEDUP (#303, owner ruling 2026-08-19: "one source of books") ─────────────────────────────────
+// A second character carrying the SAME embedded book LINKS to the one central world_books row instead of
+// minting a duplicate; a same-name DIFFERENT book still mints (no lossy merge); the read path resolves the
+// shared book through the character_books junction.
+describe("createBulkImportLorebook — central dedup", () => {
+  test("a second character with the SAME embedded book links to the existing central book (no duplicate)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const ariaVariant = await seedCharacter(db, { ownerId: owner.id, handle: castId("aria-2"), name: "Aria (variant)" });
+    const op = createBulkImportLorebook(importCtx(db));
+
+    const first = await op({ ownerId: owner.id, characterId: aria.id, book: book() });
+    const second = await op({ ownerId: owner.id, characterId: ariaVariant.id, book: book() });
+
+    // ONE central book, ONE entry set — not duplicated.
+    expect(second.worldBookId).toBe(first.worldBookId);
+    expect(second.replaced).toBe(false);
+    expect(await db.select().from(worldBooks)).toHaveLength(1);
+    expect(await db.select().from(worldEntries)).toHaveLength(1);
+
+    // BOTH characters are linked (primary) to the one shared book.
+    const attach = await db.select().from(characterBooks);
+    expect(attach).toHaveLength(2);
+    expect(attach.map((r) => r.worldBookId)).toEqual([first.worldBookId, first.worldBookId]);
+    expect(attach.map((r) => r.role).sort()).toEqual(["primary", "primary"]);
+  });
+
+  test("the read path resolves the shared book through the character_books link for BOTH characters", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const ariaVariant = await seedCharacter(db, { ownerId: owner.id, handle: castId("aria-2"), name: "Aria (variant)" });
+    const op = createBulkImportLorebook(importCtx(db));
+
+    const first = await op({ ownerId: owner.id, characterId: aria.id, book: book() });
+    await op({ ownerId: owner.id, characterId: ariaVariant.id, book: book() });
+
+    const [ariaBooks, variantBooks] = await Promise.all([listCharacterBooks(db, owner.id, aria.id), listCharacterBooks(db, owner.id, ariaVariant.id)]);
+    expect(ariaBooks).toHaveLength(1);
+    expect(ariaBooks[0]?.id).toBe(first.worldBookId);
+    expect(ariaBooks[0]?.role).toBe("primary");
+    expect(variantBooks).toHaveLength(1);
+    expect(variantBooks[0]?.id).toBe(first.worldBookId);
+    expect(variantBooks[0]?.role).toBe("primary");
+  });
+
+  test("a same-NAME but different-CONTENT book still MINTS a fresh row (no lossy merge)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const other = await seedCharacter(db, { ownerId: owner.id, handle: castId("other"), name: "Other" });
+    const op = createBulkImportLorebook(importCtx(db));
+
+    const first = await op({ ownerId: owner.id, characterId: aria.id, book: book() });
+    const second = await op({
+      ownerId: owner.id,
+      characterId: other.id,
+      book: book({
+        entries: [
+          {
+            title: "The Kingdom",
+            description: null,
+            content: "A DIFFERENT realm — same name, different lore.",
+            keys: ["kingdom", "realm"],
+            enabled: true,
+            priority: 10,
+            ignoreBudget: false,
+            metadata: { scopeMode: "always" },
+          },
+        ],
+      }),
+    });
+
+    expect(second.worldBookId).not.toBe(first.worldBookId);
+    expect(await db.select().from(worldBooks)).toHaveLength(2);
+  });
+
+  test("a FOREIGN owner's identical book is NEVER a dedup candidate (cross-tenant gate)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const stranger = await seedUser(db, { handle: castId("stranger"), email: "s@x.test" });
+    const strangerChar = await seedCharacter(db, { ownerId: stranger.id, name: "Stranger's Aria" });
+    const mine = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const op = createBulkImportLorebook(importCtx(db));
+
+    const strangers = await op({ ownerId: stranger.id, characterId: strangerChar.id, book: book() });
+    const ours = await op({ ownerId: owner.id, characterId: mine.id, book: book() });
+
+    // Identical content, different owner — must NOT link to the stranger's book; a fresh owned book is minted.
+    expect(ours.worldBookId).not.toBe(strangers.worldBookId);
+    expect(await db.select().from(worldBooks)).toHaveLength(2);
   });
 });
 
