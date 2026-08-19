@@ -16,17 +16,18 @@ import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, SlidersHorizontal } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusOnMount } from "#lib";
-import { selectPreset, useSelectedPresetId } from "#state";
+import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { PresetRenameDialog } from "../components/preset-rename-dialog.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
+import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";
@@ -41,7 +42,11 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
+    // THE FOCUS TARGET IS NAMED (side-eye 2026-08-19 ARIA). `useFocusOnMount` parks focus on this container
+    // when the section opens, and it was an unnamed, role-less `div` — a screen reader announced "group" or
+    // nothing at all, so entering the section told the user where they were only if they then Tab'd. It is a
+    // region-shaped landmark for exactly this reason; the name is the pane's own noun.
+    <Stack aria-label="Presets list" ref={surfaceRef} className="h-full outline-none" gap="block" role="region" tabIndex={-1}>
       <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…">
         <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
       </LibrarySurfaceShell>
@@ -64,12 +69,16 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
 
   const activeId = settings.config.seeds.defaultPresetId;
 
-  const [query, setQuery] = useState("");
+  // THE QUERY IS SECTION STATE, not this component's (side-eye 2026-08-19 P2): the chrome BAND's census has
+  // to answer off the same lens, and it renders in a different part of the shell entirely — see
+  // `preset-search-store.ts`. `useDeferredValue` still rides on top, so typing stays responsive while the
+  // (client-side) filter catches up.
+  const query = usePresetSearchQuery();
   const deferredQuery = useDeferredValue(query);
   const [renameId, setRenameId] = useState<PresetId | null>(null);
 
-  const needle = deferredQuery.trim().toLowerCase();
-  const filtered = needle === "" ? presets : presets.filter((p) => p.name.toLowerCase().includes(needle));
+  const needle = presetSearchNeedle(deferredQuery);
+  const filtered = filterPresetsByName(presets, needle);
 
   // The band owns the pane's create PRIMARY; this is the EMPTY-STATE's own action, which must stay (an
   // empty library that only says "no presets yet" is a dead end).
@@ -130,11 +139,24 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
         empty={
           <EmptyState
             action={
+              // A NO-MATCH STATE HAS AN EXIT (side-eye 2026-08-19 P3). It used to render NO action at all, so
+              // the only way out of a search that found nothing was to notice the box above and clear it by
+              // hand — a dead end wearing an explanation. Clear leads (it restores what you had); New is the
+              // second door, because "nothing matched" is also the moment you decide to make the thing.
               needle === "" ? (
                 <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
                   New preset
                 </Button>
-              ) : undefined
+              ) : (
+                <Row align="center" gap="field">
+                  <Button intent="secondary" onClick={(): void => setPresetSearchQuery("")} size="sm">
+                    Clear search
+                  </Button>
+                  <Button disabled={create.isPending} intent="ghost" onClick={onCreate} size="sm">
+                    New preset
+                  </Button>
+                </Row>
+              )
             }
             description={needle === "" ? "Create a preset to tune sampling, reasoning, and the prompt structure." : "No preset matches your search."}
             icon={<Icon icon={needle === "" ? SlidersHorizontal : Search} size="lg" />}
@@ -142,7 +164,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
           />
         }
         isEmpty={filtered.length === 0}
-        onSearchChange={setQuery}
+        onSearchChange={setPresetSearchQuery}
         // The rows' activate toggles are `role="radio"` (side-eye F-19) — this is the group that owns them.
         rowsRadiogroupLabel="Active preset for generation"
         searchLabel="Search presets"

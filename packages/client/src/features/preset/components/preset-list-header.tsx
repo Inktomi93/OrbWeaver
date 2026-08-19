@@ -25,8 +25,9 @@ import { useState } from "react";
 import { ListPaneHeader } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { selectPresetFromList } from "#state";
+import { selectPresetFromList, usePresetSearchQuery } from "#state";
 import { useCreatePreset, useImportPresetFile } from "../hooks/use-preset-mutations.ts";
+import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 import { PresetImportDialog } from "./preset-import-dialog.tsx";
 
 const NEW_PRESET_NAME = "New preset";
@@ -38,6 +39,13 @@ export function PresetListHeader(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: presets } = useQuery(trpc.preset.list.queryOptions());
+  // THE CENSUS COUNTS WHAT THE PANE SHOWS (side-eye 2026-08-19 P2). It used to print `presets.length` — the
+  // whole library — while the rows below it were filtered, so a search with no hits read "PRESETS 6" beside
+  // "No matches". The lens lives in `#state` precisely because these two renderers have no common parent
+  // (this is the shell's chrome band; the rows are the surface), and the PREDICATE is the surface's own
+  // (`filterPresetsByName`), so the two can't drift into two answers about one list.
+  const needle = presetSearchNeedle(usePresetSearchQuery());
+  const shown = filterPresetsByName(presets ?? [], needle);
   const create = useCreatePreset({ trpc, invalidation });
   const importFile = useImportPresetFile({ trpc, invalidation });
   const [importOpen, setImportOpen] = useState(false);
@@ -80,7 +88,7 @@ export function PresetListHeader(): ReactElement {
             </Button>
           </Row>
         }
-        count={presets?.length ?? 0}
+        count={shown.length}
         title="Presets"
       />
       <PresetImportDialog

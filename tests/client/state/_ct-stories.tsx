@@ -88,6 +88,7 @@ import {
   setOpenOverlayPanel,
   setPanelMode,
   setPresetEditorView,
+  setPresetSearchQuery,
   setTagSortMode,
   stampAppearanceBootHint,
   subscribeHuskAbandoned,
@@ -124,6 +125,7 @@ import {
   useOpenOverlayPanel,
   usePanelOverride,
   usePresetEditorView,
+  usePresetSearchQuery,
   useSectionListIsScreen,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
@@ -751,6 +753,26 @@ export function CorpusSearchProbe(): ReactElement {
  *  its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
  *  and assert select → clear (the Analytics leaderboard drill drives the Analytics CONTENT; separate from
  *  the Corpus / Characters selections). */
+/** PresetSearchProbe — the preset LIST's search store as text plus the buttons that fire its one action.
+ *  A CT, not a unit test, for its corpus sibling's reason: the read surface is a hook and
+ *  `useSyncExternalStore` needs a real render. What this pins that the surface CT cannot: the query is
+ *  MODULE-scoped — it outlives any one component, which is what lets the shell's chrome band and the rows
+ *  (two renderers with no common parent) count the same filtered list. */
+export function PresetSearchProbe(): ReactElement {
+  const query = usePresetSearchQuery();
+  return (
+    <div>
+      <output>{`presetQuery=${query === "" ? "none" : query}`}</output>
+      <button type="button" onClick={(): void => setPresetSearchQuery("roleplay")}>
+        set preset query
+      </button>
+      <button type="button" onClick={(): void => setPresetSearchQuery("")}>
+        clear preset query
+      </button>
+    </div>
+  );
+}
+
 export function AnalyticsSelectionProbe(): ReactElement {
   const selected = useSelectedAnalyticsCharacterId();
   return (
