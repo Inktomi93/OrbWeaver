@@ -41,6 +41,7 @@ import {
   isSwallowedExempt,
   isTypeOnlyExempt,
   isUnwiredExempt,
+  modelProjectedSchemas,
   qualifiedAccessIndex,
   regKeyHitsFor,
   respellHitsFor,
@@ -1110,8 +1111,143 @@ export const make = (): { imageEmbedModel: string } => ({
     // imageEmbedModel is produced by the getter (a key-only index read it as unpopulated — the live shape);
     // `declaredOnly`'s own `z.object` key is a DECLARATION and cannot populate itself.
     expect(hits.map((h) => h.text)).toEqual([
-      "schema.declaredOnly — NO producer spells this name outside its own declaration, and NOTHING reads it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)",
+      "schema.declaredOnly — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)",
     ]);
+  });
+
+  // ── the #210 triage's producer shapes (docs/reviews/misc/2026-08-19-lens-triage-210.md §4) ──────────
+  // Each of the four below retired a measured block of the 70 hits that buried the two real defects. The
+  // fixtures are the real shapes, not sketches: the card serde's element-access emit, TanStack Form's plain
+  // string attribute, a contracts file consuming its own foreign wire schema, and a `.default()` chain.
+  test("the four producer shapes a key index used to miss: element access, computed const key, JSX name=, setFieldValue", () => {
+    const project = projectOf({
+      "packages/contracts/src/character/index.ts": `
+import { z } from "zod";
+export const WIRE_KEY = "orbweaver_attached_books";
+export const cardSchema = z.object({
+  creation_date: z.number(),
+  orbweaver_attached_books: z.array(z.string()),
+  chatWidthPct: z.number(),
+  dynamicContext: z.boolean(),
+  neverProduced: z.string(),
+});
+`,
+      "packages/server/src/kit/serde/card/index.ts": `
+import { WIRE_KEY } from "@orb/contracts/character";
+export const emit = (refs: string[], stamp: number): Record<string, unknown> => {
+  const out: Record<string, unknown> = { [WIRE_KEY]: refs };
+  out["creation_date"] = stamp;
+  return out;
+};
+`,
+      "packages/client/src/features/app-shell/components/appearance-sizing-section.tsx": `
+export const Section = (form: { setFieldValue: (k: string, v: unknown) => void }): unknown => {
+  form.setFieldValue("params.advanced.dynamicContext", true);
+  return <form.AppField name="chatWidthPct" />;
+};
+`,
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/character/index.ts");
+    const { produced, consumed } = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    // Only the field NO shape populates survives — the other four are live write paths.
+    expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["cardSchema.neverProduced"]);
+  });
+
+  test("a SAME-FILE consumer is visible: the fence is the declaration NODE, not the declaring file", () => {
+    const project = projectOf({
+      // The `stPromptSchema` shape: a foreign wire schema declared in `contracts` and consumed by an
+      // IMPORTER in the same file. The whole-file filter printed "the declaration is its only occurrence".
+      "packages/contracts/src/preset/index.ts": `
+import { z } from "zod";
+export const stPromptSchema = z.object({ injection_depth: z.number() });
+export const importSt = (raw: Record<string, number>): number => raw.injection_depth ?? 0;
+`,
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/preset/index.ts");
+    const { produced, consumed } = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    expect(hits.map((h) => h.kind)).toEqual(["field-consumed-never-populated"]);
+    // The declaring file NAMES ITSELF as the consumer — the whole point: the read is real, it is just local.
+    expect(hits[0]?.text).toContain("1 site(s) SPELL this NAME as a read (/repo/packages/contracts/src/preset/index.ts)");
+  });
+
+  test("a `.default()` on the field's OWN chain self-produces; a default on a NESTED key does not absolve the parent", () => {
+    const project = projectOf({
+      "packages/contracts/src/databank/index.ts": `
+import { z } from "zod";
+export const chunkParamsSchema = z.object({
+  overlapPercent: z.number().min(0).default(10),
+  nested: z.object({ inner: z.string().default("x") }),
+});
+`,
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/databank/index.ts");
+    const { produced, consumed } = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    // `overlapPercent` populates itself; `nested` does NOT inherit its child's default; `inner` does.
+    expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["chunkParamsSchema.nested"]);
+  });
+
+  test("an ARRAY destructure is positional and credits NO reader; an OBJECT destructure still does", () => {
+    const project = projectOf({
+      "packages/contracts/src/plugin/manifest.ts": `
+import { z } from "zod";
+export const manifestSchema = z.object({ author: z.string(), entryKey: z.string() });
+`,
+      // `const [author, role] = …` is the shape that printed a false consumer for `manifestSchema.author`.
+      "packages/server/src/domain/automation/engine/dispatch.ts": `
+export const fire = async (load: () => Promise<[string, string]>, input: { entryKey: string }): Promise<string> => {
+  const [author, role] = await load();
+  const { entryKey } = input;
+  return author + role + entryKey;
+};
+`,
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/plugin/manifest.ts");
+    const { produced, consumed } = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    const byField = new Map(hits.map((h) => [h.text.split(" — ")[0], h.kind]));
+    expect(byField.get("manifestSchema.author")).toBe("field-declared-only");
+    expect(byField.get("manifestSchema.entryKey")).toBe("field-consumed-never-populated");
+  });
+
+  test("the MODEL-PROJECTED fence takes a tool `argsSchema`, a projected registry's rows, and same-file parts — never a cross-file shared schema", () => {
+    const project = projectOf({
+      "packages/contracts/src/rpg/tools.ts": `
+import { z } from "zod";
+import { sharedIdSchema } from "@orb/contracts/shared";
+export const plotPatchSchema = z.object({ actSummary: z.string() });
+export const updateSceneArgsSchema = z.object({ plot: plotPatchSchema.optional(), who: sharedIdSchema });
+`,
+      "packages/contracts/src/shared/index.ts": `
+import { z } from "zod";
+export const sharedIdSchema = z.string();
+`,
+      "packages/contracts/src/refinery/index.ts": `
+import { z } from "zod";
+export const refineryScorePayloadSchema = z.object({ overallScore: z.number() });
+export const REFINERY_STAGE_PAYLOADS = { score: refineryScorePayloadSchema } as const satisfies Record<string, z.ZodType>;
+`,
+      "packages/server/src/domain/rpg/tools/index.ts": `
+import { updateSceneArgsSchema } from "@orb/contracts/rpg";
+export const TOOLS = [{ name: "update_scene", argsSchema: updateSceneArgsSchema }];
+`,
+      "packages/server/src/domain/refinery/substrate/stage-resolution.ts": `
+import { projectJsonSchema } from "@orb/kit/json-schema";
+import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
+export const FORMATS = { score: projectJsonSchema(REFINERY_STAGE_PAYLOADS.score) };
+`,
+    });
+    const fenced = modelProjectedSchemas(project);
+    // Registered as a tool's args grammar, plus the part it is built from IN ITS OWN FILE.
+    expect(fenced.has("updateSceneArgsSchema")).toBe(true);
+    expect(fenced.has("plotPatchSchema")).toBe(true);
+    // Reached through `{…} as const satisfies` — the house registry spelling a bare asKind misses.
+    expect(fenced.has("refineryScorePayloadSchema")).toBe(true);
+    // THE CONTROL: a shared schema referenced from ANOTHER file is NOT fenced — a cross-file closure would
+    // blind the lens far past the projected surface.
+    expect(fenced.has("sharedIdSchema")).toBe(false);
   });
 });
 
