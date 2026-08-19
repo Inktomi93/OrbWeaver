@@ -104,6 +104,35 @@ export function CorpusListSurfaceRailBounceStory(): ReactElement {
   );
 }
 
+/** ARRIVING IN THE WHOLE SECTION (P2-4) — the LIST pane and the CONTENT region mounting TOGETHER, on a
+ *  bounce, which is what a rail switch does. The C7 story cannot see this defect: focus-on-mount is a race
+ *  between the two panes' effects, and a list-only mount has no competitor. CONTENT mounts second here, as
+ *  it does in the shell. */
+export function CorpusSectionArrivalStory(): ReactElement {
+  const [inCorpus, setInCorpus] = useState(true);
+  return (
+    <CtDataProviders>
+      <button type="button" onClick={(): void => setInCorpus((here) => !here)}>
+        {inCorpus ? "Leave Corpus" : "Back to Corpus"}
+      </button>
+      <div style={{ display: "flex", height: 640, width: 900 }}>
+        {inCorpus ? (
+          <>
+            <div style={{ width: 360 }}>
+              <CorpusListSurface />
+            </div>
+            <div style={{ flex: 1 }}>
+              <CorpusContent />
+            </div>
+          </>
+        ) : (
+          <p>Another section</p>
+        )}
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The Corpus LIST chrome-band header (title + distilled count) over the real data layer. */
 export function CorpusListHeaderStory(): ReactElement {
   return (

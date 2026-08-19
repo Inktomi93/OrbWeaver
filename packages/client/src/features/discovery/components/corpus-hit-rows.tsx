@@ -28,11 +28,12 @@
 // is dropped silently. The rows are addressed by role + accessible name instead, which is also what a user
 // meets them as.
 
-import { blobUrl } from "@orb/contracts/assets";
+import { blobIconUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
+import { Button } from "@orb/ui/button";
 import { Icon, Images, MessagesSquare } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -41,14 +42,17 @@ import type { Trpc } from "#data";
 import { testId } from "#lib";
 import { selectChat, selectCorpusCharacter, setActiveSection } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
-import { chatSubtitle, evidenceScent, snippetForDisplay } from "../lib/corpus-result-text.ts";
+import type { EvidenceRoom } from "../lib/corpus-result-text.ts";
+import { chatSubtitle, evidenceScent, groupEvidenceByPassage, roomNumberingHint, snippetForDisplay } from "../lib/corpus-result-text.ts";
+import { percent } from "../lib/corpus-vocabulary.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 
 type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
 type DiscoverHit = Extract<UnifiedResult, { over: "discover" }>["hits"][number];
-type DiscoverSegment = DiscoverHit["segments"][number];
 
-const PERCENT = 100;
+/** The unworn image row's thumbnail rung, in DEVICE pixels — `CharacterAvatar`'s `sm` ask, so the two rows
+ *  in one result list request the same variant and draw at the same size. */
+const UNWORN_THUMB_WIDTH = 48;
 
 /** A distilled character card hit — click selects it into the dossier CONTENT. */
 export function CharacterHitRow({
@@ -84,10 +88,24 @@ export function CharacterHitRow({
   );
 }
 
-/** A lived-scene discovery hit — the character plus its per-chat evidence preview. Each evidence GROUP is a
- *  room, so its header is that room's name and its own door (the same drill-through a memory hit carries). */
+/**
+ * A lived-scene discovery hit — the character, then its evidence: one PASSAGE per body, with a door into
+ * every room that passage turned up in.
+ *
+ * THE EVIDENCE IS THE UNIT, NOT THE ROOM (side-eye corpus re-pass 2026-08-19, P1-1). This grouped by CHAT —
+ * a room header, then its snippets — so a duplicated room (an import run twice, a branched chat) printed the
+ * byte-identical 220-char passage once per room. The audited surface showed three doors each over the same
+ * excerpt, which a reader meets as a broken search rather than as three rooms. Inverting the grouping keeps
+ * every room reachable (nothing is dropped, unlike the Memories branch's first-wins dedupe) while stating
+ * each distinct piece of evidence exactly once. `../lib/corpus-result-text.ts` owns the grouping.
+ *
+ * THE ROOMS ARE DOORS AND NOW LOOK LIKE IT (P2-2). They were borderless, centred, body-coloured `ListRow`
+ * titles — the shape of a heading, so the one drill-through on this branch read as a section label. The
+ * vocabulary is the surface's own established door ("All families →"): left-aligned, muted, trailing arrow.
+ */
 export function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
-  const groups = groupByChat(hit.segments);
+  const passages = groupEvidenceByPassage(hit.segments, hit.name);
+  const rooms = new Set(hit.segments.map((segment) => segment.chatId)).size;
   return (
     <Stack gap="field" role="listitem">
       <ListRow
@@ -95,22 +113,43 @@ export function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactEle
         onClick={(): void => selectCorpusCharacter(hit.characterId)}
         leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
         title={hit.name}
-        subtitle={evidenceScent(hit.matchCount, hit.segments.length, groups.length)}
+        subtitle={evidenceScent(hit.matchCount, passages.length, rooms)}
+        // THE HONESTY LINE MUST SURVIVE THE COLUMN (P2-3). It clipped to "…— showin" at the 221px LIST pane
+        // (scrollWidth 282 vs 213): a sentence whose whole job is to say what the list below does NOT show,
+        // cut before it could say it. The Memories row already wraps its body for the same reason.
+        subtitleWrap={true}
         actions={<RelevanceBadge relevance={hit.relevance} />}
       />
-      <Stack className="pl-gutter" gap="field" data-testid={testId("corpusDiscoverEvidence")}>
-        {groups.map(([chatId, segments]) => (
-          <Stack key={chatId} gap="field">
-            <ListRow clickable={true} onClick={(): void => openChat(chatId)} title={chatSubtitle(segments[0]?.chatTitle ?? null, hit.name)} />
-            {segments.map((segment) => (
-              <Text key={`${chatId}-${segment.blockIdx}`} voice="gloss">
-                “{snippetForDisplay(segment.snippet)}”
-              </Text>
-            ))}
+      <Stack className="pl-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
+        {passages.map((passage) => (
+          <Stack gap="tight" key={passage.snippet}>
+            <Text voice="gloss">“{passage.snippet}”</Text>
+            <Row className="flex-wrap" gap="field">
+              {passage.rooms.map((room) => (
+                <RoomDoor key={room.chatId} room={room} />
+              ))}
+            </Row>
           </Stack>
         ))}
       </Stack>
     </Stack>
+  );
+}
+
+/** One room a passage came from, as the door it is. The `title` tooltip fires only on a numbered room name,
+ *  which is the one case the label cannot explain itself (P3-6 — see `roomNumberingHint`). */
+function RoomDoor({ room }: { readonly room: EvidenceRoom }): ReactElement {
+  return (
+    <Button className="max-w-full justify-start" intent="ghost" onClick={(): void => openChat(room.chatId)} size="sm" title={roomNumberingHint(room.title)}>
+      <Text as="span" className="min-w-0 truncate text-muted-foreground" voice="label">
+        {room.title}
+      </Text>
+      {/* Decoration: the arrow says "this goes somewhere" to the eye, and repeating it in the accessible
+          name would announce a glyph where the room's name belongs. */}
+      <Text aria-hidden={true} as="span" className="shrink-0 text-muted-foreground" voice="label">
+        →
+      </Text>
+    </Button>
   );
 }
 
@@ -193,7 +232,13 @@ export function ImageHitRow({
         leading={
           // No `alt`: the row's TITLE is already this image's caption, and naming the thumbnail with the
           // same words would announce it twice (`CharacterAvatar` leaves it empty for the same reason).
-          <Avatar hueSeed={hash} shape="rounded" src={blobUrl(hash)}>
+          //
+          // THE SAME RUNG, AND THE SAME BOX, AS THE ROWS BESIDE IT (P3-7). This asked the CAS route for the
+          // FULL-SIZE original (`blobUrl`) at the Avatar's default size, so the dead rows in a result list
+          // both decoded a 1840x2752 PNG for a thumbnail and rendered LARGER than the live rows above them —
+          // the C6 rung fix landed on `CharacterAvatar` and this row is the one that does not draw through
+          // it. `sm` + 48 device pixels is exactly what that component asks for at this display size.
+          <Avatar hueSeed={hash} shape="rounded" size="sm" src={blobIconUrl(hash, UNWORN_THUMB_WIDTH)}>
             <Icon icon={Images} size="sm" />
           </Avatar>
         }
@@ -232,18 +277,7 @@ function openChat(chatId: ChatId): void {
 function RelevanceBadge({ relevance }: { readonly relevance: number }): ReactElement {
   return (
     <Text voice="gloss" className="shrink-0 font-mono">
-      {`${Math.round(relevance * PERCENT)}%`}
+      {percent(relevance)}
     </Text>
   );
-}
-
-/** Group a character's evidence segments by chat so the preview reads per-conversation. */
-function groupByChat(segments: readonly DiscoverSegment[]): readonly (readonly [ChatId, readonly DiscoverSegment[]])[] {
-  const byChat = new Map<ChatId, DiscoverSegment[]>();
-  for (const segment of segments) {
-    const bucket = byChat.get(segment.chatId) ?? [];
-    bucket.push(segment);
-    byChat.set(segment.chatId, bucket);
-  }
-  return [...byChat.entries()];
 }

@@ -43,7 +43,10 @@ const NOT_SCORED = /Not scored yet/;
 const REFINERY_DOOR = /Open the Refinery/;
 const RAW_COSINE = /cosine/;
 const NO_KEYWORD_PROFILE = /No keyword profile/;
-const SORT_STATED = /Closest first/;
+// P3-1 re-worded this line: it opened on "Closest first" and then spent two clauses walking that claim
+// back, over a percent column that visibly does not descend. Same two facts, ordered so the sentence
+// survives its own evidence — the CLAIM under test is unchanged (the list states its own sort).
+const SORT_STATED = /Ranked by distinctive similarity/;
 
 test("a GROUNDED answer badges the model's own claim", async ({ mount, page }) => {
   await routeDossier(page, {

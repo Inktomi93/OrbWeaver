@@ -2,11 +2,15 @@
 // corpus-search-results.ct.tsx). Each case here is a defect the 2026-08-19 corpus re-pass MEASURED on the
 // live surface, reduced to the string decision behind it.
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   chatSubtitle,
   dedupeByEvidence,
   evidenceScent,
+  groupEvidenceByPassage,
+  roomNumberingHint,
   snippetForDisplay,
 } from "../../../../../packages/client/src/features/discovery/lib/corpus-result-text.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -63,5 +67,65 @@ describe("dedupeByEvidence (C2)", () => {
   test("surrounding whitespace is not an identity — the same block trimmed differently is still one answer", () => {
     const hits = [{ text: "the copper tub" }, { text: "  the copper tub \n" }];
     expect(dedupeByEvidence(hits, (hit) => hit.text)).toHaveLength(1);
+  });
+});
+
+const CHAT_A = castId<ChatId>("chat_a");
+const CHAT_B = castId<ChatId>("chat_b");
+const CHAT_C = castId<ChatId>("chat_c");
+
+describe("groupEvidenceByPassage (P1-1)", () => {
+  /** One Scenes segment — the three fields the grouping reads. Branded at the fixture consts, so the
+   *  helper's own parameter is the id type the production caller passes, never a bare string. */
+  const segment = (chatId: ChatId, chatTitle: string | null, snippet: string): { chatId: ChatId; chatTitle: string | null; snippet: string } => ({
+    chatId,
+    chatTitle,
+    snippet,
+  });
+
+  test("one passage found in three rooms is ONE body with three doors — nothing is dropped", () => {
+    const passages = groupEvidenceByPassage(
+      [
+        segment(CHAT_A, "Lena Jan 28", "the rain came sideways"),
+        segment(CHAT_B, "Lena Jan 28 (2)", "the rain came sideways"),
+        segment(CHAT_C, "Lena Jan 26", "she counted the coins twice"),
+      ],
+      "Lena",
+    );
+
+    expect(passages).toHaveLength(2);
+    expect(passages[0]?.snippet).toBe("the rain came sideways");
+    expect(passages[0]?.rooms.map((room) => room.title)).toEqual(["Lena Jan 28", "Lena Jan 28 (2)"]);
+    expect(passages[1]?.rooms.map((room) => room.title)).toEqual(["Lena Jan 26"]);
+  });
+
+  test("one room quoting the same passage twice is ONE door, not two", () => {
+    const passages = groupEvidenceByPassage([segment(CHAT_A, "Harbour", "the same block"), segment(CHAT_A, "Harbour", "the same block")], "Lena");
+    expect(passages).toHaveLength(1);
+    expect(passages[0]?.rooms).toHaveLength(1);
+  });
+
+  test("the grouping key is the DISPLAYED text — two wire slices that read identically group together", () => {
+    // The wire cuts at 280 chars mid-word; the projection cuts earlier, on a word boundary. Two copies of
+    // one block that differ only past the display cut are one passage to the reader, so they are one here.
+    const long = `${"the harvest is in and the evening is quiet ".repeat(20)}finally`;
+    const passages = groupEvidenceByPassage([segment(CHAT_A, "One", long), segment(CHAT_B, "Two", `${long} and then some more`)], "Lena");
+    expect(passages).toHaveLength(1);
+    expect(passages[0]?.rooms).toHaveLength(2);
+  });
+
+  test("an unnamed room still names itself through the title chain, never an id", () => {
+    const passages = groupEvidenceByPassage([segment(CHAT_A, null, "a line")], "Lena");
+    expect(passages[0]?.rooms[0]?.title).toBe("Lena");
+  });
+});
+
+describe("roomNumberingHint (P3-6)", () => {
+  test("a numbered room title explains its number; an ordinary one gets no tooltip at all", () => {
+    expect(roomNumberingHint("Lena Jan 28 (2)")).toContain("numbered");
+    expect(roomNumberingHint("Lena Jan 28 (2)")).toContain("Lena Jan 28 (2)");
+    expect(roomNumberingHint("Lena Jan 28")).toBeUndefined();
+    // Not a suffix, not a hint: the parenthetical has to END the title, the way the importer writes it.
+    expect(roomNumberingHint("Lena (2) and the harbour")).toBeUndefined();
   });
 });
