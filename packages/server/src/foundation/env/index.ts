@@ -184,7 +184,8 @@ function loadEnvFileWithOverride(override: boolean): void {
 /** #301 — did the loaded `.env` FILE declare `AUTH_FALLBACK`? The convention is that it must NOT: `.env` loads
  *  with `override:true`, so a value there is forced into EVERY launch (dev AND prod, every mode), which is a
  *  dev-lockout footgun (SSO mode + a pinned `deny` kills dev's loopback auto-owner) and defeats "prod exports
- *  deny while dev falls to the default owner". Lifecycle warns on this at boot. */
+ *  deny while dev falls to the default owner". The env superRefine makes this BOOT-FATAL (owner ruling
+ *  2026-08-19) — AUTH_FALLBACK is a launch-time decision, not a `.env` key. */
 export function authFallbackDeclaredInEnvFile(): boolean {
   return envFileKeys.has("AUTH_FALLBACK");
 }
@@ -561,6 +562,22 @@ const envSchema = z
         code: "custom",
         path: ["AUTH_FALLBACK"],
         message: `AUTH_FALLBACK=owner with AUTH_MODE=${val.AUTH_MODE} in production is a SSO BYPASS: behind a same-host reverse proxy every request arrives on a loopback socket and the owner fallback would mint owner for everyone, bypassing SSO. Set AUTH_FALLBACK=deny (the secure prod default — the owner logs in via SSO, seeded at boot). For a deliberate on-box recovery session ONLY, set AUTH_BREAK_GLASS=true to acknowledge the risk.`,
+      });
+    }
+    // #301 (owner ruling 2026-08-19) — AUTH_FALLBACK is a LAUNCH-TIME decision, NEVER a `.env` KEY, and this
+    // makes the invariant IMPOSSIBLE to violate rather than merely discouraged (constitution §1: the apparatus
+    // makes the shortcut impossible). The file loads with `override:true`, so a value in `.env` is forced into
+    // EVERY launch from that dir — dev AND prod, every mode — which is a dev-lockout footgun (a prod-intended
+    // `.env` run in dev, or an SSO mode + a pinned `deny`, kills dev's loopback auto-owner) and confusingly
+    // collides downstream with the two prod fatals above. There is no legitimate `.env` pin: `single-user`
+    // already DEFAULTS to `owner` (so a redundant pin is deletable at zero cost), dev wants the default, and a
+    // prod launcher exports `deny` in ITS environment. Same fail-fast family as the two blocks above.
+    if (authFallbackDeclaredInEnvFile()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_FALLBACK"],
+        message:
+          "AUTH_FALLBACK must not be set in .env — .env's override:true would force it into every mode including dev (lockout risk). Set it in the prod launcher's environment (`stack up prod`/`start`); dev falls to the default 'owner'.",
       });
     }
     // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09) — same fail-fast class again: a NON-PRODUCTION build

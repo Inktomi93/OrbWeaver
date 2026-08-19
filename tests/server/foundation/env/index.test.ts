@@ -266,18 +266,16 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     expect(env.AUTH_MODE).toBe("single-user");
   });
 
-  // ── #301 — AUTH_FALLBACK must NOT live in `.env` ─────────────────────────────────────────────────────────
+  // ── #301 — AUTH_FALLBACK must NOT live in `.env` (owner ruling 2026-08-19: BOOT-FATAL) ───────────────────
   // The file loads with override:true, so a value there is forced into EVERY launch (a dev-lockout footgun +
-  // a defeat of "prod exports deny, dev defaults to owner"). The loader records which keys the FILE declared;
-  // lifecycle warns at boot on this signal. `vitest:false` drops the VITEST pin so the real .env load runs.
-  test("#301: AUTH_FALLBACK declared in .env is DETECTED, and its value wins (override:true)", async () => {
+  // a defeat of "prod exports deny, dev defaults to owner"). AUTH_FALLBACK is a LAUNCH-TIME decision; the env
+  // superRefine makes a `.env` pin unrepresentable. `vitest:false` drops the VITEST pin so the real load runs.
+  test("#301: AUTH_FALLBACK declared in .env → boot FAILS at parse (fatal, not a warning)", async () => {
     const dir = dirWithEnvFile(["AUTH_MODE=single-user", "AUTH_FALLBACK=owner"].join("\n"));
-    const mod = await reimportEnvIn(dir, {}, { vitest: false });
-    expect(mod.authFallbackDeclaredInEnvFile()).toBe(true);
-    expect(mod.env.AUTH_FALLBACK).toBe("owner");
+    await expect(reimportEnvIn(dir, {}, { vitest: false })).rejects.toThrow("AUTH_FALLBACK must not be set in .env");
   });
 
-  test("#301: a .env WITHOUT AUTH_FALLBACK is NOT flagged (the convention — fall to the schema default)", async () => {
+  test("#301: a .env WITHOUT AUTH_FALLBACK boots clean at the default (the convention — launch-time only)", async () => {
     const dir = dirWithEnvFile("AUTH_MODE=single-user");
     const mod = await reimportEnvIn(dir, {}, { vitest: false });
     expect(mod.authFallbackDeclaredInEnvFile()).toBe(false);
