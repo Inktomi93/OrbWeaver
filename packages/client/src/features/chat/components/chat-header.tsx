@@ -29,6 +29,7 @@ import type { ChatContextTabId } from "#lib";
 import { deriveChatTitle } from "#lib";
 import { revealContextPanel } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
+import { ChatRecallIndicator } from "./chat-recall-indicator.tsx";
 
 export interface ChatHeaderSurfaceProps {
   readonly chatId: ChatId;
@@ -43,6 +44,8 @@ interface CommittedIdentity {
   readonly memberCount: number;
   /** Has the room's own read landed? `false` ⇒ there is no identity yet, only the shape of one. */
   readonly resolved: boolean;
+  /** The viewer holds the room HOST role — gates the recall indicator's host-only detail popover. */
+  readonly viewerIsHost: boolean;
 }
 
 /** The committed chat's identity (avatars/title/member-count), read from the shared `getChat` query
@@ -62,6 +65,7 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
     ),
     memberCount: participants.filter((p) => p.leftSeq === null).length,
     resolved: chat !== undefined,
+    viewerIsHost: chat?.viewerIsHost === true,
   };
 }
 
@@ -104,7 +108,7 @@ function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; 
  * frame — `useStartChat` seeds this exact key from `startChat`'s own response.
  */
 export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
-  const { cast, title, memberCount, resolved } = useCommittedIdentity(chatId);
+  const { cast, title, memberCount, resolved, viewerIsHost } = useCommittedIdentity(chatId);
 
   if (!resolved) {
     return (
@@ -120,6 +124,9 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
     <Row gap="row" align="center" className="min-w-0">
       <ChatIdentityCluster avatars={<CastAvatars cast={cast} />} title={title} />
       <ChatRosterEntry memberCount={memberCount} />
+      {/* The memory-recall slot — a STABLE topbar control beside the members chip (#313), reflecting the
+          current turn's recall phase (idle / recalling… / retrieved N), never a per-message chip. */}
+      <ChatRecallIndicator chatId={chatId} viewerIsHost={viewerIsHost} />
     </Row>
   );
 }

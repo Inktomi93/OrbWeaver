@@ -36,8 +36,8 @@ import type { ChatId } from "@orb/kit/ids";
  *  bypass the seq dedup entirely or be dropped forever. Two sources, one rule:
  *    • the attach SYNTHESES (`chatOpened`/`historyTruncated`) — re-fired per attach as the reopen catch-up
  *      (see the EXEMPTION note above);
- *    • the LIVE-ONLY bus lane (`roomEntityChanged`, `chatDeleted`): published on the room but never appended
- *      to `chat_events`, so the pump yields it at the CURRENT cursor.
+ *    • the LIVE-ONLY bus lane (`roomEntityChanged`, `chatDeleted`, `memoryRecall`): published on the room but
+ *      never appended to `chat_events`, so the pump yields it at the CURRENT cursor.
  *  Keyed by `ChatBusEvent["type"]` so a rename fails tsc here rather than silently un-exempting a member.
  *  (Named `SYNTHESIZED_EXEMPT` until the live-only lane landed — the old name claimed a source that is now
  *  only half the set.)
@@ -51,6 +51,9 @@ const NON_DURABLE_EXEMPT: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEve
   "historyTruncated",
   "roomEntityChanged",
   "chatDeleted",
+  // #313 — the ephemeral recall-phase feed: LIVE-ONLY (never appended), so the pump stamps it with the current
+  // cursor. Without this seat its non-advancing seq would be dropped and the brain-icon never lit.
+  "memoryRecall",
 ]);
 
 /** Cap the per-session mark map so a long-lived session that opens many chats cannot grow it unboundedly;
