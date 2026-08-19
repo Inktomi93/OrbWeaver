@@ -1365,4 +1365,13 @@ CREATE TABLE `world_entries` (
 	FOREIGN KEY (`world_book_id`) REFERENCES `world_books`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `world_entries_book_idx` ON `world_entries` (`world_book_id`);
+CREATE INDEX `world_entries_book_idx` ON `world_entries` (`world_book_id`);--> statement-breakpoint
+CREATE TABLE `image_index_skips` (
+	`asset_id` text PRIMARY KEY NOT NULL,
+	`reason` text NOT NULL,
+	`width` integer,
+	`height` integer,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "image_index_skips_reason_check" CHECK(reason in ('below-dimension-floor'))
+);

@@ -19,8 +19,9 @@ import type { EmbedPassParams } from "../contract/params.ts";
 import type { AvatarAnalysis, BulkEmbedResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { purgeStaleVectors } from "../persistence/clear.ts";
-import { existingCaptionedRow, existingImageHash } from "../persistence/queries.ts";
+import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
 import { contentHash } from "../substrate/hash.ts";
+import { imageBelowFloor } from "../substrate/image-admission.ts";
 
 interface EmbedAssetsDeps {
   readonly store: EmbeddingsService["store"];
@@ -29,8 +30,21 @@ interface EmbedAssetsDeps {
 
 /** One asset's sweep step: hash + breakdown pre-check (both lenses) → store raw → analyse → store captioned. */
 async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, assetId: AssetId, force: boolean): Promise<"embedded" | "skipped"> {
+  // ADMISSION FLOOR (recorded skip, read FIRST): an asset already refused by the dimension floor is honored
+  // here — no byte load, no caption, no embed — so a re-index does not re-attempt it. `force` still bypasses
+  // it (a deliberate re-index of everything), mirroring how `force` bypasses the hash/facet pre-check below.
+  if (!force && (await existingImageSkip(ctx.db, assetId))) {
+    return "skipped";
+  }
   const bytes = await ctx.loadAssetBytes(assetId);
   if (bytes === undefined) {
+    return "skipped";
+  }
+  // ADMISSION FLOOR (dimension gate): a degenerate asset carries no visual signal — record the refusal
+  // (visible + idempotent) and skip BEFORE the expensive caption + image-embed calls.
+  const admission = imageBelowFloor(bytes);
+  if (admission.belowFloor) {
+    await insertImageSkip(ctx.db, { assetId, reason: "below-dimension-floor", width: admission.width, height: admission.height, now: ctx.now() });
     return "skipped";
   }
   const model = ctx.roleClients.imageEmbedModel;
