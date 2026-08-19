@@ -1,4 +1,10 @@
-// The regex collection's CONTEXT arm — "Where it runs" for the selected script.
+// The regex collection's CONTEXT arm — "Where it’s attached" for the selected script.
+//
+// IT IS ABOUT SCOPES, AND THE BAND NOW SAYS SO (side-eye 2026-08-19). The band read "Where it runs", which
+// is one preposition away from the EDITOR's `Runs on` field — and those two decide orthogonal things: the
+// field picks which TEXT STREAMS a script rewrites, this pane which SCOPES it is attached from. The band
+// was re-headed to the vocabulary this pane's own copy already uses ("Runs in every chat", "Attached by
+// presets · 2"); `regex-collection.tsx` records the fork.
 //
 // THE FOUR SCOPES, EACH IN ITS OWN VOICE (workspace.html's context column). The GLOBAL scope is a SWITCH:
 // it is a property of the script (`global_regex_scripts` PKs on the script id) and this library owns it, so

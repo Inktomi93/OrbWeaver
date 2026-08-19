@@ -29,7 +29,7 @@ export function useRegexCount(): number | undefined {
  *  F-23). A script bites on a SET of stages besides, so a single glyph would have to pick one and drop the
  *  rest silently. The stage phrase stays where it is legible: the roster row's subtitle. */
 function previewEntry(script: RegexScriptRow): CollectionPreviewEntry {
-  return { label: regexScriptTitle(script), detail: timeLib.formatRelative(script.updatedAt) };
+  return { id: script.id, label: regexScriptTitle(script), detail: timeLib.formatRelative(script.updatedAt) };
 }
 
 /** The welcome hero's chip wall (the `preview` seam): the most recently EDITED slice of the library.

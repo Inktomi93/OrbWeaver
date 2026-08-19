@@ -3,7 +3,7 @@
 // prove what each is allowed to say.
 //
 // WHAT IT PINS (side-eye sweep 2026-08-03): a pane states a fact ONCE. The band names what the pane ANSWERS
-// for the open member's collection ("Where it runs"); the two arms whose body is an `EmptyState` already
+// for the open member's collection ("Where it’s attached" over a regex script); the two arms whose body is an `EmptyState` already
 // print their sentence as that state's title, so the band falls back to the neutral label instead — which
 // is exactly the frame `empty-states.html` draws (band "Details" over body "Nothing to attach"). Before
 // this, the pane rendered "Nothing to attach" twice ~78px apart: the F-12 defect (`registry-contracts.ts`:
@@ -102,8 +102,8 @@ test("over a member whose collection DOES answer something, the band names it an
   // and clicking that opens the collection instead of the member, which left the context band neutral.
   await workspace.locator('[data-slot="config-roster"]').getByText("strip ooc").click();
 
-  await expect(workspace.locator(CONTEXT_BAND)).toHaveText("Where it runs");
-  await expect(workspace.locator(CONTEXT_PANE).getByText("Where it runs")).toHaveCount(1);
+  await expect(workspace.locator(CONTEXT_BAND)).toHaveText("Where it’s attached");
+  await expect(workspace.locator(CONTEXT_PANE).getByText("Where it’s attached")).toHaveCount(1);
 });
 
 // ONE HORIZON, ONE VOICE. The LIST band and the CONTEXT band sit on the same 48px shell row 1000px apart,

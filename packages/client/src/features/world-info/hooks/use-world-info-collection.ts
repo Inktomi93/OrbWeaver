@@ -24,7 +24,7 @@ export function useWorldInfoCount(): number | undefined {
  *  between the glance and the list, and a second spelling here is exactly the drift that single home exists
  *  to prevent (it also owns the `unattached` word and the entry singular). */
 function previewEntry(book: BookWithUsage): CollectionPreviewEntry {
-  return { label: book.name, detail: bookScent(book) };
+  return { id: book.id, label: book.name, detail: bookScent(book) };
 }
 
 /** The welcome hero's chip wall (the `preview` seam): the most ATTACHED books.
