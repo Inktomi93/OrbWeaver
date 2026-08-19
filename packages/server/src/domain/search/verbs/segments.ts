@@ -1,7 +1,7 @@
 // domain/search/verbs/segments — within-chat VERBATIM-segment retrieval (core/Knowledge-Cluster.md §6 within-chat;
 // the verbatim lens). Same pipeline as `digests` over `chat_segments`: embed `queryText` → cosine scan
 // scoped to `scope.chat` + the embed SPACE + the tiered-bridge `candidates` → CSLS rank → `minScore` floor →
-// optional rerank (mode `mixC`). Returns ranked {@link SegmentSearchHit}s.
+// `retrieveK` top-K cut → optional rerank to `rerankTo` (mode `mixC`). Returns ranked {@link SegmentSearchHit}s.
 //
 // THE SEGMENT-KEY GAP: the verbatim lens has NO `tier`/`scopedCharacterId` column (it is tier-0 verbatim per
 // `(chatId, blockIdx)`). To form a real `BlockKey` (inv 8: ALWAYS a real `CharacterId`, never `''`/NULL) the
@@ -82,7 +82,10 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
         ),
       );
 
-    const ordered = params.mode === "mixC" ? await applyRerank(text, ranked, ctx.roleClients.rerank, ranked.length) : ranked;
+    // Same retrieveK top-K cut + rerankTo mixC cut as the digest lens (one wire — `MemoryQueryOptions`): keep
+    // the head of the CSLS-ranked pool, and in mixC cap the reranked result to rerankTo.
+    const retrieved = ranked.slice(0, params.retrieveK);
+    const ordered = params.mode === "mixC" ? await applyRerank(text, retrieved, ctx.roleClients.rerank, params.rerankTo) : retrieved;
 
     return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
   };

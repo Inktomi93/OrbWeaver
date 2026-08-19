@@ -151,7 +151,7 @@ async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams):
  *  has no producer column, so the chat is owner-gated against the owner's materialized chat set (the digest
  *  scan's characters-join belt is unavailable here) before the delegated scan runs. */
 async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params: UnifiedSearchParams): Promise<SegmentSearchHit[]> {
-  const { scope, ownerId, query, rerank } = params;
+  const { scope, ownerId, query, topN, rerank } = params;
   if (scope.kind !== "chat") {
     throw new SearchError(SEARCH_SCOPE_UNSUPPORTED, "the segments target is within-chat verbatim — it needs a chat scope");
   }
@@ -172,6 +172,9 @@ async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params
     keywordMatch: false,
     recencyBias: 0,
     minScore: 0,
+    // The omnibox asks for `topN` — so the retrieval cut and the mixC rerank cut are both the caller's topN.
+    retrieveK: topN,
+    rerankTo: topN,
   });
 }
 

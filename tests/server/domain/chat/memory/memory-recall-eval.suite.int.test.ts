@@ -321,6 +321,42 @@ describe("recall knobs — each proven by a control that FLIPS the outcome (#311
     expect(narrow.at(0)).not.toBe(wide.at(0));
   });
 
+  test("the retrieveK knob is a top-K retrieval CUT — retrieveK=1 keeps ONLY the top scene; raise it and the decoy returns (digests.ts)", async () => {
+    // "shared bathing" → the bath scene (block 0) ranks first at ≈0.95, the storm decoy (block 4) second at
+    // ≈0.32; minScore 0.05 admits BOTH. retrieveK cuts the ranked pool to its top-K, so it decides how many of
+    // the admitted set actually reach the prompt — the neo "top retrieveK" retrieval count.
+    const recent = [msg(100, "shared bathing")];
+    const cut = admitted(await traceFor({ recent, config: { ...BASE_CFG, retrieveK: 1 } }));
+    const wide = admitted(await traceFor({ recent, config: { ...BASE_CFG, retrieveK: 5 } }));
+    expect(cut).toEqual([0]); // top-1 only — the storm decoy is scanned but past the cut
+    expect(wide).toEqual([0, 4]); // retrieveK 5 ≥ 2 admitted ⇒ both the bath scene and the storm decoy
+    expect(cut.length).not.toBe(wide.length); // the knob genuinely changes the surfaced count
+  });
+
+  test("the rerankTo knob is the mixC rerank CUT — rerankTo=1 keeps one after the cross-encoder; raise it and both survive (digests.ts:86)", async () => {
+    // A rerank that REVERSES CSLS order, so the rerank stage's effect (and its cut) is unmistakable.
+    const reversingRerank: RoleClients["rerank"] = (_query, documents) =>
+      Promise.resolve({ hits: [...documents].reverse().map((d, i) => ({ id: d.id, score: i })), model: "test-rerank-model", usage: { totalTokens: null } });
+    const recent = [msg(100, "shared bathing")];
+    const one = admitted(
+      await traceFor({
+        ctx: contextFor({ embedVector: labeledEmbedder, rerank: reversingRerank }),
+        recent,
+        config: { ...BASE_CFG, mode: "mixC", rerankTo: 1 },
+      }),
+    );
+    const both = admitted(
+      await traceFor({
+        ctx: contextFor({ embedVector: labeledEmbedder, rerank: reversingRerank }),
+        recent,
+        config: { ...BASE_CFG, mode: "mixC", rerankTo: 5 },
+      }),
+    );
+    expect(one).toEqual([4]); // rerank reversed [0,4]→[4,0], cut to top-1 → [4]
+    expect(both).toEqual([4, 0]); // rerankTo 5 ≥ 2 ⇒ both survive, in the reversed order
+    expect(one.length).not.toBe(both.length); // the cut genuinely changes the surfaced count
+  });
+
   test("the minScore floor is a GRADED count cut — raise it and exactly the strong match survives, raise it more and none do", async () => {
     // "shared bathing" → the bath scene at relevance ≈0.95, the storm decoy at ≈0.32, every other scene at 0.
     const recent = [msg(100, "shared bathing")];
