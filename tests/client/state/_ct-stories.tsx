@@ -55,6 +55,7 @@ import {
   rememberDataThemeHint,
   reportSectionSaveStatus,
   requestComposerFocus,
+  requestRefineryLandingFocus,
   revealContextPanel,
   revealContextPanelBesideContent,
   SECTION_IDS,
@@ -128,6 +129,7 @@ import {
   usePanelOverride,
   usePresetEditorView,
   usePresetSearchQuery,
+  useRefineryLandingFocusRequest,
   useSectionListIsScreen,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
@@ -1086,6 +1088,24 @@ export function ComposerFocusProbe(): ReactElement {
         request other
       </button>
       <output>{`nonce=${nonce} other=${other}`}</output>
+    </div>
+  );
+}
+
+/** RefineryLandingFocusProbe — drives the refinery-landing-focus store (#307): a caller bumps the ONE
+ *  global focus nonce (`requestRefineryLandingFocus`, no scope key — there is exactly one landing picker
+ *  on screen); a subscriber reads the reactive `useRefineryLandingFocusRequest` hook and focuses on
+ *  change. A CT because the read is the reactive hook (useSyncExternalStore needs a browser render — the
+ *  composer-focus-store.ct posture). The probe surfaces the nonce as text so the CT proves each request
+ *  bumps it (0 → 1 → 2). */
+export function RefineryLandingFocusProbe(): ReactElement {
+  const nonce = useRefineryLandingFocusRequest();
+  return (
+    <div>
+      <button type="button" onClick={(): void => requestRefineryLandingFocus()}>
+        request focus
+      </button>
+      <output>{`nonce=${nonce}`}</output>
     </div>
   );
 }
