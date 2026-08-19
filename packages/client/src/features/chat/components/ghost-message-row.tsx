@@ -243,6 +243,7 @@ export function GhostMessageRow({
     skin.bubbleDecoration?.({
       kind,
       avatarHash: decorationAvatarHash,
+      showInChatAvatars,
       ...ghostFallbackTile(attribution),
     }) ?? null;
   const avatarNode =
@@ -295,7 +296,9 @@ export function GhostMessageRow({
     >
       <Row align="start" gap="row" data-slot="message-row-body" className="w-full">
         {avatarNode}
-        <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
+        {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
+            visible jump (the reading-measure suite pins the two columns equal). */}
+        <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1" style={skin.columnStyle}>
           {/* #116 — the SPEAKER, for the whole generation. Same slot, same frame and same sticky mechanics
               as the settled row's name row (`renderGhostNameRow`), so a multi-viewport streaming turn pins
               its attribution exactly the way the committed one does instead of being the one row in the

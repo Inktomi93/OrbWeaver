@@ -12,7 +12,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { turnMutationToast } from "#lib";
+import { cn, turnMutationToast } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
 
@@ -101,7 +101,13 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   const showPager = total > 1;
 
   return (
-    <Row gap="field" align="center" data-slot="swipe-strip" className={backingClass}>
+    // THE PLATE SIZES TO ITS CONTENT (#228). #221 gave this band the row's wallpaper backing and fixed its
+    // contrast (1.60:1 → 8.78:1), but the band is a block-level flex row, so the plate spanned the full
+    // message width: a measured 686x50 chip holding one 34x34 button — **3.4% ink coverage**, in the same
+    // fill and the same radius as a message bubble. It read as a bubble that failed to load. The mechanism
+    // is unchanged (same `backingClass`, same contrast); `w-fit` is the geometry half — a compact chip
+    // around the chevron cluster, which is what the plate was always backing.
+    <Row gap="field" align="center" data-slot="swipe-strip" className={cn("w-fit", backingClass)}>
       {showPager ? (
         <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
           <Icon icon={ChevronLeft} size="sm" />

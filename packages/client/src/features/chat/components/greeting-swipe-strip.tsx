@@ -27,6 +27,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { cn } from "#lib";
 
 interface SetSeededGreetingVars {
   readonly chatId: ChatId;
@@ -77,7 +78,10 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
   };
 
   return (
-    <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={backingClass}>
+    // Sized to its content like its twin (#228): the two strips share one slot and one chrome, so a plate
+    // that spans the whole message width on one of them and hugs the chevrons on the other would be the
+    // drift this pair's threading exists to prevent.
+    <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn("w-fit", backingClass)}>
       <Button
         intent="ghost"
         size="icon"

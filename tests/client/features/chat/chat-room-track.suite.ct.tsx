@@ -1,0 +1,286 @@
+// CT suite: THE ROOM'S ONE SHARED TRACK (#213) — the transcript column, the composer and the variant pager
+// must agree about where the middle of the room pane is, at EVERY desktop pane state.
+//
+// Cross-cutting by construction (hence `.suite`): the property spans the row skin table
+// (`message-row-variants.ts`), the composer's own box (`composer.tsx`) and the client styles tier's reading
+// measure (`globals.css`) — no single module owns it, and the defect was precisely that each element
+// resolved its own axis.
+//
+// WHY THE WRAPPER STORY. `--width-shell-content` is stamped by `app-shell.tsx` (a clamp against the
+// VIEWPORT), so in a CT with no shell the var is unset and every `max-w-(--width-shell-content)` computes to
+// `none` — the disagreement is unreachable. `ChatRoomTrackStory` mounts the real room pane inside a
+// fixed-width box carrying that exact expression, so a pane state is one number: the box's width.
+//
+// THE FOUR PANE STATES ARE MEASURED ONES, not invented (reports/design/chats-delta-2026-08-18.md
+// §pane-states, viewport 1360, chatWidthPct 50): `list:docked+context:collapsed` → a 894px pane;
+// `list:docked+context:docked` → 509px; `list:collapsed+context:docked` → 816px;
+// `list:collapsed+context:collapsed` (full width) → 1212px. The measured offsets there were +107 / 0 / +68 /
+// +260 px between the transcript column and the composer. Mobile was clean at every state, so this stage is
+// desktop-only by design.
+
+import type { CastEntry, GroupConfig, ParticipantView } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
+import { routeTrpc } from "../../../support/ct/route-trpc.ts";
+import { ChatRoomTrackStory } from "./_ct-stories.tsx";
+import { makeMessagesPage, makeMessageView } from "./fixtures.ts";
+
+const CONTENT_COLUMN = '[data-slot="message-content-column"]';
+const MESSAGE_ROW = '[data-slot="message-row"]';
+const ROW_BODY = '[data-slot="message-row-body"]';
+const COMPOSER = '[data-slot="composer"]';
+const SWIPE_STRIP = '[data-slot="swipe-strip"]';
+
+/** The widest a row's identity gutter may be before the reading column's own centre drifts visibly off
+ *  the track's: an avatar chip (32px at `md`) plus the row gap. The column sits beside it by law (§B.1 —
+ *  the avatar is a SIBLING of the content column), so the axis test bounds the offset instead of
+ *  demanding zero. */
+const MAX_GUTTER_PX = 48;
+
+/** The measured desktop pane widths (see the header). `both-open` is the state where the pane itself is
+ *  narrower than the reading floor — it must still AGREE on the axis, and must never overflow. */
+const PANE_STATES = [
+  { name: "list docked · context collapsed (default)", paneWidth: 894 },
+  { name: "list docked · context docked (both open)", paneWidth: 509 },
+  { name: "list collapsed · context docked", paneWidth: 816 },
+  { name: "list collapsed · context collapsed (full width)", paneWidth: 1212 },
+] as const;
+
+const LONG_PROSE =
+  "The archive keeps its own weather, and the weather keeps its own archive; every page that is read is a " +
+  "page that is rewritten, and every page rewritten is a page that will be read again by someone who does " +
+  "not know they are the second reader of a sentence that was never finished the first time.";
+
+const PREVIEW_FIT_STUB = {
+  "chat.previewContextFit": (): unknown => ({
+    boundaryMessageId: null,
+    usedTokens: 120,
+    ceilingTokens: 32_768,
+    ceilingEstimated: false,
+    reserveOutputTokens: 2048,
+    droppedCount: 0,
+    compactSummary: null,
+  }),
+};
+
+/** The room the axis is measured over: ONE tail assistant row with three variants, so the swipe strip (the
+ *  "pager" of #213's item 4) actually renders and can be measured against the same axis. `flat` is the
+ *  owner's own live chatStyle AND the skin the defect was reported over — the bubble-family skins cap their
+ *  inner box at `max-w-prose`, which would hide a track disagreement behind the bubble's own shrink-to-fit. */
+const AZAREAL_ID = castId<CharacterId>("char_track_azareal");
+
+function seat(): ParticipantView {
+  return {
+    id: castId("participant_track"),
+    chatId: castId("chat_ct_keystone"),
+    kind: "character",
+    userId: null,
+    characterId: AZAREAL_ID,
+    role: "member",
+    activePersonaId: null,
+    talkativeness: 1,
+    disabled: false,
+    joinedAt: 0,
+    joinSeq: 0,
+    leftSeq: null,
+    joinHistoryVisibility: "full",
+    displayName: "Azareal",
+    handle: null,
+    avatarAssetId: null,
+    avatarHash: "ct_cas_hash_track",
+  };
+}
+
+function routeRoom(page: Page, chatStyle: string): Promise<unknown> {
+  return routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "settings.getUserSettings": (): unknown => ({
+      userId: castId<UserId>("user_ct"),
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
+      updatedAt: 0,
+    }),
+    "chat.getChat": (): { participants: readonly ParticipantView[]; anchorPersonaId: null; cast: readonly CastEntry[]; group: GroupConfig } => ({
+      participants: [seat()],
+      anchorPersonaId: null,
+      cast: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
+    "chat.listMessages": (): unknown =>
+      makeMessagesPage([
+        makeMessageView({
+          id: castId<MessageId>("msg_track_tail"),
+          role: "assistant",
+          characterId: AZAREAL_ID,
+          content: LONG_PROSE,
+          variantCount: 3,
+          selectedVariantIdx: 1,
+        }),
+      ]),
+  });
+}
+
+interface Box {
+  readonly left: number;
+  readonly right: number;
+  readonly centre: number;
+}
+
+async function boxOf(page: Page, selector: string): Promise<Box> {
+  return await page.evaluate((sel): Box => {
+    const el = document.querySelector(sel);
+    if (el === null) {
+      throw new Error(`no ${sel} mounted`);
+    }
+    const rect = el.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, centre: rect.left + rect.width / 2 };
+  }, selector);
+}
+
+// The axis tolerance. Sub-pixel layout rounding is real (a flex track can land on a .5), a 1px disagreement
+// is invisible; the defect this pins was 68–260px.
+const AXIS_TOLERANCE_PX = 1;
+
+for (const state of PANE_STATES) {
+  test(`the transcript, composer and pager share ONE track — ${state.name}`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: 1360, height: 900 });
+    await routeRoom(page, "flat");
+
+    await mount(<ChatRoomTrackStory paneWidth={state.paneWidth} />);
+    await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+    await expect(page.locator(COMPOSER)).toBeVisible();
+    await expect(page.locator(SWIPE_STRIP)).toBeVisible();
+
+    const row = await boxOf(page, MESSAGE_ROW);
+    const body = await boxOf(page, ROW_BODY);
+    const column = await boxOf(page, CONTENT_COLUMN);
+    const composer = await boxOf(page, COMPOSER);
+    const strip = await boxOf(page, SWIPE_STRIP);
+
+    // ONE TRACK: the element that owns the transcript's PLACEMENT and the composer resolve the same box —
+    // same left edge, same right edge, therefore the same middle. This is the assertion the defect broke:
+    // the row track used to be the whole pane (flat/hush carried a bare `w-full`) while the composer
+    // centred inside it.
+    expect(Math.abs(row.left - composer.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+    expect(Math.abs(row.right - composer.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+    expect(Math.abs(row.centre - composer.centre)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+    // The row's BODY (identity gutter + reading column) is placed as one unit and centres in that track —
+    // this is the half that used to be `items-stretch`, which re-pinned the capped column to the track's
+    // left edge and dumped every unspent pixel on its right ("~2x more dead wallpaper right of it than
+    // left", the owner's report).
+    expect(Math.abs(body.centre - row.centre)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+    // The reading column itself is offset only by the row's own anatomy — the avatar gutter, a SIBLING of
+    // the content column by law (§B.1, not this lane's to reverse) — so its centre sits within half a
+    // chip of the track's, at EVERY pane state. The measured defect was 107 → 260px of DRIFT.
+    const gutter = body.right - body.left - (column.right - column.left);
+    expect(gutter).toBeLessThanOrEqual(MAX_GUTTER_PX);
+    expect(Math.abs(column.centre - composer.centre)).toBeLessThanOrEqual(gutter / 2 + AXIS_TOLERANCE_PX);
+    // The pager rides the reading column's leading edge, not the track's centre: it is a compact chip
+    // sized to its own content (#228 — a full-width plate holding one chevron read as a broken bubble).
+    expect(Math.abs(strip.left - column.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+    expect(strip.right).toBeLessThanOrEqual(column.right + AXIS_TOLERANCE_PX);
+    expect(strip.right - strip.left).toBeLessThan(column.right - column.left);
+    // …and nothing overflows the pane it lives in (the both-open state is narrower than the reading floor;
+    // it must degrade to the pane, never spill out of it).
+    expect(row.right - row.left).toBeLessThanOrEqual(state.paneWidth + AXIS_TOLERANCE_PX);
+    expect(composer.right - composer.left).toBeLessThanOrEqual(state.paneWidth + AXIS_TOLERANCE_PX);
+  });
+}
+
+interface MeasureReading {
+  /** `--reading-measure` resolved inside the BUBBLE — i.e. in the PROSE font the reader actually reads. */
+  readonly proseTokenPx: number;
+  /** The same token resolved in the room pane's own (unscaled, 1rem) font — the PRE-FIX resolution, kept
+   *  as the non-vacuity control: the two numbers must differ, or "resolves in the prose font" is unfalsifiable. */
+  readonly baseTokenPx: number;
+  readonly maxWidth: string;
+}
+
+async function readMeasure(page: Page): Promise<MeasureReading> {
+  return await page.evaluate(
+    ([columnSel, bubbleSel, paneSel]): MeasureReading => {
+      const column = document.querySelector(String(columnSel));
+      const bubble = document.querySelector(String(bubbleSel));
+      const pane = document.querySelector(String(paneSel));
+      if (!(column instanceof HTMLElement && bubble instanceof HTMLElement && pane instanceof HTMLElement)) {
+        throw new Error("column/bubble/pane not mounted");
+      }
+      const probeIn = (host: HTMLElement, value: string): number => {
+        const probe = document.createElement("div");
+        probe.style.position = "absolute";
+        probe.style.visibility = "hidden";
+        probe.style.width = value;
+        host.append(probe);
+        const px = probe.getBoundingClientRect().width;
+        probe.remove();
+        return px;
+      };
+      const style = getComputedStyle(column);
+      return {
+        proseTokenPx: probeIn(bubble, "var(--reading-measure)"),
+        baseTokenPx: probeIn(pane, "var(--reading-measure)"),
+        maxWidth: style.maxWidth,
+      };
+    },
+    [CONTENT_COLUMN, '[data-slot="message-bubble"]', '[data-testid="room-pane"]'],
+  );
+}
+
+test("the reading measure resolves in the PROSE font, not the column's own font", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await routeRoom(page, "flat");
+  await mount(<ChatRoomTrackStory paneWidth={1212} />);
+  await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+
+  const measure = await readMeasure(page);
+
+  // Non-vacuity control: the two resolutions must actually DIFFER on this stage, or the assertion below
+  // would pass whatever the sheet says (the prose font is `--text-body` = 0.9375rem against the column's 1rem).
+  expect(measure.proseTokenPx).toBeGreaterThan(0);
+  expect(measure.proseTokenPx).toBeLessThan(measure.baseTokenPx);
+  // THE FIX: the cap is the token resolved in the font the prose is set in. Pre-#213 it resolved in the
+  // column's 16px font, which is how a ratified 75ch measure rendered ~85 real characters per line.
+  expect(measure.maxWidth).not.toBe("none");
+  expect(Number.parseFloat(measure.maxWidth)).toBeCloseTo(measure.proseTokenPx, 0);
+});
+
+// THE BAND'S FLOOR (#213/#212-2). `--reading-measure` is a MAX; the floor is `--reading-measure-min`, and
+// the only thing inside the transcript that can push a line under it is an immersive skin's decoration
+// (echo spent 55% of its own box on `padding-right`, leaving 28 chars/line). The floor is therefore pinned
+// where it BINDS: echo's prose box must still hold the min measure, with the art living outside it.
+//
+// The pane-narrower-than-the-floor state (a 509px CONTENT pane at list+context docked) is NOT pinned as a
+// floor here on purpose — no rule in the transcript can widen a pane, and a `min-width` there would only
+// spill the column out of it. That state's arm is the axis test above (agree, and never overflow), and the
+// shell-side fork is stated in globals.css beside the rule.
+test("an immersive skin's art does not eat the reading line below the min measure (echo)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await routeRoom(page, "echo");
+  await mount(<ChatRoomTrackStory paneWidth={1212} />);
+  await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+
+  const line = await page.evaluate((): { readonly textWidth: number; readonly floorPx: number } => {
+    const bubble = document.querySelector('[data-slot="message-bubble"]');
+    if (!(bubble instanceof HTMLElement)) {
+      throw new Error("no bubble mounted");
+    }
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = "var(--reading-measure-min)";
+    bubble.append(probe);
+    const floorPx = probe.getBoundingClientRect().width;
+    probe.remove();
+    const style = getComputedStyle(bubble);
+    // The reading line is the bubble's CONTENT box: its own width minus the art pane it reserves as padding.
+    const textWidth = bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+    return { textWidth, floorPx };
+  });
+
+  expect(line.floorPx).toBeGreaterThan(0);
+  expect(line.textWidth).toBeGreaterThanOrEqual(line.floorPx - AXIS_TOLERANCE_PX);
+});
