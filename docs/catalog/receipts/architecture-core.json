@@ -142,12 +142,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "a861a80cb8bd8bc736b77954c20a5c12b93dbd739d0c41d8fe0c15fd1af596ff",
+      "assignedSha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "a861a80cb8bd8bc736b77954c20a5c12b93dbd739d0c41d8fe0c15fd1af596ff",
-      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
+      "verifiedSha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
+      "verifiedCommit": "d706b2dd2c4f199b746fd68ef8d9306c9262d091",
       "verifiedAt": "2026-08-19",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",

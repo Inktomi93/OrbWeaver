@@ -435,12 +435,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "a861a80cb8bd8bc736b77954c20a5c12b93dbd739d0c41d8fe0c15fd1af596ff",
+        "assignedSha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "a861a80cb8bd8bc736b77954c20a5c12b93dbd739d0c41d8fe0c15fd1af596ff",
-        "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
+        "verifiedSha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
+        "verifiedCommit": "d706b2dd2c4f199b746fd68ef8d9306c9262d091",
         "verifiedAt": "2026-08-19",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -471,7 +471,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -15539,6 +15539,26 @@
         "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-19-lan-auth-unification.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 258,
+      "bytes": 31639,
+      "sha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-19"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/misc/2026-08-19-lens-triage-210.md",
