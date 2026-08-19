@@ -220,10 +220,10 @@
   --color-backdrop: oklch(0.3 0.01 60 / 0.4);
   --color-reading-plate: oklch(0.942 0.004 75 / 0.921);
   --color-reading-band: oklch(0.942 0.004 75);
-  --color-shadow-hairline: oklch(0.2 0.01 60 / 0.14);
+  --color-shadow-hairline: oklch(0.2 0.01 75 / 0.14);
   --color-shadow-highlight: oklch(1 0 0 / 0);
-  --color-shadow-ambient-near: oklch(0.35 0.02 60 / 0.1);
-  --color-shadow-ambient-far: oklch(0.35 0.02 60 / 0.14);
+  --color-shadow-ambient-near: oklch(0.35 0.02 75 / 0.1);
+  --color-shadow-ambient-far: oklch(0.35 0.02 75 / 0.14);
   --color-shadow-cta-highlight: oklch(1 0 0 / 0.22);
   --color-user-bubble: oklch(0.93 0.02 60);
   --color-user-bubble-foreground: oklch(0.25 0.02 60);

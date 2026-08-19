@@ -228,6 +228,67 @@ test("a picked background emits --color-reading-band as the SAME derivation at a
   expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-band"]).toBeUndefined();
 });
 
+// ── #243: the ELEVATION INGREDIENT emission — the five `--color-shadow-*` colours `--shadow-overlay` /
+// `--shadow-cta` are built from, derived off the picked base's POLARITY (the composite itself is inlined
+// by Tailwind at build time, so a var() ingredient is the only theme-reactive form). ──
+const SHADOW_VARS = [
+  "--color-shadow-hairline",
+  "--color-shadow-highlight",
+  "--color-shadow-ambient-near",
+  "--color-shadow-ambient-far",
+  "--color-shadow-cta-highlight",
+] as const;
+
+test("#243 a LIGHT base emits the light elevation arm — a dark ring, no inset, a lifted ambient", () => {
+  const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 75)" });
+  // The exact strings, because the whole defect was a value nobody could see: a white ring and two
+  // near-black drops inherited from the base palette.
+  expect(vars["--color-shadow-hairline"]).toBe("oklch(from oklch(0.98 0.004 75) 0.2 0.01 h / 0.14)");
+  expect(vars["--color-shadow-highlight"]).toBe("oklch(from oklch(0.98 0.004 75) 1 0 h / 0)");
+  expect(vars["--color-shadow-ambient-near"]).toBe("oklch(from oklch(0.98 0.004 75) 0.35 0.02 h / 0.1)");
+  expect(vars["--color-shadow-ambient-far"]).toBe("oklch(from oklch(0.98 0.004 75) 0.35 0.02 h / 0.14)");
+  expect(vars["--color-shadow-cta-highlight"]).toBe("oklch(from oklch(0.98 0.004 75) 1 0 h / 0.22)");
+});
+
+test("#243 a DARK base emits the base recipe unchanged — the sacred dark rooms do not move", () => {
+  // Every dark-arm ingredient is chroma 0, so these resolve to the SAME white/black the base @theme
+  // tokens spell (`oklch(1 0 0 / 0.06)` etc): hue is powerless at chroma 0. A dark custom theme that
+  // used to INHERIT those values now emits them, and the pixels are identical.
+  const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)" });
+  expect(SHADOW_VARS.map((name) => vars[name])).toEqual([
+    "oklch(from oklch(0.158 0.006 60) 1 0 h / 0.06)",
+    "oklch(from oklch(0.158 0.006 60) 1 0 h / 0.08)",
+    "oklch(from oklch(0.158 0.006 60) 0 0 h / 0.4)",
+    "oklch(from oklch(0.158 0.006 60) 0 0 h / 0.5)",
+    "oklch(from oklch(0.158 0.006 60) 1 0 h / 0.15)",
+  ]);
+});
+
+test("#243 the polarity flip rides the ONE pivot — the same base that flips color-scheme flips the elevation", () => {
+  // FG_PIVOT_L = 0.62, strictly above ⇒ light (colorSchemeFor's boundary). Elevation may not disagree
+  // with text polarity: a light-arm ring under dark-arm text is a palette wearing two polarities.
+  for (const [background, scheme] of [
+    ["oklch(0.62 0.01 60)", "dark"],
+    ["oklch(0.63 0.01 60)", "light"],
+  ] as const) {
+    const clamped = clampThemeTokens({ background });
+    expect(clamped.colorScheme, background).toBe(scheme);
+    const lightArm = clamped.vars["--color-shadow-hairline"]?.includes(" 0.2 0.01 h / 0.14)") === true;
+    expect(lightArm, `${background} elevation arm agrees with its color-scheme`).toBe(scheme === "light");
+  }
+});
+
+test("#243 an UNJUDGEABLE base emits NO ingredient — polarity is never guessed", () => {
+  // A named colour resolves in the browser but not in either static reader, so the polarity is unknown.
+  // The plate still emits (opaque — see above), but guessing an elevation arm is how a light palette
+  // would keep dark smoke; the scope inherits instead, the pre-#243 behaviour, and only for this arm.
+  const named = clampThemeTokens({ background: "rebeccapurple" }).vars;
+  expect(SHADOW_VARS.map((name) => named[name])).toEqual([undefined, undefined, undefined, undefined, undefined]);
+  // No base at all ⇒ no ingredients either: they are a DERIVATION, never a default.
+  const inkOnly = clampThemeTokens({ accent: "#abc" }).vars;
+  expect(SHADOW_VARS.map((name) => inkOnly[name])).toEqual([undefined, undefined, undefined, undefined, undefined]);
+});
+
 // ── #204 §7a: the prose-ink clamp — the four author-picked inks judged against the picked base. ──
 test("a SENSIBLE authored ink passes through BYTE-IDENTICAL (the no-op-where-the-card-was-sensible arm)", () => {
   // Birdie's real palette: dialogue L 0.4 on base L 0.98 clears AA (~8.5:1) — the clamp must not move it.
