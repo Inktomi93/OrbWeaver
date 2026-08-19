@@ -22,6 +22,7 @@ export {
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_OUTLINE,
   FOCUS_RING_WITHIN,
+  FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
 export { createLiveTokenStore, type LiveTokenStore, resolveCssVar } from "./live-token-resolver.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";

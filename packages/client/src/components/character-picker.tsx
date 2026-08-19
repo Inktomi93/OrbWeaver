@@ -20,12 +20,16 @@
 // `character.list.infiniteQueryOptions` walk the library surface runs, with the same no-`maxPages` ruling
 // (windowing evicts head pages unrecoverably; the DOM cost here is bounded by the list's own max-height).
 //
-// THE TAIL AFFORDANCE IS AN ITEM, NOT JUST A SCROLL HANDLER. `onScroll` fetches the next page as the list
-// bottoms out, which is what a pointer user expects — but a scroll-only tail is unreachable by keyboard,
-// and cmdk's arrow-roving IS the keyboard model here. So the next page also has a `CommandItem` that says
-// so, `forceMount`ed because cmdk's value filter would otherwise hide the paging control exactly when a
-// SEARCH has more matches than one page. Both drive the same `fetchNextPage`, and both disappear when the
-// walk is exhausted rather than offering a page that does not exist.
+// THE TAIL AFFORDANCE IS A FOOTER, NOT AN OPTION (side-eye 2026-08-19, refinery P2). `onScroll` fetches
+// the next page as the list bottoms out, which is what a pointer user expects — but a scroll-only tail is
+// unreachable by keyboard, so the paging control has to exist as something. It used to be a `forceMount`ed
+// `CommandItem`: a `role="option"` at 10.5px sitting at row 101 of a 3 244px scroll, announced to a screen
+// reader as a selectable character and reachable only by arrowing past every row above it. It is now a real
+// `<Button>` in a footer BELOW the listbox — one Tab from the search box at any scroll position, out of the
+// options collection entirely — beside the honest count (`totalCount` is a real server COUNT over the same
+// scope this page windows, so "showing N of M" states the walk instead of leaving the user to guess).
+// The footer also carries CLEAR: a search that matches nothing left "No characters match." as the whole
+// pane, with the only way out being to hand-delete the term you typed.
 //
 // OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#state client seams). Named `CharacterPicker`
 // (not the spec's generic "EntityPicker"): both consumers pick characters and the row is character-shaped
@@ -36,6 +40,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
+import { Button } from "@orb/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 import { Check, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -146,6 +151,9 @@ function CharacterPickerBody({
   );
   const excluded = new Set<string>(excludeIds ?? []);
   const candidates = query.data.pages.flatMap((page) => page.items).filter((c) => !excluded.has(c.id));
+  // The server's own COUNT over this exact scope (search included), off the newest page — never
+  // `candidates.length`, which is "how far the walk has got", i.e. the number the footer contrasts it with.
+  const totalCount = query.data.pages.at(-1)?.totalCount ?? candidates.length;
 
   // Destructured so the handlers close over exact slices rather than the fresh-proxy-per-render result.
   const { hasNextPage, isFetching, fetchNextPage } = query;
@@ -172,18 +180,36 @@ function CharacterPickerBody({
         <CommandEmpty>{emptyText}</CommandEmpty>
         {leadingGroup}
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
-        {/* The keyboard half of the tail (header). `forceMount` because cmdk's value filter would hide the
-            paging control precisely when a SEARCH has more matches than one page — which is the case the
-            #157 scope add is about. It retires on exhaustion: an affordance offering a page that does not
-            exist is the dead control this feature keeps being audited for. */}
-        {hasNextPage ? (
-          <CommandItem forceMount={true} onSelect={fetchMore} value="__load-more">
-            <Text as="span" voice="gloss">
-              {isFetching ? "Loading more characters…" : "Load more characters"}
-            </Text>
-          </CommandItem>
-        ) : null}
       </CommandList>
+      {/* THE FOOTER (header). Outside `CommandList` on purpose — inside it, every child is a member of a
+          `role="listbox"`, which is what made the old paging control announce as a character. Rendered only
+          when it has something to say: an exhausted walk with no search is a footer about nothing. */}
+      {hasNextPage || term !== "" ? (
+        <Row align="center" className="border-border border-t" gap="row" padding="row">
+          <Text as="span" voice="gloss">
+            Showing {candidates.length} of {totalCount}
+          </Text>
+          <Row className="flex-1" gap="field" justify="end">
+            {term === "" ? null : (
+              <Button
+                intent="ghost"
+                onClick={(): void => {
+                  setTerm("");
+                  searchRef.current?.focus();
+                }}
+                size="sm"
+              >
+                Clear search
+              </Button>
+            )}
+            {hasNextPage ? (
+              <Button aria-busy={isFetching} intent="secondary" onClick={fetchMore} size="sm">
+                {isFetching ? "Loading more…" : "Load more characters"}
+              </Button>
+            ) : null}
+          </Row>
+        </Row>
+      ) : null}
     </Command>
   );
 }

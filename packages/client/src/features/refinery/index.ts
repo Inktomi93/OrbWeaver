@@ -22,7 +22,11 @@ export { PayloadView } from "./components/payload-view.tsx";
  *  UI-unreachable — authoring a custom ANALYZE schema and EDITING a saved one (2026-08-14). `refinerySection`
  *  mounts it relatively in the CONTEXT panel; a story importing it relatively would mount against a different
  *  React context instance (this door's own header). */
-export { SetupTabBody } from "./components/refinery-context-tabs.tsx";
+/** @public exported for the CT that pins the WEIGHT of the ledger's own "Run score" — the twin of the
+ *  SCORE lane's verb one pane over (§14: bolder in the work pane, quieter in the ledger; side-eye
+ *  2026-08-19 P1-4). It is a rendered fact with no other mount: the CONTENT surface's census cannot see a
+ *  control that lives in the CONTEXT panel. */
+export { RunsTabBody, SetupTabBody } from "./components/refinery-context-tabs.tsx";
 /** @public exported for the CT that drives the REWRITE island's accept anatomy — the focal field, the
  *  queue, the tally and the running/not-run arms — as the composition surface mounts it. */
 export type { RewriteLaneProps } from "./components/rewrite-lane.tsx";

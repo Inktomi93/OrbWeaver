@@ -7,8 +7,14 @@
 // trailing slot, and the mockup's rewrite band carries the accept tally after the rule. Rather than fight a
 // sealed primitive from a feature, the band is composed here from the SAME two parts the primitive uses
 // (`Heading voice="kicker"` + `Separator`), which is what keeps the drawing identical: one voice, one rule,
-// one step. The heading is a real `h2` — the three lanes are peer blocks of the workbench, not children of
-// whichever lane precedes them (the outline lesson from home's side-eye F6).
+// one step. The heading is a real heading — the three lanes are peer blocks of the workbench, not children
+// of whichever lane precedes them (the outline lesson from home's side-eye F6).
+//
+// …AT `h3`, NOT `h2` (side-eye 2026-08-19 P3: "flat heading outline — the session title sits at its lanes'
+// level"). The workbench's one opening statement is the masthead's `h2` (`session-masthead.tsx`), and the
+// lanes are blocks OF that session — three peers one step under it, which is exactly what `Section`'s own
+// `level` default states for the same shape. At `h2` the outline said the session and each of its lanes
+// were siblings, so a heading walk read four peer blocks with no subject.
 //
 // THE NOTE ROW IS THE VIEW-BACK PIN'S ONLY WAY HOME. Clearing the pin used to be a side effect of pressing
 // a stage in the stepper; with the stepper gone (the pipeline is parallel — there is nothing to switch),
@@ -33,7 +39,7 @@ export interface LaneBandProps {
 export function LaneBand({ kicker, children }: LaneBandProps): ReactElement {
   return (
     <Row align="center" className="flex-wrap" data-testid={testId("refineryLaneBand")} gap="field">
-      <Heading level={2} voice="kicker">
+      <Heading level={3} voice="kicker">
         {kicker}
       </Heading>
       <Separator className="flex-1" />

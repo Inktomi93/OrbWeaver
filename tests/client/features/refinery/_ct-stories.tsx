@@ -33,6 +33,7 @@ import {
   RefineryListSurface,
   RewriteLane,
   RunControlsCard,
+  RunsTabBody,
   SchemaEditorDialog,
   ScopeEditorDialog,
   SetupTabBody,
@@ -46,7 +47,7 @@ import {
   useRunRefineryStage,
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
-import { clearRefinerySelection, selectRefinerySession, setRefineryViewedRun } from "@orb/client/state";
+import { clearRefinerySelection, selectRefinerySession, setMobileViewport, setRefineryViewedRun } from "@orb/client/state";
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefinableField, RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
@@ -54,6 +55,7 @@ import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
+import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
 import { CtAppDataProviders } from "../../../support/ct/ct-data-providers.tsx";
@@ -237,15 +239,22 @@ export function PayloadViewStory({ stage, schema, payload }: PayloadViewStoryPro
  *  "Pick a character") reads the roster; at rest nothing queries.
  *
  *  `width` mounts it in a FIXED-width container: a content-sized CT root agrees with an overflow bug, so
- *  the narrowest-real-mount measurement needs a real box to overflow out of. Absent ⇒ content-sized. */
+ *  the narrowest-real-mount measurement needs a real box to overflow out of. Absent ⇒ content-sized.
+ *
+ *  THE `<Container>` IS PRODUCTION, NOT SCAFFOLDING (2026-08-19). The teaching row's tracks are a
+ *  CONTAINER query (`gridVariants.triple`), and in production this state renders inside
+ *  `RefineryContentSurface`'s own `<Container name="refinery-content">`. Without one here every
+ *  container-queried arm resolves to its narrow default, so a CT would measure the stacked layout at
+ *  every width and read as green about a composition it never rendered. */
 export function TeachingStateStory({ width }: { readonly width?: number }): ReactElement {
+  const teaching = <TeachingState onStart={(): void => undefined} starting={false} />;
   return (
     <CtAppDataProviders>
       {width === undefined ? (
-        <TeachingState onStart={(): void => undefined} starting={false} />
+        <Container>{teaching}</Container>
       ) : (
         <div data-testid="teaching-frame" style={{ overflow: "visible", width }}>
-          <TeachingState onStart={(): void => undefined} starting={false} />
+          <Container>{teaching}</Container>
         </div>
       )}
     </CtAppDataProviders>
@@ -262,7 +271,29 @@ export interface AcceptReviewStoryProps {
  *  is the point of the story: the row's title, avatar and search key all come off the summary the
  *  server sent, so a card whose row sits past `character.list`'s 100-row page still names itself. Any
  *  `character.list` call this surface made would be recorded by `routeTrpc` and is asserted absent. */
-export function RefineryRosterStory(): ReactElement {
+export interface RefineryRosterStoryProps {
+  /** Publish the shell's MOBILE viewport regime before the first paint — the state the one-shell rule
+   *  turns on (`resolvePanelMode`'s `listIsScreen` arm: on a phone with nothing selected this roster IS
+   *  the screen and CONTENT is not rendered at all). The header's `+` reads it to decide whether the
+   *  landing's picker is already on screen, so a CT cannot ask that question without setting it. Written
+   *  during the first render pass, never in an effect, for the reason every story here states: an effect
+   *  would paint the desktop arm and swap on the second commit. @defaultValue false */
+  readonly mobile?: boolean;
+  /** Open a session before the first paint — the arm where CONTENT shows the pipeline rather than the
+   *  landing picker, which is where the header's `+` is the only start door on a desktop. */
+  readonly selectedSessionId?: RefinerySessionId;
+}
+
+export function RefineryRosterStory({ mobile = false, selectedSessionId }: RefineryRosterStoryProps): ReactElement {
+  useState((): null => {
+    setMobileViewport(mobile);
+    if (selectedSessionId === undefined) {
+      clearRefinerySelection();
+    } else {
+      selectRefinerySession(selectedSessionId);
+    }
+    return null;
+  });
   return (
     <CtAppDataProviders>
       <Suspense fallback={<p>loading roster</p>}>
@@ -329,6 +360,19 @@ export function SetupTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryP
     <CtAppDataProviders>
       <CtToastSurface>
         <SetupTabBody state={{ sessionId, characterId }} />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+/** The RUNS context tab on the REAL data tier — mounted for its EMPTY arm, whose "Run score" is the twin
+ *  of the SCORE lane's own verb one pane over. The pin it exists for is the WEIGHT of that twin (§14:
+ *  bolder in the work pane, quieter in the ledger), which is a rendered fact and has no other mount. */
+export function RunsTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryProps): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <RunsTabBody state={{ sessionId, characterId }} />
       </CtToastSurface>
     </CtAppDataProviders>
   );
