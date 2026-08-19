@@ -116,6 +116,14 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // authedProcedure: a resolved identity is required (ctx.auth === null → 401), plus the CSRF mitigation —
 // a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a
 // header/fallback request and all queries/subscriptions are exempt.
+//
+// WHY tRPC's belt keys on `cookie` ONLY, unlike the multipart ingest routes' `via !== "header"` (#300): a
+// tRPC mutation requires `Content-Type: application/json`, which is NOT a CORS-"simple" content-type, so a
+// cross-origin `fetch` triggers a preflight the app never grants (no CORS middleware) — a cross-site page
+// therefore cannot drive a tRPC mutation on ANY via arm. So the `fallback` (loopback owner) arm needs no
+// CSRF header here, which is what the un-cookied loopback dev tooling (multi-user-seed, curl harvests)
+// relies on. The multipart routes (upload/import) DO gate fallback because `multipart/form-data` IS
+// CORS-simple (no preflight) — see upload.ts's authCsrfGuard.
 const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
   if (ctx.auth === null) {
     securityEvent("auth_required", { path }, "security: unauthenticated request rejected");

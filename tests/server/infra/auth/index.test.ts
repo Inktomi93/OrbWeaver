@@ -9,8 +9,8 @@ import { makeAuthConfig as cfg, headers } from "./_support.ts";
 // (4c); the `Principal` mint is `entry/auth/seam.ts` (4e) — that coverage lives there, NOT here.
 
 describe("resolve — the verification output never carries userId or role (invariant #3)", () => {
-  test("single-user → the owner-fallback identity, via:'fallback', NO userId/role", async () => {
-    const res = await resolve(headers(), { config: cfg({ mode: "single-user" }) });
+  test("single-user (loopback peer) → the owner-fallback identity, via:'fallback', NO userId/role", async () => {
+    const res = await resolve(headers(), { config: cfg({ mode: "single-user" }), peerIp: "127.0.0.1" });
     expect(res.identity).toEqual({ externalId: null, handle: "owner", groups: [], email: null });
     expect(res.via).toBe("fallback");
     expect(res.identity).not.toHaveProperty("userId");
@@ -29,26 +29,32 @@ describe("resolve — the verification output never carries userId or role (inva
   });
 });
 
-describe("resolve — owner fallback (the seam mints owner from via:'fallback')", () => {
-  test("SSO mode: the owner fallback is REFUSED on a public origin → identity null", async () => {
-    const res = await resolve(headers({ host: "chat.example.com" }), {
-      config: cfg({ mode: "oidc" }),
-    });
+describe("resolve — owner fallback gates on the TCP peer, not the Host header (#298 f2)", () => {
+  test("HEADLINE: a forged non-loopback Host + a NON-loopback peer → identity null (was owner)", async () => {
+    // 10.9.9.9 is inside 10/8 — the OLD Host gate returned true and minted owner. The peer (192.168.1.50) is
+    // a LAN device, not loopback, so the fallback is now REFUSED regardless of what `Host:` the caller forges.
+    const res = await resolve(headers({ host: "10.9.9.9" }), { config: cfg({ mode: "oidc" }), peerIp: "192.168.1.50" });
     expect(res.identity).toBeNull();
   });
 
-  test("SSO mode: the owner fallback is GRANTED on a local origin → via:'fallback'", async () => {
-    const res = await resolve(headers({ host: "localhost:8788" }), {
-      config: cfg({ mode: "oidc" }),
-    });
+  test("single-user + a NON-loopback peer → identity null (the unconditional owner arm is now peer-gated)", async () => {
+    const res = await resolve(headers({ host: "chat.example.com" }), { config: cfg({ mode: "single-user" }), peerIp: "203.0.113.9" });
+    expect(res.identity).toBeNull();
+  });
+
+  test("a LOOPBACK peer → via:'fallback', even with a public-looking Host (dev tooling preserved)", async () => {
+    const res = await resolve(headers({ host: "chat.example.com" }), { config: cfg({ mode: "oidc" }), peerIp: "127.0.0.1" });
     expect(res.via).toBe("fallback");
     expect(res.identity?.handle).toBe("owner");
   });
 
-  test("fallback 'deny' + no identity → identity null (SSO mandatory)", async () => {
-    const res = await resolve(headers(), {
-      config: cfg({ mode: "single-user", fallback: "deny" }),
-    });
+  test("an ABSENT peer fails closed → identity null (no fallback without an unspoofable credential)", async () => {
+    const res = await resolve(headers({ host: "127.0.0.1" }), { config: cfg({ mode: "oidc" }) });
+    expect(res.identity).toBeNull();
+  });
+
+  test("fallback 'deny' + loopback peer → identity null (the knob short-circuits before the peer gate)", async () => {
+    const res = await resolve(headers(), { config: cfg({ mode: "single-user", fallback: "deny" }), peerIp: "127.0.0.1" });
     expect(res.identity).toBeNull();
   });
 });

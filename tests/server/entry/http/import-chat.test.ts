@@ -178,6 +178,26 @@ describe("registerImportChat — registration + belts", () => {
     expect(allowed).toBeUndefined();
     expect(nexted).toBe(true);
   });
+
+  // #300 — the loopback owner FALLBACK arm is ambient-credential too; this CORS-simple multipart route must
+  // require the CSRF header for it, else a loopback web origin drives an owner chat import.
+  test("fallback caller WITHOUT the CSRF header → 403 (#300)", async () => {
+    const spy = spyRegistry();
+    interface GuardCtx {
+      readonly get: (key: string) => Principal | null;
+      readonly body: (data: null, status?: number) => Response;
+      readonly req: { readonly raw: { readonly headers: Headers } };
+    }
+    // FABRICATION-OK: see above.
+    const guard = chainFor(spy.deps)[0] as unknown as (c: GuardCtx, next: () => Promise<void>) => Promise<Response | undefined>;
+    const ctx: GuardCtx = {
+      get: (key: string): Principal | null => (key === "principal" ? OWNER : null),
+      body: (data: null, status = 200): Response => new Response(data, { status }),
+      req: { raw: { headers: new Headers() } },
+    };
+    const blocked = await guard(ctx, () => Promise.resolve());
+    expect(blocked?.status).toBe(403);
+  });
 });
 
 describe("registerImportChat — the thin arm over the chat descriptor", () => {

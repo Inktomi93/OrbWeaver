@@ -13,9 +13,11 @@
 // `resolvePrincipal`, whose owner-FALLBACK arm mints an owner Principal for a caller that presented NOTHING.
 // The gate's admin arm consults `isAdmin` BEFORE the token check, so `/api/_debug/*` served with no cookie
 // and no token — unconditionally under `single-user`, and under an SSO mode to anyone who could reach the
-// port and send `Host: 127.0.0.1` (`ownerFallbackAllowed` → `isLocalOrigin`, which reads the CLIENT-SUPPLIED
-// Host header). Behind it sit principal-blind whole-db reads (`/db/chats`, `/config/user`, and — with
-// WIRE_CAPTURE=on — provider request BODIES at `/wire/captures`).
+// port and send `Host: 127.0.0.1` (the pre-2026-08-19 `ownerFallbackAllowed` read the CLIENT-SUPPLIED Host).
+// Behind it sit principal-blind whole-db reads (`/db/chats`, `/config/user`, and — with WIRE_CAPTURE=on —
+// provider request BODIES at `/wire/captures`). AUTHFIX-2 closed it with the credential rule; the #298 f2
+// peer-gate is now a SECOND, independent belt: `isAdmin(headers)` threads NO peerIp, so the fallback arm
+// cannot even mint here — every HOST_CASE below denies whether or not the credential rule ran.
 //
 // The routes behind the gate are DELIBERATELY un-scoped host reads (`@owner-scope-ok`, D20): the gate is
 // their entire boundary, and this suite is that assumption's ENFORCER. A prose-only boundary is a wish
@@ -59,8 +61,6 @@ function baseConfig(overrides: Partial<AuthConfig>): AuthConfig {
     fallback: "owner",
     defaultHandle: OWNER_HANDLE,
     verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
     forwardTrustedProxies: [],
     jwksAllowlist: [],
     ...overrides,
@@ -203,9 +203,10 @@ function allRefused(tokenConfigured: boolean): Outcome[] {
   }));
 }
 
-// The four AUTH_MODEs × the Host values that decide `ownerFallbackAllowed`. `localhost` and the RFC1918/
-// loopback literals are the ones an attacker supplies verbatim; the FQDN is the only Host that closed the
-// fallback before this fix, and it is included to prove the new deny is not merely the old origin gate.
+// The four AUTH_MODEs × a spread of `Host` values. Post-#298-f2 the Host is IRRELEVANT to the fallback (the
+// peer gate decides, and `isAdmin` threads no peer), so these now prove the debug gate denies regardless of
+// what `Host:` an attacker forges — the forged-loopback and forged-private rows are the ones that used to
+// mint owner, kept here as the regression pins.
 const HOST_CASES = [
   { name: "no Host header at all", headers: {} },
   { name: "Host: localhost", headers: { host: "localhost" } },
@@ -240,17 +241,6 @@ describe("un-credentialed callers never reach /api/_debug", () => {
       });
     }
   }
-
-  // `trustedLocalHosts` widens the ORIGIN gate, which is a fallback concern — it must not widen the DEBUG
-  // gate. Without this row a deployment that trusts its own hostname would silently re-open the hole.
-  test("a configured trustedLocalHost does not re-open the debug gate", async () => {
-    const app = gateApp({
-      config: baseConfig({ mode: "oidc", trustedLocalHosts: ["chat.example.com"] }),
-      sessions: ownerRowSessions(),
-      expectedToken: OPERATOR_TOKEN,
-    });
-    expect(await outcomes(app, { host: "chat.example.com" })).toEqual(allRefused(true));
-  });
 
   // AUTH_FALLBACK=deny already yields no principal at all — pinned so the deny is proven to come from the
   // credential rule and not only from the fallback being configured off.

@@ -28,7 +28,7 @@ import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcTransaction } from "#infra/auth";
 import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_NAME } from "#infra/auth";
-import { clientIp } from "#infra/network";
+import { clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
 import { createRateLimiter } from "../../transport/rate-limit.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
@@ -244,8 +244,9 @@ type ProvisionOutcome =
  * B4 — the local-mode FIRST-RUN owner-password setup deps. Present ONLY in local mode; its presence registers
  * `POST /api/auth/first-run`. This is an UNAUTHENTICATED endpoint that sets the owner's initial password, so
  * it is guarded like the owner-fallback, not like a normal route:
- *   • `originAllowed` — the same origin gate the owner-fallback uses (`ownerFallbackAllowed`): local/trusted
- *     origin only, so a fresh deploy's first-run window is not a remotely-hammerable password-set.
+ *   • `originAllowed` — the same gate the owner-fallback uses (`ownerFallbackAllowed`, #298 f2): a LOOPBACK
+ *     TCP peer only (the unspoofable socket, not the client `Host`), so a fresh deploy's first-run window is
+ *     not reachable — let alone remotely-hammerable — from the LAN or the public edge.
  *   • `setOwnerPassword` — the ONE-SHOT claim (hashes with the injected PasswordHasher, then the null-guarded
  *     `sessions.claimOwnerPassword`): returns the owner `UserId` iff it set a previously-null password, else
  *     `null` (already claimed). It can NEVER overwrite an existing owner credential — that is the admin-gated
@@ -253,7 +254,8 @@ type ProvisionOutcome =
  */
 export interface FirstRunRouteDeps {
   readonly setOwnerPassword: (plainPassword: string) => Promise<UserId | null>;
-  readonly originAllowed: (headers: Headers) => boolean;
+  /** True iff the raw TCP peer is loopback (#298 f2) — the setup endpoint is unreachable from any other peer. */
+  readonly originAllowed: (peerIp: string | undefined) => boolean;
 }
 
 /** Local password verification, supplied from `sessions.authenticate` by the composition root in local mode. */
@@ -443,15 +445,16 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
 function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstRunRouteDeps): void {
   const limiter = loginThrottler(deps);
   app.post(FIRST_RUN_ROUTE, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    // Origin gate FIRST: an unauthenticated password-set must never be remotely hammerable (owner-fallback
-    // parity). A public-origin local deploy sets LOCAL_INITIAL_PASSWORD instead of using this screen.
-    if (!firstRun.originAllowed(c.req.raw.headers)) {
+    // Peer gate FIRST: an unauthenticated password-set must never be reachable off-box (owner-fallback
+    // parity, #298 f2 — the LOOPBACK TCP peer, not the client `Host`). A LAN/public local deploy sets
+    // LOCAL_INITIAL_PASSWORD instead of using this screen.
+    if (!firstRun.originAllowed(peerIp(c))) {
       securityEvent(
         "first_run_origin_rejected",
-        { host: c.req.raw.headers.get("host") },
-        "security: first-run owner-password setup from a non-local/untrusted origin — rejecting (set LOCAL_INITIAL_PASSWORD for a public-origin local deploy)",
+        { peerIp: peerIp(c) ?? null },
+        "security: first-run owner-password setup from a non-loopback peer — rejecting (set LOCAL_INITIAL_PASSWORD for a LAN/public-origin local deploy)",
       );
-      return c.json({ error: "first-run setup is only available from a local/trusted origin" }, FORBIDDEN);
+      return c.json({ error: "first-run setup is only available from a loopback peer" }, FORBIDDEN);
     }
     const throttled = await throttleLogin(limiter, c);
     if (throttled !== null) {

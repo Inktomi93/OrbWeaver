@@ -1,11 +1,11 @@
-import { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
+import { MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeAuthConfig as cfg, headers } from "./_support.ts";
 
 // The dispatch seam: the `MODE_RESOLVERS` Record (one entry per AUTH_MODE — invariant #4) + the
-// origin-gated owner-fallback predicate. Each resolver yields a pre-row `ResolvedIdentity | null`
-// (NO userId/role).
+// peer-gated owner-fallback predicate (#298 f2 — the raw TCP peer, not the `Host` header). Each resolver
+// yields a pre-row `ResolvedIdentity | null` (NO userId/role).
 
 describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
   test("has exactly the four modes (a 5th would fail tsc on the mapped-type Record)", () => {
@@ -36,35 +36,28 @@ describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
   });
 });
 
-describe("ownerFallbackAllowed", () => {
-  test("single-user → always allowed (even on a public-looking host)", () => {
-    expect(ownerFallbackAllowed(headers({ host: "chat.example.com" }), cfg())).toBe(true);
+describe("ownerFallbackAllowed — gates on the raw TCP peer, ONE rule for every mode (#298 f2)", () => {
+  test("a loopback IPv4 peer is allowed", () => {
+    expect(ownerFallbackAllowed("127.0.0.1")).toBe(true);
   });
 
-  test("SSO mode → allowed only on a local origin", () => {
-    expect(ownerFallbackAllowed(headers({ host: "localhost" }), cfg({ mode: "oidc" }))).toBe(true);
-    expect(ownerFallbackAllowed(headers({ host: "chat.example.com" }), cfg({ mode: "oidc" }))).toBe(false);
-  });
-});
-
-describe("isLocalOrigin (reads Host, fails closed)", () => {
-  test("localhost is local", () => {
-    expect(isLocalOrigin(headers({ host: "localhost:8788" }), [])).toBe(true);
+  test("a loopback IPv6 peer (::1) is allowed", () => {
+    expect(ownerFallbackAllowed("::1")).toBe(true);
   });
 
-  test("a loopback IP literal is local", () => {
-    expect(isLocalOrigin(headers({ host: "127.0.0.1" }), [])).toBe(true);
+  test("an IPv4-mapped loopback peer (::ffff:127.0.0.1) is allowed", () => {
+    expect(ownerFallbackAllowed("::ffff:127.0.0.1")).toBe(true);
   });
 
-  test("a public FQDN is NOT local (SSO required)", () => {
-    expect(isLocalOrigin(headers({ host: "chat.example.com" }), [])).toBe(false);
+  test("a NON-loopback peer is denied — the headline: a private-but-LAN address is not loopback", () => {
+    // 10/8, 192.168/16 and the docker bridge are all denied — a LAN device or a proxy hop must authenticate.
+    expect(ownerFallbackAllowed("10.9.9.9")).toBe(false);
+    expect(ownerFallbackAllowed("192.168.1.27")).toBe(false);
+    expect(ownerFallbackAllowed("172.18.0.1")).toBe(false);
+    expect(ownerFallbackAllowed("203.0.113.9")).toBe(false);
   });
 
-  test("a configured trusted host is local", () => {
-    expect(isLocalOrigin(headers({ host: "orb.lan" }), ["orb.lan"])).toBe(true);
-  });
-
-  test("a missing Host header fails closed (not local)", () => {
-    expect(isLocalOrigin(headers(), [])).toBe(false);
+  test("an absent peer fails closed (the seam's isAdmin threads none)", () => {
+    expect(ownerFallbackAllowed(undefined)).toBe(false);
   });
 });

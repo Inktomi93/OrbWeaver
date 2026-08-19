@@ -179,10 +179,22 @@ async function resolveHeaderOrFallbackPrincipal(
     return null;
   }
   if (res.via === "fallback") {
-    // The fallback ADMITS the owner (the origin gate is the security boundary — `ownerFallbackAllowed`);
-    // it does not GRANT a role. Ensure the owner's row exists, then mint through the same row→Principal
-    // mapper the frozen-host bridge uses, so both principals for one user read one column (D135) — plus the
-    // `enabled` gate every REQUEST arm applies (`null` ⇒ anonymous ⇒ transport 401).
+    // The fallback ADMITS the owner (the LOOPBACK-peer gate is the security boundary — `ownerFallbackAllowed`,
+    // #298 f2); it does not GRANT a role. Ensure the owner's row exists, then mint through the same
+    // row→Principal mapper the frozen-host bridge uses, so both principals for one user read one column
+    // (D135) — plus the `enabled` gate every REQUEST arm applies (`null` ⇒ anonymous ⇒ transport 401).
+    //
+    // BREAK-GLASS (owner ruling 2026-08-19): production runs AUTH_MODE=oidc + AUTH_FALLBACK=deny, so this arm
+    // is OFF in daily use — the owner logs in via SSO (the owner row is seeded at boot by `entry/boot/seed-owner.ts`
+    // at role=owner+enabled, so deny+oidc can never lock the owner out at first-run; it is claim-driven, not
+    // fallback-driven). This arm is the on-box RECOVERY door for when SSO/Authentik is down: on the box, set
+    // AUTH_FALLBACK=owner + AUTH_BREAK_GLASS=true (the flag is required — foundation/env makes prod SSO+owner
+    // boot-fatal WITHOUT it, to stop a same-host proxy silently bypassing SSO), restart, then
+    // `curl http://127.0.0.1:8788/...` authenticates as owner over the loopback socket. Revert both env knobs
+    // when done. There is deliberately NO ambient (off-box) recovery — that is the whole point of deny.
+    // CRITICAL: STOP/BYPASS the front proxy during break-glass — a same-host proxy forwarding over 127.0.0.1
+    // makes EVERY proxied (LAN/internet) request a loopback peer, so a flag left set on a live proxied box
+    // mints owner for the whole network, not just the on-box operator (containerize-prod-image-spec.md §4).
     const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
     return await resolveFallbackPrincipal(userId);
   }

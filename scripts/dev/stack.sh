@@ -234,7 +234,10 @@ env_pin_report() {
   local bpid="$1" line="" v live
   # Engine topology: whichever of ENGINES_POSTURE / VLLM_DISABLED is set (one of them always is).
   line="$line ENGINES_POSTURE=${ENGINES_POSTURE:-—} VLLM_DISABLED=${VLLM_DISABLED:-—}"
-  line="$line AUTH_MODE=${AUTH_MODE}(${PIN_SRC[AUTH_MODE]})"
+  # AUTH_MODE here is the SHELL pin (this script's `:=`/host export) — it does NOT account for a checked-in
+  # `.env`, which the server loads with override:true and which therefore WINS. The `effective` line below is
+  # the truth; this one is only "what the launcher intended". (#301 — the pin line used to be read as gospel.)
+  line="$line AUTH_MODE=${AUTH_MODE}(${PIN_SRC[AUTH_MODE]} shell-pin)"
   for v in SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD; do
     line="$line $v=<redacted>(${PIN_SRC[$v]})" # values are secrets — source only
   done
@@ -245,7 +248,14 @@ env_pin_report() {
       live="$(backend_env_var "$bpid" "$v")"
       lv="$lv $v=${live:-?}"
     done
-    echo "live backend  :${lv}  (from /proc/$bpid/environ)"
+    # NOTE: /proc/environ is the SPAWN env — it too misses a .env override (the server reads .env AFTER spawn).
+    echo "live backend  :${lv}  (from /proc/$bpid/environ — SPAWN env, also pre-.env-override)"
+    # THE EFFECTIVE mode: the server's own resolved config (post-.env-override), read from the anonymous
+    # /api/auth/config probe. This is the ONLY honest answer to "what AUTH_MODE is actually running" — if it
+    # differs from the shell-pin/spawn lines above, a checked-in .env overrode them (#301).
+    local eff_mode
+    eff_mode="$(curl -sf -m 2 "http://127.0.0.1:$BACKEND_PORT/api/auth/config" 2>/dev/null | sed -n 's/.*"mode":"\([^"]*\)".*/\1/p')"
+    echo "effective     : AUTH_MODE=${eff_mode:-?}  (server /api/auth/config — RESOLVED after .env override; the truth if it differs above)"
   fi
 }
 
