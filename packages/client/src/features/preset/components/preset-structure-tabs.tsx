@@ -89,30 +89,39 @@ function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly ca
   return (
     <Stack gap="section">
       <Section kicker="Delivery">
-        {/* GHOSTED DEFAULTS, never blank (side-eye F-05): an unset select rendered an EMPTY combobox, so
-            the one datum the row exists to state — what actually happens when you leave it alone — was
-            the one thing missing. The placeholder is the wire's own default, read from the constant the
-            assembler resolves through, and the explainer moves to the hover hint (§4.1). */}
-        <form.AppField name="namesBehavior">
-          {(field): ReactElement => (
-            <field.SelectField
-              hint="Whether and how speaker names are attached to each message."
-              items={NAMES_BEHAVIOR_ITEMS}
-              label="Speaker names"
-              placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="continuePostfix">
-          {(field): ReactElement => (
-            <field.SelectField
-              hint="What's inserted between the existing text and a continuation."
-              items={CONTINUE_POSTFIX_ITEMS}
-              label="Continue delimiter"
-              placeholder={continuePostfixLabel(DEFAULT_CONTINUE_POSTFIX)}
-            />
-          )}
-        </form.AppField>
+        {/* ONE LAYOUT FOR THE WHOLE VIEW (side-eye 2026-08-19 P2). These two selects were the only Fields in
+            Transforms rendering VERTICAL — label over a full-width control — while COLLAPSING directly under
+            them (and every other settings row in the app) docks its control in the `--width-control-col`
+            track. Two grammars, one view, three inches apart. `FieldLayout` is the ambient seam that says it
+            once, and the horizontal arm carries its own narrow fold (`@max-md` stacks back), so this costs
+            nothing at 568 — the control column is a fixed track that becomes full width when the pane cannot
+            seat it, which is also why no value clips there. */}
+        <FieldLayout orientation="horizontal">
+          {/* GHOSTED DEFAULTS, never blank (side-eye F-05): an unset select rendered an EMPTY combobox, so
+              the one datum the row exists to state — what actually happens when you leave it alone — was
+              the one thing missing. The placeholder is the wire's own default, read from the constant the
+              assembler resolves through, and the explainer moves to the hover hint (§4.1). */}
+          <form.AppField name="namesBehavior">
+            {(field): ReactElement => (
+              <field.SelectField
+                hint="Whether and how speaker names are attached to each message."
+                items={NAMES_BEHAVIOR_ITEMS}
+                label="Speaker names"
+                placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="continuePostfix">
+            {(field): ReactElement => (
+              <field.SelectField
+                hint="What's inserted between the existing text and a continuation."
+                items={CONTINUE_POSTFIX_ITEMS}
+                label="Continue delimiter"
+                placeholder={continuePostfixLabel(DEFAULT_CONTINUE_POSTFIX)}
+              />
+            )}
+          </form.AppField>
+        </FieldLayout>
       </Section>
       <MessageHandlingSection capability={capability} form={form} />
     </Stack>
