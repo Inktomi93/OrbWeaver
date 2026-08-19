@@ -19,6 +19,15 @@
 // only cure was wiping localStorage. So an entry the tag library does not know is dropped from the REQUEST
 // (`effectiveTagFilter`) while staying in the store, where the chip row renders it clearable — visible + inert.
 //
+// THE BROWSE POSITION SURVIVES THE PANE SWAP (#255). Opening somebody swaps this whole LIST pane to her
+// chats projection (owner ruling D2 — selection ⇒ projection, back = deselect), which UNMOUNTS this surface.
+// The paged rows survive that in the query cache; the list's scroll offset did not, so backing out of a card
+// 300 rows down landed at the top and browsing a real library was a click-and-Back-and-scroll loop. The
+// offset is captured at the CLICK (`captureBrowseOffset`) and re-applied at mount through `VirtualList`'s
+// `initialScrollOffset`. This changes nothing about D2 itself: the swap is still unconditional, back is
+// still deselect, and no chrome is added — D2's priced cost ("can't browse the library while editing her")
+// is untouched; losing your PLACE was never part of that price.
+//
 // The two reads that deliberately do NOT ride the lens: the FAVORITES strip (its own `starred: true` page —
 // it is a shortcut across the library, not a view of the filtered set, and reading the filtered page would
 // empty it the moment you typed) and the TAG VOCABULARY (`tag.listTagFilterVocabulary` — the chips must offer
@@ -43,10 +52,12 @@ import {
   clearCharacterFilters,
   clearCharacterSelection,
   cycleTagFilter,
+  getCharacterBrowseOffset,
   selectCharacter,
   selectCharacterFromPicker,
   selectChat,
   setActiveSection,
+  setCharacterBrowseOffset,
   toggleFavoritesOnly,
   toggleShowArchived,
   useCharacterBulkMode,
@@ -141,6 +152,11 @@ export interface CharacterLibrarySurfaceProps {
 /** The character library: header + favorites + filters + the flat/categorized paged list + bulk mode. */
 export function CharacterLibrarySurface({ ariaLabel = "Character library", focusCharacterId = null }: CharacterLibrarySurfaceProps): ReactElement {
   const trpc = useTRPC();
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  // The browse position to REMOUNT at, snapshotted once (`useState`'s lazy initializer, not a subscription):
+  // this is a mount-time initializer, and a live subscription would re-scroll the list under the user every
+  // time the value changed. `0` — the store's own default — is the honest first-visit value.
+  const [initialScrollOffset] = useState(getCharacterBrowseOffset);
   const { startChat } = useStartChat();
   const invalidation = useInvalidation();
   const [query, setQuery] = useState("");
@@ -214,7 +230,26 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
 
   // A pick FROM THE PICKER (a card click / a favorites face): the same selection write, plus the focus
   // decision the pane swap needs — the projection that replaces this library takes focus (§3.7).
-  const openEditor = (id: string): void => selectCharacterFromPicker(castId<CharacterId>(id));
+  //
+  // …AND THE BROWSE POSITION (#255). This click is what swaps the LIST pane to her chats projection (owner
+  // ruling D2 — selection ⇒ projection, back = deselect), which unmounts this whole surface. Back-focus
+  // already survived that (`focusCharacterId`); the SCROLL did not, so backing out of the 327th card landed
+  // at the top of the library and browsing was a click-and-Back-and-scroll loop. The offset is read here,
+  // straight off the list's scroll element, because this is the last moment it is both meaningful and
+  // ATTACHED — an unmount-time read reports 0 (React runs cleanups around DOM removal), and a scroll-time
+  // read would write to a `persist`-wrapped store on every frame. The element is found by the primitive's
+  // own slot inside this surface's container — the scoped-querySelector precedent `useRestoreRowFocus`
+  // already uses, never a document-wide reach.
+  const captureBrowseOffset = (): void => {
+    const scroller = surfaceRef.current?.querySelector<HTMLElement>('[data-slot="virtual-list-scroll"]');
+    if (scroller !== null && scroller !== undefined) {
+      setCharacterBrowseOffset(scroller.scrollTop);
+    }
+  };
+  const openEditor = (id: string): void => {
+    captureBrowseOffset();
+    selectCharacterFromPicker(castId<CharacterId>(id));
+  };
   const toggleStar = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
   const toggleArchive = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
   const toggleBulk = (id: string): void => collection.selection.toggle(id);
@@ -265,7 +300,6 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
     />
   );
 
-  const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   useRestoreRowFocus(surfaceRef, focusCharacterId, items);
   const selectedCount = collection.selection.selected.size;
@@ -307,6 +341,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
             filtered={items}
             filtersActive={lens.filtersActive}
             hasNextPage={collection.hasNextPage}
+            initialScrollOffset={initialScrollOffset}
             isFetchingNextPage={collection.isFetchingNextPage}
             isPending={collection.isPending}
             listProps={collection.listProps}
