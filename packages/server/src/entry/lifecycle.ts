@@ -20,6 +20,7 @@ import { startAutomationWatcher } from "#domain/automation";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import {
+  authFallbackDeclaredInEnvFile,
   bindPostureInput,
   bindPostureWarnings,
   diagnosticsPostureInput,
@@ -402,6 +403,21 @@ export function createLifecycle(): Lifecycle {
     if (env.AUTH_MODE !== "single-user" && env.AUTH_FALLBACK === "owner" && env.AUTH_BREAK_GLASS) {
       log.warn(
         "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket (incl. a same-host reverse proxy). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
+      );
+    }
+
+    // #301 — AUTH_FALLBACK must NOT live in `.env`. The file loads with `override:true`, so a value there is
+    // forced into EVERY launch regardless of what a launcher exports (dev AND prod, all modes) — a dev-lockout
+    // footgun (an SSO mode + a pinned `deny` kills dev's loopback auto-owner) and a defeat of "prod exports deny
+    // while dev falls to the default owner". A WARNING, not fatal, by design: the genuinely dangerous pins are
+    // ALREADY boot-fatal upstream (single-user+deny, and prod SSO+owner), so a fatal here would only brick the
+    // harmless-but-untidy cases (e.g. a redundant single-user+owner pin) — the warning covers the confusing
+    // residuals (dev SSO+deny lockout, prod deny-in-.env fragility) without a hard brick. Move it to the launch
+    // command / compose env instead.
+    if (authFallbackDeclaredInEnvFile()) {
+      log.warn(
+        { security: true },
+        `boot: AUTH_FALLBACK is set in .env (resolved to '${env.AUTH_FALLBACK}') — .env loads with override:true, so this value is forced into EVERY launch (dev AND prod, all modes), NOT just the one you intend. Remove AUTH_FALLBACK from .env and set it on the LAUNCH COMMAND instead (prod: AUTH_FALLBACK=deny; dev: leave unset to fall to the default 'owner' loopback auto-owner). Pinning it in .env is a dev-lockout footgun and defeats per-launch mode/fallback selection (#301).`,
       );
     }
 

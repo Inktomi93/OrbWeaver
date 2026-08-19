@@ -151,6 +151,12 @@ const UTF8_BOM = "﻿";
  *       adopting the platform parser. Accepted, and pinned by test so the delta stays deliberate.
  *
  *  A missing or unreadable file is a silent no-op — the same tolerance dotenv's `quiet: true` gave. */
+/** The keys the loaded `.env` FILE declared (populated by `loadEnvFileWithOverride`). Provenance the parsed
+ *  `env` can't carry: because the file loads with `override:true`, a value in `.env` wins over a launcher's
+ *  export, so #301 needs to know which knobs the FILE pinned regardless of what the schema finally resolved.
+ *  Empty when the file is absent/unreadable or skipped (`ORB_ENV_NO_FILE`, e.g. under vitest). */
+const envFileKeys = new Set<string>();
+
 function loadEnvFileWithOverride(override: boolean): void {
   // ORB_ENV_NO_FILE — skip the file ENTIRELY (not merely the override direction). Set globally by
   // vitest.config.ts: filling unset keys from a real `.env` makes a test assert against the operator's
@@ -166,10 +172,21 @@ function loadEnvFileWithOverride(override: boolean): void {
     return;
   }
   for (const [key, value] of Object.entries(parseEnv(raw.startsWith(UTF8_BOM) ? raw.slice(UTF8_BOM.length) : raw))) {
-    if (value !== undefined && (override || process.env[key] === undefined)) {
-      process.env[key] = value;
+    if (value !== undefined) {
+      envFileKeys.add(key);
+      if (override || process.env[key] === undefined) {
+        process.env[key] = value;
+      }
     }
   }
+}
+
+/** #301 — did the loaded `.env` FILE declare `AUTH_FALLBACK`? The convention is that it must NOT: `.env` loads
+ *  with `override:true`, so a value there is forced into EVERY launch (dev AND prod, every mode), which is a
+ *  dev-lockout footgun (SSO mode + a pinned `deny` kills dev's loopback auto-owner) and defeats "prod exports
+ *  deny while dev falls to the default owner". Lifecycle warns on this at boot. */
+export function authFallbackDeclaredInEnvFile(): boolean {
+  return envFileKeys.has("AUTH_FALLBACK");
 }
 
 // Load a local .env before parsing. override:true so a checked-in dev .env wins over a stale shell
@@ -530,6 +547,15 @@ const envSchema = z
     // and stays UNTOUCHED. The ONLY sanctioned prod exception is a deliberate on-box recovery session, opted into
     // with AUTH_BREAK_GLASS=true (which lifecycle then warns about loudly). Scoped to the leaky triple; `deny`
     // stays the SSO modes' secure prod default.
+    //
+    // OWNER RULING 2026-08-19 (the HELD discriminator decision): KEEP NODE_ENV, do NOT add a PUBLIC_DEPLOYMENT
+    // flag. Both supported prod launchers set NODE_ENV=production — `pnpm start` (package.json) directly, and
+    // `pnpm stack up prod` via `buildProdSpawnPlan` (`scripts/dev/_kit/stack-mode.ts:369` — `env: {...inherited,
+    // NODE_ENV: "production", ...}`, in the spawn plan itself, not just the status log) — so the signal bites on
+    // every real prod path; a second flag would only be a source of disagreement. The one residual (a bare
+    // hand-rolled `node entry/index.ts` that omits NODE_ENV, behind a loopback proxy, with default owner) is
+    // ACCEPTED defense-in-depth risk, documented (containerize-prod-image-spec.md §4), not guarded — the
+    // supported launchers all set it, and #301 makes the effective mode/fallback legible per launch.
     if (val.NODE_ENV === "production" && val.AUTH_MODE !== "single-user" && val.AUTH_FALLBACK === "owner" && !val.AUTH_BREAK_GLASS) {
       ctx.addIssue({
         code: "custom",

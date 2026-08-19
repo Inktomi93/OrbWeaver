@@ -266,6 +266,24 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     expect(env.AUTH_MODE).toBe("single-user");
   });
 
+  // ── #301 — AUTH_FALLBACK must NOT live in `.env` ─────────────────────────────────────────────────────────
+  // The file loads with override:true, so a value there is forced into EVERY launch (a dev-lockout footgun +
+  // a defeat of "prod exports deny, dev defaults to owner"). The loader records which keys the FILE declared;
+  // lifecycle warns at boot on this signal. `vitest:false` drops the VITEST pin so the real .env load runs.
+  test("#301: AUTH_FALLBACK declared in .env is DETECTED, and its value wins (override:true)", async () => {
+    const dir = dirWithEnvFile(["AUTH_MODE=single-user", "AUTH_FALLBACK=owner"].join("\n"));
+    const mod = await reimportEnvIn(dir, {}, { vitest: false });
+    expect(mod.authFallbackDeclaredInEnvFile()).toBe(true);
+    expect(mod.env.AUTH_FALLBACK).toBe("owner");
+  });
+
+  test("#301: a .env WITHOUT AUTH_FALLBACK is NOT flagged (the convention — fall to the schema default)", async () => {
+    const dir = dirWithEnvFile("AUTH_MODE=single-user");
+    const mod = await reimportEnvIn(dir, {}, { vitest: false });
+    expect(mod.authFallbackDeclaredInEnvFile()).toBe(false);
+    expect(mod.env.AUTH_FALLBACK).toBe("owner"); // the default, not a .env pin
+  });
+
   // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09). The rule + its arms are unit-tested in bind.test.ts;
   // what is pinned HERE is that the refusal is wired into the PARSE — i.e. an `env` that says
   // "non-production + a public interface" cannot come into existence, so no bind-site code path has to
