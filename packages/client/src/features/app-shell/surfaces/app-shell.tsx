@@ -153,10 +153,13 @@ export function AppShell(): ReactElement {
     .find((m) => m.trigger.placement === "topbar.trail")?.id;
   const layout = useShellLayout();
   const appearance = useAppearance();
-  const theme = useSelectedTheme();
+  // `dataTheme` comes from the hook, NOT from the row here (#231): while the two chained theme reads are
+  // in flight it must answer with this device's remembered palette — the one `main.tsx` already stamped
+  // before React mounted — or the shell's first commit clobbers the replay and a Light user cold-boots
+  // dark, then swaps. The derivation itself lives in the hook, its one home.
+  const { theme, dataTheme } = useSelectedTheme();
   // Overlays portal to a themed root inside <ThemeScope> instead of <body>, so every float inherits the active theme's tokens.
   const portalRootRef = useRef<HTMLDivElement>(null);
-  const dataTheme = theme?.isSeed === true ? theme.name.toLowerCase() : null;
   useAppearanceRootEffects({
     fontScale: appearance.fontScale,
     dataTheme,

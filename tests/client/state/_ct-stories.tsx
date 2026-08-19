@@ -14,11 +14,11 @@ import {
   __dismissPresetSectionForTest,
   __migrateActiveChatForTest,
   __readComposerDraftsForTest,
+  __resetAppearanceBootHint,
   __resetCollectionGroupOpen,
   __resetComposerDrafts,
   __resetPresetSection,
   __resetPresetSelection,
-  __resetReducedMotionHint,
   __resetTagFilter,
   activeChatId,
   COMPOSER_DRAFT_CAP,
@@ -49,7 +49,8 @@ import {
   publishContextTabIds,
   publishContextTabs,
   readComposerDraft,
-  rememberReducedMotionHint,
+  rememberAppearanceBootHint,
+  rememberDataThemeHint,
   reportSectionSaveStatus,
   requestComposerFocus,
   revealContextPanel,
@@ -83,7 +84,7 @@ import {
   setPanelMode,
   setPresetEditorView,
   setTagSortMode,
-  stampReducedMotionHint,
+  stampAppearanceBootHint,
   subscribeHuskAbandoned,
   toggleCollectionGroup,
   toggleFavoritesOnly,
@@ -92,6 +93,7 @@ import {
   useActiveChatHandle,
   useActiveSection,
   useAggregateSaveStatus,
+  useAppearanceBootHint,
   useBlockedSaveSections,
   useCharacterBulkMode,
   useCharacterSortMode,
@@ -115,7 +117,6 @@ import {
   useOpenOverlayPanel,
   usePanelOverride,
   usePresetEditorView,
-  useReducedMotionHint,
   useSectionListIsScreen,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
@@ -1019,26 +1020,37 @@ export function TagLibraryProbe(): ReactElement {
   );
 }
 
-/** ReducedMotionHintProbe — the #188 boot replay, at the tier a CT can see it: the probe calls
- *  `stampReducedMotionHint()` in RENDER (the real caller is `main.tsx`, before React exists at all), so the
- *  page's <html> carries whatever this device remembered before anything else paints. It renders both the
- *  remembered value and the resulting root attribute, because "the hint said ON" and "the flag reached the
- *  document" are two different claims and only the second one silences an animation. */
-export function ReducedMotionHintProbe(): ReactElement {
-  stampReducedMotionHint();
-  const hint = useReducedMotionHint();
+/** AppearanceBootHintProbe — the #188/#231 boot replay, at the tier a CT can see it: the probe calls
+ *  `stampAppearanceBootHint()` in RENDER (the real caller is `main.tsx`, before React exists at all), so
+ *  the page's <html> carries whatever this device remembered before anything else paints. It renders both
+ *  the remembered values and the RESULTING root state, because "the hint said X" and "X reached the
+ *  document" are two different claims and only the second one silences an animation, sizes the shell, or
+ *  paints the right palette. */
+export function AppearanceBootHintProbe(): ReactElement {
+  stampAppearanceBootHint();
+  const hint = useAppearanceBootHint();
+  const root = document.documentElement;
+  const stamped = [
+    `motion=${root.getAttribute("data-reduced-motion") ?? "absent"}`,
+    `scale=${root.style.getPropertyValue("--font-scale") === "" ? "absent" : root.style.getPropertyValue("--font-scale")}`,
+    `theme=${root.getAttribute("data-theme") ?? "absent"}`,
+  ].join(" ");
   return (
     <div>
-      <output>{`hint=${String(hint)} attr=${document.documentElement.getAttribute("data-reduced-motion") ?? "absent"}`}</output>
-      {/* `rememberReducedMotionHint` is what the SERVER value writes back (useAppearance calls it the moment
-          `getUserSettings` resolves); the buttons stand in for that authoritative landing. */}
-      <button type="button" onClick={(): void => rememberReducedMotionHint(true)}>
-        server says on
+      <output>{`hint motion=${String(hint.reducedMotion)} scale=${String(hint.fontScale)} density=${hint.density} theme=${hint.dataTheme ?? "none"} | stamped ${stamped}`}</output>
+      {/* `rememberAppearanceBootHint`/`rememberDataThemeHint` are what the SERVER values write back
+          (`useAppearance`/`useSelectedTheme` call them the moment their reads resolve); the buttons stand
+          in for that authoritative landing. */}
+      <button type="button" onClick={(): void => rememberAppearanceBootHint({ reducedMotion: true, fontScale: 1.25, density: "compact" })}>
+        server says loud
       </button>
-      <button type="button" onClick={(): void => rememberReducedMotionHint(false)}>
-        server says off
+      <button type="button" onClick={(): void => rememberAppearanceBootHint({ reducedMotion: false, fontScale: 1, density: "comfortable" })}>
+        server says default
       </button>
-      <button type="button" onClick={(): void => __resetReducedMotionHint()}>
+      <button type="button" onClick={(): void => rememberDataThemeHint("light")}>
+        server says light
+      </button>
+      <button type="button" onClick={(): void => __resetAppearanceBootHint()}>
         forget device
       </button>
     </div>

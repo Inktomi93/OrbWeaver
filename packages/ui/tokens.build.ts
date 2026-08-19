@@ -35,14 +35,35 @@ const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
 // must keep it — that is why it is fixed here and not only in the emitted file.
 const THEMES_MODULE = "./themes.gen.ts";
 
+/**
+ * SEED-COVERED, but NOT ThemeScope-emitted: colour paths a seed value-set tunes even though the clamp
+ * never derives them for a custom theme. Each entry owes a reason, because every one of them is a
+ * palette decision a custom theme silently inherits from the base ramp:
+ *   • `color.backdrop` — the polarity-FIXED dimming smoke (D144(a)); each palette tunes its own smoke.
+ *   • the five `color.shadow-*` ELEVATION INGREDIENTS (#232) — `--shadow-overlay`/`--shadow-cta` are
+ *     GEOMETRY plus colour, and Tailwind v4 inlines a `--shadow-*` @theme value into the `.shadow-*`
+ *     utility at build time, so overriding the composite per theme is a measured no-op. Splitting the
+ *     colour out as `var()` ingredients is what makes elevation polarity-aware at all: the Light seed
+ *     wore the dark recipe (white hairline at 1.29:1, two black ambient layers) until this landed.
+ * The GLOW is deliberately absent: it derives from `--color-primary` via relative colour, so it follows
+ * every theme — including custom ones — without a value-set entry.
+ */
+const SEED_COVERED_PATHS = [
+  "color.backdrop",
+  "color.shadow-hairline",
+  "color.shadow-highlight",
+  "color.shadow-ambient-near",
+  "color.shadow-ambient-far",
+  "color.shadow-cta-highlight",
+] as const;
+
 // The exact token-path coverage every seed value-set must carry: each EMITTED `--color-*` (the
 // themeable surface, from clamp.ts — since #204 that includes color.reading-plate, the derived over-art
-// text plate) plus color.backdrop (SEED_COVERED: the polarity-fixed dimming smoke each palette tunes).
-// A value-set with a missing or extra path fails the build — this is what makes the seed palettes
-// un-driftable against the emit set.
+// text plate) plus the SEED_COVERED extras above. A value-set with a missing or extra path fails the
+// build — this is what makes the seed palettes un-driftable against the emit set.
 const SEED_VALUE_SET_PATHS: ReadonlySet<string> = new Set([
   ...THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--color-")).map((v) => `color.${v.slice("--color-".length)}`),
-  "color.backdrop",
+  ...SEED_COVERED_PATHS,
 ]);
 
 const HEADER =

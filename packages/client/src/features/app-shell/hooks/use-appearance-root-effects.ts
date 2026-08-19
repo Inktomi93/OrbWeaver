@@ -16,7 +16,7 @@
 
 import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import { useLayoutEffect } from "react";
-import { REDUCED_MOTION_ATTR } from "#state";
+import { DATA_THEME_ATTR, FONT_SCALE_VAR, REDUCED_MOTION_ATTR } from "#state";
 
 const BLUR_SURFACE_ATTR: Record<BlurSurface, string> = {
   panels: "data-blur-panels",
@@ -50,7 +50,7 @@ export function useAppearanceRootEffects(params: {
   const { fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture, reducedMotion } = params;
   useLayoutEffect((): (() => void) => {
     const root = document.documentElement;
-    root.style.setProperty("--font-scale", String(fontScale));
+    root.style.setProperty(FONT_SCALE_VAR, String(fontScale));
     root.style.setProperty("--blur-strength", `${blurStrength}px`);
     root.style.setProperty("--reading-line-height", String(reading.lineHeight));
     root.style.setProperty("--reading-letter-spacing", `${reading.letterSpacing}em`);
@@ -58,9 +58,9 @@ export function useAppearanceRootEffects(params: {
     root.style.setProperty("--reading-name-scale", String(reading.nameScale));
     root.style.setProperty("--reading-body-scale", String(reading.bodyScale));
     if (dataTheme === null) {
-      root.removeAttribute("data-theme");
+      root.removeAttribute(DATA_THEME_ATTR);
     } else {
-      root.setAttribute("data-theme", dataTheme);
+      root.setAttribute(DATA_THEME_ATTR, dataTheme);
     }
     for (const attr of ALL_BLUR_ATTRS) {
       root.removeAttribute(attr);
@@ -92,23 +92,25 @@ export function useAppearanceRootEffects(params: {
     // than as presence: the OFF arm must still be a value, because the shell rendered it as one and a bare
     // presence attribute would match `[data-reduced-motion]` selectors that mean something else.
     //
-    // THIS IS THE SECOND WRITER, NOT THE FIRST (#188 N-1): `main.tsx` replays this device's remembered
-    // answer onto <html> before React mounts, because the shell cannot stamp until it has mounted and
-    // cannot be right until `getUserSettings` resolves — and the boot veil animates a beat before either.
-    // The handoff is safe in ONE direction only, which is why `useAppearance` seeds the SAME hint into its
-    // pending arm: an unresolved read that fell back to the schema default would land here as `false` and
-    // un-stamp the replay. The attribute name is imported rather than re-spelled so the two writers cannot
-    // drift.
+    // THIS IS THE SECOND WRITER, NOT THE FIRST (#188 N-1, widened to font scale + theme by #231):
+    // `main.tsx` replays this device's remembered answers onto <html> before React mounts, because the
+    // shell cannot stamp until it has mounted and cannot be right until `getUserSettings` (and the chained
+    // `getTheme`) resolves — and the boot veil animates, and the first shell layout happens, a beat before
+    // either. The handoff is safe in ONE direction only, which is why `useAppearance` and `useSelectedTheme`
+    // seed the SAME hints into their pending arms: an unresolved read that fell back to the schema default
+    // would land here as `false` / `1` / no theme and un-stamp the replay — re-flowing every rem-derived
+    // shell dimension and swapping the palette on the first screen of the visit. Every DOM name this hook
+    // writes that the replay also writes is IMPORTED, not re-spelled, so the two writers cannot drift.
     root.setAttribute(REDUCED_MOTION_ATTR, String(reducedMotion));
     return (): void => {
-      root.style.removeProperty("--font-scale");
+      root.style.removeProperty(FONT_SCALE_VAR);
       root.style.removeProperty("--blur-strength");
       root.style.removeProperty("--reading-line-height");
       root.style.removeProperty("--reading-letter-spacing");
       root.style.removeProperty("--reading-paragraph-spacing");
       root.style.removeProperty("--reading-name-scale");
       root.style.removeProperty("--reading-body-scale");
-      root.removeAttribute("data-theme");
+      root.removeAttribute(DATA_THEME_ATTR);
       for (const attr of ALL_BLUR_ATTRS) {
         root.removeAttribute(attr);
       }

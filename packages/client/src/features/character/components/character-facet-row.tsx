@@ -72,10 +72,16 @@ export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMou
         {/* The LABEL keeps its full width (shrink-0); only the preview/subtitle truncates — a filled
             row must never ellipsize "Personality" down to "P…" to fit its own preview. `aria-hidden`
             because it IS the button's aria-label; repeating it as content would double the name. */}
-        <Text aria-hidden={true} size="body" weight="medium" className="shrink-0">
+        {/* `as="span"` on BOTH lines (#235): `<Text>` defaults to `<p>`, and a `<p>` inside a `<button>`
+            is invalid nesting — `<button>` takes phrasing content only. React-DOM constructs the tree so
+            nothing reparents at runtime, but an HTML PARSER (SSR/hydration, an ariaSnapshot round trip)
+            closes the button at the `<p>` and re-parents the rest of the row. The spans keep the same
+            typographic voice and the same accessible tree: line 1 is aria-hidden (it IS the aria-label),
+            line 2 is the description on an empty row. */}
+        <Text as="span" aria-hidden={true} size="body" weight="medium" className="shrink-0">
           {facet.label}
         </Text>
-        <Text aria-hidden={showsPreview ? true : undefined} id={previewId} size="micro" tone="muted" className="truncate">
+        <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} size="micro" tone="muted" className="truncate">
           {showsPreview ? preview : facet.subtitle}
         </Text>
       </Button>
