@@ -61,7 +61,7 @@ export function RegexLibraryGroupStory(): ReactElement {
   );
 }
 
-/** The collection's CONTEXT arm — "Where it runs" for the selected script: the global switch and, once the
+/** The collection's CONTEXT arm — "Where it’s attached" for the selected script: the global switch and, once the
  *  global tier holds more than one script, its RUN ORDER. Narrow on purpose (320px): this pane is the
  *  config rail's context column, and a reorder affordance that only fits at story width is not shipped. */
 export function RegexContextStory({ memberId = "regex_script_000000000000000a" }: { readonly memberId?: string }): ReactElement {

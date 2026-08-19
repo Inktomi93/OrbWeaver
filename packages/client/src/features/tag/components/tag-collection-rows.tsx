@@ -108,7 +108,15 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
           />
         </Row>
       ) : null}
-      {filterMiss ? <Text voice="gloss">No tags match that filter.</Text> : null}
+      {/* THE MISS SPEAKS (side-eye 2026-08-19 P3). Focus stays in the host's filter box while the rows below
+          it change, so the one state with no rows at all had no feedback a keyboard reader ever received.
+          `role="status"` is the polite live region for exactly this. It rides the MESSAGE, not the row
+          container: a live region wrapped around the list would announce all 400 rows on every keystroke. */}
+      {filterMiss ? (
+        <Text role="status" voice="gloss">
+          No tags match that filter.
+        </Text>
+      ) : null}
       {empty || !windowed ? null : (
         <VirtualList
           aria-label="Tags"

@@ -91,6 +91,18 @@ describe("regexRowScent", () => {
     }
   });
 
+  test("the pattern is NOT pre-cut — the row's own box does the one honest truncation", () => {
+    // TWO TRUNCATIONS COMPOSE (side-eye 2026-08-19 P2-1). The row's title/subtitle spans are `truncate`, so
+    // the BOX already elides at the pane's real width; clipping the pattern to a fixed 32 characters first
+    // spends a second ellipsis mid-string on a cut nobody asked for, and it cuts by CHARACTER COUNT — blind
+    // to the width it is supposedly protecting. The picker's wide-dialog projection keeps its own elision
+    // (asserted above); this one hands the whole string to the box and lets CSS say where it stopped.
+    const long = "x".repeat(200);
+    const scent = regexRowScent(script({ findRegex: long }), relative);
+    expect(scent).toContain(long);
+    expect(scent).not.toContain("…");
+  });
+
   test("X-16 survives the split: two just-added rows still differ ONLY by their stamp", () => {
     const blank = { findRegex: "", placement: [] } as const;
     const first = regexRowScent(script({ ...blank, updatedAt: BORN }), relative);

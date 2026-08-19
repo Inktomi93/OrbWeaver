@@ -95,7 +95,15 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
       // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1): with no needle
       // this printed filter copy above the host's own zero-member slot — two empty states, one of them a
       // lie. No needle ⇒ the host's slot is the only voice.
-      return needle === "" ? null : <Text voice="gloss">No books match that filter.</Text>;
+      // …AND THE MISS SPEAKS (side-eye 2026-08-19 P3): focus stays in the host's filter box, so the one
+      // state with no rows at all had no feedback a keyboard reader received. `role="status"` rides the
+      // MESSAGE, never the row container — a live region around the list would announce every row on every
+      // keystroke. Same fix, same words, in the tag and regex arms.
+      return needle === "" ? null : (
+        <Text role="status" voice="gloss">
+          No books match that filter.
+        </Text>
+      );
     }
     if (books.length > COLLECTION_LARGE_GROUP) {
       return (

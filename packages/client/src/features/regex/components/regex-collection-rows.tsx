@@ -19,7 +19,7 @@
 // THE ROW. Two measurements ended that. (a) The 48×32 switch and the kebab together were 42% of a 290px row
 // while the text column measured 133px at the both-open pane — 27 of 33 roster texts clipped, and the
 // pattern and edit stamp were unreachable at every width. (b) `regex-context-body.tsx` renders the SAME
-// setting under "Where it runs", so one screen carried two live switches for one fact, ~990px apart, with
+// setting under "Where it’s attached", so one screen carried two live switches for one fact, ~990px apart, with
 // no confirm and no undo — the duplicate-action-door lens confirmed it, and a reviewer flipped one by
 // accident while driving the pane.
 //
@@ -145,7 +145,15 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       // this printed "No scripts match that filter." above the host's own zero-member slot — two empty
       // states, one of them a lie (below COLLECTION_LARGE_GROUP the filter box isn't even rendered). No
       // needle ⇒ the host's slot is the only voice.
-      return needle === "" ? null : <Text voice="gloss">No scripts match that filter.</Text>;
+      // …AND THE MISS SPEAKS (side-eye 2026-08-19 P3): focus stays in the host's filter box, so the one
+      // state with no rows at all had no feedback a keyboard reader received. `role="status"` rides the
+      // MESSAGE, never the row container — a live region around the list would announce every row on every
+      // keystroke. Same fix, same words, in the tag and world-info arms.
+      return needle === "" ? null : (
+        <Text role="status" voice="gloss">
+          No scripts match that filter.
+        </Text>
+      );
     }
     if (scripts.length > COLLECTION_LARGE_GROUP) {
       return (
@@ -276,9 +284,38 @@ function RegexPlacementGlyphs({ stages }: { readonly stages: readonly RegexPlace
     // `as="span"`: this renders INSIDE the subtitle's own span, so the wrapper must be phrasing content.
     // `title` is the sighted reader's version of what the glyph labels already say to a screen reader.
     <Text as="span" className="inline-flex items-center gap-tight align-middle" title={stages.map((stage) => REGEX_PLACEMENT_LABELS[stage]).join(" · ")}>
-      {stages.map((stage) => (
-        <Icon icon={REGEX_PLACEMENT_GLYPHS[stage]} key={stage} label={REGEX_PLACEMENT_LABELS[stage]} size="xs" />
-      ))}
+      {stages.map((stage) => PLACEMENT_GLYPH_NODES[stage])}
     </Text>
   );
 }
+
+/** One placement's glyph as an element, keyed by the stage it draws — see {@link PLACEMENT_GLYPH_NODES}. */
+const glyphNode = (stage: RegexPlacement): ReactElement => (
+  <Icon icon={REGEX_PLACEMENT_GLYPHS[stage]} key={stage} label={REGEX_PLACEMENT_LABELS[stage]} size="xs" />
+);
+
+/** ONE `<Icon>` element per placement, built ONCE at module scope (side-eye 2026-08-19 P2-3).
+ *
+ *  A React element is an immutable description, so the same six objects can appear in every row's strip —
+ *  and the strip is the one thing on this surface that multiplies: the regex band is the NON-virtualized
+ *  arm, so expanding it constructed ~75 `<Icon>` elements synchronously (a script bites on a SET, and the
+ *  owner's library averages two to three stages a row) inside the same tick as the disclosure. The measured
+ *  band opened in 102ms against the 59-book virtualized band's 58ms.
+ *
+ *  THE RECEIPT IS STRUCTURAL, NOT A STOPWATCH, and that is stated rather than dressed up: a dev-stack
+ *  re-measure of a 44ms difference is inside this machine's noise, so what this change can honestly claim is
+ *  that the elements are built once per module instead of once per rendered stage. The `key` is baked into
+ *  each element because these are rendered from a `.map` — an element carrying its own key is exactly how a
+ *  hoisted node stays legal in a list.
+ *
+ *  Spelled as an exhaustive computed-key Record over the SAME two one-home maps (`REGEX_PLACEMENT_GLYPHS` +
+ *  `REGEX_PLACEMENT_LABELS`), never a derived-and-cast object: a new `RegexPlacement` fails `tsc` here the
+ *  way it does in every other presentation of the axis. */
+const PLACEMENT_GLYPH_NODES: Record<RegexPlacement, ReactElement> = {
+  ["USER_INPUT"]: glyphNode("USER_INPUT"),
+  ["WORLD_INFO"]: glyphNode("WORLD_INFO"),
+  ["PROMPT_HISTORY"]: glyphNode("PROMPT_HISTORY"),
+  ["REASONING"]: glyphNode("REASONING"),
+  ["AI_OUTPUT"]: glyphNode("AI_OUTPUT"),
+  ["DISPLAY"]: glyphNode("DISPLAY"),
+};

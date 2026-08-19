@@ -90,13 +90,21 @@ function placementPhrase(placement: readonly RegexPlacement[]): string {
   return ordered.length === 0 ? SCENT_NO_PLACEMENT : ordered.map((stage) => REGEX_PLACEMENT_LABELS[stage].toLowerCase()).join(" · ");
 }
 
-/** The script's authored SHORTHAND — the find pattern, clipped to a scannable head. */
+/** The script's authored SHORTHAND — the find pattern, clipped to a scannable head. The PICKER's projection
+ *  only: it renders in a dialog whose line has no `truncate` of its own, so if this does not clip, nothing
+ *  does. The roster row's projection deliberately does NOT clip — see {@link regexRowScent}. */
 function patternHead(findRegex: string): string {
   const pattern = findRegex.trim();
   if (pattern === "") {
     return "no pattern yet";
   }
   return pattern.slice(0, SCENT_PATTERN_CHARS) + (pattern.length > SCENT_PATTERN_CHARS ? "…" : "");
+}
+
+/** The same pattern, UNCLIPPED, with the empty arm spelled the one way. */
+function patternWhole(findRegex: string): string {
+  const pattern = findRegex.trim();
+  return pattern === "" ? "no pattern yet" : pattern;
 }
 
 /**
@@ -115,13 +123,21 @@ function patternHead(findRegex: string): string {
  *
  * The enable state still rides in front, for the reason it always has: an `off` row's presence in a list
  * is otherwise unexplained.
+ *
+ * IT DOES NOT PRE-CUT THE PATTERN (side-eye 2026-08-19 P2-1). The row's subtitle span is `truncate`, so the
+ * BOX already elides at whatever width the pane is; clipping to a fixed 32 characters first spent a SECOND
+ * ellipsis mid-string — two truncations composing on one line — and it cut by character COUNT, which is
+ * blind to the width it was supposedly protecting (a 32-character head does not fit the measured 133px
+ * column either, so the cut bought nothing at the narrow end and threw away characters that DID fit at the
+ * wide one). One line, one honest cut, made by the box that knows how much room there is. The picker's
+ * projection keeps `patternHead`, because its dialog line has no `truncate` to do the job.
  */
 export function regexRowScent(
   script: { readonly enabled: boolean; readonly findRegex: string; readonly placement: readonly RegexPlacement[]; readonly updatedAt: number },
   formatRelative: (epochMs: number) => string,
 ): string {
   const nowhere = script.placement.length === 0 ? `${SCENT_NO_PLACEMENT} · ` : "";
-  const scent = `${nowhere}${patternHead(script.findRegex)} · edited ${formatRelative(script.updatedAt)}`;
+  const scent = `${nowhere}${patternWhole(script.findRegex)} · edited ${formatRelative(script.updatedAt)}`;
   return script.enabled ? scent : `off · ${scent}`;
 }
 
