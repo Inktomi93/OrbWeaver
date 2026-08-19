@@ -5,6 +5,7 @@ import {
   keyRegex,
   matchEntryKeys,
   resolveEntryInjection,
+  resolveEntryKeyMode,
   resolveEntryPosition,
   resolveEntryScope,
 } from "@orb/kit/world-info";
@@ -161,6 +162,63 @@ test("matchEntryKeys folds German ß deterministically (no host-locale uppercasi
   // The Unicode default fold leaves ß as ß on every host locale; a locale-dependent fold could
   // instead normalize case differently across platforms, diverging server vs. client.
   expect(matchEntryKeys(["straße"], "die straße ist lang")).toEqual(["straße"]);
+});
+
+// ── regex-keyed entries (V3 `use_regex`, #266 D-2) ─────────────────────────────
+
+test("matchEntryKeys compiles a regex-keyed entry's keys as REAL regexes", () => {
+  // The defect pin: `he(llo|y)` matches "hey" ONLY under regex semantics — the default literal compile
+  // escapes it into an unmatchable string, so a `use_regex:true` entry imported permanently inert.
+  expect(matchEntryKeys(["he(llo|y)"], "hey there", { keyMode: "regex" })).toEqual(["he(llo|y)"]);
+  expect(matchEntryKeys(["he(llo|y)"], "hello there", { keyMode: "regex" })).toEqual(["he(llo|y)"]);
+  expect(matchEntryKeys(["he(llo|y)"], "howdy there", { keyMode: "regex" })).toEqual([]);
+  // …and the same key under the DEFAULT literal mode still never fires (the escape is intact).
+  expect(matchEntryKeys(["he(llo|y)"], "hey there")).toEqual([]);
+});
+
+test("a regex key is used VERBATIM — never lower-cased (that would flip \\W into \\w)", () => {
+  // The literal path folds the key; folding a PATTERN would silently invert negated character classes.
+  // Regex keys match case-insensitively via the `i` flag against the caller's pre-folded haystack instead.
+  expect(matchEntryKeys(["\\bDRAGONS?\\b"], "two dragons appear", { keyMode: "regex" })).toEqual(["\\bDRAGONS?\\b"]);
+  expect(matchEntryKeys(["gold\\W+hoard"], "gold hoard", { keyMode: "regex" })).toEqual(["gold\\W+hoard"]);
+  expect(matchEntryKeys(["gold\\W+hoard"], "goldhoard", { keyMode: "regex" })).toEqual([]);
+});
+
+test("matchEntryKeys accepts ST's delimited /pattern/flags regex-key form", () => {
+  expect(matchEntryKeys(["/he(llo|y)/"], "hey there", { keyMode: "regex" })).toEqual(["/he(llo|y)/"]);
+  // An explicit flag set rides through (`s` makes `.` cross newlines).
+  expect(matchEntryKeys(["/a.b/s"], "a\nb", { keyMode: "regex" })).toEqual(["/a.b/s"]);
+});
+
+test("an INVALID or over-complex regex key falls back to a literal match and warns — never throws", () => {
+  const failures: string[] = [];
+  const onKeyCompileFailure = (key: string): void => {
+    failures.push(key);
+  };
+  // `(unclosed` is a syntax error: the fallback matches it literally instead of taking the turn down.
+  expect(matchEntryKeys(["(unclosed"], "an (unclosed group", { keyMode: "regex", onKeyCompileFailure })).toEqual(["(unclosed"]);
+  expect(matchEntryKeys(["(unclosed"], "nothing here", { keyMode: "regex", onKeyCompileFailure })).toEqual([]);
+  // The ReDoS heuristic (the `@orb/kit/regex` executor's cap) rejects a stacked-quantifier pattern the same way.
+  expect(matchEntryKeys(["(a+)+(b+)+(c+)+"], "plain text", { keyMode: "regex", onKeyCompileFailure })).toEqual([]);
+  expect(failures).toEqual(["(unclosed", "(unclosed", "(a+)+(b+)+(c+)+"]);
+});
+
+test("resolveEntryKeyMode reads metadata.keyMode in isolation, defaulting to literal", () => {
+  expect(resolveEntryKeyMode({ keyMode: "regex" })).toBe("regex");
+  expect(resolveEntryKeyMode({ keyMode: "literal" })).toBe("literal");
+  expect(resolveEntryKeyMode({ keyMode: "nonsense" })).toBe("literal");
+  expect(resolveEntryKeyMode({})).toBe("literal");
+  expect(resolveEntryKeyMode(undefined)).toBe("literal");
+  expect(resolveEntryKeyMode(null)).toBe("literal");
+  // A malformed sibling doesn't poison the field-isolated read.
+  expect(resolveEntryKeyMode({ keyMode: "regex", inject: "broken" })).toBe("regex");
+});
+
+test("the literal and regex compiles are cached under DISTINCT keys (no cross-mode bleed)", () => {
+  expect(keyRegex("dr.", "literal")).not.toBe(keyRegex("dr.", "regex"));
+  expect(keyRegex("dr.", "regex")).toBe(keyRegex("dr.", "regex"));
+  expect(keyRegex("dr.", "literal").test("the dru walked in")).toBe(false);
+  expect(keyRegex("dr.", "regex").test("the dru walked in")).toBe(true);
 });
 
 test("the haystack builder lower-cases without locale dependence", () => {

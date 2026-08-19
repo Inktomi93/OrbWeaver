@@ -65,8 +65,23 @@ export function resolveEntryPosition(metadata: unknown): EntryPosition {
   return parsed.success ? parsed.data : "before";
 }
 
+// How an entry's keys are COMPILED: `literal` (the default — every key is `RegExp.escape`d, so a `.` is a
+// period) or `regex` (the keys ARE patterns). The orb spelling of Character-Card-V3's `use_regex`, which the
+// card serde normalizes into `metadata.keyMode` the way it normalizes ST `constant` into `scopeMode`.
+export const ENTRY_KEY_MODES = ["literal", "regex"] as const;
+export type EntryKeyMode = (typeof ENTRY_KEY_MODES)[number];
+
+/** Resolve how an entry's keys compile, from its metadata blob. Reads `metadata.keyMode` in isolation and
+ *  defaults to `literal` — the safe arm: an unreadable/absent value can only ever under-match, never turn a
+ *  user's literal key into an accidental pattern. */
+export function resolveEntryKeyMode(metadata: unknown): EntryKeyMode {
+  const parsed = z.enum(ENTRY_KEY_MODES).safeParse(metadataField(metadata, "keyMode"));
+  return parsed.success ? parsed.data : "literal";
+}
+
 // Callers lowercase both keys and haystack via locale-INDEPENDENT `.toLowerCase()` (never
-// `toLocaleLowerCase()`) so server and client fold identically across platforms.
+// `toLocaleLowerCase()`) so server and client fold identically across platforms. (A `regex`-mode key is the
+// one exception — a pattern is never folded; see `matchEntryKeys`.) The cache is keyed by MODE + key.
 const KEY_REGEX_CACHE_MAX = 1024;
 const keyRegexCache = new Map<string, RegExp>();
 
@@ -75,21 +90,68 @@ const keyRegexCache = new Map<string, RegExp>();
 // `我去北京了`). Latin/Cyrillic/Greek/etc. keep whole-word boundaries.
 const BOUNDARYLESS_SCRIPT = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}\p{sc=Tibetan}]/u;
 
-/** Compile-or-return the cached RegExp for a lowercased key: Unicode whole-word for spaced scripts,
- *  substring for boundary-less scripts. Updates the LRU position on hit so the cap doesn't evict hot keys. */
-export function keyRegex(key: string): RegExp {
-  const existing = keyRegexCache.get(key);
+// ReDoS pre-compile heuristic for a USER-AUTHORED key pattern — the same two caps the regex-script executor
+// applies (`@orb/kit/regex` `tooComplex`), restated rather than imported: pulling `@orb/kit/regex` in here
+// would drag the macro engine into every consumer of these leaf primitives (contracts/world-info imports
+// this module). Counts quantifier-stack OCCURRENCES, not nesting depth — defense in depth, not a guarantee.
+const MAX_KEY_PATTERN_LENGTH = 2048;
+const MAX_STACKED_QUANTIFIERS = 3;
+function keyPatternTooComplex(pattern: string): string | null {
+  if (pattern.length > MAX_KEY_PATTERN_LENGTH) {
+    return `pattern length ${pattern.length} exceeds cap ${MAX_KEY_PATTERN_LENGTH}`;
+  }
+  const stacks = pattern.match(/[*+?}][)\]]*[*+?]/g);
+  if (stacks && stacks.length >= MAX_STACKED_QUANTIFIERS) {
+    return `pattern stacks ${stacks.length} quantifiers (cap ${MAX_STACKED_QUANTIFIERS})`;
+  }
+  return null;
+}
+
+// A regex key may be written bare (`he(llo|y)`) or in ST's delimited form (`/he(llo|y)/i`). `g`/`y` are
+// STRIPPED from the author's flags: compiled keys are cached and `.test()` on a sticky/global RegExp advances
+// `lastIndex`, so keeping them would make a cached key match every OTHER turn. `i` is forced on because the
+// haystack reaches us already case-folded — case sensitivity is not expressible on this seam.
+function parseKeyPattern(raw: string): { pattern: string; flags: string } {
+  const lastSlash = raw.lastIndexOf("/");
+  const delimited = raw.startsWith("/") && lastSlash > 0;
+  const pattern = delimited ? raw.slice(1, lastSlash) : raw;
+  const authored = delimited ? raw.slice(lastSlash + 1) : "";
+  const flags = new Set([...authored.replace(/[gy]/g, ""), "i"]);
+  return { pattern, flags: [...flags].join("") };
+}
+
+/** Compile the LITERAL form of a key: Unicode whole-word for spaced scripts, substring for boundary-less ones. */
+function literalKeyRegex(key: string): RegExp {
+  return BOUNDARYLESS_SCRIPT.test(key) ? new RegExp(RegExp.escape(key), "u") : new RegExp(`(?<![\\p{L}\\p{N}_])${RegExp.escape(key)}(?![\\p{L}\\p{N}_])`, "u");
+}
+
+/** Compile-or-return the cached RegExp for a key. `literal` (the default) escapes the key — the whole-word /
+ *  boundary-less compile above. `regex` compiles the key AS a pattern (a V3 `use_regex` entry): an invalid or
+ *  over-complex pattern falls back to the LITERAL compile and reports through `onCompileFailure` — a bad key
+ *  must never take a turn's context build down. A failed compile is NOT cached, so the report fires per call
+ *  rather than once per process lifetime. Updates the LRU position on hit so the cap doesn't evict hot keys. */
+export function keyRegex(key: string, mode: EntryKeyMode = "literal", onCompileFailure?: (key: string, reason: string) => void): RegExp {
+  // Mode-prefixed so the two compiles of one key never collide (`dr.` is a period literally, a wildcard as a pattern).
+  const cacheKey = `${mode}\u0000${key}`;
+  const existing = keyRegexCache.get(cacheKey);
   if (existing !== undefined) {
     // Touch: bump to most-recent by re-inserting at the tail. Map iteration order is insertion order,
     // so this is the cheap re-MRU.
-    keyRegexCache.delete(key);
-    keyRegexCache.set(key, existing);
+    keyRegexCache.delete(cacheKey);
+    keyRegexCache.set(cacheKey, existing);
     return existing;
   }
-  const re = BOUNDARYLESS_SCRIPT.test(key)
-    ? new RegExp(RegExp.escape(key), "u")
-    : new RegExp(`(?<![\\p{L}\\p{N}_])${RegExp.escape(key)}(?![\\p{L}\\p{N}_])`, "u");
-  keyRegexCache.set(key, re);
+  let re: RegExp;
+  if (mode === "regex") {
+    const compiled = compileKeyPattern(key, onCompileFailure);
+    if (compiled === null) {
+      return literalKeyRegex(key);
+    }
+    re = compiled;
+  } else {
+    re = literalKeyRegex(key);
+  }
+  keyRegexCache.set(cacheKey, re);
   if (keyRegexCache.size > KEY_REGEX_CACHE_MAX) {
     const oldest = keyRegexCache.keys().next().value;
     if (oldest !== undefined) {
@@ -99,10 +161,41 @@ export function keyRegex(key: string): RegExp {
   return re;
 }
 
-/** The keys (lowercased + trimmed) of `keys` that whole-word match the (already lowercased) haystack.
- *  Empty array = no fire. Shared by the server's keyword scan / WI-at-depth partition and (future) the
- *  client's live entry-key preview. */
-export function matchEntryKeys(keys: readonly string[], haystack: string): string[] {
+/** The guarded pattern compile — null when the key is over-complex or syntactically invalid (reported, then
+ *  the caller falls back to the literal compile). */
+function compileKeyPattern(key: string, onCompileFailure?: (key: string, reason: string) => void): RegExp | null {
+  const { pattern, flags } = parseKeyPattern(key);
+  const complexity = keyPatternTooComplex(pattern);
+  if (complexity !== null) {
+    onCompileFailure?.(key, complexity);
+    return null;
+  }
+  try {
+    return new RegExp(pattern, flags);
+  } catch (err) {
+    onCompileFailure?.(key, err instanceof Error ? err.message : String(err));
+    return null;
+  }
+}
+
+/** How {@link matchEntryKeys} compiles an entry's keys. `keyMode` comes from {@link resolveEntryKeyMode} off
+ *  the entry's metadata; `onKeyCompileFailure` is the host's warn seam for a bad user-authored pattern (kit is
+ *  pure — the caller owns the logger, as it does for the regex executor's `onScriptFailure`). */
+export interface MatchEntryKeysOptions {
+  readonly keyMode?: EntryKeyMode | undefined;
+  readonly onKeyCompileFailure?: ((key: string, reason: string) => void) | undefined;
+}
+
+/** The keys of `keys` that match the (already lowercased) haystack. Empty array = no fire. Shared by the
+ *  server's keyword scan / WI-at-depth partition and (future) the client's live entry-key preview.
+ *
+ *  LITERAL mode (the default) folds + trims each key and returns the FOLDED spelling. REGEX mode
+ *  (a V3 `use_regex` entry) uses the key VERBATIM and returns it verbatim — folding a pattern would rewrite
+ *  its escapes (`\W` → `\w` inverts the class); case-insensitivity comes from the forced `i` flag instead. */
+export function matchEntryKeys(keys: readonly string[], haystack: string, options?: MatchEntryKeysOptions): string[] {
+  if (options?.keyMode === "regex") {
+    return keys.filter((key) => key.trim().length > 0 && keyRegex(key, "regex", options.onKeyCompileFailure).test(haystack));
+  }
   return keys.map((key) => key.trim().toLowerCase()).filter((key) => key.length > 0 && keyRegex(key).test(haystack));
 }
 

@@ -118,6 +118,14 @@ test("entryMetadataWriteSchema rejects a typo'd scopeMode at write time", () => 
   expect(entryMetadataWriteSchema.safeParse({ scopeMode: "alwyas" }).success).toBe(false);
 });
 
+test("keyMode is a typed metadata field — the V3 use_regex normalization (#266 D-2)", () => {
+  expect(entryMetadataSchema.parse({ keyMode: "regex" })).toEqual({ keyMode: "regex" });
+  expect(entryMetadataWriteSchema.safeParse({ keyMode: "literal" }).success).toBe(true);
+  // Absent ⇒ literal is the RESOLVER's default; the schema simply leaves the key off.
+  expect(entryMetadataSchema.parse({})).toEqual({});
+  expect(entryMetadataWriteSchema.safeParse({ keyMode: "rexeg" }).success).toBe(false);
+});
+
 // ── Type-level pins (compile-time; assertions keep them load-bearing) ───────
 test("EntryMetadata is the typed read shape (not Record<string, unknown>)", () => {
   const meta: EntryMetadata = { scopeMode: "always", inject: { depth: 4, role: "user" } };

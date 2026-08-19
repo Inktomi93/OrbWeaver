@@ -10,7 +10,7 @@ import type { InjectionPlacement } from "@orb/kit/injection";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
-import type { EntryPosition } from "@orb/kit/world-info";
+import type { EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
@@ -76,6 +76,9 @@ export interface AssembleWorldEntry {
   source: "character" | "chat";
   /** Which ALWAYS-scope system-half anchor bucket this joins (ST worldInfoBefore/After). Defaults `before`. */
   position: EntryPosition;
+  /** How `keys` compile for the keyword scan — `regex` = the keys ARE patterns (a Character-Card-V3
+   *  `use_regex` entry, resolved off the stored metadata). Absent ⇒ `literal` (every key escaped). */
+  keyMode?: EntryKeyMode;
   /** WI-at-depth: when set, splice into the chat HISTORY at this placement instead of the system half. */
   inject?: InjectionPlacement | null;
 }

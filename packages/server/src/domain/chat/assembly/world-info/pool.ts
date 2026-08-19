@@ -11,7 +11,7 @@ import type { AssembleWorldEntry } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
-import { resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
+import { resolveEntryInjection, resolveEntryKeyMode, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
 
 interface WorldInfoPoolTarget {
@@ -62,6 +62,7 @@ function fromBookExpansion(row: BookExpansionRow, source: AssembleWorldEntry["so
     ignoreBudget: row.ignoreBudget ?? false,
     source,
     position: resolveEntryPosition(row.metadata),
+    keyMode: resolveEntryKeyMode(row.metadata),
     ...(inject !== null ? { inject } : {}),
   };
 }
