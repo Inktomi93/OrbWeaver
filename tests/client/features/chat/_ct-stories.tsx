@@ -101,6 +101,7 @@ import { ChatDocumentsSection } from "../../../../packages/client/src/features/c
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu.tsx";
+import { ChatRecallIndicator } from "../../../../packages/client/src/features/chat/components/chat-recall-indicator.tsx";
 import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header.tsx";
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider.tsx";
 import { CommittedMembersTab } from "../../../../packages/client/src/features/chat/components/committed-members-tab.tsx";
@@ -762,6 +763,30 @@ export function GhostRowStory(): ReactElement {
         }}
       >
         complete
+      </button>
+    </div>
+  );
+}
+
+const RECALL_CHAT_ID = castId<ChatId>("chat_ct_recall_0001");
+
+/** The header memory-recall brain-icon (#313) driven through its three states via the real `chatStream`
+ *  recall axis (the `GhostRowStory` precedent — bus-store drivers, no SSE round-trip). `viewerIsHost={false}`
+ *  keeps the popover to its always-present live summary (no host-only `previewAssembly` read), so the mount
+ *  needs no data layer. The CT clicks a phase button, then the trigger, and asserts the summary copy per state
+ *  plus the pulsing-vs-static `data-recall-phase` on the trigger. */
+export function RecallIndicatorStory(): ReactElement {
+  return (
+    <div style={{ width: 260 }}>
+      <ChatRecallIndicator chatId={RECALL_CHAT_ID} viewerIsHost={false} />
+      <button type="button" data-testid="recall-idle" onClick={(): void => chatStream.resetRecall(RECALL_CHAT_ID)}>
+        idle
+      </button>
+      <button type="button" data-testid="recall-recalling" onClick={(): void => chatStream.setRecallPhase(RECALL_CHAT_ID, "recalling", null)}>
+        recalling
+      </button>
+      <button type="button" data-testid="recall-recalled" onClick={(): void => chatStream.setRecallPhase(RECALL_CHAT_ID, "recalled", 3)}>
+        recalled
       </button>
     </div>
   );

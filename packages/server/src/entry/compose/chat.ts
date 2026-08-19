@@ -1164,6 +1164,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     log: (entry) => recordMemoryLog(entry),
     // #250 — absent recorder ⇒ the field stays unset ⇒ recall's `ctx.recordRecall?.()` is a no-op.
     ...(input.recallRecorder !== undefined ? { recordRecall: input.recallRecorder.sink } : {}),
+    // #313 — the header brain-icon's live feed: recall (`recall/recall.ts`) BUILDS the `memoryRecall` event
+    // (the domain owns its bus literal, the `turnStarted` precedent); this only fans it on the LIVE-ONLY lane
+    // (ephemeral per-turn state, never persisted). The room-public payload carries only the count — the digest
+    // detail stays host-only (the popover reads the assembly preview for it).
+    emitRecallPhase: input.emitChatEventLive,
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.

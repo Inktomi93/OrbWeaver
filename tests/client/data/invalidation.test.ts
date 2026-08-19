@@ -123,6 +123,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   reasoningStreamDone: [],
   turnAccepted: [], // slot-open signal only (opens the pending slot); nothing durable changed
   turnStarted: [],
+  memoryRecall: [], // #313 — a transient store-axis feed for the header brain-icon; nothing durable changed
   warning: [],
   worldInfoActivated: [], // per-turn trace; no query reads it
   // The canon-TERMINAL commits (messageCommitted/turnCompleted) refetch the OPEN chat's CANON only — the chat

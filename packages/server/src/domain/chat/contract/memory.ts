@@ -11,7 +11,7 @@
 // `__group__${chatId}` for solo/merged/narrator / a per-witnessing cast char under scoped; NO `''` sentinel,
 // NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
 
-import type { BackfillPassResult, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
+import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -208,6 +208,20 @@ export interface MemoryRecallFilter {
  *  never throw into the turn path. Absent ⇒ nothing records (a hand-built ctx / a unit test), and recall is
  *  byte-identical either way. */
 export type MemoryRecallSink = (record: Omit<MemoryRecallRecord, "seq" | "at">) => void;
+
+/** The `memoryRecall` bus member itself (#313) — the domain CONSTRUCTS this literal (the `turnStarted`
+ *  precedent: `domain/chat/engine` builds its own bus events), so the bus-coverage gate finds the emit in
+ *  domain scope, not in compose wiring. */
+export type MemoryRecallBusEvent = Extract<ChatBusEvent, { type: "memoryRecall" }>;
+
+/** The injected recall-PHASE emitter (`ChatContext.emitRecallPhase`, #313) — the live feed the header
+ *  brain-icon reflects. Fired at the SINGLE recall convergence (`recall/recall.ts`): `"recalling"` (count
+ *  null) the instant recall begins for a turn with memory ON, `"recalled"` (the surfaced count) once it
+ *  closes. `recall/recall.ts` builds the `{ type: "memoryRecall", … }` event; compose wires this straight to
+ *  the LIVE-ONLY `emitChatEventLive` fan. Synchronous, side-effect-only, never throws into the turn path;
+ *  absent (a hand-built ctx / a unit test) ⇒ recall is byte-identical. Memory OFF fires NEITHER phase — an
+ *  absent event is the idle icon, never a lying "recalled 0". */
+export type MemoryRecallPhaseEmitter = (event: MemoryRecallBusEvent) => void;
 
 /** The compose singleton (`memory/recall/recorder.ts` builds ONE): the injected {@link MemoryRecallSink} plus
  *  the host-only ring read `/api/_debug/memory/recalls` tails. */

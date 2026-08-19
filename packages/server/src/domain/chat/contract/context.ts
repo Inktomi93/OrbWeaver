@@ -59,7 +59,7 @@ import type { AuditEntry } from "#foundation/observability";
 import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { ResolveForeignInputsOp } from "./foreign.ts";
-import type { MemoryLog, MemoryRecallSink } from "./memory.ts";
+import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
@@ -1122,6 +1122,10 @@ export interface ChatContext {
    *  compose-built recorder and read host-only at `/api/_debug/memory/recalls`. OPTIONAL: absent (a
    *  hand-built ctx, a unit test) ⇒ nothing records and recall is byte-identical. */
   readonly recordRecall?: MemoryRecallSink;
+  /** The recall-PHASE emitter (#313) — the live feed the header brain-icon reflects (recalling → recalled:N).
+   *  OPTIONAL: absent (a hand-built ctx, a unit test) ⇒ nothing emits and recall is byte-identical. Wired at
+   *  compose to the LIVE-ONLY `memoryRecall` bus member. */
+  readonly emitRecallPhase?: MemoryRecallPhaseEmitter;
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;
   readonly resolvePromptVariables: ResolvePromptVariablesOp;

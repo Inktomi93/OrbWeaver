@@ -35,6 +35,8 @@ interface Harness {
   readonly abortTurn: ReturnType<typeof vi.fn<typeof chatStream.abortTurn>>;
   readonly notifyUserMessageCommitted: ReturnType<typeof vi.fn<typeof chatStream.notifyUserMessageCommitted>>;
   readonly markCommitted: ReturnType<typeof vi.fn<typeof chatStream.markCommitted>>;
+  readonly setRecallPhase: ReturnType<typeof vi.fn<typeof chatStream.setRecallPhase>>;
+  readonly resetRecall: ReturnType<typeof vi.fn<typeof chatStream.resetRecall>>;
   /** Latest slot snapshot for `chatId`, updated via a real `subscribeTurnSlot`. */
   readonly slotOf: (chatId: ChatId) => TurnSlot | undefined;
   readonly unsub: () => void;
@@ -53,6 +55,8 @@ function harness(chatIds: readonly ChatId[]): Harness {
   const abortTurn = vi.fn(chatStream.abortTurn);
   const notifyUserMessageCommitted = vi.fn(chatStream.notifyUserMessageCommitted);
   const markCommitted = vi.fn(chatStream.markCommitted);
+  const setRecallPhase = vi.fn(chatStream.setRecallPhase);
+  const resetRecall = vi.fn(chatStream.resetRecall);
   const invalidate = vi.fn((_event: ChatBusEvent): void => undefined);
   const onWarning = vi.fn((_code: ChatWarningCode, _chatId: ChatId): void => undefined);
   const onChatDeleted = vi.fn((_chatId: ChatId): void => undefined);
@@ -64,6 +68,8 @@ function harness(chatIds: readonly ChatId[]): Harness {
       abortTurn,
       notifyUserMessageCommitted,
       markCommitted,
+      setRecallPhase,
+      resetRecall,
       // The reducer never calls this (markStopping is the ONE component-callable exception — see
       // state/chat-stream.ts's header) but `ChatBusDeps.stream` is typed as the full `ChatStreamApi`,
       // so the harness literal needs the field to satisfy the type. Real impl, unused by this suite.
@@ -84,6 +90,8 @@ function harness(chatIds: readonly ChatId[]): Harness {
     abortTurn,
     notifyUserMessageCommitted,
     markCommitted,
+    setRecallPhase,
+    resetRecall,
     slotOf: (chatId): TurnSlot | undefined => slots.get(chatId),
     unsub: (): void => {
       for (const u of unsubs) {
@@ -192,6 +200,34 @@ describe("applyChatBusEvent — stream-transient events", () => {
       targetMessageId: null,
     });
     expect(h.slotOf(chatId)).toMatchObject({ phase: "pending", intent: "send", speakerCharacterId: null });
+    // #313 — a new turn clears the recall axis to idle BEFORE its pre-provider recall fires, so a memory-OFF
+    // turn never shows the prior turn's stale count.
+    expect(h.resetRecall).toHaveBeenCalledExactlyOnceWith(chatId);
+    expect(h.invalidate).not.toHaveBeenCalled();
+    h.unsub();
+  });
+
+  test("memoryRecall recalling → stream.setRecallPhase(recalling); no reset, no invalidate (#313)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+
+    applyChatBusEvent({ type: "memoryRecall", chatId, phase: "recalling", count: null }, h.deps);
+
+    expect(h.setRecallPhase).toHaveBeenCalledExactlyOnceWith(chatId, "recalling", null);
+    // Only turnAccepted resets — a phase event never clears the axis it is populating.
+    expect(h.resetRecall).not.toHaveBeenCalled();
+    expect(h.beginTurn).not.toHaveBeenCalled();
+    expect(h.invalidate).not.toHaveBeenCalled();
+    h.unsub();
+  });
+
+  test("memoryRecall recalled → stream.setRecallPhase(recalled, count); no invalidate (#313)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+
+    applyChatBusEvent({ type: "memoryRecall", chatId, phase: "recalled", count: 3 }, h.deps);
+
+    expect(h.setRecallPhase).toHaveBeenCalledExactlyOnceWith(chatId, "recalled", 3);
     expect(h.invalidate).not.toHaveBeenCalled();
     h.unsub();
   });
@@ -378,11 +414,11 @@ describe("applyChatBusEvent — messageCommitted clear-on-commit signal", () => 
 // "canon" by construction, so a newly-added `ChatBusEvent` member automatically gets a generated test
 // here (and fails `buildCanonEvent`'s exhaustive switch below at compile time until taught its shape).
 
-const STREAM_TRANSIENT = new Set(["delta", "turnAccepted", "turnStarted", "reasoningStreamDone", "warning", "turnCompleted", "turnAborted"]);
+const STREAM_TRANSIENT = new Set(["delta", "turnAccepted", "turnStarted", "memoryRecall", "reasoningStreamDone", "warning", "turnCompleted", "turnAborted"]);
 
 type CanonEventType = Exclude<
   ChatBusEvent["type"],
-  "delta" | "turnAccepted" | "turnStarted" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted"
+  "delta" | "turnAccepted" | "turnStarted" | "memoryRecall" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted"
 >;
 
 function assertNeverCanon(value: never): never {
