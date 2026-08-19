@@ -35,7 +35,7 @@ tiers.
 | `security-executor` | anything security-sensitive (authn/authz, secrets, crypto, validation, CSRF, hardening) — never in the main session, never on Fable |
 | `verifier` | fresh-context CODE-correctness check (logic, tests, edge cases, trust boundaries) before reporting non-trivial work done |
 | `side-eye` | fresh-context UX / visual / a11y check of anything a user SEES — the other verification lens |
-| `stickler` | fresh-context frontier-tier review of a substantial diff/branch before merge — finds defects nobody claimed anything about; expensive by design, trivial diffs go to `verifier` |
+| `stickler` | fresh-context FRONTIER-TIER analysis: substantial diff/branch review before merge, AND deep investigation/research assignments (owner scope 2026-08-19); expensive by design, trivial diffs go to `verifier`; security-DOMINANT work still routes to `security-executor` (never Fable) |
 
 **Two verification lenses — route by what changed:** logic / data / server → `verifier`; UI / rendered /
 a11y → `side-eye`; both if the change spans both.
