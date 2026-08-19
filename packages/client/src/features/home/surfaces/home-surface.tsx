@@ -31,6 +31,29 @@
 // last shelf tile beside the doorway group), because positional is the only thing a host that imports zero
 // features can honestly say, and it is the same presentation license the doorway grouping already takes.
 //
+// …AND THE RAIL IS WHAT DECIDED THE PAGE'S HEIGHT (#226, owner-ruled "no shell game — self-balance by
+// construction"). The two columns' feet did not line up, and WHICH ONE ended short CHANGED SIDES with the
+// pane, so every "move tile X across" fix helps one end of the range and worsens the other. The cause is
+// not the tile assignment: the HEARTH is ~780px tall at every width, and the whole swing is the SHELF's
+// own width-driven reflow — its `cellFixed` face shelf goes 3-per-row at a narrow rail and 6-per-row at a
+// wide one, and its footnote pair stacks below the >=100rem pane the subgrid needs. So the shelf was
+// paying for a track sized as a companion while carrying content that answers to width.
+// `cols="leadEven"` is `lead` with its wide-pane breath taken to EVEN tracks — the rail gets the width its
+// grids need, and the columns end level without either column being padded or a tile being moved.
+// MEASURED (tests/client/features/home/surfaces/home-column-balance.ct.tsx, the 4 widths x 3 appearance
+// arms this shipped against): 1920 defaults 180px -> 11px, 1920 compact 192px -> 3px, 2560 reading
+// 228px -> 11px, and the 2560 flip is gone.
+//
+// WHAT IS NOT FIXED, and why it is not budgeted away: below a 100rem pane (1280/1440, and 1920 on the
+// reading arm, where `--font-scale` makes 100rem a 2000px pane) the shelf's foot CANNOT go 2-up and its
+// face shelf CANNOT gain a column, so the shelf is structurally ~370px taller than the hearth and no
+// track ratio closes it (measured: 368px -> 313px at best across a seven-ratio sweep). The two costed
+// padding arms were both measured and both refused: distributing that slack into the short column's two
+// gaps means 208px gaps on the defaults arm and 385px on reading, against a 24px section rhythm — three
+// kicker bands that far apart stop reading as one column; and growing the short column's LAST block means
+// the 91px section-jump grid becoming a 460px one. The narrow-pane residual is an open owner fork
+// recorded on #226, not a silent budget.
+//
 // ZERO tiles ⇒ ONE designed empty state (never a blank surface). The Weave decoration rides HERE and only
 // here — at most one per screen (section-placeholder.tsx); every other surface keeps the muted sparkle.
 
@@ -118,7 +141,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
               ))}
               {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
-              <Grid className="items-start" cols="lead" data-home-grid={true} gap="gutter">
+              <Grid className="items-start" cols="leadEven" data-home-grid={true} gap="gutter">
                 {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
                     so each track is floored at its content's min-content width — and the hero's own
                     min-content (a 64px cast strip + a headline + a cast/age line) is ~743px, which silently

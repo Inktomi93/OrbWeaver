@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
+import { ChatRecentsHeroArtStory, ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
 const RECENT = makeChatSummary({ id: "chat_recent", title: "A grand adventure", participantNames: ["Wren"], participantCharacterIds: ["char_wren"] });
@@ -381,10 +381,12 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 // just now'"). Nothing on this tile composes a relative time any more.
 //
 // The #147 HERO arm ("the cast strip is born at its settled width") went the same way: its subject was the
-// strip, and the tile body no longer issues the `character.list` read at all — the arm's own `trpcHold`
-// barrier could never resolve, which is exactly how a test outlives its defect. The row twin below still
-// pins the mechanism where portraits are still read. The hero's half is now the count assertion in the
-// `P2-6` test above: zero avatar stacks, so there is nothing left that can arrive late and shove a column.
+// STRIP, which is still deleted. (The body does issue `character.list` again as of #205 — the shared
+// non-blocking read now feeds the hero's aria-hidden art BLEED — but nothing about that read can move a
+// text column: the bleed is absolutely positioned decoration, so a late arrival paints, it never pushes.
+// The `#205 … no ink over art` geometry test below is what keeps that true.) The row twin below still pins
+// the mechanism where portraits are read into LAYOUT. The hero's half is the count assertion in the `P2-6`
+// test above: zero avatar stacks, so there is nothing left that can arrive late and shove a column.
 
 // ── RED-FIRST (#147, the row twin): a list row's leading slot is sized by the SEAT COUNT ───────────────
 // Same defect one weight down: an also-open row rendered ONE 32px initials blob while the character read was
@@ -415,4 +417,88 @@ test("an empty chats list renders a TEACHING empty state with an action, not a b
 
   await expect(tile.getByText("No chats yet")).toBeVisible();
   await expect(tile.getByRole("button", { name: "New chat" })).toBeVisible();
+});
+
+// ── #205 THE HERO'S ART BLEED (owner-ruled 2026-08-18: "Hero gets its room's art") ────────────────────
+// The landing's one focal island had no chroma, so the character photo grid across the shelf won every
+// cold eye. The room's own portrait now bleeds in from the island's inline END and dissolves before it
+// reaches any ink. What these pin is the part that is a PROMISE rather than a picture: that the bleed is
+// decoration to AT, that it carries no cast datum (the P2-5/P2-6 fact-once ruling this island was rebuilt
+// under), and that the "faded to clean surface before the prose" half is GEOMETRY — the band starts where
+// the content column is capped, so nothing has to be trusted about a gradient's alpha.
+
+/** A library whose seats HAVE portraits — without a hash the hero has nothing to bleed and every art
+ *  assertion would pass vacuously against a room that simply has no art. */
+const CHARACTERS_WITH_ART = {
+  items: [
+    { id: "char_wren", name: "Wren", avatarHash: "hash_wren_portrait" },
+    { id: "char_calamity", name: "Calamity, Doomblade of the Ninth Epoch", avatarHash: "hash_calamity_portrait" },
+    { id: "char_morgatha", name: "Morgatha, the Undying Dark", avatarHash: null },
+  ],
+};
+/** The FIRST seat's hash — the room's art is its first seat that has one, the same "one room, one face"
+ *  rule the shared summary row applies to a single-avatar chat. */
+const FIRST_SEAT_HASH = /hash_calamity_portrait/u;
+
+test("#205 the hero wears its room's art as a bleed — and it is DECORATION: aria-hidden, no cast datum", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS_WITH_ART });
+
+  const home = await mount(<ChatRecentsHeroArtStory />);
+  const art = home.locator('[data-slot="art-bleed"]');
+  await expect(art).toHaveCount(1);
+  // It paints the ROOM's art, not a placeholder — the first seat that has a portrait.
+  await expect(art).toHaveCSS("background-image", FIRST_SEAT_HASH);
+  // …and it is invisible to AT: no role, no name, and the island's own name is still the VERB it was
+  // rebuilt to be (side-eye F5 — a held-under-attack pin this change must not regress).
+  await expect(art).toHaveAttribute("aria-hidden", "true");
+  await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
+  // The strip P2-5 deleted is still deleted: the bleed restores CHROMA, never a second cast rendering.
+  await expect(home.locator('[data-slot="avatar-stack-item"]')).toHaveCount(0);
+  await expect(home.getByText(SHORT_CAST_LINE)).toHaveCount(1);
+});
+
+test("#205 the bleed starts where the prose stops — NO ink over art, at either width", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS_WITH_ART });
+
+  const home = await mount(<ChatRecentsHeroArtStory />);
+  await expect(home.locator('[data-slot="art-bleed"]')).toBeAttached();
+
+  // Every ink inside the island, measured against the band's own start edge. This is the whole legibility
+  // argument: no plate is invoked because no text sits on art, and that is only true if it is TRUE.
+  const overlap = await home.locator('[data-home-hearth="chat_long"]').evaluate((island) => {
+    const band = island.querySelector('[data-slot="art-bleed"]')?.getBoundingClientRect();
+    const inks = [...island.querySelectorAll("span,p")]
+      .map((el) => ({ text: (el.textContent ?? "").trim().slice(0, 24), right: el.getBoundingClientRect().right }))
+      .filter((ink) => ink.text.length > 0);
+    return {
+      bandLeft: band?.left ?? 0,
+      bandWidth: band?.width ?? 0,
+      worst: inks.reduce((max, ink) => (ink.right > max.right ? ink : max), { text: "", right: 0 }),
+    };
+  });
+  // The band is REAL at a desktop width (a zero-width band would make the assertion below vacuous).
+  expect(overlap.bandWidth).toBeGreaterThan(0);
+  // Sub-pixel tolerance only: the trailing "Resume →" hint ends AT the measure, which is the band's start.
+  expect(overlap.worst.right, `"${overlap.worst.text}" runs into the art band`).toBeLessThanOrEqual(overlap.bandLeft + 1);
+});
+
+test("#205 a room whose cast has NO portrait renders no band at all — never an empty art slot", async ({ mount, page }) => {
+  // `CHARACTERS` is the same library with every `avatarHash` null.
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS });
+
+  const home = await mount(<ChatRecentsHeroArtStory />);
+  await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
+  await expect(home.locator('[data-slot="art-bleed"]')).toHaveCount(0);
+});
+
+test("#205 a NARROW island keeps its whole width for the prose — the bleed is desktop hierarchy, by geometry", async ({ mount, page }) => {
+  // The 720px story pane, i.e. the arm the ruling calls "mobile untouched". There is no media query doing
+  // this: `inset-inline-start: min(100%, var(--reading-measure))` collapses the band the moment the island
+  // is narrower than the measure, so the phone arm and the docked-narrow arm are the same guarantee.
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS_WITH_ART });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
+  const width = await home.locator('[data-slot="art-bleed"]').evaluate((el) => el.getBoundingClientRect().width);
+  expect(width).toBe(0);
 });
