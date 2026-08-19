@@ -55,7 +55,7 @@ export {
 export { fetchEngineMaxModelLen } from "./gen-window.ts";
 export { countGpus, detectGpu } from "./gpu.ts";
 export { sniffMime, toDataUri } from "./image.ts";
-export { findOrphanedFamily, makeCwdMarker, parsePsRows, reapOrphanedFamily } from "./reaper.ts";
+export { findOrphanedFamily, liveListenerPids, makeCwdMarker, parsePsRows, reapOrphanedFamily, reapTargets } from "./reaper.ts";
 export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine.ts";
 export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine.ts";
 export {

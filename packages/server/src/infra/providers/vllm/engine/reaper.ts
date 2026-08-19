@@ -14,10 +14,26 @@
 //
 // PURE core (`findOrphanedFamily`) with the /proc read + cmdline injected, so it's unit-testable; the I/O
 // shell (`reapOrphanedFamily`) does the ps read + SIGKILL.
+//
+// LIVENESS GATE (the whole-fleet-reboot fix). Under OWNERSHIP INVERSION (A.4) a HEALTHY detached engine is
+// nobody's child: its launcher exits and the `vllm serve` APIServer re-parents to `systemd --user` (cwd
+// `/`). So a live engine matches the cwd-orphan predicate above exactly like a real corpse does — its argv
+// carries `vllm serve`, its own cwd IS the repo root, its parent's cwd is not. A blind reap therefore
+// SIGKILLs the healthy siblings on any PARTIAL-down reconcile: an admin "restart gen" drops gen's port →
+// `engines.sh start` runs reconcile (do_start reconciles only when the fleet is not fully healthy) AND the
+// supervisor's queued-spawn reaps → embed+rerank get killed → the launcher then re-boots all three. That is
+// the "restart ONE engine boots the WHOLE fleet" symptom, and it also fires on any single-engine crash
+// recovery. The one thing a corpse cannot fake is LIVENESS: a live engine is the LISTENER of a loopback
+// port that answers /health. `reapTargets` drops any orphan candidate that is a live listener; corpses,
+// duplicate-fleet losers (they never won the port bind, so they are not the listener) and hung engines (the
+// port does not answer) are NOT the healthy listener and are still reaped. Cold boot has no healthy ports →
+// the protected set is empty → byte-identical to the pre-gate behavior.
 
 import { execFile } from "node:child_process";
 import { readlinkSync } from "node:fs";
 import process from "node:process";
+import { engineBaseUrl } from "./engine-url.ts";
+import { VLLM_ENGINES } from "./engines.ts";
 
 // The engine process family, by a marker substring in the process cmdline. `EngineCore` + `Worker_TP` are
 // vLLM's multiproc worker names; `vllm serve` (the APIServer's own argv) is the parent — included so a
@@ -75,14 +91,81 @@ export function makeCwdMarker(root: string): (pid: number) => boolean {
   };
 }
 
-/** Reap orphaned engine-family processes rooted at `repoRoot`: ps read → cwd-equality family match → SIGKILL.
- *  Returns the pids reaped. Never throws (a race-gone pid is swallowed). */
-export async function reapOrphanedFamily(repoRoot: string): Promise<number[]> {
+const SS_PID_RE = /pid=(\d+)/;
+const HEALTH_TIMEOUT_MS = 2000;
+
+/** The LISTENER pids for a set of ports, parsed from `ss -tlnp` output. Only ports in `ports` are consulted;
+ *  a line for `:<port> ` yields the `pid=<n>` it advertises. This is the process that WON the socket bind —
+ *  a duplicate-fleet loser never appears here (it lost the bind), so it stays reapable. */
+export function liveListenerPids(ssOutput: string, ports: ReadonlySet<string>): number[] {
+  const pids: number[] = [];
+  for (const line of ssOutput.split("\n")) {
+    for (const port of ports) {
+      if (!line.includes(`:${port} `)) {
+        continue;
+      }
+      const m = SS_PID_RE.exec(line);
+      if (m !== null) {
+        pids.push(Number(m[1]));
+      }
+    }
+  }
+  return pids;
+}
+
+/** The pids to actually SIGKILL: the cwd-orphan candidates minus any that is a LIVE engine listener. A live
+ *  detached engine matches the orphan predicate (re-parented to systemd) but must never be reaped; its
+ *  presence in `liveEnginePids` (the healthy-port listeners) is the discriminator from a real corpse. */
+export function reapTargets(psOutput: string, hasOurMarker: (pid: number) => boolean, liveEnginePids: ReadonlySet<number>): number[] {
+  return findOrphanedFamily(psOutput, hasOurMarker).filter((pid) => !liveEnginePids.has(pid));
+}
+
+/** One /health probe — a healthy answer means the port's listener is a LIVE engine, not a corpse. */
+async function portHealthy(port: string): Promise<boolean> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** The default liveness resolver: probe every engine's loopback port; for the ports that answer /health,
+ *  read the bound listener pid via `ss -tlnp`. Those pids are LIVE detached engines that must be spared. */
+async function defaultLiveEnginePids(): Promise<Set<number>> {
+  const healthyPorts = new Set<string>();
+  await Promise.all(
+    VLLM_ENGINES.map(async (engine) => {
+      const port = new URL(engineBaseUrl(engine)).port;
+      if (await portHealthy(port)) {
+        healthyPorts.add(port);
+      }
+    }),
+  );
+  if (healthyPorts.size === 0) {
+    return new Set();
+  }
+  const ss = await new Promise<string>((resolve) => {
+    execFile("ss", ["-tlnp"], (err, stdout) => resolve(err ? "" : stdout));
+  });
+  return new Set(liveListenerPids(ss, healthyPorts));
+}
+
+/** Reap orphaned engine-family processes rooted at `repoRoot`: ps read → cwd-equality family match → drop the
+ *  live engine listeners (the liveness gate) → SIGKILL the rest. Returns the pids reaped. Never throws (a
+ *  race-gone pid is swallowed). `liveEnginePids` is injected in tests so the gate is exercised without a real
+ *  fleet; it defaults to probing the loopback ports. */
+export async function reapOrphanedFamily(repoRoot: string, liveEnginePids: () => Promise<Set<number>> = defaultLiveEnginePids): Promise<number[]> {
   const ps = await new Promise<string>((resolve) => {
     execFile("ps", ["-eo", "pid=,ppid=,args="], (err, stdout) => resolve(err ? "" : stdout));
   });
+  const marker = makeCwdMarker(repoRoot);
+  if (findOrphanedFamily(ps, marker).length === 0) {
+    return []; // no orphan candidates → skip the liveness probe I/O entirely (the common no-corpse case)
+  }
+  const spared = await liveEnginePids();
   const reaped: number[] = [];
-  for (const pid of findOrphanedFamily(ps, makeCwdMarker(repoRoot))) {
+  for (const pid of reapTargets(ps, marker, spared)) {
     try {
       process.kill(pid, "SIGKILL");
       reaped.push(pid);
