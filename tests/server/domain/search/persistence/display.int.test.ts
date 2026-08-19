@@ -3,13 +3,37 @@
 // join); a card with no avatar yields a null hash; and the enrichment is owner-scoped (a crafted id list
 // can't read another owner's card).
 
-import type { Handle } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { resolveCharacterDisplay } from "../../../../../packages/server/src/domain/search/persistence/display.ts";
+import { resolveCharacterDisplay, resolveChatDisplay } from "../../../../../packages/server/src/domain/search/persistence/display.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedAsset, seedCharacter, seedCharacterSummary, seedUser } from "../_support.ts";
+import { seedAsset, seedCharacter, seedCharacterSummary, seedChat, seedUser } from "../_support.ts";
+
+describe("resolveChatDisplay", () => {
+  test("returns the authored title, normalizes an unnamed room to null, and skips ids that vanished", async () => {
+    const db = await freshDb();
+    const named = await seedChat(db, "chat_named", "Amethyst Hollow");
+    const blank = await seedChat(db, "chat_blank", "   ");
+    const never = await seedChat(db, "chat_never");
+
+    const rows = await resolveChatDisplay(db, [named, blank, never, castId<ChatId>("chat_gone")]);
+    const byId = new Map(rows.map((r) => [r.chatId, r.title]));
+    expect(byId.get(named)).toBe("Amethyst Hollow");
+    // A whitespace-only or NULL title is "unnamed" — the client's chain reaches its cast rung either way,
+    // and a `?? "Untitled chat"` on the raw column would have rendered a blank line for the first case.
+    expect(byId.get(blank)).toBeNull();
+    expect(byId.get(never)).toBeNull();
+    // A chat deleted between the scan and the display join is simply absent, never a fabricated row.
+    expect(rows).toHaveLength(3);
+  });
+
+  test("an empty id list never touches the database", async () => {
+    const db = await freshDb();
+    expect(await resolveChatDisplay(db, [])).toEqual([]);
+  });
+});
 
 describe("resolveCharacterDisplay", () => {
   test("enriches with summary facets + the avatar CAS hash", async () => {

@@ -7,7 +7,7 @@
 // limitation with corpus).
 
 import type { ReadOnlyDb } from "@orb/db";
-import { assets, characterSummaries, characters, chatDigestSpeakers, chatDigests } from "@orb/db";
+import { assets, characterSummaries, characters, chatDigestSpeakers, chatDigests, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, or } from "drizzle-orm";
 
@@ -39,6 +39,34 @@ export async function resolveCharacterDisplay(db: ReadOnlyDb, ownerId: UserId, c
     .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
     .where(and(eq(characters.ownerId, ownerId), inArray(characters.id, [...characterIds])));
   return rows;
+}
+
+/** A room's own name, for a hit that came out of it. Title only — the CAST rung of the display chain is
+ *  supplied by the hit itself (its scoped/credited character), so this join never reads `chat_participants`. */
+interface ChatDisplayRow {
+  readonly chatId: ChatId;
+  readonly title: string | null;
+}
+
+/**
+ * The authored titles of the chats a set of hits came from, for the row subtitle (corpus forensics R1a).
+ *
+ * SCOPE: the caller passes ids that ALREADY came out of an owner-belted scan (the digest scan's
+ * characters-join belt, or discover's owned-chat set), so this is a display join over ids the principal has
+ * been served, never a lookup that could name a stranger's room — `chats` carries no ownerId to belt against
+ * (D18: membership is the scope) and a second membership read here would re-answer a question the scan
+ * already answered. An unnamed room stores `""` as often as NULL, so the empty string normalizes to null and
+ * the client's ONE title chain (`deriveChatTitle`) decides what an unnamed room reads as.
+ */
+export async function resolveChatDisplay(db: ReadOnlyDb, chatIds: readonly ChatId[]): Promise<ChatDisplayRow[]> {
+  if (chatIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ chatId: chats.id, title: chats.title })
+    .from(chats)
+    .where(inArray(chats.id, [...chatIds]));
+  return rows.map((r) => ({ chatId: r.chatId, title: (r.title ?? "").trim() === "" ? null : r.title }));
 }
 
 interface SegmentCredit {

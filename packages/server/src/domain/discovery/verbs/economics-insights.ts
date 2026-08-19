@@ -26,11 +26,37 @@ export function createEconomicsInsights(ctx: DiscoveryContext): Pick<DiscoverySe
   };
 }
 
+/** Milliseconds in a day — the unit `daysQuiet` is expressed in, so the log's shape is human-readable. */
+const DAY_MS = 86_400_000;
+
 /**
- * The owner's revisit candidates — characters with real INVESTED message volume, ranked by that volume then
- * by staleness (most-messages first, then longest-quiet first). The SEMANTIC ranking (count + recency) is
- * discovery's; the `tokensOut`/`costUsd` come from the injected per-character economics op (never a raw
- * `messages` SUM). Characters with no recorded economics default to zeros (the semantic signal still ranks).
+ * THE CONJUNCTION IS THE RANK (corpus forensics §6, R5). "Invested, BUT QUIET" is an AND, and it used to be
+ * a lexicographic sort — `messageCount` primary, `lastActiveAt` a tie-break — over a high-cardinality
+ * integer, so the second term was unreachable by construction: on the live library 20 of 20 gems had
+ * distinct message counts, the quiet axis contributed NOTHING, and the headline "forgotten gem" was the
+ * character the owner had played six hours earlier. The owner-picked mockup drew every tile reading
+ * "2w quiet", i.e. its data had the quiet axis doing visible work; this restores that, it does not invent it.
+ *
+ * `messageCount × log1p(daysQuiet)` multiplies rather than orders, so neither term can be starved by the
+ * other's cardinality: a huge, still-live character scores ~0 (it is not forgotten), and a tiny, ancient one
+ * cannot outrank a substantial one on age alone.
+ *
+ * NO CLOCK. `daysQuiet` is measured against the library's OWN newest activity, not `Date.now()` — discovery
+ * verbs are deterministic (D46) and an ambient clock here would make the shelf untestable and time-varying
+ * for identical data. The reference is the most recent `lastActiveAt` among the candidates, which is also the
+ * more truthful frame: "quiet compared with the rest of your library", not "quiet compared with this
+ * instant". The most-recently-played character has quiet = 0 and therefore scores 0, which is the point.
+ */
+function gemRank(messageCount: number, lastActiveAt: number, newestActiveAt: number): number {
+  const daysQuiet = Math.max(0, newestActiveAt - lastActiveAt) / DAY_MS;
+  return messageCount * Math.log1p(daysQuiet);
+}
+
+/**
+ * The owner's revisit candidates — characters that carry real INVESTED message volume AND have gone quiet,
+ * ranked by the conjunction of the two ({@link gemRank}). The SEMANTIC ranking is discovery's; the
+ * `tokensOut`/`costUsd` come from the injected per-character economics op (never a raw `messages` SUM).
+ * Characters with no recorded economics default to zeros (the semantic signal still ranks).
  */
 async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEFAULT_FORGOTTEN_GEMS_LIMIT): Promise<ForgottenGem[]> {
   const [candidates, economics] = await Promise.all([readForgottenGemCandidates(ctx.db, ownerId), ctx.characterEconomics(ownerId)]);
@@ -47,8 +73,15 @@ async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEF
       costUsd: econ?.costUsd ?? 0,
     };
   });
-  // Invested (high message volume) first; quiet (older last-active) breaks ties — a forgotten GEM.
-  gems.sort((a, b) => b.messageCount - a.messageCount || a.lastActiveAt - b.lastActiveAt);
+  const newestActiveAt = Math.max(...gems.map((g) => g.lastActiveAt), 0);
+  // Ties (identical rank — e.g. every candidate equally quiet) fall back to volume, then to a stable id
+  // order, so the same library always yields the same shelf.
+  gems.sort(
+    (a, b) =>
+      gemRank(b.messageCount, b.lastActiveAt, newestActiveAt) - gemRank(a.messageCount, a.lastActiveAt, newestActiveAt) ||
+      b.messageCount - a.messageCount ||
+      (a.characterId < b.characterId ? -1 : 1),
+  );
   return gems.slice(0, limit);
 }
 

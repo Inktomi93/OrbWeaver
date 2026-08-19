@@ -1,9 +1,32 @@
 // The corpus omnibox result renderer (the J10 heart) — runs `search.search` for the active target and
 // renders the discriminated result per branch. Characters/Scenes hits select a character into CONTENT;
 // the Scenes branch is the CHAT-SEARCH PREVIEW: each DiscoverCharacter's evidence segments are grouped
-// per chat so the user previews the matching moments before opening the dossier. Memories/Images hits are
-// read-only previews (a digest snippet + its chat, an avatar caption). The query is owner-scoped; the
-// image target rides the caption-aware lens. Rendered only while the omnibox has a query (parent-gated).
+// per chat so the user previews the matching moments before opening the dossier. The query is owner-scoped;
+// the image target rides the caption-aware lens. Rendered only while the omnibox has a query (parent-gated).
+//
+// ── A MEMORY IS A DOOR (corpus forensics 2026-08-18 §2, R1a) ───────────────────────────────────────────
+// The Memories row was a "read-only preview": a static div over a `chatId` the wire already carried, whose
+// subtitle was that id's last six characters. The retrieval underneath it is the best thing on this surface
+// (five for five on checkable queries), and the row threw away every way to act on it. It now OPENS the
+// room — `setActiveSection("chats")` + `selectChat`, the same two lines the notification bell uses — and
+// names it through the ONE title chain (`deriveChatTitle`: authored title → cast → "Untitled chat"), with
+// the digest's own scoped character as the cast rung.
+//
+// LANDING ON THE MESSAGE is deliberately NOT here. `MessageListHandle` exposes no scroll-to-index outside
+// pin-prompt mode, and a digest's `blockIdx` is an index into fixed-width BLOCKS of a chat's whole history,
+// which a paged transcript cannot address without the block size and the pages in between. Chat-level is the
+// honest v1; the moment-level landing belongs to the moment artifact.
+//
+// ── THE NUMBER GOES THE RIGHT WAY (§3, R2b) ────────────────────────────────────────────────────────────
+// The badge rendered `hit.score` — the server's CSLS-adjusted cosine DISTANCE, clamped at 0 — so every
+// genuinely relevant hit read `0.00` and only a nonsense query produced anything non-zero. It now reads
+// `hit.relevance` (`1 − distance`, higher = closer) as a percent. The ORDER is still the server's CSLS rank;
+// this seam only decides what the reader is shown, which is why there is exactly one of it in this file.
+//
+// NO `data-testid` ON A `ListRow`. Four of them sat here and reached the DOM in exactly one place: the
+// primitive builds its body from named props and forwards no rest props, so `data-testid` on a `<ListRow>`
+// is dropped silently. The rows are addressed by role + accessible name instead, which is also what a user
+// meets them as.
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { ChatId } from "@orb/kit/ids";
@@ -16,8 +39,8 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId } from "#lib";
-import { selectCorpusCharacter } from "#state";
+import { deriveChatTitle, testId } from "#lib";
+import { selectChat, selectCorpusCharacter, setActiveSection } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
@@ -28,8 +51,7 @@ type DiscoverSegment = DiscoverHit["segments"][number];
 type UnifiedOver = Extract<ReturnType<typeof resolveSearchTarget>, { kind: "unified" }>["over"];
 
 const SKELETON_ROW_COUNT = 5;
-const SCORE_PRECISION = 2;
-const CHAT_REF_LEN = 6;
+const PERCENT = 100;
 // The owner's cards up to the server's page CEILING — the lexical `fields` verb returns bare ids, so the
 // picker names them against this map. It asked for 200 and silently got 100 until 2026-08-09, so a hit on a
 // card past the hundredth rendered as a bare short ref; the ask is now the real bound and an over-bound one
@@ -130,7 +152,7 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
             genre={null}
             tone={null}
             pitch={null}
-            score={hit.score}
+            relevance={null}
           />
         );
       })}
@@ -164,7 +186,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
             genre={hit.genre}
             tone={hit.tone}
             pitch={hit.elevatorPitch}
-            score={hit.score}
+            relevance={hit.relevance}
           />
         ))}
       </>
@@ -186,8 +208,10 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
           <DigestHitRow
             key={`${hit.blockKey.chatId}-${hit.blockKey.tier}-${hit.blockKey.blockIdx}`}
             chatId={hit.blockKey.chatId}
+            chatTitle={hit.chatTitle}
+            scopedCharacterName={hit.scopedCharacterName}
             text={hit.text}
-            score={hit.score}
+            relevance={hit.relevance}
           />
         ))}
       </>
@@ -197,7 +221,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
     return (
       <>
         {data.hits.map((hit) => (
-          <ImageHitRow key={hit.assetId} caption={hit.caption} score={hit.score} />
+          <ImageHitRow key={hit.assetId} caption={hit.caption} relevance={hit.relevance} />
         ))}
       </>
     );
@@ -213,7 +237,7 @@ function CharacterHitRow({
   genre,
   tone,
   pitch,
-  score,
+  relevance,
 }: {
   readonly characterId: DiscoverHit["characterId"];
   readonly name: string;
@@ -221,40 +245,42 @@ function CharacterHitRow({
   readonly genre: string | null;
   readonly tone: string | null;
   readonly pitch: string | null;
-  readonly score: number;
+  /** null on the LEXICAL branch: BM25 is an unbounded per-query score, not a similarity, so there is no
+   *  honest percent to print for it — the rank order carries what a reader can use (R2a for that one arm). */
+  readonly relevance: number | null;
 }): ReactElement {
   const facet = characterFacetLine(genre, tone);
   const subtitle = pitch ?? (facet === "" ? "No pitch distilled" : facet);
   return (
     <ListRow
-      data-testid={testId("corpusSearchHit")}
       clickable={true}
       onClick={(): void => selectCorpusCharacter(characterId)}
       leading={<CharacterAvatar id={characterId} name={name} hash={avatarHash} />}
       title={name}
       subtitle={subtitle}
-      actions={<ScoreBadge score={score} />}
+      actions={relevance === null ? undefined : <RelevanceBadge relevance={relevance} />}
     />
   );
 }
 
-/** A lived-scene discovery hit — the character plus its per-chat evidence preview. */
+/** A lived-scene discovery hit — the character plus its per-chat evidence preview. Each evidence GROUP is a
+ *  room, so its header is that room's name and its own door (the same drill-through a memory hit carries). */
 function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
   const groups = groupByChat(hit.segments);
   return (
-    <Stack data-testid={testId("corpusSearchHit")} gap="field">
+    <Stack gap="field">
       <ListRow
         clickable={true}
         onClick={(): void => selectCorpusCharacter(hit.characterId)}
         leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
         title={hit.name}
         subtitle={`${hit.matchCount} matching moment${hit.matchCount === 1 ? "" : "s"}`}
-        actions={<ScoreBadge score={hit.score} />}
+        actions={<RelevanceBadge relevance={hit.relevance} />}
       />
       <Stack className="pl-gutter" gap="field" data-testid={testId("corpusDiscoverEvidence")}>
         {groups.map(([chatId, segments]) => (
           <Stack key={chatId} gap="field">
-            <Text voice="kicker">Chat {chatId.slice(-CHAT_REF_LEN)}</Text>
+            <ListRow clickable={true} onClick={(): void => openChat(chatId)} title={chatSubtitle(segments[0]?.chatTitle ?? null, hit.name)} />
             {segments.map((segment) => (
               <Text key={`${chatId}-${segment.blockIdx}`} voice="gloss">
                 “{segment.snippet}”
@@ -267,37 +293,62 @@ function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
   );
 }
 
-/** A memory (digest) hit — a snippet + which chat it came from. Read-only preview. */
-function DigestHitRow({ chatId, text, score }: { readonly chatId: ChatId; readonly text: string; readonly score: number }): ReactElement {
+/** A memory (digest) hit — the memory, the room it happened in, and the door into that room. */
+function DigestHitRow({
+  chatId,
+  chatTitle,
+  scopedCharacterName,
+  text,
+  relevance,
+}: {
+  readonly chatId: ChatId;
+  readonly chatTitle: string | null;
+  readonly scopedCharacterName: string | null;
+  readonly text: string;
+  readonly relevance: number;
+}): ReactElement {
   return (
     <ListRow
-      data-testid={testId("corpusSearchHit")}
+      clickable={true}
+      onClick={(): void => openChat(chatId)}
       leading={<Icon icon={MessagesSquare} size="sm" />}
       title={text}
-      subtitle={`Chat ${chatId.slice(-CHAT_REF_LEN)}`}
-      actions={<ScoreBadge score={score} />}
+      subtitle={chatSubtitle(chatTitle, scopedCharacterName)}
+      actions={<RelevanceBadge relevance={relevance} />}
     />
   );
 }
 
-/** An avatar caption hit — read-only preview. */
-function ImageHitRow({ caption, score }: { readonly caption: string | null; readonly score: number }): ReactElement {
-  return (
-    <ListRow
-      data-testid={testId("corpusSearchHit")}
-      leading={<Icon icon={Images} size="sm" />}
-      title={caption ?? "Uncaptioned avatar"}
-      actions={<ScoreBadge score={score} />}
-    />
-  );
+/** An avatar caption hit. No destination exists for an image yet — `ImageSearchHit` carries no asset hash
+ *  and no owning character, so a click would have nowhere to go and the row stays a preview (the family-map
+ *  precedent: a plate becomes a door when there is somewhere to land, not before). */
+function ImageHitRow({ caption, relevance }: { readonly caption: string | null; readonly relevance: number }): ReactElement {
+  return <ListRow leading={<Icon icon={Images} size="sm" />} title={caption ?? "Uncaptioned avatar"} actions={<RelevanceBadge relevance={relevance} />} />;
 }
 
-// Quiet metadata (§6.3 P5): a relevance score is a readout, not a pill — inline micro/mono/muted text,
+/** Open the room a hit came from: the corpus's one cross-section destination, spelled exactly as chat's own
+ *  callers spell it (`notification-bell.tsx`) — section first, then the room, so CONTENT is already showing
+ *  chats when the active chat changes. */
+function openChat(chatId: ChatId): void {
+  setActiveSection("chats");
+  selectChat(chatId);
+}
+
+/** The room's name for a subtitle: the ONE title chain, with the hit's own character as the cast rung. */
+function chatSubtitle(chatTitle: string | null, castName: string | null): string {
+  return deriveChatTitle(chatTitle, castName === null ? [] : [castName]);
+}
+
+// Quiet metadata (§6.3 P5): a relevance readout is a readout, not a pill — inline micro/mono/muted text,
 // matching the similarity-tab PairRow score and the N3 message-metadata treatment.
-function ScoreBadge({ score }: { readonly score: number }): ReactElement {
+//
+// A WHOLE PERCENT, not two decimals of a unit nobody has: `relevance` is a cosine similarity, and the digit
+// that would distinguish 0.8813 from 0.8809 is noise a reader cannot act on. The percent also reads
+// higher-is-better without a legend, which the clamped distance it replaced never could.
+function RelevanceBadge({ relevance }: { readonly relevance: number }): ReactElement {
   return (
     <Text voice="gloss" className="shrink-0 font-mono">
-      {score.toFixed(SCORE_PRECISION)}
+      {`${Math.round(relevance * PERCENT)}%`}
     </Text>
   );
 }

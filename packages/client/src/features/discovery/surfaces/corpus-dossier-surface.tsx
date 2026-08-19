@@ -34,6 +34,7 @@ import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 
 const ALIGNMENT_PRECISION = 2;
+const PERCENT = 100;
 /** The refinery rubric is a weighted average, so one decimal is the honest resolution (the character
  *  overview card's own `REFINERY_SCORE_DECIMALS` reads the same value the same way). */
 const SCORE_PRECISION = 1;
@@ -166,7 +167,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                   leading={<CharacterAvatar id={neighbor.characterId} name={neighbor.name} hash={neighbor.avatarHash} />}
                   title={neighbor.name}
                   subtitle={neighbor.elevatorPitch ?? (neighborFacet === "" ? "" : neighborFacet)}
-                  actions={<Score value={neighbor.score} />}
+                  actions={<Relevance value={neighbor.relevance} />}
                 />
               );
             })}
@@ -213,18 +214,25 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
           onClick={(): void => selectCorpusCharacter(hit.characterId)}
           leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
           title={hit.name}
-          actions={<Score value={hit.score} />}
+          actions={<Relevance value={hit.relevance} />}
         />
       ))}
     </Stack>
   );
 }
 
-/** Quiet metadata (§6.3 P5): a cosine/relevance score is a readout, not a pill — inline micro/mono/muted. */
-function Score({ value }: { readonly value: number }): ReactElement {
+/**
+ * Quiet metadata (§6.3 P5): a relevance readout is a readout, not a pill — inline micro/mono/muted.
+ *
+ * It prints `relevance` (cosine similarity, higher = closer) as a whole percent, never the CSLS `score` it
+ * used to print: that is a hub-adjusted DISTANCE clamped at zero, so this strip read
+ * 0, 0, 0, 0, 0, 0.006, 0.011, 0.014 for Mira's eight nearest neighbours — the five reading zero were the
+ * five CLOSEST (corpus forensics §3). The ORDER is still the server's CSLS rank.
+ */
+function Relevance({ value }: { readonly value: number }): ReactElement {
   return (
     <Text voice="gloss" className="shrink-0 font-mono">
-      {value.toFixed(ALIGNMENT_PRECISION)}
+      {`${Math.round(value * PERCENT)}%`}
     </Text>
   );
 }

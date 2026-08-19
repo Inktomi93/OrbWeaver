@@ -354,9 +354,11 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
 }
 
 /** Insert a `chats` row (the producer FK the digest/segment rows scope to; D18 — no ownerId). */
-export async function seedChat(db: Db, id: string): Promise<ChatId> {
+/** `title` is what the room was NAMED; omit it for an unnamed room (the column is nullable and an
+ *  un-renamed room stores the empty string as often as null — both are "unnamed" to a reader). */
+export async function seedChat(db: Db, id: string, title?: string): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(chats).values({ id: chatId, title: title ?? null, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
   return chatId;
 }
 

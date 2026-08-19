@@ -48,6 +48,26 @@ interface OwnedDigestVector {
   readonly topicAnchor: string | null;
 }
 
+/** One owner's card content HASHES — the duplicate pass's input minus the vectors. */
+interface OwnedCharacterHash {
+  readonly characterId: CharacterId;
+  readonly contentHash: string;
+}
+
+/**
+ * One owner's card content hashes, no embeddings. The `identicalCharacterPairs` readout needs only the hash
+ * column, and pulling 327 float32 vectors to count collisions would be an analytics pass wearing a view's
+ * clothes — this is the same scope as {@link readOwnedCharacterVectors} (synthetic excluded, owner via
+ * `characters.ownerId`) so the count answers for exactly the population the duplicate pass scans.
+ */
+export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise<OwnedCharacterHash[]> {
+  return await db
+    .select({ characterId: characterEmbeddings.characterId, contentHash: characterEmbeddings.contentHash })
+    .from(characterEmbeddings)
+    .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
+    .where(and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId)));
+}
+
 // ── duplicate-character pass ──────────────────────────────────────────────────
 /** Every card embedding with its owner, excluding synthetic (per-room group) characters. */
 export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null): Promise<OwnedCharacterVector[]> {

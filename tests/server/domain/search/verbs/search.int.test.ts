@@ -68,6 +68,33 @@ describe("search (unified dispatch)", () => {
     expect(result.hits[0]?.blockKey.scopedCharacterId).toBe(alice);
   });
 
+  test("digests · a hit carries WHERE IT CAME FROM and a relevance that goes the right way", async () => {
+    // The rendered row used to read `Chat 2y1mf5` and `0.00` for a perfect match (corpus forensics §2.3/§2.4).
+    // A hit now carries the room's authored title, the scoped producer's name (the cast rung of the client's
+    // one title chain, for a room nobody named), and `relevance` = 1 − distance beside the ranking `score`.
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
+    const named = await seedChat(db, "chat_named", "Amethyst Hollow");
+    const unnamed = await seedChat(db, "chat_unnamed", "");
+    await seedChatDigest(db, { chatId: named, scopedCharacterId: alice, blockIdx: 0, text: "The bath scene.", embedding: vec(1) });
+    await seedChatDigest(db, { chatId: unnamed, scopedCharacterId: alice, blockIdx: 0, text: "The farm scene.", embedding: vec(1) });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1), embedModel: EMBED_MODEL });
+    const result = await svc.search({ ownerId: owner, query: "the bath", topN: 5, over: "digests", scope: { kind: "owner" } });
+    if (result.over !== "digests") {
+      throw new Error(`expected digests branch, got ${result.over}`);
+    }
+
+    // The unnamed room's stored `""` normalizes to null, so the client's title chain reaches its cast rung
+    // instead of rendering a blank line (a `?? "Untitled chat"` is defeated by an empty string).
+    expect(result.hits.map((h) => h.chatTitle).toSorted()).toEqual(["Amethyst Hollow", null]);
+    expect(result.hits.map((h) => h.scopedCharacterName)).toEqual(["Alice", "Alice"]);
+    // An exact vector match: distance 0 ⇒ relevance 1, while the CSLS score sits clamped at its 0 floor.
+    expect(result.hits[0]?.relevance).toBeCloseTo(1);
+    expect(result.hits[0]?.score).toBe(0);
+  });
+
   test("digests · character scope: a character present in NO block gets an empty result", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

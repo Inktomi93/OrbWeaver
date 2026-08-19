@@ -11,10 +11,16 @@ import type { DiscoveryContext } from "../context.ts";
 import type { ThemeLevel } from "../contract/params.ts";
 import type { CharacterDossier, HomeView, ThemeDetail } from "../contract/results.ts";
 import type { DiscoveryService, ViewsDeps } from "../contract/service.ts";
-import { readCorpusCoverage, readOwnedPortraitPairs, readThemeClusterMembers, readThemeClusterTimeline } from "../persistence/embed-store-reads.ts";
+import {
+  readCorpusCoverage,
+  readOwnedCharacterHashes,
+  readOwnedPortraitPairs,
+  readThemeClusterMembers,
+  readThemeClusterTimeline,
+} from "../persistence/embed-store-reads.ts";
 import { readOwnedCardFacet } from "../persistence/summary-reads.ts";
+import { collapsedPairCount } from "../substrate/collapse.ts";
 
-const HOME_TOP_THEMES = 8;
 const THEME_DETAIL_MEMBERS = 15;
 const DOSSIER_SIMILAR_TOP_N = 8;
 
@@ -27,18 +33,30 @@ export function createViews(ctx: DiscoveryContext, deps: ViewsDeps): Pick<Discov
 }
 
 async function home(db: Db, ownerId: UserId, deps: ViewsDeps): Promise<HomeView> {
-  const [coverage, sceneThemes, arcThemes, dupChars, dupChats] = await Promise.all([
+  const [coverage, sceneThemes, arcThemes, dupChars, dupChats, cardHashes] = await Promise.all([
     readCorpusCoverage(db, ownerId),
     deps.themes(ownerId, "scene"),
     deps.themes(ownerId, "arc"),
     deps.duplicateCharacters(ownerId),
     deps.duplicateChats(ownerId, { relation: "duplicate" }),
+    readOwnedCharacterHashes(db, ownerId),
   ]);
   return {
     coverage,
-    topSceneThemes: sceneThemes.slice(0, HOME_TOP_THEMES),
-    topArcThemes: arcThemes.slice(0, HOME_TOP_THEMES),
-    duplicateCounts: { characters: dupChars.length, chats: dupChats.length },
+    // COMPLETE, not top-N — the interactive rows are the only place a theme is met now (see HomeView).
+    sceneThemes,
+    arcThemes,
+    duplicateCounts: {
+      characters: dupChars.length,
+      chats: dupChats.length,
+      // What the pass structurally cannot report (§5.2) — never folded into `characters`, which is what the
+      // pass DID find; two numbers, two meanings, so the rail can say both without either becoming a lie.
+      identicalCharacterPairs: collapsedPairCount(
+        cardHashes,
+        (r) => r.contentHash,
+        (r) => r.characterId,
+      ),
+    },
   };
 }
 

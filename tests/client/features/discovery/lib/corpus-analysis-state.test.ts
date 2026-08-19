@@ -18,8 +18,11 @@ const AUDITED: CorpusAnalysisInput = {
   distilled: 0,
   sceneThemes: 0,
   arcThemes: 0,
+  keywords: 0,
+  keywordsEverRan: false,
   duplicateCharacters: 0,
   duplicateChats: 0,
+  identicalCharacterPairs: 0,
   // The audited instance HAD run the dedup pass — which is what makes its zero a result. Issue #164 item 4
   // is the other case, pinned below: the same zero from a pass that never ran is a different sentence.
   duplicatesEverRan: true,
@@ -145,6 +148,27 @@ describe("the readiness rail — a measurement or an honest 'not run', never a b
     expect(stageDatum({ ...AUDITED, duplicatesEverRan: false }, "duplicates")).toBe("not run");
     // A pass that never ran cannot have found anything, so the un-run arm outranks a stale count too.
     expect(stageDatum({ ...AUDITED, duplicatesEverRan: false, duplicateChats: 4 }, "duplicates")).toBe("not run");
+  });
+
+  test("the pass's BLIND SPOT is stated beside its result, never folded into it (forensics §5.2)", () => {
+    // The rail read "1 found" while two cosine-1.00 same-name pairs sat one tab away: byte-identical cards
+    // collapse to one representative before the all-pairs scan, so they can never BE a pair. Both numbers
+    // are true about different questions, so the row carries both.
+    expect(stageDatum({ ...AUDITED, duplicateCharacters: 1, identicalCharacterPairs: 2 }, "duplicates")).toBe("1 found · 2 identical");
+    // Identical copies are read off the cards themselves, so they are known even when the pass never ran.
+    expect(stageDatum({ ...AUDITED, duplicatesEverRan: false, identicalCharacterPairs: 2 }, "duplicates")).toBe("not run · 2 identical");
+    expect(stageDatum({ ...AUDITED, identicalCharacterPairs: 0 }, "duplicates")).toBe("none found");
+  });
+
+  test("keywords are their OWN row, and never marked done on the theme pass's evidence (forensics §9.1)", () => {
+    // The row said "Story themes & keywords" and read story themes alone — so a library with 16 themes and
+    // an empty keyword table showed one green row for two passes, one of which has never run.
+    const themed: CorpusAnalysisInput = { ...AUDITED, sceneThemes: 16 };
+    expect(deriveCorpusAnalysisState(themed).stages.find((s) => s.id === "storyThemes")?.label).toBe("Story themes");
+    expect(deriveCorpusAnalysisState(themed).stages.find((s) => s.id === "keywords")?.done).toBe(false);
+    expect(stageDatum(themed, "keywords")).toBe("not run");
+    expect(stageDatum({ ...themed, keywordsEverRan: true }, "keywords")).toBe("none found");
+    expect(stageDatum({ ...themed, keywordsEverRan: true, keywords: 40 }, "keywords")).toBe("40 keywords");
   });
 
   test("every stage carries a datum and none of them is a bare zero", () => {

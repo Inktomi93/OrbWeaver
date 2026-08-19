@@ -25,6 +25,34 @@ export function collapseByHash<T>(rows: readonly T[], hashOf: (row: T) => string
   return { reps, repOf };
 }
 
+/**
+ * How many pairs the collapse REMOVED — the near-duplicate finder's blind spot, as a number (corpus
+ * forensics §5.2). Every group of `k` rows sharing a content hash contributes `k(k−1)/2` pairs that the
+ * all-pairs scan can never see, because only one representative survives to be scanned; those pairs are
+ * exact duplicates at cosine 1.0, i.e. precisely the ones a user most wants found.
+ *
+ * Counted over DISTINCT entities per hash (`idOf`), so a card embedded in two spaces is one card, not two.
+ * The collapse itself stays — it is right for the clustering passes it was written for (N identical copies
+ * would mutually inflate a centroid); what was wrong was reporting its blind spot as a result.
+ */
+export function collapsedPairCount<T>(rows: readonly T[], hashOf: (row: T) => string, idOf: (row: T) => string): number {
+  const idsByHash = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const hash = hashOf(row);
+    const bucket = idsByHash.get(hash);
+    if (bucket === undefined) {
+      idsByHash.set(hash, new Set([idOf(row)]));
+    } else {
+      bucket.add(idOf(row));
+    }
+  }
+  let pairs = 0;
+  for (const ids of idsByHash.values()) {
+    pairs += (ids.size * (ids.size - 1)) / 2;
+  }
+  return pairs;
+}
+
 function compareStr(a: string, b: string): number {
   if (a < b) {
     return -1;
