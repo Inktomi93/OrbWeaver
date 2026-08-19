@@ -20,8 +20,9 @@ describe("stats.leaderboard", () => {
     const ch = await seedCharacter(db, owner, { id: "character_a", name: "A" });
     await seedCharacterStats(db, ch, { assistantTurns: 2 });
     const svc = createStatsService(db, () => STATS_NOW);
-    const rows = await svc.leaderboard(owner);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.name).toBe("A");
+    const page = await svc.leaderboard(owner);
+    expect(page.rows).toHaveLength(1);
+    expect(page.rows[0]?.name).toBe("A");
+    expect(page.total).toBe(1);
   });
 });

@@ -35,7 +35,7 @@ function leaderboardRow(characterId: CharacterId, name: string): Record<string, 
     lastActivityAt: 2,
   };
 }
-const LEADERBOARD = [leaderboardRow(castId<CharacterId>("char_a"), "Aria"), leaderboardRow(castId<CharacterId>("char_b"), "Bolt")];
+const LEADERBOARD_ROWS = [leaderboardRow(castId<CharacterId>("char_a"), "Aria"), leaderboardRow(castId<CharacterId>("char_b"), "Bolt")];
 
 test("the CONTEXT band names the drilled leaderboard character (P4)", async ({ mount, page }) => {
   await routeTrpc(page, { "character.get": () => DRILLED_CHARACTER });
@@ -52,11 +52,22 @@ test("the CONTEXT band shows the neutral Analytics identity when nothing is dril
 });
 
 test("the LIST band shows the Analytics title + the leaderboard count, with NO create action (A2)", async ({ mount, page }) => {
-  await routeTrpc(page, { "stats.leaderboard": () => LEADERBOARD });
+  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: LEADERBOARD_ROWS, total: 2 }) });
   const component = await mount(<AnalyticsListHeaderStory />);
 
   await expect(component.getByText("Analytics")).toBeVisible();
   await expect(component.getByText("2", { exact: true })).toBeVisible();
   // Read-only section: the band is a census, never an addition.
   await expect(component.getByRole("button", { name: "New" })).toHaveCount(0);
+});
+
+// P2g: the band read `ANALYTICS 50` against a 328-character library, because `rows.length` on a page
+// capped at 50 IS the cap. A census that silently reports its own limit is not a census.
+test("the LIST band states the RELATIONSHIP when the page is capped, not the page length", async ({ mount, page }) => {
+  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: LEADERBOARD_ROWS, total: 328 }) });
+  const component = await mount(<AnalyticsListHeaderStory />);
+
+  await expect(component.getByText("2 of 328")).toBeVisible();
+  // The bare page length must NOT be what the band says.
+  await expect(component.getByText("2", { exact: true })).toHaveCount(0);
 });

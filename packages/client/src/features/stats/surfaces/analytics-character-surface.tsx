@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
-import { formatCompact, formatDurationMs, formatMs, formatPercent } from "../lib/analytics-view-model.ts";
+import { formatCompact, formatCount, formatDurationMs, formatMs, formatPercent, formatUsd, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
   readonly characterId: CharacterId;
@@ -75,32 +75,55 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Stack gap="field">
         <Text className="text-title leading-title font-semibold">{stats.name}</Text>
-        {stats.lastActivityAt === null ? null : <Text voice="gloss">Last active {timeLib.formatRelative(stats.lastActivityAt)}</Text>}
+        {stats.lastActivityAt === null ? null : (
+          // Relative in the text, the exact stamp in `title=` — the one time vocabulary this column speaks.
+          <Text voice="gloss" title={timeLib.formatDateTime(stats.lastActivityAt)}>
+            Last active {timeLib.formatRelative(stats.lastActivityAt)}
+          </Text>
+        )}
       </Stack>
 
       <Section heading="Activity">
-        <Row gap="block" className="flex-wrap">
-          <StatFigure label="Chats" value={formatCompact(stats.chats)} />
-          <StatFigure label="Replies" value={formatCompact(stats.assistantTurns)} />
-          <StatFigure label="Your turns" value={formatCompact(stats.userTurns)} />
-          <StatFigure label="Swipes" value={formatCompact(stats.swipes)} />
-          <StatFigure label="Words" value={formatCompact(stats.assistantWords)} />
-          <StatFigure label="Forked chats" value={formatCompact(stats.forkedChats)} />
-        </Row>
+        <Stack gap="block">
+          <Row gap="block" className="flex-wrap">
+            <StatFigure label="Chats" value={formatCompact(stats.chats)} />
+            <StatFigure label="Replies" value={formatCompact(stats.assistantTurns)} />
+            <StatFigure label="Your turns" value={formatCompact(stats.userTurns)} />
+            <StatFigure label="Swipes" value={formatCompact(stats.swipes)} />
+            {/* ONE definition of "Words" across both surfaces (P2d): your turns + the replies you kept.
+                This tile used to be `assistantWords` under the same label the dashboard used for the
+                TOTAL, so the drill's number could never be reconciled with the dashboard's. */}
+            <StatFigure label="Words" value={formatCompact(stats.userWords + stats.assistantWords)} />
+            <StatFigure label="Assistant words" value={formatCompact(stats.assistantWords)} />
+            <StatFigure label="Forked chats" value={formatCompact(stats.forkedChats)} />
+          </Row>
+          <Text voice="gloss">
+            Words counts your turns and the replies you kept; the {formatCompact(stats.swipeWords)} words in swipes you didn't keep are not included.
+          </Text>
+        </Stack>
       </Section>
 
       <Section heading="Economics">
-        <Row gap="block" className="flex-wrap">
-          <StatFigure label="Tokens in" value={formatCompact(stats.tokensIn)} />
-          <StatFigure label="Tokens out" value={formatCompact(stats.tokensOut)} />
-          <StatFigure label="Spend" value={`$${stats.costUsd.toFixed(2)}`} />
-          <StatFigure label="Cache hits" value={formatPercent(stats.cacheHitRate)} />
-          <StatFigure label="Reasoning" value={formatPercent(stats.reasoningRate)} />
-          {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
-              unrendered rollup column. */}
-          <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
-          <StatFigure label="Throughput" value={`${stats.throughputTps.toFixed(1)} t/s`} />
-        </Row>
+        <Stack gap="block">
+          <Row gap="block" className="flex-wrap">
+            <StatFigure label="Tokens in" value={formatCount(stats.tokensIn)} />
+            <StatFigure label="Tokens out" value={formatCount(stats.tokensOut)} />
+            <StatFigure label="Spend" value={formatUsd(stats.costUsd)} />
+            {/* Per-character cache accounting does not exist: `character_stats` carries no cache columns
+                at all (the rollup is owner+model grain), so this tile printed a hard-coded 0%. It now
+                reads the em dash the absence has always deserved. */}
+            <StatFigure label="Cache hits (of input)" value={formatPercent(stats.cacheHitRate)} />
+            <StatFigure label="Reasoning (of replies)" value={formatPercent(stats.reasoningRate)} />
+            {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
+                unrendered rollup column. */}
+            <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
+            <StatFigure label="Throughput" value={`${stats.throughputTps.toFixed(1)} t/s`} />
+          </Row>
+          <Text voice="gloss">
+            Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a
+            dash here. {UNRECORDED_NOTE}
+          </Text>
+        </Stack>
       </Section>
 
       <Section heading="Latency">
