@@ -85,9 +85,12 @@ test("the always-on tier runs IN ORDER, and the subject is marked in its own pla
   // The ORDER is the junction's, not the library's — position 1 runs first.
   await expect(stages.nth(0)).toContainText("1 · shout");
   await expect(stages.nth(1)).toContainText("2 · strip ooc");
-  // The reader can find their own script without matching names by eye.
-  await expect(stages.nth(1)).toContainText("this script");
-  await expect(stages.nth(0)).not.toContainText("this script");
+  // The reader can find their own script without matching names by eye. SENTENCE CASE since 2026-08-19 —
+  // the marker is inside a `<Section kicker>`, whose micro-caps voice INHERITS, so the badge shipped as
+  // all-caps body text; the fix is `normal-case` on the badge plus a capital on the source string, and
+  // `toContainText` reads the source string (textContent), never the painted transform.
+  await expect(stages.nth(1)).toContainText("This script");
+  await expect(stages.nth(0)).not.toContainText("This script");
 
   // Both bit, and the text handed on carries BOTH transformations — which is the whole claim of a pipeline
   // view over two single-script previews.
@@ -128,7 +131,9 @@ test("a script that is NOT always-on is shown LAST, marked for where it really r
   const stages = page.locator('[data-slot="regex-pipeline-stage"]');
   await expect(stages).toHaveCount(2);
   await expect(stages.nth(1)).toContainText("2 · strip ooc");
-  await expect(stages.nth(1)).toContainText("this script, wherever it’s attached");
+  await expect(stages.nth(1)).toContainText("This script, wherever it’s attached");
+  // …and it is a SENTENCE, not a caps clause: the inherited kicker transform is stood down on the badge.
+  await expect(stages.nth(1).locator('[data-slot="badge"]').filter({ hasText: "wherever" })).toHaveCSS("text-transform", "none");
   await expect(page.getByText("This script isn’t in the always-on set")).toBeVisible();
 });
 

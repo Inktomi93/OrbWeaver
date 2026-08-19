@@ -10,7 +10,7 @@
 
 import type { CollectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import { __resetCollectionGroupOpen, clearCollectionSelection } from "@orb/client/state";
+import { __resetCollectionGroupOpen, clearCollectionSelection, setMobileViewport } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfigContextBody, ConfigContextHeader } from "../../../../packages/client/src/features/config/components/config-context-body.tsx";
@@ -133,6 +133,41 @@ export function ConfigWelcomeStory(): ReactElement {
       <div style={{ display: "flex", height: 752, width: CONTENT_PANE_PX }}>
         <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
           <ConfigContentSurface collections={collections} />
+        </div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The narrowest real PHONE the app is measured at (side-eye's own mobile arm) — the width where the LIST
+ *  is the whole screen and CONTENT is unreachable until a member is selected. */
+const PHONE_PX = 430;
+
+/** The mobile LIST as a phone gets it: the roster at 430px with the shell's viewport regime published as
+ *  MOBILE. The regime is a store fact, not a media query — `useMobileViewport` reads what app-shell
+ *  publishes at 48rem, and a CT has no app-shell — so the story ships the two buttons the `#state` CTs
+ *  already use for this, and the spec drives the arm it means (the settled state, never a first frame). */
+export function ConfigMobileRosterStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <button
+        type="button"
+        onClick={(): void => {
+          __resetCollectionGroupOpen();
+          clearCollectionSelection();
+        }}
+      >
+        reset groups
+      </button>
+      <button onClick={(): void => setMobileViewport(true)} type="button">
+        go mobile
+      </button>
+      <button onClick={(): void => setMobileViewport(false)} type="button">
+        go desktop
+      </button>
+      <div style={{ display: "flex", height: 700, width: PHONE_PX }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+          <ConfigRosterSurface collections={collections} />
         </div>
       </div>
     </CtDataProviders>
