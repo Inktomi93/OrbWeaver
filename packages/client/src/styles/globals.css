@@ -491,3 +491,15 @@ html[data-texture="grain"] [data-slot="card-root"] {
   border-style: solid;
   border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
 }
+
+/* Echo's box + track widths (#212/#213): the skin's column asks for the prose floor PLUS its art pane, and
+ * its track is the shared content track plus the same art width. Unlayered author CSS on purpose — it
+ * outranks the layered utilities, and the width gate bans `max-w-[calc…]` utility spellings. The vars are
+ * the one home; this is their only calc composition (mirrored by ECHO_COLUMN_STYLE's inline max-width,
+ * which caps the inner content column against the same arithmetic). */
+.orb-echo-box {
+  max-width: calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block));
+}
+.orb-echo-track {
+  max-width: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
+}

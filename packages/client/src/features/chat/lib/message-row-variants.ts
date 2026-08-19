@@ -145,9 +145,13 @@ const ECHO_PORTRAIT_REQUEST_WIDTH = 400;
 // `box-sizing: border-box` counts inside a max-width) — so what survives for prose is exactly the floor.
 // The SAME arithmetic caps echo's content column (`ECHO_COLUMN_STYLE`): without that, the styles tier's
 // prose-only measure fenced the bubble first and the art went back to eating the line.
-const ECHO_BOX_WIDTH = "calc(var(--reading-measure-min)+var(--immersive-echo-art-width)+var(--spacing-block))";
-const ECHO_BOX = "max-w-[calc(var(--reading-measure-min)+var(--immersive-echo-art-width)+var(--spacing-block))]";
-const ECHO_COLUMN_STYLE: CSSProperties = { maxWidth: ECHO_BOX_WIDTH };
+// The calc lives in globals.css (`.orb-echo-box` / `.orb-echo-track`) — unlayered author CSS, which both
+// outranks the layered utilities (the reason the column cap is inline-tier) AND keeps the width gate's
+// no-raw-widths rule honest (a `max-w-[calc…]` utility spelling is exactly what it bans). NOTE: CSS calc
+// requires spaces around `+` — the utility form only worked because Tailwind inserts them; the inline
+// no-space spelling was silently invalid.
+const ECHO_BOX = "orb-echo-box";
+const ECHO_COLUMN_STYLE: CSSProperties = { maxWidth: "calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block))" };
 
 // ECHO'S TRACK IS THE SHARED TRACK PLUS ITS ART PANE. A max-width only ALLOWS width — the column is a flex
 // child, so what it can actually occupy is what the track hands the row. Inside the plain track the art
@@ -156,7 +160,7 @@ const ECHO_COLUMN_STYLE: CSSProperties = { maxWidth: ECHO_BOX_WIDTH };
 // its portrait pane costs extra room on top of it. Still `mx-auto`, so the row centres on the same axis as
 // the composer (#213 asserts the axis, never equal widths), and still `w-full`, so a pane narrower than
 // the ask degrades to the pane instead of overflowing it.
-const ECHO_TRACK = "mx-auto w-full max-w-[calc(var(--width-shell-content)+var(--immersive-echo-art-width))]";
+const ECHO_TRACK = "mx-auto w-full orb-echo-track";
 
 function echoOuter(role: MessageRole): string {
   return cx(ECHO_TRACK, alignFor(role));

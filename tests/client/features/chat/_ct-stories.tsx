@@ -1515,7 +1515,7 @@ export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }
   return (
     <CtDataProviders>
       <SocketHost>
-        <div data-testid="room-pane" style={{ width: paneWidth, "--width-shell-content": "clamp(680px, 50dvw, 100dvw)" } as CSSProperties}>
+        <div data-testid="room-pane" style={{ width: paneWidth, "--width-shell-content": "clamp(680px, 50dvw, 100dvw)" }}>
           <ChatRoomHarness />
         </div>
       </SocketHost>
