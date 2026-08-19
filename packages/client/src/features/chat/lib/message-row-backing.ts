@@ -88,6 +88,25 @@ export const BG_PHOTO_READING_PLATE = "in-data-[has-bg-image]:bg-reading-plate i
 //     themes. The CT that pinned the old scoping ("a FILLED mode (echo) does NOT chip its chrome") is
 //     inverted in the same commit — half a migration is the rot.
 //
+// ── #288 TRUTH-REPAIR: THE PREMISE ABOVE IS DEAD, THE RULING IS NOT ──────────────────────────────────
+// The load-bearing sentence in both paragraphs above — "the name row sits entirely above the bubble box
+// in EVERY mode … a mode's FILL therefore cannot back its name row" — described an ANATOMY, and #288
+// changed the anatomy. In seven of the eight skins the header is now the CONTAINER's own first child
+// (`RowSkin.headerPlacement`, message-row-variants.ts), so a mode's fill/plate is exactly what backs it.
+//
+// #167's RULING is untouched and is why the move was safe: the speaker name and its timestamp are a
+// legibility GUARANTEE over any art in any skin, never a per-skin opt-in. What changed is the HOW. The
+// chip was a second surface minted to carry that guarantee for a row that had no surface of its own; a
+// header inside the container inherits the guarantee from the box the prose already rides, and it does so
+// in one fewer object. Do not read this as "#167 was wrong and the chip is optional": remove the header
+// from the container without re-adding the chip and the 1.63:1 timestamp comes straight back.
+//
+// This constant therefore keeps TWO live jobs and loses one:
+//   · the chrome BELOW the bubble (metadata row, swipe strip, message footer) — unchanged, mode-independent;
+//   · `tide`'s header, the one skin still `outside` (a train of pills has no single container) — the #167
+//     guarantee reaching the one row that still needs a surface minted for it;
+//   · it no longer lands on the other seven skins' headers. That is the two-plate split (#288) closing.
+//
 // Self-gated on `in-data-[has-bg-image]` like its sibling, so a plain-background theme is byte-identical.
 export const BG_PHOTO_CHROME_PLATE =
   "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-foreground";
@@ -192,3 +211,28 @@ export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-d
 // cover the band. No such sibling exists on the tree today (measured — see the #168 note above), and the
 // fence that keeps it that way is the hit-test CT, never a per-skin class.
 export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-reading-band py-row text-foreground";
+
+// THE SAME PIN, FOR A HEADER THAT LIVES INSIDE ITS CONTAINER (#288). Everything #113/#168/#241 ruled is
+// carried over verbatim — the pin, the RAISE, the OPAQUE `bg-reading-band` fill (an occluding band is the
+// hard guarantee; a tall turn's prose must not stay legibly moving under its own pinned name) and the
+// paired `text-foreground` ink. Exactly ONE thing differs, and it is arithmetic, not policy:
+//
+// TWO things differ, both forced by the geometry rather than chosen:
+//
+// (1) NO `rounded-card`. A chip's rounded corners leave a sliver of whatever is behind them unpainted,
+// and inside a container the thing behind the band's BOTTOM corners is the container's own first prose
+// line — which scrolls. Measured as a real #168 leak: with `rounded-card` the "#168 the pinned band
+// OCCLUDES" byte-equality CT failed in BOTH arms after the header moved in, at the corner arcs only.
+// Outside a container the same corners showed the inter-element gap, which is why the sibling constant
+// can afford them. This is the reasoning `BG_PHOTO_BAND_PLATE` states one constant up — a BAND that spans
+// its column is not a floating CHIP, and giving it chip geometry fights the box it lives in.
+//
+// (2) `-my-row` IS UNCONDITIONAL HERE. The sibling constant gates its cancellation on
+// `not-in-data-[has-bg-image]` because over art the header ALREADY carried `BG_PHOTO_CHROME_PLATE`'s
+// `py-row`, and cancelling a padding this constant did not own shrank the row by 2×--spacing-row at the
+// exact moment the sticky verdict landed (#167's measured 16px reflow). A header inside its container
+// takes no chip in EITHER arm — the container backs it — so the `py-row` below is always this constant's
+// own to cancel, and the wallpaper gate would now be the thing that breaks layout neutrality. Same
+// invariant ("going sticky changes NO box"), restored to its pre-#167 spelling because the reason for the
+// gate went away with the chip.
+export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-my-row sticky top-0 z-(--z-raised) bg-reading-band py-row text-foreground";
