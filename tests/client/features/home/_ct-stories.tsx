@@ -276,6 +276,34 @@ const SHIPPED_TILES: readonly HomeTileContribution[] = [
   automationDormantTile,
 ];
 
+// ── The COLUMN-BALANCE instrument (#226) ─────────────────────────────────────────────────────────────
+// The void between the hearth's foot and the shelf's foot CHANGES SIDES with width (hearth short at
+// 1280/1440/1920, shelf short at 2560) and the reading appearance arm more than doubles it, so the fix
+// has to be measured across a width × appearance MATRIX rather than at one pane. This story is the
+// shipped registry with its pane width DRIVEN from the spec: one mount, twelve layouts, no re-settle.
+//
+// `.shell-grid` is the real class the density override (`shell.css` `.shell-grid[data-density="compact"]`)
+// selects on, so the compact arm here resolves the SAME four spacing tokens the app does instead of a
+// second copy of those numbers in a test. The class's own shell box (grid, 100dvh, clip) is overridden
+// inline — only its custom-property block is wanted. The spec drives `data-density`, `--font-scale` and
+// the pane's inline size; nothing here hardcodes a state.
+
+/** The shipped home in a pane whose width the spec drives — the #226 width × appearance matrix. */
+export function HomeBalanceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div className="shell-grid" data-home-pane={true} style={{ display: "block", blockSize: "auto", overflow: "visible", inlineSize: "100%" }}>
+          <HomeSurface
+            onNewChat={(): void => undefined}
+            tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
+          />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The shipped home, tile for tile, at the shipped width. No box memory is seeded, so every tile is on
  *  its DECLARED reservation — a first-ever boot. */
 export function HomeShippedFirstBootStory(): ReactElement {

@@ -12,8 +12,9 @@ export interface GridProps extends ComponentProps<"div">, VariantProps<typeof gr
  *
  * Two arms are NOT auto-fit tilings and are chosen by SHAPE, not by item count: `cols="lead"` is a
  * dominant lead column beside a companion rail (the landing/reading split — unequal on purpose, both
- * tracks required), and `cols="cellFixed"` spends surplus width on MORE cells instead of bigger ones
- * (a portrait shelf, where the cell is a picture of a thing).
+ * tracks required; `cols="leadEven"` is the same split for a rail whose own content REFLOWS with its
+ * width, taking the wide-pane breath all the way to even tracks), and `cols="cellFixed"` spends surplus
+ * width on MORE cells instead of bigger ones (a portrait shelf, where the cell is a picture of a thing).
  *
  * Usage: `<Grid cols="wide" gap="section">…</Grid>` — never `className="grid grid-cols-2"` in feature
  * code (structural layout goes through the layout kit; the track template lives in variants.ts).

@@ -10,6 +10,17 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>orbweaver</title>
+    <!-- The document's own one-line description (#194 — Lighthouse SEO scored 0/1 on its absence). It is
+         NOT a marketing line: this origin is a self-hosted single-tenant app behind auth (see
+         public/robots.txt, which disallows the whole origin), so the only readers are the browser's own
+         chrome — a bookmark, a share sheet, an OS app-switcher card — and an agent reading the shell
+         before `data-app-ready`. It says what the product IS, in the same voice public/llms.txt opens in,
+         and is deliberately static: a per-route description needs SSR, which UI-Arch §6.1's SPA index
+         does not have. -->
+    <meta
+      name="description"
+      content="A local-first workspace for character-driven AI conversations, world knowledge, presets, analysis, and role-playing state."
+    />
     <!-- The orb-web mark, direction A (docs/design/login-loading-screen.md §8/§9.6). The SVG is the
          primary icon (crisp at every dpi); the PNG pair covers non-SVG-favicon chrome. Declaring an
          icon also stops the browser's implicit /favicon.ico probe — the 404-on-first-load it fired
