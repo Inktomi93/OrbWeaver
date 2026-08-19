@@ -613,7 +613,7 @@
         "authority": "normative",
         "fullRead": true,
         "verifiedSha256": "bf49c42a17f793f23f3353a719e214cf7e9cee0bc36d9dd8688e66a2af756181",
-        "verifiedCommit": "7543ca4bbe808687be80aa59be8b1531d8ebdca2",
+        "verifiedCommit": "cf0a034d2bc0366925bcfbdeb5386aaa1842929e",
         "verifiedAt": "2026-08-19",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
