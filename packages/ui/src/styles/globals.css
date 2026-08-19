@@ -124,6 +124,36 @@
   mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
 }
 
+/* ART BLEED (#205) — the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities.
+ * Read them together; the component's own header carries the WHY.
+ *
+ * `inset-inline-start` IS THE READING-SURFACE GUARANTEE. The band begins one `--reading-measure` in, so a
+ * host that caps its content column at the same measure has NO INK OVER ART — which is why this recipe
+ * invokes none of the D144 reading-plate machinery: a plate backs text that sits on art, and by
+ * construction none does. `min(100%, …)` is the other half of the same expression and is what makes the
+ * band VANISH on a surface narrower than the measure — the phone arm and the docked-narrow arm, with no
+ * media query and no caller branch.
+ *
+ * THE `+ --spacing-section` IS THE HOST'S OWN PADDING, PAID FOR WITHOUT NAMING IT. An absolutely
+ * positioned layer lays out against its host's PADDING box while the host's content starts one padding
+ * further in, so a bare `--reading-measure` begins the band exactly one padding SHORT of where the prose
+ * ends (measured on the home hero: 11px of its trailing "Resume →" hint inside the band). A surface's
+ * padding is TIER-resolved (styles/tiers.css picks it from the surface), so no consumer may name it;
+ * `--spacing-section` is the top of that same scale and therefore an over-estimate in every tier and
+ * every density — a guarantee rather than a tuned number. If a tier ever resolved a padding above the
+ * section step, the consumer's own geometry test reds rather than a gradient quietly covering a word.
+ *
+ * The MASK carries the fade AND its ceiling in one place: `--art-bleed-peak` is how much of the picture
+ * survives at the host's own edge. A full-strength photo there competes with the prose it is meant to
+ * frame; the ramp to transparent is the rest. Prefixed twin per this file's other mask recipes. Static
+ * (no transition) => reduced-motion-safe. */
+[data-slot="art-bleed"] {
+  --art-bleed-peak: 0.55;
+  inset-inline-start: min(100%, calc(var(--reading-measure) + var(--spacing-section)));
+  -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
+  mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
+}
+
 /* Horizontal-overflow cue: a scrollable strip (e.g. a many-tab tablist too wide for a narrow panel)
  * dissolves whichever edge has clipped content behind it, so the hidden items read as "more — scroll"
  * instead of a hard cut. Scroll-aware and both-edge — the same mechanism as the vertical

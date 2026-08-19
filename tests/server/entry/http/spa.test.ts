@@ -17,6 +17,8 @@ const NOT_FOUND = 404;
 const INDEX_HTML = "<!doctype html><title>orb</title>";
 const HASHED_JS = "console.log('hashed')";
 const NAV_HEADERS = { accept: "text/html,application/xhtml+xml" };
+/** The shipped directive, in the shape a crawler must receive — never an HTML document. */
+const ROBOTS_TXT = "User-agent: *\nDisallow: /\n";
 
 let distDir: string;
 let app: Hono;
@@ -37,6 +39,11 @@ beforeAll(async () => {
   // public/-copied files are name-stable (NOT hashed) — must revalidate.
   await mkdir(join(distDir, "backgrounds"));
   await writeFile(join(distDir, "backgrounds", "day.png"), "png-bytes");
+  // #194: robots.txt is a `public/`-copied file like any other, and the whole defect was that it did NOT
+  // exist — so the history fallback answered a crawler with index.html and Lighthouse read 45 lines of
+  // HTML as robots syntax. The fix is the FILE (packages/client/public/robots.txt); this fixture is what
+  // proves the serving half needs no config, because real files already win over the fallback.
+  await writeFile(join(distDir, "robots.txt"), ROBOTS_TXT);
   // A real file OUTSIDE distDir — proves the traversal guard rejects rather than merely 404ing on a
   // nonexistent path (ENOENT would 404 either way; this sentinel gives the test actual teeth).
   secretPath = join(distDir, "..", "secret.txt");
@@ -134,6 +141,28 @@ describe("registerSpa", () => {
     for (const body of bodies) {
       expect(body).not.toContain(SECRET_CONTENTS);
     }
+  });
+
+  // ── #194: a crawler asks with a NON-html Accept, which is the arm the history fallback deliberately
+  // refuses — so a robots.txt that exists is answered as itself, and one that does not is a plain 404
+  // rather than the SPA shell. Both arms are pinned: the bug was never the serving order, it was that
+  // no file was ever shipped, and a future "helpful" widening of the fallback would re-create it.
+  test("#194 robots.txt serves as its own TEXT, never the SPA shell", async () => {
+    const res = await app.request("/robots.txt", { headers: { accept: "text/plain,*/*" } });
+    expect(res.status).toBe(OK);
+    const body = await res.text();
+    expect(body).toBe(ROBOTS_TXT);
+    expect(body).not.toContain("<!doctype html>");
+    // Name-stable like every other public/-copied file, so a redeploy is picked up.
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+  });
+
+  test("#194 a NAVIGATION to robots.txt still gets the file, not the history fallback", async () => {
+    // Lighthouse fetches robots.txt with a browser-ish Accept, which is exactly how the SPA shell got
+    // parsed as robots syntax. Real files are served before the fallback runs, in both Accept arms.
+    const res = await app.request("/robots.txt", { headers: NAV_HEADERS });
+    expect(res.status).toBe(OK);
+    expect(await res.text()).toBe(ROBOTS_TXT);
   });
 });
 

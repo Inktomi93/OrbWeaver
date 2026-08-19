@@ -1244,6 +1244,22 @@ export function ChatRecentsTileStory(): ReactElement {
   return <HomeTileStory tile={chatRecentsTile} />;
 }
 
+/** The hero pane at a DESKTOP width — the only place #205's art bleed exists. The band is
+ *  `inset-inline-start: min(100%, var(--reading-measure))`, so at the 720px story pane above there is
+ *  almost nothing beyond the measure and an art assertion there would be measuring a sliver. This pane is a
+ *  1920-monitor's home pane (post-#226 the hearth track is half of it), i.e. the width the owner's own
+ *  screens sit at and where the ruling's "fills the dead second scent-line space" is actually true. The
+ *  NARROW arm is the 720px story above: same registry, and the band collapses to nothing. */
+export function ChatRecentsHeroArtStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 1860 }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile])} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The two hearth blocks TOGETHER — the shipped pair (#102 review F6/F13 split the also-open list out of
  *  the recents body into its own tile). Mounted as one registry so the CT can assert what the split is
  *  FOR: two peer regions, two h2s, and the trailing "All chats →" on the second band. */
