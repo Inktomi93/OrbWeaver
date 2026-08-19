@@ -5,6 +5,7 @@
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import process from "node:process";
 import { Project } from "ts-morph";
 import type { Finding } from "../../scripts/check/contract.ts";
 import { gate as verifyRegistryParityGate } from "../../scripts/check/gates/verify-registry-parity.ts";
@@ -12,7 +13,7 @@ import { canonicalSort, runPass } from "../../scripts/check/pass.ts";
 import type { StageDef } from "../../scripts/verify/registry.ts";
 import { asViolations, eslintScheme, ownScheme, REGISTRY, stagesForTier } from "../../scripts/verify/registry.ts";
 import type { StageResult } from "../../scripts/verify/run.ts";
-import { aggregateExit, failReason, parse } from "../../scripts/verify/run.ts";
+import { aggregateExit, captureProcess, failReason, parse } from "../../scripts/verify/run.ts";
 import { resolveSelection } from "../../scripts/verify/selection.ts";
 import { expect, test } from "../support/fixtures.ts";
 import { withTree } from "./_support.ts";
@@ -546,4 +547,41 @@ test("verify-registry-parity: a dev-only package.json (no verify host) is fully 
   // No `verify` script → arm 2 no-ops; no verification-shaped script → arm 1 quiet. Total clean — the
   // synthetic near-miss the gate's own mustPass asserts.
   expect(runParityGate({ dev: "vite", build: "vite build" })).toEqual([]);
+});
+
+// ── the stage transcript (#259) — the log/excerpt a failure is READ from ──
+// The stage runner used to capture with spawnSync and store `stdout + stderr` (whole-stream CONCATENATION).
+// Consequences it cost a night to diagnose: (1) for a compound stage the transcript ENDED with the tail of
+// stderr — pnpm's `$ …` banner + node ExperimentalWarnings — while the real verdict sat mid-file, so
+// reports/verify.json's failureExcerpt reported warning noise and a hard CT failure read as a silent death;
+// (2) spawnSync's DEFAULT maxBuffer does not truncate, it TERMINATES the child, so a chatty stage would
+// have been killed mid-suite. Both are pinned here through captureProcess's public result.
+
+/** The running node, addressed by absolute path — the children run with an EMPTY env (no PATH to resolve
+ *  through), which also keeps the capture deterministic under any caller's environment. */
+const NODE_BIN = process.execPath;
+const CAPTURE_OPTS = { cwd: process.cwd(), env: {}, verbose: false } as const;
+
+/** A child that writes to stderr FIRST and puts its verdict LAST on stdout — the compound-stage shape. */
+const VERDICT_CHILD = "process.stderr.write('warn: noise\\n'); setTimeout(() => { process.stdout.write('THE VERDICT\\n'); process.exit(3); }, 150);";
+
+test("captureProcess: the transcript is CHRONOLOGICAL — a stdout verdict after stderr noise is LAST (not buried by stream concatenation)", async () => {
+  const cap = await captureProcess([NODE_BIN, "-e", VERDICT_CHILD], CAPTURE_OPTS);
+  expect(cap.status).toBe(3);
+  expect(cap.transcript).toContain("warn: noise");
+  expect(cap.transcript.trimEnd().endsWith("THE VERDICT")).toBe(true);
+});
+
+test("captureProcess: a stage far chattier than spawnSync's ~1 MiB maxBuffer is captured WHOLE and exits normally (no SIGTERM/ENOBUFS kill)", async () => {
+  const bytes = 4 * 1024 * 1024;
+  const cap = await captureProcess([NODE_BIN, "-e", `process.stdout.write('x'.repeat(${bytes}))`], CAPTURE_OPTS);
+  expect(cap.status).toBe(0); // spawnSync's default cap returns status null + SIGTERM here
+  expect(cap.transcript.length).toBe(bytes);
+});
+
+test("captureProcess: a bin that does not exist is a TOOL error (status null ⇒ exit 2), with the reason in the transcript", async () => {
+  const cap = await captureProcess(["./node_modules/.bin/definitely-not-a-real-bin"], CAPTURE_OPTS);
+  expect(cap.status).toBeNull();
+  expect(asViolations(cap.status)).toBe(2);
+  expect(cap.transcript).toContain("spawn failed");
 });
