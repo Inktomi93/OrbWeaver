@@ -24,8 +24,8 @@ export function useTagCount(): number | undefined {
 /** One ranked row → the host-facing preview entry. The wire row carries five per-target usage counters; the
  *  hero shows the TOTAL, because "how much of the library this tag accounts for" is the one number that
  *  ranks the wall and the breakdown belongs to the member editor. */
-function previewEntry(row: { readonly name: string; readonly usage: { readonly total: number } }): CollectionPreviewEntry {
-  return { label: row.name, detail: String(row.usage.total) };
+function previewEntry(row: { readonly id: string; readonly name: string; readonly usage: { readonly total: number } }): CollectionPreviewEntry {
+  return { id: row.id, label: row.name, detail: String(row.usage.total) };
 }
 
 /** The welcome hero's CHIP WALL (the `preview` seam): the most-used slice of the library, ranked by the

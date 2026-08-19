@@ -40,6 +40,8 @@ const COLORIZED_BORDER_ACCENT_SHARE = 0.22;
 /** Every collection's create verb as one pattern — `New tag` / `New script` / `New book` is the door
  *  array's whole create vocabulary, so a count over this pattern is a total claim. */
 const ANY_CREATE_VERB = /^New /;
+/** The wall's derived remainder chip, whatever number it lands on. */
+const ANY_REMAINDER = /^\+\d+ more$/;
 /** The BUILT column's own marker — a second attribute beside `data-collection`, so the column's `:has()`
  *  test and the card's identity can never be confused for one another. */
 const BUILT = "[data-config-built]";
@@ -79,6 +81,14 @@ function tagRow(index: number, usage: number): Record<string, unknown> {
 const TAG_COUNT = 28;
 const TAGS = Array.from({ length: TAG_COUNT }, (_unused, index) => tagRow(index, Math.max(1, TAG_COUNT - index - 1)));
 
+/** TWO LIBRARY MEMBERS WITH THE SAME NAME — the owner's corpus has two books called "Shitty stories", and
+ *  the wall keyed its chips on `entry.label` (side-eye 2026-08-19 P1-1: the only console error on the
+ *  surface, on every visit). A name is not an identity; a chip wall built on one is a wall React is free to
+ *  drop or duplicate rows of, and the `+N more` count is derived from `shown.length`, so a dropped chip
+ *  makes the remainder LIE about how much of the library is hidden. */
+const DUPLICATE_NAME = "tag-000";
+const SAME_NAME_TAGS = [{ ...tagRow(0, 9), id: "tag_dupe_a", name: DUPLICATE_NAME }, { ...tagRow(1, 8), id: "tag_dupe_b", name: DUPLICATE_NAME }, tagRow(2, 7)];
+
 const SCRIPTS = [
   {
     id: "regex_script_stripooc",
@@ -95,6 +105,16 @@ const SCRIPTS = [
     substituteRegex: "none",
   },
 ];
+
+/** A regex library authored in ONE SITTING — every row carries the same edit stamp, which is the owner's
+ *  real state and the one the recency ranking has nothing to say about (side-eye 2026-08-19 P2-2: twelve
+ *  chips all reading "yesterday"). Three rows, because the claim is about a WALL: one chip has no repetition
+ *  to be about. */
+const SAME_STAMP_SCRIPTS = ["strip ooc", "Format dialogue quotes", "Trim narrator asides"].map((name, index) => ({
+  ...SCRIPTS[0],
+  id: `regex_script_samestamp${String(index)}`,
+  name,
+}));
 
 const BOOKS = [
   {
@@ -603,4 +623,76 @@ test("every launcher blurb is capped at the reading measure, like the masthead",
     expect(measure, "the reading measure resolves in this document").toBeGreaterThan(0);
     expect(drawn.width, `${id}'s blurb is capped, not pane-wide`).toBeLessThanOrEqual(measure + 1);
   }
+});
+
+// ── THE BLURB'S STEP (side-eye 2026-08-19 P3) ───────────────────────────────────────────────────────
+// The island blurbs are the surface's TEACHING sentences — what a library is for, read by someone who has
+// not built it yet — and they were set at the `gloss` voice's own 10.5px micro step, the footnote step.
+// `prose` is the house statement for exactly this ("this text is sentences, not a label"): it lifts the
+// step and relaxes the leading and changes nothing else, so a blurb is still unmistakably the gloss voice.
+test("the island blurbs are read at the prose step, not the 10.5px footnote step", async ({ mount, page }) => {
+  await stub(page, { books: BOOKS, scripts: SCRIPTS, tags: TAGS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 3, 0);
+
+  const micro = await resolvedPx(pane.locator(CONTENT), "--text-micro");
+  const label = await resolvedPx(pane.locator(CONTENT), "--text-label");
+  expect(label, "the two steps are distinct in this document").toBeGreaterThan(micro);
+
+  const blurbs = pane.locator(WELCOME).locator('[data-slot="text"][data-voice="gloss"]');
+  const sizes = await blurbs.evaluateAll((nodes) => nodes.map((node) => Number.parseFloat(getComputedStyle(node).fontSize)));
+  expect(sizes.length, "every built island carries a blurb").toBe(3);
+  for (const size of sizes) {
+    expect(size, `a teaching sentence renders at ${String(size)}px`).toBeCloseTo(label, 1);
+  }
+});
+
+// ── A NAME IS NOT AN IDENTITY (side-eye 2026-08-19 P1-1) ────────────────────────────────────────────
+// The wall keyed its chips on `entry.label`. The owner's corpus has two books named the same thing, so
+// every visit logged React's duplicate-key error — the only console error on the surface — and left the
+// wall's membership up to reconciliation, while `+N more` kept counting `shown.length` as if nothing had
+// been dropped. The preview entry now carries the member's own `id` and the wall keys on it.
+//
+// THIS PIN IS A FENCE, NOT THE DEFECT PROOF, and the difference is stated rather than smuggled: the
+// duplicate-key error is a DEV-ONLY React warning and playwright-ct runs PRODUCTION React, so no CT can
+// observe it. What it holds is the user-visible consequence — both same-named members are shown, each with
+// its own datum, and the remainder still describes the library.
+test("two members with the SAME NAME both appear in the wall, and the remainder still adds up", async ({ mount, page }) => {
+  await stub(page, { tags: SAME_NAME_TAGS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 1, 2);
+
+  const hero = pane.locator('[data-config-built="tags"]');
+  const chips = hero.locator('[data-slot="badge"]').filter({ hasText: DUPLICATE_NAME });
+  await expect(chips, "the same name twice is two members, not one").toHaveCount(2);
+  // …and they are distinguishable: each chip carries its own ranking datum.
+  const details = await chips.locator('[data-slot="text"][data-voice="datum"]').evaluateAll((nodes) => nodes.map((node) => node.textContent ?? ""));
+  expect(new Set(details).size, `the two chips read ${details.join(" / ")}`).toBe(2);
+  // The whole library is on screen, so the derived remainder must not be drawn at all.
+  await expect(hero.getByText(ANY_REMAINDER), "nothing is hidden, so nothing claims to be").toHaveCount(0);
+});
+
+// ── THE TWELVE-IDENTICAL-VALUES WALL (side-eye 2026-08-19 P2-2) ─────────────────────────────────────
+// The regex library ranks by RECENCY, so on a library authored in one sitting all twelve chips printed the
+// same word ("yesterday") — the ugliest block left on the surface, and a column of one repeated value is
+// not a datum, it is noise that reads as a rendering bug. A detail with ONE distinct value across a wall of
+// several discriminates nothing, so the host omits the slot and the chip wall carries names alone.
+test("a detail that is the same on every chip is dropped — the wall carries names alone", async ({ mount, page }) => {
+  await stub(page, { scripts: SAME_STAMP_SCRIPTS, tags: TAGS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 2, 1);
+
+  const regex = pane.locator('[data-config-built="regex"]');
+  // The wall is still there, and it is still the library's own members.
+  await expect(regex.getByText("Recently edited", { exact: true })).toBeVisible();
+  await expect(regex.locator('[data-slot="badge"]')).toHaveCount(SAME_STAMP_SCRIPTS.length);
+  await expect(regex.locator('[data-slot="text"][data-voice="datum"]'), "a value repeated on every chip is not a datum").toHaveCount(0);
+
+  // …and the rule is about DISTINCTNESS, not about regex: the tag wall's usage totals vary, so it keeps
+  // every one of its details.
+  const tagDetails = await pane
+    .locator('[data-config-built="tags"]')
+    .locator('[data-slot="text"][data-voice="datum"]')
+    .evaluateAll((nodes) => nodes.map((node) => node.textContent ?? ""));
+  expect(new Set(tagDetails).size, "a varying detail is kept").toBeGreaterThan(1);
 });

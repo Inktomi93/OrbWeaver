@@ -202,7 +202,13 @@ function SubjectMarker({ appended }: { readonly appended: boolean }): ReactEleme
     // voice therefore reached down into it and printed a nine-word CLAUSE as "THIS SCRIPT, WHEREVER IT'S
     // ATTACHED". The kicker voice is law for a section NAME; a sentence wearing it is the narrow defect, and
     // the source string was already lowercase, so nothing but the inherited transform was ever wrong here.
-    <Badge className="normal-case" intent={appended ? "neutral" : "info"} size="sm">
+    //
+    // …AND THE CAPS TRACKING GOES WITH THE CAPS (side-eye 2026-08-19 P3, the second pass). `letter-spacing`
+    // inherits exactly like `text-transform` does, so standing down only the transform left a SENTENCE
+    // wearing the kicker's 0.08em micro tracking — measured 0.84px of air between letters of running prose
+    // at 13px. Micro tracking is what makes a caps kicker readable and what makes a sentence look loose;
+    // both halves of the kicker voice have to stand down together, which is one token step, not a re-skin.
+    <Badge className="normal-case tracking-normal" intent={appended ? "neutral" : "info"} size="sm">
       {appended ? "This script, wherever it’s attached" : "This script"}
     </Badge>
   );

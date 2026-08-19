@@ -44,6 +44,16 @@ export const regexCollection: CollectionContribution = {
   bulkSelect: { label: "Select scripts", useMode: useRegexBulkMode },
   list: (view) => <RegexCollectionRows view={view} />,
   detail: (view) => <RegexMemberSurface memberId={view.memberId} />,
-  // The band's title is the mock's own ("WHERE IT RUNS"), not the shell's neutral "Details".
-  context: { kind: "body", title: "Where it runs", render: (view) => <RegexContextBody memberId={view.memberId} /> },
+  // The band's title names what the pane ANSWERS, not the shell's neutral "Details" — the mock drew it
+  // "WHERE IT RUNS".
+  //
+  // …AND IT IS NO LONGER "WHERE IT RUNS" (side-eye 2026-08-19, the clarity finding). Two orthogonal concepts
+  // wore near-identical phrasing on one screen: the EDITOR's `Runs on` field picks which TEXT STREAMS a
+  // script rewrites (your message · model output · rendered transcript), while THIS pane decides and reports
+  // which SCOPES it is attached from (globally, or by a preset / character / room). A reader who has just
+  // set "Runs on" and then reads "Where it runs" 300px away has no way to know they are not the same
+  // control, and the pane's own copy already speaks the attachment vocabulary ("Runs in every chat",
+  // "Attached by presets · 2"). The panel is re-headed rather than the field, because the field's label is
+  // also quoted inside this pane's own "no stream selected" warning — one re-head, one changed string.
+  context: { kind: "body", title: "Where it’s attached", render: (view) => <RegexContextBody memberId={view.memberId} /> },
 };

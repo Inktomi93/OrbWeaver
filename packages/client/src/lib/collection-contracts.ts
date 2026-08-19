@@ -71,6 +71,12 @@ export const COLLECTION_PREVIEW_LIMIT = 12;
  *  (`bookScent`, `formatRelative`); a second one here would be the drift those single homes exist to
  *  prevent. */
 export interface CollectionPreviewEntry {
+  /** The member's OWN id — the wall's React key, and the reason the wall has one (side-eye 2026-08-19 P1-1).
+   *  The host keyed its chips on `label`, and a name is not an identity: the owner's corpus carries two books
+   *  called "Shitty stories", so every visit logged React's duplicate-key error and left the wall's membership
+   *  to reconciliation — while `+N more` kept deriving the remainder from `shown.length` as though nothing
+   *  could have been dropped. Opaque at the seam, exactly like `CollectionDetailView.memberId`. */
+  readonly id: string;
   /** The member's own name, as the library spells it. */
   readonly label: string;
   /** The ONE datum that ranks this member, in the library's own units and already formatted. */
