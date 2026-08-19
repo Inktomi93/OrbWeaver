@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import type { BindingElement, ExportDeclaration, ImportDeclaration, Project, SourceFile, Type } from "ts-morph";
+import type { BindingElement, ExportDeclaration, ImportDeclaration, JsxAttribute, Project, SourceFile, Type, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../knip.ts";
 import type { SchemaTable } from "../check/schema-read.ts";
@@ -453,12 +453,27 @@ function perFileCounts(hits: Hit[]): [string, number][] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
+/** THE CAP BIT — say so LOUDLY, on stderr, beside the epilogue's `status=partial`. A `--max` that drops hits
+ *  is the same lie the scan ledger exists to kill: `--json` printed a `shown` field nobody reads, and a raw
+ *  list ended in a parenthetical. The #210 triage lost ten hits to it before noticing (`--max 200` was
+ *  load-bearing and undiscoverable). The DEFAULT stays 60: raising it would also move the auto-collapse
+ *  trigger for all thirty-odd verbs (`COLLAPSE_THRESHOLD`), flooding readers to fix one lens's ergonomics. */
+function warnTruncated(total: number, shown: number, flags: Flags, label: string): void {
+  if (shown >= total) {
+    return;
+  }
+  console.error(
+    `${EPILOGUE_TAG} TRUNCATED — ast ${label}: ${total} hit(s) found, ${shown} displayed, ${total - shown} DROPPED by --max ${flags.max}. This list is NOT the answer; re-run with --max ${total} (or more) for the complete set.`,
+  );
+}
+
 function emit(hits: Hit[], flags: Flags, label: string): void {
   const unique = dedupe(hits, flags).sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   const files = new Set(unique.map((h) => h.file)).size;
   if (flags.json) {
     const shown = unique.slice(0, flags.max);
     noteMatches(unique.length, shown.length);
+    warnTruncated(unique.length, shown.length, flags, label);
     // `meta` is ADDITIVE and last — every pre-existing key keeps its name, order and value, so a consumer
     // reading `total`/`hits` is untouched while a new one can audit the scope the answer came from.
     console.log(JSON.stringify({ label, total: unique.length, shown: shown.length, hits: shown, meta: scanMeta() }, null, 1));
@@ -479,6 +494,7 @@ function emit(hits: Hit[], flags: Flags, label: string): void {
   }
   const shown = unique.slice(0, flags.max);
   noteMatches(unique.length, shown.length);
+  warnTruncated(unique.length, shown.length, flags, label);
   for (const h of shown) {
     console.log(`${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
@@ -4520,10 +4536,44 @@ function printRegistriesPerTable(registries: readonly RegistryDef[], byRegistry:
 //     declaration-only artifacts of the branded-type idiom, not fields (4 of the audit's 6 raw hits).
 //   • A SPREAD producer (`{ ...parsed }`) names no key at all, and neither does a `z.object` DECLARATION —
 //     a property whose initializer is a `z.` chain is read as a declaration, not as a producer.
+//
+// THE #210 TRIAGE (docs/reviews/misc/2026-08-19-lens-triage-210.md) READ ALL 70 HITS OF THE FIRST BUILD and
+// found 2 real defects under 68 hits the lens could not see the producer of. Everything below the four
+// blind spots above is the remedy, each one measured against that classification:
+//   • SAME-FILE readers were discarded by a whole-FILE filter, so a schema consumed by its own file's
+//     importer printed the strongest possible tail ("the declaration is its only occurrence") about a fully
+//     live field (8 hits). The fence is now the DECLARATION NODE's span, not its file.
+//   • ELEMENT-ACCESS writes (`out["creation_date"] = …`) are producers — the read side already counted
+//     `x["k"]`, and the asymmetry was the bug.
+//   • A JSX `name="chatWidthPct"` / `setFieldValue("params.advanced.dynamicContext", …)` string IS the
+//     TanStack Form write path (17 hits). The banner named only the template-literal spelling of it.
+//   • A `.default()` on the field's OWN chain makes the schema its own producer (`chunkParams`).
+//   • A COMPUTED key whose expression is a string const (`{ [ATTACHED_BOOKS_WIRE_KEY]: refs }`) resolves
+//     through the corpus's `const X = "…"` bindings.
+//   • MODEL-PROJECTED schemas are FENCED, not reported ({@link modelProjectedSchemas}): when a schema is
+//     handed to `projectJsonSchema`/`z.toJSONSchema` or registered as a tool's `argsSchema`, the producer of
+//     its keys is the LLM. There is no on-tree producer by construction and there never will be, so a key
+//     index cannot distinguish "the model writes it" from "nothing writes it" — 25 unadjudicable hits is
+//     what buried the two real ones. The fenced COUNT is printed, so the exclusion is visible, never silent.
+// STILL REPORTED, deliberately: a wire-INPUT-only schema (a tRPC `.input(…)`, a plugin-guest DTO). Fencing
+// by router input would fence most of `contracts` — the two real defects live in schemas one hop from an
+// import route — so that class stays adjudicable and its hits carry the normal caveat.
 const CONTRACTS_SRC = "/packages/contracts/src/";
 const ZOD_INIT_RE = /^z\s*\./u;
 /** How many read sites a field's line names before collapsing. */
 const FIELD_READ_SITES_SHOWN = 3;
+/** The JSX attribute whose string value names a form field (TanStack Form's `<form.AppField name="x">`). */
+const FIELD_NAME_ATTR = "name";
+/** The imperative half of the same write path — `form.setFieldValue("params.advanced.x", v)`. */
+const SET_FIELD_VALUE = "setFieldValue";
+/** A `sections[3]` path segment — the index is not a field name. */
+const PATH_INDEX_RE = /\[[^\]]*\]/gu;
+/** A path segment that is a bare array index — positional, never a field name. */
+const NUMERIC_SEGMENT_RE = /^\d+$/u;
+/** The two doors a zod schema goes through on its way to a MODEL, and the tool-registry key that does the
+ *  same job — the structural marker of "the producer of these keys is off-tree by construction". */
+const MODEL_PROJECTION_CALLEES = new Set(["projectJsonSchema", "toJSONSchema"]);
+const TOOL_ARGS_SCHEMA_KEY = "argsSchema";
 
 /** ONE declared contract field: its name, the declaration node, and the owner shape it belongs to. */
 export type ContractField = { readonly name: string; readonly node: Node; readonly owner: string };
@@ -4562,9 +4612,65 @@ export function contractFieldsOf(sf: SourceFile): ContractField[] {
   return out;
 }
 
-/** Names this file PRODUCES: an object-literal key (excluding a `z.object` declaration), a shorthand, or
- *  an assignment target (`x.foo = …`). The write-shaped half of the audit's method. */
+/** Credit a form-field PATH (`params.advanced.dynamicContext`, `sections[3].name`) as a producer of every
+ *  segment it names — the leaf is the field, and the parents are fields of their own owners. */
+function addFieldPath(path: string, out: Set<string>): void {
+  for (const segment of path.replace(PATH_INDEX_RE, "").split(".")) {
+    if (segment !== "" && !NUMERIC_SEGMENT_RE.test(segment)) {
+      out.add(segment);
+    }
+  }
+}
+
+/** The string value of a JSX attribute, in both spellings a form uses: `name="x"` and `name={"x"}`. */
+function jsxStringAttrValue(attr: JsxAttribute): string | undefined {
+  const init = attr.getInitializer();
+  if (init === undefined) {
+    return;
+  }
+  const direct = init.asKind(SyntaxKind.StringLiteral);
+  if (direct !== undefined) {
+    return direct.getLiteralText();
+  }
+  const inner = init.asKind(SyntaxKind.JsxExpression)?.getExpression()?.asKind(SyntaxKind.StringLiteral);
+  return inner?.getLiteralText();
+}
+
+/** The TanStack Form write path, which no property-key index can see: a `name="chatWidthPct"` JSX attribute
+ *  and a `setFieldValue("params.advanced.dynamicContext", v)` call BOTH populate the named field. 17 of the
+ *  #210 triage's 70 hits were exactly this, all of them fully live. */
+function formFieldNamesOf(sf: SourceFile, out: Set<string>): void {
+  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
+    const value = attr.getNameNode().getText() === FIELD_NAME_ATTR ? jsxStringAttrValue(attr) : undefined;
+    if (value !== undefined) {
+      addFieldPath(value, out);
+    }
+  }
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (calleeName(call.getExpression()) !== SET_FIELD_VALUE) {
+      continue;
+    }
+    const first = call.getArguments()[0]?.asKind(SyntaxKind.StringLiteral);
+    if (first !== undefined) {
+      addFieldPath(first.getLiteralText(), out);
+    }
+  }
+}
+
+/** The NAME a call expression dispatches on — `projectJsonSchema(…)` and `z.toJSONSchema(…)` alike. */
+function calleeName(callee: Node): string {
+  const asProp = callee.asKind(SyntaxKind.PropertyAccessExpression);
+  if (asProp !== undefined) {
+    return asProp.getName();
+  }
+  return callee.asKind(SyntaxKind.Identifier)?.getText() ?? "";
+}
+
+/** Names this file PRODUCES: an object-literal key (excluding a `z.object` declaration), a shorthand, an
+ *  assignment target (`x.foo = …` AND `x["foo"] = …` — the read side already counted both spellings, and
+ *  the asymmetry was a live-field false positive), or a form-field name string. */
 function producedNamesOf(sf: SourceFile, out: Set<string>): void {
+  formFieldNamesOf(sf, out);
   for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
     if (!(isZodField(pa) || Node.isComputedPropertyName(pa.getNameNode()))) {
       out.add(pa.getName());
@@ -4583,68 +4689,278 @@ function producedNamesOf(sf: SourceFile, out: Set<string>): void {
     out.add(member.getName());
   }
   for (const bin of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
-    const lhs = bin.getLeft().asKind(SyntaxKind.PropertyAccessExpression);
-    if (lhs !== undefined && bin.getOperatorToken().getText() === "=") {
-      out.add(lhs.getName());
+    if (bin.getOperatorToken().getText() !== "=") {
+      continue;
+    }
+    const left = bin.getLeft();
+    const dotted = left.asKind(SyntaxKind.PropertyAccessExpression);
+    if (dotted !== undefined) {
+      out.add(dotted.getName());
+      continue;
+    }
+    // `out["creation_date"] = fields.creationDate` — the card serde's emit shape, and a producer the
+    // dot-only sweep read as "nothing populates this" (triage §4 F2).
+    const indexed = left.asKind(SyntaxKind.ElementAccessExpression)?.getArgumentExpression()?.asKind(SyntaxKind.StringLiteral);
+    if (indexed !== undefined) {
+      out.add(indexed.getLiteralText());
     }
   }
 }
 
-/** Names this file READS, in all three property-read shapes plus destructuring (a dot-only sweep is a known
- *  false clean in this repo). Returns the file path per name so a hit can name its consumers. */
-function consumedNamesOf(sf: SourceFile, out: Map<string, Set<string>>): void {
-  const credit = (name: string): void => {
-    const bucket = out.get(name) ?? new Set<string>();
-    bucket.add(sf.getFilePath());
+/** A `const X = "literal"` binding, and every COMPUTED key spelled `[X]` — collected separately because
+ *  resolving one against the other needs the whole corpus (`{ [ATTACHED_BOOKS_WIRE_KEY]: refs }` in the card
+ *  serde names a key declared in `contracts`). Resolved in {@link fieldIndexes}. */
+function computedKeyEvidenceOf(sf: SourceFile, stringConsts: Map<string, string>, computedKeys: Set<string>): void {
+  for (const decl of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+    const literal = decl.getInitializer()?.asKind(SyntaxKind.StringLiteral);
+    if (literal !== undefined) {
+      stringConsts.set(decl.getName(), literal.getLiteralText());
+    }
+  }
+  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+    const computed = pa.getNameNode().asKind(SyntaxKind.ComputedPropertyName)?.getExpression().asKind(SyntaxKind.Identifier);
+    if (computed !== undefined) {
+      computedKeys.add(computed.getText());
+    }
+  }
+}
+
+/** Where a name is SPELLED as a read: the file, plus the node offsets when that file is a `contracts` file.
+ *  Offsets are tracked ONLY there because the one file whose reads need node-level adjudication is the one
+ *  DECLARING the field, and every declaration this lens examines lives under `packages/contracts/src`.
+ *  Tracking them corpus-wide would cost ~5,000 files of positions for zero extra verdicts. */
+export type FieldReadSites = Map<string, number[]>;
+
+/** Names this file READS, in all three property-read shapes plus OBJECT destructuring (a dot-only sweep is a
+ *  known false clean in this repo). An ARRAY binding element (`const [author, role] = …`) is POSITIONAL and
+ *  names no property — crediting it printed a false consumer for `pluginManifestSchema.author` (triage §4).
+ *  Returns the sites per name so a hit can name its consumers and fence its own declaration. */
+function consumedNamesOf(sf: SourceFile, out: Map<string, FieldReadSites>): void {
+  const filePath = sf.getFilePath();
+  const trackOffsets = filePath.includes(CONTRACTS_SRC);
+  const credit = (name: string, pos: number): void => {
+    const bucket = out.get(name) ?? new Map<string, number[]>();
+    const sites = bucket.get(filePath) ?? [];
+    if (trackOffsets) {
+      sites.push(pos);
+    }
+    bucket.set(filePath, sites);
     out.set(name, bucket);
   };
   for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    credit(pa.getName());
+    credit(pa.getName(), pa.getStart());
   }
   for (const ea of sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
     const arg = ea.getArgumentExpression();
     if (arg !== undefined && Node.isStringLiteral(arg)) {
-      credit(arg.getLiteralText());
+      credit(arg.getLiteralText(), ea.getStart());
     }
   }
   for (const be of sf.getDescendantsOfKind(SyntaxKind.BindingElement)) {
     const pn = be.getPropertyNameNode() ?? be.getNameNode();
-    if (Node.isIdentifier(pn)) {
-      credit(pn.getText());
+    if (Node.isIdentifier(pn) && be.getParent().getKind() === SyntaxKind.ObjectBindingPattern) {
+      credit(pn.getText(), be.getStart());
     }
   }
 }
 
 /** The producer / consumer indexes over the PRODUCTION corpus (tests excluded — a test constructing a
  *  fixture is not a producer, the same rule `testonly` and `regkeys` apply). */
-export function fieldIndexes(project: Project): { readonly produced: Set<string>; readonly consumed: Map<string, Set<string>> } {
+export function fieldIndexes(project: Project): { readonly produced: Set<string>; readonly consumed: Map<string, FieldReadSites> } {
   const produced = new Set<string>();
-  const consumed = new Map<string, Set<string>>();
+  const consumed = new Map<string, FieldReadSites>();
+  const stringConsts = new Map<string, string>();
+  const computedKeys = new Set<string>();
   for (const sf of project.getSourceFiles()) {
     if (isTestPath(sf.getFilePath())) {
       continue;
     }
     producedNamesOf(sf, produced);
     consumedNamesOf(sf, consumed);
+    computedKeyEvidenceOf(sf, stringConsts, computedKeys);
+  }
+  for (const ident of computedKeys) {
+    const resolved = stringConsts.get(ident);
+    if (resolved !== undefined) {
+      produced.add(resolved);
+    }
   }
   return { produced, consumed };
 }
 
-/** ONE field's verdict line, or undefined when a producer spells it. */
-export function fieldHit(field: ContractField, produced: ReadonlySet<string>, consumed: ReadonlyMap<string, Set<string>>): Hit | undefined {
-  if (produced.has(field.name)) {
+/** A zod field whose OWN chain carries `.default(…)` populates itself — the schema is the producer, and the
+ *  value reaches every consumer of the parse. Only the field's top-level chain counts: a `.default()` on a
+ *  NESTED key would otherwise absolve the outer field it is nested inside. */
+function isSelfDefaulted(node: Node): boolean {
+  let current = Node.isPropertyAssignment(node) ? node.getInitializer() : undefined;
+  while (current !== undefined) {
+    const call = current.asKind(SyntaxKind.CallExpression);
+    if (call === undefined) {
+      return false;
+    }
+    if (calleeName(call.getExpression()) === "default") {
+      return true;
+    }
+    current = call.getExpression().asKind(SyntaxKind.PropertyAccessExpression)?.getExpression();
+  }
+  return false;
+}
+
+/** The files that SPELL this field's name as a read, excluding the field's OWN declaration span. The fence is
+ *  the declaration NODE, not its file: a contracts file that declares a foreign wire schema and consumes it
+ *  in its own importer 400 lines below is a live producer/reader, and the old whole-file filter printed the
+ *  strongest possible "nothing reads it" tail about 8 such fields (triage §4 F1). */
+function readersOf(field: ContractField, consumed: ReadonlyMap<string, FieldReadSites>): string[] {
+  const declFile = field.node.getSourceFile().getFilePath();
+  const start = field.node.getStart();
+  const end = field.node.getEnd();
+  const readers: string[] = [];
+  for (const [filePath, offsets] of consumed.get(field.name) ?? []) {
+    if (filePath !== declFile || offsets.some((pos) => pos < start || pos >= end)) {
+      readers.push(filePath);
+    }
+  }
+  return readers;
+}
+
+/** ONE field's verdict line, or undefined when a producer spells it (or the schema defaults it itself). */
+export function fieldHit(field: ContractField, produced: ReadonlySet<string>, consumed: ReadonlyMap<string, FieldReadSites>): Hit | undefined {
+  if (produced.has(field.name) || isSelfDefaulted(field.node)) {
     return;
   }
-  const readers = [...(consumed.get(field.name) ?? [])].filter((fp) => !fp.endsWith(field.node.getSourceFile().getFilePath()));
+  const readers = readersOf(field, consumed);
   const kind = readers.length === 0 ? "field-declared-only" : "field-consumed-never-populated";
   const where = readers.slice(0, FIELD_READ_SITES_SHOWN).map(relPath).join(", ");
+  // "SPELL this name", never "READ it": the index credits a NAME, not a resolved receiver type, so an
+  // unrelated same-named property on another shape lands here (triage §4 — `MoveMessageParams.toSeq` was
+  // credited as a reader of `loreEntryProvenanceSchema.span.toSeq`). The claim is exactly what it can prove.
   const tail =
     readers.length === 0
-      ? "and NOTHING reads it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
-      : `but ${readers.length} site(s) READ it (${where}${readers.length > FIELD_READ_SITES_SHOWN ? ", …" : ""}) — the RepetitionDetection class`;
+      ? "and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+      : `but ${readers.length} site(s) SPELL this NAME as a read (${where}${readers.length > FIELD_READ_SITES_SHOWN ? ", …" : ""}) — the RepetitionDetection class, name-matched not type-resolved`;
   const hit = hitOf(field.node, kind);
   hit.text = `${field.owner}.${field.name} — NO producer spells this name outside its own declaration, ${tail}`;
   return hit;
+}
+
+/** Every `const <name> = …` declared under `packages/contracts/src`, by name — the resolution table the
+ *  fence walks (a projected schema names its parts as identifiers, and the parts are declared here). */
+function contractDeclarations(project: Project): Map<string, VariableDeclaration> {
+  const byName = new Map<string, VariableDeclaration>();
+  for (const sf of project.getSourceFiles()) {
+    if (!sf.getFilePath().includes(CONTRACTS_SRC)) {
+      continue;
+    }
+    for (const decl of sf.getVariableDeclarations()) {
+      byName.set(decl.getName(), decl);
+    }
+  }
+  return byName;
+}
+
+/** The SEED names of the fence: a schema handed to `projectJsonSchema`/`z.toJSONSchema`, or registered as a
+ *  tool's `argsSchema`. A registry hop (`projectJsonSchema(REFINERY_STAGE_PAYLOADS.score)`) contributes the
+ *  registry's own name, expanded one level below. */
+function modelProjectionSeeds(project: Project): { readonly names: Set<string>; readonly registries: Set<string> } {
+  const names = new Set<string>();
+  const registries = new Set<string>();
+  for (const sf of project.getSourceFiles()) {
+    if (isTestPath(sf.getFilePath())) {
+      continue;
+    }
+    projectionCallSeeds(sf, names, registries);
+    toolArgsSeeds(sf, names);
+  }
+  return { names, registries };
+}
+
+/** `projectJsonSchema(forgeDesignEnvelopeSchema)` seeds a NAME; `projectJsonSchema(REFINERY_STAGE_PAYLOADS
+ *  .score)` seeds the REGISTRY, expanded one level by {@link modelProjectedSchemas}. */
+function projectionCallSeeds(sf: SourceFile, names: Set<string>, registries: Set<string>): void {
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (!MODEL_PROJECTION_CALLEES.has(calleeName(call.getExpression()))) {
+      continue;
+    }
+    const arg = call.getArguments()[0];
+    const direct = arg?.asKind(SyntaxKind.Identifier);
+    const viaRegistry = arg?.asKind(SyntaxKind.PropertyAccessExpression)?.getExpression().asKind(SyntaxKind.Identifier);
+    if (direct !== undefined) {
+      names.add(direct.getText());
+    } else if (viaRegistry !== undefined) {
+      registries.add(viaRegistry.getText());
+    }
+  }
+}
+
+/** `argsSchema: updatePartyArgsSchema` — a tool registration hands the schema to the MODEL as its call
+ *  grammar, so the model is the only producer of those keys. */
+function toolArgsSeeds(sf: SourceFile, names: Set<string>): void {
+  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+    const registered = pa.getName() === TOOL_ARGS_SCHEMA_KEY ? pa.getInitializer()?.asKind(SyntaxKind.Identifier) : undefined;
+    if (registered !== undefined) {
+      names.add(registered.getText());
+    }
+  }
+}
+
+/** THE FENCE: schema consts whose key space is written by a MODEL, not by this repository — projected
+ *  through `projectJsonSchema`/`z.toJSONSchema` or registered as a tool `argsSchema`, plus (one closure step,
+ *  SAME FILE only) the schema consts those declarations are built from. A key index cannot tell "the model
+ *  writes it" from "nothing writes it", so these are excluded and COUNTED rather than reported — 25 of the
+ *  #210 triage's 70 hits were this class, and they are what buried the two real findings. The closure is
+ *  file-local on purpose: a cross-file hop would fence shared primitives and blind the lens wholesale. */
+export function modelProjectedSchemas(project: Project): Set<string> {
+  const declarations = contractDeclarations(project);
+  const { names, registries } = modelProjectionSeeds(project);
+  const fenced = new Set(names);
+  for (const registry of registries) {
+    addRegistryValues(declarations.get(registry), fenced);
+  }
+  for (const name of [...fenced]) {
+    addFileLocalParts(declarations.get(name), declarations, fenced);
+  }
+  return fenced;
+}
+
+/** The expression under this repo's assertion wrappers — `{…} as const satisfies Record<…>` is the house
+ *  registry spelling, and a bare `asKind(ObjectLiteralExpression)` on it silently returns undefined. */
+function unwrapAssertions(expr: Node | undefined): Node | undefined {
+  let current = expr;
+  while (current !== undefined) {
+    const inner =
+      current.asKind(SyntaxKind.AsExpression) ?? current.asKind(SyntaxKind.SatisfiesExpression) ?? current.asKind(SyntaxKind.ParenthesizedExpression);
+    if (inner === undefined) {
+      return current;
+    }
+    current = inner.getExpression();
+  }
+  return current;
+}
+
+/** Every identifier-valued row of a registry const (`REFINERY_STAGE_PAYLOADS`) — one projected registry
+ *  fences every schema it dispatches to. */
+function addRegistryValues(registry: VariableDeclaration | undefined, fenced: Set<string>): void {
+  for (const prop of unwrapAssertions(registry?.getInitializer())?.asKind(SyntaxKind.ObjectLiteralExpression)?.getProperties() ?? []) {
+    const value = prop.asKind(SyntaxKind.PropertyAssignment)?.getInitializer()?.asKind(SyntaxKind.Identifier);
+    if (value !== undefined) {
+      fenced.add(value.getText());
+    }
+  }
+}
+
+/** The ONE closure step: the schema consts a fenced declaration is BUILT FROM, in its own file only
+ *  (`plotPatchSchema` inside `updateSceneArgsSchema`). File-local by design — a cross-file hop would fence
+ *  shared primitives and blind the lens far past the projected surface. */
+function addFileLocalParts(decl: VariableDeclaration | undefined, declarations: ReadonlyMap<string, VariableDeclaration>, fenced: Set<string>): void {
+  if (decl === undefined) {
+    return;
+  }
+  const file = decl.getSourceFile().getFilePath();
+  for (const ident of decl.getInitializer()?.getDescendantsOfKind(SyntaxKind.Identifier) ?? []) {
+    if (declarations.get(ident.getText())?.getSourceFile().getFilePath() === file) {
+      fenced.add(ident.getText());
+    }
+  }
 }
 
 /** Contract fields no producer ever populates. INFORMATIONAL — read the call sites (and remember the
@@ -4661,9 +4977,30 @@ function cmdContractFieldLiveness(project: Project, arg: string, flags: Flags): 
     );
   }
   const { produced, consumed } = fieldIndexes(project);
-  const hits = fields.flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+  const modelProjected = modelProjectedSchemas(project);
+  const hits: Hit[] = [];
+  const fenced = new Set<string>();
+  let fencedHits = 0;
+  for (const field of fields) {
+    const hit = fieldHit(field, produced, consumed);
+    if (hit === undefined) {
+      continue;
+    }
+    if (modelProjected.has(field.owner)) {
+      fenced.add(field.owner);
+      fencedHits += 1;
+      continue;
+    }
+    hits.push(hit);
+  }
+  const fencedOwners = [...fenced].sort();
   console.log(
-    `contract-field-liveness is an INFORMATIONAL lens — it NEVER gates. A field here is one NO producer spells outside its own declaration; two classes are separated by whether anything READS it. BLIND SPOTS, stated: a TEMPLATE-LITERAL producer is invisible (TanStack Form's \`name={\\\`sections[\${i}].field\\\`}\` is a real write path no key index can see), a SAME-NAMED field anywhere hides a finding (this lens under-reports, never over-), brand phantom-symbols are skipped as computed names, and a \`{ ...spread }\` producer names no key. TESTS ARE NOT PRODUCERS (the \`testonly\`/\`regkeys\` rule): a field only a fixture constructs is exactly the RepetitionDetection shape, so it is REPORTED, not absolved. The fence is the DECLARATION SITE, never a package — \`contracts\` legitimately holds pure builders (the audit's wrong package-fence produced 27 false hits). Prototype + the two real findings: docs/reviews/misc/2026-08-18-silent-reader-audit.md §5. (${fields.length} field(s) examined over ${files.length} contracts file(s).)`,
+    `contract-field-liveness is an INFORMATIONAL lens — it NEVER gates. A field here is one NO producer spells outside its own declaration; two classes are separated by whether anything SPELLS its name as a read. BLIND SPOTS, stated: a TEMPLATE-LITERAL producer is invisible (TanStack Form's \`name={\\\`sections[\${i}].field\\\`}\` is a real write path no key index can see — the PLAIN \`name="field"\` attribute and \`setFieldValue("a.b", v)\` ARE indexed), a SAME-NAMED field anywhere hides a finding (this lens under-reports, never over-), reader attribution is NAME-matched and never type-resolved (a same-named property on another shape reads as a consumer), brand phantom-symbols are skipped as computed names, and a \`{ ...spread }\` producer names no key. TESTS ARE NOT PRODUCERS (the \`testonly\`/\`regkeys\` rule): a field only a fixture constructs is exactly the RepetitionDetection shape, so it is REPORTED, not absolved. The fence is the DECLARATION SITE, never a package — \`contracts\` legitimately holds pure builders (the audit's wrong package-fence produced 27 false hits). A wire-INPUT-only schema (a tRPC \`.input()\`, a plugin-guest DTO) is still REPORTED: fencing by router input would fence most of contracts. Prototype + the two real findings: docs/reviews/misc/2026-08-18-silent-reader-audit.md §5; the 70-hit read that shaped the producer index: docs/reviews/misc/2026-08-19-lens-triage-210.md. (${fields.length} field(s) examined over ${files.length} contracts file(s).)`,
+  );
+  console.log(
+    fencedOwners.length === 0
+      ? "MODEL-PROJECTED FENCE: 0 hit(s) excluded — no examined field belongs to a schema this repo projects to a model."
+      : `MODEL-PROJECTED FENCE: ${fencedHits} hit(s) EXCLUDED (not counted below) across ${fencedOwners.length} schema(s) whose keys a MODEL writes — projected via projectJsonSchema/z.toJSONSchema or registered as a tool \`argsSchema\`, so no on-tree producer exists by construction: ${fencedOwners.join(", ")}.`,
   );
   emit(hits, flags, `contract-field-liveness ${arg === "" ? "(all contract fields)" : arg}`);
 }
