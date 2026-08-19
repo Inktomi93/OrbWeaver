@@ -1,7 +1,9 @@
 // domain/search/verbs/digests — within-chat digest retrieval; the ONLY search op memory.recall calls.
 // Embed queryText → cosine scan chat_digests scoped to one authorized chat + embed space + optional
-// candidates → CSLS hub-adjust rank → minScore floor (+ optional keywordMatch fold) → optional rerank
-// (mode mixC). No membership derivation: the caller already holds the authorized chat.
+// candidates → CSLS hub-adjust rank → minScore floor (+ optional keywordMatch fold) → retrieveK top-K cut →
+// optional rerank to rerankTo (mode mixC). No membership derivation: the caller already holds the authorized
+// chat. retrieveK is the "top retrieveK" retrieval count (the cosine-ranked, floor-passing pool cut to its
+// head — and the pool the mixC cross-encoder reranks); rerankTo is the mixC keep-count after that rerank.
 // FLAG[PD-35]: recencyBias + verbatimWindow are accepted on params but NOT applied here — verbatimWindow
 // is memory's pre-call query-assembly knob, and recencyBias's blend formula is undecided.
 
@@ -83,7 +85,10 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
         ),
       );
 
-    const ordered = params.mode === "mixC" ? await applyRerank(text, ranked, ctx.roleClients.rerank, ranked.length) : ranked;
+    // The "top retrieveK" retrieval cut: keep the head of the CSLS-ranked, floor-passing pool. In mixC this is
+    // the candidate pool the cross-encoder reranks, then rerankTo caps the reranked result.
+    const retrieved = ranked.slice(0, params.retrieveK);
+    const ordered = params.mode === "mixC" ? await applyRerank(text, retrieved, ctx.roleClients.rerank, params.rerankTo) : retrieved;
 
     // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
     // definition of "how close is this", never a second.

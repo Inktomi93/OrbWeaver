@@ -74,11 +74,16 @@ test("MemoryQueryOptions pins first-class scope.chat + optional candidates:Block
     keywordMatch: true,
     recencyBias: 0,
     minScore: 0.2,
+    retrieveK: 8,
+    rerankTo: 3,
   };
   // chat-scope is first-class (NOT collapsed to owner) — the scope nests the chat id directly.
   expect(opts.scope.chat).toBe(SAMPLE_CHAT_ID);
   expect(opts.candidates).toEqual([candidate]);
   expect(opts.mode).toBe("mixC");
+  // the retrieval cut (top retrieveK) + the mixC rerank cut ride the wire as flat knobs.
+  expect(opts.retrieveK).toBe(8);
+  expect(opts.rerankTo).toBe(3);
 
   // `candidates` is optional — the full-pool scan omits it (the tiered bridge supplies it).
   const fullPool: MemoryQueryOptions = {
@@ -88,6 +93,8 @@ test("MemoryQueryOptions pins first-class scope.chat + optional candidates:Block
     keywordMatch: false,
     recencyBias: 0.5,
     minScore: 0,
+    retrieveK: 8,
+    rerankTo: 3,
   };
   expect("candidates" in fullPool).toBe(false);
 });
@@ -104,6 +111,8 @@ test("MemoryQueryOptions carries the egocentric queryText + scopedCharacterId (h
     keywordMatch: true,
     recencyBias: 0,
     minScore: 0.2,
+    retrieveK: 8,
+    rerankTo: 3,
   };
   expect(within.queryText).toBe("Alice: where did we hide the relic?");
   expect(within.scopedCharacterId).toBe(SAMPLE_CHARACTER_ID);
@@ -116,6 +125,8 @@ test("MemoryQueryOptions carries the egocentric queryText + scopedCharacterId (h
     keywordMatch: false,
     recencyBias: 0,
     minScore: 0,
+    retrieveK: 8,
+    rerankTo: 3,
   };
   expect("queryText" in ownerWide).toBe(false);
   expect("scopedCharacterId" in ownerWide).toBe(false);

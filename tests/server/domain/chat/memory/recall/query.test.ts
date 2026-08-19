@@ -23,7 +23,7 @@ function row(seq: number, content: string): MsgRow {
 }
 
 describe("memory/recall/query — buildRecallQuery", () => {
-  const cfg = resolveCfg({ queryWindow: 2, minScore: 0.4, keywordMatch: true, recencyBias: 0.1 });
+  const cfg = resolveCfg({ queryWindow: 2, minScore: 0.4, keywordMatch: true, recencyBias: 0.1, retrieveK: 5, rerankTo: 2 });
   const names = new Map<CharacterId, string>([[aria, "Aria"]]);
   const recent = [row(1, "a"), row(2, "b"), row(3, "c")];
 
@@ -35,6 +35,8 @@ describe("memory/recall/query — buildRecallQuery", () => {
     expect(q.keywordMatch).toBe(true);
     expect(q.recencyBias).toBe(0.1);
     expect(q.verbatimWindow).toBe(cfg.verbatimWindow);
+    expect(q.retrieveK).toBe(5); // the retrieval count (top retrieveK) rides the wire
+    expect(q.rerankTo).toBe(2); // the mixC rerank cut rides the wire
   });
 
   test("the egocentric query text (#4) = the name-prefixed last `queryWindow` messages", () => {
