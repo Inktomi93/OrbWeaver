@@ -1034,6 +1034,37 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-18-corpus-forensics.md",
+      "assignedSha256": "ce9054eb4d5ee742c446361ecb3de5d8896cf7e2740bd45fc88806e1ca657a0c",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ce9054eb4d5ee742c446361ecb3de5d8896cf7e2740bd45fc88806e1ca657a0c",
+      "verifiedCommit": "2ceb7767b1fc3f3c47d0a5a692379c7b04a995f9",
+      "verifiedAt": "2026-08-18",
+      "claims": [
+        {
+          "claim": "Every rendered corpus score is a clamped cosine distance, one seam.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/discovery/lib/csls.ts:9"
+            }
+          ]
+        },
+        {
+          "claim": "No chat-navigation call exists in features/discovery.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/state/active-chat-store.ts:139"
+            }
+          ]
+        }
+      ],
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation \u2014 R1-R5 costed options for the owner pick."
     }
   ]
 }
