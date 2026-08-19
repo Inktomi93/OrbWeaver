@@ -8,6 +8,7 @@ import {
   CorpusContent,
   CorpusContextHeader,
   CorpusDossierSurface,
+  CorpusHomeSurface,
   CorpusListHeader,
   CorpusListSurface,
   CorpusUnderstandingInvitation,
@@ -116,6 +117,39 @@ export function CorpusContentStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 720 }}>
         <CorpusContent />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** THE CORPUS OVERVIEW AT THE OWNER'S DEFAULT PANE WIDTH — the mount that decides whether the designed
+ *  two-column focal composition renders in the view he actually looks at.
+ *
+ *  868.8125px is MEASURED, not chosen: `snap / --goto corpus` at a 1280 viewport with the LIST pane docked
+ *  and the CONTEXT pane collapsed (the shipped default) resolves the surface's own `@container` to exactly
+ *  that, re-measured 2026-08-18 AFTER the #242 both-docked pane squeeze landed. The surface is mounted bare
+ *  rather than through `CorpusContent` on purpose: the region's `padding="section"` plus a scroller's
+ *  scrollbar would make the container width a function of the CT browser's scrollbar mode, and this story's
+ *  whole job is to be that one production width. */
+export function CorpusHomeDefaultPaneStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 868.8125 }}>
+        <CorpusHomeSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** THE SAME SURFACE AT THE THREE-PANE WIDTH — list docked AND context open, the same battery's row 3:
+ *  484.8125px, where one column is the right answer and the split must NOT fire. It is the control for
+ *  {@link CorpusHomeDefaultPaneStory}: a split that engaged unconditionally would be a different defect,
+ *  not a fix. */
+export function CorpusHomeThreePaneStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 484.8125 }}>
+        <CorpusHomeSurface />
       </div>
     </CtDataProviders>
   );

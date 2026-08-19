@@ -154,6 +154,24 @@ export const gridVariants = tv({
       // behind it. Reach for `leadEven` when the RAIL carries reflowing cell grids, `lead` when it
       // carries prose.
       leadEven: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-2",
+      // `lead`'s EARLIER FIRST BREATH (added 2026-08-18, #244 P1-2). Identical tracks at both steps; it
+      // differs only in WHEN the split engages — `@3xl` (48rem/768px) instead of `@4xl` (56rem/896px).
+      //
+      // It exists because 896px is a width the pane never has. Measured on the shipped default view
+      // (`snap / --goto corpus`, 1280 viewport, LIST pane docked + CONTEXT pane collapsed, re-measured after
+      // the #242 both-docked squeeze): the corpus overview's `@container` resolves to 868.81px, so the
+      // designed composition — the focal island beside its readiness rail — missed by 27px and rendered as a
+      // stack of full-width bands in the one view the owner actually looks at. It misses in every appearance
+      // arm (defaults 868.8 · maximal 868.8 · compact 884.8 · reading 810 · diagnostics 868.8), so it was
+      // never a per-arm accident. `@3xl` clears the narrowest of those by 42px and still leaves the
+      // three-pane state (484px) and the phone column stacked, which is where one column is right.
+      //
+      // A SEPARATE ARM, not a retune of `lead`, for `leadEven`'s reason: `lead`'s other consumer is the
+      // config welcome hearth, whose own CT declares the `@4xl` width as the one its split has to engage at
+      // (tests/client/features/config/_ct-stories.tsx). Moving the shared value would change a surface
+      // nobody measured. Reach for `leadEarly` when the pane holding the split is a docked CONTENT region
+      // rather than a whole page.
+      leadEarly: "grid-cols-1 @3xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
       // FIXED cells, variable COUNT (added 2026-08-16, program #102). `cell` is auto-FIT + `1fr`, so extra
       // width makes each cell BIGGER; a portrait shelf measured 250px faces at a 2000px viewport and read
       // as a gallery instead of a shelf you reach into. `auto-fill` at a fixed track spends surplus width
