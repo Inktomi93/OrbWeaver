@@ -144,6 +144,23 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // source makes real. All four are visual no-ops (preflight zeroes margins) — the rendering is
   // byte-identical, minus the dead classes. (Don't spell the replaced gap utility here — Tailwind
   // scans comments, and the literal would resurrect it as an unused rule.)
+  //
+  // #238 — THE SAME RULING, PAID FORWARD TO THE DESCENDANTS THAT NEEDED IT. Not scanning the vendor dist
+  // does not only drop spacing it was right to drop: Streamdown styles its BLOCKQUOTE and its inline CODE
+  // with its own utilities too, and those generated nothing, so a blockquote rendered with
+  // `border-left-width: 0 · padding-left: 0 · margin-top: 0` — italic + muted, which is byte-identical to
+  // how this seal paints NARRATION (`[&_em]:text-narration`). Quoted content and the narrator's voice
+  // became the same rendering, on a surface whose entire voice system is typographic. The fix is the
+  // ruling's own technique, not its reversal: pay the difference in COMPILED equivalents from OUR source,
+  // as descendant variants off this root, in house tokens (`--spacing-block`/`--spacing-row`,
+  // `--color-muted-foreground`) rather than the vendor's raw rem values — which is why the dist stays
+  // unscanned. The vertical separation is PADDING, not a margin: the root's own `space-y-0` (the trim
+  // that replaced the vendor's 1rem block gap) out-specifies any sibling margin a descendant could set,
+  // and padding also runs the rule the full height of the quote instead of leaving it floating.
+  // Adding `@source "…/streamdown/dist"` would have resurrected the vendor's whole spacing scale app-wide,
+  // the thing `--reading-paragraph-spacing` exists to own. Pinned by the two `#238:` cases in
+  // tests/ui/markdown/markdown.ct.tsx (rendered geometry, not class strings).
+  //
   // `break-words` (overflow-wrap: break-word, inherited by every rendered block) is the ONE reading-surface
   // guard against a long unbroken token — a pasted URL/hash/run-on word — overflowing its column and
   // dragging a horizontal scrollbar onto the whole surface. Inert for normal prose (only breaks a word
@@ -161,7 +178,14 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         // Omitted (not passed as undefined) when off: Streamdown's Block memo compares `components` key
         // by key, so a stable absent value keeps the settled render byte-identical to the pre-knob one.
         {...(colorQuotes ? { components: DIALOGUE_COMPONENTS } : {})}
-        className={cn("space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration", className) ?? ""}
+        className={
+          cn(
+            "space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration",
+            "[&_blockquote]:border-l-4 [&_blockquote]:border-muted-foreground/50 [&_blockquote]:py-row [&_blockquote]:pl-block",
+            "[&_:not(pre)>code]:px-tight",
+            className,
+          ) ?? ""
+        }
         // The word-reveal fade + the caret are OURS (#42): `animated`/`isAnimating` are deliberately NOT
         // passed (dead knob, see above — and their absence routes streaming block updates through
         // Streamdown's useTransition arm), and the `caret` prop is dropped because its `::after` attaches

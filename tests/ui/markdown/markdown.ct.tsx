@@ -557,3 +557,56 @@ test("M5: an OFF-SCREEN code block is laid out at its content height, not a 200p
   expect(box.children).toBeGreaterThan(0);
   expect(box.own).toBeLessThan(200);
 });
+
+// ── #238: a BLOCKQUOTE must be visually distinct from narration ───────────────────────────────────
+// Streamdown's blockquote carries its own utilities, and its dist is deliberately NOT a Tailwind source
+// (markdown.tsx states the ruling: the vendor's raw spacing would fight `--reading-paragraph-spacing`),
+// so those class names generate NOTHING and the element rendered with border-left-width 0, padding-left
+// 0 — italic + muted, i.e. byte-identical to how this seal paints narration (`[&_em]:text-narration`).
+// The fix keeps the ruling and pays the DIFFERENCE in COMPILED equivalents from our own source, the same
+// technique the root className already uses. This pins the RENDERED result, not the class string.
+const QUOTED_MARKDOWN = "> The bridge remembers every crossing.\n\n*she leans in, quiet.*\n";
+const INLINE_CODE_MARKDOWN = "call `resolveRole(role)` first";
+
+test("#238: a blockquote renders its rule + indent + separation, and does not read as narration", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {QUOTED_MARKDOWN}
+    </Markdown>,
+  );
+  const quote = cmp.locator("blockquote");
+  await expect(quote).toHaveCount(1);
+  const box = await quote.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      borderLeft: Number.parseFloat(s.borderLeftWidth),
+      paddingLeft: Number.parseFloat(s.paddingLeft),
+      paddingTop: Number.parseFloat(s.paddingTop),
+      borderColor: s.borderLeftColor,
+      bg: s.backgroundColor,
+    };
+  });
+  // All three measured 0 before #238 — the whole defect.
+  expect(box.borderLeft).toBeGreaterThan(0);
+  expect(box.paddingLeft).toBeGreaterThan(0);
+  expect(box.paddingTop).toBeGreaterThan(0);
+  // The rule is a real, visible edge — not a transparent one (a 4px transparent border still measures 4).
+  expect(box.borderColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(box.borderColor).not.toBe(box.bg);
+  // …and the narration voice beside it carries NONE of that geometry: the two are no longer the same
+  // rendering (both are italic + muted by design; the quote's distinctness has to come from its box).
+  const narration = cmp.locator("em").first();
+  const narrationBorder = await narration.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderLeftWidth));
+  expect(narrationBorder).toBe(0);
+});
+
+test("#238: inline code renders its horizontal padding (the vendor's own utility never compiled)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {INLINE_CODE_MARKDOWN}
+    </Markdown>,
+  );
+  const code = cmp.locator("code").first();
+  const padding = await code.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingLeft));
+  expect(padding).toBeGreaterThan(0);
+});
