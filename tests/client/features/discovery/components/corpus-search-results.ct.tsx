@@ -91,12 +91,43 @@ test("a memory hit is a door: clicking it opens its chat", async ({ mount, page 
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
-  // The typeahead popup covers the first two result rows (forensics §2.8, re-measured here: an unforced
-  // click on row 1 waits for actionability forever). Dismissing it is what a user does — and it is now a
-  // sharper defect than the pass filed, because the rows underneath became clickable in this change.
-  await page.keyboard.press("Escape");
+  // NO DISMISSAL STEP. This test carried `page.keyboard.press("Escape")` here until 2026-08-18, because the
+  // typeahead rendered as an anchored POPUP over the rows and an unforced click on result #1 waited for
+  // actionability forever. The omnibox now renders its suggestions IN FLOW (`Autocomplete inline`), so the
+  // first result is reachable the way a user reaches it — one click, no dismissal.
   await component.getByRole("button", { name: BATH_TEXT }).click();
 
+  await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
+});
+
+// ── THE TYPEAHEAD MUST NOT EAT THE ANSWER (corpus quick-wins lane, 2026-08-18) ────────────────────────
+// The two tests above run with `search.suggest` unstubbed, which is the EMPTY arm — and even that one
+// covered the rows, because an anchored popup rendering "No suggestions." is still an overlay. This is the
+// POPULATED arm: real server suggestions, which is the state the user is actually in while typing. The
+// assertion is geometry, not a class — a suggestion list that reserves space above the results cannot cover
+// them at any z-index, which is what the shared `Autocomplete` `inline` arm was built for (its founding
+// caller is the prompt dialog, whose popup covered the confirm row it pointed at).
+const SUGGESTIONS = [
+  { suggestion: "shared bathing", score: 0.9 },
+  { suggestion: "shared bath house", score: 0.8 },
+];
+
+test("an open typeahead never covers a result: row 1 is clickable with the suggestions showing", async ({ mount, page }) => {
+  await routeTrpc(page, { ...MEMORY_HITS, "search.suggest": SUGGESTIONS });
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchMemories(component);
+  const suggestion = page.getByRole("option", { name: "shared bath house" });
+  await expect(suggestion).toBeVisible();
+
+  const [suggestionBox, rowBox] = await Promise.all([suggestion.boundingBox(), component.getByRole("button", { name: BATH_TEXT }).boundingBox()]);
+  if (suggestionBox === null || rowBox === null) {
+    throw new Error("the typeahead suggestion or the first result row did not render a box");
+  }
+  expect(suggestionBox.y + suggestionBox.height, "the suggestion list ends above the first result row").toBeLessThanOrEqual(rowBox.y);
+
+  // …and the door still opens on ONE unforced click, with the list still showing.
+  await component.getByRole("button", { name: BATH_TEXT }).click();
   await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
 });
 

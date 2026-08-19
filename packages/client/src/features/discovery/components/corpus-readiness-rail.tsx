@@ -18,7 +18,10 @@
 // IT HOLDS NO PRIMARY DOOR WHILE THE LIBRARY IS UN-ANALYSED. One door per screen (the ruling
 // `corpus-run-job-empty-state.tsx` records, from two identical "Run a job…" buttons 400px apart): in that
 // state the INVITATION island is the focal and owns the verb. Once the passes have run the invitation is
-// gone and the rail carries the quiet re-run, which is the only affordance left that needs a home.
+// gone and the rail carries the re-run, which is the only affordance left that needs a home — and it
+// therefore inherits the invitation's `intent="primary"`, because the two never render together and a
+// surface's one door does not get quieter for having outlived its neighbour (#244 P1-3; the earlier
+// "quiet re-run" spelling made it literally invisible, see the button's own comment).
 //
 // AND THAT RE-RUN RUNS THE PASS (issue #155's other half). It deep-linked to Settings → Jobs, exactly like
 // the invitation did — so fixing only the invitation would have left the identical defect one phase later,
@@ -38,7 +41,7 @@ import type { CorpusReadinessStage } from "../lib/corpus-analysis-state.ts";
 
 export interface CorpusReadinessRailProps {
   readonly stages: readonly CorpusReadinessStage[];
-  /** Render the quiet re-run door. True only once the passes have run — see the header. */
+  /** Render the re-run door. True only once the passes have run — see the header. */
   readonly showRerun: boolean;
 }
 
@@ -65,7 +68,7 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
   );
 }
 
-/** The quiet re-run door — and, while a pass is live, that run's state in the rail's own register. */
+/** The re-run door — and, while a pass is live, that run's state in the rail's own register. */
 function CorpusReadinessRerun(): ReactElement {
   const pass = useUnderstandingPass();
   useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
@@ -80,8 +83,19 @@ function CorpusReadinessRerun(): ReactElement {
     );
   }
   return (
-    <Stack gap="tight">
-      <Button disabled={pass.starting} intent="ghost" onClick={pass.start} size="sm">
+    <Stack align="start" gap="tight">
+      {/* PAINTED AND BOUNDED (#244 P1-3). This shipped `intent="ghost"` inside a stretch-aligned Stack, so
+          the surface's ONLY door computed 869x32, transparent, borderless, at muted-foreground 13px, its
+          label centred — a caption with a click handler, which is what the pass measured and what a
+          first-timer reads it as. "Quiet" was the intent of the SLOT, never of the affordance; the mockup
+          draws this exact control as a solid accent button (`corpus-a-cartographer.html`: `btn-primary` in
+          the readiness aside). `align="start"` is the other half — a button that spans its whole column is
+          a banner whichever intent it carries.
+
+          ONE primary, and it is never TWO: this rerun renders only while `showRerun` is true, which is
+          exactly the phase in which the invitation (and its own `intent="primary"` door) is gone. CD3's
+          focal budget is spent by the map island's ring, not by a control. */}
+      <Button disabled={pass.starting} intent="primary" onClick={pass.start} size="sm">
         Run the passes again
       </Button>
       {pass.failure === null ? (
