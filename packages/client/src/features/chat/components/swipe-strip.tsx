@@ -107,7 +107,14 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
     // fill and the same radius as a message bubble. It read as a bubble that failed to load. The mechanism
     // is unchanged (same `backingClass`, same contrast); `w-fit` is the geometry half — a compact chip
     // around the chevron cluster, which is what the plate was always backing.
-    <Row gap="field" align="center" data-slot="swipe-strip" className={cn("w-fit", backingClass)}>
+    //
+    // TRAILING-EDGE ALIGNED (#312). This chip is a direct child of the content column (a `flex-col`
+    // `Stack`), so by omission it sat at the cross-START — the left edge — while every other row action
+    // (edit/fork/kebab in the name row) packs to the TRAILING edge. `self-end` places the chevron cluster
+    // under the actions it belongs with, at the column's right edge, in every skin (the swipe strip is an
+    // assistant-only affordance and the name row's actions are `justify-between`/trailing for the assistant
+    // side, so the two clusters share one right edge). `w-fit` keeps the plate hugging the chevrons.
+    <Row gap="field" align="center" data-slot="swipe-strip" className={cn("w-fit self-end", backingClass)}>
       {showPager ? (
         <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
           <Icon icon={ChevronLeft} size="sm" />
