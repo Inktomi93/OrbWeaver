@@ -11,6 +11,7 @@ import {
   CorpusHomeSurface,
   CorpusListHeader,
   CorpusListSurface,
+  CorpusMapTab,
   CorpusUnderstandingInvitation,
 } from "@orb/client/features/discovery";
 import { useActiveChatId, useActiveSection } from "@orb/client/state";
@@ -55,6 +56,24 @@ export function CorpusListSurfaceNavStory(): ReactElement {
   );
 }
 
+/** THE LIST NAVIGATOR BESIDE THE CONTENT REGION — the mount that can prove a search hit is a door that
+ *  LANDS, not merely one that fires: the corpus selection store is module-private, so the only honest
+ *  receipt for "this row opens that dossier" is the dossier rendering in the region that hosts it (U4). */
+export function CorpusSearchToDossierStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", height: 640, width: 900 }}>
+        <div style={{ width: 360 }}>
+          <CorpusListSurface />
+        </div>
+        <div style={{ flex: 1 }}>
+          <CorpusContent />
+        </div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The Corpus LIST chrome-band header (title + distilled count) over the real data layer. */
 export function CorpusListHeaderStory(): ReactElement {
   return (
@@ -93,6 +112,18 @@ export function CorpusUnderstandingInvitationStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 640 }}>
         <CorpusUnderstandingInvitation />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Corpus CONTEXT "Map" tab at the CONTEXT pane's real width — the semantic scatter plus the genre key
+ *  that decodes it (the plot is a sealed canvas, so the key is the only part a test or a reader can read). */
+export function CorpusMapTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 420 }}>
+        <CorpusMapTab />
       </div>
     </CtDataProviders>
   );

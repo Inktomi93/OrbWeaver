@@ -12,6 +12,10 @@ import { toVectorBlob } from "./nearest.ts";
 
 interface NearestImage {
   readonly assetId: AssetId;
+  /** The CAS hash of the matched blob — the ONE thing a caller needs to render the image it just found.
+   *  Free here: `assets` is already inner-joined for the owner belt, so this is a projected column, never
+   *  a second read (side-eye corpus re-pass U4 — the Images target rendered 20 rows and no images). */
+  readonly hash: string;
   readonly distance: number;
   readonly hubScore: number | null;
   readonly caption: string | null;
@@ -30,6 +34,7 @@ export async function nearestImages(db: ReadOnlyDb, params: NearestImagesParams)
   const rows = await db
     .select({
       assetId: imageEmbeddings.assetId,
+      hash: assets.hash,
       distance,
       hubScore: imageEmbeddings.hubScore,
       caption: imageEmbeddings.caption,

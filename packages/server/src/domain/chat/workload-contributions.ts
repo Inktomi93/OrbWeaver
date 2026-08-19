@@ -66,9 +66,14 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         // tally now FAILS the row — the sweep is `idempotent-restart`, so everything durable already landed
         // and the rerun resumes from it. Zero failures is still the only success.
         if (counts.failed > 0) {
+          // THE SENTENCE IS READ BY A PERSON, in a row and on the corpus rail (side-eye corpus re-pass C4).
+          // It shipped as "1 chat FAILED during the sweep and were skipped" — a number/verb disagreement on
+          // the singular arm, a shout the surrounding copy never uses, and one ~99-char line. Two short
+          // sentences, agreeing with their own count, saying the same two facts.
+          const skipped = counts.failed === 1 ? "1 chat failed and was skipped" : `${counts.failed} chats failed and were skipped`;
           throw new Error(
-            `memory backfill: ${counts.failed} chat${counts.failed === 1 ? "" : "s"} FAILED during the sweep and were skipped (see the error log for each cause); ` +
-              `${counts.segments.changed} segments + ${counts.digests.changed} digests did build`,
+            `Memory backfill: ${skipped} — see the error log for each cause. ` +
+              `${counts.segments.changed} segments and ${counts.digests.changed} digests did build.`,
           );
         }
         return counts;

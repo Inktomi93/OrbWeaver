@@ -27,13 +27,12 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { selectCorpusCharacter } from "#state";
+import { selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 
-const ALIGNMENT_PRECISION = 2;
 const PERCENT = 100;
 /** The refinery rubric is a weighted average, so one decimal is the honest resolution (the character
  *  overview card's own `REFINERY_SCORE_DECIMALS` reads the same value the same way). */
@@ -107,7 +106,17 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         {dossier.refineryScore === null ? (
           // A load-bearing empty state: "no score" is a real, actionable state, and the door out of it is
           // the sweep — so the copy names it rather than leaving a blank where a number lives on other cards.
-          <Text voice="gloss">Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.</Text>
+          //
+          // AND THE SENTENCE NOW CARRIES ITS DOOR (side-eye corpus re-pass B8). It named two verbs — the
+          // library score sweep and a Refinery session — beside zero controls, which is a section that
+          // exists only to tell you what you cannot do from here. Both verbs live in one place, so one door
+          // is the honest count (`corpus-distill-empty-state.tsx`'s "Go to Refinery", same route).
+          <Stack align="start" gap="field">
+            <Text voice="gloss">Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.</Text>
+            <Button intent="ghost" onClick={(): void => setActiveSection("refinery")} size="sm">
+              Open the Refinery →
+            </Button>
+          </Stack>
         ) : (
           <Text voice="gloss">
             Refinery score:{" "}
@@ -121,7 +130,11 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       {dossier.portrait !== null ? (
         <Section heading="Portrait alignment">
-          <Text voice="gloss">Card ↔ art cosine: {dossier.portrait.alignment.toFixed(ALIGNMENT_PRECISION)}</Text>
+          {/* ONE SIMILARITY VOCABULARY (side-eye corpus re-pass B8). This shipped "Card ↔ art cosine: 0.25" —
+              an engineer's unit with no stated scale, on a surface that says 66% for the same KIND of number
+              two sections down. Same rounding as {@link Relevance}, so a reader who has learned what 74%
+              means beside a neighbour does not have to learn a second scale to read this line. */}
+          <Text voice="gloss">Card ↔ art match: {percent(dossier.portrait.alignment)}</Text>
         </Section>
       ) : null}
 
@@ -137,10 +150,13 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         </Section>
       ) : null}
 
-      <Section heading="Keywords">
-        {keywords.length === 0 ? (
-          <Text voice="gloss">No keyword profile computed yet.</Text>
-        ) : (
+      {/* NO SECTION WHEN THERE IS NO PROFILE (side-eye corpus re-pass B8). "No keyword profile computed yet."
+          is the readiness rail's sentence — the rail is the ONE place this section of the app says what has
+          not run (`corpus-home-surface.tsx`'s own law, and its "Story themes & keywords" row states exactly
+          this pass), so a heading plus that line here is the same true nothing printed twice, one drill
+          deeper. A dossier with keywords shows them; a dossier without them says nothing at all. */}
+      {keywords.length === 0 ? null : (
+        <Section heading="Keywords">
           <BarList
             label="Keyword profile"
             items={toBarItems(
@@ -149,28 +165,40 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
               (keyword) => keyword.count,
             )}
           />
-        )}
-      </Section>
+        </Section>
+      )}
 
       <Section heading="Similar characters">
         {dossier.similar.length === 0 ? (
           <Text voice="gloss">No near neighbours found.</Text>
         ) : (
-          <Stack gap="row" role="list">
-            {dossier.similar.map((neighbor) => {
-              const neighborFacet = characterFacetLine(neighbor.genre, neighbor.tone);
-              return (
-                <ListRow
-                  key={neighbor.characterId}
-                  clickable={true}
-                  onClick={(): void => selectCorpusCharacter(neighbor.characterId)}
-                  leading={<CharacterAvatar id={neighbor.characterId} name={neighbor.name} hash={neighbor.avatarHash} />}
-                  title={neighbor.name}
-                  subtitle={neighbor.elevatorPitch ?? (neighborFacet === "" ? "" : neighborFacet)}
-                  actions={<Relevance value={neighbor.relevance} />}
-                />
-              );
-            })}
+          <Stack gap="row">
+            {/* THE ORDER IS NOT THE PRINTED NUMBER, AND THE LIST NOW SAYS SO (side-eye corpus re-pass U3:
+                "74% at position 9"). Two true numbers ride each row and only one of them is printable: the
+                RANK is search's CSLS score — a hub-adjusted DISTANCE that deliberately holds back the
+                library's most-connected cards, and which reads 0.00 for the five CLOSEST neighbours (see
+                {@link Relevance}) — while the READOUT is the raw cosine, the only one of the two a reader
+                can act on. Re-sorting by the printed percent would throw away the better ranking to make one
+                column monotonic; printing the ranking number restores the all-zeros readout this surface
+                already fixed once. So the list states its own sort, which is the third arm and the honest
+                one. It sits OUTSIDE the `role="list"` — a list's children are listitems, not prose. */}
+            <Text voice="gloss">Closest first, holding back the library's most-connected cards. The percent is plain card similarity.</Text>
+            <Stack gap="row" role="list">
+              {dossier.similar.map((neighbor) => {
+                const neighborFacet = characterFacetLine(neighbor.genre, neighbor.tone);
+                return (
+                  <ListRow
+                    key={neighbor.characterId}
+                    clickable={true}
+                    onClick={(): void => selectCorpusCharacter(neighbor.characterId)}
+                    leading={<CharacterAvatar id={neighbor.characterId} name={neighbor.name} hash={neighbor.avatarHash} />}
+                    title={neighbor.name}
+                    subtitle={neighbor.elevatorPitch ?? (neighborFacet === "" ? "" : neighborFacet)}
+                    actions={<Relevance value={neighbor.relevance} />}
+                  />
+                );
+              })}
+            </Stack>
           </Stack>
         )}
       </Section>
@@ -232,9 +260,15 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
 function Relevance({ value }: { readonly value: number }): ReactElement {
   return (
     <Text voice="gloss" className="shrink-0 font-mono">
-      {`${Math.round(value * PERCENT)}%`}
+      {percent(value)}
     </Text>
   );
+}
+
+/** THE surface's one similarity spelling — a whole percent. Shared by the neighbour readout and the
+ *  portrait-alignment line so a 0-1 cosine never reaches a reader in two different costumes (B8). */
+function percent(value: number): string {
+  return `${Math.round(value * PERCENT)}%`;
 }
 
 function AskPanel({ characterId }: { readonly characterId: CharacterId }): ReactElement {

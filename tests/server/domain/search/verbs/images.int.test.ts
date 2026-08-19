@@ -10,7 +10,7 @@ import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeSearch, seedAsset, seedImageEmbedding, seedUser, vec } from "../_support.ts";
+import { makeSearch, seedAsset, seedCharacter, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 describe("images", () => {
   test("returns the closest cross-modal image first", async () => {
@@ -30,6 +30,53 @@ describe("images", () => {
     });
 
     expect(hits.map((h) => h.assetId)).toEqual([near, far]);
+  });
+
+  // ── A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4) ────────────────────────────────────
+  // The Images target rendered twenty rows with no image and nowhere to click, because the hit carried
+  // neither the blob's hash nor the card wearing it. Both ride the hit now: `hash` off the assets row the
+  // scan already joins for the owner belt, and the owning character off `characters.avatarAssetId`.
+  test("carries the blob HASH and the owned character wearing it — the picture and the door", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const worn = await seedAsset(db, { id: "asset_worn", ownerId: owner, hash: "hash_worn" });
+    const loose = await seedAsset(db, { id: "asset_loose", ownerId: owner, hash: "hash_loose" });
+    await seedImageEmbedding(db, { assetId: worn, embedding: vec(1) });
+    await seedImageEmbedding(db, { assetId: loose, embedding: vec(0, 1) });
+    await seedCharacter(db, { id: "character_aria", ownerId: owner, name: "Aria", avatarAssetId: worn });
+
+    const svc = makeSearch(db, { imageEmbedVector: () => vec(1) });
+    const hits = await svc.images({ ownerId: owner, query: "a knight", topN: 2, lens: "image-captioned" });
+
+    expect(
+      hits.map((h) => h.hash),
+      "every hit can be rendered",
+    ).toEqual(["hash_worn", "hash_loose"]);
+    expect(hits[0]?.characterId).toBe("character_aria");
+    expect(hits[0]?.characterName).toBe("Aria");
+    // An asset nobody wears has no destination, and says so rather than inventing one — the client renders
+    // that row as a preview instead of a door.
+    expect(hits[1]?.characterId).toBeNull();
+    expect(hits[1]?.characterName).toBeNull();
+  });
+
+  test("never names ANOTHER owner's character as a hit's destination", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const asset = await seedAsset(db, { id: "asset_shared", ownerId: owner, hash: "hash_shared" });
+    await seedImageEmbedding(db, { assetId: asset, embedding: vec(1) });
+    // A foreign card pointing at my blob must not put its NAME on my search result.
+    await seedCharacter(db, { id: "character_theirs", ownerId: other, name: "Stranger", avatarAssetId: asset });
+    // …and a SYNTHETIC card (the hidden group-memory identity) is not a destination either.
+    await seedCharacter(db, { id: "character_group", ownerId: owner, name: "__group__", avatarAssetId: asset, synthetic: true });
+
+    const svc = makeSearch(db, { imageEmbedVector: () => vec(1) });
+    const hits = await svc.images({ ownerId: owner, query: "q", topN: 10, lens: "image-captioned" });
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.characterId).toBeNull();
+    expect(hits[0]?.characterName).toBeNull();
   });
 
   test("never returns another owner's image", async () => {
