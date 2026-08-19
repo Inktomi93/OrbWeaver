@@ -38,6 +38,17 @@ export interface BulkEmbedResult {
   readonly skipped: number;
 }
 
+/** The image ADMISSION-FLOOR verdict (`substrate/image-admission`): whether an asset's header-parsed
+ *  dimensions are too small to caption+embed, plus the sniffed dimensions for the skip-record's attribution.
+ *  `belowFloor` is `true` ONLY when both edges are known AND the shorter one is under the floor — an
+ *  unparseable/unknown-format header is NOT below-floor (the floor is a dimension gate, not a decode gate),
+ *  so `width`/`height` are `null` there and the asset embeds as before. */
+export interface ImageAdmissionVerdict {
+  readonly belowFloor: boolean;
+  readonly width: number | null;
+  readonly height: number | null;
+}
+
 /** PD-139(b): rows reclaimed from the OLD embed space by the chat-memory purge — one count per model-keyed
  *  chat-memory vector table. */
 export interface PurgeMemoryVectorsResult {

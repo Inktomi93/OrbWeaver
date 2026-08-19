@@ -142,6 +142,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
 
   const indexer = createEmbeddingsIndexer({
     store: embeddings.store,
+    // The indexer touches its OWN `image_index_skips` table directly (the admission floor) — db + clock, as
+    // the bulk `embedAssets` sweep does. Cross-domain canon re-reads below stay injected ops.
+    db,
+    now,
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     // The embeddability gate reads the stored mime by id (reuses the un-principal `assetCasRefById` row lookup).
     loadAssetMime: async (assetId): Promise<string | null> => (await assets.assetCasRefById(assetId))?.mime ?? null,

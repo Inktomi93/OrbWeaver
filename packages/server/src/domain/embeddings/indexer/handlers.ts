@@ -5,6 +5,8 @@
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import { getLog } from "#foundation/observability";
 import type { EmbeddingsIndexerContext } from "../contract/service.ts";
+import { existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
+import { imageBelowFloor } from "../substrate/image-admission.ts";
 import { analyzeAvatarImage } from "./caption.ts";
 
 /** `character.updated` → re-embed the card text (`store(kind='card', lens='card-text')`). Idempotent: the
@@ -52,8 +54,33 @@ export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: Asset
     getLog().debug({ assetId: event.assetId, mime }, "embeddings indexer: non-image asset — not image-embeddable, skipped");
     return;
   }
+  // ADMISSION FLOOR (recorded skip, read FIRST): a duplicate delivery of an asset already refused by the
+  // dimension floor is honored here — no byte load, no caption, no embed. The record is what makes the skip
+  // idempotent (content_hash self-heal would otherwise re-attempt a silently-skipped asset every pass).
+  if (await existingImageSkip(ctx.db, event.assetId)) {
+    getLog().debug({ assetId: event.assetId }, "embeddings indexer: asset previously skipped by the admission floor — honored, not re-attempted");
+    return;
+  }
   const bytes = await ctx.loadAssetBytes(event.assetId);
   if (bytes === undefined) {
+    return;
+  }
+  // ADMISSION FLOOR (dimension gate): a degenerate asset (a 1×1 tracking-pixel / placeholder) carries no
+  // visual signal — captioning + embedding it burns VL/embed compute and writes a degenerate vector into the
+  // retrieval + discovery substrate. Record the refusal (visible + idempotent) and skip BEFORE any spend.
+  const admission = imageBelowFloor(bytes);
+  if (admission.belowFloor) {
+    await insertImageSkip(ctx.db, {
+      assetId: event.assetId,
+      reason: "below-dimension-floor",
+      width: admission.width,
+      height: admission.height,
+      now: ctx.now(),
+    });
+    getLog().debug(
+      { assetId: event.assetId, width: admission.width, height: admission.height },
+      "embeddings indexer: asset below the dimension floor — caption+embed skipped, skip recorded",
+    );
     return;
   }
   const model = ctx.roleClients.imageEmbedModel;

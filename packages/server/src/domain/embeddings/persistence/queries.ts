@@ -3,13 +3,13 @@
 // {@link writeHubScoreRows}. `existing*Hash` reads the stored `content_hash` so the verb can short-circuit a
 // no-op before the expensive embed.
 
-import type { ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, ImageLens, ImageSkipReason } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 // `documents` is databank's table, read here (and only here) to derive the OWNER scope of a chunk row — the
 // vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
 // from `persistence/`, which is the sanctioned home for exactly that (own-tables-only scopes `persistence/`
 // out; `search/persistence/nearest.ts` joins the same table for the same reason).
-import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, documents, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, documents, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type {
   AssetId,
@@ -63,6 +63,36 @@ export async function existingCaptionedRow(db: Db, assetId: AssetId, model: stri
   const row = rows[0];
   // Provenance-only (`{model}`) is NOT a breakdown — any other key means the analysis ran.
   return row === undefined ? undefined : { hash: row.hash, hasFacets: row.captionMeta !== null && Object.keys(row.captionMeta).some((key) => key !== "model") };
+}
+
+/** Is this asset recorded in the admission-floor skip-log? Both admission paths (on-write + bulk sweep) read
+ *  this BEFORE loading bytes so a known-degenerate asset is short-circuited without re-loading or re-spending
+ *  — the record is HONORED (idempotent skip), not silently re-derived every pass. Model-agnostic: the skip is
+ *  keyed by assetId alone (the bytes are immutable per id), so it survives a PD-104 model change. */
+export async function existingImageSkip(db: Db, assetId: AssetId): Promise<boolean> {
+  const rows = await db.select({ assetId: imageIndexSkips.assetId }).from(imageIndexSkips).where(eq(imageIndexSkips.assetId, assetId)).limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
+/** The persistence-internal arg bundle for {@link insertImageSkip} (file-local). */
+interface InsertImageSkipInput {
+  readonly assetId: AssetId;
+  readonly reason: ImageSkipReason;
+  /** The header-parsed dimensions that tripped the floor (attribution only). */
+  readonly width: number | null;
+  readonly height: number | null;
+  /** Epoch-ms from the injected clock — the record's `created_at`. */
+  readonly now: number;
+}
+
+/** Record an admission-floor skip. `onConflictDoNothing` on the asset PK: the first verdict stands (a
+ *  duplicate bus delivery or a concurrent write is an idempotent no-op) — the read short-circuit means this
+ *  is normally reached only once per asset. */
+export async function insertImageSkip(db: Db, input: InsertImageSkipInput): Promise<void> {
+  await db
+    .insert(imageIndexSkips)
+    .values({ assetId: input.assetId, reason: input.reason, width: input.width, height: input.height, createdAt: input.now })
+    .onConflictDoNothing();
 }
 
 /** The persistence-internal arg bundle for {@link upsertCharacterEmbedding} (file-local). */
