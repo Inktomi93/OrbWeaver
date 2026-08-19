@@ -18,16 +18,28 @@
 // TOUCH PROMOTES, RESET DEMOTES: dragging or committing a typed value writes THIS knob's path and nothing
 // else; the trailing ↺ clears it back to inherit and is inert (`invisible` — out of the a11y tree and
 // unfocusable) while the row is already inherited, so the column never jitters row to row.
+//
+// A ROW IS GRID CELLS, NOT A BOX (side-eye 2026-08-19 P1-1). It used to be a flex `Row` whose name cell was
+// a FIXED `--width-label-col` box: the hint trigger sits in that box too, so the three longest names on the
+// deck clipped their own text at EVERY pane width (1864 included), and at a 390px content pane the fixed
+// box + the number twin + the reset left the rail 0-28px — a 30px thumb parked on no track at all, ten of
+// them at once. Both are the same defect: a control column sized by a token instead of by what it holds.
+//
+// So `KnobRow` returns a FRAGMENT of cells and `KnobGrid` owns the tracks (`cols="knob"` — its variant
+// carries the measurement and the fold). A wrapping element would make the whole row ONE grid item and the
+// shared name track would be gone, which is the same reason the databank readout's row returns a fragment.
+// Every KnobRow MUST be mounted inside a KnobGrid; the two are exported together from this module so the
+// pairing has one home.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, RotateCcw } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Grid, Row } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import { Slider } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import type { AppFormInstance } from "#forms";
 import type { KnobBinding } from "../lib/capability-panel-model.ts";
@@ -68,6 +80,18 @@ export interface KnobRowProps {
   readonly quality?: string | undefined;
 }
 
+/** The tracks a cluster of `KnobRow`s are cells of. ONE per cluster: the name track is content-sized, so
+ *  every row inside one grid shares an x by construction, and the fold to a stacked arm is the variant's.
+ *  `gap-x-row` / `gap-y-tight` because the two axes are different jobs — the horizontal gap separates a
+ *  name from its rail, the vertical one is the deck's own row rhythm. */
+export function KnobGrid({ children }: { readonly children: ReactNode }): ReactElement {
+  return (
+    <Grid className="items-center gap-x-row gap-y-tight" cols="knob">
+      {children}
+    </Grid>
+  );
+}
+
 export function KnobRow(props: KnobRowProps): ReactElement {
   const { form, name, label, hint, min, max, step, largeStep, effective, quality } = props;
   // ONE id per row for the provenance line. Both modalities point at it (§4.1's gloss belongs to the
@@ -88,35 +112,37 @@ export function KnobRow(props: KnobRowProps): ReactElement {
         const gloss = explicit ? clampGloss(effective, { min, max }) : ghost?.gloss;
         const describedBy = gloss === undefined || gloss === null ? undefined : glossId;
         return (
-          <Stack gap="tight">
-            {/* ONE instrument line: label · track · twin · reset all share a vertical center (the mock's
-                ~32px knob row). The provenance rides BELOW as its own line so it cannot push the datum
-                cells off that center. */}
-            <Row align="center" gap="row">
-              <KnobLabel hint={hint} label={label} />
-              <KnobControls
-                describedBy={describedBy}
-                explicit={explicit}
-                ghost={ghost}
-                label={label}
-                largeStep={largeStep}
-                max={max}
-                min={min}
-                onChange={(next): void => field.handleChange(next)}
-                step={step}
-                value={value}
-              />
-            </Row>
+          // THREE CELLS AND A GLOSS, straight into the parent KnobGrid's tracks (never wrapped — see the
+          // header). Wide: name · rail · value-cluster on one line, sharing a vertical center. Folded: each
+          // cell takes the whole width in turn, so the rail gets the pane and the twin lands under it.
+          <>
+            <KnobLabel hint={hint} label={label} />
+            <KnobControls
+              describedBy={describedBy}
+              explicit={explicit}
+              ghost={ghost}
+              label={label}
+              largeStep={largeStep}
+              max={max}
+              min={min}
+              onChange={(next): void => field.handleChange(next)}
+              step={step}
+              value={value}
+            />
             <KnobGloss glossId={glossId} text={gloss ?? null} />
-          </Stack>
+          </>
         );
       }}
     </form.AppField>
   );
 }
 
-/** The row's THREE datum cells — track, editable twin, reset — all bound to the SAME value, which is what
- *  makes them two modalities of one control rather than three homes (§16 row 12). */
+/** The row's datum controls — track, editable twin, reset — all bound to the SAME value, which is what
+ *  makes them two modalities of one control rather than three homes (§16 row 12).
+ *
+ *  TWO GRID CELLS, not three: the rail is the flexing track and the twin+reset ride together as ONE value
+ *  cluster. That pairing is what the folded arm needs — the twin has to land UNDER the rail with its reset
+ *  still beside it, and three independent cells would stack the reset onto a fourth line of its own. */
 function KnobControls({
   value,
   explicit,
@@ -143,7 +169,10 @@ function KnobControls({
   return (
     <>
       <Slider
-        className="min-w-0 flex-1"
+        // `min-w-0` is the GRID-ITEM floor override (a track's item is `min-width:auto` by default, which
+        // is what lets a rail refuse to shrink and push the row wide). The old `flex-1` went with the flex
+        // row this used to be — in a `1fr` track the rail already takes the middle.
+        className="min-w-0"
         largeStep={largeStep}
         max={max}
         min={min}
@@ -169,52 +198,58 @@ function KnobControls({
         value={value ?? ghost?.value ?? min}
       />
 
-      <NumberField
-        aria-describedby={describedBy}
-        // THE TWIN IS NOT THE SLIDER (side-eye 2026-08-19 P1-2). Both modalities carried the IDENTICAL
-        // accessible name, so a screen-reader walk of the deck met "Temperature" twice per row with no way to
-        // tell the draggable rail from the typable box — and the empty one from the one showing a number.
-        // They stay ONE field (§16 row 12, one write path); what differs is which INSTRUMENT you are on, so
-        // the name says that. `<label> value` and not "<label> number field": the ROLE is the role's job to
-        // announce (F-27), and `value` is what this box is — the exact datum, typed.
-        aria-label={`${label} value`}
-        format={PRESET_NUMBER_FORMAT}
-        max={max}
-        min={min}
-        onValueChange={(next): void => onChange(next ?? undefined)}
-        placeholder={ghost === null ? UNKNOWN_DEFAULT_PLACEHOLDER : String(ghost.value)}
-        size="inline"
-        step={step}
-        value={value ?? null}
-      />
+      {/* The value cluster — ONE cell (see this function's note). `justify="end"` so a folded row's number
+          still reads down the same edge the rail ends at. */}
+      <Row align="center" gap="field" justify="end">
+        <NumberField
+          aria-describedby={describedBy}
+          // THE TWIN IS NOT THE SLIDER (side-eye 2026-08-19 P1-2). Both modalities carried the IDENTICAL
+          // accessible name, so a screen-reader walk of the deck met "Temperature" twice per row with no way
+          // to tell the draggable rail from the typable box — and the empty one from the one showing a
+          // number. They stay ONE field (§16 row 12, one write path); what differs is which INSTRUMENT you
+          // are on, so the name says that. `<label> value` and not "<label> number field": the ROLE is the
+          // role's job to announce (F-27), and `value` is what this box is — the exact datum, typed.
+          aria-label={`${label} value`}
+          format={PRESET_NUMBER_FORMAT}
+          max={max}
+          min={min}
+          onValueChange={(next): void => onChange(next ?? undefined)}
+          placeholder={ghost === null ? UNKNOWN_DEFAULT_PLACEHOLDER : String(ghost.value)}
+          size="inline"
+          step={step}
+          value={value ?? null}
+        />
 
-      <Button
-        aria-label={`Reset ${label} to inherited`}
-        className={explicit ? "" : "invisible"}
-        intent="ghost"
-        onClick={(): void => onChange(undefined)}
-        size="icon"
-        type="button"
-      >
-        <Icon icon={RotateCcw} size="xs" />
-      </Button>
+        <Button
+          aria-label={`Reset ${label} to inherited`}
+          className={explicit ? "" : "invisible"}
+          intent="ghost"
+          onClick={(): void => onChange(undefined)}
+          size="icon"
+          type="button"
+        >
+          <Icon icon={RotateCcw} size="xs" />
+        </Button>
+      </Row>
     </>
   );
 }
 
-/** The provenance/clamp line, indented to the TRACK's column — it belongs to the VALUE, not the name — and
- *  carrying the id both modalities point `aria-describedby` at (side-eye F-21). */
+/** The provenance/clamp line — it belongs to the VALUE, not the name — carrying the id both modalities point
+ *  `aria-describedby` at (side-eye F-21).
+ *
+ *  IT IS A GRID CELL PLACED IN THE RAIL'S COLUMN, not a row with a spacer box in front of it. The spacer was
+ *  a second copy of the fixed label width, so it inherited every defect that width had: it stayed 152px wide
+ *  while the name beside it grew, and at a narrow pane it ate the gloss's own line. `col-start-2` puts the
+ *  line under the rail wherever the rail is, and in the folded arm it simply takes the row it is given. */
 function KnobGloss({ text, glossId }: { readonly text: string | null; readonly glossId: string }): ReactElement | null {
   if (text === null) {
     return null;
   }
   return (
-    <Row gap="row">
-      <Row className="w-(--width-label-col) shrink-0" />
-      <Text as="span" id={glossId} voice="gloss">
-        {text}
-      </Text>
-    </Row>
+    <Text as="span" className="@lg:col-span-2 @lg:col-start-2" id={glossId} voice="gloss">
+      {text}
+    </Text>
   );
 }
 
@@ -224,11 +259,17 @@ function KnobGloss({ text, glossId }: { readonly text: string | null; readonly g
 function KnobLabel({ label, hint }: { readonly label: string; readonly hint: string | undefined }): ReactElement {
   return (
     // THE HINT COLUMN IS A COLUMN (side-eye 2026-08-19 P3). The glyph used to sit immediately after the
-    // label text, so it landed wherever each name happened to end and ragged across the whole 152px label
-    // cell — eleven explainers on eleven different x's in one scanned column. `justify-between` docks it at
-    // the cell's trailing edge, which is one x for every row and the same edge the track starts at.
-    <Row align="center" className="w-(--width-label-col) shrink-0" gap="field" justify="between">
-      <Text as="span" className="min-w-0 truncate" voice="label">
+    // label text, so it landed wherever each name happened to end and ragged across the whole label cell —
+    // eleven explainers on eleven different x's in one scanned column. `justify-between` docks it at the
+    // cell's trailing edge, which is one x for every row and the same edge the track starts at.
+    //
+    // THE CELL IS THE GRID'S TRACK NOW (side-eye 2026-08-19 P1-1), not a `w-(--width-label-col)` box of its
+    // own: the track is `minmax(--width-label-col, max-content)`, so this keeps the token's one-edge column
+    // wherever the names fit it and grows past it where they do not. The name accordingly does NOT truncate
+    // — a content-sized track has nothing to truncate against, and the clipping this fixes ("Max output
+    // tokens", "Max context tokens", at every width) was the box, never the string.
+    <Row align="center" className="min-w-0" gap="field" justify="between">
+      <Text as="span" voice="label">
         {label}
       </Text>
       {hint === undefined ? null : (

@@ -31,6 +31,22 @@ import { useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 
+/** The block's one sentence, per the TWO facts it actually has (side-eye 2026-08-19 P2).
+ *
+ *  The zero-binding arm used to end "…through the GM voice of a game below." with NOTHING below it — the
+ *  sentence pointed at a list that only renders when there ARE rooms, so the state with no bindings at all
+ *  read as a rendering bug. That arm now STATES THE ANSWER and names both doors out of it; the deictic
+ *  "below" is spoken only when there is in fact something below. `roomsListed` is passed rather than
+ *  re-derived here so the copy and the list can never disagree about what is on screen. */
+function bindingLine(isDefault: boolean, roomsListed: boolean): string {
+  if (isDefault) {
+    return "Your active preset — every chat you host generates with it, unless a game points its GM voice somewhere else.";
+  }
+  return roomsListed
+    ? "Not your active preset. A chat only reaches it through the GM voice of a game below."
+    : "Nothing uses this preset yet — activate it, or point a game's GM voice at it.";
+}
+
 export function UsageReadout({ presetId }: { readonly presetId: PresetId }): ReactElement {
   const trpc = useTRPC();
   const usage = useQuery(trpc.preset.listUsage.queryOptions({ id: presetId }));
@@ -44,11 +60,7 @@ export function UsageReadout({ presetId }: { readonly presetId: PresetId }): Rea
         <Text voice="gloss">Checking…</Text>
       ) : (
         <Stack gap="row">
-          <Text voice="gloss">
-            {isDefault
-              ? "Your active preset — every chat you host generates with it, unless a game points its GM voice somewhere else."
-              : "Not your active preset. A chat only reaches it through the GM voice of a game below."}
-          </Text>
+          <Text voice="gloss">{bindingLine(isDefault, rooms.length > 0)}</Text>
           {rooms.length === 0 ? null : <GmRooms rooms={rooms} />}
         </Stack>
       )}
