@@ -22010,9 +22010,9 @@
       "path": "docs/reviews/security/2026-08-19-lan-auth-impl-review.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 271,
-      "bytes": 19858,
-      "sha256": "d884d66054b0f936ec737fc2271ab9702b6ce4e6b4624688402e39104bea508f",
+      "lines": 278,
+      "bytes": 19984,
+      "sha256": "a0b5b88cf4967966ea7b1d8fcbae96f8adb5db56b31ee61946d8f10f9a6f583a",
       "frontmatter": {
         "present": true,
         "malformed": false,

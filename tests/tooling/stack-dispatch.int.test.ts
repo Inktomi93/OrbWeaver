@@ -65,15 +65,16 @@ test("`restart --force prod` REFUSES — the dev force-teardown must never run a
 
 // ── nothing unclassifiable is allowed to proceed ─────────────────────────────────────────────────────
 
-test("an unknown verb and a dev-only verb in prod both exit 2 with usage", () => {
+test("an unknown verb exits 2 with usage; start-fg prod now dispatches as FOREGROUND prod", () => {
   const unknown = dispatch("frobnicate");
   expect(unknown.status).toBe(2);
   expect(unknown.stderr).toContain("unknown verb 'frobnicate'");
-  // start-fg is the Playwright webServer entry: it foregrounds vite and the caller reaps it. Prod has no
-  // vite and detaches its own server, so this is a refusal rather than a silent dev fallback.
+  // start-fg used to be dev-only and refused in prod. It is NOW the FOREGROUND prod run — the on-box direct
+  // launch (`NODE_ENV=production node <entry>.ts` in this terminal, no pidfile) that replaced `pnpm start`
+  // (launch-centralize / #309). The shell classifies it and routes mode=prod to stack-prod.ts.
   const fg = dispatch("start-fg", "prod");
-  expect(fg.status).toBe(2);
-  expect(fg.stderr).toContain("dev-only");
+  expect(fg.status).toBe(0);
+  expect(fg.line).toBe("DISPATCH verb=start-fg mode=prod debug=0 force=0 rest=");
 });
 
 test("--build is refused in dev at the SHELL, not silently ignored", () => {

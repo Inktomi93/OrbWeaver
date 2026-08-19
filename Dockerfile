@@ -8,8 +8,9 @@
 # model) + docs/design/docker-modern-practices-research.md (HOW) + docs/design/containerize-build-plan.md
 # (the decisions + the coupled sites this file encodes). Deployment wiring: docker-compose.yaml.
 #
-# The server ships as SOURCE — node 26 runs .ts directly (`pnpm start` ≙ `node packages/server/src/
-# entry/index.ts`); the only build artifacts are the generated UI tokens + the client vite bundle. The
+# The server ships as SOURCE — node 26 runs .ts directly (the image CMD is `node packages/server/src/
+# entry/index.ts`, the same command `pnpm stack start-fg prod` runs on-box); the only build artifacts are
+# the generated UI tokens + the client vite bundle. The
 # runtime node_modules is the `pnpm deploy --legacy --prod` prune of @orb/server's graph (Fork E), laid
 # out workspace-shaped (build plan §1.4) so CLIENT_DIST_DIR's default and the fleet scripts' repo-root
 # expectations hold unchanged.
