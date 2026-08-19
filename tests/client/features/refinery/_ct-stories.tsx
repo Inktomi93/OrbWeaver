@@ -215,6 +215,40 @@ export function RefineryStartStory(): ReactElement {
   );
 }
 
+/**
+ * The FULL desktop landing exactly as `refinerySection` mounts it — the sessions roster (list header +
+ * surface) AND the CONTENT landing picker, in ONE tree on ONE data tier. It is the only mount where the
+ * #307 duplicate-door is visible at all: the roster's empty-state CTA and the CONTENT picker are two
+ * different shell surfaces, and the defect is the CTA opening a SECOND full-library picker over the one
+ * CONTENT already shows. It is also the faithful mount for the #308 read count — the roster's
+ * `listSessions` and the picker's `character.list`, deduped through the one production QueryClient.
+ *
+ * Selection cleared and the viewport regime published during the first render pass (never an effect), the
+ * reason every story here states: an effect would paint one arm and swap on the second commit, and a CT
+ * that barriers on a mid-flight state is the flake the harness law forbids.
+ */
+export function RefineryLandingStory({ mobile = false }: { readonly mobile?: boolean }): ReactElement {
+  useState((): null => {
+    setMobileViewport(mobile);
+    clearRefinerySelection();
+    setRefineryViewedRun(null);
+    return null;
+  });
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <Suspense fallback={<p>loading roster</p>}>
+          <div>
+            <RefineryListHeader />
+            <RefineryListSurface />
+          </div>
+          <RefineryContentSurface />
+        </Suspense>
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
 // --- R3 SURFACE stories (pure presentation — no wire; the props cross the CT boundary as JSON) ---
 
 export interface PayloadViewStoryProps {

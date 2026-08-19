@@ -45,7 +45,7 @@ import { useRef, useState } from "react";
 import { CharacterPicker, LibraryListLayout } from "#components";
 import { useOpenRefinery, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
-import { selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
+import { requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
 
 const VERDICT_TONE: Record<string, RenderHintTone> = {
@@ -129,6 +129,14 @@ function readoutSubtitleOf(row: ResolvedRow): string {
  * standing in the same file. On a phone it was worse than a no-op: the roster IS the screen there, the
  * copy pointed at a "main pane" the viewport does not have, and the only working door was a 24px glyph in
  * the worst thumb corner. One door, two chromes, no dead arm.
+ *
+ * …EXCEPT THE EMPTY STATE'S CTA IS NOT THIS DOOR ON A DESKTOP LANDING (#307, the #284 duplicate-door's last
+ * mouth). With nothing selected on a desktop, CONTENT already mounts the full-library landing picker, so a
+ * SECOND anchored one over it is two identical 100-row pickers on one plane. There the CTA is a plain button
+ * that FOCUSES the mounted picker (`requestRefineryLandingFocus`) rather than a `StartSessionDoor` — the
+ * P1-1 ruling ("the CTA must be a live door") survives, its input changed. This door still draws the `+`
+ * glyph in every regime and the worded CTA on a PHONE (where CONTENT is not rendered) and with a session
+ * open (where CONTENT shows the pipeline) — the arms where it is genuinely the only picker on screen.
  */
 function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean) => ReactElement }): ReactElement {
   const { openRefinery, isPending } = useOpenRefinery();
@@ -160,6 +168,13 @@ export function RefineryListSurface(): ReactElement {
   const trpc = useTRPC();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
   const selectedId = useSelectedRefinerySessionId();
+  const isMobile = useMobileViewport();
+  // The SAME condition the header's `+` reads (#307): with nothing selected on a desktop, CONTENT mounts
+  // the full-library landing picker — so the empty-state CTA must focus THAT one, not open a second copy
+  // over it (the #284 duplicate-door's last mouth). On a phone CONTENT is not rendered (this roster is the
+  // screen, `resolvePanelMode`'s `listIsScreen` arm) and with a session open CONTENT shows the pipeline, so
+  // in both of those the CTA is the only door and stays the anchored picker popover.
+  const contentShowsPicker = selectedId === null && !isMobile;
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   const [search, setSearch] = useState("");
@@ -191,13 +206,24 @@ export function RefineryListSurface(): ReactElement {
         empty={
           <EmptyState
             action={
-              <StartSessionDoor
-                trigger={(busy): ReactElement => (
-                  <Button aria-busy={busy} intent="secondary" size="sm">
-                    Pick a character
-                  </Button>
-                )}
-              />
+              // NOT A SECOND PICKER WHERE ONE IS ALREADY ON SCREEN (#307). On a desktop landing the CTA
+              // focuses the picker CONTENT mounts (`requestRefineryLandingFocus`) instead of anchoring a
+              // duplicate over it. The #157 ruling that made this CTA a LIVE door — never the dead no-op it
+              // was, byte-identical before and after — SURVIVES; its input changed: on desktop the live act
+              // is focusing the mounted picker, on a phone (no CONTENT picker) it is still opening the one.
+              contentShowsPicker ? (
+                <Button intent="secondary" onClick={requestRefineryLandingFocus} size="sm">
+                  Pick a character
+                </Button>
+              ) : (
+                <StartSessionDoor
+                  trigger={(busy): ReactElement => (
+                    <Button aria-busy={busy} intent="secondary" size="sm">
+                      Pick a character
+                    </Button>
+                  )}
+                />
+              )
             }
             description={
               sessions.data.length === 0

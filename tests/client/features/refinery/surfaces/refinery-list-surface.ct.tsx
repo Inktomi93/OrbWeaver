@@ -11,7 +11,7 @@ import type { Locator } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { RefineryRosterStory } from "../_ct-stories.tsx";
+import { RefineryLandingStory, RefineryRosterStory } from "../_ct-stories.tsx";
 import { makeRefinerySessionSummary } from "../fixtures.ts";
 
 /** The one card the header's picker offers — MINTED, never a hand-written literal (`typeIdSchema`). */
@@ -111,18 +111,85 @@ function emptyRosterRoutes(): TrpcRoutes {
   };
 }
 
-test("the roster's EMPTY arm teaches, and its CTA is a real door — it opens the picker instead of doing nothing", async ({ mount, page }) => {
+test("on a PHONE the roster's EMPTY-arm CTA is a real door — it opens the picker popover (no CONTENT picker exists there)", async ({ mount, page }) => {
   await routeTrpc(page, emptyRosterRoutes());
-  await mount(<RefineryRosterStory />);
+  // Mobile: CONTENT is not rendered (this roster is the screen, `resolvePanelMode`'s `listIsScreen` arm),
+  // so the empty-state CTA is the ONLY picker — it stays the anchored popover it has always been. The #307
+  // desktop change below does not touch this arm; the P1-1 ruling (the CTA must never be a dead no-op)
+  // holds here through the popover.
+  await mount(<RefineryRosterStory mobile={true} />);
   await expect(page.getByText("No refinery sessions yet")).toBeVisible();
-
-  // THE DEFECT, as an affordance (side-eye 2026-08-19 P1-1). "Pick a character" called
-  // `clearRefinerySelection()`, and in the arm it renders in no selection can exist — so the press was an
-  // unconditional no-op and the shell was byte-identical before and after it. It is the SAME dead-control
-  // defect the owner ruled on for the `+` (#157), left standing in the same file. The pin is the picker
-  // appearing on the press: against the old source the click produces no picker at all.
   await page.getByRole("button", { name: "Pick a character" }).click();
   await expect(page.getByRole("option", { name: "Zephyrine Vale" })).toBeVisible();
+});
+
+// ── #307: THE DUPLICATE-DOOR'S LAST MOUTH (the #284 sweep) ───────────────────────────────────────────
+// On a desktop landing with 0 sessions, CONTENT already mounts the full-library landing picker. The
+// empty-state CTA used to be a `StartSessionDoor` popover in EVERY regime, so on desktop it anchored a
+// SECOND identical 100-row picker over the one already on screen. The fix: on desktop the CTA focuses the
+// mounted CONTENT picker instead of opening a duplicate; the popover survives only where CONTENT has no
+// picker (a phone, or a session open). This is the only mount that can see it — the roster's own
+// list-only story has no CONTENT picker to duplicate.
+
+/** The empty roster BESIDE the CONTENT landing picker — the same routes, on the full-landing mount. The
+ *  picker lists one card so the search box and its rows are real. */
+function fullLandingRoutes(): TrpcRoutes {
+  return {
+    "refinery.listSessions": (): unknown[] => [],
+    "character.list": characterListResponder([makeCharacterSummary({ id: HEADER_PICK_CHARACTER_ID, name: "Zephyrine Vale" })]),
+  };
+}
+
+/** The picker's search box, by its placeholder — BOTH the CONTENT landing picker and the `StartSessionDoor`
+ *  popover render one with this exact placeholder, so its COUNT is the duplicate-door discriminator: one on
+ *  the desktop landing means the CTA focused the mounted picker; two means it opened a second. */
+const PICKER_SEARCH = /^Search characters…$/;
+
+test("#307: on the desktop landing the empty-state CTA focuses the picker CONTENT already shows — it does NOT open a second one", async ({ mount, page }) => {
+  await routeTrpc(page, fullLandingRoutes());
+  await mount(<RefineryLandingStory />);
+  await expect(page.getByText("No refinery sessions yet")).toBeVisible();
+
+  // Exactly ONE picker before the press — CONTENT's landing picker. (Its search box settles once the
+  // library page lands; barrier on it so the count below reads a settled plane, not a mid-suspense one.)
+  const searchBoxes = page.getByPlaceholder(PICKER_SEARCH);
+  await expect(searchBoxes).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Pick a character" }).click();
+
+  // THE DEFECT, on the wire of the DOM: against the old source the press anchored a `StartSessionDoor`
+  // popover carrying a second identical picker, so this became two. One picker on one plane is the fix.
+  await expect(searchBoxes).toHaveCount(1);
+  // …and the press was not a no-op (the P1-1 ruling survives): the CTA handed focus to the mounted picker's
+  // search field, so a user who pressed it is now typing in the library rather than staring at a dead button.
+  await expect(searchBoxes).toBeFocused();
+});
+
+// ── #308: THE LANDING'S READ COUNT (owner: "hunt it down") ───────────────────────────────────────────
+// The motion audit read `region:content 36 updates` (a `__orb` RENDER census, not a network count) and a
+// dev console showing `character.list` "twice", and prescribed deduping two `character.list` reads. This
+// is the network re-derivation the standing lane fact demands before any such dedupe: on the faithful
+// desktop landing, over PRODUCTION React (playwright-ct — StrictMode inert, i.e. no dev double-invoke),
+// `character.list` is fetched ONCE (the CONTENT picker) and `refinery.listSessions` ONCE (the roster,
+// shared by the header + surface + selection-title through one cache key). They are DIFFERENT endpoints —
+// there is no shared key to dedupe onto — and neither duplicates. The "twice" seen in the dev console is
+// the dev-only StrictMode double-fetch, not an app defect.
+test("#308: the desktop landing fetches character.list once and listSessions once — the reads are distinct, neither duplicates", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, fullLandingRoutes());
+  await mount(<RefineryLandingStory />);
+
+  // Settle the whole landing: the empty roster arm AND the picker's first page. Both are the barrier — the
+  // roster is a suspense surface (it cannot paint its empty state until `listSessions` resolved) and the
+  // picker's search box appears only once `character.list`'s first page lands. Past both, every request the
+  // landing produces is recorded.
+  await expect(page.getByText("No refinery sessions yet")).toBeVisible();
+  await expect(page.getByPlaceholder(PICKER_SEARCH)).toBeVisible();
+
+  // ONESHOT-OK: the two settled arms above are the barrier — a read either surface still owed would have
+  // suspended the arm that asserts here.
+  expect(trpc.count("character.list")).toBe(1);
+  // ONESHOT-OK: same settled barrier — header, surface and selection-title share one `listSessions` key.
+  expect(trpc.count("refinery.listSessions")).toBe(1);
 });
 
 test("the copy names the ACT, not a pane the phone does not have", async ({ mount, page }) => {
