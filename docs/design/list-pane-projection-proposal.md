@@ -1,13 +1,15 @@
 ---
 kind: spec
-status: draft
-updated: 2026-08-01
+status: archived
+updated: 2026-08-19
 ---
 
 # LIST-PANE PROJECTION — the character screen's pane becomes her chats (face → history → play)
 
-**Status:** DESIGN SPEC — DRAFT, nothing here is built beyond the landed seams §2 inventories.
-Owner-ratified direction (workboard §DISCUSSION PILE "LIST-PANE RENT" + the ratification of the
+**Status:** BUILT (Arm A/L0-L2 landed, per §9's stages and #255's fork-reconciliation evidence
+71781f3ff/a1b435d05, 2026-08-19). Archived as the durable design record; §10's decision table is the
+as-built authority — its D2 row is a RECOMMENDATION the build followed, not an owner-ruled ledger entry
+(§10 D2 carries the as-built note). Owner-ratified direction (workboard §DISCUSSION PILE "LIST-PANE RENT" + the ratification of the
 projection recommendation): *"chats with this character" is the character screen's list-pane content —
 face → history → play.* Owner steer mid-draft: the deliverable designs the **NEW PROJECTION — the two
 list roles (character picker · chats-with-her) combined into ONE pane slot as a modal flow** — and
@@ -456,7 +458,7 @@ either way.
 | # | decision | recommendation |
 | - | - | - |
 | **D1** | **The headline ruling: Arm A (per-screen modal pane, as ratified) · Arm A+B (plus the chats-pane faces strip) · Arm C (one unified launcher rail).** Rule from the mocks: `character-launcher.html` vs `unified-rail.html`. | **A now, B as the chats-screen arm (A+B = "the two slots combined" without rail surgery); C rejected** — §5.1's five costs, led by the ungateable one: a nested-under-faces grammar teaches the chat-ownership model D18 exists to reject, and the landing already IS the mixed launcher at CONTENT tier |
-| D2 | The swap trigger: unconditional (selection ⇒ projection, back = deselect) vs a band toggle (`Library \| Chats` segmented, selection kept) | **unconditional** — the ratified modal flow; one selection axis, no extra chrome; back is one click and ⌘K covers cross-jumps. The real cost (can't browse the library while editing her) is the direction's honest price — a toggle can be added later without unwinding anything |
+| D2 | The swap trigger: unconditional (selection ⇒ projection, back = deselect) vs a band toggle (`Library \| Chats` segmented, selection kept) | **unconditional** — the ratified modal flow; one selection axis, no extra chrome; back is one click and ⌘K covers cross-jumps. The real cost (can't browse the library while editing her) is the direction's honest price — a toggle can be added later without unwinding anything. **As-built (2026-08-19):** this row is a design RECOMMENDATION, not an owner-ruled ledger entry (no `D2` ledger row exists for this program — the ledger's own `D2` is unrelated, `entry/` bucket shape). The unconditional arm SHIPPED as recommended and code-header citations point HERE, not to a ruling. The named escape hatch — the `Library \| Chats` band toggle with selection kept — remains an OPEN owner door (#255's comment records it: "adds the chrome D2 declined, so it waits for you") |
 | D3 | Group rooms in her pane: single first-portrait (today's resolver) vs `AvatarStack` for ≥2 seats | **AvatarStack** — shared-ness must be legible at rest (§3.6); the primitive exists; the chats pane inherits the same upgrade so the row anatomy stays ONE |
 | D4 | Projection ordering: server recency order vs starred-first | **server order** — identical to the chats pane (one truth, one order); the star is a MARKER, not a sort key; a diverging order between the two surfaces would read as two different lists |
 | D5 | The auto-collapse-to-rail arm (workboard arm 1) | **DROP** (§4.2) — a fourth panel mode for width the prose column doesn't receive, against a landed one-keystroke focus toggle; revisit only post-HUD-HOME with screenshots |

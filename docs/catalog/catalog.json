@@ -11091,16 +11091,16 @@
       "path": "docs/design/list-pane-projection-proposal.md",
       "lane": "design",
       "issue": 5,
-      "lines": 624,
-      "bytes": 63287,
-      "sha256": "5da7af6c07564ff8baa55b4160a3f7e9bfe1e1dce27a269b4535dca0ab56913f",
+      "lines": 626,
+      "bytes": 64031,
+      "sha256": "5417b5a1b4ec187a6068d4ee10170e6dd9010db21427e04057904d16b8d0da17",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
-          "status": "draft",
-          "updated": "2026-08-01"
+          "status": "archived",
+          "updated": "2026-08-19"
         },
         "errors": []
       },
@@ -11120,7 +11120,7 @@
         ],
         "summary": "LIST-PANE PROJECTION — the character screen's pane becomes her chats (face → history → play): full content read against frozen tree; landed-state record retained as historical evidence."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/lite-plus-guided-substrate-spec.md",

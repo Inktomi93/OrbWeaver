@@ -157,7 +157,8 @@ export function __resetTagFilter(): void {
 /** Remember where the library was scrolled, so opening somebody does not destroy the browse context (#255).
  *
  *  WHY IT IS WRITTEN AT SELECTION rather than on scroll: the LIST pane swaps to the selected character's
- *  chats projection (owner ruling D2 — selection ⇒ projection, back = deselect), which UNMOUNTS the library
+ *  chats projection (per the projection design's D2 arm — selection ⇒ projection, back = deselect —
+ *  `docs/design/list-pane-projection-proposal.md` §10), which UNMOUNTS the library
  *  and its `VirtualList`; the paged rows survive in the query cache, the scroll offset does not. A scroll
  *  handler would write here ~60×/second, and this store is `persist`-wrapped — zustand re-serializes the
  *  partialized blob to localStorage on EVERY state change, so a per-frame write would be a per-frame
