@@ -150,6 +150,74 @@ test("THE SURFACE'S ONE DOOR IS A CONTROL: a painted, bounded button (P1-3)", as
   expect(painted.width, "…and it is BOUNDED: a button that spans its whole column reads as a banner").toBeLessThan(painted.columnWidth);
 });
 
+// ── THE RECOVERY DOOR AND THE DRILL-OUT DOOR (side-eye corpus re-pass A5 / A7) ────────────────────────
+// Two doors on this surface were broken in opposite ways: one DISAPPEARED in the state that needed it, and
+// one led somewhere it could not deliver. Both are pinned as rendered affordances, in both arms.
+
+/** The rail's failure arm needs a viewer (rows are attributed to `sessions.me`) and a terminal pass row. */
+const FAILED_PASS: TrpcRoutes = {
+  ...ANALYSED,
+  "sessions.me": { userId: "user_me", globalRole: "user", handle: "me" },
+  "workloads.list": [
+    {
+      id: "workload_failed",
+      kind: "distill-characters",
+      status: "failed",
+      ownerId: "user_me",
+      mode: "singular",
+      createdAt: 10,
+      params: {},
+      progress: null,
+      error: "the embed model refused the batch",
+      result: null,
+    },
+  ],
+};
+
+const JOBS_DOOR = /All jobs in Settings/;
+const FAMILIES_DOOR = /All families/;
+
+test("A5: the readiness failure keeps the door to the log it names", async ({ mount, page }) => {
+  await routeTrpc(page, FAILED_PASS);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  // SETTLED barrier for this arm: the failure sentence itself, which only the terminal row produces.
+  await expect(component.locator('[data-slot="readiness-rerun-failure"]')).toBeVisible();
+  // THE DEFECT: the branch that tells you to go read the error log was the one branch that deleted the
+  // route to it — the two were a ternary. The message is conditional; the door is not.
+  await expect(component.getByRole("button", { name: JOBS_DOOR })).toBeVisible();
+});
+
+test("…and the jobs door is present in the CLEAN arm too — the fix did not just move the hole", async ({ mount, page }) => {
+  await routeTrpc(page, ANALYSED);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  await expect(component.getByRole("button", { name: JOBS_DOOR })).toBeVisible();
+  await expect(component.locator('[data-slot="readiness-rerun-failure"]')).toHaveCount(0);
+});
+
+test("A7: 'All families' renders only when its destination will actually draw them", async ({ mount, page }) => {
+  await routeTrpc(page, ANALYSED);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  await expect(component.getByRole("button", { name: FAMILIES_DOOR })).toBeVisible();
+});
+
+test("…and it is GONE on the undistilled library, where the Archetypes tab answers with an invitation", async ({ mount, page }) => {
+  // `UNANALYSED` carries families (the island is at its LOUDEST here) with `totalDistilled: 0` — the exact
+  // state the old comment called impossible ("populated whenever this island renders at all") and the one
+  // where the tab's #154 gate refuses to draw a single cluster.
+  await routeTrpc(page, UNANALYSED);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+
+  await expect(component.getByText("The shape of your library"), "the island itself still renders").toBeVisible();
+  await expect(component.getByRole("button", { name: FAMILIES_DOOR })).toHaveCount(0);
+});
+
 /** The focal treatment as PAINT: no single-edge accent border on the rounded island, and the sanctioned
  *  ::before ring at its token's own strength rather than dimmed to a third of it. */
 function focalPaint(page: Page): Promise<{ startWidth: string; endWidth: string; ringOpacity: string; ringShadow: string }> {

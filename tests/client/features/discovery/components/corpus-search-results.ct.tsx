@@ -31,7 +31,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CorpusListSurfaceNavStory } from "../_ct-stories.tsx";
+import { CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
 
 /** The subtitle the row used to carry: the literal word "Chat" plus a 6-character id slice. */
 const RAW_CHAT_REF = /^Chat \w{6}$/;
@@ -129,6 +129,106 @@ test("an open typeahead never covers a result: row 1 is clickable with the sugge
   // …and the door still opens on ONE unforced click, with the list still showing.
   await component.getByRole("button", { name: BATH_TEXT }).click();
   await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
+});
+
+// ── THE IMAGES TARGET IS A REAL RESULT LIST (side-eye corpus re-pass U4) ──────────────────────────────
+// It shipped as twenty rows with a generic glyph, no image, no button and `cursor: auto`, in the SAME
+// ListRow geometry as the Memories rows that ARE doors: an image search that showed no images, and a dead
+// end dressed as a live one. Both halves are pinned here, in both directions — a thumbnail with a dead
+// click would be the same defect wearing better clothes.
+const AVATAR_HASH = "aaaa1111";
+const ORPHAN_HASH = "bbbb2222";
+const WORN_CAPTION = "a red-haired knight in the rain";
+const ORPHAN_CAPTION = "an empty throne room";
+/** A 1x1 transparent PNG — the smallest thing the CAS blob route can serve. */
+const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
+const IMAGE_HITS: TrpcRoutes = {
+  "search.search": {
+    over: "images",
+    hits: [
+      {
+        assetId: "asset_worn",
+        hash: AVATAR_HASH,
+        characterId: "character_aria",
+        characterName: "Aria",
+        score: 0.12,
+        relevance: 0.88,
+        lens: "image-captioned",
+        caption: WORN_CAPTION,
+      },
+      {
+        assetId: "asset_orphan",
+        hash: ORPHAN_HASH,
+        characterId: null,
+        characterName: null,
+        score: 0.4,
+        relevance: 0.6,
+        lens: "image-captioned",
+        caption: ORPHAN_CAPTION,
+      },
+    ],
+  },
+};
+
+/** The two rows by their accessible names (hoisted — a regex literal in a test body is lint-RED). */
+const WORN_ROW_NAME = /Aria/;
+const ORPHAN_ROW_NAME = /empty throne room/;
+
+/** The dossier the worn image's door lands on. Flat: only the LANDING is under test here. */
+const ARIA_DOSSIER = {
+  characterId: "character_aria",
+  name: "Aria",
+  genre: "fantasy",
+  tone: "dark",
+  elevatorPitch: null,
+  tags: [],
+  portrait: null,
+  refineryScore: null,
+  similar: [],
+};
+
+/** The CAS route has to ANSWER: Base UI's Avatar swaps to its fallback when the image ERRORS, so an
+ *  unstubbed 404 makes a correctly-wired thumbnail indistinguishable from the glyph-only row that shipped. */
+async function searchImages(component: ReturnType<Page["locator"]>, page: Page, extra: TrpcRoutes = {}): Promise<void> {
+  await page.route("**/api/blob/*", async (route) => route.fulfill({ body: PIXEL, contentType: "image/png", status: 200 }));
+  await routeTrpc(page, { ...IMAGE_HITS, ...extra });
+  await component.getByRole("button", { name: "Search Images" }).click();
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("knight in the rain");
+  await expect(component.getByText(WORN_CAPTION)).toBeVisible();
+}
+
+test("an image search SHOWS THE IMAGES — every hit renders its own blob", async ({ mount, page }) => {
+  const component = await mount(<CorpusListSurfaceNavStory />);
+  await searchImages(component, page);
+
+  // The hash off `ImageSearchHit.hash` reached an <img> — nothing else on this surface can produce that URL.
+  await expect(page.locator(`img[src="/api/blob/${AVATAR_HASH}"]`)).toHaveCount(1);
+  await expect(page.locator(`img[src="/api/blob/${ORPHAN_HASH}"]`)).toHaveCount(1);
+});
+
+test("an image WORN BY A CARD is a door that LANDS: clicking it opens that character's dossier", async ({ mount, page }) => {
+  const component = await mount(<CorpusSearchToDossierStory />);
+  await searchImages(component, page, { "discovery.characterDossier": ARIA_DOSSIER, "discovery.characterKeywords": [], "search.similarArt": [] });
+
+  // The row is named for the character it lands on; the caption is its subtitle.
+  await component.getByRole("button", { name: WORN_ROW_NAME }).click();
+
+  // THE RECEIPT IS THE RENDERED DESTINATION, not a store write: the dossier is what the CONTENT region
+  // draws for a selected corpus character, so its presence is the door having landed.
+  await expect(component.getByTestId("corpus-dossier-surface")).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Card quality" })).toBeVisible();
+});
+
+test("an image NO CARD wears is visibly NOT a door — and says why", async ({ mount, page }) => {
+  const component = await mount(<CorpusListSurfaceNavStory />);
+  await searchImages(component, page);
+
+  // The whole U4 defect in one assertion: this row must not be a button while its sibling is.
+  await expect(component.getByRole("button", { name: ORPHAN_ROW_NAME })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: WORN_ROW_NAME })).toHaveCount(1);
+  // …and the reason is on the row, not left for the reader to discover by clicking nothing.
+  await expect(component.getByText("No card uses this image — nothing to open")).toBeVisible();
 });
 
 test("a memory hit names its room, never a raw chat id", async ({ mount, page }) => {

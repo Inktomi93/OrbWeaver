@@ -1,0 +1,59 @@
+// CT: the Corpus CONTEXT "Map" tab's GENRE KEY (side-eye corpus re-pass B5).
+//
+// THE DEFECT: the tab said "colored by genre" over ~8px dots in five hues and named no genre anywhere, with
+// ~350px of empty panel below the plot. The meaning was carried by COLOUR ALONE — the accessibility failure
+// and the reason the chart answered nothing.
+//
+// WHY THE ASSERTIONS ARE DOM TEXT, NOT PIXELS: `<Scatter>` is an ECharts CANVAS behind the @orb/ui seal, so
+// nothing inside the plot is queryable and a text assertion about it would be speaking for the frame, not
+// the points. The key is real DOM precisely so a reader — and a screen reader — can decode the plot at all;
+// these tests read the key, and say so.
+//
+// THE KEY IS THE PRIMITIVE'S (`<Scatter legend>`), not this tab's: ui owns the palette, so the swatch is the
+// same resolved stop the canvas painted with rather than a colour matched by convention — and a feature may
+// not paint a raw element at all. This tab's half is passing `legend` and capping the series count.
+//
+// The swatch is deliberately NOT asserted by colour: it is `aria-hidden` decoration, and the row's own words
+// are the datum. What IS pinned is that a genre never appears twice in the key, because the ramp wraps at
+// five series and the "Other" pool used to be the sixth (see `corpus-charts.ts`'s cap).
+
+import { expect, test } from "@playwright/experimental-ct-react";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CorpusMapTabStory } from "../_ct-stories.tsx";
+
+/** Six genres + a genre-less card: more than the ramp can name, which is what makes the pool a series. */
+const POINTS = [
+  { characterId: "character_a", name: "Aria", x: 0.1, y: 0.2, genre: "fantasy" },
+  { characterId: "character_b", name: "Brin", x: 0.2, y: 0.1, genre: "fantasy" },
+  { characterId: "character_c", name: "Cass", x: 0.3, y: 0.4, genre: "noir" },
+  { characterId: "character_d", name: "Dov", x: 0.4, y: 0.3, genre: "scifi" },
+  { characterId: "character_e", name: "Eze", x: 0.5, y: 0.6, genre: "romance" },
+  { characterId: "character_f", name: "Fen", x: 0.6, y: 0.5, genre: "horror" },
+  { characterId: "character_g", name: "Gil", x: 0.7, y: 0.8, genre: null },
+];
+
+/** The key's rows as text: the swatch renders no text, so a row reads as its genre then its point count. */
+const KEY_ROWS = ["fantasy2", "noir1", "scifi1", "romance1", "Other2"];
+/** The key's accessible name is the chart's own label plus "key" (the primitive composes it). */
+const KEY_NAME = "Corpus semantic map key";
+
+test("the map carries a genre KEY, and every series in it is named", async ({ mount, page }) => {
+  await routeTrpc(page, { "discovery.corpusProjection": POINTS });
+  const component = await mount(<CorpusMapTabStory />);
+
+  const key = component.getByRole("list", { name: KEY_NAME });
+  await expect(key).toBeVisible();
+  // Four named genres (frequency-descending) + the pool. Each row states the genre AND its count, so the
+  // key is readable with no colour perception at all.
+  await expect(key.getByRole("listitem")).toHaveText(KEY_ROWS);
+});
+
+test("no genre is named twice — the key cannot hand two rows the same swatch", async ({ mount, page }) => {
+  await routeTrpc(page, { "discovery.corpusProjection": POINTS });
+  const component = await mount(<CorpusMapTabStory />);
+
+  const rows = component.getByRole("list", { name: KEY_NAME }).getByRole("listitem");
+  const names = await rows.allInnerTexts();
+  expect(new Set(names).size, "a repeated row would mean the ramp wrapped and two series share a colour").toBe(names.length);
+  expect(names.length, "the series count is capped at the ramp's five stops, pool included").toBeLessThanOrEqual(5);
+});

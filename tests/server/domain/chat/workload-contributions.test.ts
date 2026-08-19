@@ -65,6 +65,24 @@ describe("memory-backfill", () => {
     expect(report).toHaveBeenCalledWith({ message: expect.stringContaining("7 chats FAILED") });
   });
 
+  // C4 (side-eye corpus re-pass): this sentence is read by a person — in the Jobs row and on the corpus
+  // readiness rail, which quotes `pass.failure` verbatim. It shipped as "1 chat FAILED during the sweep and
+  // were skipped": a plural verb on a singular count, in a shout the surrounding copy never uses.
+  test("the failure sentence AGREES WITH ITS OWN COUNT on the singular arm, and does not shout", async () => {
+    const { contributions } = build(1);
+    const error = await contributions[0].run(ctx, {}, vi.fn(), sig()).catch((e: unknown) => e);
+    const message = error instanceof Error ? error.message : String(error);
+    expect(message).toContain("1 chat failed and was skipped");
+    expect(message, "no plural verb on a count of one").not.toContain("were skipped");
+    expect(message, "FAILED in caps is a shout this copy does not otherwise use").not.toContain("FAILED");
+  });
+
+  test("…and the plural arm agrees too", async () => {
+    const { contributions } = build(3);
+    const error = await contributions[0].run(ctx, {}, vi.fn(), sig()).catch((e: unknown) => e);
+    expect(error instanceof Error ? error.message : String(error)).toContain("3 chats failed and were skipped");
+  });
+
   // The owner ruling's visibility half (#165): blocks skipped for being too big are a RECORDED gap, so the
   // Jobs row copy has to say so — and say it did NOT truncate them.
   test("the progress copy NAMES blocks skipped for exceeding the embed window (recorded, not truncated)", async () => {

@@ -137,6 +137,14 @@ export interface DocumentChunkHit {
  *  verb deliberately omits it. */
 export interface ImageSearchHit {
   readonly assetId: AssetId;
+  /** The matched blob's CAS hash — an image result has to be able to SHOW the image (side-eye corpus
+   *  re-pass U4). Projected off the `assets` row the scan already joins for the owner belt. */
+  readonly hash: string;
+  /** The owned character wearing this asset as its avatar, or `null` when nothing wears it. This is the
+   *  hit's DESTINATION: with a character it is a door onto that dossier, without one it is a preview and
+   *  must not be dressed as a door. */
+  readonly characterId: CharacterId | null;
+  readonly characterName: string | null;
   readonly score: number;
   readonly relevance: number;
   readonly lens: ImageLens;

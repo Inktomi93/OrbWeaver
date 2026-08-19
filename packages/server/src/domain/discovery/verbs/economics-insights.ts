@@ -56,7 +56,9 @@ function gemRank(messageCount: number, lastActiveAt: number, newestActiveAt: num
  * The owner's revisit candidates — characters that carry real INVESTED message volume AND have gone quiet,
  * ranked by the conjunction of the two ({@link gemRank}). The SEMANTIC ranking is discovery's; the
  * `tokensOut`/`costUsd` come from the injected per-character economics op (never a raw `messages` SUM).
- * Characters with no recorded economics default to zeros (the semantic signal still ranks).
+ * A character with no economics row keeps its semantic rank and reports `tokensOut: null` — "we have no
+ * accounting for this one", which is most of an imported library and is NOT the zero it used to report
+ * (side-eye corpus re-pass B2). `costUsd` still defaults to 0: an unrecorded cost genuinely is zero.
  */
 async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEFAULT_FORGOTTEN_GEMS_LIMIT): Promise<ForgottenGem[]> {
   const [candidates, economics] = await Promise.all([readForgottenGemCandidates(ctx.db, ownerId), ctx.characterEconomics(ownerId)]);
@@ -69,7 +71,7 @@ async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEF
       avatarHash: c.avatarHash,
       messageCount: c.messageCount,
       lastActiveAt: c.lastActiveAt,
-      tokensOut: econ?.tokensOut ?? 0,
+      tokensOut: econ === undefined ? null : econ.tokensOut,
       costUsd: econ?.costUsd ?? 0,
     };
   });

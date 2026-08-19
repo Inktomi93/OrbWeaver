@@ -98,7 +98,12 @@ export interface CharacterEconomics {
   /** Assistant generations counted (selected variants of the character's assistant messages). */
   readonly generations: number;
   readonly tokensIn: number;
-  readonly tokensOut: number;
+  /** Output tokens summed over the selected variants — `null` when NOT ONE of them recorded a count.
+   *  ABSENT ACCOUNTING IS NOT ZERO (side-eye corpus re-pass B2): an imported library carries thousands of
+   *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 made the corpus
+   *  surface print "0 tokens returned" beside "1,187 exchanges" — a contradiction the reader can only
+   *  resolve as a bug. A genuine 0 (the provider reported it) still sums to 0 and stays distinguishable. */
+  readonly tokensOut: number | null;
   readonly costUsd: number;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
