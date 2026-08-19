@@ -16,7 +16,9 @@ import {
   oklabToOklch,
   oklchToSrgb,
   proseInkLightness,
+  READING_BAND_ALPHA,
   rampSurface,
+  readingBandSurface,
   readingPlateAlpha,
   srgbToOklch,
   THEME_DERIVATION,
@@ -249,6 +251,24 @@ describe("readingPlateAlpha (#217 — the polarity-aware plate alpha)", () => {
       { l: 0.5, c: 0.17, h: 50 },
     ]) {
       expect(wcagContrastRatio(oklchToSrgb(ink), composite)).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
+  });
+
+  test("#241 the BAND is the plate's own colour at alpha 1 — no second constant to drift", () => {
+    for (const base of [darkBase, lightBase, { l: 0.25, c: 0.02, h: 300 }]) {
+      const band = readingBandSurface(base);
+      const plate = rampSurface(base, deltaL);
+      expect(band).toEqual(plate);
+      // The band composited on ANY art is itself (it is opaque) — the property that lets the sticky
+      // attribution occlude (#168) while matching the plate the prose beneath it rides.
+      for (const art of [Black, White]) {
+        expect(compositeSrgb(oklchToSrgb(band), READING_BAND_ALPHA, art)).toEqual(oklchToSrgb(band));
+      }
+      // Non-vacuity for "no step": the ramp surface the band USED to take (card, +0.047) is a different
+      // colour by a visible margin — this is the ΔL the ruling deletes. It is 0.085 on a dark base and
+      // 0.058 on the light seed (whose card L CLAMPS at 1.0) — the owner's filed "ΔL ≈ 0.06" is that
+      // light-arm number, so the floor asserted here is the smaller, clamped one.
+      expect(Math.abs(rampSurface(base, THEME_DERIVATION.ramp.card).l - band.l)).toBeGreaterThan(0.05);
     }
   });
 });

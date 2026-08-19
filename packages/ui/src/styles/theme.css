@@ -37,6 +37,7 @@
   --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
   --color-backdrop: oklch(0.12 0.006 60 / 0.6);
   --color-reading-plate: oklch(0.12 0.006 60 / 0.65);
+  --color-reading-band: oklch(0.12 0.006 60);
   --color-sheen: oklch(1 0 0);
   --color-shadow-hairline: oklch(1 0 0 / 0.06);
   --color-shadow-highlight: oklch(1 0 0 / 0.08);
@@ -107,8 +108,11 @@
   --aspect-banner: 3 / 1;
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
+  --dimension-panel-floor: 17rem;
   --dimension-panel: clamp(17rem, 24vw, 26rem);
   --dimension-panel-context: clamp(17rem, 30vw, 30rem);
+  --dimension-panel-context-step: 24rem;
+  --dimension-content-reading-floor: 40rem;
   --dimension-shell-breakpoint: 48rem;
   --shadow-glow: 0 0 0 1px oklch(from var(--color-primary) l c h / 0.4), 0 0 18px oklch(from var(--color-primary) l c h / 0.18);
   --shadow-overlay: 0 0 0 1px var(--color-shadow-hairline), inset 0 1px 0 0 var(--color-shadow-highlight), 0 2px 4px var(--color-shadow-ambient-near), 0 12px 32px var(--color-shadow-ambient-far);
@@ -215,6 +219,7 @@
   --color-sidebar-border: oklch(0.2 0.01 60 / 0.1);
   --color-backdrop: oklch(0.3 0.01 60 / 0.4);
   --color-reading-plate: oklch(0.942 0.004 75 / 0.921);
+  --color-reading-band: oklch(0.942 0.004 75);
   --color-shadow-hairline: oklch(0.2 0.01 60 / 0.14);
   --color-shadow-highlight: oklch(1 0 0 / 0);
   --color-shadow-ambient-near: oklch(0.35 0.02 60 / 0.1);
@@ -258,6 +263,7 @@
   --color-sidebar-border: oklch(0.99 0.01 250 / 0.08);
   --color-backdrop: oklch(0.1 0.015 250 / 0.6);
   --color-reading-plate: oklch(0.112 0.015 250 / 0.65);
+  --color-reading-band: oklch(0.112 0.015 250);
   --color-shadow-hairline: oklch(1 0 0 / 0.06);
   --color-shadow-highlight: oklch(1 0 0 / 0.08);
   --color-shadow-ambient-near: oklch(0 0 0 / 0.4);

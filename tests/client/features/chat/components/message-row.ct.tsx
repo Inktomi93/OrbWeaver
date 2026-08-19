@@ -1129,14 +1129,40 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
   expect(parseOklch(await plainStamp.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(plainStamp, "--color-muted-foreground")));
 });
 
-test("#204 the sticky band's ink is the card foreground — the same palette as its opaque bg-card fill", async ({ mount }) => {
+test("#204/#241 the sticky band's ink is the base's derived foreground — the palette its fill now derives from", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
   );
   const nameRow = component.locator(NAME_ROW);
-  const inkVar = await cssVar(nameRow, "--color-card-foreground");
+  const inkVar = await cssVar(nameRow, "--color-foreground");
   const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
   expect(parseOklch(rendered)).toEqual(parseOklch(inkVar));
+});
+
+// ── #241 (owner-ruled off #223): THE BAND IS THE PLATE, AT ALPHA 1 ─────────────────────────────────
+// The band pins a tall turn's speaker name over that turn's own prose — which rides
+// `--color-reading-plate`. It shipped as `bg-card` (base +0.047 against the plate's −0.038), so every
+// message stacked two tones a constant ΔL apart and the owner filed the step as unintentional
+// ("two stacked whites of different opacity per message"). The fill is now `--color-reading-band`: the
+// SAME derived colour, at alpha 1. Measured through the RENDERED fill, not the class, because the class
+// is what a refactor changes and the step is what a reader sees.
+test("#241 the pinned band's fill IS the reading plate's colour at alpha 1 — the ΔL step is gone", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
+  );
+  const nameRow = component.locator(NAME_ROW);
+  const [bandL, bandC, bandH, bandAlpha] = parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor));
+  const [plateL, plateC, plateH, plateAlpha] = parseOklch(await cssVar(nameRow, "--color-reading-plate"));
+  expect(bandL).toBeCloseTo(plateL, 2);
+  expect(bandC).toBeCloseTo(plateC, 3);
+  expect(bandH).toBeCloseTo(plateH, 1);
+  // #168 is untouched: the band OCCLUDES. The plate does not — which is what makes the colour match a
+  // real claim rather than the same token twice.
+  expect(bandAlpha).toBe(1);
+  expect(plateAlpha).toBeLessThan(1);
+  // And it is no longer the CARD ramp surface — the tone it stepped away from is still a different colour.
+  const [cardL] = parseOklch(await cssVar(nameRow, "--color-card"));
+  expect(Math.abs(cardL - bandL)).toBeGreaterThan(0.05);
 });
 
 // ── D48 tool records reach the row (the wiring the transcript was silently dropping) ────────────────
