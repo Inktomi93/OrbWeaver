@@ -12,6 +12,7 @@ import {
   CorpusListSurface,
   CorpusUnderstandingInvitation,
 } from "@orb/client/features/discovery";
+import { useActiveChatId, useActiveSection } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -23,6 +24,31 @@ export function CorpusListSurfaceStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 360 }}>
         <CorpusListSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** A rendered reader of the two nav facts a corpus drill-through writes. A store write is only provable
+ *  from a render (the stores are module-private and CT runs the component in the browser), so the memory
+ *  hit's `selectChat` + `setActiveSection` land here as text a CT can assert. Non-exported: the stories
+ *  module publishes components to the CT loader, and this one rides inside {@link CorpusListSurfaceNavStory}. */
+function NavReadout(): ReactElement {
+  return (
+    <div data-testid="ct-nav-readout">
+      section:{useActiveSection()} chat:{useActiveChatId() ?? "none"}
+    </div>
+  );
+}
+
+/** The Corpus LIST navigator BESIDE the nav readout — the mount that proves a memory hit is a door
+ *  (R1a drill-through), not just a rendered row. */
+export function CorpusListSurfaceNavStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 360 }}>
+        <CorpusListSurface />
+        <NavReadout />
       </div>
     </CtDataProviders>
   );

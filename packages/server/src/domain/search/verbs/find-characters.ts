@@ -36,6 +36,7 @@ export function createFindCharacters(ctx: SearchContext, knn: SearchService["knn
         {
           characterId: hit.characterId,
           score: hit.score,
+          relevance: hit.relevance,
           name: display.name,
           avatarHash: display.avatarHash,
           genre: display.genre,

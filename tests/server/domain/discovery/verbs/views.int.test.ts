@@ -47,7 +47,7 @@ async function seedCluster(db: Db, args: { id: string; ownerId: UserId; level?: 
 }
 
 describe("home", () => {
-  test("composes coverage + top themes + duplicate counts, owner-scoped", async () => {
+  test("composes coverage + every theme + duplicate counts, owner-scoped", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
     await seedCharacter(db, { id: "character_1", ownerId: owner, name: "One" });
@@ -62,9 +62,27 @@ describe("home", () => {
 
     const view = await svcFor(db).home(owner);
     expect(view.coverage.characters).toBe(2);
-    expect(view.topSceneThemes.map((t) => t.name)).toEqual(["Scenes"]);
-    expect(view.topArcThemes.map((t) => t.name)).toEqual(["Arcs"]);
-    expect(view.duplicateCounts).toEqual({ characters: 0, chats: 0 });
+    expect(view.sceneThemes.map((t) => t.name)).toEqual(["Scenes"]);
+    expect(view.arcThemes.map((t) => t.name)).toEqual(["Arcs"]);
+    expect(view.duplicateCounts).toEqual({ characters: 0, chats: 0, identicalCharacterPairs: 0 });
+  });
+
+  test("counts the identical-copy pairs the near-dup pass structurally cannot see", async () => {
+    // Three cards, two of them byte-identical (one shared content hash). The pass collapses the pair to a
+    // single representative before its all-pairs scan, so it can never report them; the view counts the
+    // pairs the collapse removed — C(2,2) = 1 — beside whatever the pass DID find.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedCharacter(db, { id: "character_1", ownerId: owner, name: "Seraphina" });
+    await seedCharacter(db, { id: "character_2", ownerId: owner, name: "Seraphina" });
+    await seedCharacter(db, { id: "character_3", ownerId: owner, name: "Distinct" });
+    await seedCharacterEmbedding(db, { characterId: castId<CharacterId>("character_1"), embedding: vec(1), contentHash: "hash_same" });
+    await seedCharacterEmbedding(db, { characterId: castId<CharacterId>("character_2"), embedding: vec(1), contentHash: "hash_same" });
+    await seedCharacterEmbedding(db, { characterId: castId<CharacterId>("character_3"), embedding: vec(2), contentHash: "hash_other" });
+
+    const view = await svcFor(db).home(owner);
+    expect(view.duplicateCounts.identicalCharacterPairs).toBe(1);
+    expect(view.duplicateCounts.characters).toBe(0);
   });
 });
 
@@ -126,7 +144,10 @@ describe("characterDossier", () => {
   const neighbor = {
     characterId: castId<CharacterId>("character_neighbor"),
     name: "Neighbor",
+    // The two halves of the split unit: `score` ranks (CSLS, lower = closer), `relevance` renders
+    // (cosine similarity, higher = closer). A fixture carrying only one of them hides which is which.
     score: 0.9,
+    relevance: 0.62,
     avatarHash: "cas_neighbor",
     genre: "fantasy",
     tone: "dark",

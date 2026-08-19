@@ -10,6 +10,7 @@ import {
   compareCslsBy,
   cslsAdjust,
   NULL_HUB_FALLBACK,
+  relevanceOf,
   rerankPoolByScores,
 } from "../../../../../packages/server/src/domain/search/substrate/csls.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -71,6 +72,44 @@ describe("compareCsls / compareCslsBy", () => {
       ),
     );
     expect(sorted.map((i) => i.d)).toEqual([0.1, 0.4, 1.3]);
+  });
+});
+
+describe("relevanceOf — the READOUT half of the split (corpus forensics §3, R2b)", () => {
+  test("is 1 − distance, clamped to [0,1], and goes the OTHER WAY from the ranking score", () => {
+    expect(relevanceOf(0)).toBe(1);
+    expect(relevanceOf(0.12)).toBeCloseTo(0.88);
+    expect(relevanceOf(1)).toBe(0);
+    // Cosine distance runs to 2 (opposed vectors); a reader has no use for a negative similarity.
+    expect(relevanceOf(1.7)).toBe(0);
+    // The two units disagree BY DESIGN: the closest row has the LOWEST score and the HIGHEST relevance.
+    expect(cslsAdjust(0.12, null)).toBe(0);
+    expect(relevanceOf(0.12)).toBeGreaterThan(relevanceOf(0.4));
+  });
+
+  test("is HUB-FREE — the null-hub fallback cannot reach a reader through it", () => {
+    // Two rows at the same distance, one with a hub score and one without, read the SAME relevance while
+    // their CSLS scores differ. That is the whole point: the fabricated 0.5 ranks, it never renders.
+    expect(relevanceOf(0.4)).toBe(relevanceOf(0.4));
+    expect(cslsAdjust(0.4, null)).not.toBe(cslsAdjust(0.4, 0.9));
+  });
+
+  test("the readout is order-COMPATIBLE with the rank when no hub scores exist", () => {
+    // `max(0, d − 0.5)` is monotone in d and ties break on raw d, so a hub-less library ranks identically
+    // either way — which is what makes this a presentation change rather than a ranking change.
+    const rows = [
+      { d: 0.9, h: null },
+      { d: 0.1, h: null },
+      { d: 0.45, h: null },
+    ];
+    const byCsls = [...rows].sort(
+      compareCslsBy(
+        (r) => r.d,
+        (r) => r.h,
+      ),
+    );
+    const byRelevance = [...rows].sort((a, b) => relevanceOf(b.d) - relevanceOf(a.d));
+    expect(byCsls).toEqual(byRelevance);
   });
 });
 

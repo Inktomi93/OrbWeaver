@@ -77,9 +77,9 @@ const FAMILIES = [
 const UNANALYSED: TrpcRoutes = {
   "discovery.home": {
     coverage: { characters: 10, digests: 0, segments: 0 },
-    topSceneThemes: [],
-    topArcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0 },
+    sceneThemes: [],
+    arcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
   },
   "discovery.catalog": { totalDistilled: 0, genres: [], tones: [], topTags: [] },
   "discovery.visualArchetypes": FAMILIES,
@@ -101,9 +101,9 @@ const ANALYSED: TrpcRoutes = {
   ...UNANALYSED,
   "discovery.home": {
     coverage: { characters: 10, digests: 40, segments: 12 },
-    topSceneThemes: [{ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 }],
-    topArcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0 },
+    sceneThemes: [{ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 }],
+    arcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
   },
   "discovery.catalog": { totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] },
 };
@@ -119,9 +119,9 @@ const EMPTY_LIBRARY: TrpcRoutes = {
   ...UNANALYSED,
   "discovery.home": {
     coverage: { characters: 0, digests: 0, segments: 0 },
-    topSceneThemes: [],
-    topArcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0 },
+    sceneThemes: [],
+    arcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
   },
   "discovery.visualArchetypes": [],
 };
@@ -234,10 +234,13 @@ test("THE THIN IN-BETWEEN: distilled but no story themes — the map takes the f
   await expect(page.locator("[data-corpus-focal]")).toHaveCount(1);
 
   // Graceful degradation is not silence: the rail names the pass that has not run, with its real partial.
-  // TWO rows read "not run" now — story themes AND near-duplicates, whose zero used to print the reassuring
-  // "none found" for a pass that had never run (issue #164 item 4) — so the count is the assertion.
-  await expect(component.getByText("Story themes & keywords")).toBeVisible();
-  await expect(component.getByText("not run")).toHaveCount(2);
+  // THREE rows read "not run" — story themes, KEYWORDS (split out 2026-08-18: the row used to be labelled
+  // "Story themes & keywords" and read story themes alone, marking the keyword pass done on the theme
+  // pass's evidence) and near-duplicates, whose zero used to print the reassuring "none found" for a pass
+  // that had never run (issue #164 item 4) — so the count is the assertion.
+  await expect(component.getByText("Keywords", { exact: true })).toBeVisible();
+  await expect(component.getByText("Story themes & keywords")).toHaveCount(0);
+  await expect(component.getByText("not run")).toHaveCount(3);
   await expect(component.getByText("none found")).toHaveCount(0);
   await expect(component.getByText("3 of 10")).toBeVisible();
   // …and the story-theme BLOCK is simply absent rather than printing its own zero note.
@@ -346,6 +349,65 @@ test("clickable insight collections expose named lists with real listitem childr
   const gems = component.getByRole("list", { name: "Invested but quiet characters" });
   await expect(gems.getByRole("listitem")).toHaveCount(1);
   await expect(gems.getByRole("button", { name: "Quiet star", exact: false })).toBeVisible();
+});
+
+/** A populated analysed library: the state in which the deleted tail USED to render 6,900px of bars. */
+const POPULATED: TrpcRoutes = {
+  ...ANALYSED,
+  "discovery.catalog": {
+    totalDistilled: 6,
+    genres: [{ value: "fantasy", count: 6 }],
+    tones: [{ value: "melancholic", count: 4 }],
+    topTags: [{ tag: "tsundere", count: 9 }],
+  },
+  "discovery.themes": [{ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 }],
+};
+
+test("THE UN-DRAWN TAIL IS GONE: no facet bars, no duplicate theme chart (forensics R4)", async ({ mount, page }) => {
+  // Every datum below is still reachable — the Genre/Tone/Tag SELECTS in the browse view carry the same
+  // counts and narrow the list, and the theme ROWS above carry the same clusters and open them. What the
+  // bars added was 2,300px of a chart nobody could click.
+  await stub(page, POPULATED);
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { level: 1 })).toBeVisible();
+
+  await expect(component.getByRole("heading", { name: "Catalog" })).toHaveCount(0);
+  await expect(component.getByText("Top tags")).toHaveCount(0);
+  await expect(component.getByText("Genres")).toHaveCount(0);
+  await expect(component.getByRole("heading", { name: "All story themes" })).toHaveCount(0);
+  await expect(component.getByText("Story theme sizes")).toHaveCount(0);
+  // …and the interactive twin that absorbed them is still there.
+  await expect(component.getByRole("button", { name: "The long road" })).toBeVisible();
+});
+
+/** Two routes with real generations and no spend — a local-model instance, exactly. */
+const FREE_ROUTES = [
+  { genre: "fantasy", model: "local/qwen", provider: null, generations: 40, tokensOut: 9000, avgGenTimeMs: 800, costUsd: 0 },
+  { genre: "romance", model: "local/qwen", provider: null, generations: 12, tokensOut: 2000, avgGenTimeMs: 700, costUsd: 0 },
+];
+
+test("MODEL ECONOMICS IS GUARDED ON SPEND, not on row count (forensics §7)", async ({ mount, page }) => {
+  // `modelRouting` returns a row per (genre × model) whether or not money moved, so the old
+  // `routing.length` guard rendered 134 rows — 133 of them exactly $0.00 — at 4,304px, while this
+  // surface's own header claimed the section renders "only when there is spend to report".
+  await stub(page, { ...POPULATED, "discovery.modelRouting": FREE_ROUTES });
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { level: 1 })).toBeVisible();
+
+  await expect(component.getByRole("heading", { name: "Model economics" })).toHaveCount(0);
+  await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
+});
+
+test("…and one PAID route brings it back — the guard reports spend, it does not delete the report", async ({ mount, page }) => {
+  await stub(page, {
+    ...POPULATED,
+    "discovery.modelRouting": [...FREE_ROUTES, { ...FREE_ROUTES[0], model: "anthropic/claude", costUsd: 0.04 }],
+  });
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
+  // The chart itself is a canvas (ECharts), so its NAME is the assertable surface — the dollar figures
+  // inside it are pixels, which is also why the `MONEY_CELL` sweeps above can only speak for real text.
+  await expect(component.getByText("Cost by route")).toBeVisible();
 });
 
 test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {

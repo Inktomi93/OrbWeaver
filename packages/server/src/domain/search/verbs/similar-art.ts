@@ -10,7 +10,7 @@ import type { SimilarArtHit } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { nearestAvatarCharacters, readSeedAvatarVector } from "../persistence/image-nearest.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 
 const DEFAULT_ART_LENS: ImageLens = "image-raw";
 
@@ -53,6 +53,7 @@ export function createSimilarArt(ctx: SearchContext): SearchService["similarArt"
       .map((r) => ({
         characterId: r.characterId,
         score: r.score,
+        relevance: relevanceOf(r.distance),
         name: r.name,
         avatarHash: r.avatarHash,
         lens,

@@ -1,8 +1,13 @@
 // The Corpus overview's ANALYSIS SUB-SECTIONS — split out of corpus-home-surface so the surface stays under
-// the god-component cap. All chart-family (bar-list) adoptions of count data plus the drills the overview
-// hosts: browse-all story themes (`themes`, scene↔arc), the keyword explorer (`topKeywords` →
-// `cooccurringKeywords`), story-time theme drift (`themeDrift`, scene↔arc), and the catalog facet bars.
-// Each level/keyword switch is a plain refetching query (no whole-overview re-suspend).
+// the god-component cap: the keyword explorer (`topKeywords` → `cooccurringKeywords`) and story-time theme
+// drift (`themeDrift`, scene↔arc). Each level/keyword switch is a plain refetching query (no whole-overview
+// re-suspend).
+//
+// TWO BLOCKS LEFT THIS FILE ON 2026-08-18 (corpus forensics R4), and neither is coming back as a chart:
+// "All story themes" was a bar list of the same clusters the overview's theme ROWS carry — the rows are
+// clickable and the bars were not, so the rows absorbed it and are no longer capped. The "Catalog" facet
+// bars (Genres · Tones · Top tags) restated the browse view's own facet SELECTS, counts and all, which
+// narrow the list instead of merely describing it. What survives here answers a question nothing else does.
 //
 // EVERY BLOCK HERE RENDERS NOTHING WHEN IT HAS NOTHING (program #102 corpus leg, issue #127). It used to
 // render its `<Section>` band plus a muted "No … computed yet." line, which is how an un-analysed library
@@ -21,17 +26,14 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { toBarItems } from "../lib/corpus-charts.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
 type ThemeLevel = "scene" | "arc";
-type CorpusCatalog = inferOutput<Trpc["discovery"]["catalog"]>;
 
 const NO_KEYWORD = "";
 const SKELETON_ROW_COUNT = 3;
@@ -39,44 +41,6 @@ const LEVEL_OPTIONS = [
   { value: "scene", label: "Scenes" },
   { value: "arc", label: "Arcs" },
 ] as const;
-
-/** Browse every story theme — a scene↔arc toggle over `themes`, each theme's digest size charted. */
-export function AllStoryThemes(): ReactElement {
-  const [level, setLevel] = useState<ThemeLevel>("scene");
-  // The BAND is inside the body: at zero the whole block — heading, toggle and all — has to disappear, and
-  // a toggle over an empty set is a control with nothing to switch between.
-  return <ThemeSizeBars level={level} onLevelChange={setLevel} />;
-}
-
-function ThemeSizeBars({ level, onLevelChange }: { readonly level: ThemeLevel; readonly onLevelChange: (next: ThemeLevel) => void }): ReactElement | null {
-  const trpc = useTRPC();
-  const themes = useQuery(trpc.discovery.themes.queryOptions({ level }));
-
-  if (themes.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
-  }
-  if (themes.error !== null) {
-    return <QueryErrorState label="the story themes" onRetry={themes.refetch} />;
-  }
-  if (themes.data.length === 0) {
-    return null;
-  }
-  return (
-    <Section kicker="All story themes" level={2}>
-      <Stack data-testid={testId("corpusThemesDrill")} gap="block">
-        <ParamToggle label="Level" onValueChange={(next): void => onLevelChange(next as ThemeLevel)} options={LEVEL_OPTIONS} value={level} />
-        <BarList
-          items={toBarItems(
-            themes.data,
-            (row) => row.name ?? "Unnamed theme",
-            (row) => row.size,
-          )}
-          label="Story theme sizes"
-        />
-      </Stack>
-    </Section>
-  );
-}
 
 /** The keyword explorer — `topKeywords` as a bar-list, and picking one drills its `cooccurringKeywords`. */
 export function KeywordExplorer(): ReactElement | null {
@@ -180,43 +144,6 @@ function StoryThemeDriftBody({
           ))}
         </Stack>
       </Stack>
-    </Section>
-  );
-}
-
-/** The distilled catalog's facet distributions — genres, tones, top tags — each as a bar-list. */
-export function CatalogFacets({ catalog }: { readonly catalog: CorpusCatalog }): ReactElement | null {
-  const blocks = [
-    { id: "genres", label: "Genres", facets: catalog.genres },
-    { id: "tones", label: "Tones", facets: catalog.tones },
-  ].filter((block) => block.facets.length > 0);
-
-  if (blocks.length === 0 && catalog.topTags.length === 0) {
-    return null;
-  }
-  return (
-    <Section kicker="Catalog" level={2}>
-      {blocks.map((block) => (
-        <BarList
-          items={toBarItems(
-            block.facets,
-            (facet) => facet.value,
-            (facet) => facet.count,
-          )}
-          key={block.id}
-          label={block.label}
-        />
-      ))}
-      {catalog.topTags.length === 0 ? null : (
-        <BarList
-          items={toBarItems(
-            catalog.topTags,
-            (tag) => tag.tag,
-            (tag) => tag.count,
-          )}
-          label="Top tags"
-        />
-      )}
     </Section>
   );
 }

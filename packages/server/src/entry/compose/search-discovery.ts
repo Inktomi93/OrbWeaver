@@ -289,6 +289,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
         characterId: h.characterId,
         name: h.name,
         score: h.score,
+        relevance: h.relevance,
         avatarHash: h.avatarHash,
         genre: h.genre,
         tone: h.tone,

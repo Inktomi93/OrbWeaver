@@ -11,9 +11,9 @@ import type { DiscoverParams } from "../contract/params.ts";
 import type { DiscoverCharacter, DiscoverSegment } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { nearestSegments, ownedChatIds } from "../persistence/digest-rows.ts";
-import { resolveSegmentDisplay } from "../persistence/display.ts";
+import { resolveChatDisplay, resolveSegmentDisplay } from "../persistence/display.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
@@ -34,6 +34,7 @@ function blockSlot(chatId: DiscoverSegment["chatId"], blockIdx: number): string 
 interface CharacterGroup {
   readonly characterId: CharacterId;
   readonly score: number;
+  readonly relevance: number;
   readonly name: string;
   readonly avatarHash: string | null;
   readonly genre: string | null;
@@ -47,12 +48,19 @@ type SegmentCredit = Awaited<ReturnType<typeof resolveSegmentDisplay>>[number];
 
 /** A group scene credits each co-star: first appearance seeds the group, later ones bump matchCount +
  *  append evidence up to the per-character cap. Mutates byChar in ranked order. */
-function creditSegment(byChar: Map<CharacterId, CharacterGroup>, seg: DiscoverCandidate, credits: readonly SegmentCredit[]): void {
+function creditSegment(
+  byChar: Map<CharacterId, CharacterGroup>,
+  seg: DiscoverCandidate,
+  credits: readonly SegmentCredit[],
+  titleByChat: ReadonlyMap<DiscoverSegment["chatId"], string | null>,
+): void {
   const evidence: DiscoverSegment = {
     chatId: seg.chatId,
     blockIdx: seg.blockIdx,
     snippet: seg.sourceText.slice(0, SNIPPET_CHARS),
     score: seg.score,
+    relevance: relevanceOf(seg.distance),
+    chatTitle: titleByChat.get(seg.chatId) ?? null,
   };
   for (const cr of credits) {
     const existing = byChar.get(cr.characterId);
@@ -60,6 +68,9 @@ function creditSegment(byChar: Map<CharacterId, CharacterGroup>, seg: DiscoverCa
       byChar.set(cr.characterId, {
         characterId: cr.characterId,
         score: seg.score,
+        // The character's readout is its BEST segment's — the first credit is the best, the list being
+        // ranked — so a group's number is the closeness of the moment that put it on the list.
+        relevance: relevanceOf(seg.distance),
         name: cr.name,
         avatarHash: cr.avatarHash,
         genre: cr.genre,
@@ -83,11 +94,16 @@ async function groupByCharacter(
   ranked: readonly DiscoverCandidate[],
   topN: number,
 ): Promise<DiscoverCharacter[]> {
-  const credits = await resolveSegmentDisplay(
-    ctx.db,
-    ownerId,
-    ranked.map((c) => ({ chatId: c.chatId, blockIdx: c.blockIdx })),
-  );
+  const [credits, chatDisplays] = await Promise.all([
+    resolveSegmentDisplay(
+      ctx.db,
+      ownerId,
+      ranked.map((c) => ({ chatId: c.chatId, blockIdx: c.blockIdx })),
+    ),
+    // The evidence groups are per CHAT, so they name the room (R1a) instead of a 6-char id slice.
+    resolveChatDisplay(ctx.db, [...new Set(ranked.map((c) => c.chatId))]),
+  ]);
+  const titleByChat = new Map(chatDisplays.map((d) => [d.chatId, d.title]));
   const creditsBySlot = new Map<string, SegmentCredit[]>();
   for (const cr of credits) {
     const slot = blockSlot(cr.chatId, cr.blockIdx);
@@ -95,7 +111,7 @@ async function groupByCharacter(
   }
   const byChar = new Map<CharacterId, CharacterGroup>();
   for (const seg of ranked) {
-    creditSegment(byChar, seg, creditsBySlot.get(blockSlot(seg.chatId, seg.blockIdx)) ?? []);
+    creditSegment(byChar, seg, creditsBySlot.get(blockSlot(seg.chatId, seg.blockIdx)) ?? [], titleByChat);
   }
   return [...byChar.values()].slice(0, topN);
 }

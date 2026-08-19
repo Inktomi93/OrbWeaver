@@ -10,7 +10,7 @@ import type { SearchService } from "../contract/service.ts";
 import { resolveCharacterDisplay } from "../persistence/display.ts";
 import { nearestCharacters, readSeedCharacterVector } from "../persistence/nearest.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 
 export function createSimilarCharacters(ctx: SearchContext): SearchService["similarCharacters"] {
   return async (params: SimilarCharactersParams): Promise<CharacterCardHit[]> => {
@@ -60,6 +60,7 @@ export function createSimilarCharacters(ctx: SearchContext): SearchService["simi
         {
           characterId: r.characterId,
           score: r.score,
+          relevance: relevanceOf(r.distance),
           name: display.name,
           avatarHash: display.avatarHash,
           genre: display.genre,
