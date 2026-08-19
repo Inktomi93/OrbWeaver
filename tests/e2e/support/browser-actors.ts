@@ -47,6 +47,10 @@ interface OrbNavGlobal {
 }
 
 const APP_READY = "html[data-app-ready]";
+// The wire-fixed CSRF header name, declared LOCALLY (the e2e-support tree stays import-free of the package
+// trees — the `actors.ts` posture). Its one true home is `@orb/contracts/identity` (`CSRF_HEADER`). The login
+// route requires it (blocks login-CSRF), so this actor sends it exactly as the real client does.
+const CSRF_HEADER = "x-orb-csrf";
 const READY_TIMEOUT_MS = 30_000;
 /** The chat header's roster entry, by its ACCESSIBLE NAME prefix (`Members — <count>`) — the count varies
  *  with the room, so the prefix is the stable half. */
@@ -58,7 +62,7 @@ const MEMBERS_ENTRY = '[aria-label^="Members "]';
  *  member's view. */
 export async function openBrowserActor(browser: Browser, baseUrl: string, handle: Handle, password: string): Promise<BrowserActor> {
   const context = await browser.newContext({ baseURL: baseUrl });
-  const res = await context.request.post(`${baseUrl}/api/auth/login`, { form: { handle, password } });
+  const res = await context.request.post(`${baseUrl}/api/auth/login`, { form: { handle, password }, headers: { [CSRF_HEADER]: "1" } });
   if (!res.ok()) {
     await context.close();
     throw new Error(`openBrowserActor(${handle}): login failed (HTTP ${res.status()})`);
