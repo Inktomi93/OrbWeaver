@@ -109,8 +109,9 @@ async function pinRouting(baseUrl: string): Promise<void> {
   });
 }
 
-/** LOCAL mode: shell the dev multi-user seed against THIS stack's backend origin (the owner-fallback seam is
- *  a local-origin request, so it hits 127.0.0.1 directly). Single source of truth for the seed sequence —
+/** LOCAL mode: shell the dev multi-user seed against THIS stack's backend origin (the owner-fallback seam
+ *  admits a LOOPBACK-PEER request — #298 f2 — so it hits 127.0.0.1 directly). Single source of truth for the
+ *  seed sequence —
  *  resetPassword(owner) → updateAppSettings{localMultiUser:true} → createUser(member) → verify. */
 function seedMultiUser(mode: ModeProject): void {
   // Invoke the tsx CLI's JS entry directly with node (the `.bin/tsx` shim is a bash script — running it via

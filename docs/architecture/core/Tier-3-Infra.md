@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-19
 ---
 
 # Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image)
@@ -14,9 +14,9 @@ Five sealed adapters. Each is a factory returning an opaque handle; `entry/` con
 
 ### `infra/auth` — verification + the 4-mode dispatcher
 
-The db-free Strategy executor turning request `Headers` into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the origin-gated owner fallback). Owns:
+The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the loopback-peer-gated owner fallback, #298 f2). Owns:
 
-- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed`/`isLocalOrigin`. ONE branch point; modes never import each other.
+- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(deps.peerIp)` (a LOOPBACK TCP peer, NOT the client `Host` — the old `isLocalOrigin` Host gate was removed with #298 f2). ONE branch point; modes never import each other.
 - **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `entry/lifecycle.ts`).
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups }`; **NO `userId`** by design (infra must not know DB row ids).
 - **The per-request signals** — `viaCookie`, `viaFallback`, `hasCsrfHeader` (`csrf.ts`); the gate itself is enforced at the seam/ladder.

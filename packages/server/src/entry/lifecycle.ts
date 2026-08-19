@@ -396,6 +396,15 @@ export function createLifecycle(): Lifecycle {
       );
     }
 
+    // BREAK-GLASS active: the loopback-owner fallback is deliberately on in an SSO deploy (foundation/env
+    // lets the otherwise-fatal prod triple boot when AUTH_BREAK_GLASS=true). Warn loudly EVERY boot so a
+    // recovery flag left set is impossible to miss — revert AUTH_FALLBACK=deny + AUTH_BREAK_GLASS off when done.
+    if (env.AUTH_MODE !== "single-user" && env.AUTH_FALLBACK === "owner" && env.AUTH_BREAK_GLASS) {
+      log.warn(
+        "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket (incl. a same-host reverse proxy). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
+      );
+    }
+
     let oidc: OidcRoutesDeps | undefined;
     if (env.AUTH_MODE === "oidc") {
       let cachedConfig: Configuration | undefined;
@@ -512,6 +521,17 @@ export function createLifecycle(): Lifecycle {
     log.info({ nodeEnv: env.NODE_ENV, bindHost: bind.host ?? "*", publicBind: bind.publicBind }, `boot: ${bind.notice}`);
     for (const warning of bindPostureWarnings(bindPostureInput(), bind)) {
       log.warn({ security: true }, `boot: ${warning}`);
+    }
+
+    // single-user has NO credential but the loopback owner fallback (env fatals single-user+deny), so a
+    // PUBLICLY-bound single-user box is "no auth, every reachable caller can be owner" — intended (the
+    // zero-setup first-run mode), but it must announce itself. The SSO modes get the boot-FATAL guard in
+    // foundation/env instead; single-user is exempt there (it has no other door) and warns here.
+    if (env.AUTH_MODE === "single-user" && bind.publicBind) {
+      log.warn(
+        { security: true },
+        "boot: AUTH_MODE=single-user on a PUBLIC bind — this box has NO login: the un-credentialed owner fallback is its only auth, so any caller that reaches it over a loopback socket (directly on-box, or via a same-host reverse proxy) is the OWNER. Intended for a private/first-run box only; put it behind SSO (AUTH_MODE=oidc/local/forward-header) before exposing it.",
+      );
     }
 
     // Await the bind, don't assume it: serve() binds asynchronously, and a bind failure (EADDRINUSE)
