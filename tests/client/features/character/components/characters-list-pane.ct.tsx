@@ -322,6 +322,60 @@ test("the identity gloss is RECENCY only — the rows below it are the census", 
   await expect(component.getByText(CENSUS_GLOSS)).toHaveCount(0);
 });
 
+// ── THE BROWSE CONTEXT SURVIVES THE SWAP (#255) ──────────────────────────────────────────────────────
+// D2 is unconditional and stays unconditional: selecting somebody swaps this slot to her chats, and back
+// deselects. What D2 priced was "you cannot browse the library WHILE editing her" — NOT "your place in a
+// 327-card library is destroyed every time you look at one". The swap unmounts `CharacterLibrarySurface`,
+// and while the paged rows survive in the query cache, the VirtualList's scroll offset did not: backing out
+// of the 40th card landed at the top, so browsing a real library was a click-and-Back-AND-SCROLL loop.
+// The pin drives the whole round trip through the REAL registry: scroll deep → click a row only reachable
+// after scrolling → the pane swaps → Back → that same row is on screen again, and holds focus.
+
+/** A library deep enough that the tail is unreachable without scrolling (the pane is 560px tall). */
+const DEEP_ROWS = 60;
+/** The row the round trip is measured against — far outside the first window. */
+const DEEP_INDEX = 40;
+const DEEP_LIBRARY = Array.from({ length: DEEP_ROWS }, (_unused, at) =>
+  makeCharacterSummary({ id: `char_ct_deep${String(at).padStart(4, "0")}`, name: `Deep ${String(at)}`, createdAt: 9000 - at }),
+);
+const DEEP_NAME = `Deep ${String(DEEP_INDEX)}`;
+const VIRTUAL_SCROLLER = '[data-slot="virtual-list-scroll"]';
+
+test("selecting a character keeps the browse position — Back returns to the row, not the top (#255)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": () => ({ items: DEEP_LIBRARY, nextCursor: null, totalCount: DEEP_ROWS }),
+    "character.get": () => AZARAEL_DETAIL,
+    "chat.listChats": chatListResponder(CHATS),
+    "settings.getUserSettings": () => SETTINGS,
+  });
+  const component = await mount(<CharactersListPaneStory />);
+  await expect(component.getByText("Deep 0", { exact: true })).toBeVisible();
+
+  // The row is genuinely out of reach at rest — otherwise the whole round trip proves nothing.
+  await expect(component.getByRole("button", { name: DEEP_NAME, exact: true })).toHaveCount(0);
+  const scroller = component.locator(VIRTUAL_SCROLLER);
+  await scroller.evaluate((el, index) => {
+    el.scrollTop = index * 80;
+  }, DEEP_INDEX);
+  const deepRow = component.getByRole("button", { name: DEEP_NAME, exact: true });
+  await expect(deepRow).toBeVisible();
+
+  // …the swap (D2): her chats replace the picker in the same slot. Asserted through the BAND's back
+  // affordance + the picker's absence rather than a projection row — the projection is `characterId`-scoped
+  // and this deep row is nobody's chat partner, so its settled arm is the empty state, not a list.
+  await deepRow.click();
+  await expect(page.getByTestId("list-band").getByRole("button", { name: "Back to all characters", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Deep 0", exact: true })).toHaveCount(0);
+
+  // …and Back brings the LIBRARY back where it was. Both halves of §3.7 now compose: the restored window
+  // is what makes her row exist for `useRestoreRowFocus` to focus at all (at offset 0 it is not even
+  // rendered, and the bounded rAF poll gives up silently).
+  await page.getByTestId("list-band").getByRole("button", { name: "Back to all characters", exact: true }).click();
+  await expect(component.getByRole("button", { name: DEEP_NAME, exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: DEEP_NAME, exact: true })).toBeFocused();
+  expect(await scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+});
+
 // ── THE PICKER'S VIEW CONTROLS SURVIVE 320px (side-eye P2) ───────────────────────────────────────────
 // Four controls shared one row — search + sort + Group + the bulk pencil — and at this pane's real 320px
 // width the search box came out 95px against the 119px its own placeholder needs, rendering "Search chai".

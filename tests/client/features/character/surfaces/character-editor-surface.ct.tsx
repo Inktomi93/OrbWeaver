@@ -554,6 +554,10 @@ const PHONE_PX = 430;
 const HERO_NAME = "Aria Nightshade";
 /** An unfilled facet row's gloss is any authored sentence — the claim is that one is ANNOUNCED, not which. */
 const ANY_TEXT = /./u;
+/** The card's own prose — the wall that must never be back in an accessible NAME or DESCRIPTION. */
+const CARD_BODY_RE = /cartographer/u;
+/** What a filled row's description carries instead since #254: a state and a magnitude, no body. */
+const FILL_STATE_RE = /^Filled, \d+ characters$/u;
 /** The OWN LOOK badge, and the tab name that never existed. */
 const OWN_LOOK_RE = /carries its own look/u;
 const APPEARANCE_TAB_RE = /Appearance tab/u;
@@ -573,8 +577,13 @@ test("P1-2 a FILLED facet row is named by its LABEL, not by the field body it pr
   await expect(row).toHaveAccessibleName("Description");
   // The preview is still on screen — this is a NAMING fix, not a content one.
   await expect(component.getByText(CARD.description ?? "")).toBeVisible();
-  // …and it is not the row's DESCRIPTION either: a 1,283-character description only moves the wall.
-  await expect(row).toHaveAccessibleDescription("");
+  // …and the BODY is not the row's DESCRIPTION either: a 1,283-character description only moves the wall.
+  // The pin is the WALL's absence, not an empty description — #254 found that an empty one made a filled
+  // row and an empty one announce identically, so the description now carries a terse fill STATE (the count,
+  // never the prose; the full arms live in character-facet-row.ct.tsx). The original ruling is intact: what
+  // it forbade was the body, and the body is still gone.
+  await expect(row).not.toHaveAccessibleDescription(CARD_BODY_RE);
+  await expect(row).toHaveAccessibleDescription(FILL_STATE_RE);
 });
 
 test("P1-2 an EMPTY facet row keeps its gloss as the DESCRIPTION — the one line worth announcing", async ({ mount, page }) => {
