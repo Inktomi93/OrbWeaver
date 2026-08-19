@@ -33,6 +33,10 @@ const CATALOG = [
   },
 ];
 
+/** `browseCharacters` answers a keyset PAGE since A8 (`{items, nextCursor, totalCount}`); this tab reads
+ *  one page to fill its two pickers. */
+const CATALOG_PAGE = { items: CATALOG, nextCursor: null, totalCount: CATALOG.length };
+
 const COMPARISON = {
   a: { characterId: "char_aria", name: "Aria", genre: "fantasy", tone: "dark", pitch: null },
   b: { characterId: "char_bolt", name: "Bolt", genre: "fantasy", tone: "bright", pitch: null },
@@ -59,7 +63,7 @@ async function pickThePair(component: Locator, page: Page): Promise<void> {
 
 test("picking two characters renders the facet diff; deep compare adds the narrative", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "discovery.browseCharacters": CATALOG,
+    "discovery.browseCharacters": CATALOG_PAGE,
     "discovery.compareCharacters": COMPARISON,
     "discovery.compareCharactersDeep": {
       ...COMPARISON,
@@ -92,7 +96,7 @@ test("a DEGRADED narrative is labelled as the model's raw reply, not rendered as
   // overlap/distinction are empty. Rendering that as a narrative shows unparsed output beside two blank
   // sections — indistinguishable from a real comparison, which is the whole reason `degraded` travels as data.
   await routeTrpc(page, {
-    "discovery.browseCharacters": CATALOG,
+    "discovery.browseCharacters": CATALOG_PAGE,
     "discovery.compareCharacters": COMPARISON,
     "discovery.compareCharactersDeep": {
       ...COMPARISON,

@@ -242,8 +242,15 @@ function CorpusHomeBody(): ReactElement {
             868.81px in the shipped default view — list docked, context collapsed — so the composition the
             owner picked was one he had literally never seen, in any appearance arm. The arm carries the
             same two tracks a step sooner; the container query still stacks them for the three-pane and
-            phone states. */}
-        <Grid className="items-start" cols="leadEarly" gap="gutter">
+            phone states.
+
+            NO `items-start` (side-eye corpus re-pass 2026-08-19 §5): it sized each track to its own
+            content, so the short track — the readiness rail, whose height is five rows and a button no
+            matter how big the library is — stopped ~250px above the island beside it and the composition
+            read as lopsided. The default `stretch` hands both tracks the ROW's height, which is what lets
+            the rail distribute itself over its column (`corpus-readiness-rail.tsx`). The left track is
+            unaffected: its children are content-height in a stretched flex column either way. */}
+        <Grid cols="leadEarly" gap="gutter">
           <Stack className="min-w-0" gap="section">
             {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
             {/* `totalDistilled` is the ARCHETYPES TAB's own gate signal (#154) — the door's viability is the

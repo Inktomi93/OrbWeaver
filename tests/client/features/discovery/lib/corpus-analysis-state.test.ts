@@ -76,46 +76,65 @@ describe("the THIN in-between — analysed, but barely", () => {
   });
 });
 
-describe("the hero figure — ONE per surface, and it moves with the phase", () => {
-  test("un-analysed, the hero is the only real computed number: the family count", () => {
+// ── THE MASTHEAD STATES EACH NUMBER ONCE (side-eye corpus re-pass 2026-08-19 §5 `distill`) ─────────────
+// THE FORK, ON THE RECORD. This block used to pin "un-analysed ⇒ the hero IS the family count" and
+// "analysed ⇒ the hero IS the story-theme count", from the ruling that the hero MOVES WITH THE PHASE. The
+// re-pass measured what that produces on a real library: the h1 read "327 characters, distilled into 24
+// story themes" and the figure row beside it printed 327 and 24 AGAIN — one of six more-than-one-home
+// findings, and the only one where a surface argues with itself six inches apart.
+// The old MECHANISM is kept (at most one hero, chosen by phase, never a zero while un-analysed); what is
+// new is that the sentence is spent FIRST — a figure whose number the headline already gives is dropped,
+// and the hero is the first survivor. When the sentence covers everything the library knows, there is no
+// figure row at all, which is what "state it once" means when the sentence wins.
+describe("the hero figure — at most ONE per surface, and never a number the sentence just said", () => {
+  test("un-analysed: the sentence already names the characters AND the families, so no figure repeats them", () => {
     const state = deriveCorpusAnalysisState(AUDITED);
+    expect(state.headline).toBe("Ten characters, grouped into eight visual families.");
+    expect(state.hero).toBeNull();
+    expect(state.support).toStrictEqual([]);
+  });
+
+  test("un-analysed with no families, the sentence is the whole masthead too", () => {
+    const state = deriveCorpusAnalysisState({ ...AUDITED, familySizes: [] });
+    expect(state.headline).toBe("Ten characters. Nothing read yet.");
+    expect(state.hero).toBeNull();
+    expect(state.support).toStrictEqual([]);
+  });
+
+  test("analysed: the sentence takes characters + story themes, so the hero is what it did NOT say", () => {
+    const state = deriveCorpusAnalysisState({ ...AUDITED, sceneThemes: 4, arcThemes: 2 });
+    expect(state.headline).toBe("Ten characters, distilled into six story themes.");
     expect(state.hero).toStrictEqual({ id: "families", value: "8", caption: "visual families" });
+    expect(state.support).toStrictEqual([]);
   });
 
-  test("un-analysed with no families, it falls back to the library itself rather than showing a zero", () => {
-    expect(deriveCorpusAnalysisState({ ...AUDITED, familySizes: [] }).hero.id).toBe("characters");
+  test("analysed with no story themes, the sentence spends the distilled count and the families lead again", () => {
+    const state = deriveCorpusAnalysisState({ ...AUDITED, distilled: 3 });
+    expect(state.headline).toBe("Ten characters, three cards distilled.");
+    expect(state.hero?.id).toBe("families");
   });
 
-  test("analysed, the hero is the understanding — story themes when they exist", () => {
-    expect(deriveCorpusAnalysisState({ ...AUDITED, sceneThemes: 4, arcThemes: 2 }).hero).toStrictEqual({
-      id: "storyThemes",
-      value: "6",
-      caption: "story themes",
-    });
-  });
-
-  test("analysed with no story themes, it is the distilled count", () => {
-    expect(deriveCorpusAnalysisState({ ...AUDITED, distilled: 3 }).hero.id).toBe("distilled");
-  });
-
-  test("the support figures NEVER repeat the hero — the same datum twice on one row is the duplication habit", () => {
+  test("no figure — hero or support — ever repeats a number the headline states", () => {
     for (const input of [AUDITED, { ...AUDITED, distilled: 3 }, { ...AUDITED, sceneThemes: 4 }, { ...AUDITED, familySizes: [] }]) {
       const state = deriveCorpusAnalysisState(input);
-      expect(state.support.map((figure) => figure.id)).not.toContain(state.hero.id);
+      const figures = [...(state.hero === null ? [] : [state.hero]), ...state.support];
+      // The value as it appears in the sentence: the headline spells small counts as words, so the check is
+      // on the CAPTION's subject rather than the digits — a figure captioned "characters" beside a headline
+      // that opens "Ten characters" is the duplication, whichever way each renders the ten.
+      for (const figure of figures) {
+        expect(state.headline.toLowerCase(), `the masthead states "${figure.caption}" twice`).not.toContain(figure.caption.toLowerCase());
+      }
+      // …and the support still never repeats the hero.
+      expect(state.support.map((figure) => figure.id)).not.toContain(state.hero?.id);
     }
   });
 
-  test("UN-ANALYSED, no support figure is a zero — an un-run pass has measured nothing, not zero", () => {
-    // The audited defect in miniature. A library with nothing clustered and nothing distilled prints ONE
-    // number (its own size, at hero weight) and no companions at all.
-    expect(deriveCorpusAnalysisState({ ...AUDITED, familySizes: [] }).support).toStrictEqual([]);
-    // …and with families computed, only the real counts ride along: the un-run story-theme zero is absent.
-    expect(deriveCorpusAnalysisState(AUDITED).support.map((figure) => figure.id)).toStrictEqual(["characters"]);
-  });
-
   test("ONCE ANALYSED a zero prints, because then it IS a measurement (#99 item 7's own rule)", () => {
+    // The un-run story-theme zero is absent while un-analysed and PRESENT once the semantic pass has run —
+    // unchanged by the distill above, which only subtracts what the sentence already said (characters).
     const thin = deriveCorpusAnalysisState({ ...AUDITED, distilled: 3 });
-    expect(thin.support.map((figure) => `${figure.value} ${figure.caption}`)).toStrictEqual(["10 characters", "8 visual families", "0 story themes"]);
+    expect(thin.support.map((figure) => `${figure.value} ${figure.caption}`)).toStrictEqual(["0 story themes"]);
+    expect(deriveCorpusAnalysisState(AUDITED).support).toStrictEqual([]);
   });
 });
 
@@ -188,7 +207,12 @@ describe("the readiness rail — a measurement or an honest 'not run', never a b
 describe("copy law", () => {
   test("every emitted string that names the distillation output says STORY theme, never a bare 'theme'", () => {
     const state = deriveCorpusAnalysisState({ ...AUDITED, sceneThemes: 4 });
-    const strings = [state.headline, state.hero.caption, ...state.support.map((f) => f.caption), ...state.stages.map((s) => s.label)];
+    const strings = [
+      state.headline,
+      ...(state.hero === null ? [] : [state.hero.caption]),
+      ...state.support.map((f) => f.caption),
+      ...state.stages.map((s) => s.label),
+    ];
     const unqualified = strings.filter((text) => text.toLowerCase().includes("theme") && !text.toLowerCase().includes("story theme"));
     expect(unqualified, "every 'theme' on this surface must be qualified as a STORY theme").toStrictEqual([]);
   });

@@ -17,7 +17,9 @@ function member(name: string, avatarHash: string | null): { characterId: Charact
 test("a hash becomes that blob's URL; a null hash omits src so the seat falls back to initials", () => {
   const items = toFaceItems([member("Sable", "cccc3333"), member("Morgatha", null)], 4);
 
-  expect(items).toEqual([{ name: "Sable", src: "/api/blob/cccc3333" }, { name: "Morgatha" }]);
+  // The URL carries the seat's display RUNG (C6): a 32px seat asks the CAS route for a 64px webp instead
+  // of the full-size card PNG, which on the audited library was 1840x2752 per face.
+  expect(items).toEqual([{ name: "Sable", src: "/api/blob/cccc3333?w=64" }, { name: "Morgatha" }]);
   // Not merely undefined: the KEY is absent, which is what `exactOptionalPropertyTypes` + AvatarStack's
   // `item.src === undefined` arm both read as "this seat has no portrait".
   expect(Object.hasOwn(items[1] ?? {}, "src")).toBe(false);

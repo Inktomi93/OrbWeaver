@@ -30,8 +30,8 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CorpusHomeDefaultPaneStory, CorpusHomeThreePaneStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { CorpusHomeDefaultPaneStory, CorpusHomeNarrowPaneStory, CorpusHomeThreePaneStory, CorpusHomeWidePaneStory } from "../_ct-stories.tsx";
 
 const FAMILIES = [
   {
@@ -320,4 +320,118 @@ test("the Never-played list announces as a list of listitems, not a bag of divs 
   const list = component.getByRole("list", { name: "Never played characters" });
   await expect(list.getByRole("listitem")).toHaveCount(2);
   await expect(list.getByRole("listitem").first().getByRole("button", { name: "Imai" })).toBeVisible();
+});
+
+// ── §5 `distill`: THE MASTHEAD STATES EACH NUMBER ONCE ───────────────────────────────────────────────
+// The h1 read "327 characters, distilled into 24 story themes" while the figure block beside it printed 327
+// and 24 again. The derivation is unit-tested at every phase boundary; this is the RENDERED half — that the
+// surface actually prints one of each, and that the figure block DISAPPEARS rather than repeating itself.
+test("the masthead never prints a number its own sentence just said (§5 distill)", async ({ mount, page }) => {
+  await routeTrpc(page, ANALYSED);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+
+  await expect(component.getByRole("heading", { level: 1 })).toHaveText("Ten characters, distilled into one story theme.");
+  // The sentence spends `characters` and `storyThemes`; the only figure left to state is the visual
+  // families, so THAT is the hero — and "10" (the character count) appears nowhere as a figure.
+  await expect(component.getByText("visual families", { exact: true })).toBeVisible();
+  await expect(component.getByText("characters", { exact: true })).toHaveCount(0);
+  await expect(component.getByText("story themes", { exact: true })).toHaveCount(0);
+});
+
+/** More bars than any single-line fallback could produce — the claim is "a composition", not "a bar". */
+const SKELETON_BAR_FLOOR = 5;
+
+// ── §5: THE LOADING STATE IS THE SURFACE'S SHAPE, NOT A SENTENCE IN A VOID ───────────────────────────
+// The CONTENT pane fell back to a bare "Loading your corpus…" gloss in the corner of an 869x800 empty
+// rectangle for the 1-2s its eight reads take, while the LIST pane beside it ran proper skeletons.
+// `trpcHold()` is the release valve that makes the PENDING render a stable state instead of a flash.
+test("the pending corpus renders a skeleton composition, not a lone sentence (§5)", async ({ mount, page }) => {
+  const held = trpcHold();
+  await routeTrpc(page, { ...ANALYSED, "discovery.home": held });
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await held.requested;
+
+  const skeleton = component.locator('[data-slot="corpus-home-skeleton"]');
+  await expect(skeleton).toBeVisible();
+  await expect(skeleton).toHaveAttribute("aria-busy", "true");
+  // It is a COMPOSITION: more than one placeholder bar, in the shape the settled surface takes. Polled,
+  // not sampled — the bars mount with the fallback and a single count can read mid-commit.
+  await expect.poll(() => skeleton.locator('[data-slot="skeleton"]').count()).toBeGreaterThan(SKELETON_BAR_FLOOR);
+  await expect(component.getByText("Loading your corpus…")).toHaveCount(0);
+
+  // …and it gives way to the real surface when the reads land (the fallback is a fallback, not a state).
+  held.release((ANALYSED as Record<string, unknown>)["discovery.home"]);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+});
+
+// ── B7 + §5: THE MASTHEAD STACKS BEFORE IT SQUEEZES, AND THE RIGHT COLUMN DOES NOT STOP ──────────────
+// Both are RANGE properties, so both are measured at more than one width. B7: at 430px the h1 wrapped to
+// six one-word lines in a ~130px column because a `flex-wrap` Row cannot wrap around a `min-w-0` child.
+// §5: at 1224px the readiness column ended ~250px above the island beside it, because the grid was
+// `items-start` and the rail's height is fixed by construction while the island's grows with the library.
+const MANY_FAMILIES = Array.from({ length: 8 }, (_, i) => ({
+  label: "mixed",
+  genre: null,
+  tone: null,
+  artStyle: null,
+  palette: null,
+  mood: null,
+  size: 1,
+  members: [{ characterId: `character_${i}`, name: `Member ${i}`, avatarHash: null }],
+  model: "Qwen/Qwen3-VL-Embedding-2B",
+}));
+/** A library whose ISLAND is the tall column — eight family plates against a five-row rail, which is the
+ *  shape that produced the audited void. */
+const TALL_ISLAND: TrpcRoutes = { ...ANALYSED, "discovery.visualArchetypes": MANY_FAMILIES };
+/** How close the two columns' feet must come. Not zero: the tracks carry different content and the last
+ *  hairline row's own border rounds; a quarter of the audited 250px gap would still be a visible void. */
+const FOOT_TOLERANCE_PX = 24;
+
+/** How far the readiness column's foot sits above the island's, in px — the audited void, measured. */
+async function footGap(page: Page): Promise<number> {
+  const island = await page.locator("[data-corpus-focal]").boundingBox();
+  const rail = await page.locator('[data-slot="readiness-rail"]').boundingBox();
+  if (island === null || rail === null) {
+    throw new Error("the focal island or the readiness rail did not render a box");
+  }
+  return island.y + island.height - (rail.y + rail.height);
+}
+
+// TWO EXPLICIT MOUNTS, not a loop over a story tuple: playwright-ct hoists each imported story into one
+// generated const, and a story named in a second `as const` tuple array in the same file collides with the
+// first ("Identifier … has already been declared", at bundle eval — not a test failure, a build one).
+test("THE READINESS COLUMN MEETS THE ISLAND'S FOOT at the owner's default pane (§5)", async ({ mount, page }) => {
+  await routeTrpc(page, TALL_ISLAND);
+  await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+
+  const gap = await footGap(page);
+  expect(gap, `the readiness column stops ${Math.round(gap)}px above the island`).toBeLessThanOrEqual(FOOT_TOLERANCE_PX);
+});
+
+test("…and at a wide pane, where the audited void was measured (§5)", async ({ mount, page }) => {
+  await routeTrpc(page, TALL_ISLAND);
+  await mount(<CorpusHomeWidePaneStory />);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+
+  const gap = await footGap(page);
+  expect(gap, `the readiness column stops ${Math.round(gap)}px above the island`).toBeLessThanOrEqual(FOOT_TOLERANCE_PX);
+});
+
+test("the mobile masthead STACKS rather than squeezing the headline into a column (B7)", async ({ mount, page }) => {
+  await routeTrpc(page, ANALYSED);
+  const component = await mount(<CorpusHomeNarrowPaneStory />);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+
+  const headline = await component.getByRole("heading", { level: 1 }).boundingBox();
+  const hero = await component.getByText("visual families", { exact: true }).boundingBox();
+  if (headline === null || hero === null) {
+    throw new Error("the masthead did not render its headline and its figure");
+  }
+  // STACKED: the figure sits BELOW the headline, not beside it …
+  expect(hero.y, "the figure block belongs under the headline at a phone width").toBeGreaterThanOrEqual(headline.y + headline.height);
+  // … which is what gives the sentence the pane's whole width instead of a ~130px column.
+  const paneWidth = 430;
+  expect(headline.width, "the headline gets the pane, not a sliver of it").toBeGreaterThan(paneWidth / 2);
 });

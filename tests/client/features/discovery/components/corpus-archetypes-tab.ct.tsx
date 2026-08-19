@@ -65,7 +65,9 @@ async function stub(page: Page): Promise<void> {
   // initials fallback when the image ERRORS, so an unstubbed 404 makes a correctly-wired portrait look
   // exactly like a missing one and the null assertion would pass for the wrong reason.
   await page.route("**/api/blob/*", async (route) => {
-    const hash = route.request().url().split("/").pop() ?? "";
+    // The PATHNAME's last segment, not the raw URL's: an avatar asks for a display rung (`?w=48`) since
+    // C6, and splitting the whole URL would hand this comparison "aaaa1111?w=48" and 404 a live portrait.
+    const hash = new URL(route.request().url()).pathname.split("/").pop() ?? "";
     if (hash === SABLE_HASH) {
       await route.fulfill({ body: PIXEL_PNG, contentType: "image/png", status: 200 });
       return;
@@ -90,7 +92,7 @@ test("a cluster member carrying a hash draws its blob; a null one draws hue-seed
   await expect(component.getByText("3 members")).toBeVisible();
 
   // The hash off `archetypes[].members[].avatarHash` reached an <img> on THIS surface.
-  await expect(page.locator(`img[src="/api/blob/${SABLE_HASH}"]`)).toHaveCount(1);
+  await expect(page.locator(`img[src^="/api/blob/${SABLE_HASH}"]`)).toHaveCount(1);
 
   // NULL hash — Morgatha's seat degrades to the initials fallback, hue-seeded and image-less.
   const morgathaSeat = page.locator('[data-slot="avatar-stack-item"]', { has: page.locator('text="M"') });

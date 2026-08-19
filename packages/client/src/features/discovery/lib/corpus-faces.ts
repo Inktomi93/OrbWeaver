@@ -15,18 +15,24 @@
 // full-width CONTEXT row do not get the same budget. The caller passes its own, and the count it prints
 // stays `size`, so no overflow chip is ever computed off this slice.
 
-import { blobUrl } from "@orb/contracts/assets";
+import { blobIconUrl } from "@orb/contracts/assets";
 import type { AvatarStackItem } from "@orb/ui/avatar-stack";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
 type ClusterMember = inferOutput<Trpc["discovery"]["archetypes"]>[number]["members"][number];
 
+/** The seat's DEVICE width — an `AvatarStack` seat is the `md` 32px box, so 64 is its 2x rung on the
+ *  server's fixed ladder. Same call as `character-avatar.tsx`'s and for the same reason (C6, side-eye
+ *  corpus re-pass 2026-08-19): these seats were drawing full-size card PNGs — 1840x2752 on the audited
+ *  library — into a 32px circle, and this surface draws dozens of them in one frame. */
+const SEAT_WIDTH = 64;
+
 /** Map a cluster's member slice into the first `slots` `<AvatarStack>` seats (portrait when the member
  *  carries a hash, hue-seeded initials when it does not). */
 export function toFaceItems(members: readonly ClusterMember[], slots: number): AvatarStackItem[] {
   return members.slice(0, slots).map((member) => ({
     name: member.name,
-    ...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) }),
+    ...(member.avatarHash === null ? {} : { src: blobIconUrl(member.avatarHash, SEAT_WIDTH) }),
   }));
 }

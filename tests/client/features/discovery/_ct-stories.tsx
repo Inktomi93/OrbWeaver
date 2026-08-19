@@ -216,6 +216,35 @@ export function CorpusHomeThreePaneStory(): ReactElement {
   );
 }
 
+/** THE SAME SURFACE AT A PHONE-WIDTH PANE — the narrow end of the masthead's width matrix (B7: at 430px the
+ *  h1 wrapped to six one-word lines beside the figure block). Mounted bare, like its two siblings above, so
+ *  the measured width is the container query's input rather than the CONTENT region's inset minus a
+ *  scrollbar. It is a SEPARATE story from `CorpusContentNarrowStory` — playwright-ct hoists each imported
+ *  story into one generated registry, so two CT files importing the same story name collide at load. */
+export function CorpusHomeNarrowPaneStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ overflow: "visible", width: 430 }}>
+        <CorpusHomeSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** THE SAME SURFACE AT A WIDE PANE — the third row of the width matrix the column-balance fix owes (side-eye
+ *  corpus re-pass 2026-08-19 §5 "the right column just stops", measured at a 1224px pane). A balance property
+ *  is a RANGE property, so it is pinned at the wide end, the shipped default, and the stacked end rather than
+ *  at whichever width happens to agree. */
+export function CorpusHomeWidePaneStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 1224 }}>
+        <CorpusHomeSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The SAME region at the narrowest real host — a phone-width CONTENT pane. Fixed width with the pane's
  *  own overflow so a shrink-0 cluster or an un-truncated title collides here instead of on someone's phone
  *  (the 2026-08-08 "measure every row at its narrowest real mount" ruling). */
