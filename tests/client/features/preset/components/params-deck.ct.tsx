@@ -18,7 +18,7 @@
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
 import { clearNumber, setNumber } from "../../../../support/ct/set-number.ts";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
@@ -136,15 +136,33 @@ test("P3 the hint column is a COLUMN — every explainer at one x, at the touch-
   const triggers = deck.locator('[data-slot="slider-root"]').first().locator("xpath=..").locator('[data-slot="hint-trigger"]');
   // The KNOB rows' explainers only (the deck also renders `Field` hints, a different docked anatomy): reach
   // them from each row's slider, whose ROOT's parent IS the KnobRow line.
-  const lefts = await deck.locator('[data-slot="slider-root"]').evaluateAll((roots) =>
-    roots.map((root) => {
-      const trigger = root.parentElement?.querySelector('[data-slot="hint-trigger"]') ?? null;
-      return trigger === null ? null : Math.round(trigger.getBoundingClientRect().left);
-    }),
-  );
-  const placed = lefts.filter((left): left is number => left !== null);
+  // Grouped BY GRID: a name track belongs to one grid, so the column claim is a per-grid claim.
+  const perGrid = await deck.locator('[data-slot="slider-root"]').evaluateAll((roots) => {
+    const groups = new Map<Element, number[]>();
+    for (const root of roots) {
+      const grid = root.parentElement;
+      const label = root.previousElementSibling;
+      const trigger = label?.querySelector('[data-slot="hint-trigger"]') ?? null;
+      if (grid === null || trigger === null) {
+        continue;
+      }
+      groups.set(grid, [...(groups.get(grid) ?? []), Math.round(trigger.getBoundingClientRect().left)]);
+    }
+    return [...groups.values()];
+  });
+  const placed = perGrid.flat();
   expect(placed.length, "the sampling rows carry explainers at all").toBeGreaterThan(1);
-  expect(new Set(placed).size, `one x for the whole column (got ${placed.join(",")})`).toBe(1);
+  for (const group of perGrid) {
+    expect(new Set(group).size, `one x inside a cluster (got ${group.join(",")})`).toBe(1);
+  }
+  // ONE x PER CLUSTER, which is what "one column" now means (side-eye 2026-08-19 P1-1 amends P3's own
+  // measurement, not its ruling). P3 docked the glyph at the name cell's TRAILING EDGE so it stops landing
+  // wherever each name happens to end — that mechanism is untouched. What changed underneath it: the cell
+  // was a fixed `--width-label-col` box, and that box is exactly what clipped the two longest names on the
+  // deck at EVERY pane width. The cell is now a content-sized grid track, and a track belongs to ONE grid,
+  // so SAMPLING's five explainers share an x and OUTPUT's two share theirs. Two x's across a kicker
+  // boundary, not the nine-across-eleven-rows rag P3 measured. Asserted as "at most one x per knob grid".
+  expect(new Set(placed).size, `at most one x per knob grid (got ${placed.join(",")})`).toBeLessThanOrEqual(perGrid.length);
   // …and it is still the control-md box R-8 measured, not the primitive's inline default.
   const box = await triggers.first().boundingBox();
   const expected = await triggers.first().evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
@@ -550,19 +568,22 @@ test("GEOMETRY — label column · flexing track · mono twin, all on ONE line (
   const deck = await mount(<ParamsDeckGhostStory />);
 
   const labelColumn = deck.getByText("Top-P", { exact: true }).locator("..");
-  // Scope every measurement to THIS row — the deck stacks seven of them, and a bare `.first()` would
-  // silently measure the temperature row against the top-p twin.
-  const row = labelColumn.locator("..");
+  // Scope every measurement to THIS row. A KnobRow is GRID CELLS now (side-eye 2026-08-19 P1-1), so there is
+  // no row ELEMENT to scope to — the row is the name cell and its two next siblings, which is exactly how
+  // the cells are reached below. A bare `.first()` would silently measure the temperature row's rail.
   const twin = deck.getByRole("textbox", { name: "Top-P value", exact: true });
 
   const labelBox = await labelColumn.boundingBox();
   // The number field's own BOX is the root (the input sits inside its bordered group), and the root is what
   // carries the `--width-number-inline` token.
   const twinBox = await twin.locator("xpath=ancestor::*[@data-slot='number-field-root'][1]").boundingBox();
-  const trackBox = await row.locator("[data-slot=slider-control]").boundingBox();
+  const trackBox = await deck.getByRole("slider", { name: "Top-P", exact: true }).locator("xpath=ancestor::*[@data-slot='slider-control'][1]").boundingBox();
 
-  // The label column is the minted token, not a hand-picked width.
-  expect(Math.round(labelBox?.width ?? 0)).toBe(tokenPx(TOKENS["width.label-col"].value));
+  // THE NAME TRACK IS A FLOOR, NOT A FIXED BOX. `--width-label-col` still decides where the column reads
+  // down for every cluster whose names fit it — that is the token's whole job — but it is now the MINIMUM of
+  // a content-sized track, because as a fixed width it clipped the deck's two longest names at every pane
+  // width. So: at least the token, and never less.
+  expect(Math.round(labelBox?.width ?? 0)).toBeGreaterThanOrEqual(tokenPx(TOKENS["width.label-col"].value));
   // The twin is the inline number token — the whole column reads down one number edge.
   expect(Math.round(twinBox?.width ?? 0)).toBe(tokenPx(TOKENS["width.number-inline"].value));
   // The track takes the middle: wider than either end.
@@ -598,6 +619,77 @@ test("P2 the deck holds a MEASURE at both ends of the width matrix — the track
   const spill = await row.evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(spill, "no horizontal overflow at the narrow end").toBeLessThanOrEqual(0);
 });
+
+// ── THE WIDTH FLOOR (side-eye 2026-08-19 P1-1) ────────────────────────────────────────────────────────
+//
+// MEASURED on the shipped deck at `--appearance-preset reading` (fontScale 1.25) in a 390px content pane:
+// ALL TEN `[data-slot=slider-track]`s came out 0px — a 30px thumb parked on no rail at all — and the three
+// longest labels clipped their own text at EVERY width, 1864 included, because the label CELL is a fixed
+// `--width-label-col` box that the hint trigger eats a third of.
+//
+// It is pinned as a RANGE property, never a point: the matrix is {390, 568, 1864} x {fontScale 1, 1.25},
+// which straddles the layout's own fold in both axes (a rem-scaled container query moves with the font).
+// `--expect-no-overflow` PASSED over the broken arm — an ancestor clips first — so nothing here trusts an
+// overflow verdict: every number is read off the element's own box.
+
+/** The aimable-rail floor. Under it a 0..1 knob at step 0.05 gets ~4px of travel per step, which is the
+ *  point where a drag stops being a way to set a value. A FLOOR the layout must clear, so it is a number
+ *  and not a token the layout is built from. */
+const MIN_TRACK_PX = 88;
+
+/** Every label the deck renders in the story capability's clusters — the two OUTPUT names are the ones the
+ *  fixed cell clipped, and they are why the list is spelled out rather than sampled. */
+const DECK_KNOB_LABELS = ["Temperature", "Top-P", "Min-P", "Top-A", "Repetition penalty", "Max output tokens", "Max context tokens"] as const;
+
+interface KnobFloor {
+  readonly width: number;
+  readonly tracks: readonly number[];
+  readonly clipped: readonly string[];
+}
+
+/** Rail widths + any label cell whose own text does not fit it, at one pane width, read from the ELEMENTS'
+ *  own boxes. Polls first: a container query re-resolves on the next layout pass, and a same-tick read of
+ *  it is a false negative by construction. */
+async function knobFloorAt(deck: Locator, page: Page, width: number): Promise<KnobFloor> {
+  await page.setViewportSize({ width, height: 900 });
+  const read = (): Promise<{ tracks: number[]; clipped: string[] }> =>
+    deck.evaluate((root: HTMLElement, labels: readonly string[]) => {
+      const tracks = [...root.querySelectorAll('[data-slot="slider-track"]')].map((el) => Math.round(el.getBoundingClientRect().width));
+      const clipped = [...root.querySelectorAll("span")]
+        .filter((el) => labels.includes(el.textContent ?? "") && el.scrollWidth - el.clientWidth > 1)
+        .map((el) => el.textContent ?? "");
+      return { tracks, clipped };
+    }, DECK_KNOB_LABELS);
+  await expect.poll(async () => (await read()).tracks.length, savePoll()).toBeGreaterThan(5);
+  const measured = await read();
+  return { width, tracks: measured.tracks, clipped: measured.clipped };
+}
+
+for (const fontScale of [1, 1.25]) {
+  test(`WIDTH FLOOR — every rail stays aimable and no label clips, at fontScale ${String(fontScale)} across 390/568/1864`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    const deck = await mount(<ParamsDeckGhostStory />);
+    // The `reading` arm's geometry axis: `--font-scale` rescales the ROOT font size, so every rem token —
+    // the label column, the number twin, the container-query steps — moves with it. Set on the element the
+    // app's own boot hint writes it to.
+    await page.evaluate((scale: number) => {
+      document.documentElement.style.setProperty("--font-scale", String(scale));
+    }, fontScale);
+
+    // Sequential by construction (each entry re-lays-out the pane), spelled as an array so the matrix reads
+    // as the range property it is.
+    const matrix: readonly KnobFloor[] = [await knobFloorAt(deck, page, 390), await knobFloorAt(deck, page, 568), await knobFloorAt(deck, page, 1864)];
+
+    for (const measured of matrix) {
+      const at = `${String(measured.width)}px`;
+      expect(measured.tracks.length, `${at}: the story must render its whole knob set, or the floor is vacuous`).toBeGreaterThan(5);
+      for (const [index, track] of measured.tracks.entries()) {
+        expect(track, `${at}: rail ${String(index)}`).toBeGreaterThanOrEqual(MIN_TRACK_PX);
+      }
+      expect(measured.clipped, `${at}: clipped labels`).toEqual([]);
+    }
+  });
+}
 
 test("CONTROL COLOR — one grammar, asserted COMPUTED: explicit slider fill IS the ember, inherited paints none", async ({ mount }) => {
   // OWNER RULING 2026-08-02 ("sliders WHITE, off-palette too"): the deck's set knobs and the surface's

@@ -763,6 +763,19 @@
     display: block;
     min-width: 0;
   }
+
+  /* …AND WHATEVER THE CONTENT REGION WAS ALSO CALLING IT STANDS DOWN (side-eye 2026-08-19 P2, first
+   * consumer: the preset editor's own header, which printed the open preset's name 45px under the topbar's
+   * copy of it). The swap above is the decision "at this width the TOPBAR owns the screen's identity"; this
+   * is the other half of it, and it belongs in the same block because it is the same decision — a surface
+   * that re-spelled `30rem` for itself would drift the moment this budget is retuned.
+   *
+   * OPT-IN and content-agnostic: a region marks the element that is a second copy of the topbar's title, and
+   * only that element. It is `display: none` rather than a visually-hidden clamp because the name is not
+   * lost — it is on screen, one row up, in the arm this query just turned on. */
+  [data-shell-identity="defer"] {
+    display: none;
+  }
   /* The lead SHRINKS and its title truncates — and what protects it from collapsing under its own control
    * is the TRAIL's floor below, not a floor of its own. Two measurements taught that, in order:
    *   · `min-width: 0` + an UNSHRINKABLE trail (`flex: none`, 277px of ⌘K/focus/toggles) squeezed the lead

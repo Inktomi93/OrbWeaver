@@ -206,6 +206,25 @@ export const gridVariants = tv({
       // whatever the labels or the pane become. The values still share ONE x, because it is one grid rather
       // than a per-row measurement.
       readout: "grid-cols-[max-content_1fr]",
+      // AN INSTRUMENT ROW'S THREE CELLS — name · flexing rail · the value cluster (added 2026-08-19,
+      // side-eye P1-1 on the preset params deck). `readout`'s sibling, and the same ruling one axis wider:
+      // the first track is CONTENT-sized so a name can never be clipped by a box, and the middle track
+      // takes the rest so the rail is the only thing that flexes.
+      //
+      // WHY THE FIRST TRACK IS `minmax(--width-label-col, max-content)` AND NOT BARE `max-content`: the
+      // token is what makes a column of knob names read down ONE edge ACROSS clusters — Sampling's short
+      // names and Output's long ones are separate grids (a kicker sits between them), so a bare
+      // `max-content` would give each cluster its own x. As a MINIMUM it keeps that one edge wherever the
+      // names fit, and grows past it exactly where they do not (the fixed box clipped "Max output tokens"
+      // at EVERY pane width, 1864 included — the label cell also has to seat the hint trigger).
+      //
+      // AND IT FOLDS TO ONE COLUMN BEFORE THE RAIL DIES. At a narrow pane the fixed name box + the number
+      // twin + the reset left the rail 0-28px — a thumb on no track at all. Below `@lg` every cell stacks,
+      // which hands the rail the whole width; `@lg` and not `@md` because the fold has to happen while
+      // there is still a rail worth keeping (measured: the three-track arm needs ~468px of pane before the
+      // middle track clears an aimable floor). The step is in `rem`, so it moves with `--font-scale` — the
+      // reading arm folds later, which is exactly right for bigger type.
+      knob: "grid-cols-1 @lg:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
     },
   },
   defaultVariants: { cols: "auto" },

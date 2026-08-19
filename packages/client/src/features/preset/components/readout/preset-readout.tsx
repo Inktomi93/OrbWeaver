@@ -192,10 +192,6 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
           has a null owner, so the attachment read refuses it by design and its regex stages are known-off
           rather than unread. */}
       {view === "transforms" ? <TransformsReadout attachable={preset.data?.isSystemDefault !== true} config={config} presetId={presetId} /> : null}
-      {/* THE BACKWARD BINDINGS (#279) sit under whichever panel is projected, once — "what depends on this
-          preset" is a property of the preset, not of the active hand, so it is not in `BINDING_VIEWS`'
-          per-view table. Read-only + navigation-only like the rest of this panel. */}
-      <UsageReadout presetId={presetId} />
       {view === "params" ? (
         <>
           <EffectiveProfile
@@ -210,6 +206,14 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
           <QualityMapping effective={effective.data ?? undefined} quality={config.params.quality} />
         </>
       ) : null}
+      {/* THE BACKWARD BINDINGS (#279) sit under whichever panel is projected, once — "what depends on this
+          preset" is a property of the preset, not of the active hand, so it is not in `BINDING_VIEWS`'
+          per-view table. Read-only + navigation-only like the rest of this panel.
+          LAST, ON EVERY VIEW (side-eye 2026-08-19 P2): it used to be declared before the `params` block, so
+          the one block that is the same on all five views led on Params and trailed on the other four —
+          the projected readout, which is what the reader came for, was the thing that moved. One position,
+          and it is the tail, because the readouts lead. */}
+      <UsageReadout presetId={presetId} />
     </Stack>
   );
 }
