@@ -42,7 +42,17 @@
  *
  *  The plate's OPAQUE sibling — the sticky attribution BAND — is {@link readingBandSurface}: the same
  *  `deltaL` off the same base, at {@link READING_BAND_ALPHA}. It carries no alpha of its own to declare
- *  here precisely because it is the plate at α 1 (#241). */
+ *  here precisely because it is the plate at α 1 (#241).
+ *
+ *  `shadow` is the two-armed ELEVATION recipe {@link shadowIngredients} selects between — the five
+ *  `--color-shadow-*` ingredients `--shadow-overlay` / `--shadow-cta` are built from (#232/#243). Neither
+ *  arm is invented: `dark` is the base `@theme` recipe digit-for-digit and `light` is the Light seed's
+ *  own measured block, promoted from a hand-authored per-seed value into the derivation a CUSTOM theme
+ *  gets too. The two arms are what an elevation IS on each polarity: on a dark surface the ring and the
+ *  inset are light-from-above (white alpha) and the drop is near-black; on a light surface a white ring
+ *  is a 1.00:1 ghost, the inset paints nothing at all (α 0), and a near-black drop reads as a torn-out
+ *  sticker — so the ring inverts to a dark hairline and the drop lifts to L 0.35 at a third of the alpha.
+ *  Only `l`/`c`/`alpha` live here: the HUE is the palette's own (see the function). */
 export const THEME_DERIVATION = {
   fgPivotL: 0.62,
   fgSteepness: 1000,
@@ -53,6 +63,22 @@ export const THEME_DERIVATION = {
   borderAlpha: 0.14,
   inputAlpha: 0.12,
   readingPlate: { deltaL: -0.038, alpha: 0.65, inkReferenceRatio: 6 },
+  shadow: {
+    dark: {
+      hairline: { l: 1, c: 0, alpha: 0.06 },
+      highlight: { l: 1, c: 0, alpha: 0.08 },
+      ambientNear: { l: 0, c: 0, alpha: 0.4 },
+      ambientFar: { l: 0, c: 0, alpha: 0.5 },
+      ctaHighlight: { l: 1, c: 0, alpha: 0.15 },
+    },
+    light: {
+      hairline: { l: 0.2, c: 0.01, alpha: 0.14 },
+      highlight: { l: 1, c: 0, alpha: 0 },
+      ambientNear: { l: 0.35, c: 0.02, alpha: 0.1 },
+      ambientFar: { l: 0.35, c: 0.02, alpha: 0.14 },
+      ctaHighlight: { l: 1, c: 0, alpha: 0.22 },
+    },
+  },
   ramp: {
     sidebar: -0.026,
     surfaceRaised: 0.027,
@@ -380,6 +406,64 @@ export const READING_BAND_ALPHA = 1;
  */
 export function readingBandSurface(base: Oklch): Oklch {
   return rampSurface(base, THEME_DERIVATION.readingPlate.deltaL);
+}
+
+/** One elevation ingredient: an OKLCH colour plus the alpha that IS its per-polarity decision. */
+export interface ShadowIngredient extends Oklch {
+  readonly alpha: number;
+}
+
+/** The five `--color-shadow-*` ingredients of the `--shadow-overlay` / `--shadow-cta` recipes. */
+export interface ShadowIngredients {
+  /** `--shadow-overlay`'s 1px edge ring: light-from-above on a dark base, a dark hairline on a light one. */
+  readonly hairline: ShadowIngredient;
+  /** `--shadow-overlay`'s inset top-highlight — OFF (α 0) on a light base, where white paints nothing. */
+  readonly highlight: ShadowIngredient;
+  /** `--shadow-overlay`'s tight contact drop (0 2px 4px). */
+  readonly ambientNear: ShadowIngredient;
+  /** `--shadow-overlay`'s deep ambient drop (0 12px 32px) — the loudest layer. */
+  readonly ambientFar: ShadowIngredient;
+  /** `--shadow-cta` / `--shadow-cta-glow`'s inset catch on the PRIMARY fill (not on a surface). */
+  readonly ctaHighlight: ShadowIngredient;
+}
+
+/**
+ * THE ELEVATION INGREDIENTS for a base surface — polarity-derived, so a CUSTOM theme stops inheriting the
+ * base palette's dark smoke (#243, the recorded residual of #232).
+ *
+ * WHY THESE ARE COLOURS AND NOT A `--shadow-*` VALUE (#232, probed with the repo's own compiler):
+ * Tailwind v4 INLINES a composite `--shadow-*` `@theme` token into its `.shadow-*` utility at build time,
+ * so overriding the composite in a `[data-theme]` block or a `ThemeScope` moves the var and ZERO pixels.
+ * A `var()` colour INGREDIENT survives the inlining and resolves in scope — which is the only reason
+ * elevation can be theme-reactive at all.
+ *
+ * WHY IT IS DERIVED AND NOT PICKED: elevation is not a palette role a user has an opinion about; it is
+ * what light does to a raised surface, and the only free variable is the surface's POLARITY. Measured on
+ * the realistic light bases while a custom light theme still wore the dark arm: the white ring composited
+ * to 1.00-1.02:1 against its own page (invisible — #232 measured the same class at 1.29:1 on the Light
+ * seed) while the near-black far-ambient hit 3.73-3.93:1, a hard halo ~14px past the card box. The light
+ * arm turns those into 1.32-1.34:1 and 1.26-1.27:1 — a ring you can see and a drop you cannot.
+ *
+ * THE POLARITY PIVOT IS `fgPivotL`, the SAME one the foreground flip and `color-scheme` ride, so a
+ * palette can never get light-arm elevation with dark-arm text. Strictly ABOVE the pivot is light,
+ * matching `colorSchemeFor`'s boundary exactly.
+ *
+ * THE DARK ARM DOES NOT MOVE, by construction: its numbers ARE the base `@theme` recipe, and every one
+ * carries chroma 0, so the emitted `oklch(from <base> l 0 h / a)` is the same white/black the token
+ * literal spells whatever hue the base has. The LIGHT arm's small chroma tracks the PALETTE's hue rather
+ * than Hearth's 60 — that is the one generalization over the hand-authored seed block, and it is
+ * sub-quantization (max 0.25/255 per channel across the shipped light base, composited).
+ */
+export function shadowIngredients(base: Oklch): ShadowIngredients {
+  const arm = base.l > THEME_DERIVATION.fgPivotL ? THEME_DERIVATION.shadow.light : THEME_DERIVATION.shadow.dark;
+  const at = ({ l, c, alpha }: { readonly l: number; readonly c: number; readonly alpha: number }): ShadowIngredient => ({ l, c, h: base.h, alpha });
+  return {
+    hairline: at(arm.hairline),
+    highlight: at(arm.highlight),
+    ambientNear: at(arm.ambientNear),
+    ambientFar: at(arm.ambientFar),
+    ctaHighlight: at(arm.ctaHighlight),
+  };
 }
 
 /**
