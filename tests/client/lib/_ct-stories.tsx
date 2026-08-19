@@ -7,8 +7,9 @@
 // toast manager, and fires a mutation whose `meta.errorToast` message must reach a rendered toast.
 
 import { createAppQueryClient } from "@orb/client/data";
+import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
-import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
+import { createToastManager, ToastProvider } from "@orb/ui/toast";
 // @orb-gate-ignore query-machine-seals(useMutation): test-tier code the gate's `\.test\.tsx?$` scope
 // cannot see — Spine-Testing §7 requires a CT to mount from a NON-test story module, so every
 // `_ct-stories` file is test-tier while carrying a production filename. The raw `useMutation` is the
@@ -469,15 +470,20 @@ export function AppReadySignalStory(): ReactElement {
   );
 }
 
-/** The bare toast surface — the same manager/bind as above, for any OTHER feature story whose behavior under
+/** The toast surface — the same manager/bind as above, for any OTHER feature story whose behavior under
  *  test ends in a `notify.*` call (the toast pixels are its only observable consequence). Homed here, not in a
  *  new support module, because `bindNotify` sets a MODULE-GLOBAL: a second module binding a second manager
- *  would race on import order and the loser's toasts would vanish. One manager, one bind, every toast story. */
+ *  would race on import order and the loser's toasts would vanish. One manager, one bind, every toast story.
+ *
+ *  It mounts `AppToaster`, the PRODUCTION outlet, not the bare `Toaster` (#193): where the stack paints is
+ *  a decision — the shell's notice band when a shell is mounted, the fixed overlay when there is none — and
+ *  a story that hand-rolled the overlay half would go green against a placement the app never renders. A
+ *  story with no shell in it lands on `overlay`, which is exactly what such a surface gets in production. */
 export function CtToastSurface({ children }: { readonly children: ReactNode }): ReactElement {
   return (
     <ToastProvider toastManager={toastManager}>
       {children}
-      <Toaster />
+      <AppToaster />
     </ToastProvider>
   );
 }

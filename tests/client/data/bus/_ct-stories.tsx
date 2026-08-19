@@ -19,6 +19,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */
 function SocketHost({ children }: { readonly children: ReactNode }): ReactElement {
@@ -143,6 +144,23 @@ export function ChatBusAttachFloorStory({ chatId }: { readonly chatId: ChatId })
       <SocketHost>
         <ChatBusAttachFloorProbe chatId={chatId} />
       </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** BOTH rooms under ONE socket PLUS the real toast surface — the #222 story. A socket-level fault is ONE
+ *  thing that happened, so the pixels it produces are the assertion: two joined rooms must not each repeat
+ *  it. `CtToastSurface` owns the single `bindNotify` (its header — a second manager would race on import
+ *  order), so this story reuses it rather than minting one here. */
+export function SocketFaultToastStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <SocketHost>
+          <UserBusProbe />
+          <RpgBusProbe chatId={chatId} />
+        </SocketHost>
+      </CtToastSurface>
     </CtDataProviders>
   );
 }

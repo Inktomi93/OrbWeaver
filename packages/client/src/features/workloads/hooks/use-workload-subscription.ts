@@ -30,7 +30,9 @@ interface WorkloadSubscriptionHandlers {
   readonly onProgress: (progress: WorkloadProgressView) => void;
   /** Every NON-progress lifecycle event (started/status/succeeded/failed/cancelled). */
   readonly onEvent: (event: WorkloadLifecycleEvent) => void;
-  /** The room's typed failure — the surface the `__subscriptionError` sentinel route had. */
+  /** THIS RUN's room failed (`roomFailed`) — a real, run-scoped terminal signal. A socket-level fault no
+   *  longer reaches here (#222): it is recoverable and tab-wide, and answering a blip with a per-run
+   *  terminal state was a false claim (`bundle-workload-tracker`'s "The import stream ended"). */
   readonly onError: () => void;
   /**
    * The gap-heal edge: this room went live again after having been live before (a socket reconnect, or a

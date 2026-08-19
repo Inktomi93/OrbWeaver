@@ -83,7 +83,10 @@ export interface RoomSubscriber {
   /** The GAP-HEAL edge: this room went live again after having been live before — a socket reconnect, or a
    *  re-attach after the room was detached. NEVER on the room's first live edge of a page (BOOT-4X). */
   readonly onSocketLive?: (() => void) | undefined;
-  /** The room's typed failure (`roomFailed`), or a socket-level fault. The room is detached server-side. */
+  /** THIS ROOM's typed failure (`roomFailed`, or an announce that gave up) — the room is detached
+   *  server-side and this is its own distinct cause, so a consumer may tell the user about it. A
+   *  SOCKET-level fault never arrives here (#222): it is one cause for the whole tab and the socket tells
+   *  it once itself. */
   readonly onError?: ((message: string) => void) | undefined;
   /** A durable room's replay request (`0` = from the beginning), constant or re-read per announce. Live-only
    *  rooms pass nothing. */
@@ -113,8 +116,13 @@ export interface RoomRegistry {
    *  that room's pump from its last-delivered cursor, `stream/socket.ts`), so this only fans the room's own
    *  gap-heal for the reads a live-only room has no other way to refresh. */
   readonly lagged: (ref: StreamRoomRef) => void;
-  /** A room failed (or the whole socket did, with `ref` omitted): surface it to the affected subscribers. */
-  readonly failed: (message: string, ref?: StreamRoomRef) => void;
+  /** THIS ROOM failed (a `roomFailed` control frame) — surface it to that room's subscribers. The ref is
+   *  REQUIRED (#222): a socket-level fault used to come through here with it omitted, which fanned one
+   *  cause to every joined room, and since every room hook's `onError` raises a toast that made one socket
+   *  death into N byte-identical alerts. A socket fault is the socket's own story now (`use-orb-socket.ts`
+   *  `reportSocketFault`), told once; the freshness those rooms lose is closed by `onSocketLive`'s
+   *  gap-heal on the re-connect edge, which is what closed it before too. */
+  readonly failed: (message: string, ref: StreamRoomRef) => void;
   /** FORCE every joined room to re-attach, past the dedupe. The session-recovery ladder's resume rung calls
    *  it: a session that died took every room's server-side cell with it (the frozen-principal socket is
    *  refused on reconnect), so the cells this tab believes it holds may not exist. Same instrument
@@ -369,11 +377,9 @@ export function createRoomRegistry(): RoomRegistry {
       }
     },
     failed: (message, ref): void => {
-      const affected = ref === undefined ? [...rooms.values()] : [rooms.get(roomKey(ref))];
-      for (const entry of affected) {
-        for (const subscriber of entry?.subscribers ?? []) {
-          subscriber.onError?.(message);
-        }
+      const entry = rooms.get(roomKey(ref));
+      for (const subscriber of entry?.subscribers ?? []) {
+        subscriber.onError?.(message);
       }
     },
     joined: (): readonly string[] => [...rooms.keys()],
