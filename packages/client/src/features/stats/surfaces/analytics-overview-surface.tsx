@@ -58,6 +58,12 @@ function OverviewBody(): ReactElement {
   const temporal = wrapped.temporal;
   const rising = momentumBarItems(momentum.rising);
   const falling = momentumBarItems(momentum.falling);
+  // ONE SCALE ACROSS BOTH COLUMNS (side-eye ANALYTICS 2026-08-19, P1d). Rising and Falling are two
+  // <BarList>s presented as a comparison; auto-scaled independently they drew +10 and −184 as
+  // near-identical full-width bars, with the sign living only in a bar-end label narrow panes clip. The
+  // shared maximum is the comparison; the semantic colour below is the redundant channel, not the fix.
+  const momentumMax = Math.max(0, ...rising.map((row) => row.value), ...falling.map((row) => row.value));
+  const momentumScale = momentumMax > 0 ? momentumMax : undefined;
 
   return (
     <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
@@ -122,8 +128,8 @@ function OverviewBody(): ReactElement {
               {momentum.prevMonth} → {momentum.latestMonth}
             </Text>
             <Row gap="section" className="flex-wrap items-start">
-              <MomentumColumn label="Rising" rows={rising} sign={1} />
-              <MomentumColumn label="Falling" rows={falling} sign={-1} />
+              <MomentumColumn label="Rising" rows={rising} sign={1} valueMax={momentumScale} />
+              <MomentumColumn label="Falling" rows={falling} sign={-1} valueMax={momentumScale} />
             </Row>
           </Stack>
         )}
@@ -159,10 +165,13 @@ function MomentumColumn({
   label,
   rows,
   sign,
+  valueMax,
 }: {
   readonly label: string;
   readonly rows: readonly { readonly id: string; readonly label: string; readonly value: number }[];
   readonly sign: number;
+  /** The maximum SHARED with the twin column — the whole reason these two charts are comparable. */
+  readonly valueMax: number | undefined;
 }): ReactElement {
   if (rows.length === 0) {
     return (
@@ -174,7 +183,13 @@ function MomentumColumn({
   }
   return (
     <Stack className="min-w-48 flex-1">
-      <BarList items={rows} label={label} valueFormatter={(value): string => formatSignedDelta(sign * value)} />
+      <BarList
+        intent={sign > 0 ? "positive" : "negative"}
+        items={rows}
+        label={label}
+        valueFormatter={(value): string => formatSignedDelta(sign * value)}
+        valueMax={valueMax}
+      />
     </Stack>
   );
 }

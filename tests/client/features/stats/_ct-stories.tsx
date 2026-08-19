@@ -4,7 +4,14 @@
 // the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) — the shell's own
 // consumers — driving the `header`/`listHeader` slots the analytics section supplies.
 
-import { AnalyticsListAnchor, AnalyticsListSurface, AnalyticsOverviewSurface } from "@orb/client/features/stats";
+import {
+  AnalyticsListAnchor,
+  AnalyticsListSurface,
+  AnalyticsModelsTab,
+  AnalyticsOverviewSurface,
+  AnalyticsPersonasTab,
+  AnalyticsTimeTab,
+} from "@orb/client/features/stats";
 import { clearAnalyticsSelection, selectAnalyticsCharacter, useSectionRegistry } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -33,6 +40,38 @@ export function AnalyticsOverviewSurfaceStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 720 }}>
         <AnalyticsOverviewSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Analytics CONTEXT tab bodies over the real data layer. The width is the CONTEXT panel's, which is
+ *  where their rows and charts are actually narrow. */
+export function AnalyticsModelsTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 420 }}>
+        <AnalyticsModelsTab />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+export function AnalyticsPersonasTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 420 }}>
+        <AnalyticsPersonasTab />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+export function AnalyticsTimeTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 420 }}>
+        <AnalyticsTimeTab />
       </div>
     </CtDataProviders>
   );

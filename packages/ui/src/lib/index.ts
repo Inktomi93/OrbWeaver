@@ -23,7 +23,7 @@ export {
   FOCUS_RING_OUTLINE,
   FOCUS_RING_WITHIN,
 } from "./focus-ring.ts";
-export { createLiveTokenStore, type LiveTokenStore, resolveCssVar } from "./live-token-resolver.ts";
+export { createLiveTokenStore, type LiveTokenStore, resolveCssColor, resolveCssVar } from "./live-token-resolver.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_SURFACE } from "./popup-surface.ts";

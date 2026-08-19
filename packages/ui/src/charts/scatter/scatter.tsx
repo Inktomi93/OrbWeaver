@@ -4,6 +4,7 @@
 // Categories are pre-grouped by the caller; each takes its color from `useChartTheme().palette` by index
 // (ui owns the palette), so a custom theme retints the whole plot. `onPointClick` gets the point's `id`.
 import type { ReactElement } from "react";
+import { labelledValueTable } from "../chart/data-table.ts";
 import type { ChartEvent, OrbEChartsInstance } from "../chart/index.ts";
 import { Chart } from "../chart/index.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
@@ -85,7 +86,20 @@ export function Scatter({ series, label, legend = false, onPointClick, height = 
   };
 
   return (
-    <LabeledChartFrame className={className} isEmpty={isEmpty} label={label} slot="scatter">
+    <LabeledChartFrame
+      className={className}
+      isEmpty={isEmpty}
+      label={label}
+      slot="scatter"
+      // The reading of a categorical scatter is WHICH POINT IS IN WHICH GROUP — the plot's own meaning is
+      // colour, and colour is what a screen reader (and a colour-blind reader) never gets. The x/y are a
+      // projection with no user-facing units, so they are deliberately absent: they would be noise, not data.
+      table={labelledValueTable(
+        "Point",
+        "Category",
+        series.flatMap((category) => category.points.map((point) => ({ label: point.label, value: category.name }))),
+      )}
+    >
       {isEmpty ? null : (
         <>
           <Chart

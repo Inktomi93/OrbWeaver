@@ -88,7 +88,9 @@ test("a cluster member carrying a hash draws its blob; a null one draws hue-seed
   const component = await mount(<CorpusArchetypesTabStory />);
 
   // SETTLED: the cluster row has painted (both queries resolved past the skeleton arm).
-  await expect(component.getByText("Brooding rogues")).toBeVisible();
+  // Scoped to the VISIBLE row: this tab's BarList now also emits a visually-hidden text equivalent
+  // (@orb/ui LabeledChartFrame, side-eye ANALYTICS P1e), whose row header carries the same cluster name.
+  await expect(component.getByRole("paragraph").filter({ hasText: "Brooding rogues" })).toBeVisible();
   await expect(component.getByText("3 members")).toBeVisible();
 
   // The hash off `archetypes[].members[].avatarHash` reached an <img> on THIS surface.
