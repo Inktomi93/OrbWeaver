@@ -797,7 +797,7 @@ test("the global-scope switch has exactly ONE home — the CONTEXT panel, never 
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator(ROSTER).getByRole("button", { name: REGEX_BAND }).click();
-  await workspace.getByText("Format dialogue quotes").click();
+  await rosterRow(workspace, "Format dialogue quotes").click();
   // Barrier on the SETTLED context arm — the panel only exists once the usage read has landed.
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
@@ -822,7 +822,7 @@ test("no control on the Configuration plane is offered from two of its three pan
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator(ROSTER).getByRole("button", { name: REGEX_BAND }).click();
-  await workspace.getByText("Format dialogue quotes").click();
+  await rosterRow(workspace, "Format dialogue quotes").click();
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
   // ONE round trip: the census is a pure DOM read, and doing it per-locator would be N awaits in a loop.
