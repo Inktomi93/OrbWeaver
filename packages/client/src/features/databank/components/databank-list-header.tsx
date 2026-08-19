@@ -28,7 +28,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, RefreshCw } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { MenuItem } from "@orb/ui/menu";
+import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
 import { useToastManager } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -51,7 +51,8 @@ export function DatabankListHeader(): ReactElement {
   // nothing, and firing it costs a round trip to be told so. The census the band already prints IS the
   // predicate, so this needs no second read. `?? 0` covers the pre-settle render: the sweeps stay closed
   // until the count is known, which is the safe direction (a disabled control that enables is a beat late;
-  // an enabled one that fires into an unknown bank is the defect).
+  // an enabled one that fires into an unknown bank is the defect). N-6: and the closed door SAYS SO — see
+  // the group label below, which is where the reason has to live because a disabled item cannot be hovered.
   const bankIsEmpty = (census?.total ?? 0) === 0;
 
   const sweep = (mode: "chunk-embed" | "re-extract"): void => {
@@ -72,14 +73,22 @@ export function DatabankListHeader(): ReactElement {
           // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
           <Row align="center" gap="field">
             <RowActionsMenu label="Databank maintenance">
-              <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReindexOpen(true)}>
-                <Icon icon={RefreshCw} size="sm" />
-                Reindex everything
-              </MenuItem>
-              <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReExtractOpen(true)}>
-                <Icon icon={RefreshCw} size="sm" />
-                Re-extract everything
-              </MenuItem>
+              {/* A DISABLED CONTROL OWES ITS REASON (side-eye 2026-08-19 N-6). Both items grey out over an
+                  empty bank and said nothing about why, which reads as a broken menu rather than a closed
+                  door. The reason rides a GROUP LABEL, not a `title=` on the items: a disabled MenuItem
+                  takes no pointer events and no focus, so a tooltip on it is a sentence the one reader who
+                  needs it can never reach. The group's label is announced with the items it labels. */}
+              <MenuGroup>
+                {bankIsEmpty ? <MenuGroupLabel>Add a document first — these sweeps run over your whole bank.</MenuGroupLabel> : null}
+                <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReindexOpen(true)}>
+                  <Icon icon={RefreshCw} size="sm" />
+                  Reindex everything
+                </MenuItem>
+                <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReExtractOpen(true)}>
+                  <Icon icon={RefreshCw} size="sm" />
+                  Re-extract everything
+                </MenuItem>
+              </MenuGroup>
             </RowActionsMenu>
             <Button intent="primary" onClick={(): void => openModal("addDocument")} size="sm">
               <Icon icon={Plus} size="sm" />

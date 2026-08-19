@@ -7,6 +7,13 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
 import { READY_DOC, stubDatabank } from "../fixtures.ts";
 
+/** What may sit between the arm's footer and the floor of the region that reserves its height: nothing but
+ *  sub-pixel. A CEILING on a defect, not a token read — the finding measured 225px and 254px. */
+const DIALOG_FLOOR_SLACK_PX = 24;
+/** `min-h-96` — the tallest arm's height, still reserved. Asserted so the void fix cannot be "simplified"
+ *  into dropping the floor the strip's stillness depends on. */
+const RESERVED_REGION_PX = 384;
+
 // BOTH SWEEPS CONFIRM (side-eye 2026-08-19 P3) — a superseded ruling, recorded. `Reindex everything` used
 // to fire BARE while its slower sibling sat behind a dialog, on the reasoning that re-extract is "the
 // expensive arm". The scope is what earns the dialog, not the runtime: the one owner-wide sweep a mis-aimed
@@ -58,13 +65,34 @@ test("both owner-wide sweeps are closed over an empty bank", async ({ mount, pag
   await reindex.click({ force: true });
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect.poll(() => trpc.count("databank.reindex"), { intervals: [20, 50, 100] }).toBe(0);
+
+  // …AND IT SAYS WHY (side-eye 2026-08-19 N-6). Two greyed items with no reason read as a broken menu
+  // rather than a closed door. The sentence is a GROUP LABEL, not a `title=` on the items: a disabled
+  // MenuItem takes no pointer events and no focus, so a tooltip on it is unreachable by exactly the reader
+  // who needs it. Over a bank with documents it must not appear — a reason for a state that is not on.
+  await expect(page.getByText("Add a document first — these sweeps run over your whole bank.")).toBeVisible();
+});
+
+test("the sweeps' disabled reason is scoped to the empty bank — a stocked one shows no excuse (N-6)", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const band = await mount(<DatabankListHeaderStory />);
+
+  await band.getByRole("button", { name: "Databank maintenance" }).click();
+  await expect(page.getByRole("menuitem", { name: "Reindex everything" })).not.toHaveAttribute("data-disabled", "");
+  await expect(page.getByText("Add a document first — these sweeps run over your whole bank.")).toHaveCount(0);
 });
 
 // THE MODE STRIP HOLDS ONE Y (side-eye 2026-08-19 P2). The three arms are 405 / 543.75 / 375.75px tall and
 // the shell's Dialog is vertically CENTRED, so switching mode moved the whole dialog 70-84px — under the
 // pointer, with the control the user is aiming at as the thing that moved. Measured as the SPREAD of the
 // strip's y across all three arms, so a fix that pins two of three cannot pass.
-test("switching Add mode does not move the mode strip under the pointer (P2)", async ({ mount, page }) => {
+// …AND THE FLOOR THAT HOLDS IT MUST NOT MANUFACTURE A VOID (side-eye 2026-08-19 N-2 — the regression the
+// pin above caused). `min-h-96` reserved the tallest arm's height on a region whose LAST child is the arm's
+// own in-body footer, so on the two shorter arms 225-254px (36-41% of the dialog) sat empty UNDER Cancel and
+// the first-run surface read as a failed render. Both halves are asserted in ONE test on purpose: the fix is
+// only correct if the strip still holds its y, and a later "simplification" that drops the floor would
+// otherwise turn one green test into another green test.
+test("switching Add mode moves neither the mode strip nor the footer off the dialog's floor (P2 · N-2)", async ({ mount, page }) => {
   await stubDatabank(page);
   const band = await mount(<DatabankListHeaderStory />);
   await band.getByRole("button", { name: "Add" }).click();
@@ -73,19 +101,40 @@ test("switching Add mode does not move the mode strip under the pointer (P2)", a
   await expect(upload).toBeVisible();
 
   // Unrolled rather than looped: `noAwaitInLoops`, and three arms is the whole axis.
-  const measure = async (mode: string): Promise<number> => {
+  const measure = async (mode: string): Promise<{ stripY: number; deadPx: number; regionPx: number }> => {
     await dialog.getByRole("button", { name: mode }).click();
     // SETTLED: the clicked arm is the pressed one before its geometry is read.
     await expect(dialog.getByRole("button", { name: mode })).toHaveAttribute("aria-pressed", "true");
-    return (await upload.boundingBox())?.y ?? Number.NaN;
+    const stripY = (await upload.boundingBox())?.y ?? Number.NaN;
+    // The void the finding measured, read against the RESERVED REGION rather than the dialog — the dialog's
+    // own bottom padding (24px) plus the body's (12px) is surface, not void, and would put a floor of ~37px
+    // under any dialog-relative number. Region-relative, the claim is exact: the footer sits ON the floor.
+    const measured = await dialog.evaluate((el) => {
+      const cancel = [...el.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Cancel");
+      const footer = cancel?.parentElement;
+      const arm = footer?.parentElement;
+      const region = arm?.parentElement;
+      if (footer === undefined || footer === null || region === undefined || region === null) {
+        return { deadPx: Number.NaN, regionPx: Number.NaN };
+      }
+      return { deadPx: region.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom, regionPx: region.getBoundingClientRect().height };
+    });
+    return { deadPx: measured.deadPx, regionPx: measured.regionPx, stripY };
   };
   const onUpload = await measure("Upload a file");
   const onPaste = await measure("Paste text");
   const onLink = await measure("From a link");
-  const ys = [onUpload, onPaste, onLink];
+  const arms = [onUpload, onPaste, onLink];
 
-  expect(ys.some(Number.isNaN)).toBe(false);
+  expect(arms.some((arm) => Number.isNaN(arm.stripY) || Number.isNaN(arm.deadPx))).toBe(false);
+  const ys = arms.map((arm) => arm.stripY);
   expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(1);
+  // EVERY arm, not the tallest: the tallest one was never the defect.
+  for (const arm of arms) {
+    expect(arm.deadPx, `dead space under Cancel (strip y ${String(arm.stripY)})`).toBeLessThan(DIALOG_FLOOR_SLACK_PX);
+    // …and the floor the strip's stillness rests on is still reserved — the two halves are one fix.
+    expect(arm.regionPx).toBeGreaterThanOrEqual(RESERVED_REGION_PX);
+  }
 });
 
 // THE TEACHING SENTENCE IS NOT A FOOTNOTE (side-eye 2026-08-19 P3). It is the sentence that explains the

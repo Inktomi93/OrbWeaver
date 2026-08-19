@@ -36,7 +36,7 @@ import { Globe, Icon, RefreshCw } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
-import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
+import { documentSubtitle, ingestBadge, ingestEmptyHint, ingestPhase, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
 
 export interface DatabankLibraryRowProps {
   readonly document: DocumentView;
@@ -67,7 +67,10 @@ export function DatabankLibraryRow({
 }: DatabankLibraryRowProps): ReactElement {
   const phase = ingestPhase(document, nowMs);
   const badge = ingestBadge(phase);
-  const stallHint = ingestStallHint(document, nowMs);
+  // The row's REMEDY, whichever phase earned one — the stall hint's Reindex pointer, or (side-eye
+  // 2026-08-19 N-5) the empty extraction's re-upload/paste, which Reindex cannot fix. Mutually exclusive by
+  // arithmetic (`empty` is terminal, so it can never be the stall overlay), so one `??` is the whole rule.
+  const remedy = ingestStallHint(document, nowMs) ?? ingestEmptyHint(document);
   // ONE pair of names for both the inline toggle and its kebab mirror, so the two can never drift.
   const everywhereOn = `Stop feeding ${document.name} to every chat`;
   const everywhereOff = `Feed ${document.name} to every chat`;
@@ -117,14 +120,15 @@ export function DatabankLibraryRow({
           rest="when-on"
         />
       }
-      // THE STALL REMEDY IS PART OF THE ROW'S SCENT, NOT A TOOLTIP (side-eye 2026-08-19 P2). It used to
+      // THE PHASE'S REMEDY IS PART OF THE ROW'S SCENT, NOT A TOOLTIP (side-eye 2026-08-19 P2, extended to
+      // the EMPTY arm by N-5 — a phase that named a state and offered nothing). It used to
       // live ONLY as a `title=` attribute on the chip below — a native tooltip on a non-focusable 10.5px
       // span, with `aria-describedby` null, i.e. the one row in the pane whose remedy existed was the one
       // row that could not say it to a keyboard or a screen reader. §6.1's ruling that the sentence must
       // not ellipsis the scent SURVIVES and is why it goes AFTER: the provenance/size/passage scent is
       // still first and still intact at the 320px floor; the remedy is what clips, and it clips into the
       // subtitle's own `title=` (ListRow) and into the row's `aria-describedby`, where a clip is not a loss.
-      subtitle={stallHint === null ? documentSubtitle(document) : `${documentSubtitle(document)} · ${stallHint}`}
+      subtitle={remedy === null ? documentSubtitle(document) : `${documentSubtitle(document)} · ${remedy}`}
       title={document.name}
       {...(showsPhaseChip(phase)
         ? {

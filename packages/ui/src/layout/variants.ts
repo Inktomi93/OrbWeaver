@@ -185,6 +185,18 @@ export const gridVariants = tv({
       // reached while the rail is still ~380px and would halve it. Same raw container width as `lead`'s
       // second step, for the same reason the scale cannot express it (it stops at @7xl / 80rem).
       pairWide: "grid-cols-1 @min-[100rem]:grid-cols-2",
+      // A LABEL COLUMN beside its values (added 2026-08-19, side-eye N-2 on the databank detail): a readout
+      // whose left track is exactly as wide as its widest LABEL and whose right track takes the rest. Every
+      // arm above sizes its tracks by the PANE; this one sizes the first by its own CONTENT, which is the
+      // only thing that ties a label to its value at every width.
+      //
+      // It replaces the knob-row token (`w-(--width-label-col)`, 152px) doing a readout's job: that token is
+      // a CONTROL column — it exists so sliders and number fields start at one x down a settings pane — and
+      // spent on ~62px labels it left ~90px of nothing inside every row, i.e. the same gap the fixed column
+      // was introduced to close, one size smaller. `max-content` is the range property: no slack to grow,
+      // whatever the labels or the pane become. The values still share ONE x, because it is one grid rather
+      // than a per-row measurement.
+      readout: "grid-cols-[max-content_1fr]",
     },
   },
   defaultVariants: { cols: "auto" },

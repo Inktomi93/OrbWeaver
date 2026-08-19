@@ -169,6 +169,31 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
 }
 
 /**
+ * The EMPTY phase's remedy, or `null` for every other phase — `ingestStallHint`'s twin (side-eye 2026-08-19
+ * N-5). `Empty` was the one phase that named a state and offered nothing: the chip says the extraction came
+ * back with no text, and the amber + the ⚠ say "act", while nothing anywhere said what the act IS. Reindex
+ * is NOT the act — re-running extraction over the same image-only bytes produces the same nothing, which is
+ * exactly why this sentence cannot be folded into the stall hint's Reindex pointer.
+ *
+ * No clock: `empty` is terminal by arithmetic (charCount 0), so it can never be the stalled overlay and the
+ * two hints are mutually exclusive by construction rather than by a caller remembering to pick one.
+ */
+export function ingestEmptyHint(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): string | null {
+  return countedPhase(doc) === "empty" ? "No text could be extracted — re-upload a text PDF, or paste the text." : null;
+}
+
+const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
+
+/** Group a count for display ("1170" → "1,170"). Hand-rolled because `.toLocaleString()` is banned repo-wide
+ *  (`no-raw-intl-time` — un-memoized Intl by the back door), and a four-digit count with no grouping reads as
+ *  an id. Same spelling as the assembly panel's own `formatCount`, deliberately not lifted into a shared home
+ *  for two call sites in different features. It is this FILE's one number convention — the bank-health line,
+ *  the passage tally and the character readout all print through it (side-eye 2026-08-19 N-3). */
+function groupThousands(value: number): string {
+  return String(value).replace(THOUSANDS_RE, ",");
+}
+
+/**
  * The passage count as a ROW states it — ONE home, because the list row and the detail readout print the
  * same fact and used to print it in two vocabularies ("12 passages" beside "Chunks 12/12 embedded").
  *
@@ -184,9 +209,27 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
  */
 export function passageCount(doc: Pick<DocumentView, "chunkCount" | "embeddedCount">): string {
   if (doc.embeddedCount < doc.chunkCount) {
-    return `${String(doc.embeddedCount)} / ${String(doc.chunkCount)} passages`;
+    return `${passageTally(doc)} passages`;
   }
-  return doc.chunkCount === 1 ? "1 passage" : `${String(doc.chunkCount)} passages`;
+  return doc.chunkCount === 1 ? "1 passage" : `${passageTally(doc)} passages`;
+}
+
+/** The same fact with the NOUN LEFT OFF — for a readout whose LABEL already says "Passages" ("12", "22 /
+ *  39"). Split out rather than re-spelled: the DETAIL row said "Passages … 12 passages" and the stutter is
+ *  what a labelled column exists to make unnecessary (side-eye 2026-08-19 N-3). The subtitle keeps the word,
+ *  because a row's scent line has no label to carry it. One arithmetic, two renderings. */
+export function passageTally(doc: Pick<DocumentView, "chunkCount" | "embeddedCount">): string {
+  if (doc.embeddedCount < doc.chunkCount) {
+    return `${groupThousands(doc.embeddedCount)} / ${groupThousands(doc.chunkCount)}`;
+  }
+  return groupThousands(doc.chunkCount);
+}
+
+/** The extracted-character count as a readout states it. ONE number convention across this feature: the
+ *  bank-health line has grouped its thousands since 2026-08-08 and the passage tally does now, so a raw
+ *  `4200` beside them read as an id rather than a quantity (side-eye 2026-08-19 N-3). */
+export function characterCount(doc: Pick<DocumentView, "charCount">): string {
+  return groupThousands(doc.charCount);
 }
 
 /** The library-row subtitle: provenance · size · passage count (e.g. "Upload · 24.5 KB · 12 passages"). A
@@ -249,16 +292,6 @@ export function bankHealth(census: BankHealthView, visible: readonly DocumentVie
     .toSorted((a, b) => ATTENTION_ORDER[a] - ATTENTION_ORDER[b])
     .map((phase) => ({ intent: ingestBadge(phase).intent, label: `${census.byPhase[phase]} ${ingestBadge(phase).label.toLowerCase()}`, phase }));
   return { attention, chunks: census.chunks, passages: census.passages, total: census.total };
-}
-
-const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
-
-/** Group a passage count for display ("1170" → "1,170"). Hand-rolled because `.toLocaleString()` is banned
- *  repo-wide (`no-raw-intl-time` — un-memoized Intl by the back door), and a four-digit passage count with
- *  no grouping reads as an id. Same spelling as the assembly panel's own `formatCount`, deliberately not
- *  lifted into a shared home for two call sites in different features. */
-function groupThousands(value: number): string {
-  return String(value).replace(THOUSANDS_RE, ",");
 }
 
 /** The tile's one-line summary: what you have, and how much of it a chat can actually pull from.

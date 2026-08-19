@@ -20,7 +20,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, Pencil, RefreshCw } from "@orb/ui/icons";
-import { Container, Row, Section, Stack, Surface } from "@orb/ui/layout";
+import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Heading, Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
@@ -32,7 +32,16 @@ import { timeLib, useFocusOnMount } from "#lib";
 import { useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
-import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, originLabel, passageCount } from "../lib/databank-model.ts";
+import {
+  characterCount,
+  documentSubtitle,
+  ingestBadge,
+  ingestEmptyHint,
+  ingestPhase,
+  ingestStallHint,
+  originLabel,
+  passageTally,
+} from "../lib/databank-model.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -84,7 +93,10 @@ export function DatabankDetailSurface(): ReactElement {
 function DatabankWelcome(): ReactElement {
   return (
     <EmptyState
-      description="Pick a document on the left to see what was extracted, how much of it is indexed, and where it fires."
+      // SIDE-AGNOSTIC (side-eye 2026-08-19 N-10, the chat landing's own correction carried here): the LIST
+      // pane is a docked column, a slide-over, or collapsed — "on the left" is wrong in three of those and
+      // wrong on every phone, where the panes stack.
+      description="Pick a document from the list to see what was extracted, how much of it is indexed, and where it fires."
       icon={<Icon icon={FileText} size="lg" />}
       title="Your databank"
     />
@@ -105,6 +117,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
 
   const badge = ingestBadge(ingestPhase(doc, nowMs));
   const stallHint = ingestStallHint(doc, nowMs);
+  const emptyHint = ingestEmptyHint(doc);
 
   const onReindex = (): void => {
     reindex.mutate(
@@ -130,6 +143,12 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           <Stack className="min-w-0" gap="tight">
             <Heading level={2}>{doc.name}</Heading>
             <Text voice="gloss">{documentSubtitle(doc)}</Text>
+            {/* THE EMPTY PHASE'S REMEDY (side-eye 2026-08-19 N-5). It rides HERE, under the scent, and not
+                in Maintenance beside the stall hint: Reindex is that hint's repair and it is the wrong
+                advice for this state — re-running extraction over the same image-only bytes returns the
+                same nothing. It sits directly under the chip that names the state, which is where a reader
+                who just opened the row to ask "why is this Empty?" is looking. */}
+            {emptyHint === null ? null : <Text voice="gloss">{emptyHint}</Text>}
           </Stack>
           <Row align="center" gap="field">
             {/* The DETAIL keeps its `Ready` chip — §6.1's ruling deletes the chip from the LIST ROW, where
@@ -153,19 +172,25 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
             draws. `heading` is the settings-pane form contract, and this pane is a readout (side-eye
             2026-08-19 P2). */}
         <Section kicker="Details">
-          <Stack gap="row">
+          {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
+              no wider) and every value still starts at ONE x, which a per-row measurement cannot promise.
+              See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}
+          <Grid cols="readout" gap="row">
             <DetailRow label="Origin" value={originLabel(doc.origin)} />
             <DetailRow label="Type" value={doc.mime} />
             <DetailRow label="Size" value={formatBytes(doc.byteSize)} />
-            <DetailRow label="Characters" value={String(doc.charCount)} />
+            {/* THE LABEL CARRIES THE UNIT (side-eye 2026-08-19 N-3): the values are bare numbers, grouped
+                by the feature's one number convention — "Passages 12", never "Passages 12 passages". The
+                row SUBTITLE keeps the noun, because a scent line has no label to carry it. */}
+            <DetailRow label="Characters" value={characterCount(doc)} />
             {/* PASSAGES, not "Chunks" — the list row and this readout print one fact and used to print it
                 in two vocabularies ("12 passages" there, "Chunks 12 / 12 embedded" here). One home:
-                `passageCount` (databank-model). */}
-            <DetailRow label="Passages" value={passageCount(doc)} />
+                `passageTally` / `passageCount` (databank-model). */}
+            <DetailRow label="Passages" value={passageTally(doc)} />
             <DetailRow label="Added" value={timeLib.formatDate(doc.createdAt)} />
             <DetailRow label="Updated" value={timeLib.formatDate(doc.updatedAt)} />
             {doc.sourceUrl === null ? null : <DetailRow label="Source" value={doc.sourceUrl} />}
-          </Stack>
+          </Grid>
         </Section>
 
         <Section kicker="Maintenance">
@@ -243,18 +268,22 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
  * halved that span in the 2026-08-03 sweep and is still right — a readout inside a measure is what
  * stops it spanning the window — but a measure caps the WORST case; it does not tie the pair.
  *
- * `--width-label-col` does: the label takes one fixed column (the knob-row token, `w-(--width-label-col)`,
- * which is exactly this shape one feature over) and the value starts at ONE x on every row, at every pane
- * width. That is a RANGE property rather than a point fix — the gap cannot reappear at a width nobody
- * measured, because there is no gap left to grow.
+ * A COLUMN does: the value starts at ONE x on every row, at every pane width — a RANGE property rather than
+ * a point fix, because there is no gap left to grow.
+ *
+ * THE COLUMN IS `max-content` NOW, NOT THE KNOB-ROW TOKEN (side-eye 2026-08-19 N-7). `w-(--width-label-col)`
+ * was the first spelling of it and is a 152px CONTROL column — the width that makes sliders and number
+ * fields start at one x down a settings pane. Spent on ~62px readout labels it left ~90px of nothing inside
+ * every row: the same gap the fixed column was introduced to close, one size smaller. So the ruling above
+ * stands (one column, values at one x) and only its measurement changes — the rows are cells of ONE
+ * `cols="readout"` grid, whose label track is exactly as wide as the widest label. Which is also why this
+ * returns a FRAGMENT: a wrapping Row would be one grid item, and the shared track would be gone.
  */
 function DetailRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
-    <Row align="center" gap="field">
-      <Text className="w-(--width-label-col) shrink-0" voice="gloss">
-        {label}
-      </Text>
+    <>
+      <Text voice="gloss">{label}</Text>
       <Text className="min-w-0 truncate">{value}</Text>
-    </Row>
+    </>
   );
 }

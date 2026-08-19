@@ -43,6 +43,30 @@ test("the CONTEXT promise is a COUNT, never a roster it cannot pay (P1)", async 
   await expect(context.getByText(ROSTER_PROMISE)).toHaveCount(0);
 });
 
+// THE FIRST-RUN TRI-PANE SAID ONE THING THREE TIMES (side-eye 2026-08-19 N-4). On an empty bank all three
+// panes are empty at once and all three printed the SAME `FileText` at `lg` — one screen, one glyph, three
+// times, which reads as a template rather than three answers. The CONTEXT rail's no-selection arm is the one
+// that drops it: it is a CAPTION for a 320px panel, where LIST's glyph sits over the Add that fixes the
+// state and CONTENT's is the section's own welcome. Asserted on the RENDERED heads across the whole
+// workspace, so it cannot be satisfied by swapping one glyph for another that repeats somewhere else.
+test("the empty tri-pane does not print one hero glyph three times (N-4)", async ({ mount, page }) => {
+  await stubDatabank(page, { "databank.listGlobal": () => [] }, []);
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  // SETTLED: all three panes have rendered their own empty before any of them is counted.
+  await expect(workspace.getByText("Where a document fires")).toBeVisible();
+  await expect(workspace.getByText("Your databank")).toBeVisible();
+  await expect(workspace.getByText("No documents yet")).toBeVisible();
+
+  const heads = await page.locator('[data-slot="empty-state-icon"]').count();
+  expect(heads).toBeLessThan(3);
+  // …and it is the CONTEXT arm that gave one up — the other two keep theirs.
+  const contextHead = await page.evaluate(() => {
+    const title = [...document.querySelectorAll('[data-slot="empty-state-title"]')].find((el) => el.textContent?.trim() === "Where a document fires");
+    return title?.parentElement?.querySelectorAll('[data-slot="empty-state-icon"]').length ?? -1;
+  });
+  expect(contextHead).toBe(0);
+});
+
 test("the activation body owns the Everywhere write and states where the document is active", async ({ mount, page }) => {
   const trpc = await stubDatabank(page);
   const workspace = await mount(<DatabankWorkspaceStory />);

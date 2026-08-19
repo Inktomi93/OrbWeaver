@@ -99,6 +99,70 @@ test("only the ACT-NOW phase chip carries a glyph — the amber is shared, the m
   expect(chips[0]?.color).toBe(chips[1]?.color);
 });
 
+// THE MARK MUST RIDE THE LINE (side-eye 2026-08-19 N-1) — the regression the pin above could not see. It
+// counted the glyph's PRESENCE (`querySelectorAll('svg')`), never its PLACEMENT: `size="inline"` is
+// `display:inline` and Tailwind's preflight blockifies every `svg`, so the block child SPLIT the chip's
+// inline box and the ⚠ landed alone on a line of its own — the `Empty` row went to three lines and its chip
+// measured 28.25px against the glyph-less `Queued` chip's 16.25px (+74%). Fixed at the PRIMITIVE (badge
+// variants' inline arm re-inlines its own glyph); asserted here at the real 320px pane because this is the
+// one shipped call site that puts an icon inside an inline chip, and the geometry is what the defect was.
+test("the act-now chip's mark rides its own line box — it does not split the row (N-1)", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const list = await mount(<DatabankLibraryStory />);
+  await expect(list.getByText("Empty", { exact: true })).toBeVisible();
+
+  const measured = await page.evaluate(() => {
+    const chipOf = (text: string): Element | undefined => [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === text);
+    const marked = chipOf("Empty");
+    const plain = chipOf("Queued") ?? chipOf("Indexing");
+    if (marked === undefined || plain === undefined) {
+      return null;
+    }
+    const svg = marked.querySelector("svg")?.getBoundingClientRect();
+    const labelNode = [...marked.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+    const range = document.createRange();
+    if (svg === undefined || labelNode === undefined) {
+      return null;
+    }
+    range.selectNodeContents(labelNode);
+    const label = range.getBoundingClientRect();
+    return {
+      markedHeight: marked.getBoundingClientRect().height,
+      plainHeight: plain.getBoundingClientRect().height,
+      svgCentre: svg.top + svg.height / 2,
+      labelCentre: label.top + label.height / 2,
+    };
+  });
+
+  expect(measured).not.toBeNull();
+  // The chip that carries a mark is the same line box as the chip that carries none.
+  expect(measured?.markedHeight ?? 0).toBeCloseTo(measured?.plainHeight ?? -1, 1);
+  // …and the mark sits beside the word, not above it.
+  expect(Math.abs((measured?.svgCentre ?? 0) - (measured?.labelCentre ?? 0))).toBeLessThan(2);
+});
+
+// EMPTY NAMED A STATE AND OFFERED NOTHING (side-eye 2026-08-19 N-5). The chip says the extraction came back
+// with no text and the ⚠ says "act", and nothing anywhere said what the act IS — while the row one phase
+// over (Stalled) has carried its remedy in the row's own description since the DBFIX lane. The remedy rides
+// the SAME path, not a tooltip, so a keyboard or screen-reader user gets it; and it is deliberately NOT the
+// stall hint's Reindex, which cannot fix an image-only PDF.
+test("the EMPTY row carries its own remedy in the row's description — and it is not Reindex (N-5)", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const list = await mount(<DatabankLibraryStory />);
+  await expect(list.getByText("Empty", { exact: true })).toBeVisible();
+
+  const described = await page.evaluate(() => {
+    const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Heraldry plates"));
+    const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
+    return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
+  });
+  // The scent is still first and still whole — §6.1's ruling that the remedy must not eat it.
+  expect(described).toContain("Upload · 11.8 MB · 0 passages");
+  expect(described).toContain("No text could be extracted — re-upload a text PDF, or paste the text.");
+  // The wrong repair is not offered: re-running extraction over the same image-only bytes returns nothing.
+  expect(described).not.toContain("Reindex can restart");
+});
+
 test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen clock, not a zero count", async ({ mount, page }) => {
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
