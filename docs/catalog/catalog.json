@@ -975,8 +975,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 24420,
-      "sha256": "8c7a0fec8247851dbc374f05d9ec2d60803dfe880c80b06622c05daad10c745c",
+      "bytes": 24861,
+      "sha256": "b54c627dae9d2f021e50ba737910f458bf65b7e8eb541ea8f02ddf6726cae786",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1065,7 +1065,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",

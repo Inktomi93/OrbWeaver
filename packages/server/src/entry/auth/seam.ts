@@ -48,8 +48,9 @@ export interface AuthSeamDeps {
   readonly config?: AuthConfig;
 }
 
-/** Per-request knobs. `peerIp` is the raw TCP peer socket address the forward-header trusted-proxy gate
- *  matches against — absent ⇒ that path fails closed (anti-spoof: never a spoofable forwarded header). */
+/** Per-request knobs. `peerIp` is the raw TCP peer socket address that TWO gates match against — the
+ *  forward-header trusted-proxy gate AND, since #298 f2, the loopback gate on the un-credentialed owner
+ *  fallback (`ownerFallbackAllowed`). Absent ⇒ BOTH fail closed (anti-spoof: never a forwarded header). */
 export interface PerRequestSeamDeps {
   readonly onSessionSlide?: (expiresAt: number) => void;
   readonly peerIp?: string;
@@ -290,8 +291,9 @@ function createFallbackPrincipalResolver(sessions: Pick<SessionsService, "loadUs
  * defaulting to ADMITTED. Fail-closed by construction beats fail-closed by vigilance (spine §5.5).
  *
  * `fallback` is `false` because that arm is precisely the caller who presented NOTHING: `infra/auth.resolve`
- * mints it whenever `ownerFallbackAllowed` says the ORIGIN is trusted — unconditionally under `single-user`,
- * and under an SSO mode on nothing but the client-supplied `Host` header. An origin is not a credential.
+ * mints it whenever `ownerFallbackAllowed` says the raw TCP peer is LOOPBACK — one rule across all four
+ * modes since #298 f2 (it used to key on the client-supplied `Host` header, which is not a fact about the
+ * network). A network position is not a credential, however unspoofable the socket is.
  *
  * STANDING NOTE — the `header:true` arm is safe HERE by a CALL-SITE OMISSION, not by its own logic. `isAdmin`
  * calls `resolvePrincipal(headers)` with no `PerRequestSeamDeps`, so `peerIp` is `undefined`, and
@@ -308,7 +310,9 @@ const DEBUG_GATE_CREDENTIALED = {
   /** A verified SSO identity. At THIS gate only a signed JWT reaches it: `isAdmin` passes no `peerIp`, so the
    *  raw-header (allowlisted-TCP-peer) arm is unreachable here — see the STANDING NOTE above. */
   header: true,
-  /** The un-credentialed origin-gated owner fallback. NOT a credential — see above. */
+  /** The un-credentialed loopback-peer-gated owner fallback. NOT a credential — see above. (Since #298 f2
+   *  `isAdmin`'s missing `peerIp` also makes this arm unmintable HERE; this entry is the belt that survives
+   *  if `peerIp` is ever threaded in — the same call-site-omission caveat the `header` arm carries.) */
   fallback: false,
 } as const satisfies Record<Principal["via"], boolean>;
 
@@ -337,7 +341,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
     });
     const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal);
-    // No session id on these arms BY CONSTRUCTION: neither the origin-gated owner fallback nor an SSO header
+    // No session id on these arms BY CONSTRUCTION: neither the peer-gated owner fallback nor an SSO header
     // mints a `sessions` row, so there is nothing for a per-session logout to end (their sockets are reached
     // by `evictUser` — the admin/disable arm — instead).
     return { principal, sessionId: null, csrfHeaderPresent };
@@ -353,8 +357,10 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * it this returned `true` for the un-credentialed `via:"fallback"` principal, and since the arm runs
    * BEFORE the token check, `/api/_debug/*` served with no cookie and no `DEBUG_TOKEN` — unconditionally
    * under `single-user`, and under an SSO mode to anyone who could reach the port and send
-   * `Host: 127.0.0.1`. Note what that means for the token: because the admin arm short-circuits the
-   * `expectedToken === undefined` → 404 branch too, UNSETTING `DEBUG_TOKEN` did not close it either.
+   * `Host: 127.0.0.1` (that second reach was itself closed later by #298 f2's move to the raw loopback peer,
+   * so the counterfactual today would be loopback callers only). Note what that means for the token: because
+   * the admin arm short-circuits the `expectedToken === undefined` → 404 branch too, UNSETTING `DEBUG_TOKEN`
+   * did not close it either.
    * Behind the gate sit principal-blind whole-db reads whose `@owner-scope-ok` exemption
    * (`foundation/observability/debug/inspect/config.ts`) rests entirely on this verdict.
    *
