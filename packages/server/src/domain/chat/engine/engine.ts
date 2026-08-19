@@ -45,7 +45,7 @@ import { ProviderError } from "#infra/providers";
 import type { ChatContext } from "../context.ts";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
-import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory.ts";
+import type { MemoryConfig, MemoryPassCounts, MemoryRecallResult, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type { GeneratedText, HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
@@ -125,7 +125,7 @@ interface EngineDeps {
       readonly recent?: readonly MsgRow[] | undefined;
       readonly names?: ReadonlyMap<CharacterId, string> | undefined;
     },
-  ) => Promise<string>;
+  ) => Promise<MemoryRecallResult>;
   /** Injected lock-free compaction core (`makeRunCompaction`) — the managed-compaction post-turn hook rebuilds
    *  the LINEAR-tier `compactSummary` marker over the span above the fit boundary via the chat's OWN model.
    *  Injected (not imported from the verb) so the engine never reaches into a verb; the domain root wires the same
@@ -1257,7 +1257,7 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
     return prep.assembleContext;
   }
   const witnessing = await deps.loadWitnessHorizons(ctx.db, prep.chatId, speakerCharId);
-  const memory = await deps.recallMemory(ctx, {
+  const recalled = await deps.recallMemory(ctx, {
     scope: { chatId: prep.chatId, scopedCharacterId: speakerCharId, isGroup: true },
     groupCharacterId: recall.groupCharacterId,
     witnessing,
@@ -1266,7 +1266,9 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
     names: recall.names,
     ...(recall.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: recall.liveWindowCutoffSeq } : {}),
   });
-  return { ...prep.assembleContext, memory };
+  // The per-speaker recall REPLACES the round-level one, so its trace replaces the round-level trace too —
+  // the ctx a speaker's BUILD reads must explain the memory that speaker actually got (#250).
+  return { ...prep.assembleContext, memory: recalled.text, memoryTrace: recalled.trace };
 }
 
 /** What the PRE-START half resolved: the loaded write target (null for a new slot) and the enforced consent

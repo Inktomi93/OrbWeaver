@@ -20,7 +20,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
 
 import { env } from "#foundation/env";
-import type { RpgTraceInspector } from "#foundation/observability";
+import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
@@ -119,6 +119,9 @@ export interface AppDeps {
    *  `rpgTrace` compose dep). Absent ⇒ `/api/_debug/rpg/traces` is not registered at all, which is the route's
    *  own contract: tracing off means the door does not exist rather than answering an empty ring. */
   readonly rpgTrace?: RpgTraceInspector;
+  /** #250 — the memory-recall flight recorder's read half. Present in production compose (the recorder is
+   *  built unconditionally); absent ⇒ `/api/_debug/memory/recalls` is not registered. */
+  readonly memoryRecall?: MemoryRecallInspector;
 
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
    *  BYO pose byte-ingest. */
@@ -321,6 +324,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // R-OBS: registered only when the recorder exists (tracing on) — spread, so an untraced boot passes the
     // key at all rather than an `undefined` the route's `!== undefined` check would still have to read.
     ...(deps.rpgTrace === undefined ? {} : { rpgTrace: deps.rpgTrace }),
+    // #250: the memory-recall ring. Same spread shape as rpgTrace, but the recorder is unconditional in
+    // production compose — the `undefined` arm only fires for a hand-built app (a route/gate test).
+    ...(deps.memoryRecall === undefined ? {} : { memoryRecall: deps.memoryRecall }),
     // #24: the vLLM contention scrape. Registered UNCONDITIONALLY — unlike rpgTrace there is no recorder to
     // exist or not, and on an engine-less box every engine reports `null` (unreachable), which is the honest
     // answer rather than a 404 the caller has to tell apart from a typo. Gating it would mean threading the

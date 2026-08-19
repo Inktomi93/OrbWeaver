@@ -36,6 +36,18 @@ export interface BlockKey {
   scopedCharacterId: CharacterId;
 }
 
+/** ONE RANKED BLOCK as retrieval hands it back across the domain seam — the block's identity plus BOTH
+ *  ranking readouts, so a caller that has to EXPLAIN a result (memory's recall trace, #250) is not left
+ *  holding an unattributed key. `score` is the CSLS-adjusted rank signal (LOWER = closer, never rendered);
+ *  `relevance` is cosine `1 − distance` (HIGHER = closer, the number a surface prints) — the split
+ *  `domain/search/contract/results.ts` owns and states in full. Search's own `DigestSearchHit` EXTENDS this
+ *  (it adds the source text a prompt assembler needs), so the two can never drift. */
+export interface ScoredBlock {
+  readonly blockKey: BlockKey;
+  readonly score: number;
+  readonly relevance: number;
+}
+
 /** The cross-domain options `memory.recall` threads into `search.digests`/`search.corpus`. `memory`
  *  builds the egocentric query text itself (pre-call); `search` owns the scan. */
 export interface MemoryQueryOptions {

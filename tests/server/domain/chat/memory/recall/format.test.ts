@@ -34,20 +34,27 @@ describe("memory/recall/format", () => {
       [blockKeyStr(key(0, 1)), dr(0, 1, "[scene 1]\nkeywords: b, c")],
     ]);
     const out = formatMemory([key(0, 1), key(0, 0)], byKey);
-    expect(out).toBe("[scene 1]\nkeywords: b, c\n\n[scene 0]\nkeywords: a");
+    expect(out.text).toBe("[scene 1]\nkeywords: b, c\n\n[scene 0]\nkeywords: a");
+    // `rendered` is the recall trace's ADMITTED set (#250): the same keys, in the same prompt order.
+    expect(out.rendered).toEqual([key(0, 1), key(0, 0)]);
   });
 
   test("a key with no loaded row is dropped (a hit outside the loaded scope)", () => {
     const byKey = new Map([[blockKeyStr(key(0, 0)), dr(0, 0, "[only]")]]);
-    expect(formatMemory([key(0, 0), key(0, 9)], byKey)).toBe("[only]");
+    const out = formatMemory([key(0, 0), key(0, 9)], byKey);
+    expect(out.text).toBe("[only]");
+    // …and the dropped key is NOT reported as rendered — the trace must never claim a block the prompt lacks.
+    expect(out.rendered).toEqual([key(0, 0)]);
   });
 
   test("a blank `text` body is dropped (no empty block in {{memory}})", () => {
     const byKey = new Map([[blockKeyStr(key(0, 0)), dr(0, 0, "   ")]]);
-    expect(formatMemory([key(0, 0)], byKey)).toBe("");
+    const out = formatMemory([key(0, 0)], byKey);
+    expect(out.text).toBe("");
+    expect(out.rendered).toEqual([]);
   });
 
   test("empty keys → empty string (no {{memory}} content)", () => {
-    expect(formatMemory([], new Map())).toBe("");
+    expect(formatMemory([], new Map())).toEqual({ text: "", rendered: [] });
   });
 });
