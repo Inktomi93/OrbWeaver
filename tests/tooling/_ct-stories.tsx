@@ -276,3 +276,79 @@ export function WalkerGradientBackdropStory(): ReactElement {
     </div>
   );
 }
+
+/** The ARIA-HIDDEN VISUAL stage (issue #253). Every judged element sits inside one `aria-hidden="true"`
+ *  subtree, and each carries a defect of a purely VISUAL kind — pixels a sighted user reads whether or not
+ *  a screen reader announces them. The walker used to `continue` past this whole subtree, so three live
+ *  findings vanished from a scan the day #230 correctly marked a facet preview aria-hidden, with no pixel
+ *  changing. The last row is the OTHER half of the split: an aria-hidden control must still be invisible to
+ *  the tap-target/name census, where the attribute genuinely decides the verdict. */
+export function WalkerAriaHiddenVisualStory(): ReactElement {
+  return (
+    <div style={{ backgroundColor: "rgb(16, 16, 20)", padding: 24, width: 480 }}>
+      <div aria-hidden="true">
+        <p data-testid="hidden-low-contrast" style={{ color: "rgb(56, 56, 62)", fontSize: 15 }}>
+          decorative copy set two shades off its own surface — unreadable, and still painted
+        </p>
+        <p data-testid="hidden-below-ramp" style={{ color: "rgb(240, 240, 245)", fontSize: 9 }}>
+          nine pixels
+        </p>
+        <p data-testid="hidden-tracked-prose" style={{ color: "rgb(240, 240, 245)", fontSize: 15, letterSpacing: "0.08em" }}>
+          This is ordinary running prose set with label tracking, which is exactly the defect the rule exists to catch.
+        </p>
+        {/* 10.5px is `text.micro` exactly — ON the ramp, so the ramp arm passes it through and the
+            INTERACTIVE floor is the arm that judges it. It is also the live size the facet preview
+            renders at, which is the finding #253 watched disappear. */}
+        <button data-testid="hidden-small-control" style={{ fontSize: 10.5 }} type="button">
+          Apply
+        </button>
+      </div>
+      <p data-testid="shown-legible-line" style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
+        an announced line at a legible size and contrast — the control that must stay clean
+      </p>
+    </div>
+  );
+}
+
+/** The DUAL-HOME stage (issue #252, runtime half). Three arms:
+ *   - the DEFECT: one action ("New chat") offered from three unrelated places on one plane — a hero CTA, a
+ *     rail button, and a topbar glyph. All three are one verb behind one shared handler, which is exactly
+ *     what makes the static call-site census blind to it;
+ *   - the PER-DATUM control: a list whose every row offers its own "Open" — twelve rows are twelve chats,
+ *     not twelve doors, and flagging them would make the lens a false-positive factory;
+ *   - the DISAMBIGUATED control: two buttons that share a role but not a name. */
+export function WalkerDuplicateDoorStory(): ReactElement {
+  const rows = ["Rust lecture", "Harbour watch", "The long road"];
+  return (
+    <div style={{ backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)", padding: 24, width: 520 }}>
+      <section data-slot="hero">
+        <button className="hero-cta" style={{ fontSize: 15, padding: 8 }} type="button">
+          New chat
+        </button>
+      </section>
+      <nav data-slot="rail" style={{ marginTop: 16 }}>
+        <button className="rail-button" style={{ fontSize: 15, padding: 8 }} type="button">
+          new chat
+        </button>
+      </nav>
+      <header data-slot="topbar" style={{ marginTop: 16 }}>
+        <button aria-label="New chat…" className="topbar-glyph" style={{ fontSize: 15, padding: 8 }} type="button">
+          +
+        </button>
+        <button className="topbar-glyph" style={{ fontSize: 15, padding: 8 }} type="button">
+          Import a card
+        </button>
+      </header>
+      <ul data-slot="chat-list" style={{ marginTop: 16 }}>
+        {rows.map((row) => (
+          <li className="chat-row" key={row}>
+            <span>{row}</span>
+            <button className="row-open" style={{ fontSize: 15, padding: 8 }} type="button">
+              Open
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
