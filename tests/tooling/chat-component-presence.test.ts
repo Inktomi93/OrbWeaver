@@ -79,6 +79,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   "talkativeness-popover": { coveredBy: "members-panel", why: "the Talkativeness… popover (commit/re-seed/snap-back) is driven through members-panel.ct." },
   "message-row-parts": { coveredBy: "message-row", why: "the row parts render only inside MessageRow; message-row.ct mounts the real row." },
   "message-row-bubble": { coveredBy: "message-row", why: "the bubble is a message-row-parts sub-part, covered through message-row.ct." },
+  "message-row-header": {
+    coveredBy: "message-row",
+    why: "the header (speaker name · timestamp · action cluster) is a #288 concept-split of message-row-parts — pure (args) => ReactNode helpers with no state, rendered only inside MessageRow; message-row.ct drives the real header slots (message-attribution / message-name-row / message-metadata-timestamp) and the name+actions structure on real rows.",
+  },
   "composer-utility-menu": {
     coveredBy: "composer-guided-cluster",
     why: "the ✨ utility menu renders inside the cluster; composer-guided-cluster.ct drives its Simple-send item + the menu.",

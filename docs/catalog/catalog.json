@@ -975,15 +975,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 21584,
-      "sha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
+      "bytes": 23000,
+      "sha256": "02e188a102395e92bae374ea4595515a45260dc80f724e2782462d0e541bc90c",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-19"
         },
         "errors": []
       },
@@ -1014,7 +1014,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
@@ -1205,15 +1205,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 115,
-      "bytes": 15859,
-      "sha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
+      "bytes": 16001,
+      "sha256": "d739bb9b0219ff3ddf37d70b865fabcb0e96dc2fbb1c602ed13ef3b6832543d6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-13"
+          "updated": "2026-08-19"
         },
         "errors": []
       },
@@ -1244,7 +1244,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Tier-3b-Providers.md",
@@ -10596,16 +10596,16 @@
       "path": "docs/design/containerize-prod-image-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 486,
-      "bytes": 38033,
-      "sha256": "a93959e4bbacf9959157066839c58effe0041a04fc8b1f63e75f60ba59a6084a",
+      "lines": 533,
+      "bytes": 42579,
+      "sha256": "cfde8a90c82d5b6e505fc0611071404fd6ae5e658a159d6bb5155478181f0005",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-08-14"
+          "updated": "2026-08-19"
         },
         "errors": []
       },
@@ -10640,7 +10640,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/context-panel-fidelity-findings.md",

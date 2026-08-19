@@ -10,8 +10,8 @@
 // These drive the PRODUCTION path: the real tabs over the real data layer, with the drill seeded through
 // the same `#state` selection the leaderboard writes.
 
-import { expect, test } from "@playwright/experimental-ct-react";
 import type { CharacterId } from "@orb/kit/ids";
+import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { AnalyticsModelsTabStory, AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
 
