@@ -32,8 +32,8 @@ import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
+import { percent } from "../lib/corpus-vocabulary.ts";
 
-const PERCENT = 100;
 /** The refinery rubric is a weighted average, so one decimal is the honest resolution (the character
  *  overview card's own `REFINERY_SCORE_DECIMALS` reads the same value the same way). */
 const SCORE_PRECISION = 1;
@@ -46,13 +46,17 @@ export interface CorpusDossierSurfaceProps {
   readonly onBack: () => void;
 }
 
+// THE DRILL-IN FOCUSES ITS OWN DOOR BACK OUT, not its container (side-eye corpus re-pass #2, P2-4).
+// This called `useFocusOnMount` on the surface ROOT — a `tabIndex={-1}` div with `outline: none`, which is
+// what the re-pass measured arriving focus landing on: 869x7831, no accessible name, no visible ring. The
+// gate's requirement (UI-Gates-and-Lessons §8: a drill-down surface manages focus on mount) is right and is
+// KEPT; what was wrong was the target. `Back` is the control this surface exists to return through, it is
+// named, and it paints a real focus ring — so the drill-in is announced instead of swallowed.
 export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfaceProps): ReactElement {
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
   return (
     // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces
     // (`corpus-content.tsx`, the Configuration precedent).
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none" data-testid={testId("corpusDossierSurface")}>
+    <Stack data-testid={testId("corpusDossierSurface")}>
       <QueryBoundary
         fallback={<Text voice="gloss">Loading dossier…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the dossier" onRetry={retry} />}
@@ -64,6 +68,11 @@ export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfa
 }
 
 function DossierBody({ characterId, onBack }: { readonly characterId: CharacterId; readonly onBack: () => void }): ReactElement {
+  // The drill-in's focus target (§8, and see the surface header). It lives on the BODY rather than the
+  // wrapper because the button only exists once the dossier's reads have resolved — a ref on the suspended
+  // shell would point at nothing on the render that matters.
+  const backRef = useRef<HTMLButtonElement>(null);
+  useFocusOnMount(backRef);
   const trpc = useTRPC();
   const { data: dossier } = useSuspenseQuery(trpc.discovery.characterDossier.queryOptions({ characterId }));
   const { data: keywords } = useSuspenseQuery(trpc.discovery.characterKeywords.queryOptions({ characterId, limit: KEYWORD_LIMIT }));
@@ -88,7 +97,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
   return (
     <Stack gap="section">
-      <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
+      <Button intent="ghost" size="sm" onClick={onBack} className="self-start" ref={backRef}>
         <Icon icon={ArrowLeft} size="sm" />
         Back
       </Button>
@@ -97,8 +106,15 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         <CharacterAvatar id={characterId} name={dossier.name} hash={avatarHash} size="lg" />
         <Stack gap="field">
           <Text className="text-title leading-title font-semibold">{dossier.name}</Text>
-          {facet !== "" ? <Text voice="kicker">{facet}</Text> : null}
-          {dossier.elevatorPitch !== null ? <Text className="text-muted-foreground">{dossier.elevatorPitch}</Text> : null}
+          {/* THE FACET CHAIN IS DATA, NOT A SECTION NAME (side-eye corpus re-pass #2, P3-2). It rendered at
+              `voice="kicker"` — 9.5px UPPERCASE with .09em tracking, the register reserved for a band label
+              — so a distilled value the pass wrote in lower case ("fantasy · melancholic") arrived shouting.
+              `gloss` is the quiet second line this actually is; the casing is `characterFacetLine`'s. */}
+          {facet !== "" ? <Text voice="gloss">{facet}</Text> : null}
+          {/* A MEASURE CAP ON THE PROSE (P2-8): the pitch measured 109ch and the neighbour gloss 165ch on a
+              wide pane, against the 65-75ch reading law. The cap belongs on the PARAGRAPH, never on the
+              page — `--reading-measure` is the token the masthead's own headline uses one section up. */}
+          {dossier.elevatorPitch !== null ? <Text className="max-w-(--reading-measure) text-muted-foreground">{dossier.elevatorPitch}</Text> : null}
         </Stack>
       </Row>
 
@@ -181,8 +197,15 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                 can act on. Re-sorting by the printed percent would throw away the better ranking to make one
                 column monotonic; printing the ranking number restores the all-zeros readout this surface
                 already fixed once. So the list states its own sort, which is the third arm and the honest
-                one. It sits OUTSIDE the `role="list"` — a list's children are listitems, not prose. */}
-            <Text voice="gloss">Closest first, holding back the library's most-connected cards. The percent is plain card similarity.</Text>
+                one. It sits OUTSIDE the `role="list"` — a list's children are listitems, not prose.
+
+                LEAD WITH THE CLAIM THE NUMBERS SUPPORT (side-eye corpus re-pass #2, P3-1). The line opened
+                "Closest first" and then spent two clauses walking it back — over a column of percents that
+                visibly does NOT descend, so the first thing a reader checks is the first thing that looks
+                wrong. Same two facts, ordered so the sentence survives its own evidence. */}
+            <Text className="max-w-(--reading-measure)" voice="gloss">
+              Ranked by distinctive similarity — the percent is plain card similarity, so it won't descend.
+            </Text>
             <Stack gap="row" role="list">
               {dossier.similar.map((neighbor) => {
                 const neighborFacet = characterFacetLine(neighbor.genre, neighbor.tone);
@@ -263,12 +286,6 @@ function Relevance({ value }: { readonly value: number }): ReactElement {
       {percent(value)}
     </Text>
   );
-}
-
-/** THE surface's one similarity spelling — a whole percent. Shared by the neighbour readout and the
- *  portrait-alignment line so a 0-1 cosine never reaches a reader in two different costumes (B8). */
-function percent(value: number): string {
-  return `${Math.round(value * PERCENT)}%`;
 }
 
 function AskPanel({ characterId }: { readonly characterId: CharacterId }): ReactElement {

@@ -306,6 +306,110 @@ const DUPLICATE_HITS: TrpcRoutes = {
   },
 };
 
+// ── P1-1 + P2-2 + P2-3: THE SCENES BRANCH, WHERE THE EVIDENCE IS THE UNIT ────────────────────────────
+// The re-pass measured three room doors — "Anika Jan 28" / "Jan 26 (3)" / "Jan 28 (2)" — each sitting over
+// the byte-identical 220-char snippet, because the preview grouped a character's segments BY CHAT. Twenty
+// slots, one memory, and a reader who reasonably concludes the search is broken. The C2 dedupe that fixed
+// the Memories branch is deliberately NOT the fix here: dropping a hit would drop a real room. The grouping
+// inverts instead — one body, every room that carries it hanging off it as a door.
+const PASSAGE = "The rain came sideways off the harbour and neither of them moved for a long moment.";
+const OTHER_PASSAGE = "She counted the coins twice, then pushed the whole stack back across the table.";
+/** Three rooms: two share the passage (a duplicated import — note the numbered title), one has its own. */
+const SCENE_HITS: TrpcRoutes = {
+  "search.search": {
+    over: "discover",
+    hits: [
+      {
+        characterId: "character_anika",
+        score: 0.1,
+        relevance: 0.83,
+        name: "Anika",
+        avatarHash: null,
+        genre: "noir",
+        tone: "wry",
+        elevatorPitch: null,
+        matchCount: 79,
+        segments: [
+          { chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Anika Jan 28" },
+          { chatId: "chat_harbour_copy", blockIdx: 5, snippet: PASSAGE, score: 0.12, chatTitle: "Anika Jan 28 (2)" },
+          { chatId: "chat_market", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Anika Jan 26" },
+        ],
+      },
+    ],
+  },
+};
+
+/** The three room doors the fixture must produce (hoisted — the loop body is a locator per name). */
+const SCENE_ROOMS = ["Anika Jan 28", "Anika Jan 28 (2)", "Anika Jan 26"];
+/** The numbering hint, matched loosely: the sentence is the client's, the tell is the word. */
+const NUMBERED_HINT = /numbered/;
+
+async function searchScenes(component: ReturnType<Page["locator"]>): Promise<void> {
+  await component.getByRole("button", { name: "Search Scenes" }).click();
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("harbour rain");
+  await expect(component.getByText(PASSAGE)).toBeVisible();
+}
+
+test("SCENES: one passage renders ONCE, with a door into every room it was found in (P1-1)", async ({ mount, page }) => {
+  await routeTrpc(page, SCENE_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchScenes(component);
+  // THE DEFECT, as a count: the shared passage appeared under each of its rooms.
+  await expect(component.getByText(PASSAGE)).toHaveCount(1);
+  await expect(component.getByText(OTHER_PASSAGE)).toHaveCount(1);
+  // …and NOTHING was dropped to get there — all three rooms are still reachable, as doors.
+  // EXACT names: "Anika Jan 28" is a PREFIX of "Anika Jan 28 (2)", and Playwright's name match is a
+  // substring by default — the loose form resolves two nodes for one room and reports a defect that is
+  // the query's, not the surface's.
+  await Promise.all(SCENE_ROOMS.map(async (room) => expect(component.getByRole("button", { name: room, exact: true })).toHaveCount(1)));
+});
+
+test("SCENES: a room is a door that LANDS, and it looks like one — left-aligned, muted, arrowed (P2-2)", async ({ mount, page }) => {
+  await routeTrpc(page, SCENE_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchScenes(component);
+  const door = component.getByRole("button", { name: "Anika Jan 28 (2)" });
+  // DOOR VOCABULARY, measured: the label starts at the control's leading edge (it was centred) and the
+  // arrow the surface's other doors carry is present. Colour is asserted as "not the body ink", which is
+  // what "reads as a heading" meant — the exact token is the ghost intent's business.
+  const shape = await door.evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    const body = globalThis.getComputedStyle(globalThis.document.body);
+    return { justify: style.justifyContent, colour: style.color, bodyColour: body.color, text: el.textContent ?? "" };
+  });
+  expect(shape.justify, "a door's label starts where the reader's eye already is").toBe("flex-start");
+  expect(shape.text, "…and carries the arrow every other door on this surface carries").toContain("→");
+  expect(shape.colour, "…and is not painted in the body ink that made it read as a heading").not.toBe(shape.bodyColour);
+
+  await door.click();
+  await expect(component.getByTestId("ct-nav-readout")).toHaveText("section:chats chat:chat_harbour_copy");
+});
+
+test("SCENES: the honesty line is readable, not clipped to '…— showin' (P2-3)", async ({ mount, page }) => {
+  await routeTrpc(page, SCENE_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchScenes(component);
+  // The subtitle is the row's description: 79 matching moments, and how many of them are under it.
+  const scent = component.locator('[data-slot="list-row-subtitle"]').first();
+  await expect(scent).toContainText("79 matching moments");
+  const clipped = await scent.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(clipped, "the line that says what the list does NOT show must not itself be cut off").toBe(false);
+});
+
+test("SCENES: a numbered room title explains its own number (P3-6)", async ({ mount, page }) => {
+  await routeTrpc(page, SCENE_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchScenes(component);
+  // The `(2)` is part of the room's STORED title (rooms that arrive sharing a name are numbered at import),
+  // so the label cannot explain itself and the hint states the app's rule — on the numbered door only.
+  await expect(component.getByRole("button", { name: "Anika Jan 28 (2)" })).toHaveAttribute("title", NUMBERED_HINT);
+  await expect(component.getByRole("button", { name: "Anika Jan 26" })).not.toHaveAttribute("title", NUMBERED_HINT);
+});
+
 test("a memory body reads as prose — flattened markdown, no raw syntax — and identical evidence renders ONCE", async ({ mount, page }) => {
   await routeTrpc(page, DUPLICATE_HITS);
   const component = await mount(<CorpusListSurfaceNavStory />);

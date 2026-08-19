@@ -399,39 +399,77 @@ const MANY_FAMILIES = Array.from({ length: 8 }, (_, i) => ({
 /** A library whose ISLAND is the tall column — eight family plates against a five-row rail, which is the
  *  shape that produced the audited void. */
 const TALL_ISLAND: TrpcRoutes = { ...ANALYSED, "discovery.visualArchetypes": MANY_FAMILIES };
-/** How close the two columns' feet must come. Not zero: the tracks carry different content and the last
- *  hairline row's own border rounds; a quarter of the audited 250px gap would still be a visible void. */
-const FOOT_TOLERANCE_PX = 24;
+// THE FIX THAT WAS TRIED HERE IS REVERSED, AND SO ARE ITS PINS (side-eye corpus re-pass #2, P2-1). Two
+// tests used to assert the rail's FOOT met the island's, which is what `flex-1` + `justify="between"` on the
+// stage stack bought. The re-pass measured what it cost: pitch 101/101/101/102px over rows whose ink is
+// ~33px — 67% air, uniform, the density spec's own slop tell — and a failure sentence crushed at the foot.
+// The void the distribute was fixing is the cheaper defect, so the rows are natural again and THIS is the
+// property that has to hold instead: consecutive stage rows are hairline-separated, with no distributed air
+// between them, at every pane width and every island height. (The old foot-gap claim is deliberately NOT
+// re-pinned in a weaker form — it was refuted, not loosened.)
+/** The air between consecutive stage rows. Hairline rows touch, so anything above rounding IS distribution. */
+const ROW_AIR_TOLERANCE_PX = 1.5;
 
-/** How far the readiness column's foot sits above the island's, in px — the audited void, measured. */
-async function footGap(page: Page): Promise<number> {
-  const island = await page.locator("[data-corpus-focal]").boundingBox();
-  const rail = await page.locator('[data-slot="readiness-rail"]').boundingBox();
-  if (island === null || rail === null) {
-    throw new Error("the focal island or the readiness rail did not render a box");
-  }
-  return island.y + island.height - (rail.y + rail.height);
+/** Every gap between consecutive readiness rows, in px, top-to-bottom. */
+async function railRowAir(page: Page): Promise<number[]> {
+  const rows = await page.locator('[data-slot="readiness-stage"]').all();
+  const boxes = await Promise.all(rows.map(async (row) => row.boundingBox()));
+  const measured = boxes.map((box) => {
+    if (box === null) {
+      throw new Error("a readiness stage row did not render a box");
+    }
+    return box;
+  });
+  return measured.slice(1).map((box, index) => box.y - ((measured[index]?.y ?? 0) + (measured[index]?.height ?? 0)));
 }
 
 // TWO EXPLICIT MOUNTS, not a loop over a story tuple: playwright-ct hoists each imported story into one
 // generated const, and a story named in a second `as const` tuple array in the same file collides with the
 // first ("Identifier … has already been declared", at bundle eval — not a test failure, a build one).
-test("THE READINESS COLUMN MEETS THE ISLAND'S FOOT at the owner's default pane (§5)", async ({ mount, page }) => {
+test("THE READINESS ROWS KEEP THEIR OWN PITCH at the owner's default pane (P2-1)", async ({ mount, page }) => {
   await routeTrpc(page, TALL_ISLAND);
   await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
-  const gap = await footGap(page);
-  expect(gap, `the readiness column stops ${Math.round(gap)}px above the island`).toBeLessThanOrEqual(FOOT_TOLERANCE_PX);
+  const air = await railRowAir(page);
+  expect(air.length, "the rail renders its five stage rows").toBe(4);
+  expect(Math.max(...air), `the stage rows are ${air.map((gap) => Math.round(gap)).join("/")}px apart`).toBeLessThanOrEqual(ROW_AIR_TOLERANCE_PX);
 });
 
-test("…and at a wide pane, where the audited void was measured (§5)", async ({ mount, page }) => {
+test("…and at a wide pane, where the island is tallest and the spread was worst (P2-1)", async ({ mount, page }) => {
   await routeTrpc(page, TALL_ISLAND);
   await mount(<CorpusHomeWidePaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
-  const gap = await footGap(page);
-  expect(gap, `the readiness column stops ${Math.round(gap)}px above the island`).toBeLessThanOrEqual(FOOT_TOLERANCE_PX);
+  const air = await railRowAir(page);
+  expect(Math.max(...air), `the stage rows are ${air.map((gap) => Math.round(gap)).join("/")}px apart`).toBeLessThanOrEqual(ROW_AIR_TOLERANCE_PX);
+});
+
+// ── P2-6: THE FIGURE BLOCK ALIGNS WITH THE SENTENCE IT ANNOTATES ─────────────────────────────────────
+// `text-right` was unconditional, so in every STACKED arm the hero numeral floated at the right edge of its
+// own content-sized column while the h1 above started at the container's text edge — measured x≈79 against
+// an edge of 24. Right-alignment is a two-column relationship; this is the arm that has one column.
+/** Where the GLYPHS start, not where the box does. A `Text as="span"` inside a flex column is blockified, so
+ *  its bounding box fills the column whatever `text-align` does — the box is blind to the exact defect. A
+ *  Range over the node's contents measures the painted text. */
+function textLeft(locator: ReturnType<Page["locator"]>): Promise<number> {
+  return locator.evaluate((el) => {
+    const range = globalThis.document.createRange();
+    range.selectNodeContents(el);
+    return range.getBoundingClientRect().x;
+  });
+}
+
+test("the masthead figure lines up with the headline when the arms STACK (P2-6)", async ({ mount, page }) => {
+  await routeTrpc(page, TALL_ISLAND);
+  const component = await mount(<CorpusHomeNarrowPaneStory />);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+
+  const [headline, figure] = await Promise.all([textLeft(component.getByRole("heading", { level: 1 })), textLeft(component.getByText("8", { exact: true }))]);
+  expect(
+    Math.abs(figure - headline),
+    `the hero numeral's glyphs start at x=${Math.round(figure)}, the headline's at ${Math.round(headline)}`,
+  ).toBeLessThanOrEqual(1);
 });
 
 test("the mobile masthead STACKS rather than squeezing the headline into a column (B7)", async ({ mount, page }) => {
