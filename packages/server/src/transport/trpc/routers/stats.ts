@@ -26,10 +26,13 @@ export const statsRouter = t.router({
         .object({
           sort: z.enum(LEADERBOARD_SORTS).optional(),
           limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional(),
+          // The LIST-pane name search — narrows the ranked page AND its census to the match. Owner-scoping
+          // is unchanged (positional `ownerId` below); this only filters within the owner's own characters.
+          search: z.string().optional(),
         })
         .optional(),
     )
-    .query(({ ctx, input }) => ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit })),
+    .query(({ ctx, input }) => ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit, search: input?.search })),
 
   timeseries: authedProcedure
     .input(z.object({ from: z.string().optional(), to: z.string().optional() }).optional())

@@ -21,6 +21,7 @@ export {
   useActiveChatId,
   useNewChatIntent,
 } from "./active-chat-store.ts";
+export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
 export {
   analyticsSectionSelection,
   clearAnalyticsSelection,
