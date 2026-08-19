@@ -204,8 +204,12 @@ export function HomeDocumentsTileBody(): ReactElement {
                       // The row's own phase, at the head of the subtitle line and `size="inline"` — the
                       // library row's ruling, carried: a padded chip beside the TITLE eats the name on
                       // exactly the rows that have one, and a chip on a READY row is chrome.
+                      // The Empty phase's ⚠ glyph rides here too — the third-differentiator ruling
+                      // (2026-08-19) reaches all three surfaces, not two; safe since the badge inline
+                      // arm learned to keep a block svg on the line.
                       subtitleLead: (
                         <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft">
+                          {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                           {badge.label}
                         </Badge>
                       ),
