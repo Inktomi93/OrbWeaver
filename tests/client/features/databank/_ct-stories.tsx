@@ -17,7 +17,15 @@ import { DatabankLibrarySurface } from "../../../../packages/client/src/features
 import { HomeSurface, makeSectionJumpTile } from "../../../../packages/client/src/features/home/index.ts";
 import { createContributorRegistry } from "../../../../packages/client/src/lib/index.ts";
 import type { HomeTileContribution } from "../../../../packages/client/src/state/index.ts";
-import { closeModal, useActiveSection, useDatabankPhaseFilter, useOpenModal, useSelectedDocumentId } from "../../../../packages/client/src/state/index.ts";
+import {
+  closeModal,
+  useActiveSection,
+  useDatabankPhaseFilter,
+  useOpenModal,
+  useSelectedDocumentId,
+  useSettingsSubTarget,
+  useSettingsTarget,
+} from "../../../../packages/client/src/state/index.ts";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
@@ -94,7 +102,7 @@ export function DatabankDetailWideStory(): ReactElement {
   );
 }
 
-/** The CONTEXT activation body (Everywhere · Active in · the retrieval pointer). */
+/** The CONTEXT activation body (Everywhere · Active in · the retrieval door). */
 export function DatabankContextStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -102,6 +110,17 @@ export function DatabankContextStory(): ReactElement {
         <DatabankContextBody />
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The shell-store probe the CONTEXT pane's settings DOOR is asserted through: `openSettingsTo` writes the
+ *  shell store, so the deep link is proven at the STORE ACTION (the modal slot + the category + the
+ *  subcategory it targets), never at a rendered echo — these stories mount no settings shell to echo it. */
+function DatabankSettingsProbe(): ReactElement {
+  return (
+    <output>
+      modal={useOpenModal() ?? "none"} category={useSettingsTarget() ?? "none"} sub={useSettingsSubTarget() ?? "none"}
+    </output>
   );
 }
 
@@ -178,6 +197,7 @@ export function DatabankHomeTileNarrowStory(): ReactElement {
 export function DatabankWorkspaceStory(): ReactElement {
   return (
     <CtDataProviders>
+      <DatabankSettingsProbe />
       <div style={{ display: "flex", height: 700 }}>
         <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
           <DatabankLibrarySurface />

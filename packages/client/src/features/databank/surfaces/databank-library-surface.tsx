@@ -199,7 +199,7 @@ function DatabankList(): ReactElement {
     <>
       {phaseFilter === null ? null : <PhaseFilterChip phase={phaseFilter} />}
       <LibraryListLayout
-        empty={<DatabankEmpty needle={settledQuery} phaseFilter={phaseFilter} />}
+        empty={<DatabankEmpty needle={settledQuery} onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} />}
         isEmpty={documents.length === 0}
         onSearchChange={setQuery}
         searchLabel="Search documents"
@@ -255,6 +255,8 @@ function DatabankList(): ReactElement {
 interface DatabankEmptyProps {
   readonly needle: string;
   readonly phaseFilter: IngestPhase | null;
+  /** Empties the search box — the no-match arm's way OUT (see the `DatabankEmpty` note). */
+  readonly onClearSearch: () => void;
 }
 
 /** The pane's THREE honest empties, never one generic "nothing here" — a bank with nothing in it teaches the
@@ -265,8 +267,15 @@ interface DatabankEmptyProps {
  *  THE FOURTH ARM IS GONE with the client-side window it existed for: "No matches in view — load more to keep
  *  looking" was the honest thing to say while the predicates ran over the loaded pages, and it is a dead end
  *  pretending to be a next step now that the server searched the whole bank (the character library's identical
- *  retirement, 2026-08-14). */
-function DatabankEmpty({ needle, phaseFilter }: DatabankEmptyProps): ReactElement {
+ *  retirement, 2026-08-14).
+ *
+ *  EVERY ARM CARRIES ITS OWN WAY OUT (side-eye 2026-08-19 P2). The no-match arm used to render "No matches"
+ *  and nothing else — a dead end with the SEARCH BOX above it as the only exit, and the box still holding
+ *  the term that produced the state. The phase-scope arm two branches up had had its clear affordance since
+ *  2026-08-08; this one was the arm that did not. It gets BOTH doors: put the bank back (Clear search), or
+ *  make the thing you were looking for (Add a document) — the second is why an empty search result is not
+ *  the same dead end as an empty phase scope. */
+function DatabankEmpty({ needle, phaseFilter, onClearSearch }: DatabankEmptyProps): ReactElement {
   if (phaseFilter !== null) {
     return (
       <EmptyState
@@ -281,14 +290,24 @@ function DatabankEmpty({ needle, phaseFilter }: DatabankEmptyProps): ReactElemen
       />
     );
   }
+  const add = (
+    <Button intent={needle === "" ? "secondary" : "ghost"} onClick={(): void => openModal("addDocument")} size="sm">
+      Add a document
+    </Button>
+  );
   return (
     <EmptyState
       action={
         needle === "" ? (
-          <Button intent="secondary" onClick={(): void => openModal("addDocument")} size="sm">
-            Add a document
-          </Button>
-        ) : undefined
+          add
+        ) : (
+          <Row align="center" gap="field" justify="center">
+            <Button intent="secondary" onClick={onClearSearch} size="sm">
+              Clear search
+            </Button>
+            {add}
+          </Row>
+        )
       }
       description={needle === "" ? DATABANK_INGEST_GLOSS : "No document matches your search."}
       icon={<Icon icon={needle === "" ? FileText : Search} size="lg" />}

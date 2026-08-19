@@ -7,9 +7,9 @@
 // D-6 — the owner-wide sweeps ride the BAND'S KEBAB, never a primary: `reindex({kind:'owner'})` in both
 // modes. `chunk-embed` re-chunks and re-embeds every document the caller owns (what you run after a chunk-
 // param or embed-model change); `re-extract` additionally re-runs extraction over every stored CAS blob (an
-// extractor-upgrade sweep), which is why it sits behind a confirm — it is the expensive arm and it rewrites
-// every document's canon. Both are maintenance over the WHOLE bank, i.e. exactly the class of verb A2 keeps
-// out of the band's primary slot.
+// extractor-upgrade sweep), so it is the expensive arm and it rewrites every document's canon. Both are
+// maintenance over the WHOLE bank, i.e. exactly the class of verb A2 keeps out of the band's primary slot —
+// and both confirm (2026-08-19): the scope is what earns the dialog, not the runtime.
 //
 // The confirm is a `primary` ConfirmDialog, NOT the kebab's `destructive` arm: re-extract deletes nothing
 // (every document, junction and chunk survives — the canon is re-derived from bytes we still hold), and a
@@ -45,6 +45,14 @@ export function DatabankListHeader(): ReactElement {
   const { data: census } = useQuery(trpc.databank.bankHealth.queryOptions());
   const reindex = useReindexDocuments({ trpc, invalidation });
   const [reExtractOpen, setReExtractOpen] = useState(false);
+  const [reindexOpen, setReindexOpen] = useState(false);
+  // NEITHER SWEEP IS OFFERED OVER AN EMPTY BANK (side-eye 2026-08-19 P3). Both items were enabled at zero
+  // documents — a control whose whole job is "re-run this over everything you have" is a lie when you have
+  // nothing, and firing it costs a round trip to be told so. The census the band already prints IS the
+  // predicate, so this needs no second read. `?? 0` covers the pre-settle render: the sweeps stay closed
+  // until the count is known, which is the safe direction (a disabled control that enables is a beat late;
+  // an enabled one that fires into an unknown bank is the defect).
+  const bankIsEmpty = (census?.total ?? 0) === 0;
 
   const sweep = (mode: "chunk-embed" | "re-extract"): void => {
     reindex.mutate(
@@ -64,11 +72,11 @@ export function DatabankListHeader(): ReactElement {
           // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
           <Row align="center" gap="field">
             <RowActionsMenu label="Databank maintenance">
-              <MenuItem disabled={reindex.isPending} onClick={(): void => sweep("chunk-embed")}>
+              <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReindexOpen(true)}>
                 <Icon icon={RefreshCw} size="sm" />
                 Reindex everything
               </MenuItem>
-              <MenuItem disabled={reindex.isPending} onClick={(): void => setReExtractOpen(true)}>
+              <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReExtractOpen(true)}>
                 <Icon icon={RefreshCw} size="sm" />
                 Re-extract everything
               </MenuItem>
@@ -81,6 +89,20 @@ export function DatabankListHeader(): ReactElement {
         }
         count={census?.total ?? 0}
         title="Databank"
+      />
+      {/* REINDEX CONFIRMS TOO (side-eye 2026-08-19 P3). It used to fire BARE from the menu while its
+          slower sibling sat behind a dialog — so the one owner-wide sweep a mis-aimed click could start was
+          the one with no way back, and the pair taught that a confirm means "slow" rather than "this is
+          everything you own". Both arms now name their consequence first; `primary`, not destructive, for
+          the reason the re-extract confirm records — nothing is deleted. */}
+      <ConfirmDialog
+        confirmIntent="primary"
+        confirmLabel="Reindex"
+        description="Every document you own is re-chunked and re-embedded. Nothing is deleted — this is the sweep you run after a chunking or embedding-model change, and it can take a while on a large bank."
+        onConfirm={(): void => sweep("chunk-embed")}
+        onOpenChange={setReindexOpen}
+        open={reindexOpen}
+        title="Reindex every document?"
       />
       <ConfirmDialog
         confirmIntent="primary"
