@@ -568,7 +568,7 @@ test("M5: an OFF-SCREEN code block is laid out at its content height, not a 200p
 const QUOTED_MARKDOWN = "> The bridge remembers every crossing.\n\n*she leans in, quiet.*\n";
 const INLINE_CODE_MARKDOWN = "call `resolveRole(role)` first";
 
-test("#238: a blockquote renders its rule + indent + separation, and does not read as narration", async ({ mount }) => {
+test("issue 238: a blockquote renders its rule + indent + separation, and does not read as narration", async ({ mount }) => {
   const cmp = await mount(
     <Markdown trust="untrusted" mode="static">
       {QUOTED_MARKDOWN}
@@ -583,6 +583,9 @@ test("#238: a blockquote renders its rule + indent + separation, and does not re
       paddingLeft: Number.parseFloat(s.paddingLeft),
       paddingTop: Number.parseFloat(s.paddingTop),
       borderColor: s.borderLeftColor,
+      // The alpha channel parsed out so the transparent check needs no color literal (gate §13.7):
+      // computed colors serialize as rgb(a b c) at alpha 1 (no alpha slot) or rgba(..., a) below it.
+      borderAlpha: s.borderLeftColor.startsWith("rgba") ? Number.parseFloat(s.borderLeftColor.split(",")[3] ?? "1") : 1,
       bg: s.backgroundColor,
     };
   });
@@ -591,7 +594,7 @@ test("#238: a blockquote renders its rule + indent + separation, and does not re
   expect(box.paddingLeft).toBeGreaterThan(0);
   expect(box.paddingTop).toBeGreaterThan(0);
   // The rule is a real, visible edge — not a transparent one (a 4px transparent border still measures 4).
-  expect(box.borderColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(box.borderAlpha).toBeGreaterThan(0);
   expect(box.borderColor).not.toBe(box.bg);
   // …and the narration voice beside it carries NONE of that geometry: the two are no longer the same
   // rendering (both are italic + muted by design; the quote's distinctness has to come from its box).
@@ -600,7 +603,7 @@ test("#238: a blockquote renders its rule + indent + separation, and does not re
   expect(narrationBorder).toBe(0);
 });
 
-test("#238: inline code renders its horizontal padding (the vendor's own utility never compiled)", async ({ mount }) => {
+test("issue 238: inline code renders its horizontal padding (the vendor's own utility never compiled)", async ({ mount }) => {
   const cmp = await mount(
     <Markdown trust="untrusted" mode="static">
       {INLINE_CODE_MARKDOWN}

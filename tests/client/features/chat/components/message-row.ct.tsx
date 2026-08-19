@@ -617,8 +617,8 @@ test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band,
     <MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} showInChatAvatars={false} />,
   );
   const echoBubble = echo.locator(BUBBLE);
-  expect(await echoBubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
-  expect(await echoBubble.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
+  await expect.poll(() => echoBubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
+  await expect.poll(() => echoBubble.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
   await expect(echo.locator(EDGE_TILE)).toHaveCount(0);
   await echo.unmount();
 
