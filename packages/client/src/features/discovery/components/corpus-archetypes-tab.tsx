@@ -50,7 +50,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { toBarItems } from "../lib/corpus-charts.ts";
+import { disambiguateLabels, toBarItems } from "../lib/corpus-charts.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
@@ -114,17 +114,12 @@ export function CorpusArchetypesTab(): ReactElement {
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">
       <ParamSelect label="Clusters" value={k} items={K_ITEMS} onValueChange={setK} />
 
-      <Section heading="Writing archetypes">
-        <ClusterView
-          isPending={archetypes.isPending}
-          error={archetypes.error}
-          onRetry={archetypes.refetch}
-          clusters={archetypes.data ?? []}
-          emptyLabel="No writing archetypes computed yet."
-          chartLabel="Writing cluster sizes"
-        />
-      </Section>
-
+      {/* ART FIRST, AND THAT IS THE DOOR'S DOING (side-eye corpus re-pass A7). This tab is the destination of
+          the CONTENT family map's "All families →", the surface's one drill-out — and it landed the reader at
+          the top of WRITING archetypes, a different artifact, with the visual families a full bar-chart and
+          ten cluster cards further down. The claim a door makes is where it puts you, not what is somewhere
+          on the page it opens; the families are what was asked for, so they are what is under the fold line.
+          The writing half loses nothing but its position — it has no door of its own to disappoint. */}
       <Section heading="Art archetypes">
         <ClusterView
           isPending={visual.isPending}
@@ -141,6 +136,17 @@ export function CorpusArchetypesTab(): ReactElement {
           }))}
           emptyLabel="No art archetypes computed yet."
           chartLabel="Art cluster sizes"
+        />
+      </Section>
+
+      <Section heading="Writing archetypes">
+        <ClusterView
+          isPending={archetypes.isPending}
+          error={archetypes.error}
+          onRetry={archetypes.refetch}
+          clusters={archetypes.data ?? []}
+          emptyLabel="No writing archetypes computed yet."
+          chartLabel="Writing cluster sizes"
         />
       </Section>
     </Stack>
@@ -171,29 +177,42 @@ function ClusterView({
   if (clusters.length === 0) {
     return <CorpusDistillEmptyState title={emptyLabel} description="Archetypes cluster your distilled, indexed cards. Distill your library, then come back." />;
   }
+  // ONE NAME PER CLUSTER, resolved ONCE (side-eye corpus re-pass B6). The bar and the card below it are two
+  // views of the same cluster, so they must not disambiguate independently — and the labeller repeats itself
+  // often enough on a homogeneous library that this is the ordinary case, not the edge one.
+  const names = disambiguateLabels(clusters.map((cluster) => ({ label: cluster.label, facets: clusterFacets(cluster) })));
+  const bars = clusters.map((cluster, index) => ({ name: names[index] ?? cluster.label, size: cluster.size }));
   return (
     <Stack gap="block">
       <BarList
         label={chartLabel}
         items={toBarItems(
-          clusters,
-          (cluster) => cluster.label,
-          (cluster) => cluster.size,
+          bars,
+          (bar) => bar.name,
+          (bar) => bar.size,
         )}
       />
-      {clusters.map((cluster) => (
-        <ClusterCard key={`${cluster.label}-${cluster.members[0]?.characterId ?? "empty"}`} cluster={cluster} />
+      {clusters.map((cluster, index) => (
+        <ClusterCard key={`${cluster.label}-${cluster.members[0]?.characterId ?? "empty"}`} cluster={cluster} name={names[index] ?? cluster.label} />
       ))}
     </Stack>
   );
 }
 
-function ClusterCard({ cluster }: { readonly cluster: ArchetypeCard }): ReactElement {
+/** A cluster's facets, most-distinguishing first: its own labelling inputs (art style · palette · mood, or
+ *  genre/tone for the writing half), then its top tags. The disambiguator takes the first one its
+ *  same-named peers do NOT share, so the order decides which difference gets printed. */
+function clusterFacets(cluster: ArchetypeCard): string[] {
+  return [...(cluster.extra ?? []), cluster.genre, cluster.tone, ...cluster.topTags].filter((facet): facet is string => facet !== null && facet !== "");
+}
+
+function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; readonly name: string }): ReactElement {
   const facets = [cluster.genre, cluster.tone, ...(cluster.extra ?? [])].filter((v) => v !== null && v !== "");
   return (
     <Stack gap="field">
       <Row align="center" gap="field" justify="between">
-        <Text className="font-semibold">{cluster.label}</Text>
+        {/* The DISAMBIGUATED name (B6) — the card and its bar are one cluster and must answer to one name. */}
+        <Text className="font-semibold">{name}</Text>
         <Text voice="gloss">{cluster.size} members</Text>
       </Row>
       {facets.length > 0 ? <Text voice="kicker">{facets.join(" · ")}</Text> : null}

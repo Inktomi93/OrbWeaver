@@ -18,7 +18,8 @@ interface EconomicsRow {
   readonly characterId: CharacterId;
   readonly generations: number;
   readonly tokensIn: number;
-  readonly tokensOut: number;
+  /** NULL when no selected variant of this character recorded a `tokens_out` at all — see the read. */
+  readonly tokensOut: number | null;
   readonly costUsd: number;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
@@ -36,13 +37,19 @@ interface ModelEconomicsRow {
 }
 
 /** Per-character economics — the selected assistant-variant totals, owner-scoped. One row per character
- *  that has ≥1 assistant generation. */
+ *  that has ≥1 assistant generation.
+ *
+ *  `tokensOut` IS DELIBERATELY NOT COALESCED (side-eye corpus re-pass B2): `SUM` over an all-NULL column
+ *  returns NULL, which is the one signal that separates "this library never recorded output tokens" (every
+ *  imported turn) from "the model returned nothing" (a real 0). Coalescing it to 0 here is what made the
+ *  corpus shelf print "0 tokens returned · 1,187 exchanges". The other sums keep their COALESCE: a missing
+ *  cost or cache count on a local-model turn genuinely IS zero. */
 export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<CharacterEconomics[]> {
   const rows = await db.all<EconomicsRow>(sql`
     SELECT m.character_id AS characterId,
            COUNT(*) AS generations,
            COALESCE(SUM(v.tokens_in), 0) AS tokensIn,
-           COALESCE(SUM(v.tokens_out), 0) AS tokensOut,
+           SUM(v.tokens_out) AS tokensOut,
            COALESCE(SUM(v.cost_usd), 0) AS costUsd,
            COALESCE(SUM(v.cache_read_tokens), 0) AS cacheReadTokens,
            COALESCE(SUM(v.cache_write_tokens), 0) AS cacheWriteTokens
@@ -58,7 +65,8 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     characterId: castId<CharacterId>(r.characterId),
     generations: Number(r.generations),
     tokensIn: Number(r.tokensIn),
-    tokensOut: Number(r.tokensOut),
+    // `Number(null)` is 0 — the null must survive the mapper or the SQL's whole point is undone one line later.
+    tokensOut: r.tokensOut === null ? null : Number(r.tokensOut),
     costUsd: Number(r.costUsd),
     cacheReadTokens: Number(r.cacheReadTokens),
     cacheWriteTokens: Number(r.cacheWriteTokens),

@@ -1,9 +1,11 @@
 // Unit: the corpus chart-adoption view-models (features/discovery/lib/corpus-charts). Pure, no DOM — the
 // count→BarList adapter (unique keys even on repeated labels) and the semantic-map genre grouping (points
 // bucketed into <Scatter> series by top-N frequency, deterministic tie-break, an "Other" catch-all for the
-// overflow + null). The surfaces lean on both; this asserts the shaping, not a trivial passthrough.
+// overflow + null) — plus the cluster-label disambiguator, which is the one thing on this surface standing
+// between a repeated k-means label and three bars a reader (or a screen reader) cannot tell apart. The
+// surfaces lean on all three; this asserts the shaping, not a trivial passthrough.
 
-import { toBarItems, toGenreSeries } from "../../../../../packages/client/src/features/discovery/lib/corpus-charts.ts";
+import { disambiguateLabels, toBarItems, toGenreSeries } from "../../../../../packages/client/src/features/discovery/lib/corpus-charts.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function point(id: string, genre: string | null): { id: string; label: string; x: number; y: number; genre: string | null } {
@@ -35,11 +37,45 @@ test("toGenreSeries buckets points into named series, frequency-descending", () 
   expect(series[1]?.points.map((p) => p.id)).toEqual(["2", "6"]);
 });
 
-test("toGenreSeries caps named series to the ramp length and pools the overflow + null into Other", () => {
+test("toGenreSeries caps the TOTAL series count at the ramp length — Other included", () => {
   const series = toGenreSeries([point("a", "g0"), point("b", "g1"), point("c", "g2"), point("d", "g3"), point("e", "g4"), point("f", "g5"), point("g", null)]);
-  // Five named genre series (the ramp length) + one "Other" pooling the 6th genre and the null point.
-  expect(series.map((s) => s.name)).toEqual(["g0", "g1", "g2", "g3", "g4", "Other"]);
-  expect(series[5]?.points.map((p) => p.id)).toEqual(["f", "g"]);
+  // FOUR named + "Other" = five, the chart ramp's length. The cap used to be five NAMED, which made six
+  // series, and `buildScatterOption`'s `palette[i % 5]` wrapped "Other" onto g0's exact colour — invisible
+  // until the map got a genre key, at which point two rows would have carried the same swatch (B5).
+  expect(series.map((s) => s.name)).toEqual(["g0", "g1", "g2", "g3", "Other"]);
+  expect(series).toHaveLength(5);
+  // The pool takes everything past the cap plus the genre-less point.
+  expect(series[4]?.points.map((p) => p.id)).toEqual(["e", "f", "g"]);
+});
+
+test("disambiguateLabels leaves unique labels alone", () => {
+  const names = disambiguateLabels([
+    { label: "brooding rogues", facets: ["dark"] },
+    { label: "sunny slice-of-life", facets: ["warm"] },
+  ]);
+  expect(names).toEqual(["brooding rogues", "sunny slice-of-life"]);
+});
+
+test("disambiguateLabels separates a repeated label by its first UNSHARED facet", () => {
+  // The live shape (B6): seven of ten bars named "melancholic slice-of-life", over clusters that genuinely
+  // differ. "watercolor" is shared, so it cannot be the distinguisher for either of the first two.
+  const names = disambiguateLabels([
+    { label: "melancholic slice-of-life", facets: ["watercolor", "muted"] },
+    { label: "melancholic slice-of-life", facets: ["watercolor", "neon"] },
+    { label: "brooding rogues", facets: ["ink"] },
+  ]);
+  expect(names).toEqual(["melancholic slice-of-life · muted", "melancholic slice-of-life · neon", "brooding rogues"]);
+});
+
+test("disambiguateLabels falls back to an ordinal when the facets are identical too", () => {
+  const names = disambiguateLabels([
+    { label: "mixed", facets: ["watercolor"] },
+    { label: "mixed", facets: ["watercolor"] },
+    { label: "mixed", facets: [] },
+  ]);
+  // Nothing in the data distinguishes them, so the name says "different group, nothing better to call it"
+  // rather than announcing the same thing three times.
+  expect(names).toEqual(["mixed (1 of 3)", "mixed (2 of 3)", "mixed (3 of 3)"]);
 });
 
 test("toGenreSeries yields a single Other series when every point is genre-less", () => {

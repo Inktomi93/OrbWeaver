@@ -52,6 +52,38 @@ describe("readCharacterEconomics", () => {
     expect(rows[0]?.costUsd).toBeCloseTo(0.03);
   });
 
+  // B2 (side-eye corpus re-pass, owner-observed): the corpus shelf printed "0 tokens returned" beside
+  // "1,187 exchanges" for five imported characters. The turns are real; nothing ever wrote a token count for
+  // them, and `COALESCE(SUM(tokens_out), 0)` made "never measured" indistinguishable from "measured zero".
+  test("a character whose turns recorded NO token count reads null, not 0 — absent accounting is not a zero", async () => {
+    db = await freshDb();
+    const owner = await seedUser(db);
+    const imported = await seedCharacter(db, owner, { id: "character_imported", name: "Mira" });
+    const chat = await seedChat(db, imported, { id: "chat_imported" });
+    // An imported transcript: assistant turns with a selected variant carrying no economics at all.
+    await seedMessage(db, { chatId: chat, seq: 1, role: "assistant", characterId: imported, variants: [{ model: "gpt" }] });
+    await seedMessage(db, { chatId: chat, seq: 2, role: "assistant", characterId: imported, variants: [{ model: "gpt" }] });
+
+    const rows = await readCharacterEconomics(db, owner);
+    expect(rows).toHaveLength(1);
+    // The generations are REAL — this is a character with history, which is exactly why a zero read as a bug.
+    expect(rows[0]?.generations).toBe(2);
+    expect(rows[0]?.tokensOut, "no variant recorded a count, so there is no total to report").toBeNull();
+    // …and the sums that genuinely ARE zero when unrecorded keep saying zero.
+    expect(rows[0]?.costUsd).toBe(0);
+  });
+
+  test("a genuine zero still reads as zero — the null is 'never recorded', not 'nothing came back'", async () => {
+    db = await freshDb();
+    const owner = await seedUser(db);
+    const character = await seedCharacter(db, owner, { id: "character_zero" });
+    const chat = await seedChat(db, character, { id: "chat_zero" });
+    await seedMessage(db, { chatId: chat, seq: 1, role: "assistant", characterId: character, variants: [{ model: "gpt", tokensOut: 0 }] });
+
+    const rows = await readCharacterEconomics(db, owner);
+    expect(rows[0]?.tokensOut).toBe(0);
+  });
+
   test("never counts another owner's turns", async () => {
     db = await freshDb();
     const owner = await seedUser(db);

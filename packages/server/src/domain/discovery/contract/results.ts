@@ -329,7 +329,10 @@ export interface ForgottenGem {
   readonly avatarHash: string | null;
   readonly messageCount: number;
   readonly lastActiveAt: number;
-  readonly tokensOut: number;
+  /** `null` = NO output-token accounting exists for this character — either stats has no row for it at all,
+   *  or every recorded generation carried a null count (an imported library). NOT the same fact as a zero,
+   *  and the shelf renders the two differently (side-eye corpus re-pass B2). */
+  readonly tokensOut: number | null;
   readonly costUsd: number;
 }
 
