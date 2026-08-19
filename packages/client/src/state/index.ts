@@ -174,6 +174,7 @@ export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry.ts";
 export type { ModalRegistry } from "./modal-registry-context.ts";
 export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
+export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
 export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store.ts";

@@ -21,7 +21,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 // — see status-chip.tsx).
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
-import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
+import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
@@ -31,7 +31,7 @@ import type { ReactElement } from "react";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
-import { BootVeil } from "#features/app-shell";
+import { AppToaster, BootVeil } from "#features/app-shell";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
 import { activeChatId, activeDurableLocalUserId, stampAppearanceBootHint } from "#state";
 import { buildAgentNav } from "./agent-nav/index.ts";
@@ -125,7 +125,12 @@ createRoot(rootEl).render(
                 boot bundle. */}
             <RouterProvider router={router} />
           </AppErrorBoundary>
-          <Toaster />
+          {/* The outlet stays HERE — outside AppErrorBoundary, above the router — so a notice survives the
+              crash-boundary swap. WHERE it paints is `AppToaster`'s call: into the shell's notice band
+              while a shell is mounted (a flow row that pushes content instead of covering it, #193), and
+              the fixed overlay on a surface that has no band — the login screen, that same crash
+              fallback. */}
+          <AppToaster />
           {/* The boot loading veil — covers route resolution + the initial reads, dissolves itself on
               the `data-app-ready` stamp (installAppReadySignal below). Mounted beside the router so it
               OWNS its exit transition (a router pending component is ripped out with no exit phase). */}

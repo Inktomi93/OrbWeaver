@@ -20,7 +20,7 @@ import type { Page } from "@playwright/test";
 import type { SubscriptionErrorPayload } from "../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../support/ct/route-trpc.ts";
-import { RpgBusStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
+import { RpgBusStory, SocketFaultToastStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
 
 const GAME_CHAT = castId<ChatId>("chat_ct_game_01");
 const PLAIN_CHAT = castId<ChatId>("chat_ct_plain_01");
@@ -170,6 +170,44 @@ test("a NON-auth socket fault still only degrades the room — no session probe"
   await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
   // ONESHOT-OK: settled by the barrier above — the fault is already routed, and this count only climbs.
   expect(authMe()).toBe(0);
+});
+
+// ── #222: ONE SOCKET FAULT, ONE ALERT ────────────────────────────────────────────────────────────────
+// The producer-dedupe sibling of #215. #215 killed the ANNOUNCE-failure duplication (N rooms each reporting
+// one cap refusal); this is the other emitter of the same class and it survived that fix: the typed
+// `__subscriptionError` terminal frame used to go to `roomRegistry.failed(message)` with NO ref, which the
+// registry fanned to EVERY joined room, and every room hook's `onError` is a `notify.error`. So one socket
+// death produced N byte-identical toasts of the SERVER'S OWN SENTENCE, with no remedy — `socketNotice`, the
+// copy that speaks in tabs and carries "Try again", was never consulted on this path at all.
+//
+// THE PIN THIS REPLACES (recorded here so the reversal is legible, not silent). `use-orb-socket.ts` said:
+// "Every room loses freshness, so every room's consumer hears it; the reconnect's gap-heal closes the data
+// gap when the client re-subscribes", and `room-registry.test.ts` asserted "a SOCKET fault reaches every
+// room". The PURPOSE was freshness recovery — which `onSocketLive`'s gap-heal already owns, at room
+// granularity, on the re-connect edge. What the fan-out actually bought was the duplication, plus a false
+// terminal state one surface over (`bundle-workload-tracker` answered a recoverable socket blip with "The
+// import stream ended"). So a socket fault is now the SOCKET's story, told once; `failed()` keeps its ref
+// and stays what a per-ROOM `roomFailed` reaches.
+
+test("ONE socket fault raises ONE alert, and it is the socket's own copy — not N rooms repeating the server (#222)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.getChat": getChat });
+  // The fault rides FIRST and the two room frames after it, so both rooms rendering their event is the
+  // barrier: the error frame was already routed when those arrived (the W1 tests' idiom above).
+  await routeOrbSocket(page, { frames: [errorFrame("INTERNAL_SERVER_ERROR"), USER_FRAME, RPG_FRAME], awaitAttaches: 2 });
+
+  await mount(<SocketFaultToastStory chatId={GAME_CHAT} />);
+
+  await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
+  await expect(page.getByTestId("rpg-events")).toHaveText("gameChanged");
+
+  // TWO rooms are joined (the barrier above proves both), so the old fan-out rendered two toasts here.
+  const toasts = page.locator('[data-slot="toast-root"]');
+  await expect(toasts).toHaveCount(1);
+  // …and it is `socketNotice`'s notice: a title that scans, the server's sentence demoted to the
+  // description, and the one action that re-subscribes.
+  await expect(toasts.locator('[data-slot="toast-title"]')).toHaveText("Lost the live connection");
+  await expect(toasts).toContainText("socket over: INTERNAL_SERVER_ERROR");
+  await expect(toasts.locator('[data-slot="toast-action"]')).toHaveText("Try again");
 });
 
 test("a frame for a room nobody joined is dropped, not fanned out", async ({ mount, page }) => {

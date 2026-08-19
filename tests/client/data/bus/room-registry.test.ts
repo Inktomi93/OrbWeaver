@@ -283,7 +283,17 @@ describe("routing and failure", () => {
     expect(seen).toEqual([USER_FRAME]);
   });
 
-  test("roomFailed reaches only the failed room; a SOCKET fault reaches every room", () => {
+  // REVERSES A RECORDED PIN, deliberately (#222). This test used to read "roomFailed reaches only the
+  // failed room; a SOCKET fault reaches every room", and `use-orb-socket.ts` justified the second half:
+  // "Every room loses freshness, so every room's consumer hears it; the reconnect's gap-heal closes the
+  // data gap when the client re-subscribes." The PURPOSE — freshness recovery — is real and survives
+  // untouched: `onSocketLive` fires it per room on the re-connect edge (BOOT-4X), which is what actually
+  // closed the gap. What the fan-out bought on top was pure duplication: every room hook's `onError` is a
+  // `notify.error`, so ONE socket death raised N byte-identical toasts of the raw server sentence, and one
+  // consumer turned a recoverable blip into a terminal claim ("The import stream ended"). So `failed` is
+  // ref-REQUIRED now and means only what its name says; the socket tells its own story once
+  // (`use-orb-socket.ts` `reportSocketFault`), which `use-orb-socket.ct.tsx` pins in pixels.
+  test("failed() reaches ONLY the named room — a fault is never fanned across rooms", () => {
     const registry = createRoomRegistry();
     registry.bindTransport(fakeTransport().transport);
     const userErrors: string[] = [];
@@ -295,9 +305,10 @@ describe("routing and failure", () => {
     expect(rpgErrors).toEqual(["room is gone"]);
     expect(userErrors).toEqual([]);
 
-    registry.failed("the socket died");
-    expect(userErrors).toEqual(["the socket died"]);
-    expect(rpgErrors).toEqual(["room is gone", "the socket died"]);
+    registry.failed("the user room is gone", USER_ROOM);
+    expect(userErrors).toEqual(["the user room is gone"]);
+    // The rpg room hears nothing about a room that is not its own — the whole point of the ref.
+    expect(rpgErrors).toEqual(["room is gone"]);
   });
 
   test("a durable room's attach carries the LOWEST replay request among its subscribers", () => {

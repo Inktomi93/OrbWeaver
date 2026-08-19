@@ -4,6 +4,7 @@
 // app-shell registers its OWN topbar.trail chrome (fullscreen + context toggle) through the same door as
 // any other feature (shell-chrome-unification.md §A) — no self-privilege.
 
+export { AppToaster } from "./components/app-toaster.tsx";
 export { BootVeil } from "./components/boot-veil.tsx";
 export { YouSheet } from "./components/you-sheet.tsx";
 export type { ShellLayout } from "./hooks/use-shell-layout.ts";
