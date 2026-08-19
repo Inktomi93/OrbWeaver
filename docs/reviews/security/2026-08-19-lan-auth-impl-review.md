@@ -64,7 +64,7 @@ An ambient owner-mint requires BOTH `config.fallback==="owner"` (`infra/auth/ind
 peer. Enumerating the prod (`NODE_ENV=production`) space by (mode × fallback × break-glass):
 
 | mode | fallback | break-glass | boots? | ambient owner-mint on loopback peer? | verdict |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | single-user | owner | any | yes (exempt) | yes — by design (no SSO; fallback IS the auth) | warned at `lifecycle.ts:530` on public bind |
 | single-user | deny | any | **no** (`env.ts:505`) | n/a | single-user's only credential is the fallback → fatal |
 | local/oidc/forward-header | owner | false | **no** (`env.ts:533`) | would-be yes → prevented | correct: the #298 fatal |
@@ -75,13 +75,16 @@ The guard covers **all three** SSO modes (`AUTH_MODE !== "single-user"`), not ju
 `AUTH_MODES`. No prod (mode,fallback,break-glass) combination yields an ambient owner-mint yet boots,
 except the two intended ones (single-user, and explicit break-glass), both of which warn loudly.
 
-**Is `NODE_ENV` a sufficient discriminator? — P2 residual.** The container spec confirms
-`pnpm start` = `NODE_ENV=production node …` is the ONLY place production is set; `pnpm dev` / `stack.sh` /
-the e2e webServer set none → `development` (`containerize-prod-image-spec.md:379-385`; `Dockerfile` sets
-`ENV NODE_ENV=production`). So the *supported* prod path is safe. But the design leans entirely on that:
+**Is `NODE_ENV` a sufficient discriminator? — P2 residual.** The supported prod launchers
+(`pnpm stack up prod` and `pnpm stack start-fg prod`, both via `buildProdSpawnPlan` since the
+launch-centralize consolidation removed `pnpm start`, #309) are the ONLY place `NODE_ENV=production` is
+set; the dev stack (`pnpm stack up`) / the e2e webServer set none → `development`
+(`containerize-prod-image-spec.md`; `Dockerfile` sets `ENV NODE_ENV=production`). So the *supported* prod
+path is safe. But the design leans entirely on that:
 a hand-rolled prod launch (bare `node …/index.js`) that forgets `NODE_ENV=production`, behind a same-host
 Caddy/nginx proxying to `127.0.0.1`, with `AUTH_FALLBACK` left at its **default `owner`**, is a full SSO
 bypass that:
+
 - does NOT trip the boot-guard (`NODE_ENV!=="production"`),
 - binds loopback-only (`bind.ts:120-124`, non-prod default) — so no `publicBind` warning fires
   (`bind.ts:143` returns `[]`), yet the same-host proxy still reaches it, and
@@ -120,7 +123,7 @@ node directly.** P2 doc hardening; the code is behaving as specified.
 across `entry/http` + `entry/import`; blob/export/auth-meta/join confirmed GET-only):
 
 | route | file:line | CSRF gate | ambient `fallback` arm protected? |
-|---|---|---|---|
+| - | - | - | - |
 | `POST /api/assets/upload` | `upload.ts:102` | `via !== "header"` | yes ✅ |
 | `POST /api/databank/upload` | `upload.ts:135` | `via !== "header"` | yes ✅ |
 | `POST /api/import` | `upload.ts:161` | `via !== "header"` | yes ✅ |
@@ -137,9 +140,11 @@ across `entry/http` + `entry/import`; blob/export/auth-meta/join confirmed GET-o
 ### P1 — `/api/import/bundle` CSRF hole (concrete exploit)
 
 `import.ts:65`:
+
 ```
 if (principal.via === "cookie" && !hasCsrfHeader(c.req.raw.headers)) { return c.body(null, FORBIDDEN); }
 ```
+
 This exempts the `fallback` (loopback owner) arm. The route reads `c.req.raw.body` as a raw stream
 (`import.ts:68`) and never checks `Content-Type`, so it is a CORS-"simple" (no-preflight) route exactly
 like its multipart siblings. The #300 fix upgraded upload/import-tree/import-chat to `via !== "header"`
@@ -150,6 +155,7 @@ auto-sends its loopback socket" — `upload.ts:74-82`), but `import.ts` was not 
 have caught and did not** — the branch description enumerates the three siblings and omits the fourth.
 
 Exploit (default single-user deployment, the primary mode):
+
 1. Operator runs orbweaver single-user (default). The owner is always the loopback `fallback` arm.
 2. A browser on the box visits `evil.com`, which runs:
    `fetch("http://127.0.0.1:8788/api/import/bundle", {method:"POST", body: new Blob([attackerZipBytes], {type:"text/plain"})})`
@@ -231,6 +237,7 @@ from `diff main...HEAD`. The peer-IP/deny changes are orthogonal to OIDC provisi
 ## 7. CSP for OIDC-on-LAN (brief Q8) — SOUND, no change needed
 
 The OIDC flow is entirely **server-mediated top-level navigation + server-side token exchange**:
+
 - `GET /api/auth/oidc/login` → `c.redirect(url.href, 302)` to the IdP authorize endpoint
   (`auth-routes.ts:590`) — a top-level browser navigation, not a fetch/form-POST/iframe.
 - IdP → `GET /api/auth/oidc/callback` (top-level nav), then `c.redirect("/", 302)` (`:659`).

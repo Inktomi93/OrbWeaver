@@ -139,16 +139,22 @@ test("an empty WIRE_CAPTURE/RPG_TRACE value is a conflict too", () => {
 
 // ── the shell dispatch contract ──────────────────────────────────────────────────────────────────────
 
-test("--force and the dev-only verbs are REFUSED in prod, never silently dropped", () => {
+test("--force and the setsid leader are REFUSED in prod, but start-fg (FOREGROUND prod) is accepted", () => {
   // `--force` reaches stack.sh's do_force_restart, which SIGKILLs the port holders AND the detached vLLM
   // fleet ignoring ownership. Prod's whole safety story is that it only signals what it can prove is its
-  // own, so there is no prod force. Dropping the flag quietly would be the same defect class as the
-  // shell falling through to dev.
+  // own, so there is no prod force. `_leader` is the dev-only setsid re-exec target (prod has no leader).
+  // Dropping either quietly would be the same defect class as the shell falling through to dev.
   expect(parseStackArgv(["restart", "prod", "--force"])).toEqual({ ok: false, error: expect.stringContaining("--force is dev-only") });
-  expect(parseStackArgv(["start-fg", "prod"])).toEqual({ ok: false, error: expect.stringContaining("dev-only") });
-  // …and both stay legal in dev.
+  expect(parseStackArgv(["_leader", "prod"])).toEqual({ ok: false, error: expect.stringContaining("dev-only") });
+  // …and both those stay legal in dev.
   expect(parseStackArgv(["restart", "--force"])).toMatchObject({ ok: true, invocation: { force: true, mode: "dev" } });
   expect(parseStackArgv(["start-fg"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "dev" } });
+  // start-fg IS valid in prod now — the FOREGROUND on-box run that replaced the removed `pnpm start`
+  // (launch-centralize / #309). It is the same up-fg verb, this time carrying mode=prod.
+  expect(parseStackArgv(["start-fg", "prod"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", debug: false } });
+  expect(parseStackArgv(["start-fg", "prod", "--debug"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", debug: true } });
+  // --build (client bundle) composes with foreground prod, exactly as with detached `up prod`.
+  expect(parseStackArgv(["start-fg", "prod", "--build"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", build: true } });
 });
 
 test("formatDispatch emits the shell contract, one line per rest argument", () => {

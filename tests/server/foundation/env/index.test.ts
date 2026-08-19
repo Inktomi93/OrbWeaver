@@ -306,8 +306,8 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   });
 
   // Scope control: the default dev boot (no BIND_HOST) must stay green — the restriction to loopback is
-  // resolved at the bind site, NOT a refusal. A fence that killed every `pnpm dev` would be reverted by
-  // morning and the invariant would be gone with it.
+  // resolved at the bind site, NOT a refusal. A fence that killed every dev boot (`pnpm stack up`) would be
+  // reverted by morning and the invariant would be gone with it.
   test("NODE_ENV=development with BIND_HOST unset boots clean (restriction, not refusal)", async () => {
     const { env } = await reimportEnvWith({ NODE_ENV: "development" });
     expect(env.BIND_HOST).toBeUndefined();

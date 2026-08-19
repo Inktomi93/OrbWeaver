@@ -1,6 +1,10 @@
 // ── stack-prod: the PRODUCTION half of `pnpm stack` ──────────────────────────────────────────────────
 //
 //   pnpm stack up prod [--debug] [--build]     boot production, detached, verified by INSTANCE IDENTITY
+//   pnpm stack start-fg prod [--debug] [--build]  run production in the FOREGROUND — `NODE_ENV=production
+//                                              node <entry>.ts` in THIS terminal, stdio inherited, the
+//                                              caller reaping it (Ctrl-C stops it); no detach, no pidfile.
+//                                              The on-box direct run that replaced the removed `pnpm start`.
 //   pnpm stack down prod                       SIGTERM → watch the bounded drain → confirm gone
 //   pnpm stack restart prod [--debug] [--build]
 //   pnpm stack status prod
@@ -28,6 +32,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { constants as osConstants } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -76,6 +81,9 @@ const SECONDS_PER_MINUTE = 60;
 // Log lines echoed when a boot dies or times out — enough to carry a stack trace, short enough to read.
 const BOOT_FAILURE_LOG_LINES = 20;
 const DEFAULT_LOG_LINES = 40;
+// The shell convention for "process killed by signal N": exit 128+N. Foreground prod mirrors its child's
+// exit faithfully so a script (or CI) reading `$?` sees exactly what a bare `node <entry>.ts` would report.
+const SIGNAL_EXIT_BASE = 128;
 // The trees whose source can make the built bundle stale. The SERVER is deliberately absent: node runs
 // its .ts directly, so no server edit ever needs a client rebuild.
 const CLIENT_SOURCE_DIRS = [
@@ -488,6 +496,84 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
   return EXIT_REFUSED;
 }
 
+/** `start-fg prod` (the `up-fg` verb in prod mode) — run the PRODUCTION server in the FOREGROUND: `NODE_ENV=production node
+ *  <entry>.ts` in THIS terminal, stdio inherited, the CALLER supervising and reaping it (Ctrl-C stops it).
+ *  No detach, no pidfile — this is the on-box direct run that replaced the removed `pnpm start`. It runs the
+ *  same env resolution, port-ownership preflight, client-dist gate and `--debug`/`--build` handling as the
+ *  detached `up prod`; it differs only in that it never returns until the server does, and mirrors the
+ *  child's exit status. */
+async function doUpFg(invocation: StackInvocation): Promise<number> {
+  const fileEnv = readEnvFile();
+  const port = resolvePort(fileEnv);
+  const { classification } = await classify(port);
+  // Foreground OWNS the port it boots — it cannot adopt or share (mirrors dev start-fg's preflight). Any
+  // live listener, ours or foreign, is a refusal: two servers cannot both bind :port.
+  if (classification.verdict !== "absent") {
+    const owner = spawnerForPort(port);
+    log(`REFUSED — ${classification.reason}.`);
+    if (owner !== undefined) {
+      log(`:${port} is also the ${owner.name} port (${owner.discriminator}). Stop that first, or point PORT elsewhere.`);
+    }
+    result(`mode=prod status=refused port=${port}`);
+    return EXIT_REFUSED;
+  }
+  // Build BEFORE the dist gate — a --build run produces the very bundle the gate then checks for.
+  if (invocation.build && !buildClient()) {
+    result("mode=prod status=build-failed");
+    return EXIT_REFUSED;
+  }
+  const dist = distVerdict();
+  if (dist.state === "missing") {
+    log(`REFUSED — ${dist.message}`);
+    result("mode=prod status=no-client-bundle");
+    return EXIT_REFUSED;
+  }
+  if (dist.state === "stale") {
+    log(`WARN — ${dist.message}`);
+  }
+  const overlay = armDebug(invocation, fileEnv);
+  return await spawnProdForeground(port, overlay);
+}
+
+/** The foreground spawn itself. Reuses `buildProdSpawnPlan` (identical argv/env/cwd to the detached path —
+ *  so the no-server-build-step + debug-overlay pins cover this launcher too) but with `stdio:"inherit"` and
+ *  WITHOUT `detached`, then AWAITS the child. The log path in the plan is never opened here (stdio is the
+ *  terminal). No spawn lock and no pidfile: nothing is detached, so there is no adopt/kill race to guard and
+ *  nothing for `down prod`/`status prod` to track — the operator's terminal IS the supervisor. */
+async function spawnProdForeground(port: number, overlay: Readonly<Record<string, string>> | undefined): Promise<number> {
+  const plan = buildProdSpawnPlan({
+    repoRoot: REPO_ROOT,
+    nodePath: process.execPath,
+    baseEnv: AMBIENT,
+    ...(overlay === undefined ? {} : { debugOverlay: overlay }),
+    logPath: LOG_PATH(),
+  });
+  log(`foreground — NODE_ENV=production node ${SERVER_ENTRY_REL} on :${port}. This terminal owns it (Ctrl-C to stop); no pidfile.`);
+  const child = spawn(plan.command, [...plan.args], { cwd: plan.cwd, env: { ...plan.env }, stdio: "inherit" });
+  // The child shares this process group + terminal, so Ctrl-C (SIGINT) reaches it directly. We register our
+  // OWN handlers so a signal does not kill this launcher before the child finishes its bounded drain — we
+  // forward the signal and resolve on the child's exit, mirroring its status.
+  const forward = (signal: NodeJS.Signals): void => {
+    try {
+      child.kill(signal);
+    } catch {
+      // already gone
+    }
+  };
+  process.on("SIGINT", () => forward("SIGINT"));
+  process.on("SIGTERM", () => forward("SIGTERM"));
+  process.on("SIGHUP", () => forward("SIGHUP"));
+  return await new Promise<number>((resolve) => {
+    child.on("error", (err) => {
+      log(`spawn failed — ${err.message}`);
+      resolve(EXIT_REFUSED);
+    });
+    child.on("exit", (code, signal) => {
+      resolve(signal === null ? (code ?? 0) : SIGNAL_EXIT_BASE + (osConstants.signals[signal] ?? 0));
+    });
+  });
+}
+
 async function doDown(): Promise<number> {
   const port = resolvePort(readEnvFile());
   const { record, classification } = await classify(port);
@@ -681,6 +767,8 @@ async function main(): Promise<number> {
   switch (invocation.verb) {
     case "up":
       return await doUp(invocation);
+    case "up-fg":
+      return await doUpFg(invocation);
     case "down":
       return await doDown();
     case "restart": {
