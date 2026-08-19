@@ -192,6 +192,9 @@ async function resolveHeaderOrFallbackPrincipal(
     // boot-fatal WITHOUT it, to stop a same-host proxy silently bypassing SSO), restart, then
     // `curl http://127.0.0.1:8788/...` authenticates as owner over the loopback socket. Revert both env knobs
     // when done. There is deliberately NO ambient (off-box) recovery — that is the whole point of deny.
+    // CRITICAL: STOP/BYPASS the front proxy during break-glass — a same-host proxy forwarding over 127.0.0.1
+    // makes EVERY proxied (LAN/internet) request a loopback peer, so a flag left set on a live proxied box
+    // mints owner for the whole network, not just the on-box operator (containerize-prod-image-spec.md §4).
     const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
     return await resolveFallbackPrincipal(userId);
   }

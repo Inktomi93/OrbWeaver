@@ -62,7 +62,11 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
     }
-    if (principal.via === "cookie" && !hasCsrfHeader(c.req.raw.headers)) {
+    // CSRF keys on the ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) — this
+    // route reads `c.req.raw.body` as a raw stream and never checks Content-Type, so it is CORS-"simple" with no
+    // preflight (the #300 class); the peer gate alone still leaves a loopback web origin able to drive an owner
+    // bundle write. See upload.ts's authCsrfGuard WHY-block; the three sibling ingest routes gate this identically.
+    if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
       return c.body(null, FORBIDDEN);
     }
     const body = c.req.raw.body;

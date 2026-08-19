@@ -195,4 +195,39 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     const presetsAfter = await db.select({ id: presets.id }).from(presets).where(eq(presets.ownerId, TARGET_ID));
     expect(presetsAfter).toHaveLength(1);
   });
+
+  // #300 — the bundle route reads `c.req.raw.body` as a raw stream ignoring Content-Type, so it is CORS-simple
+  // (no preflight): the loopback owner FALLBACK arm is ambient-credential like cookie and MUST carry x-orb-csrf.
+  // Without this, evil.com does `fetch(127.0.0.1:8788/api/import/bundle, {body: new Blob([zip])})` from a
+  // loopback web origin → via:"fallback" owner → an owner-scoped library write with no cookie/preflight.
+  // RED-FIRST: on the unmodified `via === "cookie"` guard the fallback+no-header case DISPATCHES the owner
+  // write (202, `started` carries the owner id — the exploit); after the `via !== "header"` fix it is 403.
+  test("bundle route CSRF (#300): a fallback principal WITHOUT x-orb-csrf → 403, no owner write dispatched", async (): Promise<void> => {
+    const started: UserId[] = [];
+    const recordingWorkloads = {
+      start: (args: { readonly ownerId: UserId }): Promise<{ id: WorkloadId }> => {
+        started.push(args.ownerId);
+        return Promise.resolve({ id: castId<WorkloadId>("wl_csrf_test") });
+      },
+    } as unknown as ImportBundleDeps["workloads"];
+    const routes = captureImport({ workloads: recordingWorkloads });
+    const handler = routes.get("POST /api/import/bundle");
+    if (handler === undefined) {
+      throw new Error("bundle route not registered");
+    }
+    const fallbackOwner = principalOf(OWNER_ID, "fallback");
+
+    // The forgeable cross-site request: a fallback owner, a zip body, NO x-orb-csrf header.
+    const noHeader = new Request("http://t/api/import/bundle", { method: "POST", body: new Uint8Array([1, 2, 3]) });
+    const blocked = await handler(makeCtx(fallbackOwner, { raw: noHeader }));
+    expect(blocked.status).toBe(403);
+    expect(started).toEqual([]); // the write was never dispatched — the guard short-circuited before the body
+
+    // Control: the SAME fallback caller WITH the header passes the guard and reaches dispatch (202) — proving
+    // the 403 above is the CSRF gate, not an unrelated rejection, and that legit tooling still works.
+    const withHeader = new Request("http://t/api/import/bundle", { method: "POST", body: new Uint8Array([1, 2, 3]), headers: { "x-orb-csrf": "1" } });
+    const passed = await handler(makeCtx(fallbackOwner, { raw: withHeader }));
+    expect(passed.status).toBe(202);
+    expect(started).toEqual([OWNER_ID]);
+  });
 });
