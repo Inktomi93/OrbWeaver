@@ -50,7 +50,10 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
   const isEmpty = count === 0;
   return (
     <Stack gap="tight" data-slot="collection-group" data-collection={collection.id}>
-      <Row align="center" data-slot="collection-band" gap="tight">
+      {/* The band carries its own `data-collection` as well as the group's (side-eye 2026-08-19: the three
+          bands were map-dom-fallbacks — addressable only as a descendant of the group, which is a path, not
+          an identity). A slot names a KIND; the pair names THIS band. */}
+      <Row align="center" data-collection={collection.id} data-slot="collection-band" gap="tight">
         {/* A ZERO-MEMBER GROUP HAS NOTHING TO DISCLOSE (side-eye 2026-08-06 P2), so it renders no chevron and
             no body: the old band kept a live toggle whose panel opened onto nothing, one row above the empty
             card that had already said so. The identity cluster stays — same glyph, same kicker, same
@@ -81,6 +84,15 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
           <Button
             aria-controls={bodyId}
             aria-expanded={open}
+            // THE NAME IS THE LABEL AND THE COUNT, UNGLUED (side-eye 2026-08-19 ARIA). The count is a
+            // sibling span with no separator between them, and the accessible-name computation
+            // concatenates adjacent inline nodes with NOTHING in between — so this disclosure announced
+            // "Tags1736", one token, with the number welded onto the library's name. A literal space would
+            // fix the string and break the layout (the count is a `datum` span with its own spacing), so
+            // the name is stated instead: the VISIBLE kicker keeps its micro-caps voice untouched, and
+            // only what a screen reader hears is spelled out. Same trap, same fix as
+            // `chat-documents-section.tsx`'s literal space — inverted, because here the join is deliberate.
+            aria-label={count === undefined ? collection.label : `${collection.label}, ${String(count)}`}
             // THE BAND IS AN ISLAND, NOT A LABELLED BUTTON (side-eye 2026-08-06 P3). `Button`'s base
             // `gap-field` (6px) × three joints plus `size="sm"`'s inline padding spent ten pixels of a
             // 271px pane on air, and "REGEX SCRIPTS" — the longest kicker in the door array, on the one

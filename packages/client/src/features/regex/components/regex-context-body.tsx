@@ -2,7 +2,14 @@
 //
 // THE FOUR SCOPES, EACH IN ITS OWN VOICE (workspace.html's context column). The GLOBAL scope is a SWITCH:
 // it is a property of the script (`global_regex_scripts` PKs on the script id) and this library owns it, so
-// this pane decides it. The other three are ROSTERS: a preset, a character and a room each attach from the
+// this pane decides it — and since 2026-08-19 it is the ONLY pane that does. The roster row carried a
+// second, live copy of this same switch (side-eye P2: two controls for one fact, ~990px apart on one
+// screen, no confirm, no undo — a reviewer flipped one by accident driving the pane), and the orchestrator
+// ruled that this pane keeps it. `regex-collection-rows.tsx`'s header records the row's side of that fork,
+// including why the "a row reserves what its list declares" ruling recorded there SURVIVES the change.
+// Do not restore a row-level attach control without re-opening that fork.
+//
+// The other three are ROSTERS: a preset, a character and a room each attach from the
 // thing they belong to, so this pane can only REPORT them — "Attached by presets · 2" over the two names.
 // The read behind them is `regex.listScriptUsage` (REGROSTER), the reverse of the forward `listFor*` lists;
 // until it existed the pane shipped an honest sentence pointing at the three carriers instead, because

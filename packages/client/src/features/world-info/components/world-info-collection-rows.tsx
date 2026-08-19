@@ -113,7 +113,20 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
         />
       );
     }
-    return <Stack gap="tight">{filtered.map(renderRow)}</Stack>;
+    // LIST SEMANTICS ARE EXPLICIT HERE (side-eye 2026-08-19 P2), the tag/regex small-arm spelling: the
+    // windowed sibling above announces "list, N items" of its own, so a bare `Stack` of buttons made ONE
+    // library speak two a11y grammars depending only on how many books the reader owns. Invisible on the
+    // owner's corpus (59 books window into the `VirtualList` arm) — which is exactly why the pin for it is
+    // a small-list CT fixture and not a live drive.
+    return (
+      <Stack aria-label="World books" gap="tight" role="list">
+        {filtered.map((book, index) => (
+          <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={book.id} role="listitem">
+            {renderRow(book)}
+          </Stack>
+        ))}
+      </Stack>
+    );
   })();
 
   return (

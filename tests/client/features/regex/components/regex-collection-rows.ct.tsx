@@ -152,8 +152,12 @@ test("the band's toggle enters bulk mode, and the rows become checkboxes", async
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
 
-  // At rest the row's trailing control is its own GLOBAL switch, and no checkbox exists.
-  await expect(group.getByRole("switch", { name: "strip ooc runs in every chat" })).toBeVisible();
+  // At rest the row's trailing control is its KEBAB, and no checkbox exists. (It used to be the row's own
+  // GLOBAL switch; that switch moved to the CONTEXT panel on 2026-08-19 — side-eye P1/P2, one setting with
+  // two live homes 990px apart, and 42% of a 290px row spent on the trailing cluster. The claim this test
+  // makes is unchanged: at rest the row is not in bulk mode.)
+  await expect(group.getByRole("button", { name: STRIP_ACTIONS })).toHaveCount(1);
+  await expect(group.getByRole("switch"), "no roster row carries a switch any more").toHaveCount(0);
   await expect(group.getByRole("checkbox", { name: "Select strip ooc" })).toHaveCount(0);
 
   const toggle = group.getByRole("button", { name: "Select scripts" });
@@ -165,7 +169,6 @@ test("the band's toggle enters bulk mode, and the rows become checkboxes", async
   // edits a row you meant to check is worse than no mode.
   await expect(group.getByRole("checkbox", { name: "Select strip ooc" })).toBeVisible();
   await expect(group.getByRole("checkbox", { name: "Select narrate" })).toBeVisible();
-  await expect(group.getByRole("switch", { name: "strip ooc runs in every chat" })).toHaveCount(0);
   await expect(group.getByRole("button", { name: STRIP_ACTIONS })).toHaveCount(0);
 });
 
