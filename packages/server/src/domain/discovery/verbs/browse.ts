@@ -2,19 +2,23 @@
 // (browseCharacters) + the facet dropdowns (characterFacets). Content-only, no engagement/usage counts.
 // Owner scope derives via a characters join (character_summaries keeps no ownerId), never a caller-supplied owner.
 
+import { BROWSE_DEFAULT_LIMIT } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, lt, or, sql } from "drizzle-orm";
 import type { DiscoveryContext } from "../context.ts";
-import type { BrowseFilter } from "../contract/params.ts";
-import type { BrowseCharacter, CharacterFacets, FacetCount } from "../contract/results.ts";
+import type { BrowseCursor, BrowseFilter } from "../contract/params.ts";
+import type { BrowseCharacter, BrowseCharactersPage, CharacterFacets, FacetCount } from "../contract/results.ts";
 import type { DiscoveryService } from "../contract/service.ts";
 
-// The page size when the caller names none. A library past this is TRUNCATED silently — deliberate (the row
-// set is a browse page, not a count), and the reason the catalog's `totalDistilled` is a separate read: a
-// surface that needs "N of M" takes M from `catalog`, never from this array's length.
-const DEFAULT_BROWSE_LIMIT = 200;
+// KEYSET, NOT A CEILING (A8, side-eye corpus re-pass 2026-08-19). This verb used to answer one array capped
+// at 200 and call the truncation deliberate, on the reasoning that "the row set is a browse page, not a
+// count" — which is true and was never the defect. The defect is that a page with no CURSOR is a page with
+// no NEXT: the corpus pane printed `catalog.totalDistilled` (313) over a list that ended at 200 rows with no
+// load-more, so 113 owned characters were unreachable from the only surface that browses them. The census
+// stays a separate read for the same reason it always was — `items.length` is "how many are loaded" and the
+// header states "how many there are" — it is just no longer the only number that is true.
 
 export function createBrowse(ctx: DiscoveryContext): Pick<DiscoveryService, "browseCharacters" | "characterFacets"> {
   return {
@@ -23,7 +27,31 @@ export function createBrowse(ctx: DiscoveryContext): Pick<DiscoveryService, "bro
   };
 }
 
-async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = {}): Promise<BrowseCharacter[]> {
+/** The keyset predicate for "everything strictly after the previous page's last row", in the requested
+ *  ordering. The tie-break on `characterId` is what makes the boundary total: `createdAt` and `name` both
+ *  repeat, and a keyset on a non-unique column alone either skips or duplicates rows at the seam. */
+function afterCursor(cursor: BrowseCursor): ReturnType<typeof or> {
+  if (cursor.sort === "name") {
+    return or(gt(characters.name, cursor.name), and(eq(characters.name, cursor.name), gt(characterSummaries.characterId, cursor.characterId)));
+  }
+  return or(
+    lt(characters.createdAt, cursor.createdAt),
+    and(eq(characters.createdAt, cursor.createdAt), gt(characterSummaries.characterId, cursor.characterId)),
+  );
+}
+
+/** The boundary of the page just served — `null` at the tail, where a short page proves there is no next. */
+function nextCursorFor(sort: "recent" | "name", rows: readonly BrowseCharacter[], pageSize: number): BrowseCursor | null {
+  const last = rows.at(-1);
+  if (last === undefined || rows.length < pageSize) {
+    return null;
+  }
+  return sort === "name"
+    ? { sort: "name", name: last.name, characterId: last.characterId }
+    : { sort: "recent", createdAt: last.createdAt, characterId: last.characterId };
+}
+
+async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = {}): Promise<BrowseCharactersPage> {
   const conds = [eq(characters.ownerId, ownerId), eq(characters.synthetic, false)];
   if (filter.genre !== undefined) {
     conds.push(eq(characterSummaries.genre, filter.genre));
@@ -43,7 +71,23 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
       sql`(lower(${characters.name}) LIKE ${like} OR lower(${characterSummaries.elevatorPitch}) LIKE ${like} OR EXISTS (SELECT 1 FROM json_each(${characterSummaries.tags}) WHERE lower(value) LIKE ${like}))`,
     );
   }
-  const orderBy = (filter.sort ?? "recent") === "name" ? asc(characters.name) : desc(characters.createdAt);
+  const sort = filter.sort ?? "recent";
+  // The COUNT runs over the filter alone — the cursor windows the page, it does not narrow the scope, and a
+  // census that shrank as you paged would be a worse number than the one A8 replaced.
+  const scope = and(...conds);
+  const pageSize = filter.limit ?? BROWSE_DEFAULT_LIMIT;
+  if (filter.cursor !== undefined && filter.cursor.sort !== sort) {
+    // A cursor minted under the other ordering describes a boundary this keyset cannot use; applying it
+    // anyway silently drops or repeats rows. Refusing by ignoring the page (empty, no next) would be a
+    // silent lie too, so the caller's contract is: re-key the query when the sort changes (which is what
+    // `createCollectionSurface` does — the sort is part of the query key).
+    throw new Error(`browseCharacters cursor sort '${filter.cursor.sort}' does not match the requested sort '${sort}'`);
+  }
+  const page = filter.cursor === undefined ? scope : and(scope, afterCursor(filter.cursor));
+  // Both keysets end on the same tie-break column, so the ORDER BY has to carry it too — an ordering the
+  // cursor predicate does not share is a keyset that skips rows at every repeated name/timestamp.
+  const orderBy =
+    sort === "name" ? [asc(characters.name), asc(characterSummaries.characterId)] : [desc(characters.createdAt), asc(characterSummaries.characterId)];
 
   const rows = await db
     .select({
@@ -60,11 +104,16 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
     .from(characterSummaries)
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
-    .where(and(...conds))
-    .orderBy(orderBy)
-    .limit(filter.limit ?? DEFAULT_BROWSE_LIMIT);
+    .where(page)
+    .orderBy(...orderBy)
+    .limit(pageSize);
+  const totalRows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(characterSummaries)
+    .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
+    .where(scope);
 
-  return rows;
+  return { items: rows, nextCursor: nextCursorFor(sort, rows, pageSize), totalCount: totalRows[0]?.count ?? 0 };
 }
 
 async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets> {

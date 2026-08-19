@@ -49,11 +49,16 @@ export interface CorpusAnalysisState {
   /** The masthead sentence — the surface's ONE opening statement (`voice="masthead"`). */
   readonly headline: string;
   /**
-   * THE ONE figure the surface exists to produce (`voice="hero"`, which is ONE per surface by law).
+   * THE ONE figure the surface exists to produce (`voice="hero"`, which is at most ONE per surface by law).
    * It moves with the phase because the number that matters moves with it: un-analysed, the real count is
    * how much shape the visual pass found; analysed, it is how much the library has been understood.
+   *
+   * `null` WHEN THE SENTENCE ALREADY SAID EVERYTHING (side-eye corpus re-pass 2026-08-19 §5, the
+   * more-than-one-home list). See {@link deriveCorpusAnalysisState} for the fork this resolves: the figures
+   * state what the headline does NOT, so a library whose whole state fits in the opening sentence carries
+   * the sentence alone rather than the sentence plus its own numbers repeated six inches to the right.
    */
-  readonly hero: CorpusFigure;
+  readonly hero: CorpusFigure | null;
   /** The quiet companions beside the hero (`voice="datum"`). Never the loudest thing on the page. */
   readonly support: readonly CorpusFigure[];
   readonly stages: readonly CorpusReadinessStage[];
@@ -149,20 +154,46 @@ function phaseFor(characters: number, distilled: number, storyThemes: number): C
   return distilled > 0 || storyThemes > 0 ? "analysed" : "unanalysed";
 }
 
-function headlineFor(phase: CorpusAnalysisPhase, input: CorpusAnalysisInput, families: number, storyThemes: number): string {
+/** Which figure the phase WANTS at hero weight, before the headline's own claim is subtracted. */
+function preferredHeroIdFor(phase: CorpusAnalysisPhase, families: number, storyThemes: number): string {
+  if (phase === "analysed") {
+    return storyThemes > 0 ? "storyThemes" : "distilled";
+  }
+  return families > 0 ? "families" : "characters";
+}
+
+/** The masthead sentence AND the figures it has already spent. `states` is not documentation: it is what
+ *  the figure row subtracts itself by (see {@link deriveCorpusAnalysisState}), so an arm that puts a number
+ *  in the sentence without declaring it here would put that number on the surface twice. The two travel
+ *  together in one return value precisely so they cannot drift apart. */
+function headlineFor(
+  phase: CorpusAnalysisPhase,
+  input: CorpusAnalysisInput,
+  families: number,
+  storyThemes: number,
+): { readonly text: string; readonly states: readonly string[] } {
   if (phase === "empty") {
-    return "Nothing in your library yet.";
+    return { text: "Nothing in your library yet.", states: [] };
   }
   if (phase === "unanalysed" && families === 0) {
-    return `${spelled(input.characters, "character")}. Nothing read yet.`;
+    return { text: `${spelled(input.characters, "character")}. Nothing read yet.`, states: ["characters"] };
   }
   if (phase === "unanalysed") {
-    return `${spelled(input.characters, "character")}, grouped into ${spelledInline(families, "visual family", "visual families")}.`;
+    return {
+      text: `${spelled(input.characters, "character")}, grouped into ${spelledInline(families, "visual family", "visual families")}.`,
+      states: ["characters", "families"],
+    };
   }
   if (storyThemes === 0) {
-    return `${spelled(input.characters, "character")}, ${spelledInline(input.distilled, "card")} distilled.`;
+    return {
+      text: `${spelled(input.characters, "character")}, ${spelledInline(input.distilled, "card")} distilled.`,
+      states: ["characters", "distilled"],
+    };
   }
-  return `${spelled(input.characters, "character")}, distilled into ${spelledInline(storyThemes, "story theme")}.`;
+  return {
+    text: `${spelled(input.characters, "character")}, distilled into ${spelledInline(storyThemes, "story theme")}.`,
+    states: ["characters", "storyThemes"],
+  };
 }
 
 /**
@@ -181,37 +212,41 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
 
   const phase = phaseFor(input.characters, input.distilled, storyThemes);
 
-  // THE HERO MOVES WITH THE PHASE. `hero` is the voice for THE value (density-pass-spec.md §2.3) and there
-  // is one per surface, so it cannot be "whichever figure happens to be first": un-analysed, the only real
-  // computed number is the shape the visual pass found (or, with no families, the library itself);
-  // analysed, it is the understanding — story themes, or the distilled count when themes have not run.
-  const heroUnanalysed: CorpusFigure =
-    families > 0
-      ? { id: "families", value: formatCount(families), caption: "visual families" }
-      : { id: "characters", value: formatCount(input.characters), caption: "characters" };
-  const heroAnalysed: CorpusFigure =
-    storyThemes > 0
-      ? { id: "storyThemes", value: formatCount(storyThemes), caption: "story themes" }
-      : { id: "distilled", value: formatCount(input.distilled), caption: "distilled" };
-  const hero = phase === "analysed" ? heroAnalysed : heroUnanalysed;
+  const headline = headlineFor(phase, input, families, storyThemes);
+  const stated = new Set(headline.states);
 
-  // The companions are every other figure the masthead carries, MINUS two things:
-  //   1. whichever one the hero already is — the same datum twice on one row is the IA duplication the
-  //      density pass names as its fourth habit;
-  //   2. while the library is un-analysed, anything at ZERO. That is the audited defect in miniature: a
-  //      pass that has never run has not measured zero, it has measured nothing, and printing its zero in
-  //      the masthead is the wall of confident nothing this whole rebuild deletes. The readiness rail says
-  //      "not run" for exactly those, which is the true statement.
-  //   Once the semantic pass HAS run, a zero prints — then it IS a measurement, which is the same rule the
-  //   surface has carried since #99 item 7.
+  // THE FIGURES STATE WHAT THE SENTENCE DOES NOT — the fork, resolved (side-eye corpus re-pass 2026-08-19
+  // §5, and it contradicts what this file used to say, so both readings are recorded).
+  //   OLD MECHANISM (kept): `hero` is the voice for THE value, at most one per surface, and WHICH figure it
+  //     is moves with the phase rather than being pinned to a column.
+  //   NEW SYMPTOM: on the audited library the h1 read "327 characters, distilled into 24 story themes" and
+  //     the figure row beside it printed 327 and 24 again. The masthead argued with itself; the only figure
+  //     that added anything was the family count.
+  //   RESOLUTION: a figure is DROPPED when the headline already gives its number, and the hero is then the
+  //     first SURVIVOR in the phase's own priority order. Nothing survives ⇒ no figure row at all, and the
+  //     sentence carries the masthead alone — which is the honest end of "state it once".
+  //
+  // The other two subtractions are unchanged:
+  //   • whichever figure the hero already is never repeats as a companion (the same datum twice on one row);
+  //   • while the library is un-analysed, anything at ZERO is absent — a pass that has never run has not
+  //     measured zero, it has measured nothing, and the readiness rail says "not run" for exactly those.
+  //     Once the semantic pass HAS run a zero prints, because then it IS a measurement (#99 item 7).
   const candidates: readonly { readonly figure: CorpusFigure; readonly count: number }[] = [
     { figure: { id: "characters", value: formatCount(input.characters), caption: "characters" }, count: input.characters },
     { figure: { id: "families", value: formatCount(families), caption: "visual families" }, count: families },
     { figure: { id: "storyThemes", value: formatCount(storyThemes), caption: "story themes" }, count: storyThemes },
   ];
-  const support = candidates
-    .filter((candidate) => candidate.figure.id !== hero.id && (phase === "analysed" || candidate.count > 0))
+  const survivors = candidates
+    .filter((candidate) => !stated.has(candidate.figure.id) && (phase === "analysed" || candidate.count > 0))
     .map((candidate) => candidate.figure);
+  // The phase's preferred hero, when the sentence has not already spent it: un-analysed, the only real
+  // computed number is the shape the visual pass found (or, with no families, the library itself);
+  // analysed, it is the understanding — story themes, or the distilled count when themes have not run.
+  const preferredHeroId = preferredHeroIdFor(phase, families, storyThemes);
+  const distilledFigure: CorpusFigure = { id: "distilled", value: formatCount(input.distilled), caption: "distilled" };
+  const preferred = preferredHeroId === "distilled" && !stated.has("distilled") ? distilledFigure : survivors.find((f) => f.id === preferredHeroId);
+  const hero = preferred ?? survivors[0] ?? null;
+  const support = survivors.filter((figure) => figure.id !== hero?.id);
 
   const stages: readonly CorpusReadinessStage[] = [
     {
@@ -258,5 +293,5 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     },
   ];
 
-  return { phase, headline: headlineFor(phase, input, families, storyThemes), hero, support, stages };
+  return { phase, headline: headline.text, hero, support, stages };
 }

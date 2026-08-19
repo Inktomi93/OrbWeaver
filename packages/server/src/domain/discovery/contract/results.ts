@@ -1,6 +1,6 @@
 // domain/discovery/contract/results — the verb output shapes for discovery's read/compute surface.
 
-import type { DuplicateRelation } from "@orb/contracts/discovery";
+import type { BrowseCursor, DuplicateRelation } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId } from "@orb/kit/ids";
 import type { ThemeLevel } from "./params.ts";
 
@@ -108,6 +108,21 @@ export interface BrowseCharacter {
   readonly elevatorPitch: string | null;
   readonly avatarHash: string | null;
   readonly createdAt: number;
+}
+
+/**
+ * ONE PAGE of the distilled catalog + the boundary to ask for the next one + the server's own census of the
+ * whole filtered scope (A8, side-eye corpus re-pass 2026-08-19).
+ *
+ * `totalCount` is a SEPARATE count over the same predicate, never `items.length`: the pane prints "how many
+ * there are" beside a list that holds "how many are loaded", and deriving one from the other is exactly the
+ * lie that let a 200-row array sit under a header reading 313. `nextCursor` is `null` at the tail — a page
+ * shorter than the ask cannot have a next one.
+ */
+export interface BrowseCharactersPage {
+  readonly items: BrowseCharacter[];
+  readonly nextCursor: BrowseCursor | null;
+  readonly totalCount: number;
 }
 
 /** One facet value + how many of the owner's distilled cards carry it (populates a filter dropdown). */

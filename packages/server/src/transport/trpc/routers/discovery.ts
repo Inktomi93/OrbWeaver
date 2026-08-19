@@ -11,11 +11,11 @@
 // produced nothing usable (SERVICE_UNAVAILABLE, retryable). `classifyDomainError` maps all three, and the
 // content verdicts are ordered AFTER the ownership belt so neither is an existence oracle.
 
-import { DISCOVERY_GRAPH_MAX_NODES, DISCOVERY_LIST_MAX_LIMIT, RELATIONS } from "@orb/contracts/discovery";
+import { browseCursorSchema, browseSortSchema, DISCOVERY_GRAPH_MAX_NODES, DISCOVERY_LIST_MAX_LIMIT, RELATIONS } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { BROWSE_SORTS, IMAGE_FACET_KEYS, THEME_LEVELS } from "#domain/discovery";
+import { IMAGE_FACET_KEYS, THEME_LEVELS } from "#domain/discovery";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const discoveryRouter = t.router({
@@ -67,6 +67,9 @@ export const discoveryRouter = t.router({
 
   // PD-40 distill read-half: the owner's filterable distilled catalog (CONTENT-only). `ownerId` is the
   // resolved principal (audit #1: no caller-supplied owner). The filter is validated + narrowed here.
+  // KEYSET-PAGED since A8 — `cursor` rides as ONE sort-discriminated object field (tRPC's
+  // `infiniteQueryOptions` threads exactly one `cursor` field through as the page param) and `nullish`
+  // because that is what the client's `initialCursor: null` sends on the first page.
   browseCharacters: authedProcedure
     .input(
       z
@@ -75,8 +78,9 @@ export const discoveryRouter = t.router({
           tone: z.string().optional(),
           tag: z.string().optional(),
           q: z.string().optional(),
-          sort: z.enum(BROWSE_SORTS).optional(),
+          sort: browseSortSchema.optional(),
           limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
+          cursor: browseCursorSchema.nullish(),
         })
         .optional(),
     )
@@ -88,6 +92,7 @@ export const discoveryRouter = t.router({
         ...(input?.q !== undefined ? { q: input.q } : {}),
         ...(input?.sort !== undefined ? { sort: input.sort } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+        ...(input?.cursor === undefined || input.cursor === null ? {} : { cursor: input.cursor }),
       }),
     ),
 

@@ -27,6 +27,7 @@ export type { DiscoveryContext } from "./context.ts";
 export { CardNotDistillableError, DistillFailedError } from "./contract/errors.ts";
 export type {
   ArchetypesOptions,
+  BrowseCursor,
   BrowseFilter,
   BrowseSort,
   ComputeChatDuplicatesOptions,
@@ -41,12 +42,15 @@ export type {
   ThemeLevel,
   TopKeywordsOptions,
 } from "./contract/params.ts";
-export { BROWSE_SORTS, IMAGE_FACET_KEYS, THEME_LEVELS } from "./contract/params.ts";
+// BROWSE_SORTS is NOT here: the browse axis + its keyset moved to `@orb/contracts/discovery` with the A8
+// paging (the cursor is a wire shape discriminated on it), and the transport reads it from there.
+export { IMAGE_FACET_KEYS, THEME_LEVELS } from "./contract/params.ts";
 // Consumed via service-method-signature inference at the tRPC routers + tests, not direct imports.
 export type {
   Archetype,
   ArchetypeMember,
   BrowseCharacter,
+  BrowseCharactersPage,
   CatalogStats,
   CharacterComparison,
   CharacterFacets,

@@ -45,7 +45,7 @@ import type {
 import type {
   Archetype,
   AskCardAnswer,
-  BrowseCharacter,
+  BrowseCharactersPage,
   CatalogStats,
   CharacterComparison,
   CharacterComparisonDeep,
@@ -240,8 +240,10 @@ export interface DiscoveryService {
   readonly distillCharacters: (opts?: DistillCharactersOptions) => Promise<DistillStats>;
 
   // ── browse (the filterable distilled catalog — CONTENT-only) ───────────────
-  /** The owner's filterable distilled character catalog (facets + card identity), filtered/sorted/paged. */
-  readonly browseCharacters: (userId: UserId, filter?: BrowseFilter) => Promise<BrowseCharacter[]>;
+  /** ONE keyset PAGE of the owner's filterable distilled character catalog, with the boundary for the next
+   *  page and the census of the whole filtered scope. Keyset rather than a bare `limit` since A8: the pane
+   *  above it prints the census, so every counted row has to be reachable. */
+  readonly browseCharacters: (userId: UserId, filter?: BrowseFilter) => Promise<BrowseCharactersPage>;
   /** The distinct genres + tones in the owner's distilled corpus (with counts) — the browse filter dropdowns. */
   readonly characterFacets: (userId: UserId) => Promise<CharacterFacets>;
 
