@@ -1,10 +1,15 @@
 // The tag MEMBER EDITOR — CONTENT for one selected tag (config-rail-spec.md §2 C-7 / fork F-11 arm (a)).
 //
-// This is the other half of the row split: every control that used to be crammed into the 330px settings
-// row lives here, at full width, with room for its label — rename · both colour pickers · folder type ·
-// hide-on-card · merge · delete. The BEHAVIOUR is unchanged and deliberately so: each control is still an
+// This is the other half of the row split: every EDITING control that used to be crammed into the 330px
+// settings row lives here, at full width, with room for its label — rename · both colour pickers · folder
+// type · hide-on-card · merge. The BEHAVIOUR is unchanged and deliberately so: each control is still an
 // independent immediate-commit tag mutation fired on change, not a draft form, so nothing about when a
 // change lands moved when the controls did.
+//
+// DELETE IS NOT HERE — it converged onto the ROW's kebab (config-delete #271), the same place world-info and
+// regex rows home it, so a user finds Delete in one place across all three config collections. Merge STAYS
+// (it is a distinct fold-into-another verb that needs the target picker), and it is the editor's only
+// destructive control now. See `tag-collection-rows.tsx` for the ruling-survives-input-changed note.
 //
 // It reads the tag out of the SAME `listTagsWithUsage` cache the rows render from (cache-first, no second
 // fetch) — the row and the editor can never disagree about what a tag is.
@@ -15,7 +20,7 @@ import { Button } from "@orb/ui/button";
 import { ColorField } from "@orb/ui/color-field";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Field } from "@orb/ui/field";
-import { Hash, Icon, Trash2 } from "@orb/ui/icons";
+import { Hash, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
@@ -24,13 +29,13 @@ import { Heading, Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { ConfirmDialog, FormDialog } from "#components";
+import { FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
-import { useMergeTags, useRemoveTag, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations.ts";
-import { FOLDER_TYPE_ITEMS, tagColorValueLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
+import { useMergeTags, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations.ts";
+import { FOLDER_TYPE_ITEMS, tagColorValueLabel, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** Apply a partial patch to this tag (the immediate-commit style writer the sub-controls share). */
 type PatchStyle = (patch: UpdateTagInput) => void;
@@ -53,11 +58,9 @@ function TagMemberEditor({ tag, others }: { readonly tag: TagWithUsage; readonly
   const deps = { trpc, invalidation };
   const rename = useRenameTag(deps);
   const style = useUpdateTagStyle(deps);
-  const remove = useRemoveTag(deps);
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   const [name, setName] = useState(tag.name);
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const patchStyle: PatchStyle = (patch) => style.mutate({ tagId: tag.id, patch });
 
@@ -96,26 +99,11 @@ function TagMemberEditor({ tag, others }: { readonly tag: TagWithUsage; readonly
         <TagColorControls patchStyle={patchStyle} tag={tag} />
         <TagBehaviorControls patchStyle={patchStyle} tag={tag} />
 
+        {/* Merge is the editor's one destructive verb (Delete converged onto the row's kebab — #271). It
+            stays here because it needs the target picker; the row cannot carry a fold-into-another affordance. */}
         <Row gap="field">
           <TagMergeControl invalidation={invalidation} others={others} tag={tag} trpc={trpc} />
-          <Button intent="ghost" onClick={(): void => setDeleteOpen(true)} size="sm" type="button">
-            <Icon icon={Trash2} size="sm" />
-            Delete
-          </Button>
         </Row>
-
-        <ConfirmDialog
-          confirmLabel="Delete"
-          description={`This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`}
-          onConfirm={(): void => {
-            remove.mutate({ tagId: tag.id });
-            // The open member just stopped existing — land on the workspace welcome, not on a dead editor.
-            clearCollectionSelection();
-          }}
-          onOpenChange={setDeleteOpen}
-          open={deleteOpen}
-          title={`Delete "${tag.name}"?`}
-        />
       </Stack>
     </Container>
   );

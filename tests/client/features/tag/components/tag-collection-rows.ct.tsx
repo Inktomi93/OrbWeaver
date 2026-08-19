@@ -41,8 +41,13 @@ function stub(page: Page, tags: readonly unknown[] = TAGS): Promise<TrpcRecorder
     "tag.listTagsWithUsage": () => tags,
     "tag.pruneUnusedTags": () => ({ removed: 1 }),
     "tag.setTagOrder": () => undefined,
+    "tag.removeTag": () => undefined,
   });
 }
+
+/** The row-kebab delete confirm's cascade line for "adventure" (5 characters, 1 chat, 1 world book) — the
+ *  consequence a scan-line roster row cannot show, carried by the confirm the way the member editor's used to. */
+const DELETE_CASCADE = /5 characters, 1 chat, 1 world book/;
 
 // A third row whose ALPHABETICAL rank and its USAGE rank disagree — without it "most-used" and "A–Z"
 // produce the identical order and neither assertion proves anything.
@@ -94,6 +99,42 @@ test("each row carries its name and its usage census", async ({ mount, page }) =
   await expect(rows.getByText("unused", { exact: true })).toBeVisible();
 });
 
+// DELETE CONVERGED ONTO THE ROW'S KEBAB (config-delete #271). Before this, a tag could be deleted ONLY from
+// the member editor — the odd one out among the three config collections (world-info row-kebab-only, regex
+// both). This pins the converged affordance where the other two already have it: the row's ⋯ carries Delete,
+// the confirm names the real usage cascade the scan row cannot show, and the click alone fires nothing —
+// asserted through accessible names and the wire, never the component's internals.
+test("the row's kebab carries Delete, confirms with the usage cascade, and fires removeTag", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const rows = await mount(<TagCollectionRowsStory />);
+  await expect(rows.getByText("adventure")).toBeVisible();
+
+  // §12.2: the kebab rests hidden + inert like every row affordance, so reach it by hovering the row first.
+  await rows.locator('[data-slot="list-row-root"]', { hasText: "adventure" }).hover();
+  await rows.getByRole("button", { name: "Actions for adventure", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect(page.getByText(DELETE_CASCADE)).toBeVisible();
+  await page.getByRole("button", { name: "Delete", exact: true }).last().click();
+  await expect.poll(() => trpc.lastInput("tag.removeTag"), { intervals: [20, 50, 100] }).toEqual({ tagId: "tag_adventure" });
+});
+
+// The confirm is the GATE, not a formality: opening the kebab menu and dismissing the dialog must delete
+// nothing. Barriers on the CLOSED dialog — a rendered state only reachable after the whole open→cancel
+// round-trip, so a call the menu had fired would already be recorded.
+test("the kebab Delete ASKS FIRST — cancelling the confirm fires nothing", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const rows = await mount(<TagCollectionRowsStory />);
+  await rows.locator('[data-slot="list-row-root"]', { hasText: "adventure" }).hover();
+  await rows.getByRole("button", { name: "Actions for adventure", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect.poll(() => trpc.count("tag.removeTag"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
 // A ROW IS A SCAN LINE, AND ITS SPOKEN FORM IS TOO (side-eye re-verify 2026-08-06). A fix that put the
 // swatch's colour value in `markers` — the row's `aria-describedby` channel — made a screen reader recite
 // an 8-word "not set — uses the theme default" disclaimer once per row, ahead of the census, and
@@ -102,7 +143,10 @@ test("each row carries its name and its usage census", async ({ mount, page }) =
 test("a row's spoken DESCRIPTION is the census alone — no per-row colour disclaimer", async ({ mount, page }) => {
   await stub(page);
   const rows = await mount(<TagCollectionRowsStory />);
-  const row = rows.getByRole("button", { name: "adventure" });
+  // `exact`: the row now carries a kebab named "Actions for adventure" (config-delete #271's converged
+  // Delete), so a substring "adventure" match resolves to both the row and its menu. The ROW button's own
+  // accessible name is exactly the tag name — that is the one whose description is the census.
+  const row = rows.getByRole("button", { name: "adventure", exact: true });
   await expect(row).toHaveAccessibleDescription("7 uses");
   // The words are nowhere in the roster at all — not in a row's name, not in its description.
   await expect(rows.getByText("theme default")).toHaveCount(0);
