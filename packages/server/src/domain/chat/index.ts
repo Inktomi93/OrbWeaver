@@ -50,7 +50,7 @@ export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract
 // to bind prompt-config `{{user}}`, so the union has to reach entry.
 export type { TurnTrigger } from "./contract/foreign.ts";
 export type { BulkImportChats, ChatImportContext } from "./contract/import.ts";
-export type { MemoryConfig, ResolveBackfillMemoryConfig } from "./contract/memory.ts";
+export type { MemoryConfig, MemoryRecallFilter, MemoryRecallRecord, MemoryRecallRecorder, ResolveBackfillMemoryConfig } from "./contract/memory.ts";
 export {
   getGroupConfig,
   getRoomOverrides,
@@ -67,6 +67,8 @@ export { generateDigests } from "./memory/build/digests.ts";
 export { generateSegments } from "./memory/build/segments.ts";
 export { loadChatMeta } from "./memory/persistence/queries.ts";
 export { resolveTier0Range } from "./memory/recall/bridge.ts";
+// The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
+export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
 export { reclaimChatLocksOnBoot } from "./persistence/lock.ts";
 // The expressions post-turn prose read (E3 — expressions-design/02 §3.1): the injected `readTurn` op is wired

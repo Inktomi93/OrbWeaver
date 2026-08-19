@@ -5,7 +5,7 @@
 
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
-import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
+import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId } from "@orb/kit/ids";
@@ -200,16 +200,19 @@ export function fakeEmbeddingsStore(db: Db): {
   return { store, storeSegments, digests, segments, segmentBatchSizes };
 }
 
-/** A fake `searchDigests` that records the `MemoryQueryOptions` + returns a fixed key list (the injected
- *  cosine scan; `queryText`/`scopedCharacterId`/`candidates` are now homed on the options — inv 8). */
-export function fakeSearchDigests(result: readonly BlockKey[]): {
-  fn: (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
+/** A fake `searchDigests` that records the `MemoryQueryOptions` + returns a fixed ranked list (the injected
+ *  cosine scan; `queryText`/`scopedCharacterId`/`candidates` are now homed on the options — inv 8). Takes
+ *  BARE KEYS for the common case and synthesizes descending scores in the given order — a caller that is
+ *  ASSERTING on the trace's numbers (#250) passes full {@link ScoredBlock}s instead. */
+export function fakeSearchDigests(result: readonly (BlockKey | ScoredBlock)[]): {
+  fn: (query: MemoryQueryOptions) => Promise<readonly ScoredBlock[]>;
   calls: MemoryQueryOptions[];
 } {
   const calls: MemoryQueryOptions[] = [];
-  const fn = (query: MemoryQueryOptions): Promise<readonly BlockKey[]> => {
+  const scored: readonly ScoredBlock[] = result.map((r, i) => ("blockKey" in r ? r : { blockKey: r, score: -1 + i * 0.1, relevance: 0.9 - i * 0.1 }));
+  const fn = (query: MemoryQueryOptions): Promise<readonly ScoredBlock[]> => {
     calls.push(query);
-    return Promise.resolve(result);
+    return Promise.resolve(scored);
   };
   return { fn, calls };
 }

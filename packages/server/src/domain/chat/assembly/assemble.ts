@@ -604,6 +604,9 @@ function freshTrace(ctx: AssembleContext): AssembleTrace {
     matchedKeys: wi.matchedKeys,
     compactSummaryIncluded: false,
     memoryIncluded: false,
+    // Copied VERBATIM from the ctx the gather staged it on (the `wiTrace` posture) — the build walk never
+    // re-derives a recall fact. Absent ⇒ recall never ran for this ctx, which is `null`, not an empty recall.
+    memoryRecall: ctx.memoryTrace ?? null,
     databankIncluded: false,
     guidedInstructionIncluded: false,
     staticCacheBusters: [],

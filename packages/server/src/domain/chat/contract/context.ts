@@ -25,7 +25,7 @@ import type { NotificationEvent, PresenceView } from "@orb/contracts/notificatio
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgStatProfile } from "@orb/contracts/rpg";
-import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
+import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
@@ -59,7 +59,7 @@ import type { AuditEntry } from "#foundation/observability";
 import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { ResolveForeignInputsOp } from "./foreign.ts";
-import type { MemoryLog } from "./memory.ts";
+import type { MemoryLog, MemoryRecallSink } from "./memory.ts";
 import type { TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
@@ -966,8 +966,10 @@ interface PruneSegmentBlocksParams {
  */
 type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBlocksParams) => Promise<void>;
 
-/** memory's chat-scoped recall. Returns ranked block identities; memory resolves them back to digest text. */
-type SearchDigestsOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
+/** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
+ *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left
+ *  "why did THIS block surface" unanswerable at the only seam that knows). */
+type SearchDigestsOp = (query: MemoryQueryOptions) => Promise<readonly ScoredBlock[]>;
 
 /** The cross-chat corpus/digest+segment scan; host-only scope is enforced by the caller. */
 type SearchCorpusOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
@@ -1115,6 +1117,10 @@ export interface ChatContext {
   readonly gatherDatabank?: GatherDatabankOp;
   /** The structured memory observability sink. */
   readonly log: MemoryLog;
+  /** The recall FLIGHT RECORDER sink (#250) — every `{{memory}}` recall's slice, ring-buffered by the
+   *  compose-built recorder and read host-only at `/api/_debug/memory/recalls`. OPTIONAL: absent (a
+   *  hand-built ctx, a unit test) ⇒ nothing records and recall is byte-identical. */
+  readonly recordRecall?: MemoryRecallSink;
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;
   readonly resolvePromptVariables: ResolvePromptVariablesOp;

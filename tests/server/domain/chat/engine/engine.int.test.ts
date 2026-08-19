@@ -33,7 +33,18 @@ import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../..
 import { warningEvents, withCustomParametersDrop } from "../../../../../packages/server/src/infra/providers/backends/openrouter/runners/chat/shared.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
+import {
+  FROZEN_AT,
+  fakeRecallResult,
+  makeChatContext,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedParticipant,
+  seedUser,
+  stubRunCompaction,
+  testConnection,
+} from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
 const MEMBER = castId<UserId>("user_member");
@@ -689,7 +700,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     const calls: { scoped: string; group: string; witnessing: readonly WitnessInterval[] | undefined }[] = [];
     const recordRecall: Parameters<typeof createTurnEngine>[1]["recallMemory"] = (_ctx, args) => {
       calls.push({ scoped: args.scope.scopedCharacterId, group: args.groupCharacterId, witnessing: args.witnessing });
-      return Promise.resolve(`memory-for-${args.scope.scopedCharacterId}`);
+      return Promise.resolve(fakeRecallResult(`memory-for-${args.scope.scopedCharacterId}`));
     };
     const h = harness(db, { recallMemory: recordRecall });
 
@@ -721,7 +732,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     let recallCalls = 0;
     const recordRecall: Parameters<typeof createTurnEngine>[1]["recallMemory"] = (_ctx, _args) => {
       recallCalls += 1;
-      return Promise.resolve("scoped");
+      return Promise.resolve(fakeRecallResult("scoped"));
     };
     const h = harness(db, { recallMemory: recordRecall });
     const memoryRecall: MemoryRecallInputs = { groupCharacterId: aria, recent: [], names: new Map<CharacterId, string>(), config: { mode: "mixA" } };

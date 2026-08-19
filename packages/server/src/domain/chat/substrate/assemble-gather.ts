@@ -14,7 +14,7 @@
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssembleContext, ChatInjection, MacroFreezeRecord, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, MacroFreezeRecord, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -182,10 +182,11 @@ function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[num
   };
 }
 
-/** Resolve the `{{memory}}` string for the round. Round-level recall uses the shared/merged bucket (the
- *  synthetic group-as-character, or the primary cast char when none is minted). Returns "" when there is
- *  no character to key on. When `out` is supplied, stages the round-level recall inputs for the engine's
- *  per-speaker witnessed re-run (D6). */
+/** Resolve the `{{memory}}` string for the round PLUS its recall trace (#250). Round-level recall uses the
+ *  shared/merged bucket (the synthetic group-as-character, or the primary cast char when none is minted).
+ *  Returns `""` with a `null` trace when there is no character to key on — the ONE path where recall did not
+ *  run at all, which the assembly trace reports as `memoryRecall: null` rather than as an empty recall. When
+ *  `out` is supplied, stages the round-level recall inputs for the engine's per-speaker witnessed re-run (D6). */
 async function gatherMemory(
   ctx: ChatContext,
   args: {
@@ -200,7 +201,7 @@ async function gatherMemory(
     readonly liveWindowCutoffSeq: number | undefined;
   },
   out?: SendRegexSink,
-): Promise<string> {
+): Promise<{ readonly text: string; readonly trace: MemoryRecallSlice | null }> {
   const group = await ctx.findSyntheticGroupCharacter({
     ownerId: args.runAsUserId,
     chatId: args.chatId,
@@ -210,7 +211,7 @@ async function gatherMemory(
     if (out !== undefined) {
       out.memoryRecall = null;
     }
-    return "";
+    return { text: "", trace: null };
   }
   const config = args.foreign.memoryConfig ?? null;
   if (out !== undefined) {
@@ -401,7 +402,10 @@ export async function gatherAssembleContext(
       // The rpg reminder is stamped `game-state` HERE (the ONE merge site) so the BUILD walk can account the
       // state block as its own budget source without chat ever reading an rpg type.
       userInjections: [...injectionRows.map(toChatInjection), ...(args.rpgInjections ?? []).map((i): ChatInjection => ({ ...i, origin: "game-state" }))],
-      memory,
+      memory: memory.text,
+      // The recall EXPLANATION rides beside the text it explains (#250) — the trace's memory row. Absent only
+      // when recall never ran (no character to key on).
+      ...(memory.trace === null ? {} : { memoryTrace: memory.trace }),
       // Absent (op unwired / null result) ⇒ omitted ⇒ byte-identical to a non-databank turn (DB6 null-op pin).
       ...(databank !== undefined ? { databank } : {}),
       // The parity-plus P6 feed (§12): rpg macro map + `{{expr}}` CEL activation + `{{idle_duration}}`. Each field

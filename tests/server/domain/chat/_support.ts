@@ -38,6 +38,7 @@ import { can } from "@orb/server/domain/admin";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
 import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { MemoryRecallResult } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -344,6 +345,16 @@ export async function seedPendingTurn(
     createdAt: opts.createdAt ?? FROZEN_AT,
   });
   return id;
+}
+
+/** A stub `recallMemory` RESULT (#250) — the rendered text plus a trace saying, honestly, that this recall
+ *  was a test stub rather than a real pool walk. Engine suites that only care THAT recall was dispatched (and
+ *  with which bucket/horizons) build their fake through this so they never hand-spell the slice. */
+export function fakeRecallResult(text: string): MemoryRecallResult {
+  return {
+    text,
+    trace: { mode: "mixA", queryText: null, queryEmbedded: false, poolSize: 0, candidateCount: 0, surfaced: 0, ms: 0, note: "test stub", candidates: [] },
+  };
 }
 
 /**
