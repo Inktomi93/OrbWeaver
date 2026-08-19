@@ -15,6 +15,13 @@
 // The one thing it DOES read off a fault is the tRPC error CODE, and only to answer "is the session dead?"
 // A warm tab under D54's pins issues no reads, so the QueryCache belt has nothing to fire on — this
 // socket is the only place a revoked/expired session announces itself, and it used to end at a toast.
+//
+// A SOCKET FAULT IS THE SOCKET'S STORY, AND IT IS TOLD ONCE (#222). Both routes a fault arrives by — the
+// typed terminal frame and the subscription's own `onError` — land in `reportSocketFault`, which is the
+// ONLY producer of a socket-fault alert in this app. It is deliberately not the registry's job: fanning a
+// socket fault into every room's `onError` made ONE cause into N identical toasts (and, one surface over,
+// a false "the import stream ended" for a blip that reconnects). `roomRegistry.failed` now takes a
+// REQUIRED ref and means what its name says — THIS room failed.
 
 import type { StreamFrame } from "@orb/contracts/stream";
 import { useSubscription } from "@trpc/tanstack-react-query";
@@ -32,13 +39,13 @@ type SocketPayload = StreamFrame | { readonly __subscriptionError: true; readonl
 
 function routeFrame(payload: SocketPayload): void {
   if ("__subscriptionError" in payload) {
-    // The whole socket is over. Every room loses freshness, so every room's consumer hears it; the
-    // reconnect's gap-heal closes the data gap when the client re-subscribes.
-    roomRegistry.failed(payload.message);
-    // W1 — and if the reason was the SESSION, this frame is the only signal a warm tab will ever get: with
-    // `staleTime: Infinity` it issues no reads, so the QueryCache belt has nothing to fire on. Route the
-    // code into the recovery ladder; every other code keeps its room-failure handling and nothing else.
-    recoverIfUnauthorizedCode(payload.code);
+    // The whole socket is over — ONE thing that happened, so ONE alert, from the socket itself (#222). This
+    // used to call `roomRegistry.failed(payload.message)` with no ref, which the registry fanned to EVERY
+    // joined room; since every room hook's `onError` is a `notify.error`, one socket death produced N
+    // byte-identical toasts of the SERVER'S OWN SENTENCE and never reached `socketNotice` at all. The
+    // rooms lose nothing: a reconnect's gap-heal (`onSocketLive`, per room, BOOT-4X-gated) is what closes
+    // the data gap, and it always was — see `reportSocketFault`.
+    reportSocketFault(payload.code, payload.message);
     return;
   }
   if (payload.channel !== "control") {
@@ -94,6 +101,31 @@ export function socketNotice(code: string | undefined, message: string, retry: (
  *  ever call the no-op. */
 let resetSocket: () => void = () => undefined;
 
+/**
+ * THE SOCKET'S ONE STORY, told once (#222 — the producer-dedupe sibling of #215's announce-failure fix).
+ *
+ * A socket fault reaches this tab by two routes that are the SAME event to a reader: the typed
+ * `__subscriptionError` terminal frame (a DomainError thrown inside the running stream) and the
+ * subscription's own `onError` (the connect request itself refused — where the per-user cap lands, since
+ * `stream.connect` adopts the cell in its RESOLVER). Both used to be handled differently: the terminal
+ * frame fanned the raw server sentence into every joined room, the refusal raised `socketNotice`. One
+ * cause, two vocabularies, N toasts. They are one function now.
+ *
+ * The recovery ladder wins over the toast: a dead SESSION is the one fault the user can act on, and this
+ * frame is the only signal a warm tab gets (D54's `staleTime: Infinity` means no read ever fires the
+ * QueryCache belt). A "UNAUTHORIZED" notice the user can do nothing about is worse than the re-auth prompt.
+ */
+function reportSocketFault(code: string | undefined, message: string): void {
+  if (recoverIfUnauthorizedCode(code)) {
+    return;
+  }
+  notify.error(
+    socketNotice(code, message, () => {
+      resetSocket();
+    }),
+  );
+}
+
 /** Attach the ONE multiplexed socket for this tab. Call once, at the authed composition root. */
 export function useOrbSocket(): void {
   const trpc = useTRPC();
@@ -134,16 +166,9 @@ export function useOrbSocket(): void {
         onError: (error) => {
           // `stream.connect` is an `authedProcedure`, so a dead cookie refuses the CONNECT REQUEST — the
           // principal is never minted and the generator never runs, which is why this arm (not the terminal
-          // frame above) is where an expired/revoked session actually surfaces. Recovery replaces the toast:
-          // a "UNAUTHORIZED" notice the user can do nothing about is worse than the re-auth prompt.
-          if (recoverIfUnauthorizedCode(error.data?.code)) {
-            return;
-          }
-          notify.error(
-            socketNotice(error.data?.code, error.message, () => {
-              resetSocket();
-            }),
-          );
+          // frame above) is where an expired/revoked session actually surfaces. Same handler either way:
+          // one socket, one story (`reportSocketFault`).
+          reportSocketFault(error.data?.code, error.message);
         },
       },
     ),

@@ -22,6 +22,7 @@ import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
   AppShellDropGuardStory,
   AppShellMobileRuleStory,
+  AppShellNoticeBandStory,
   AppShellOnSectionStory,
   AppShellStory,
   AppShellWidthProbeStory,
@@ -65,6 +66,114 @@ const SHEET_PERSONA = {
   createdAt: 1,
   updatedAt: 1,
 };
+
+// ── #193: THE NOTICE BAND — a notice REFLOWS the content column, it never covers it ──────────────────
+// The ruled escape from toast-overlay occlusion. The residual this retires (`@orb/ui`
+// `toast/variants.ts`) was explicit that no inset could solve it: a phone column is topbar → transcript →
+// composer → tab bar, with no toast-height gap that is neither the transcript nor the composer, so an
+// overlay stack had to cover one of them. The band deletes the choice by leaving the overlay plane: the
+// stack is a FLOW row of `.shell-main`, so raising a notice pushes the content down.
+//
+// These assert the two halves that make it structural rather than lucky: the toast's box does not
+// intersect the h1 or the composer AT ALL (occlusion is impossible, not merely avoided at this size),
+// and the content pane genuinely LOST height to the band (it reflowed — it did not simply happen to sit
+// somewhere else). Run at the phone mount, which is where the 60% burial was measured, and at a desktop
+// one, because the band is ONE surface at every width (no mobile mode beside a desktop mode).
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+async function settledBox(locator: Locator): Promise<Box> {
+  await expect(locator).toBeVisible();
+  // The toast enters on a translate transition; a same-tick read would measure it mid-flight.
+  await expect
+    .poll(async () => {
+      const first = await locator.boundingBox();
+      await locator.page().waitForTimeout(60);
+      const second = await locator.boundingBox();
+      return first !== null && second !== null && Math.abs(first.y - second.y) < 0.5;
+    })
+    .toBe(true);
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("expected a rendered box");
+  }
+  return box;
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+interface NoticeGeometry {
+  readonly toast: Box;
+  readonly h1: Box;
+  readonly transcript: Box;
+  readonly composer: Box;
+  readonly contentBefore: Box;
+  readonly contentAfter: Box;
+}
+
+/** Measure the content column, raise one notice, and measure everything the notice could have hit. */
+async function raiseNoticeAndMeasure(page: Page): Promise<NoticeGeometry> {
+  const contentBefore = await settledBox(page.getByTestId("band-content-pane"));
+  await page.getByTestId("raise-notice").click();
+  const toast = await settledBox(page.locator('[data-slot="toast-root"]'));
+  return {
+    composer: await settledBox(page.getByTestId("band-composer-standin")),
+    contentAfter: await settledBox(page.getByTestId("band-content-pane")),
+    contentBefore,
+    h1: await settledBox(page.getByTestId("band-h1")),
+    toast,
+    transcript: await settledBox(page.getByTestId("band-transcript")),
+  };
+}
+
+test.describe("the notice band — coarse pointer, the phone mount where the burial was measured", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
+
+  test("a notice reflows the phone content column instead of burying the transcript", async ({ mount, page }) => {
+    await mount(<AppShellNoticeBandStory />);
+    const g = await raiseNoticeAndMeasure(page);
+
+    // THE DEFECT, first and measured: with the band removed, the overlay stack's box INTERSECTS the
+    // reading surface (`toast ∩ transcript` = true, probe receipt) — that intersection is the 60% burial.
+    expect(overlaps(g.toast, g.transcript)).toBe(false);
+    expect(overlaps(g.toast, g.h1)).toBe(false);
+    expect(overlaps(g.toast, g.composer)).toBe(false);
+    // THE REFLOW: the content pane gave the band its height. Without this, the two non-overlap
+    // assertions would also pass for a toast that had merely been parked somewhere empty.
+    expect(g.contentAfter.height).toBeLessThan(g.contentBefore.height);
+    expect(g.contentAfter.y).toBeGreaterThan(g.contentBefore.y);
+    // …and the mechanism that bought it: the stack is in the BAND, not on the body, and the band is not
+    // a stacking context painting over anything — it has no position of its own.
+    await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="notice-band"]')).toHaveCSS("position", "static");
+  });
+});
+
+test("a notice reflows the desktop content column too — ONE surface, not a mobile mode", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mount(<AppShellNoticeBandStory />);
+  const g = await raiseNoticeAndMeasure(page);
+
+  expect(overlaps(g.toast, g.transcript)).toBe(false);
+  expect(overlaps(g.toast, g.h1)).toBe(false);
+  expect(overlaps(g.toast, g.composer)).toBe(false);
+  expect(g.contentAfter.height).toBeLessThan(g.contentBefore.height);
+  await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(1);
+});
+
+test("with nothing to say the band costs zero pixels — an empty shell is byte-for-byte the old layout", async ({ mount, page }) => {
+  await mount(<AppShellNoticeBandStory />);
+  // The band element exists (its ref is what the outlet portals into) and renders NOTHING.
+  await expect(page.locator('[data-slot="notice-band"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="notice-band"]')).toBeHidden();
+});
 
 test("default renders the chats content pane inside the frame", async ({ mount }) => {
   const shell = await mount(<AppShellStory />);

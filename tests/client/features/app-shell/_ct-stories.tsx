@@ -20,7 +20,7 @@
 
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ContextRegionDef, ContextRegionView, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
-import { createContributorRegistry, defineContextRegion, defineContextTabs, VOID_STATE } from "@orb/client/lib";
+import { createContributorRegistry, defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, SectionDefinition, SectionId } from "@orb/client/state";
 import {
   ChromeRegistryProvider,
@@ -56,6 +56,7 @@ import {
   CtRealSectionRegistry,
   CtStandInChromeRegistry,
 } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** Lands the shell on a section before the assertions run. The BORN default is now `home` (owner
  *  decision H1 = D-1), but most shell CTs are about the FRAME's mechanics over a section that has panes —
@@ -97,6 +98,47 @@ export function AppShellStory(): ReactElement {
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
         <AppShell />
       </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** THE NOTICE BAND (#193): the real shell + the real toast outlet, plus one control that raises a notice.
+ *  The content pane carries a bottom-anchored stand-in for the composer, because the defect being retired
+ *  is precisely "an overlay stack must cover the transcript OR the composer, and both are load-bearing" —
+ *  a story with only a transcript could not tell a reflow from a lucky inset. */
+export function AppShellNoticeBandStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtFakeSectionRegistry
+          sections={{
+            chats: {
+              content: (
+                <div data-testid="band-content-pane" style={{ display: "flex", flex: "1 1 auto", flexDirection: "column", minHeight: 0 }}>
+                  <h1 data-testid="band-h1">Transcript</h1>
+                  {/* The READING SURFACE: full-column-width and everything the composer does not take,
+                      exactly like the real transcript. A narrow stand-in would let a right-aligned overlay
+                      stack miss it by luck and make the non-overlap assertions vacuous. */}
+                  <div data-testid="band-transcript" style={{ background: "#111", flex: "1 1 auto", minHeight: 0 }} />
+                  <div data-testid="band-composer-standin" style={{ background: "#333", flex: "none", height: 96 }} />
+                </div>
+              ),
+            },
+          }}
+        >
+          <LandOn section="chats" />
+          <AppShell />
+          <button
+            data-testid="raise-notice"
+            onClick={(): void => {
+              notify.error({ description: "The live connection dropped and could not be restarted.", title: "Lost the live connection" });
+            }}
+            type="button"
+          >
+            raise notice
+          </button>
+        </CtFakeSectionRegistry>
+      </CtToastSurface>
     </CtDataProviders>
   );
 }
