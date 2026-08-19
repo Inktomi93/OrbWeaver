@@ -72,6 +72,7 @@ import {
   selectPresetSection,
   selectWorldEntry,
   setActiveSection,
+  setAnalyticsSearchQuery,
   setBulkMode,
   setCharacterBrowseOffset,
   setCharacterSortMode,
@@ -99,6 +100,7 @@ import {
   useActiveChatHandle,
   useActiveSection,
   useAggregateSaveStatus,
+  useAnalyticsSearchQuery,
   useAppearanceBootHint,
   useBlockedSaveSections,
   useCharacterBulkMode,
@@ -768,6 +770,26 @@ export function PresetSearchProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setPresetSearchQuery("")}>
         clear preset query
+      </button>
+    </div>
+  );
+}
+
+/** AnalyticsSearchProbe — the Analytics LIST's search store as text plus the buttons that fire its one
+ *  action. A CT, not a unit test, for its preset/corpus siblings' reason: the read surface is a hook and
+ *  `useSyncExternalStore` needs a real render. What this pins that the surface CT cannot: the query is
+ *  MODULE-scoped — it outlives any one component, which is what lets the shell's chrome band ("N of M")
+ *  and the leaderboard rows (two renderers with no common parent) narrow off the same filtered page. */
+export function AnalyticsSearchProbe(): ReactElement {
+  const query = useAnalyticsSearchQuery();
+  return (
+    <div>
+      <output>{`analyticsQuery=${query === "" ? "none" : query}`}</output>
+      <button type="button" onClick={(): void => setAnalyticsSearchQuery("dragons")}>
+        set analytics query
+      </button>
+      <button type="button" onClick={(): void => setAnalyticsSearchQuery("")}>
+        clear analytics query
       </button>
     </div>
   );
