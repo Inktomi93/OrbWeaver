@@ -93,8 +93,17 @@ export function AddDocumentBody(): ReactElement {
   return (
     <Stack gap="block" padding="block">
       {/* ModalHost draws the title + the close; the teaching gloss is the body's, and it is the ONE
-          spelling (databank-copy) every add/empty surface prints. */}
-      <Text voice="gloss">{DATABANK_INGEST_GLOSS}</Text>
+          spelling (databank-copy) every add/empty surface prints.
+
+          `reading`, NOT `gloss` (side-eye 2026-08-19 P3). This is the sentence that teaches the whole
+          mechanism to someone who has never added a document, and it was set at `gloss` — 10.5px, the
+          footnote voice — running ~93 characters wide: the SMALLEST of its three homes (13px in the LIST
+          empty, 15px in CONTENT) at the moment it matters most. `reading` is the voice minted for exactly
+          this ("THE CONTENT ITSELF", text/variants.ts), and it is paired with the reading measure the
+          voice's own doc requires, so the line does not run the width of the dialog. */}
+      <Text className="max-w-(--reading-measure)" voice="reading">
+        {DATABANK_INGEST_GLOSS}
+      </Text>
       <Stack gap="block">
         {/* Three pressable modes, not a tablist: each swaps the body in place with no panel to own or
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}
@@ -105,7 +114,15 @@ export function AddDocumentBody(): ReactElement {
             </Button>
           ))}
         </Row>
-        {bodies[mode]}
+        {/* THE MODE STRIP HOLDS ONE Y (side-eye 2026-08-19 P2). The three arms are 405 / 543.75 / 375.75px
+            tall and the shell's Dialog is vertically CENTRED, so switching mode moved the whole dialog
+            70-84px — under the pointer, with the strip the user is aiming at as the thing that moved. The
+            dialog's centring is the shell's and app-wide; what is local is the swapped region, so it
+            reserves the tallest arm's height and the strip above it stops travelling. A floor, not a fixed
+            height: an arm that grows (a validation line, a revealed field) still grows downward. */}
+        <Stack className="min-h-96" gap="block">
+          {bodies[mode]}
+        </Stack>
       </Stack>
     </Stack>
   );

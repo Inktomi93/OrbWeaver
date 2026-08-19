@@ -43,19 +43,60 @@ test("a phase chip renders ONLY for a non-ready row — Ready is the absence of 
 // seven in that state) rendered `Queued` on this list FOREVER; the only surface that ever admitted something
 // was wrong was the DETAIL pane's stall hint, five minutes in, for a user who thought to open the row. The
 // list is where a user actually notices, so the verdict and its remedy live here now.
-test("a wedged row says STALLED on the LIST, not Queued — and carries its remedy", async ({ mount, page }) => {
+// THE REMEDY'S HOME MOVED (side-eye 2026-08-19 P2) — the PIN'S INTENT SURVIVES, its mechanism changed.
+// This test used to assert the remedy AS a `title=` attribute on the chip, i.e. it pinned the tooltip as the
+// contract. That mechanism was the defect: a native tooltip on a non-focusable 10.5px span, with the row's
+// `aria-describedby` carrying nothing about it — the ONE row in the pane that had a remedy was the one row
+// that could not say so to a keyboard or a screen reader. §6.1's rule that the sentence must not ellipsis
+// the scent is UNCHANGED and is why it goes AFTER the scent rather than before it.
+test("a wedged row says STALLED on the LIST, not Queued — and carries its remedy IN the row's description", async ({ mount, page }) => {
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
   await expect(list.getByText("Treaty of Ashfen")).toBeVisible();
 
-  const chip = list.locator('[data-slot="list-row-root"]', { hasText: "Treaty of Ashfen" }).getByText("Stalled", { exact: true });
-  await expect(chip).toBeVisible();
-  // The remedy is on the chip itself — the sentence would ellipsis the row's scent line at the 320px floor.
-  await expect(chip).toHaveAttribute("title", "Still queued — Reindex can restart a stuck job.");
+  const row = list.locator('[data-slot="list-row-root"]', { hasText: "Treaty of Ashfen" });
+  await expect(row.getByText("Stalled", { exact: true })).toBeVisible();
+
+  // The remedy rides the SUBTITLE — which is what `aria-describedby` points at — and the scent it must not
+  // eat is still first and still whole.
+  const described = await page.evaluate(() => {
+    const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Treaty of Ashfen"));
+    const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
+    return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
+  });
+  expect(described).toContain("Text · 8 KB · 0 passages");
+  expect(described).toContain("Still queued — Reindex can restart a stuck job.");
   // …and the repair it names is one click away on this row's own kebab.
-  await list.locator('[data-slot="list-row-root"]', { hasText: "Treaty of Ashfen" }).hover();
+  await row.hover();
   await list.getByRole("button", { name: "Actions for Treaty of Ashfen", exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "Reindex" })).toBeVisible();
+});
+
+// EMPTY AND INDEXING ARE THE SAME AMBER BY RULING (databank-model's INGEST_BADGES: `Empty` is a FAILED
+// extraction, not a shrug — 2026-08-08 P3), and 2026-08-19 measured what that costs: "act now" and "wait"
+// resolved to one identical fg/bg pair, told apart by a 10.5px word. The fix is a THIRD axis, not a revert.
+// Asserted on the RENDERED marks — the act-now chip carries an svg, the wait chips carry none, and both
+// keep the same computed colour — so neither half can be satisfied by class names.
+test("only the ACT-NOW phase chip carries a glyph — the amber is shared, the mark is not (P2)", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const list = await mount(<DatabankLibraryStory />);
+  await expect(list.getByText("Empty", { exact: true })).toBeVisible();
+
+  const chips = await page.evaluate(() =>
+    ["Empty", "Indexing"].map((label) => {
+      const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
+      return {
+        label,
+        glyphs: chip?.querySelectorAll("svg").length ?? -1,
+        color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
+      };
+    }),
+  );
+
+  expect(chips[0]?.glyphs).toBe(1);
+  expect(chips[1]?.glyphs).toBe(0);
+  // The 2026-08-08 warning ruling is PRESERVED, not reverted: both are still the same amber.
+  expect(chips[0]?.color).toBe(chips[1]?.color);
 });
 
 test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen clock, not a zero count", async ({ mount, page }) => {
@@ -69,12 +110,21 @@ test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen
   await expect(list.getByText("Indexing", { exact: true })).toBeVisible();
 });
 
-test("the row subtitle is the scent: provenance · size · passages", async ({ mount, page }) => {
+// A PASSAGE IS AN EMBEDDED CHUNK (`@orb/contracts/databank`'s own phase note; `BankHealthView.passages` =
+// "chunks a chat can actually retrieve"). This row printed `chunkCount`, so Duskwater — 22 of 39 embedded —
+// claimed "39 passages": a 77% overstatement of its reach, printed at exactly the moment the number is
+// moving and the user is watching it (side-eye 2026-08-19 P2). The bank-health line was fixed for this same
+// overstatement on 2026-08-08; the row kept the old reading. Both numbers while they differ, one once they
+// cannot — the health line's own shape.
+test("the row subtitle counts EMBEDDED passages, and says so while they are still landing", async ({ mount, page }) => {
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
 
+  // Fully embedded: one number, because there is nothing left to distinguish.
   await expect(list.getByText("Upload · 24.5 KB · 12 passages")).toBeVisible();
-  await expect(list.getByText("Wiki · 91.7 KB · 39 passages")).toBeVisible();
+  // Mid-embed: both, and never the chunk count alone.
+  await expect(list.getByText("Wiki · 91.7 KB · 22 / 39 passages")).toBeVisible();
+  await expect(list.getByText("Wiki · 91.7 KB · 39 passages")).toHaveCount(0);
 });
 
 test("Everywhere is the row's ONE state toggle: aria-pressed carries the state, from ONE listGlobal read", async ({ mount, page }) => {
@@ -159,7 +209,13 @@ test("the empty bank TEACHES and offers the next step — never a blank pane", a
   await expect(list.getByRole("button", { name: "Add a document" })).toBeVisible();
 });
 
-test("a search with no hits says so, and does NOT offer the create action (the bank is not empty)", async ({ mount, page }) => {
+// A SUPERSEDED RULING, RECORDED. This test used to assert the no-match arm offers NO create action, on the
+// reasoning "the bank is not empty". 2026-08-19 measured the consequence: "No matches" with zero
+// affordances, above a search box still holding the term that produced it — a dead end, in the one arm of
+// three that had no way out (the phase-scope arm got its clear affordance on 2026-08-08). The bank-is-not-
+// empty reasoning survives as the DEMOTION — Add is `ghost` here and `secondary` in the truly-empty arm —
+// but "the create action would be wrong" did not.
+test("a search with no hits offers BOTH ways out — put the bank back, or make the thing you looked for", async ({ mount, page }) => {
   const trpc = await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
   await expect(list.getByText("The Crimson Court")).toBeVisible();
@@ -167,10 +223,15 @@ test("a search with no hits says so, and does NOT offer the create action (the b
   await list.getByRole("textbox", { name: "Search documents" }).fill("nothing matches this");
 
   await expect(list.getByText("No matches")).toBeVisible();
-  await expect(list.getByRole("button", { name: "Add a document" })).toHaveCount(0);
+  await expect(list.getByRole("button", { name: "Add a document" })).toBeVisible();
   // THE TERM WENT OVER THE WIRE. Asserted on the recorded INPUT, because "the pane shows no rows" is exactly
   // what a client-side filter over the loaded window produced too — the wire is what tells the two apart.
   await expect.poll(() => trpc.lastInput("databank.list"), { intervals: [20, 50, 100] }).toMatchObject({ search: "nothing matches this" });
+
+  // …and Clear search really clears it: the box empties and the bank comes back, in one click.
+  await list.getByRole("button", { name: "Clear search" }).click();
+  await expect(list.getByRole("textbox", { name: "Search documents" })).toHaveValue("");
+  await expect(list.getByText("The Crimson Court")).toBeVisible();
 });
 
 // ── The PHASE SCOPE home's health chips write (side-eye 2026-08-08 P2-a) ───────────────────────────────

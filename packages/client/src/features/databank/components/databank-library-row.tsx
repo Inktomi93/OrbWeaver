@@ -117,7 +117,14 @@ export function DatabankLibraryRow({
           rest="when-on"
         />
       }
-      subtitle={documentSubtitle(document)}
+      // THE STALL REMEDY IS PART OF THE ROW'S SCENT, NOT A TOOLTIP (side-eye 2026-08-19 P2). It used to
+      // live ONLY as a `title=` attribute on the chip below — a native tooltip on a non-focusable 10.5px
+      // span, with `aria-describedby` null, i.e. the one row in the pane whose remedy existed was the one
+      // row that could not say it to a keyboard or a screen reader. §6.1's ruling that the sentence must
+      // not ellipsis the scent SURVIVES and is why it goes AFTER: the provenance/size/passage scent is
+      // still first and still intact at the 320px floor; the remedy is what clips, and it clips into the
+      // subtitle's own `title=` (ListRow) and into the row's `aria-describedby`, where a clip is not a loss.
+      subtitle={stallHint === null ? documentSubtitle(document) : `${documentSubtitle(document)} · ${stallHint}`}
       title={document.name}
       {...(showsPhaseChip(phase)
         ? {
@@ -126,12 +133,12 @@ export function DatabankLibraryRow({
             // lines apart and eat the scent text it precedes. Inline keeps the tone (the whole point of a
             // chip over a word) at zero line-box cost.
             subtitleLead: (
-              // A STALLED row carries its remedy on the chip's own `title` rather than in the subtitle text:
-              // at the 320px pane floor "Still queued — Reindex can restart a stuck job." would ellipsis the
-              // provenance/size/chunks scent it precedes, which is the exact defect §6.1's chip ruling
-              // exists to prevent. The chip's danger tone is the rest-visible signal; the sentence is one
-              // hover (and one AT read) away, and Reindex is on this row's own kebab.
-              <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft" {...(stallHint === null ? {} : { title: stallHint })}>
+              // The GLYPH is the third differentiator `Empty` needs (databank-model's INGEST_BADGES note):
+              // `Empty` and `Queued`/`Indexing` are the same amber by ruling, so the act-now arm carries a
+              // mark the wait arms do not. `aria-hidden` is Icon's own default — the chip's LABEL is what
+              // the row announces, and a glyph that spoke would say the state twice.
+              <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft">
+                {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                 {badge.label}
               </Badge>
             ),

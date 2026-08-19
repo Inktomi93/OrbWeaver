@@ -32,13 +32,21 @@ import { timeLib, useFocusOnMount } from "#lib";
 import { useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
-import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
-import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, originLabel } from "../lib/databank-model.ts";
+import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, originLabel, passageCount } from "../lib/databank-model.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
   const documentId = useSelectedDocumentId();
+  // THIS PANE STANDS DOWN WHEN NOTHING IS OPEN (side-eye 2026-08-19 ARIA) — the config workspace's
+  // precedent verbatim (`config-content-surface.tsx`, same finding one section over). Both databank
+  // surfaces call `useFocusOnMount` on their own root and CONTENT mounts SECOND, so arriving in the
+  // section put a keyboard user on this welcome — last in the DOM, a full wrap past the library they came
+  // to read — and the LIST's own call was overwritten every time. Which pane wins must be a DECISION, not
+  // effect-order roulette: with nothing open the LIST is what the reader arrived for; the moment a
+  // document IS open this pane is where they asked to be, so it takes focus again. The gate stays
+  // satisfied (the surface still manages its own arrival focus — it simply knows when the arrival is not
+  // its), so no `@surface-focus-elsewhere` marker is owed here.
+  useFocusOnMount(surfaceRef, documentId !== null);
 
   return (
     <Container className="h-full min-h-0">
@@ -58,14 +66,25 @@ export function DatabankDetailSurface(): ReactElement {
   );
 }
 
-/** The no-selection arm — what the bank IS, and what a document does once it is in it. The description is
- *  the SHARED gloss (one spelling of the mechanism, `databank-copy`) plus this pane's OWN second sentence:
- *  the part only CONTENT can say, about the pane to its left. It used to re-word the mechanism itself
- *  ("chunked and embedded"), one of four drifted spellings (side-eye 2026-08-08 P2-c). */
+/**
+ * The no-selection arm — what this PANE will show once a document is open.
+ *
+ * IT NO LONGER PRINTS THE SHARED GLOSS (side-eye 2026-08-19 taste). The one-home copy fix of 2026-08-08 is
+ * CORRECT and is not being forked: `DATABANK_INGEST_GLOSS` still has exactly one spelling. What that fix
+ * created is a different defect — on an empty bank the LIST pane and this pane are both on screen and both
+ * printed that same sentence (13px there, 15px here, and a third copy at 10.5px inside the Add modal), so
+ * the product said one thing three times in one glance. The teaching sentence belongs to the surface that
+ * owns the FIRST step, which is the LIST's empty state and the Add modal; this pane's job is to say what
+ * happens when you pick something. So the slot changes, not the spelling.
+ *
+ * AND NO SECOND ADD DOOR. It used to end "…or add another" while rendering no button — an invitation with
+ * no affordance, 226px from the LIST's real one (the two-Add-doors finding). The invitation goes rather
+ * than a third button being minted for it.
+ */
 function DatabankWelcome(): ReactElement {
   return (
     <EmptyState
-      description={`${DATABANK_INGEST_GLOSS} Pick one on the left to see what was indexed, or add another.`}
+      description="Pick a document on the left to see what was extracted, how much of it is indexed, and where it fires."
       icon={<Icon icon={FileText} size="lg" />}
       title="Your databank"
     />
@@ -117,6 +136,10 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 it was chrome on six rows in seven; here it is the answer to the question the user asked by
                 opening the document. */}
             <Badge intent={badge.intent} size="sm" tone="soft">
+              {/* The act-now glyph rides here too — one chip anatomy, both panes (databank-model's
+                  INGEST_BADGES note): a document that reads `Empty` on the list must not read as an
+                  ordinary amber wait-state the moment it is opened. */}
+              {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
               {badge.label}
             </Badge>
             <Button aria-label={`Rename ${doc.name}`} intent="ghost" onClick={(): void => setRenameOpen(true)} size="icon" title="Rename">
@@ -125,20 +148,27 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           </Row>
         </Row>
 
-        <Section heading="Details">
+        {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): a read-only GROUPING gets the micro-caps
+            name plus a hairline to the edge, which is what 20+ sibling features spell and what the mock
+            draws. `heading` is the settings-pane form contract, and this pane is a readout (side-eye
+            2026-08-19 P2). */}
+        <Section kicker="Details">
           <Stack gap="row">
             <DetailRow label="Origin" value={originLabel(doc.origin)} />
             <DetailRow label="Type" value={doc.mime} />
             <DetailRow label="Size" value={formatBytes(doc.byteSize)} />
             <DetailRow label="Characters" value={String(doc.charCount)} />
-            <DetailRow label="Chunks" value={`${String(doc.embeddedCount)} / ${String(doc.chunkCount)} embedded`} />
+            {/* PASSAGES, not "Chunks" — the list row and this readout print one fact and used to print it
+                in two vocabularies ("12 passages" there, "Chunks 12 / 12 embedded" here). One home:
+                `passageCount` (databank-model). */}
+            <DetailRow label="Passages" value={passageCount(doc)} />
             <DetailRow label="Added" value={timeLib.formatDate(doc.createdAt)} />
             <DetailRow label="Updated" value={timeLib.formatDate(doc.updatedAt)} />
             {doc.sourceUrl === null ? null : <DetailRow label="Source" value={doc.sourceUrl} />}
           </Stack>
         </Section>
 
-        <Section heading="Maintenance">
+        <Section kicker="Maintenance">
           <Stack gap="row">
             <Row align="center" gap="row" justify="between">
               <Text voice="gloss">Re-chunk and re-embed this document — after a settings change, or to heal a partial index.</Text>
@@ -153,7 +183,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           </Stack>
         </Section>
 
-        <Section heading="Source text">
+        <Section kicker="Source text">
           <Stack gap="row">
             <Row justify="start">
               <Button intent="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
@@ -203,11 +233,28 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
   );
 }
 
+/**
+ * One readout row: a LABEL COLUMN, then its value immediately beside it.
+ *
+ * It used to be `justify="between"` — label hard left, value hard right — which is the settings-row
+ * grammar and is wrong for a readout: the pair spends whatever width it is given, so at the real
+ * ~1450px CONTENT pane "Origin" and "Upload" sat 382-475px apart and the eye had to travel a
+ * hand-span to tie a two-word label to a one-word value (side-eye 2026-08-19 P2). `max-w-prose`
+ * halved that span in the 2026-08-03 sweep and is still right — a readout inside a measure is what
+ * stops it spanning the window — but a measure caps the WORST case; it does not tie the pair.
+ *
+ * `--width-label-col` does: the label takes one fixed column (the knob-row token, `w-(--width-label-col)`,
+ * which is exactly this shape one feature over) and the value starts at ONE x on every row, at every pane
+ * width. That is a RANGE property rather than a point fix — the gap cannot reappear at a width nobody
+ * measured, because there is no gap left to grow.
+ */
 function DetailRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
-    <Row align="center" gap="field" justify="between">
-      <Text voice="gloss">{label}</Text>
-      <Text className="min-w-0 truncate text-right">{value}</Text>
+    <Row align="center" gap="field">
+      <Text className="w-(--width-label-col) shrink-0" voice="gloss">
+        {label}
+      </Text>
+      <Text className="min-w-0 truncate">{value}</Text>
     </Row>
   );
 }
