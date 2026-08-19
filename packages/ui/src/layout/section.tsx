@@ -78,7 +78,11 @@ export function Section({
         {/* The INLINE spelling draws no rule element: its hairline is the section's own `border-top`, so a
             Separator here would be the same mark twice — and a `flex-1` one would eat the control line the
             kicker is supposed to be leading. */}
-        {kickerLayout === "stacked" ? <Separator className="flex-1" /> : null}
+        {/* DECORATIVE (a11y #199): the `<h3>` kicker beside it already carries the section NAME and the
+            document outline, so the trailing hairline conveys nothing a screen reader needs. Left as a bare
+            `role="separator"` it announced as an anonymous divider on every surface that renders a kicker
+            band. `aria-hidden` drops the orphan from the a11y tree while the rule still paints. */}
+        {kickerLayout === "stacked" ? <Separator aria-hidden={true} className="flex-1" /> : null}
       </div>
     );
   } else if (heading !== undefined) {

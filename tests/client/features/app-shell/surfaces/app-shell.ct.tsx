@@ -21,6 +21,7 @@ import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
   AppShellDropGuardStory,
+  AppShellListPrimaryStory,
   AppShellMobileRuleStory,
   AppShellNoticeBandStory,
   AppShellOnSectionStory,
@@ -524,6 +525,76 @@ test("the skip link is the first tab stop and lands focus on the main scroll con
   await expect(page.getByRole("main")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(shell.getByRole("button", { name: "content control", exact: true })).toBeFocused();
+});
+
+// ── ARRIVAL FOCUS vs THE LIST-PANE PRIMARY (a11y #283) ─────────────────────────────────────────────
+// SectionContent restores focus to the `<main>` content anchor on a section swap so a hidden Activity
+// subtree never strands the reading cursor (WCAG). But it used to fire that restore UNCONDITIONALLY —
+// including on rail NAVIGATION, where focus sits on the rail button the user just activated. Yanking focus
+// into `<main>` there lands it PAST the LIST panel (which is DOM-before `<main>`), so a forward-Tab could
+// never reach that section's primary create action — the band's "New character"/"New corpus item"/… — on
+// any library section. The restore now runs only when the swap actually DROPPED focus (activeElement fell to
+// <body>, i.e. it was inside the hidden content), which is the two tests below: navigation preserves it,
+// genuine loss restores it.
+
+test("a11y #283: keyboard rail navigation to a library section does NOT steal focus into <main> — the pane's primary stays in the forward tab order", async ({
+  mount,
+  page,
+}) => {
+  const shell = await mount(<AppShellListPrimaryStory />);
+  // Barrier on the SETTLED landing section before navigating (chats is the story's landing).
+  await expect(page.getByText("chats content pane")).toBeVisible();
+
+  // Navigate to corpus through a REAL, keyboard-activated rail button: focus is on the button the user
+  // pressed, exactly as a keyboard user arrives at a section. `exact` so it never collides with the LIST
+  // primary's "New corpus item" (a substring name match otherwise resolves two buttons).
+  const corpusTab = shell.getByRole("button", { name: "Corpus", exact: true });
+  await corpusTab.focus();
+  await expect(corpusTab).toBeFocused();
+  await corpusTab.press("Enter");
+  await expect(page.getByText("corpus content pane")).toBeVisible();
+  // The pane's primary is rendered in the (docked) LIST panel.
+  await expect(page.getByTestId("list-primary")).toBeVisible();
+
+  // THE DEFECT: the arrival focus used to steal into `<main>`, past the LIST pane. It must not.
+  await expect(page.getByRole("main")).not.toBeFocused();
+  // Focus stayed on the rail button the user activated (the arrival point), so the forward tab order is
+  // rail → list-band primary → content.
+  await expect(corpusTab).toBeFocused();
+
+  // …and the concrete tab-order proof, read off the rendered DOM: the arrival point (the focused element)
+  // PRECEDES the pane's primary, which PRECEDES `<main>` — so a forward-Tab reaches the primary instead of
+  // it being stranded behind the cursor. Under the old unconditional steal, focus was `<main>` (AFTER the
+  // primary) and this resolved "unreachable".
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const focused = document.activeElement;
+        const primary = document.querySelector('[data-testid="list-primary"]');
+        const main = document.querySelector("main");
+        if (focused === null || primary === null || main === null) {
+          return "missing";
+        }
+        // querySelectorAll("*") yields every element in document (tree) order, so an index comparison IS the
+        // forward tab direction — no compareDocumentPosition bitmask read.
+        const order = [...document.querySelectorAll("*")];
+        const iFocused = order.indexOf(focused);
+        const iPrimary = order.indexOf(primary);
+        const iMain = order.indexOf(main);
+        return iFocused < iPrimary && iPrimary < iMain ? "reachable" : "unreachable";
+      }),
+    )
+    .toBe("reachable");
+});
+
+// The WCAG restore is PRESERVED (fence): the story lands home→chats with focus on <body> (nothing had it),
+// which is the genuine focus-loss shape — the swap must still move focus to the `<main>` content anchor so a
+// hidden Activity never strands the reading cursor. Passes on both source versions; it guards the #283 fix
+// from over-correcting into "never restore".
+test("a11y #283: when the swap lands with focus dropped to <body>, arrival restores it to the main content anchor", async ({ mount, page }) => {
+  await mount(<AppShellListPrimaryStory />);
+  await expect(page.getByText("chats content pane")).toBeVisible();
+  await expect(page.getByRole("main")).toBeFocused();
 });
 
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────

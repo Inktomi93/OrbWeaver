@@ -14,7 +14,7 @@
 // past the grace rather than sleeping, then asks what the flag did.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AppReadyRouteResolutionStory, AppReadySignalStory } from "./_ct-stories.tsx";
+import { AppReadyBootReadStory, AppReadyRouteResolutionStory, AppReadySignalStory } from "./_ct-stories.tsx";
 
 const READY_FLAG = "html[data-app-ready]";
 
@@ -56,6 +56,28 @@ test("the flag does NOT go up while the ROUTE is still resolving — an idle cac
 
   // Land it: NOW the cache is idle for a reason, and the flag goes up as a real settle.
   await page.getByRole("button", { name: "land the read" }).click();
+  await expect(page.locator(READY_FLAG)).toHaveCount(1);
+  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
+});
+
+// #282 — the CHAINED-QUERY false idle. The theme is fetched only once `settings.getUserSettings` resolves
+// (`useSelectedTheme` gates `settings.getTheme` on the id), so between the parent settling and the child
+// STARTING the cache is momentarily idle — and the old signal settled there, lifting the boot veil onto the
+// base palette a beat before the resolved theme swapped it (the cold-cache polarity flash). The boot-read
+// gate (`boot-reads.ts`) holds readiness while a registered dependent read is still pending.
+test("the flag does NOT go up while a boot-critical DEPENDENT read is still pending — the chained-query false idle (#282)", async ({ mount, page }) => {
+  await mount(<AppReadyBootReadStory />);
+
+  // Land the PARENT read: its cache goes idle and a fetch has been seen — the exact state the old signal
+  // read as "settled". The dependent (theme-shaped) read is still pending.
+  await page.getByRole("button", { name: "land the parent read" }).click();
+
+  // Past the 3s grace, with the parent settled and the cache idle, the flag must STILL be down.
+  await expect(page.getByTestId("grace-elapsed")).toBeVisible();
+  await expect(page.locator(READY_FLAG)).toHaveCount(0);
+
+  // Resolve the dependent read: NOW the cache is idle for a reason and the flag goes up as a real settle.
+  await page.getByRole("button", { name: "resolve the dependent read" }).click();
   await expect(page.locator(READY_FLAG)).toHaveCount(1);
   await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
 });

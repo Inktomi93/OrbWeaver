@@ -21,6 +21,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
+import { bootReads } from "./boot-reads.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { IS_DEV } from "./dev-flag.ts";
@@ -89,6 +90,15 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
     if (routeResolution.isResolving()) {
       return;
     }
+    // A BOOT-CRITICAL DEPENDENT read is still resolving (#282). The selected theme is CHAINED off
+    // `settings.getUserSettings`, so between the parent settling and the child fetch STARTING the cache is
+    // momentarily idle — settling here lifted the boot veil onto the base palette a beat before the resolved
+    // theme swapped it (the cold-cache polarity flash). Wait for it, exactly as for an in-flight fetch. It is
+    // one-shot-safe: this only DELAYS the first settle and the 20s ceiling still fires `degraded` if a
+    // registered read never resolves (`boot-reads.ts`).
+    if (bootReads.isPending()) {
+      return;
+    }
     // Idle with no read ever seen is only "ready" once the grace has passed — the genuine no-initial-reads
     // app, which is the single case the old unconditional fallback existed to answer.
     if (sawFetch || graced) {
@@ -97,6 +107,10 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
   };
   const unsubscribe = cache.subscribe(check);
   void ready.finally(unsubscribe);
+  // A boot-critical dependent read clearing is the other event (besides a cache tick) that can unblock a
+  // settle, so the signal re-checks when the gate changes — symmetric with the routeResolution subscription.
+  const unsubscribeBootReads = bootReads.subscribe(check);
+  void ready.finally(unsubscribeBootReads);
   requestAnimationFrame(() => {
     requestAnimationFrame(check);
   });
