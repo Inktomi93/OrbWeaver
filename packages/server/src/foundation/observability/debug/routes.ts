@@ -184,6 +184,14 @@ export interface RpgTraceInspector {
   recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }) => readonly object[];
 }
 
+/** The MEMORY-RECALL flight-recorder read port (#250) — the `RpgTraceInspector` shape, one domain over: the
+ *  per-recall trace ring `domain/chat/memory/recall/recorder.ts` fills. Returns `object[]` so no chat/memory
+ *  type crosses the boundary. This is the lens for "what memories did that turn fetch, and why" — the
+ *  question that previously had no answer short of reading the prompt and guessing. */
+export interface MemoryRecallInspector {
+  recent: (filter: { chatId?: ChatId; limit?: number }) => readonly object[];
+}
+
 /** The multiplexed-socket read port (SSE-1 §12) — structural-injection so foundation accepts transport's
  *  socket registry without importing it (the `RpgTraceInspector` precedent; transport sits ABOVE foundation
  *  in the tier list, so the dependency has to arrive as data). This is the STARVATION REGRESSION PIN: the
@@ -216,6 +224,8 @@ export interface DebugRoutesOptions {
   assets?: AssetInspector;
   /** The rpg flight-recorder read port (R-OBS). Absent ⇒ the /rpg/traces route is not registered (tracing off). */
   rpgTrace?: RpgTraceInspector;
+  /** The memory-recall flight-recorder read port (#250). Absent ⇒ the /memory/recalls route is not registered. */
+  memoryRecall?: MemoryRecallInspector;
   /** The live multiplexed-socket counter (SSE-1). Absent ⇒ the /stream/sockets route is not registered. */
   sockets?: SocketInspector;
   /** The vLLM fleet contention scrape (#24). Absent ⇒ the /vllm/metrics route is not registered (vLLM off). */
@@ -253,7 +263,7 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
-  const { db, assets, rpgTrace, sockets, vllmMetrics, effectiveConfig, auth = env.DEBUG_TOKEN } = options;
+  const { db, assets, rpgTrace, memoryRecall, sockets, vllmMetrics, effectiveConfig, auth = env.DEBUG_TOKEN } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) => {
@@ -452,6 +462,19 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
         limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
       return c.json({ count: events.length, events });
+    });
+  }
+  if (memoryRecall !== undefined) {
+    // The memory-recall flight recorder (#250): every `{{memory}}` recall's slice — the query, the pool, the
+    // candidate set, the admitted blocks with their scores, and the reason the top rejects lost. `?chatId=`
+    // narrows to one room. Host-only introspection, no table (D75).
+    app.get("/api/_debug/memory/recalls", (c) => {
+      const chatId = c.req.query("chatId");
+      const recalls = memoryRecall.recent({
+        ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
+        limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+      });
+      return c.json({ count: recalls.length, recalls });
     });
   }
 }

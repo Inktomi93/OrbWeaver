@@ -36,6 +36,7 @@ import type {
   GetMembership,
   GetPendingUserText,
   MemoryConfig,
+  MemoryRecallRecorder,
   PostNarratorMessage,
   PresenceReadOp,
   PromptTransformRegistry,
@@ -292,6 +293,11 @@ export interface ChatComposeInput {
 
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
+  /** #250 — the memory-recall flight recorder built at the composition root; its `sink` becomes
+   *  `ChatContext.recordRecall` so every `{{memory}}` recall lands in the ring `/api/_debug/memory/recalls`
+   *  tails. OPTIONAL: absent ⇒ nothing records (an int test that builds chat without the recorder), and recall
+   *  is byte-identical either way. */
+  readonly recallRecorder?: MemoryRecallRecorder | undefined;
   /** The databank `{{databank}}`-slot GATHER op (DB6) — OPTIONAL; absent wires `ChatContext.gatherDatabank`
    *  to undefined (byte-identical no-op). Bridged from `databank.gatherRetrieval` at the composition root. */
   readonly gatherDatabank?: ChatContext["gatherDatabank"];
@@ -1133,7 +1139,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // DB6: absent ⇒ the field stays unset ⇒ GATHER skips the databank branch (byte-identical no-op).
     ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),
-    searchDigests: (query) => input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
+    // The scored projection: identity + BOTH ranking numbers, and deliberately NOT the hit's `text` (memory
+    // resolves its own digest bodies from the pool it already loaded — the seam carries what recall must
+    // EXPLAIN, never a second copy of the content).
+    searchDigests: (query) => input.search.digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
     // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
     // is host-owned per PD-21, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty
@@ -1153,6 +1162,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return hits.map((h) => h.blockKey);
     },
     log: (entry) => recordMemoryLog(entry),
+    // #250 — absent recorder ⇒ the field stays unset ⇒ recall's `ctx.recordRecall?.()` is a no-op.
+    ...(input.recallRecorder !== undefined ? { recordRecall: input.recallRecorder.sink } : {}),
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.

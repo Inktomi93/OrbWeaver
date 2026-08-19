@@ -15,6 +15,7 @@ import { z } from "zod";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
 import type { RegexScriptRow } from "#regex";
+import type { MemoryRetrievalMode } from "#search";
 import type { WorldInfoScope } from "#world-info";
 import type { MacroFreezeRecord, UserMacroDraws } from "./messages.ts";
 import type { RoomOverrides } from "./metadata.ts";
@@ -128,6 +129,84 @@ export const chatInjectionInputSchema = z.object({
 });
 export type ChatInjectionInput = z.infer<typeof chatInjectionInputSchema>;
 
+/** WHY one pooled memory block did (or did not) reach this turn's `{{memory}}` — the verdict axis of
+ *  {@link MemoryRecallCandidate}. Declared ONCE as a tuple and DERIVED (§5.5, no inline union re-spell).
+ *  The arms follow the recall pipeline's own order of elimination (`domain/chat/memory/recall/recall.ts`):
+ *   • `unwitnessed`    — the speaker was absent for the block's span (a character cannot recall a scene it
+ *                        wasn't in); dropped before any mode dispatch;
+ *   • `live-window`    — the block's scene is still VERBATIM in this turn's history window, so re-injecting
+ *                        its digest would say the same thing twice;
+ *   • `mode-excluded`  — the pool survivor is not eligible in the active mode (mixA takes tier-0 only);
+ *   • `bridge-covered` — a HIGHER-tier consolidation already covers this block, so the tiered bridge passed
+ *                        the parent instead and this one never became a retrieval candidate;
+ *   • `below-floor`    — it WAS scanned as a candidate and did not survive the retrieval cut (the `minScore`
+ *                        floor, or the mixC rerank trim). Carries no score by construction: retrieval returns
+ *                        its SURVIVORS, so the score of a rejected candidate is not knowable here;
+ *   • `admitted`       — it made the block, and carries the `score`/`relevance`/`rank` it made it with. */
+export const MEMORY_RECALL_VERDICTS = ["admitted", "below-floor", "bridge-covered", "mode-excluded", "live-window", "unwitnessed"] as const;
+export type MemoryRecallVerdict = (typeof MEMORY_RECALL_VERDICTS)[number];
+
+/** ONE memory block considered for this turn's `{{memory}}` (`MemoryRecallSlice.candidates`) — the block's
+ *  identity, its verdict, and (when admitted) the numbers it was admitted on. CONTENT-FREE by construction:
+ *  the digest's own text is never here — the recalled bytes ride the assembled prompt itself, where the D22
+ *  host gate already governs them (the {@link ShapeTraceRow} posture). */
+export interface MemoryRecallCandidate {
+  /** The consolidation tier the block lives at (0 = a lived scene; higher = a consolidation over `fanOut^tier`
+   *  tier-0 blocks). */
+  tier: number;
+  blockIdx: number;
+  /** WHOSE egocentric bucket the block belongs to — the shared synthetic group character, or a cast member
+   *  under scoped recall (the two buckets the mode-switch union reads). */
+  scopedCharacterId: CharacterId;
+  verdict: MemoryRecallVerdict;
+  /** The CSLS rank signal retrieval admitted it on (LOWER = closer). ABSENT unless `verdict === "admitted"` in
+   *  an embedding mode — a pure-assembly mode (mixA/tiered) runs no scan and therefore produces no score. */
+  score?: number;
+  /** Cosine `1 − distance`, HIGHER = closer — the readout number a surface prints. Same absence rule as
+   *  {@link MemoryRecallCandidate.score}. */
+  relevance?: number;
+  /** 0-based position in the ADMITTED order — which is the order the blocks are rendered into `{{memory}}`.
+   *  ABSENT for every non-admitted verdict. */
+  rank?: number;
+}
+
+/** WHAT `{{memory}}` FETCHED THIS TURN AND WHY (`AssembleTrace.memoryRecall`, #250) — the recall subsystem's
+ *  slice of the assembly trace, produced by `domain/chat/memory/recall/recall.ts` on EVERY recall call
+ *  (including the early returns: a `mode: "off"` / empty-pool turn produces a slice saying exactly that,
+ *  because "memory did nothing" is the answer a reader is most often hunting).
+ *
+ *  `candidates` is deliberately NOT the whole pool: every ADMITTED block is present, plus a bounded head of
+ *  the rejected ones (`MEMORY_RECALL_REJECTS_SHOWN`) in pool order — a long chat's pool runs to hundreds of
+ *  blocks, and this shape rides a per-turn trace + a bounded debug ring. The COUNTS (`poolSize`,
+ *  `candidateCount`, `surfaced`) are always exact, so a truncated candidate list can never be mistaken for a
+ *  small pool.
+ *
+ *  `queryText` is the assembled egocentric retrieval query — RP-derived text, and the ONE datum that answers
+ *  "why did it match that": it is served here because every consumer of {@link AssembleTrace} is already
+ *  host-gated and already serves the assembled prompt itself (`AssemblyBudgetSlice.text`). Null for the
+ *  non-embedding modes, which build no query. */
+export interface MemoryRecallSlice {
+  mode: MemoryRetrievalMode;
+  queryText: string | null;
+  /** Whether the per-turn query embed actually fired (false for off / empty pool / the pure-assembly modes). */
+  queryEmbedded: boolean;
+  /** Blocks in the witnessed, live-window-filtered pool — the universe this recall chose from. */
+  poolSize: number;
+  /** Blocks the tiered bridge passed to retrieval as candidates (= `poolSize` minus the bridge-covered). */
+  candidateCount: number;
+  /** Blocks that actually reached the rendered `{{memory}}` block. */
+  surfaced: number;
+  /** Wall time of the whole recall, from the injected clock. */
+  ms: number;
+  /** The zero-work / degrade reason ("mode off", "no digests"), else null. */
+  note: string | null;
+  candidates: readonly MemoryRecallCandidate[];
+}
+
+/** How many REJECTED candidates a {@link MemoryRecallSlice} carries beside the admitted set. A bound, not a
+ *  policy: the admitted blocks are always all present, and the counts stay exact. */
+export const MEMORY_RECALL_REJECTS_SHOWN = 12;
+
 /** Debug metadata about what assembly did — NOT the prompt text. Answers "why did/didn't this fire?"
  *  without dumping RP content (the host/admin-only trace surface). */
 export interface AssembleTrace {
@@ -142,6 +221,11 @@ export interface AssembleTrace {
   matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
   compactSummaryIncluded: boolean;
   memoryIncluded: boolean;
+  /** WHAT memory fetched and why (#250) — the recall subsystem's slice, present whenever recall RAN this
+   *  turn. `null` is the honest "no recall was performed": a hand-built / preview / non-chat assembly that
+   *  never called the subsystem at all, which is a different fact from `memoryIncluded: false` (recall ran
+   *  and the marker still delivered nothing). */
+  memoryRecall: MemoryRecallSlice | null;
   /** Whether the `{{databank}}` slot actually delivered retrieved document text this turn (DB6). Distinct from
    *  "documents are attached": a chat with a full bank still reads false when the active preset places no
    *  databank section, which is exactly the invisible failure issue #80 was. */
@@ -508,6 +592,12 @@ export interface AssembleContext {
   compactedThroughSeq?: number | null | undefined;
   /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
   memory?: string | null;
+  /** The recall EXPLANATION for {@link AssembleContext.memory} (#250) — staged by the same GATHER (and
+   *  re-staged by the engine's per-speaker witnessed re-run) that produced the text, copied verbatim onto
+   *  {@link AssembleTrace.memoryRecall} by the BUILD walk. The `wiTrace` precedent: a trace input rides the
+   *  ctx beside the value it explains, so the two can never describe different recalls. Absent ⇒ recall never
+   *  ran for this context (a preview / hand-built ctx) ⇒ the trace reports `memoryRecall: null`. */
+  memoryTrace?: MemoryRecallSlice | undefined;
   /** Retrieved databank document context (the `{{databank}}` marker), pre-formatted + budget-fitted by the
    *  databank GATHER op (DB6). ABSENT (never `""`) ⇒ the slot resolves empty, byte-identical to a
    *  non-databank turn. */
