@@ -174,3 +174,31 @@ linked Project issue — no lane touches `work:item`.
 - **Investigation lanes get instrumentation directives, not just symptoms** — the four-hop per-boundary
   diff (FE payload → server input → DB row → read-back) named a write-merge bug in one pass that
   endpoint-only debugging would have circled for hours.
+
+## Standing lane facts (2026-08-18 promotion — lanes: these bind you; briefs restate only DELTAS)
+
+Every lane, without being told per-brief:
+
+- **The dev vite (`:5173`) prebundles workspace packages** — a `kit`/`ui`/`contracts` edit does NOT
+  HMR onto the served page (client-file edits do). Rendered verification of a workspace-dep change is
+  INVALID until you prove the served module (`curl :5173/@fs/<abs path> | grep <your symbol>`) or the
+  stack restarts. Flag "needs restart" in your merge report whenever you touch those packages.
+- **Isolated AND --dirty snap stages carry a THIN db** (boot-seeded demo rooms only — never the
+  owner's imported corpus). A done-bar room by id is unreachable there; rendered receipts for
+  seeded-row surfaces come from CT or live-main. The stage band (`:8888`/`:5273`) is ONE pair —
+  if a sibling holds it, fall back to CT and say so; never tear a sibling's stage down.
+- **`__orb.queries()` is a CACHE CENSUS, never an in-flight network count.** Any "N parallel
+  queries" perf claim owes a network re-derivation before a dedupe is prescribed.
+- **A CPU profile's top self-time frame can be the INSTRUMENT** (dev-only tooling). Attribute before
+  optimizing; a dev-only frame is a tooling fix, not an app fix.
+- **A point measurement never proves a range property.** Layout/balance fixes owe the width matrix
+  (both ends + any crossover) and the appearance arms BEFORE the arm is chosen; a single-width
+  receipt endorsing a "move X" fix is the shell-game setup the owner has explicitly banned.
+- **CT invocations**: `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts
+  <paths>` from your worktree via `env -C` (never `cd`). playwright-ct runs PRODUCTION React
+  (StrictMode inert). The CT harness may mount its own copy of global surfaces (Toaster) — assert
+  on the instance that carries content, never a bare slot selector.
+- **Probes**: `cp f f.bak; …; mv f.bak f` or `git show HEAD:<path>` — NEVER `git stash`/`checkout`/
+  `restore`. Red-first receipts run new pins against the UNMODIFIED source before any fix.
+- **@orb/ui primitives drop `data-testid`** (slot-only seal); ECharts `BarList` is a canvas —
+  text assertions speak for the frame, not the bars.
