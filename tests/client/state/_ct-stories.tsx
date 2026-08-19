@@ -39,6 +39,7 @@ import {
   enterCreatedChat,
   getAvailableContextTabIds,
   getAvailableContextTabs,
+  getCharacterBrowseOffset,
   goToCollection,
   goToLanding,
   isCommitted,
@@ -72,6 +73,7 @@ import {
   selectWorldEntry,
   setActiveSection,
   setBulkMode,
+  setCharacterBrowseOffset,
   setCharacterSortMode,
   setCharacterViewMode,
   setChatListCharacterFilter,
@@ -573,11 +575,16 @@ export function CharacterLibraryStoreProbe(): ReactElement {
   const bulk = useCharacterBulkMode();
   const tags = useTagFilter();
   const spoilerBlur = useSpoilerBlur();
+  // `browseOffset` (#255) has no read HOOK by design (its getter is a one-shot mount-time read, never a
+  // subscription — see the store's own header) — the probe reads it into local state on demand instead of
+  // rendering it directly, which is exactly how the real mount-time caller uses it.
+  const [browseOffset, setBrowseOffsetRead] = useState("unread");
   return (
     <div>
       <output>
         {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.map((entry) => `${entry.id}:${entry.state}`).join(",") || "none"} blur=${spoilerBlur}`}
       </output>
+      <p>{`browseOffset=${browseOffset}`}</p>
       <button type="button" onClick={(): void => setCharacterSortMode("alpha")}>
         sort alpha
       </button>
@@ -604,6 +611,12 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => toggleSpoilerBlur()}>
         toggle spoiler blur
+      </button>
+      <button type="button" onClick={(): void => setCharacterBrowseOffset(240)}>
+        set browse offset
+      </button>
+      <button type="button" onClick={(): void => setBrowseOffsetRead(String(getCharacterBrowseOffset()))}>
+        read browse offset
       </button>
     </div>
   );

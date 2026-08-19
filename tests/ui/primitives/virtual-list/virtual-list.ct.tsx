@@ -130,7 +130,7 @@ test("initialScrollOffset mounts the list already scrolled to that offset", asyn
   // The row at 4000px / 40px rows is Item 100; Item 0 is far above the window and not rendered at all.
   await expect(component.getByText("Item 100", { exact: true })).toBeVisible();
   await expect(component.getByText("Item 0", { exact: true })).toHaveCount(0);
-  expect(await component.locator('[data-slot="virtual-list-scroll"]').evaluate((el) => el.scrollTop)).toBe(4000);
+  await expect.poll(() => component.locator('[data-slot="virtual-list-scroll"]').evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(4000);
 });
 
 test("onEndApproach fires when the rendered window is within endApproachRows of the tail", async ({ mount }) => {

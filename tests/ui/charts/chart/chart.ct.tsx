@@ -52,7 +52,7 @@ test("resizes with its container (size-sensor's ResizeObserver, no hand-rolled o
   );
   const canvas = component.locator("canvas");
   await expect(canvas).toBeVisible();
-  expect((await canvas.boundingBox())?.width).toBe(INITIAL_CONTAINER_PX);
+  await expect.poll(async () => (await canvas.boundingBox())?.width, { intervals: [20, 50, 100] }).toBe(INITIAL_CONTAINER_PX);
 
   // Each iteration must ask for a DIFFERENT width: re-setting the same value produces no ResizeObserver
   // entry at all, so a fixed target would deadlock the moment its one event was the swallowed one.
