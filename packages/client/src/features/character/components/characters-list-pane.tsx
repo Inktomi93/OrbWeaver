@@ -4,8 +4,9 @@
 //   a character  → HER HISTORY (the identity row + the door-injected chats projection).
 //
 // The swap key is the section's OWN drill selection — reader shape 2 (own-section, render-only): no effect,
-// no new store, just a render derivation of a pointer that already exists. Unconditional by owner ruling D2
-// (selection ⇒ projection, back = deselect), so there is no extra chrome for the mode.
+// no new store, just a render derivation of a pointer that already exists. Unconditional per the projection
+// design's D2 arm (`docs/design/list-pane-projection-proposal.md` §10 — selection ⇒ projection, back =
+// deselect), so there is no extra chrome for the mode.
 //
 // Back-focus (§3.7): backing out of the projection must land focus on HER ROW, not `<body>`. The pane
 // remembers the last non-null selection DURING RENDER (the sanctioned derive-state-from-props update — an

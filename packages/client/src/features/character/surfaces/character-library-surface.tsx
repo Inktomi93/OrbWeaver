@@ -20,7 +20,8 @@
 // (`effectiveTagFilter`) while staying in the store, where the chip row renders it clearable — visible + inert.
 //
 // THE BROWSE POSITION SURVIVES THE PANE SWAP (#255). Opening somebody swaps this whole LIST pane to her
-// chats projection (owner ruling D2 — selection ⇒ projection, back = deselect), which UNMOUNTS this surface.
+// chats projection (per the projection design's D2 arm — selection ⇒ projection, back = deselect,
+// `docs/design/list-pane-projection-proposal.md` §10), which UNMOUNTS this surface.
 // The paged rows survive that in the query cache; the list's scroll offset did not, so backing out of a card
 // 300 rows down landed at the top and browsing a real library was a click-and-Back-and-scroll loop. The
 // offset is captured at the CLICK (`captureBrowseOffset`) and re-applied at mount through `VirtualList`'s
@@ -231,8 +232,9 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   // A pick FROM THE PICKER (a card click / a favorites face): the same selection write, plus the focus
   // decision the pane swap needs — the projection that replaces this library takes focus (§3.7).
   //
-  // …AND THE BROWSE POSITION (#255). This click is what swaps the LIST pane to her chats projection (owner
-  // ruling D2 — selection ⇒ projection, back = deselect), which unmounts this whole surface. Back-focus
+  // …AND THE BROWSE POSITION (#255). This click is what swaps the LIST pane to her chats projection (per
+  // the projection design's D2 arm — selection ⇒ projection, back = deselect,
+  // `docs/design/list-pane-projection-proposal.md` §10), which unmounts this whole surface. Back-focus
   // already survived that (`focusCharacterId`); the SCROLL did not, so backing out of the 327th card landed
   // at the top of the library and browsing was a click-and-Back-and-scroll loop. The offset is read here,
   // straight off the list's scroll element, because this is the last moment it is both meaningful and
