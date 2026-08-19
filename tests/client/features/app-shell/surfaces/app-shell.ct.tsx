@@ -1544,6 +1544,127 @@ test("boot: the grid's FIRST committed template already carries the resolved tra
     .toBe(true);
 });
 
+// ── #242: THE CONDITIONAL BOTH-DOCKED SQUEEZE (owner-ruled off the #240 fork) ───────────────────────
+// With both panels docked the CONTENT track is what is left of the viewport, and at a normal desktop it
+// lands under the transcript's reading floor (measured at 1360: 569.6px, 55.3 real characters per line —
+// #213 found it and could not fix it from inside the pane). The ruled arm is a shell-grid one: the panes
+// give up slack, conditionally. These pin the three properties that make it a DERIVATION rather than a
+// breakpoint, all read off the browser's own resolved `grid-template-columns`:
+//   1. WHERE IT BINDS — both docked at 1360: the content track reaches the floor token, and neither pane
+//      is pushed past its own floor (list: the shared 17rem; context: the 24rem Waystone step, the
+//      inherited 660b2dd4 ruling this split exists to keep);
+//   2. WHERE IT DOES NOT — a viewport wide enough that the floor already fits is BYTE-IDENTICAL to the
+//      plain clamps (the non-vacuity control for "conditional": 24vw / 30vw, un-squeezed);
+//   3. IT IS BOTH-DOCKED ONLY — with the context pane collapsed the list track is its plain clamp, so a
+//      single docked pane never pays for a deficit it is not causing.
+const SQUEEZE_BINDS = { width: 1360, height: 900 };
+const SQUEEZE_CLEAR = { width: 1600, height: 900 };
+const BOTH_DOCKED_SHELL_STATE = JSON.stringify({
+  state: { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } },
+  version: 2,
+});
+/** rail | list | content | context, in px, off the real grid — the only reading that proves a CSS `max()`
+ *  resolved the way the sheet claims (the tracks are `calc()`s of `clamp()`s of viewport units). */
+async function shellTracks(page: Page): Promise<readonly number[]> {
+  const cols = await page.locator(".shell-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+  return cols.split(" ").map((t) => Number.parseFloat(t));
+}
+/** A `rem` token off the live root font-size — the squeeze's floors are rem, so the assertions must be
+ *  too (they scale with appearance.fontScale by construction). */
+function remPx(rem: number): number {
+  return rem * UA_ROOT_PX;
+}
+
+test("#242 both docked at 1360: the content track reaches the reading floor, and neither pane goes past its own floor", async ({ mount, page }) => {
+  await page.setViewportSize(SQUEEZE_BINDS);
+  await page.addInitScript({
+    content: `try { localStorage.setItem("orb:shell", ${JSON.stringify(BOTH_DOCKED_SHELL_STATE)}); } catch { /* storage disabled */ }`,
+  });
+  await page.reload();
+  await mount(<AppShellStory />);
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  const [rail = 0, list = 0, content = 0, context = 0] = await shellTracks(page);
+  // THE RULED OUTCOME: the content track meets the floor (40rem = 640px), up from the 569.6px the same
+  // viewport produced before the squeeze — the +70px the CT's reading-line measurement asked for.
+  expect(content).toBeGreaterThanOrEqual(remPx(40) - 1);
+  expect(rail + list + content + context).toBeCloseTo(SQUEEZE_BINDS.width, 0);
+  // …bought out of BOTH panes, neither past its floor. The context floor is the Waystone container step:
+  // 660b2dd4 widened this pane so a standard desktop REACHES 24rem, and #242 does not spend that.
+  expect(list).toBeGreaterThanOrEqual(remPx(17));
+  expect(list).toBeLessThan(0.24 * SQUEEZE_BINDS.width);
+  expect(context).toBeGreaterThanOrEqual(remPx(24));
+  expect(context).toBeLessThan(0.3 * SQUEEZE_BINDS.width);
+});
+
+test("#242 a viewport where the floor already fits is BYTE-IDENTICAL — the squeeze is conditional, not a resize", async ({ mount, page }) => {
+  await page.setViewportSize(SQUEEZE_CLEAR);
+  await page.addInitScript({
+    content: `try { localStorage.setItem("orb:shell", ${JSON.stringify(BOTH_DOCKED_SHELL_STATE)}); } catch { /* storage disabled */ }`,
+  });
+  await page.reload();
+  await mount(<AppShellStory />);
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  const [, list = 0, content = 0, context = 0] = await shellTracks(page);
+  // The plain clamps: 24vw = 384 (under the 26rem cap) and 30vw = 480 (AT the 30rem cap). Nothing moved.
+  expect(list).toBeCloseTo(0.24 * SQUEEZE_CLEAR.width, 0);
+  expect(context).toBeCloseTo(remPx(30), 0);
+  // …because there was no deficit to answer: the content track already clears the floor on its own.
+  expect(content).toBeGreaterThan(remPx(40));
+});
+
+test("#242 the FLIP distance survives the squeeze: --list-track-docked is stable across the list toggle it describes", async ({ mount, page }) => {
+  // The panel-push keyframes translate `.shell-main` by `--list-track-docked`, and they are sampled AFTER
+  // the mode attribute flips — so if that var moved with the list's own mode, the `out` arm would cancel
+  // the wrong distance and leave the recorded shift the FLIP exists to erase (up to ~49px here). It is
+  // gated on the CONTEXT pane's mode for exactly this reason; this is that property, measured.
+  await page.setViewportSize(SQUEEZE_BINDS);
+  await page.addInitScript({
+    content: `try { localStorage.setItem("orb:shell", ${JSON.stringify(BOTH_DOCKED_SHELL_STATE)}); } catch { /* storage disabled */ }`,
+  });
+  await page.reload();
+  const shell = await mount(<AppShellStory />);
+  const grid = page.locator(".shell-grid");
+  // RESOLVED, not read: an unregistered custom property's computed value is the token STREAM
+  // (`max(17rem, calc(clamp(…) - …))` — verified live), so the only way to learn the length the keyframe
+  // will translate by is to make the browser lay a box out at it, exactly as the keyframe does.
+  const flipDistance = (): Promise<number> =>
+    grid.evaluate((el) => {
+      const probe = document.createElement("div");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.width = "var(--list-track-docked)";
+      el.append(probe);
+      const px = probe.getBoundingClientRect().width;
+      probe.remove();
+      return px;
+    });
+
+  const docked = await flipDistance();
+  const [, listTrack = 0] = await shellTracks(page);
+  // It IS the track it claims to describe (the squeezed width, not the clamp).
+  expect(docked).toBeCloseTo(listTrack, 0);
+  expect(docked).toBeLessThan(0.24 * SQUEEZE_BINDS.width);
+
+  // …and it does not move when the list undocks — the state the `out` keyframe reads it in.
+  await shell.getByRole("button", { name: LIST_TOGGLE_RE }).click();
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "collapsed");
+  expect(await flipDistance()).toBeCloseTo(docked, 0);
+});
+
+test("#242 the squeeze is BOTH-DOCKED only: with the context pane collapsed the list track is its plain clamp", async ({ mount, page }) => {
+  await page.setViewportSize(SQUEEZE_BINDS);
+  await mount(<AppShellStory />);
+  // Chats' own defaults are LIST docked · CONTEXT collapsed — the state most readers are in.
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "collapsed");
+  const [, list = 0, , context = 0] = await shellTracks(page);
+  expect(list).toBeCloseTo(0.24 * SQUEEZE_BINDS.width, 0);
+  expect(context).toBe(0);
+});
+
 // ── Cascade-contract: glass/background beats elevation (the rendered cascade, not source text) ──
 // shell.css's `data-elevation="ramp"` fills are unlayered plain CSS living alongside globals.css's
 // `data-blur-*` glass rules and `data-has-bg-image` transparency rules — all three are specificity-

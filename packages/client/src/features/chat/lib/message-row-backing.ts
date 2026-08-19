@@ -115,18 +115,29 @@ export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-d
 // theme: inside a turn taller than the screen the name row is pinned to the top of the scrollport and the
 // body scrolls underneath it, so it needs an OPAQUE chip in EVERY mode, wallpaper or not.
 //
-// THE FILL IS OPAQUE (`bg-card`), NOT A TRANSLUCENT PLATE (#168, owner-observed live 2026-08-18: the band
+// THE FILL IS OPAQUE, NOT A TRANSLUCENT PLATE (#168, owner-observed live 2026-08-18: the band
 // "lets some partial of the message you are on go above it"). It shipped as a 60%-alpha overlay fill —
 // so the prose running under the pinned band stayed VISIBLE THROUGH it, blurred and dimmed but legibly
 // moving. That is the whole defect: a pinned band that does not own its slice. An occluding sticky header
 // is the house recipe already (`modal-host.tsx`'s `sticky top-0 z-(--z-sticky) … bg-card`,
 // `preset-editor-surface.tsx`'s `sticky top-0 z-(--z-raised) bg-card`), and an opaque fill makes
-// `backdrop-blur` dead paint, so the blur went with the translucency. Its ink is the PAIRED
-// `text-card-foreground` (#204): `bg-card` rides the carried ramp, so its text must ride the same
-// palette's card ink — on the app's own themes card-foreground equals the inherited foreground, so this
-// is byte-identical there; under a carried palette it is what keeps the pinned name readable on the
-// carried card fill (the white-band/dark-band split §5 of the #204 forensics measured is gone the same
-// way: both the sticky band's `bg-card` and the chip's `bg-reading-plate` now derive from ONE base).
+// `backdrop-blur` dead paint, so the blur went with the translucency. That ruling is UNTOUCHED below —
+// what changed is WHICH opaque colour.
+//
+// THE OPAQUE COLOUR IS THE READING PLATE'S, AT ALPHA 1 (`bg-reading-band`, #241 — owner-ruled off #223).
+// #168 reached for `bg-card` because an opaque ramp surface was the nearest house recipe. But the prose
+// this band pins itself over rides `--color-reading-plate` (base −0.038) while `card` is base +0.047: one
+// column, two backings, a CONSTANT ΔL ≈ 0.085 apart, filed by the owner as an unintended step ("two
+// stacked whites of different opacity per message", chats-rescore 2026-08-18 → #223). Matching the two
+// numbers by hand would leave them free to drift apart at the next retune; DERIVING the band from the
+// plate makes the step impossible — `--color-reading-band` is `readingBandSurface(base)` at
+// `READING_BAND_ALPHA` (kit/theme-derivation), emitted beside the plate by the same clamp, so a carried
+// palette moves both together or neither. Its ink is the PAIRED `text-foreground` (#204), the base's own
+// derived neutral — the same ink the wallpaper chip pairs with its plate, and the pairing
+// `palette-contrast.suite.test.ts` floors this surface against. It is no longer a ramp member, so
+// `text-card-foreground` would now be naming a different palette root than its fill (on orb's own themes
+// the two resolve identically — card-foreground IS foreground — so this is byte-identical there and
+// load-bearing only under a carried palette, exactly like the plate's own pairing).
 //
 // It also SUPERSEDES the wallpaper chip rather than stacking with it (`nameRowFrame`, message-row-parts.tsx):
 // an opaque fill is a strict superset of a translucent one, and the two classes are the same property —
@@ -180,4 +191,4 @@ export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-d
 // non-`auto` z-index / `opacity < 1` on the bubble subtree) would paint in its own layer and could still
 // cover the band. No such sibling exists on the tree today (measured — see the #168 note above), and the
 // fence that keeps it that way is the hit-test CT, never a per-skin class.
-export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-card py-row text-card-foreground";
+export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-reading-band py-row text-foreground";

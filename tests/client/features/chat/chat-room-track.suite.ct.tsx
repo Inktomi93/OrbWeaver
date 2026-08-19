@@ -13,7 +13,10 @@
 //
 // THE FOUR PANE STATES ARE MEASURED ONES, not invented (reports/design/chats-delta-2026-08-18.md
 // §pane-states, viewport 1360, chatWidthPct 50): `list:docked+context:collapsed` → a 894px pane;
-// `list:docked+context:docked` → 509px; `list:collapsed+context:docked` → 816px;
+// `list:docked+context:docked` → 509px BEFORE #242 and 579px after it (the shell grid's conditional
+// squeeze hands that state +70.4px of content track — the delta is read off the real
+// `grid-template-columns` in app-shell.ct.tsx, and it is the ONLY state that moved: the other three carry
+// no reading-floor deficit, so their tracks are byte-identical); `list:collapsed+context:docked` → 816px;
 // `list:collapsed+context:collapsed` (full width) → 1212px. The measured offsets there were +107 / 0 / +68 /
 // +260 px between the transcript column and the composer. Mobile was clean at every state, so this stage is
 // desktop-only by design.
@@ -41,14 +44,24 @@ const SWIPE_STRIP = '[data-slot="swipe-strip"]';
  *  demanding zero. */
 const MAX_GUTTER_PX = 48;
 
-/** The measured desktop pane widths (see the header). `both-open` is the state where the pane itself is
- *  narrower than the reading floor — it must still AGREE on the axis, and must never overflow. */
+/** The measured desktop pane widths (see the header). `both-open` MOVED at #242 (509 → 579): the shell
+ *  grid now squeezes both docked panes when the content track would fall under the reading floor, and at
+ *  this suite's own viewport (1360) that is a measured +70.4px of content track
+ *  (`app-shell.ct.tsx` "#242 both docked at 1360…" reads it off the real `grid-template-columns`:
+ *  569.6 → 640.0). The other three states carry no deficit and are untouched. */
 const PANE_STATES = [
   { name: "list docked · context collapsed (default)", paneWidth: 894 },
-  { name: "list docked · context docked (both open)", paneWidth: 509 },
+  { name: "list docked · context docked (both open)", paneWidth: 579 },
   { name: "list collapsed · context docked", paneWidth: 816 },
   { name: "list collapsed · context collapsed (full width)", paneWidth: 1212 },
 ] as const;
+
+/** The both-open pane, named once for the test that is ABOUT that state rather than about the axis. */
+const BOTH_OPEN_PANE_WIDTH = 579;
+/** …and the pane the SAME state had before the squeeze — the non-vacuity control for the floor. */
+const PRE_SQUEEZE_BOTH_OPEN_PANE_WIDTH = 509;
+/** The floor the owner ruled: 65 characters of the transcript's own prose (not 65 `ch` — see the test). */
+const REAL_CHARACTER_FLOOR = 65;
 
 const LONG_PROSE =
   "The archive keeps its own weather, and the weather keeps its own archive; every page that is read is a " +
@@ -184,8 +197,8 @@ for (const state of PANE_STATES) {
     expect(Math.abs(strip.left - column.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
     expect(strip.right).toBeLessThanOrEqual(column.right + AXIS_TOLERANCE_PX);
     expect(strip.right - strip.left).toBeLessThan(column.right - column.left);
-    // …and nothing overflows the pane it lives in (the both-open state is narrower than the reading floor;
-    // it must degrade to the pane, never spill out of it).
+    // …and nothing overflows the pane it lives in (the both-open state is still narrower than the
+    // TOKEN-STRICT 65ch floor even after #242's squeeze; it must degrade to the pane, never spill out).
     expect(row.right - row.left).toBeLessThanOrEqual(state.paneWidth + AXIS_TOLERANCE_PX);
     expect(composer.right - composer.left).toBeLessThanOrEqual(state.paneWidth + AXIS_TOLERANCE_PX);
   });
@@ -248,15 +261,83 @@ test("the reading measure resolves in the PROSE font, not the column's own font"
   expect(Number.parseFloat(measure.maxWidth)).toBeCloseTo(measure.proseTokenPx, 0);
 });
 
+// ── #242: THE BOTH-OPEN STATE IS IN BAND NOW (owner-ruled off the #240 fork) ───────────────────────
+// This arm used to be "no worse + no overflow" (the axis test above) because the pane was narrower than
+// the reading floor and NOTHING in the transcript could widen a pane. #240 ruled the shell-grid arm —
+// both docked panes give up slack when the content track would fall under the floor — so the state has a
+// real floor to hold, and this is the assertion that upgrade buys.
+//
+// THE FLOOR IS THE REAL-CHARACTER ONE, and that is the owner's pick, not a convenience. The token-strict
+// floor (`--reading-measure-min`, 65 `ch` resolved in the prose font) measures 557.7px on this stage,
+// which the room's own glyphs overshoot: `ch` is the width of "0", wider than the average character in a
+// proportional face, so 65ch fits ~74 real characters. Holding it here would need ~+96px of pane instead
+// of +70 and would spend the panes down to their floors at every desktop width. The ruled target is the
+// LINE THE READER SEES: 65 characters of the transcript's own prose, measured in the prose font.
+test("#242 both open: the reading line holds the REAL-CHARACTER floor and stays under the measure cap", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await routeRoom(page, "flat");
+  await mount(<ChatRoomTrackStory paneWidth={BOTH_OPEN_PANE_WIDTH} />);
+  await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+
+  const line = await page.evaluate(
+    (sample): { readonly textWidth: number; readonly sampleWidth: number; readonly maxMeasure: number } => {
+      const bubble = document.querySelector('[data-slot="message-bubble"]');
+      if (!(bubble instanceof HTMLElement)) {
+        throw new Error("no bubble mounted");
+      }
+      // The sample is the room's OWN prose, in the room's own prose font, laid out on one line — so the
+      // floor is "65 of these characters fit", never a synthetic average.
+      const probe = document.createElement("span");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.whiteSpace = "pre";
+      probe.textContent = sample;
+      bubble.append(probe);
+      const sampleWidth = probe.getBoundingClientRect().width;
+      probe.textContent = "";
+      probe.style.whiteSpace = "";
+      probe.style.width = "var(--reading-measure)";
+      const maxMeasure = probe.getBoundingClientRect().width;
+      probe.remove();
+      const style = getComputedStyle(bubble);
+      const textWidth = bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+      return { textWidth, sampleWidth, maxMeasure };
+    },
+    LONG_PROSE.slice(0, REAL_CHARACTER_FLOOR),
+  );
+
+  // IN BAND, both ends: at or above the real-character floor…
+  expect(line.sampleWidth).toBeGreaterThan(0);
+  expect(line.textWidth).toBeGreaterThanOrEqual(line.sampleWidth - AXIS_TOLERANCE_PX);
+  // …and still under the 75ch cap (the band is 65-75; a floor with no ceiling is how #97 happened).
+  expect(line.textWidth).toBeLessThanOrEqual(line.maxMeasure);
+  // Non-vacuity: the PRE-#242 pane is the same measurement, short. Without this the assertion above would
+  // pass on any pane wide enough by accident, and the shell change it exists to fence would be invisible.
+  await page.evaluate((width) => {
+    const pane = document.querySelector('[data-testid="room-pane"]');
+    if (pane instanceof HTMLElement) {
+      pane.style.width = `${width}px`;
+    }
+  }, PRE_SQUEEZE_BOTH_OPEN_PANE_WIDTH);
+  const shortLine = await page.evaluate((): number => {
+    const bubble = document.querySelector('[data-slot="message-bubble"]');
+    if (!(bubble instanceof HTMLElement)) {
+      throw new Error("no bubble mounted");
+    }
+    const style = getComputedStyle(bubble);
+    return bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+  });
+  expect(shortLine).toBeLessThan(line.sampleWidth);
+});
+
 // THE BAND'S FLOOR (#213/#212-2). `--reading-measure` is a MAX; the floor is `--reading-measure-min`, and
 // the only thing inside the transcript that can push a line under it is an immersive skin's decoration
 // (echo spent 55% of its own box on `padding-right`, leaving 28 chars/line). The floor is therefore pinned
 // where it BINDS: echo's prose box must still hold the min measure, with the art living outside it.
 //
-// The pane-narrower-than-the-floor state (a 509px CONTENT pane at list+context docked) is NOT pinned as a
-// floor here on purpose — no rule in the transcript can widen a pane, and a `min-width` there would only
-// spill the column out of it. That state's arm is the axis test above (agree, and never overflow), and the
-// shell-side fork is stated in globals.css beside the rule.
+// The token-strict floor is STILL not pinned at the both-open pane (#242 bought the real-character one,
+// not the 65ch one — see the test above), and no rule in the transcript can widen a pane: that half of
+// the fork stays where it was answered, in the shell grid.
 test("an immersive skin's art does not eat the reading line below the min measure (echo)", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1360, height: 900 });
   await routeRoom(page, "echo");

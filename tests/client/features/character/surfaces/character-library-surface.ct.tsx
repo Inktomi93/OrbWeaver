@@ -1371,6 +1371,25 @@ test("P1-3 the row name keeps the full text column at rest — the hidden cluste
   expect(clipped).toBe(false);
 });
 
+/** The NARROWEST this pane can ever be docked: `--dimension-panel-floor` (17rem = 272px) — the clamp's own
+ *  responsive floor, and since #242 also the floor the shell's both-docked squeeze may not push it past.
+ *  The squeeze reaches this width at a 1360 desktop with both panes open, where the un-squeezed clamp
+ *  would have given 326px, so it is newly COMMON rather than newly possible (a ≤1133px viewport always
+ *  resolved the clamp to exactly this). */
+const SQUEEZED_RAIL_PANE_PX = 272;
+
+test("P1-3 the row name keeps its column at the #242 SQUEEZED list width too (the floor the shell may push to)", async ({ mount, page }) => {
+  await routeOneLongName(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={SQUEEZED_RAIL_PANE_PX} />);
+  const title = component.locator('[data-slot="list-row-title"]');
+  await expect(title).toHaveText(LONG_NAME);
+
+  // 35px narrower than the docked-at-1280 pane the pin above measures: the title column pays that
+  // pixel-for-pixel (nothing else in the row is elastic), so it must still clear the review's floor.
+  const width = await title.evaluate((el: Element) => el.clientWidth);
+  expect(width).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
+});
+
 // HOVER STABILITY IS HELD-UNDER-ATTACK, and this fix is exactly the kind that breaks it: a cluster that
 // changed the row's layout on reveal would re-hit-test the row under a stationary pointer at frame rate
 // (`ROW_REVEAL_SWAP`'s measured ~85 crossings/sec). Floating it out of flow is what makes the reveal free.
