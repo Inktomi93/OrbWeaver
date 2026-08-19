@@ -3,7 +3,7 @@
 // (EngineCore · Worker_TP · `vllm serve`), the api_server-substring false-positive class the design bans,
 // and the stage-tree cwd-EQUALITY exclusion (a stage lives UNDER but never EQUAL to the main root).
 
-import { findOrphanedFamily, parsePsRows } from "@orb/server/infra/providers/vllm/engine";
+import { findOrphanedFamily, liveListenerPids, parsePsRows, reapTargets } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
@@ -57,5 +57,75 @@ describe("findOrphanedFamily — widened family, cwd-equality match", () => {
     const psMixed = "  111   1 VLLM::EngineCore\n  222   1 VLLM::EngineCore";
     // Only 111 (main root, exact match) is reaped — the stage's 222 is excluded by equality-not-prefix.
     expect(findOrphanedFamily(psMixed, marker)).toEqual([111]);
+  });
+
+  // THE DEFECT, characterized on real-fleet-shaped input (captured live 2026-08-19: three HEALTHY detached
+  // APIServers, each parent = `systemd --user` (pid 2043507, cwd `/`), each own cwd = the repo root). The raw
+  // orphan predicate cannot tell these live engines from corpses — it flags ALL THREE. This is exactly why an
+  // ungated reap SIGKILLs the healthy siblings on a partial-down reconcile ("restart ONE → boots the WHOLE
+  // fleet"). `findOrphanedFamily` is intentionally unchanged; the liveness gate lives in `reapTargets` below.
+  test("the whole-fleet-reboot defect: a HEALTHY detached fleet's live APIServers all match the orphan predicate", () => {
+    const psLiveFleet = [
+      "3161014       1 /root/.cache/vllm/venv/bin/python /root/.cache/vllm/venv/bin/vllm serve Qwen/Qwen3-VL-Embedding-2B --port 8701",
+      "3165263       1 /root/.cache/vllm/venv/bin/python /root/.cache/vllm/venv/bin/vllm serve Qwen/Qwen3-VL-Reranker-2B --port 8702",
+      "3167606       1 /root/.cache/vllm/venv/bin/python /root/.cache/vllm/venv/bin/vllm serve Qwen3.8-27B --port 8703",
+    ].join("\n");
+    // Each APIServer's cwd is ours; its parent (systemd, pid 1 here) is not. All three are flagged.
+    const ours = new Set([3_161_014, 3_165_263, 3_167_606]);
+    expect(findOrphanedFamily(psLiveFleet, (pid) => ours.has(pid))).toEqual([3_161_014, 3_165_263, 3_167_606]);
+  });
+});
+
+describe("liveListenerPids — the healthy-port bind winners (spared by the liveness gate)", () => {
+  // `ss -tlnp` rows: only the ports we pass (the ones that answered /health) contribute a listener pid.
+  const ss = [
+    'LISTEN 0 128 127.0.0.1:8701 0.0.0.0:* users:(("python",pid=3161014,fd=7))',
+    'LISTEN 0 128 127.0.0.1:8702 0.0.0.0:* users:(("python",pid=3165263,fd=7))',
+    'LISTEN 0 128 127.0.0.1:8703 0.0.0.0:* users:(("python",pid=3167606,fd=7))',
+    'LISTEN 0 128 127.0.0.1:5432 0.0.0.0:* users:(("postgres",pid=999,fd=7))',
+  ].join("\n");
+
+  test("returns the listener pid for each healthy port, ignoring unlisted ports", () => {
+    expect(liveListenerPids(ss, new Set(["8701", "8702", "8703"]))).toEqual([3_161_014, 3_165_263, 3_167_606]);
+  });
+
+  test("a port that did not answer /health (absent from the set) contributes no protected pid", () => {
+    // Only gen (8703) is healthy — embed/rerank are down, so their (stale) rows must NOT protect anything.
+    expect(liveListenerPids(ss, new Set(["8703"]))).toEqual([3_167_606]);
+  });
+
+  test("no healthy ports → no protected pids", () => {
+    expect(liveListenerPids(ss, new Set())).toEqual([]);
+  });
+});
+
+describe("reapTargets — the liveness gate (the fix)", () => {
+  // The admin-restart scenario: gen (8703) was just killed (down, no listener); embed (3_161_014) + rerank
+  // (3_165_263) are HEALTHY detached engines that the orphan predicate flags. The gate spares the live
+  // listeners so only genuine corpses die — the launcher then adopts embed/rerank in place and boots only gen.
+  const psPartialDown = [
+    "3161014       1 /venv/bin/python /venv/bin/vllm serve embed --port 8701", // healthy embed — live listener
+    "3165263       1 /venv/bin/python /venv/bin/vllm serve rerank --port 8702", // healthy rerank — live listener
+    "3200000       1 VLLM::EngineCore", // gen's orphaned corpse (its APIServer was killed) — reap it
+  ].join("\n");
+  const ours = new Set([3_161_014, 3_165_263, 3_200_000]);
+  const marker = (pid: number): boolean => ours.has(pid);
+
+  test("spares the LIVE engine listeners and reaps only the corpse (the whole-fleet-reboot fix)", () => {
+    const live = new Set([3_161_014, 3_165_263]); // the healthy embed+rerank listeners
+    expect(reapTargets(psPartialDown, marker, live)).toEqual([3_200_000]);
+  });
+
+  test("empty protected set (cold boot: no healthy ports) → identical to the ungated reap", () => {
+    expect(reapTargets(psPartialDown, marker, new Set())).toEqual(findOrphanedFamily(psPartialDown, marker));
+  });
+
+  test("a duplicate-fleet loser (an orphan that never won a port bind) is NOT a listener → still reaped", () => {
+    // 3161014 won 8701 (protected); 3300000 is a duplicate that loaded the model but lost the bind — it is a
+    // family orphan, never appears among the listeners, and must still be reaped to free its VRAM.
+    const psWithDupe = `${psPartialDown}\n  3300000   1 /venv/bin/python /venv/bin/vllm serve embed --port 8701`;
+    const live = new Set([3_161_014, 3_165_263]);
+    const oursWithDupe = new Set([...ours, 3_300_000]);
+    expect(reapTargets(psWithDupe, (pid) => oursWithDupe.has(pid), live)).toEqual([3_200_000, 3_300_000]);
   });
 });
