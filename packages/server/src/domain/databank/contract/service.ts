@@ -13,6 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { StoredAsset } from "@orb/contracts/assets";
+import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { BankHealthView, DatabankSettings, IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
@@ -140,6 +141,12 @@ export interface DatabankContext {
   readonly enqueueReindex: EnqueueReindexOp;
   readonly ensureChatHost: EnsureChatHostOp;
   readonly ensureChatMember: EnsureChatMemberOp;
+  /** The leak-safe reverse-room read `listAttachments` names its rooms through (#276) — chat's answer to "of
+   *  these rooms, which may this caller see, and what are they called". Injected for the same reason the two
+   *  guards above are: D18 rooms scope on `chat_participants`, and databank reads neither the roster nor
+   *  `chats`. The type is `@orb/contracts/chat`'s (shared with regex + preset); the ONE runtime is
+   *  `entry/compose/visible-rooms.ts`. */
+  readonly resolveVisibleRooms: ResolveVisibleRoomsOp;
   /** The `search.documents` lens (DB6) — the ONE retrieval capability databank consumes for the chat GATHER
    *  (cluster boundary: databank never re-implements cosine). Scope resolves inside the lens via the resolver
    *  databank itself injected into search; here databank is the CONSUMER (chat → databank → search). */

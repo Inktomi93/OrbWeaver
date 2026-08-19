@@ -43,6 +43,8 @@ test("loadAttachments reflects the junction rows", async () => {
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
   await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
 
-  const view = await loadAttachments(db, document.id);
-  expect(view).toEqual({ global: false, chatIds: [chatId], characterIds: [] });
+  // Rooms stay IDS at this layer — whether the caller may see them is chat's question, answered by the
+  // injected resolver at the verb (#276). Characters come back NAMED off the owner-scoped join.
+  const view = await loadAttachments(db, owner, document.id);
+  expect(view).toEqual({ global: false, chatIds: [chatId], characters: [] });
 });

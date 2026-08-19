@@ -49,7 +49,9 @@ import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } f
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
+import { createResolvePresetUsage } from "./preset-usage.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
+import { createResolveVisibleRooms } from "./visible-rooms.ts";
 
 /** The embed-model-change reindex enqueue's own trace root. One name so the debug surface and any future
  *  filter agree; the two enqueues share it and are told apart by the `workloadKind` attribute. */
@@ -253,6 +255,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     audit,
     emitUserEvent: publishUserEvent,
     resolveChatCapability: deps.resolveChatCapability,
+    // The CONTEXT panel's backward-bindings read (#279). Assembled here rather than passed in because every
+    // input is already on this seam's own deps (`db` + settings) plus the SHARED room filter — and none of
+    // the three belongs to `domain/preset`.
+    resolvePresetUsage: createResolvePresetUsage({
+      db,
+      loadUserSettings: deps.settings.loadUserSettings,
+      resolveVisibleRooms: createResolveVisibleRooms(db),
+    }),
   };
   // Shared: the service + the portability `preset` descriptor (both write the domain's own `presets` table).
   const preset = createPresetService(presetCtx);

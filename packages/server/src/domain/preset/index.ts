@@ -12,6 +12,7 @@ export type {
   GetPresetParams,
   ImportPresetFileParams,
   ListPresetsParams,
+  ListPresetUsageParams,
   RemovePresetParams,
   ResetToDefaultParams,
   ResolveEffectiveParams,
@@ -23,8 +24,17 @@ export type {
   PresetExportFile,
   PresetImportOutcome,
 } from "./contract/portability.ts";
-export type { PresetService, ResolveChatCapabilityOp } from "./contract/service.ts";
-export type { EffectiveKnob, EffectiveKnobReading, EffectivePreset, EffectiveProvenance, PresetDetail, PresetSummary, StaleKnob } from "./contract/views.ts";
+export type { PresetService, ResolveChatCapabilityOp, ResolvePresetUsageOp } from "./contract/service.ts";
+export type {
+  EffectiveKnob,
+  EffectiveKnobReading,
+  EffectivePreset,
+  EffectiveProvenance,
+  PresetDetail,
+  PresetSummary,
+  PresetUsageView,
+  StaleKnob,
+} from "./contract/views.ts";
 export { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "./contract/views.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
 export { ensurePackagedPresets, ensureSystemDefaultPreset } from "./seed.ts";

@@ -19,9 +19,11 @@ import { createContributorRegistry } from "../../../../packages/client/src/lib/i
 import type { HomeTileContribution } from "../../../../packages/client/src/state/index.ts";
 import {
   closeModal,
+  useActiveChatId,
   useActiveSection,
   useDatabankPhaseFilter,
   useOpenModal,
+  useSelectedCharacterId,
   useSelectedDocumentId,
   useSettingsSubTarget,
   useSettingsTarget,
@@ -113,13 +115,15 @@ export function DatabankContextStory(): ReactElement {
   );
 }
 
-/** The shell-store probe the CONTEXT pane's settings DOOR is asserted through: `openSettingsTo` writes the
- *  shell store, so the deep link is proven at the STORE ACTION (the modal slot + the category + the
- *  subcategory it targets), never at a rendered echo — these stories mount no settings shell to echo it. */
+/** The shell-store probe every CONTEXT-pane DOOR is asserted through: `openSettingsTo`, `openChat` and
+ *  `openCharacter` all write the shell/selection stores, so a deep link is proven at the STORE ACTION (the
+ *  modal slot + category + subcategory, or the section + the id it selected), never at a rendered echo —
+ *  these stories mount neither a settings shell nor a chats section to echo one. */
 function DatabankSettingsProbe(): ReactElement {
   return (
     <output>
-      modal={useOpenModal() ?? "none"} category={useSettingsTarget() ?? "none"} sub={useSettingsSubTarget() ?? "none"}
+      modal={useOpenModal() ?? "none"} category={useSettingsTarget() ?? "none"} sub={useSettingsSubTarget() ?? "none"} section={useActiveSection()} chat=
+      {useActiveChatId() ?? "none"} character={useSelectedCharacterId() ?? "none"}
     </output>
   );
 }

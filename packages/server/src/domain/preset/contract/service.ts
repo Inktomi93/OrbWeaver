@@ -15,18 +15,30 @@ import type {
   GetPresetParams,
   ImportPresetFileParams,
   ListPresetsParams,
+  ListPresetUsageParams,
   RemovePresetParams,
   ResetToDefaultParams,
   ResolveEffectiveParams,
   UpdatePresetParams,
 } from "./params.ts";
 import type { PresetImportOutcome } from "./portability.ts";
-import type { EffectivePreset, PresetDetail, PresetSummary } from "./views.ts";
+import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "./views.ts";
 
 /** The injected chat-role capability read — `connection.resolveChatCapability` at the composition root. Takes
  *  the acting Principal and NOTHING else (no caller-supplied user id or role), so the injected op can only
  *  ever answer for the caller's own connection. */
 export type ResolveChatCapabilityOp = (params: { readonly principal: Principal }) => Promise<ResolvedChatCapability>;
+
+/**
+ * The injected BACKWARD-BINDINGS read (#279) — "where is this preset bound from outside the library".
+ *
+ * Injected rather than queried here because BOTH of its facts belong to other domains: the active pick is
+ * `settings`' `UserSettings.seeds.defaultPresetId`, and the GM redirect is `rpg_games.gmPresetId` joined to
+ * rooms whose visibility only chat can decide (D18). preset imports none of them, so the composition root
+ * assembles it (`entry/compose/preset-usage.ts`, the `room-reach` posture) and preset states the TYPE it
+ * needs. The verb still owns the GATE: it resolves the preset as readable-by-this-caller first.
+ */
+export type ResolvePresetUsageOp = (principal: Principal, presetId: PresetId) => Promise<PresetUsageView>;
 
 /** The DI bundle the preset verbs close over, wired at the composition root. */
 export interface PresetContext {
@@ -40,6 +52,8 @@ export interface PresetContext {
   /** The caller's OWN chat-role capability — the SAME read the editor's params panel already consumes, so the
    *  effective projection and the capability card can never disagree about the model. */
   readonly resolveChatCapability: ResolveChatCapabilityOp;
+  /** The caller's backward bindings for one preset — the CONTEXT panel's "used by" block. */
+  readonly resolvePresetUsage: ResolvePresetUsageOp;
 }
 
 /** The generation-config library surface. All verbs are owner-scoped: reads return the owner's rows union
@@ -68,6 +82,10 @@ export interface PresetService {
    *  §4.3): per-knob effective value + provenance, plus the stored-but-unhonored list. A read — no write, no
    *  audit. Throws `PresetNotFoundError` for a preset this caller can't read. */
   readonly resolveEffective: (params: ResolveEffectiveParams) => Promise<EffectivePreset>;
+  /** Where this preset is bound from OUTSIDE the library (#279) — the caller's active-pick flag + the rooms
+   *  whose rpg GM voice redirects to it. Gated like `get` (readable-by-this-caller or `PresetNotFoundError`);
+   *  the rooms are membership-filtered by the injected resolver, never listed raw. A read — no audit. */
+  readonly listUsage: (params: ListPresetUsageParams) => Promise<PresetUsageView>;
   /** Import ONE orb-native preset file — the thin single-preset arm over the SAME `ImportPreset` verb the
    *  whole-profile bundle uses (idempotent on `(ownerId, name)`: a same-named preset is MERGED in place).
    *  Never throws for a malformed file; the outcome carries the error. */

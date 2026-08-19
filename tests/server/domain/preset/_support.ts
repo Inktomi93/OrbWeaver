@@ -33,6 +33,9 @@ export interface PresetHarness {
  *  fixtures) — a real injected dep at the root, never a module mock. */
 export interface HarnessOptions {
   readonly capability?: ResolvedChatCapability;
+  /** The injected backward-bindings read (`listUsage`). Unstubbed it THROWS — a verb that reached it
+   *  without a test saying so would otherwise pass on a silent empty. */
+  readonly resolvePresetUsage?: PresetContext["resolvePresetUsage"];
 }
 
 /** Insert a `users` row (the FK parent for an owned preset); returns its branded id. Thin delegate over the
@@ -88,6 +91,11 @@ export function makeHarness(db: Db, options: HarnessOptions = {}): PresetHarness
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
     resolveChatCapability: (): Promise<ResolvedChatCapability> => Promise.resolve(options.capability ?? makeResolvedChatCapability()),
+    resolvePresetUsage:
+      options.resolvePresetUsage ??
+      ((): never => {
+        throw new Error("PresetContext.resolvePresetUsage not stubbed in this test");
+      }),
   };
   return { ctx, audits };
 }

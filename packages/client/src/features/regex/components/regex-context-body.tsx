@@ -34,7 +34,8 @@
 // where its order is decided. The other three scopes author theirs in the shared picker, beside their own
 // attach switches.
 
-import type { RegexAttachmentRef, RegexRoomRef, RegexScriptRow } from "@orb/contracts/regex";
+import type { VisibleRoomRef } from "@orb/contracts/chat";
+import type { RegexAttachmentRef, RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PresetId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -204,7 +205,7 @@ function AttachmentRoster({
  * are not, an ordinal when nothing on screen can tell them apart. So a room row here reads the way a chats
  * row does: who is in it, and when it last moved.
  */
-function RoomRoster({ rooms }: { readonly rooms: readonly RegexRoomRef[] }): ReactElement {
+function RoomRoster({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): ReactElement {
   const stamps = rowQualifiers(
     rooms.map((room) => ({ name: deriveChatTitle(room.title, room.participantNames), at: room.at })),
     timeLib.formatRelativeCompact,

@@ -213,6 +213,10 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     // would leave every provenance line — `model default`, `clamped to 1.2` — describing the OLD model.
     // Narrow, not the preset root: the preset ROWS did not change, and `presetsChanged` already covers those.
     trpc.preset.resolveEffective.pathFilter(),
+    // `preset.listUsage`'s `isUserDefault` arm IS `seeds.defaultPresetId` — activating another preset is
+    // precisely a settings write, and without this row the CONTEXT panel would keep calling the old pick
+    // "your active preset" until a reload. Narrow, for the same reason as the line above.
+    trpc.preset.listUsage.pathFilter(),
     // The same settings feed the ASSEMBLY the fit measures (chat behavior, the resolved model/capability the
     // shaper builds against) — the preview must move with the budget, never lag a knob behind it.
     ...promptPreviewReads(trpc),
@@ -312,6 +316,10 @@ const RPG_BUS_FILTERS: RpgBusFilterMap = {
     trpc.rpg.getGame.queryFilter({ chatId: e.chatId }),
     trpc.rpg.getConfigView.queryFilter({ chatId: e.chatId }),
     trpc.rpg.revealHidden.queryFilter({ chatId: e.chatId }),
+    // `gmPresetId` is one of the knobs this event covers, and it is the ONLY per-room preset binding — so
+    // the Presets CONTEXT panel's "used by" roster (`preset.listUsage`) goes stale on exactly this write.
+    // A path filter, not a keyed one: the reader is looking at some OTHER surface's preset, not this room's.
+    trpc.preset.listUsage.pathFilter(),
   ],
   // A swipe-volatile snapshot was written — the WHOLE panel re-resolves against the new resolved-current
   // snapshot (§4.9), so the single tracker aggregate refetches (every tab reads it).

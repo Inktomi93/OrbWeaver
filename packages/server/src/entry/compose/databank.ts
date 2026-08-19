@@ -21,6 +21,7 @@ import { fetchWebDocument } from "#infra/network";
 import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { minter } from "./minter.ts";
+import { createResolveVisibleRooms } from "./visible-rooms.ts";
 
 /** What the databank seam needs from the composition root: infra handles + the already-built sibling service
  *  front doors databank's injected ops route through. */
@@ -101,6 +102,10 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     },
     ensureChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
     ensureChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    // The SHARED leak-safe reverse-room read (#276) — the same factory regex's roster and the preset
+    // CONTEXT's GM bindings wire. A `chat_documents` row outlives its attacher's seat, so the "Active in"
+    // roster names PRESENT rooms only.
+    resolveVisibleRooms: createResolveVisibleRooms(db),
   };
   const databank = createDatabankService(databankCtx);
   const databankIngest: DatabankIngest = createDatabankIngest(databankCtx);

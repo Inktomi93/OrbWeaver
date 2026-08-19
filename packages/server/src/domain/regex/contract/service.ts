@@ -6,6 +6,7 @@
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) arrive
 // as injected ops from chat's own guards, wired at the composition root (the world-info PD-30 shape).
 
+import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -41,7 +42,7 @@ import type {
   UpdateScriptParams,
 } from "./params.ts";
 import type { ExportedRegexScriptFile } from "./portability.ts";
-import type { ResolveVisibleRooms, RoomDisplayPolicy } from "./resolve.ts";
+import type { RoomDisplayPolicy } from "./resolve.ts";
 import type { BulkResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
 import type { RegexScriptRow, RegexScriptUsage } from "./views.ts";
 
@@ -61,8 +62,9 @@ export interface RegexContext {
   readonly resolveRoomDisplayPolicy: (chatId: ChatId) => Promise<RoomDisplayPolicy>;
   /** The REVERSE-roster room filter (`listScriptUsage`) — chat's answer to "of these rooms, which may this
    *  caller see, and what are they called". Injected for the same reason the guards are: D18 rooms scope on
-   *  `chat_participants`, and regex reads neither the roster nor `chats`. */
-  readonly resolveVisibleRooms: ResolveVisibleRooms;
+   *  `chat_participants`, and regex reads neither the roster nor `chats`. The TYPE is chat's (shared with
+   *  databank + preset since 2026-08-19); the runtime is `entry/compose/visible-rooms.ts`. */
+  readonly resolveVisibleRooms: ResolveVisibleRoomsOp;
   /** Live-freshness invalidation. O-7 arm (a): the library is a low-churn owner surface, so ONE
    *  `regexChanged` user event carries every mutation; FK CASCADE + the D50 no-deletion-events discipline
    *  carry the rest. There are no per-entity bus events. */
