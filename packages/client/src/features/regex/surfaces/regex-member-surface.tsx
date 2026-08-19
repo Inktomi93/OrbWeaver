@@ -6,24 +6,26 @@
 // THE ONE TIER-FLAG WRITE BOUNDARY (side-eye X-1/X-2) is unchanged: `markdownOnly`/`promptOnly` are
 // re-derived from the placement chips on every save, so the pair can never disagree with the chips or with
 // each other — and an ST-imported row carrying contradictory flags heals the first time it is edited here.
+//
+// DELETE IS NOT HERE — it converged onto the ROW's kebab (config-delete #271). The row kebab already carried
+// Duplicate · Export · Delete, so the editor's own Delete button was a SECOND home for one verb; removing it
+// leaves the one declared per-row delete affordance world-info and tags now also use. The editor is
+// autosave-only; the row's kebab is where a script's lifecycle verbs live.
 
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
-import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Code, Icon, Trash2 } from "@orb/ui/icons";
+import { Code, Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
+import { useRef } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { regexScriptTitle, useFocusOnMount } from "#lib";
-import { clearCollectionSelection } from "#state";
 import { RegexEditorFields } from "../components/regex-editor-fields.tsx";
-import { useRemoveRegexScript, useUpdateRegexScript } from "../hooks/use-regex-library.ts";
+import { useUpdateRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexScriptForm } from "../hooks/use-regex-script-form.ts";
 import { withDerivedTierFlags } from "../lib/derive-tier-flags.ts";
 
@@ -59,12 +61,8 @@ function RegexMemberEditor({ row }: { readonly row: RegexScriptRow }): ReactElem
 }
 
 function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow; readonly session: AutosaveSession<CreateRegexScriptInput> }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const remove = useRemoveRegexScript({ trpc, invalidation });
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <Container>
@@ -74,26 +72,8 @@ function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow;
           <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />
         </Row>
 
+        {/* Delete lives on the ROW's kebab now (config-delete #271) — the editor is autosave-only. */}
         <RegexEditorFields form={session.form} scriptId={row.id} />
-
-        <Row justify="end">
-          <Button intent="ghost" onClick={(): void => setDeleteOpen(true)} size="sm" type="button">
-            <Icon icon={Trash2} size="sm" />
-            Delete
-          </Button>
-        </Row>
-
-        <ConfirmDialog
-          confirmLabel="Delete"
-          description="Deleting a script removes it from every preset, character, and room it is attached to. This can't be undone."
-          onConfirm={(): void => {
-            void remove.mutateAsync({ scriptId: row.id });
-            clearCollectionSelection();
-          }}
-          onOpenChange={setDeleteOpen}
-          open={deleteOpen}
-          title={`Delete "${regexScriptTitle(row)}"?`}
-        />
       </Stack>
     </Container>
   );

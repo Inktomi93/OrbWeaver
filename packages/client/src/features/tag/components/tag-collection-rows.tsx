@@ -7,6 +7,15 @@
 // thing you SCAN (swatch · name · usage), and the controls are the thing you EDIT, which is now a mounted
 // member editor in CONTENT. No capability was dropped — every control moved, one pane over.
 //
+// …EXCEPT DELETE, WHICH IS THE ROW'S KEBAB NOW (config-delete convergence #271). THE F-11 RULING SURVIVES —
+// its INPUT changed. F-11 killed the INLINE 330px control panel; a kebab Delete is not that. It is the
+// house's per-row destructive affordance (`LibraryRow.actions.onDelete` → the shared RowActionsMenu confirm),
+// the SAME place world-info and regex rows home Delete, and it is width-free — it floats at the row's end,
+// hover/focus-revealed, and never steals the scan column's width. So "the row is a scan line" holds: the
+// swatch/name/usage anatomy is untouched, and the one verb that was living TWO homes across these three
+// surfaces (WI row-kebab-only, regex both, tags editor-only) now has ONE. The EDITING controls (rename,
+// colours, folder, hide, Merge) stay in the member editor where F-11 put them — only Delete converged.
+//
 // TWO RENDER ARMS BY SIZE (owner ruling 2026-08-02: ~400 tags is the real library):
 //   ≤ COLLECTION_LARGE_GROUP → a `SortableList`, because manual tag ORDER is a real affordance at that size;
 //   >  COLLECTION_LARGE_GROUP → the sealed `VirtualList` in a bounded box, plus the host's filter.
@@ -46,9 +55,9 @@ import { ConfirmDialog, LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, sortTagsBy } from "#lib";
-import { setTagSortMode, useTagSortMode } from "#state";
-import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
-import { pruneConfirmLabel, tagColorLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageTotalLabel } from "../lib/tags-model.ts";
+import { clearCollectionSelection, setTagSortMode, useTagSortMode } from "#state";
+import { usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
+import { pruneConfirmLabel, tagColorLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** One compact row's height guess for the windowed arm (swatch + name + usage on one line). */
 const ESTIMATED_ROW_PX = 36;
@@ -59,6 +68,7 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
   const setOrder = useSetTagOrder({ trpc, invalidation });
   const prune = usePruneUnusedTags({ trpc, invalidation });
+  const remove = useRemoveTag({ trpc, invalidation });
   const sortMode = useTagSortMode();
 
   const needle = view.filter.trim().toLowerCase();
@@ -67,8 +77,18 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
   const unusedCount = tags.filter((tag) => tag.usage.total === 0).length;
   const hasUnused = unusedCount > 0;
 
+  // Delete is the row's KEBAB now (config-delete #271). Clear the selection FIRST when the open tag is the
+  // one being deleted, so CONTENT falls back to the workspace welcome instead of holding a dead editor over a
+  // deleted id — the world-info/regex row rule, and what the member editor's own delete did before this.
+  const onDelete = (id: TagId): void => {
+    if (view.selectedId === id) {
+      clearCollectionSelection();
+    }
+    remove.mutate({ tagId: id });
+  };
+
   const renderRow = (tag: TagWithUsage): ReactElement => (
-    <TagCollectionRow key={tag.id} onSelect={(): void => view.onSelect(tag.id)} selected={view.selectedId === tag.id} tag={tag} />
+    <TagCollectionRow key={tag.id} onDelete={onDelete} onSelect={(): void => view.onSelect(tag.id)} selected={view.selectedId === tag.id} tag={tag} />
   );
 
   const windowed = tags.length > COLLECTION_LARGE_GROUP;
@@ -187,18 +207,27 @@ function PruneUnusedControl({ count, onConfirm }: { readonly count: number; read
   );
 }
 
-/** One tag row: the colour swatch, the name, and the usage census — what you SCAN a library by. */
+/** One tag row: the colour swatch, the name, and the usage census — what you SCAN a library by, plus the
+ *  kebab Delete (config-delete #271 — the row's one lifecycle verb; the editing controls stay in the member
+ *  editor per F-11). The confirm carries the real cascade copy the member editor's delete used to. */
 function TagCollectionRow({
   tag,
   selected,
   onSelect,
+  onDelete,
 }: {
   readonly tag: TagWithUsage;
   readonly selected: boolean;
   readonly onSelect: () => void;
+  readonly onDelete: (id: TagId) => void;
 }): ReactElement {
   return (
     <LibraryRow
+      actions={{
+        name: tag.name,
+        onDelete: (): void => onDelete(tag.id),
+        deleteDescription: `This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`,
+      }}
       leading={
         // The tag's own colour is USER DATA, not a token — the one legal inline style (a dynamic value the
         // token gates deliberately scope out), and it rides a layout primitive because a feature may not
