@@ -84,7 +84,12 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
           term was a tie-break on an integer with no ties, so it never fired and the headline gem was the
           character played six hours ago. The verb now ranks the CONJUNCTION (volume × how long quiet), and
           this line says so in the shelf's own words. */}
-      <Text voice="gloss">Lifetime totals per character — the most played, longest left alone.</Text>
+      {/* AND THE BARS SAY WHAT THEY MEASURE (side-eye corpus re-pass #2, P3-5). `TrackBar` is aria-hidden
+          decoration by contract, which settles the SCREEN-READER half and nothing else: on screen, twelve
+          unlabelled bars under twelve tiles were a chart with no key, and the only place their quantity was
+          named was inside each tile's own gloss line. One clause here keys all of them, which is where a
+          shelf-wide legend belongs — repeating it per tile would be the label the primitive refuses. */}
+      <Text voice="gloss">Lifetime totals per character — the most played, longest left alone. Bars compare tokens returned.</Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
           needs real `listitem` CHILDREN or the cells are generic to AT and the list announces empty. */}
       <Grid aria-label="Invested but quiet characters" cols="auto" gap="row" role="list">
@@ -118,7 +123,11 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                       the shelf's tiles keep one baseline whatever their names do. The last-opened line is
                       short enough to survive at the 16rem tile floor and is deliberately LAST — it is the
                       one the reader came for, and nothing wraps past it. */}
-                  <Text as="span" className="block" lines={2} prose={true} voice="gloss">
+                  {/* `text-pretty` (P3-5's neighbour, P3-8): the magnitudes line wrapped with "exchanges"
+                      alone on line two on all twelve tiles — a widow the browser will avoid on its own once
+                      it is allowed to (text-wrap: pretty balances the LAST lines). The unit stays the honest
+                      word; nothing here shortens a label to win a layout. */}
+                  <Text as="span" className="block text-pretty" lines={2} prose={true} voice="gloss">
                     {gemMagnitudes(gem)}
                   </Text>
                   <Text as="span" className="block truncate" prose={true} voice="gloss">

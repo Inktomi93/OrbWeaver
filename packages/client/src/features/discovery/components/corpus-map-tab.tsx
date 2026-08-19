@@ -51,9 +51,17 @@ function MapBody(): ReactElement {
   const series = toGenreSeries(points.map((p) => ({ id: p.characterId, label: p.name, x: p.x, y: p.y, genre: p.genre })));
 
   return (
-    <Stack gap="block" className="min-h-0 flex-1">
+    // THE PLOT TAKES THE PANEL (side-eye corpus re-pass #2, P3-9). The chart was `aspect-square`, so at the
+    // CONTEXT pane's 420px width it drew a 420px box in a ~700px panel and left ~270px of dead space under
+    // its legend — and `flex-1` could not close it, because the tab body it sits in is a block scroller, not
+    // a flex column, so the rail's height never reached this Stack. `h-full` takes the panel's height (the
+    // TabsPanel is a definite-height flex child of the Tabs column) and the plot flexes into what the gloss
+    // and the key leave. A FIT fix, not a count gate: the square was never a requirement of the projection,
+    // which is a PCA into an arbitrary 2D frame and reads the same at any aspect. The min-height keeps it a
+    // chart rather than a strip if a host ever hands it no height at all.
+    <Stack gap="block" className="h-full min-h-0 flex-1">
       <Text voice="gloss">{points.length} cards, projected by semantic similarity, colored by genre. Click a card to open its dossier.</Text>
-      <Stack className="aspect-square w-full">
+      <Stack className="min-h-96 w-full flex-1">
         {/* THE KEY IS THE HALF THAT COULD BE READ (side-eye corpus re-pass B5). The tab said "colored by
             genre" and named no genre anywhere — eight-pixel dots in five hues with no decoder, over ~350px
             of empty panel. The meaning was carried by colour ALONE, which is both the accessibility failure
@@ -61,6 +69,9 @@ function MapBody(): ReactElement {
             palette (so the swatch matches the plot by construction) and ui is the only painter. */}
         <Scatter
           className="h-full w-full"
+          // The plot's own box, not the primitive's 320px default (P3-9): the frame is a flex column at the
+          // wrapper's height, so a percentage height lets the canvas take everything the key does not.
+          height="100%"
           label="Corpus semantic map"
           legend={true}
           onPointClick={(id): void => selectCorpusCharacter(id as CharacterId)}

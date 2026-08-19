@@ -13,19 +13,21 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { percent } from "../lib/corpus-vocabulary.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 
-const SCORE_PRECISION = 2;
 const DEFAULT = "";
 const SKELETON_ROW_COUNT = 4;
 
+/** The edge floor. The VALUES are the wire's cosines; the labels are the surface's one similarity spelling
+ *  (P2-5), so the knob and the rows it filters cannot speak two scales at each other. */
 const MIN_SIMILARITY_ITEMS: SelectItems<string> = [
   { value: DEFAULT, label: "Default" },
-  { value: "0.5", label: "0.5" },
-  { value: "0.6", label: "0.6" },
-  { value: "0.7", label: "0.7" },
-  { value: "0.8", label: "0.8" },
-  { value: "0.9", label: "0.9" },
+  { value: "0.5", label: "50%" },
+  { value: "0.6", label: "60%" },
+  { value: "0.7", label: "70%" },
+  { value: "0.8", label: "80%" },
+  { value: "0.9", label: "90%" },
 ];
 const MAX_NODES_ITEMS: SelectItems<string> = [
   { value: DEFAULT, label: "Default" },
@@ -55,7 +57,13 @@ function SimilarityBody(): ReactElement {
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">
       <NearestPairs />
 
+      {/* THREE COUNTS, THREE SCOPES, NOW STATED (side-eye corpus re-pass #2, P2-5). The readiness rail read
+          "1 found · 3 identical" while this tab opened on two 100% pairs — three true numbers that look
+          like a contradiction because nothing said what each one counts. The pass's own blind spot is the
+          reason (`lib/corpus-analysis-state.ts`: it scans one representative per content hash, so
+          byte-identical cards can never pair), and it belongs beside the list it explains. */}
       <Section heading="Duplicate characters">
+        <Muted>The near-duplicate pass's pairs. It compares one card per identical copy, so exact duplicates are counted on the readiness rail instead.</Muted>
         {dupChars.length === 0 ? (
           <Muted>No near-duplicate characters found.</Muted>
         ) : (
@@ -110,8 +118,11 @@ function NearestPairs(): ReactElement {
   return (
     <Section heading="Nearest pairs">
       <Stack gap="block">
+        {/* …and this list is the WHOLE graph above the threshold, which is why it can show pairs the
+            duplicate sections below do not (P2-5). */}
+        <Muted>Every pair above the threshold, ranked — not the near-duplicate pass's findings.</Muted>
         <Row gap="block" className="flex-wrap">
-          <ParamSelect label="Min cosine" value={minSimilarity} items={MIN_SIMILARITY_ITEMS} onValueChange={setMinSimilarity} />
+          <ParamSelect label="Min similarity" value={minSimilarity} items={MIN_SIMILARITY_ITEMS} onValueChange={setMinSimilarity} />
           <ParamSelect label="Max nodes" value={maxNodes} items={MAX_NODES_ITEMS} onValueChange={setMaxNodes} />
         </Row>
         <NearestPairsList
@@ -197,7 +208,7 @@ function PairRow({
           </Badge>
         ) : null}
         <Text voice="gloss" className="font-mono">
-          {score.toFixed(SCORE_PRECISION)}
+          {percent(score)}
         </Text>
       </Row>
     </Row>

@@ -52,6 +52,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { disambiguateLabels, toBarItems } from "../lib/corpus-charts.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
+import { facetLabel, sentenceCase } from "../lib/corpus-vocabulary.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
 import { CorpusUnderstandingInvitation } from "./corpus-understanding-invitation.tsx";
@@ -126,7 +127,9 @@ export function CorpusArchetypesTab(): ReactElement {
           error={visual.error}
           onRetry={visual.refetch}
           clusters={(visual.data ?? []).map((v) => ({
-            label: v.label,
+            // P3-4: an unnameable cluster is "Unclassified", never the literal token `none` the VL pass
+            // writes. Projected once, here, so the bar and the card below it carry the same name.
+            label: facetLabel(v.label),
             genre: v.genre,
             tone: v.tone,
             topTags: [],
@@ -215,7 +218,10 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
         <Text className="font-semibold">{name}</Text>
         <Text voice="gloss">{cluster.size} members</Text>
       </Row>
-      {facets.length > 0 ? <Text voice="kicker">{facets.join(" · ")}</Text> : null}
+      {/* THE FACET CHAIN IS DATA (P3-2): 45-59 characters of distilled tokens, set in the 9.5px UPPERCASE
+          band-label register. `kicker` names a SECTION; this names a cluster's contents, so it drops to the
+          quiet second-line voice and is cased like the sentence it is. */}
+      {facets.length > 0 ? <Text voice="gloss">{sentenceCase(facets.join(" · "))}</Text> : null}
       {cluster.topTags.length > 0 ? (
         <Row align="center" gap="field" className="flex-wrap">
           {cluster.topTags.map((tag) => (

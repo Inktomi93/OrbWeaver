@@ -8,7 +8,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory } from "../_ct-stories.tsx";
+import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory, CorpusSectionArrivalStory } from "../_ct-stories.tsx";
 
 const CHARACTER_HIT = {
   characterId: "char_aria",
@@ -400,6 +400,47 @@ test("coming back to Corpus lands focus in the omnibox, not on a wrapper (C7)", 
 
   await component.getByRole("button", { name: "Leave Corpus" }).click();
   await component.getByRole("button", { name: "Back to Corpus" }).click();
+
+  await expect(component.getByRole("combobox", { name: "Search your corpus" })).toBeFocused();
+});
+
+// ── P2-4: …AND THE CONTENT PANE STOPS TAKING IT BACK ─────────────────────────────────────────────────
+// C7 landed the omnibox focus and the re-pass still measured arrival on "an unnamed 869x7831 div with
+// outline:none" — because BOTH corpus surfaces called `useFocusOnMount` on their own root, and CONTENT
+// mounts after LIST. The C7 test above cannot see it: a list-only mount has no competitor. This one mounts
+// the section the way the shell does, and it is the only arrangement where the defect exists.
+const EMPTY_CORPUS_CONTENT = {
+  "discovery.home": {
+    coverage: { characters: 0, digests: 0, segments: 0 },
+    sceneThemes: [],
+    arcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+  },
+  "discovery.visualArchetypes": [],
+  "discovery.forgottenGems": [],
+  "discovery.unusedCharacters": [],
+  "discovery.modelRouting": [],
+  "discovery.topKeywords": [],
+  "discovery.themeDrift": [],
+  "workloads.list": [],
+};
+
+test("arriving in the SECTION lands focus in the omnibox — the content pane does not steal it (P2-4)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": EMPTY_BROWSE,
+    "search.suggest": [],
+    "search.search": searchResponder,
+    ...EMPTY_CORPUS_CONTENT,
+  });
+  const component = await mount(<CorpusSectionArrivalStory />);
+
+  await component.getByRole("button", { name: "Leave Corpus" }).click();
+  await component.getByRole("button", { name: "Back to Corpus" }).click();
+  // SETTLED barrier: the CONTENT region's own rendered arm, so the assertion runs after the pane that used
+  // to win the race has mounted, painted and had every chance to grab focus.
+  await expect(component.getByText("Nothing in your library yet")).toBeVisible();
 
   await expect(component.getByRole("combobox", { name: "Search your corpus" })).toBeFocused();
 });

@@ -1,0 +1,52 @@
+// HOW A RAW ANALYTICS VALUE IS SPOKEN ON THE CORPUS SURFACE — the two display rules the distillation and
+// caption passes hand this section, in one home (side-eye corpus re-pass 2026-08-19, P3-2 + P3-4).
+//
+// Both exist because the wire's vocabulary is a MACHINE's: the distiller writes lower-case facet tokens
+// (`fantasy`, `melancholic`) and the VL breakdown writes the literal token `none` for an image it could not
+// classify. Neither was ever meant to be read as-is, and both reached a reader unchanged — one shouted in
+// all-caps kicker voice, the other printed as a family whose name was the word "none".
+//
+// The VALUES DO NOT CHANGE. These are display projections at the render edge only: the label a filter
+// matches on, the key a chart groups by, and everything the server stores stay exactly the token they were.
+
+/**
+ * A 0-1 similarity as THE surface's one similarity spelling — a whole percent (P2-5).
+ *
+ * Four places on this section print a cosine and three of them printed it differently: the dossier said
+ * 25%, the Visuals tab "Mean fit 0.31", the Similarity tab "1.00". Same kind of number, three scales, none
+ * of them stated — so a reader who learned one still could not read the next. A whole percent is the
+ * spelling that reads higher-is-better without a legend, and the digit it drops (0.8813 vs 0.8809) is noise
+ * nobody can act on.
+ */
+export function percent(value: number): string {
+  return `${Math.round(value * PERCENT_SCALE)}%`;
+}
+
+const PERCENT_SCALE = 100;
+
+/** The token the labelling passes write when a facet produced nothing to say. Matched case-insensitively —
+ *  it arrives from a VL caption breakdown, not from a closed enum. */
+const UNCLASSIFIED_TOKENS = new Set(["none", "unknown", "n/a", ""]);
+
+/** What an un-labelled group is CALLED. "Unclassified" states that the pass ran and found nothing to name;
+ *  "none" reads as a family whose members share the property of being nothing. */
+const UNCLASSIFIED_LABEL = "Unclassified";
+
+/**
+ * A data string in SENTENCE CASE — the display casing for a value the reader is meant to read as prose
+ * (a facet chain, a cluster's headline facets).
+ *
+ * The alternative these replace is `voice="kicker"`, which UPPERCASES: a kicker is a section's NAME, and
+ * eight of them on this surface were carrying DATA — tag chains 45-59 characters long, set in 9.5px caps
+ * with .09em tracking, which is the register a label wears and the worst one a sentence can. The voice
+ * moved; this is the casing that makes the lower-case token look deliberate rather than unformatted.
+ */
+export function sentenceCase(value: string): string {
+  return value === "" ? value : `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
+}
+
+/** A facet/cluster label as a reader meets it: the un-classified tokens become "Unclassified", everything
+ *  else is sentence-cased. The underlying value is untouched — this is the last step before the pixels. */
+export function facetLabel(value: string): string {
+  return UNCLASSIFIED_TOKENS.has(value.trim().toLowerCase()) ? UNCLASSIFIED_LABEL : sentenceCase(value.trim());
+}

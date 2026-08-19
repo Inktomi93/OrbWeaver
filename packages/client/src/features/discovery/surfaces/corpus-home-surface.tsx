@@ -74,10 +74,10 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { testId } from "#lib";
 import { selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusFamilyMap } from "../components/corpus-family-map.tsx";
@@ -104,14 +104,20 @@ interface ThemeSelection {
   readonly level: ThemeLevel;
 }
 
+// SECTION ARRIVAL BELONGS TO THE OMNIBOX, AND THIS SURFACE STOPPED COMPETING FOR IT (side-eye corpus
+// re-pass #2, P2-4). Both corpus surfaces called `useFocusOnMount` on their own root — a `tabIndex={-1}`
+// div with `outline: none` — and CONTENT mounts after LIST, so arriving in Corpus put focus on an 869x7831
+// unnamed container: nothing announced, no visible ring, and the pane's real control (the search box the
+// LIST surface deliberately focuses, C7) one Tab further away than it looks. A section has ONE arrival
+// target; this is not it. Nothing else here focused anything, so the fix is the removal — and the removal
+// is DECLARED rather than silent, because `surface-a11y-focus` is otherwise right about every other surface:
+// @surface-focus-elsewhere(SearchOmnibox): the corpus LIST pane's omnibox owns this section's arrival focus (corpus-list-surface.tsx, C7); this CONTENT surface mounts second and must not steal it — pinned by tests/client/features/discovery/surfaces/corpus-list-surface.ct.tsx "arriving in the SECTION lands focus in the omnibox".
 export function CorpusHomeSurface(): ReactElement {
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
   return (
     // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces
     // (`corpus-content.tsx`, the Configuration precedent).
     <Surface tier="form">
-      <Stack className="outline-none" data-testid={testId("corpusHomeSurface")} ref={surfaceRef} tabIndex={-1}>
+      <Stack data-testid={testId("corpusHomeSurface")}>
         {/* The fallback is the surface's own SHAPE, not a sentence (§5 "loading is a naked sentence in a
             void") — `corpus-home-skeleton.tsx` carries the why. */}
         <QueryBoundary fallback={<CorpusHomeSkeleton />} renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}>
@@ -210,9 +216,15 @@ function CorpusHomeBody(): ReactElement {
               column) with its companions at datum weight beside it. Never a strip of display-size zeros —
               and never a number the headline just said, which is why the whole block is absent when the
               sentence already carries the library's state (§5 `distill`). */}
+          {/* THE FIGURES ARE RIGHT-ALIGNED ONLY WHERE THERE IS A RIGHT EDGE TO ALIGN TO (side-eye corpus
+              re-pass #2, P2-6). `text-right` was unconditional, so in every STACKED arm — mobile, the
+              three-pane width, the reading preset — the numeral floated at the right edge of its own
+              content-sized column (measured x≈79 in a container whose text edge is 24) instead of lining up
+              with the h1 above it. Right-alignment is a two-column relationship; it belongs to the arm that
+              has two columns, which is the same `@2xl` the masthead itself flips on. */}
           {state.hero === null ? null : (
             <Row align="end" className="shrink-0" gap="section">
-              <Stack className="text-right" gap="tight">
+              <Stack className="@2xl:text-right" gap="tight">
                 <Text as="span" voice="hero">
                   {state.hero.value}
                 </Text>
@@ -221,7 +233,7 @@ function CorpusHomeBody(): ReactElement {
                 </Text>
               </Stack>
               {state.support.map((figure) => (
-                <Stack className="text-right" gap="tight" key={figure.id}>
+                <Stack className="@2xl:text-right" gap="tight" key={figure.id}>
                   <Text as="span" voice="datum">
                     {figure.value}
                   </Text>
@@ -244,12 +256,13 @@ function CorpusHomeBody(): ReactElement {
             same two tracks a step sooner; the container query still stacks them for the three-pane and
             phone states.
 
-            NO `items-start` (side-eye corpus re-pass 2026-08-19 §5): it sized each track to its own
-            content, so the short track — the readiness rail, whose height is five rows and a button no
-            matter how big the library is — stopped ~250px above the island beside it and the composition
-            read as lopsided. The default `stretch` hands both tracks the ROW's height, which is what lets
-            the rail distribute itself over its column (`corpus-readiness-rail.tsx`). The left track is
-            unaffected: its children are content-height in a stretched flex column either way. */}
+            NO `items-start`, AND THE RAIL NO LONGER SPREADS INTO WHAT THAT BUYS (re-pass §5, then re-pass
+            #2 P2-1). The default `stretch` hands both tracks the ROW's height, which is why the rail's
+            Section can carry `h-full` and keep its band whole; what was REVERSED is the second half — the
+            rail distributing its hairline rows over that height, which measured a uniform 101px pitch over
+            ~33px of ink. The rail's rows are natural again and the leftover under them is the island's to
+            own. The left track is unaffected: its children are content-height in a stretched flex column
+            either way. */}
         <Grid cols="leadEarly" gap="gutter">
           <Stack className="min-w-0" gap="section">
             {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
