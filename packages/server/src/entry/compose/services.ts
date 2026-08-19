@@ -836,6 +836,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await embeddings.purgeDocumentVectors();
     },
     backfillMemory: (args) => chatCompose.backfill.memory(args),
+    // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
+    isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
     purgeMemoryVectors: async (): Promise<void> => {
       // The purge's row counts are advisory — the sweep's own counts are the workload result.

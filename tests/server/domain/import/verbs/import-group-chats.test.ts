@@ -98,7 +98,7 @@ function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): Im
         });
       },
       bulkImportPersonas: unused,
-      enqueueBackfill: () => Promise.resolve(),
+      enqueueBackfill: () => Promise.resolve(true),
       reconcileStats: () => Promise.resolve(),
     },
   };

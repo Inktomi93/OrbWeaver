@@ -22,6 +22,10 @@ const OVERVIEW = {
   throughputTps: 12.5,
   cacheHitRate: 0.25,
   reasoningRate: 0.1,
+  // #184: the rollups have carried `reasoningMs` on three tables and three views with NO client reader at
+  // all (0 hits over 981 client files, two methods) — the read end of a metric whose write end was equally
+  // half-wired. 45s renders as the same duration voice as "Time generating".
+  reasoningMs: 45_000,
 };
 
 const WRAPPED = {
@@ -57,6 +61,30 @@ test("the dashboard's Recompute now button fires stats.reconcile", async ({ moun
   await expect.poll(() => trpc.count("stats.reconcile")).toBe(1);
   // The settle re-reads the dashboard (the invalidation covers the whole stats router root).
   await expect.poll(() => trpc.count("stats.freshness")).toBeGreaterThan(1);
+});
+
+// ── The reasoning metric has a rendered home (#184) ───────────────────────────────────────────────
+// `reasoningMs` is computed into three rollup tables and exposed on three views, and NOTHING in the client
+// read it (0 hits over 981 files by two methods) — the mirror of the write end's missing producer. It lands
+// beside "Time generating"/"Reasoning %", in the same duration voice, so the number a thinking model
+// produces is visible where every other economics figure is.
+test("the Economics band renders the reasoning WINDOW beside the reasoning rate", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+  });
+
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  // SETTLED: the dashboard only renders its bands once all four suspense reads have landed.
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  const figure = component.locator('[data-slot="stat-figure"]', { hasText: "Time reasoning" });
+  await expect(figure).toHaveCount(1);
+  await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText("45.0s");
+  // The rate is a DIFFERENT question (how often it reasons) and must survive beside the duration.
+  await expect(component.locator('[data-slot="stat-figure"]', { hasText: "Reasoning" }).first()).toBeVisible();
 });
 
 /** Park the `stats.reconcile` response until the returned release fires; everything else falls through to

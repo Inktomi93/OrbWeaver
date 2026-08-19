@@ -133,7 +133,7 @@ export interface ProfileDirImportDeps {
   readonly newBackgroundEntryId?: () => string;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
-  readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
+  readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<boolean>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly now: () => number;
   /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted ⇒ {@link hostTimeZone} — a
@@ -818,7 +818,9 @@ function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"])
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,
-      enqueueBackfill: (): Promise<void> => Promise.resolve(),
+      // NO-OP (see the header): the driver owns the one enqueue, so this per-chat call enqueues nothing and
+      // reports nothing enqueued.
+      enqueueBackfill: (): Promise<boolean> => Promise.resolve(false),
       reconcileStats: deps.reconcileImportStats,
       ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
       ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),

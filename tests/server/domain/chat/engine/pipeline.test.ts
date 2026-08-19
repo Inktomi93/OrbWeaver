@@ -21,6 +21,7 @@ import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/
 import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { __spanToWirePartForTest, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
@@ -98,6 +99,9 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
 } {
   const deltas: ChatDeltaEvent[] = [];
   const args: PipelineArgs = {
+    // The turn clock — frozen by default (nothing but the reasoning-window measurement reads it, and a
+    // frozen clock is the honest "no time passed" for every other case). The #184 tests inject a stepping one.
+    now: () => FROZEN_AT_MS,
     // Default = the native replace (no node:vm) — a RECEIVE-watchdog test overrides with a throwing fake.
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     runChatTurn: scriptedTurn([
@@ -158,6 +162,74 @@ describe("runTurnPipeline — reduce", () => {
     const result = await runTurnPipeline(args);
     expect(result.content).toBe("AB");
     expect(result.economics).toBeNull();
+  });
+
+  // ── THE REASONING WINDOW (#184) ────────────────────────────────────────────────────────────────
+  // `message_variants.metadata.$.reasoning_duration` had ONE producer — the SillyTavern import — while three
+  // live readers rolled it into `reasoning_ms` on three stats tables. Every turn this app generated itself
+  // was worth 0ms, so `owner_stats.reasoning_ms` was pure archaeology. Nothing on the wire reports the
+  // figure; the engine measures it. The clock is INJECTED and the script advances it, so these pin the
+  // window's SEMANTICS, not a wall-clock race.
+
+  /** A stepping clock + a script that advances it BETWEEN chunks — a model that thinks for `ms`, then talks. */
+  function steppingScript(chunks: readonly (TurnStreamChunk | { readonly advanceMs: number })[]): {
+    readonly now: () => number;
+    readonly runChatTurn: RunChatTurnOp;
+  } {
+    let t = FROZEN_AT_MS;
+    return {
+      now: (): number => t,
+      runChatTurn: () =>
+        (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          for (const c of chunks) {
+            if ("advanceMs" in c) {
+              t += c.advanceMs;
+            } else {
+              yield c;
+            }
+          }
+        })(),
+    };
+  }
+
+  test("measures the reasoning window: first reasoning delta → the first answer token", async () => {
+    const thinker = steppingScript([
+      { kind: "reasoning", text: "weighing" },
+      { advanceMs: 400 },
+      { kind: "reasoning", text: " options" },
+      { advanceMs: 350 },
+      { kind: "text", text: "answer" },
+      // Time spent WRITING the answer is not thinking — it must not extend the window.
+      { advanceMs: 5000 },
+      { kind: "text", text: " continues" },
+    ]);
+    const { args } = baseArgs(thinker);
+    const result = await runTurnPipeline(args);
+    expect(result.reasoningMs).toBe(750);
+  });
+
+  test("a turn that never reasons has NO window — null, never a fabricated 0", async () => {
+    const thinker = steppingScript([{ kind: "text", text: "just prose" }, { advanceMs: 900 }, { kind: "text", text: " more" }]);
+    const { args } = baseArgs(thinker);
+    expect((await runTurnPipeline(args)).reasoningMs).toBeNull();
+  });
+
+  test("reasoning that never turns to prose still measures its own span", async () => {
+    const thinker = steppingScript([{ kind: "reasoning", text: "a" }, { advanceMs: 120 }, { kind: "reasoning", text: "b" }]);
+    const { args } = baseArgs(thinker);
+    expect((await runTurnPipeline(args)).reasoningMs).toBe(120);
+  });
+
+  // A backend that reports reasoning ONLY on the terminal chunk (no deltas) gives the engine no window to
+  // watch. Null is the honest answer there — the alternative is inventing a duration from the turn's total.
+  test("reasoning that arrives only in the final chunk yields no window", async () => {
+    const { args } = baseArgs({
+      runChatTurn: scriptedTurn([{ kind: "final", economics: { content: "done", reasoning: "hidden thinking" } }]),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.reasoning).toBe("hidden thinking");
+    expect(result.reasoningMs).toBeNull();
   });
 
   test("reasoning deltas accumulate + fan out separately", async () => {

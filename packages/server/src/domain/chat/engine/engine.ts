@@ -17,7 +17,7 @@
 // they're injected as engine deps wired at the entry composition root.
 
 import type { AssembleContext, ChatWarningCode, DurableChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
-import { buildCastNameContext, DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
+import { buildCastNameContext, DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
@@ -192,6 +192,20 @@ async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promis
   return view;
 }
 
+/**
+ * The variant's `metadata` sidecar for a LIVE generation (#184). The column is an OPEN blob whose readers
+ * address it BY PATH, so the live turn writes the same ONE key the ST import writes and the three stats
+ * readers extract — `VARIANT_METADATA_REASONING_MS_KEY`. Until this existed the key had a single producer
+ * (the import), which is why `owner_stats.reasoning_ms` was pure archaeology: every turn this app generated
+ * itself counted 0ms.
+ *
+ * Null (not `{}`) when the turn never reasoned: an empty blob would make the column's "has a sidecar"
+ * question a lie and costs a row of JSON for nothing.
+ */
+function liveVariantMetadata(reasoningMs: number | null): Record<string, unknown> | null {
+  return reasoningMs === null ? null : { [VARIANT_METADATA_REASONING_MS_KEY]: reasoningMs };
+}
+
 /** Builds the variant payload (content + reasoning + economics + per-swipe snapshot) — every persist mode
  *  writes the same generation record. */
 function variantPayloadOf(
@@ -204,6 +218,8 @@ function variantPayloadOf(
   return {
     content: result.content,
     reasoning: result.reasoning,
+    // The measured reasoning window (#184) — the live producer the three stats readers were missing.
+    metadata: liveVariantMetadata(result.reasoningMs),
     ...economicsCommon(e),
     contextWindow: e?.contextWindow ?? null,
     maxOutputTokens: e?.maxOutputTokens ?? null,
@@ -261,7 +277,9 @@ function generatedRowEconomics(
     genFinishedAt,
     model: e?.model ?? null,
     provider: e?.provider ?? null,
-    metadata: null,
+    // The SAME blob the variant row persists (#184): the live stats mirror folds `reasoning_duration` exactly
+    // as `reconcileStats` re-derives it from the written row, so the two can never disagree about this turn.
+    metadata: liveVariantMetadata(result.reasoningMs),
   };
 }
 
@@ -303,6 +321,9 @@ async function buildTurnStatsDeltas(args: {
           economics: {
             content: result.content,
             reasoning: result.reasoning,
+            // The SAME sidecar the row persists (#184) — the new-slot builder folds `reasoning_duration` out
+            // of it exactly as the swipe/continue builders (which read the committed row) already do.
+            metadata: econ.metadata,
             ...economicsCommon(result.economics),
             contextWindow: result.economics?.contextWindow ?? null,
             genTimeMs: genFinishedAt - genStartedAt,
@@ -1373,6 +1394,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // would be a second definition of the turn, free to drift.
     const pipelineArgs = {
       runChatTurn: ctx.runChatTurn,
+      now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref): Promise<string | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       assembleContext: speakerAssembleContext,
@@ -1679,6 +1701,7 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
   try {
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
+      now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       assembleContext: prep.assembleContext,

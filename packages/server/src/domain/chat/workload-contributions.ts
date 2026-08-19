@@ -23,6 +23,19 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
     {
       kind: "memory-backfill",
       params: emptyWorkloadParams,
+      // ADMISSION, not execution (#156): with memory disabled the sweep skips this host's chats entirely
+      // (the D36 opt-out, honored on the corpus sweep since #54), so the run can only ever land
+      // "0 segments · 0 digests" as a SUCCESS — owner-observed after an ST import auto-enqueued one. A job
+      // that structurally cannot produce anything is refused at the enqueue door instead.
+      // A BULK pass sweeps EVERY host, so it is admitted regardless: one host's opt-out says nothing about
+      // the box, and the per-host skip is the right instrument there. (`enumerationScope` — the WORKLOAD
+      // ROW's scope, not a chat owner; chats stay membership-scoped, D18. Same rename as `run` below.)
+      admit: async ({ ownerId: enumerationScope }): Promise<string | null> => {
+        if (enumerationScope === null || (await deps.isMemoryEnabled(enumerationScope))) {
+          return null;
+        }
+        return "Memory is turned off, so there is nothing to back fill — enable Memory in Settings, then run this again.";
+      },
       // Segment + digest LLM builds per chat × scope bucket — long by construction.
       lane: "sweep",
       // Hash-diff self-healing end to end; the signal aborts cooperatively between chats.

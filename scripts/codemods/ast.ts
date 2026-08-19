@@ -4497,8 +4497,10 @@ function printRegistriesPerTable(registries: readonly RegistryDef[], byRegistry:
 // The silent-reader audit (docs/reviews/misc/2026-08-18-silent-reader-audit.md §5) swept 2,296 contract
 // fields with this method and found two real ones: `RepetitionDetection.maxPatternSize` — declared,
 // plumbed through five hops, read on the vLLM wire, and NEVER constructed outside a test, so the loop guard
-// its header advertises does not run — and `AssembleContext.activeSpeakerCharacterId`, which occurs exactly
-// ONCE in the repository (its own declaration) while carrying a doc comment asserting live behaviour.
+// its header advertised did not run — and `AssembleContext.activeSpeakerCharacterId`, which occurred exactly
+// ONCE in the repository (its own declaration) while carrying a doc comment asserting live behaviour. BOTH
+// WERE DELETED (issue #185): neither symbol is on the tree any more, so they read here as the lens's
+// provenance, not as findable examples — the ast-lens conformance fixture keeps a synthetic twin.
 //
 // IT IS INFORMATIONAL AND NEVER GATES, for the `regkeys` reason: a key-based index cannot see every
 // producer, so acting on a line without reading the call sites deletes live code.

@@ -50,6 +50,12 @@ interface CanonVariantInput {
    *  Absent/null on a non-OR turn (agent-sdk / responses api / user-authored row). */
   readonly generationId?: string | null | undefined;
   readonly ttftMs?: number | null | undefined;
+  /** The generation's OPEN metadata sidecar (`message_variants.metadata`) — today exactly one key, the
+   *  measured reasoning window (`VARIANT_METADATA_REASONING_MS_KEY`, #184), which the stats rollups extract
+   *  by JSON path. Absent/null ⇒ no sidecar (a turn that never reasoned, a verbatim/greeting seed). NOT on
+   *  `VariantEconomics`: the read `MessageView` does not carry it — it is a stats-plane fact, not a rendered
+   *  one — and the ST import writes the same column through its own path. */
+  readonly metadata?: Record<string, unknown> | null | undefined;
   readonly finishReason?: string | null | undefined;
   readonly stopReason?: string | null | undefined;
   readonly terminalReason?: string | null | undefined;
@@ -206,6 +212,7 @@ function variantColumns(args: {
     messageId: args.messageId,
     idx: args.idx,
     ...variantEconomics(args.variant),
+    metadata: args.variant.metadata ?? null,
     maxOutputTokens: args.variant.maxOutputTokens ?? null,
     reasoningEffort: args.variant.reasoningEffort ?? null,
     params: args.variant.params ?? null,

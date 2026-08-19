@@ -7,7 +7,9 @@
 import type { StartWorkloadInput, WorkloadKind, WorkloadParamsByKind } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY, startWorkloadEnvelope } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
+import { WORKLOAD_NOT_ADMISSIBLE } from "../contract/contribution.ts";
 
 /** Parse ONE kind's params blob against its contribution schema. Throws the raw Zod error — callers that
  *  face a client wrap it (`parseWorkloadInput`); the row read path catches it for poison tolerance. */
@@ -42,6 +44,26 @@ export function parseWorkloadInput(contributions: WorkloadContributions, input: 
  */
 export function resolveAdmissionKey<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): string {
   return contributions[kind].admissionKey?.(params) ?? DEFAULT_ADMISSION_KEY;
+}
+
+/**
+ * The ADMISSION PRECONDITION check, shared by both enqueue doors (`start` and `retry` — the only two callers
+ * of `insertWorkload`). The queue asks; the OWNING DOMAIN answers (`WorkloadContribution.admit`), because only
+ * it knows when its own work is meaningless. A refusal is a CALLER error carrying the domain's own sentence,
+ * so the client renders the reason instead of a job that runs and reports nothing (#156).
+ *
+ * A kind that declares no precondition is always admissible — the check is a no-op for every other kind.
+ */
+export async function assertAdmissible<K extends WorkloadKind>(
+  contributions: WorkloadContributions,
+  kind: K,
+  params: WorkloadParamsByKind[K],
+  ownerId: UserId | null,
+): Promise<void> {
+  const refusal = await contributions[kind].admit?.({ ownerId, params });
+  if (refusal !== undefined && refusal !== null) {
+    throw new DomainOperationError(WORKLOAD_NOT_ADMISSIBLE, refusal);
+  }
 }
 
 /**
