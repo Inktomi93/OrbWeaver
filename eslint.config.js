@@ -438,7 +438,13 @@ export default tseslint.config(
     files: [UI_SRC],
     plugins: { "better-tailwindcss": betterTailwindcss },
     settings: {
-      "better-tailwindcss": { entryPoint: UI_STYLESHEET },
+      // Absolute — `entryPoint` is resolved against ESLint's `ctx.cwd`, which is repo root for
+      // `pnpm check`/bare `eslint` but the VITE ROOT (`packages/client`) when vite-plugin-checker
+      // spawns eslint out-of-process for the dev overlay (main.js `configureServer({ root })` →
+      // `cwd: root`). A repo-root-relative string only resolves under the first cwd — under the
+      // second it silently mis-resolves and the plugin reports "No tailwind css entry point found"
+      // on every lint (#275). Absolute is cwd-invariant.
+      "better-tailwindcss": { entryPoint: join(ROOT, UI_STYLESHEET) },
     },
     rules: {
       // `orb-*` are the kit's own bespoke component classes (keyframe animations Tailwind utilities
@@ -461,7 +467,10 @@ export default tseslint.config(
     files: [CLIENT_SRC],
     plugins: { "better-tailwindcss": betterTailwindcss },
     settings: {
-      "better-tailwindcss": { entryPoint: "packages/client/src/styles/globals.css" },
+      // Absolute — see the UI_SRC block's comment above (#275): `ctx.cwd` is repo root for
+      // `pnpm check` but `packages/client` when vite-plugin-checker spawns eslint for the dev
+      // overlay, so a repo-root-relative string mis-resolves under the checker specifically.
+      "better-tailwindcss": { entryPoint: join(ROOT, "packages/client/src/styles/globals.css") },
     },
     rules: {
       "better-tailwindcss/no-unknown-classes": ["error", { ignore: authorClassIgnores(CLIENT_STYLESHEETS) }],
