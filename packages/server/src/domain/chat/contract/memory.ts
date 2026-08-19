@@ -212,7 +212,7 @@ export type MemoryRecallSink = (record: Omit<MemoryRecallRecord, "seq" | "at">) 
 /** The `memoryRecall` bus member itself (#313) — the domain CONSTRUCTS this literal (the `turnStarted`
  *  precedent: `domain/chat/engine` builds its own bus events), so the bus-coverage gate finds the emit in
  *  domain scope, not in compose wiring. */
-export type MemoryRecallBusEvent = Extract<ChatBusEvent, { type: "memoryRecall" }>;
+type MemoryRecallBusEvent = Extract<ChatBusEvent, { type: "memoryRecall" }>;
 
 /** The injected recall-PHASE emitter (`ChatContext.emitRecallPhase`, #313) — the live feed the header
  *  brain-icon reflects. Fired at the SINGLE recall convergence (`recall/recall.ts`): `"recalling"` (count

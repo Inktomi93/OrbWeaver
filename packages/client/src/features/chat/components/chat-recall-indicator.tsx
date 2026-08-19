@@ -78,7 +78,7 @@ export function ChatRecallIndicator({ chatId, viewerIsHost }: ChatRecallIndicato
                 never a spin (owner ruling). Under prefers-reduced-motion it is a static labeled icon. */}
             <Icon icon={BrainCircuit} size="sm" className={iconClass(recall)} />
             {count === null ? null : (
-              <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
+              <Text as="span" voice="gloss" aria-hidden={true}>
                 {count}
               </Text>
             )}
@@ -86,7 +86,7 @@ export function ChatRecallIndicator({ chatId, viewerIsHost }: ChatRecallIndicato
         }
       />
       <PopoverPopup side="bottom" align="end">
-        <Stack gap="block" className="min-w-56 max-w-80">
+        <Stack gap="block" className="min-w-56">
           <PopoverTitle>Memory recall</PopoverTitle>
           <RecallSummary recall={recall} />
           {viewerIsHost && recall !== null ? <RecallHostDetail chatId={chatId} /> : null}
