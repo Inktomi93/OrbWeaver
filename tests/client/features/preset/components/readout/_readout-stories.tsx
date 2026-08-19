@@ -22,6 +22,8 @@ import {
   selectPresetSection,
   selectPresetTemplate,
   setPresetEditorView,
+  useActiveChatId,
+  useActiveSection,
 } from "@orb/client/state";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
@@ -362,6 +364,34 @@ export function TransformsReadoutSystemDefaultStory(): ReactElement {
         <TransformsReadout attachable={false} config={DEFAULT_PROMPT_CONFIG} presetId={STORY_PRESET} />
       </div>
     </CtDataProviders>
+  );
+}
+
+/**
+ * The readout with the BACKWARD-BINDINGS block in play (#279), on the PARAMS view and with NO chat bound.
+ *
+ * The view is `params` on purpose: the usage block is deliberately outside the per-view `BINDING_VIEWS`
+ * table (what depends on this preset is a property of the preset, not of the hand you are using), so
+ * pinning it on the one view the chat binding explicitly does NOT reach proves it is not riding the binding.
+ * Unbound for the same reason the door assertion needs it: with no chat ever selected, `section`/`chat`
+ * below start at their idle values, so a click that changes them is the door's own write and nothing else's.
+ */
+export function PresetReadoutUsageStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <PresetNavProbe />
+      <ReadoutFrame chatId={null} view="params" />
+    </CtDataProviders>
+  );
+}
+
+/** The two stores a room door writes — asserted at the STORE ACTION, because this story mounts no chats
+ *  section to echo the navigation. */
+function PresetNavProbe(): ReactElement {
+  return (
+    <output>
+      section={useActiveSection()} chat={useActiveChatId() ?? "none"}
+    </output>
   );
 }
 

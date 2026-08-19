@@ -71,6 +71,10 @@ export interface DatabankHarnessOptions {
    *  Scrape tests reconfigure the exposed `fetchUrl` mock per-case (canned html, or a rejection = an egress
    *  refusal / fetch failure) — no live network. */
   readonly fetchUrl?: DatabankContext["fetchUrl"];
+  /** chat's leak-safe reverse-room read (`listAttachments`' room half, #276). Unstubbed it THROWS: the
+   *  membership filter is the whole point of that arm, and a default returning `[]` would let a verb that
+   *  silently stopped calling it pass as "no visible rooms". */
+  readonly resolveVisibleRooms?: DatabankContext["resolveVisibleRooms"];
 }
 
 export interface DatabankHarness {
@@ -164,6 +168,11 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     ensureChatHost: options.ensureChatHost ?? (() => Promise.resolve()),
     ensureChatMember: options.ensureChatMember ?? (() => Promise.resolve()),
     searchDocuments: options.searchDocuments ?? (() => Promise.resolve([])),
+    resolveVisibleRooms:
+      options.resolveVisibleRooms ??
+      ((): never => {
+        throw new Error("DatabankContext.resolveVisibleRooms not stubbed in this test");
+      }),
   };
 
   return {

@@ -11,10 +11,10 @@ import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, documents, globalDocuments } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, count, desc, eq, gt, inArray, lt, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, lt, lte, notInArray, or, sql } from "drizzle-orm";
 import { DatabankCharacterNotFoundError } from "../contract/errors.ts";
 import type { DocumentListFilter, DocumentPhaseScope } from "../contract/params.ts";
-import type { DocumentAttachmentsView } from "../contract/views.ts";
+import type { DocumentAttachmentRows } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 
@@ -263,16 +263,33 @@ export async function listGlobalDocumentIds(db: Db, ownerId: UserId): Promise<Do
   return rows.map((r) => r.documentId);
 }
 
-/** Reverse of the scope junctions: where a document is attached. Owner-gated by the caller (loadOwnedMeta). */
-export async function loadAttachments(db: Db, documentId: DocumentId): Promise<DocumentAttachmentsView> {
+/**
+ * Reverse of the scope junctions: where a document is attached, as far as THIS file can answer it. Owner-gated
+ * by the caller (`loadOwnedMeta`).
+ *
+ * The CHARACTERS come back NAMED, because both sides of that junction are the caller's: the join is
+ * owner-scoped on `characters.ownerId` (the `ensureCharacterOwned` predicate, as a filter rather than a
+ * throw), so a character that is somehow not the caller's simply does not appear. Ordered by name — the
+ * server can sort what it can name.
+ *
+ * The CHATS come back as bare IDS on purpose. Which of them the caller may SEE is chat's membership question
+ * (D18 — no `chats.ownerId`), and a domain reads neither the roster nor `chats`; the verb resolves them
+ * through the injected `resolveVisibleRooms`. All this file knows is which rooms the junction points at.
+ */
+export async function loadAttachments(db: Db, ownerId: UserId, documentId: DocumentId): Promise<DocumentAttachmentRows> {
   const [globalRows, chatRows, characterRows] = await Promise.all([
     db.select({ documentId: globalDocuments.documentId }).from(globalDocuments).where(eq(globalDocuments.documentId, documentId)).limit(LIMIT_ONE),
     db.select({ chatId: chatDocuments.chatId }).from(chatDocuments).where(eq(chatDocuments.documentId, documentId)),
-    db.select({ characterId: characterDocuments.characterId }).from(characterDocuments).where(eq(characterDocuments.documentId, documentId)),
+    db
+      .select({ id: characterDocuments.characterId, name: characters.name })
+      .from(characterDocuments)
+      .innerJoin(characters, eq(characters.id, characterDocuments.characterId))
+      .where(and(eq(characterDocuments.documentId, documentId), eq(characters.ownerId, ownerId)))
+      .orderBy(asc(characters.name)),
   ]);
   return {
     global: globalRows.length > 0,
     chatIds: chatRows.map((r): ChatId => r.chatId),
-    characterIds: characterRows.map((r): CharacterId => r.characterId),
+    characters: characterRows,
   };
 }

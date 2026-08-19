@@ -83,6 +83,12 @@ export const presetRouter = t.router({
     .input(z.object({ id: brandedId<PresetId>() }))
     .query(({ ctx, input }) => ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id })),
 
+  // The CONTEXT panel's backward bindings (#279) — principal-carrying like `resolveEffective`, because its
+  // room half is membership-scoped (D18) and is resolved for the ACTING caller, never a supplied user id.
+  listUsage: authedProcedure
+    .input(z.object({ id: brandedId<PresetId>() }))
+    .query(({ ctx, input }) => ctx.services.preset.listUsage({ principal: ctx.auth, id: input.id })),
+
   // The single-preset import door (G6) — a thin arm over the ONE `ImportPreset` verb the profile bundle uses,
   // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text.
   importFile: authedProcedure

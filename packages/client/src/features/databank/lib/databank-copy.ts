@@ -19,15 +19,16 @@ export const DATABANK_INGEST_GLOSS =
 /** CONTEXT with no document open. Names what the pane WILL show — never the word "Details" (the band
  *  already says that) and never a section-less "select something" (side-eye F-12).
  *
- *  THE PROMISE IS A COUNT, NOT A ROSTER (side-eye 2026-08-19 P1). It used to say "…to see WHICH chats and
- *  characters it already feeds", over a pane that renders two dead count Badges. A promise of names paid in
- *  integers is worse than either half alone: the reader arrives at "3 chats" believing the pane failed,
- *  rather than reading the number it actually offers. The COUNT is what `databank.listAttachments` can
- *  honestly serve today — its wire is `{ global, chatIds, characterIds }` (ids, no names), and the roster
- *  the old sentence promised is blocked on a real read, not on layout (see `databank-context-body.tsx`'s
- *  ACTIVE IN note for the scope constraint and what a named roster would cost). So the sentence downgrades
- *  to the pane's real contract; the roster promise comes back the day the read does. */
+ *  THE PROMISE IS A ROSTER AGAIN — because the read landed (#276, 2026-08-19). The full arc, both halves
+ *  recorded: it originally promised "…to see WHICH chats and characters it already feeds" over a pane that
+ *  rendered two dead count Badges, and side-eye 2026-08-19 P1 correctly downgraded it, because a promise of
+ *  names paid in integers reads as a broken pane. That downgrade named its own wake condition — the wire was
+ *  `{ global, chatIds, characterIds }` (ids, no names) and the roster was "blocked on a real read, not on
+ *  layout". `databank.listAttachments` now returns named rooms (through chat's leak-safe
+ *  `resolveVisibleRooms`, so only rooms the reader may open) and named characters, each one a door. The
+ *  sentence tracks the pane's real contract in BOTH directions; it never described a pane that could not
+ *  pay it. */
 export const DATABANK_CONTEXT_EMPTY = {
   title: "Where a document fires",
-  description: "Open a document to switch it on everywhere, and to see how many chats and characters it reaches.",
+  description: "Open a document to switch it on everywhere, and to see which chats and characters it already feeds.",
 } as const;

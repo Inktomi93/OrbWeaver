@@ -346,6 +346,11 @@ const PROBES: readonly Probe[] = [
   // generation knobs to a stranger. The capability half is Principal-only (no id to aim), so the preset
   // read is the whole attack surface — and it must collapse leak-free.
   { path: "preset.resolveEffective", call: (c, i) => c.preset.resolveEffective({ id: i.presetId }) },
+  // The backward-bindings read (#279): it takes A's preset id and answers with A's active-pick flag plus
+  // the ROOMS whose GM voice points at it — two facts a stranger must not learn. Both gates must hold: the
+  // verb's own readable-preset predicate (which is what this probe attacks), and, behind it, the
+  // membership filter on the rooms.
+  { path: "preset.listUsage", call: (c, i) => c.preset.listUsage({ id: i.presetId }) },
   // ── world-info (owner-scoped) ──
   { path: "worldInfo.getBook", call: (c, i) => c.worldInfo.getBook({ bookId: i.bookId }) },
   {
@@ -1573,7 +1578,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const docStill = await ownerCaller.databank.get({ id: ids.documentId });
     expect(docStill.name).toBe(MARK.databankDoc); // untouched by the stranger's databank.rename/remove probes
     const docAttachments = await ownerCaller.databank.listAttachments({ id: ids.documentId });
-    expect(docAttachments.characterIds).toEqual([ids.characterId]); // the character junction survived detachFromCharacter
+    expect(docAttachments.characters.map((c) => c.id)).toEqual([ids.characterId]); // the character junction survived detachFromCharacter
     const rulesStill = await ownerCaller.automation.listRules({ chatId: ids.chatId });
     expect(rulesStill).toHaveLength(1); // the stranger's createRule enqueued no rule into A's chat
     expect(rulesStill[0]?.name).toBe(MARK.automationRule); // untouched by the stranger's automation.updateRule probe

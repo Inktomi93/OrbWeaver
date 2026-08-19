@@ -12,6 +12,7 @@ import { createGet } from "./verbs/get.ts";
 import { createImport } from "./verbs/import.ts";
 import { createImportFile } from "./verbs/import-file.ts";
 import { createList } from "./verbs/list.ts";
+import { createListUsage } from "./verbs/list-usage.ts";
 import { createRemove } from "./verbs/remove.ts";
 import { createResetToDefault } from "./verbs/reset-to-default.ts";
 import { createResolveEffective } from "./verbs/resolve-effective.ts";
@@ -27,6 +28,7 @@ export function createPresetService(ctx: PresetContext): PresetService {
     ...createResetToDefault(ctx),
     ...createClonePackaged(ctx),
     ...createResolveEffective(ctx),
+    ...createListUsage(ctx),
     // The single-preset import DOOR over the bundle's own import verb (factory injection — the verb-isolation
     // wiring point), so both doors run one implementation.
     ...createImportFile({ importPreset: createImport(ctx) }),

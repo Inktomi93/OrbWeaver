@@ -27,7 +27,10 @@
 // invalidation seam (see its comment there for why that row is the right home and what it inherits). The
 // D121-G Prompt half adds NO row: it reads `chat.previewAssembly`, the read that member has carried since it
 // was minted, so the bound rack inherits `presetsChanged` (the autosave you just made) + every canon terminal
-// (the conversation it is pricing) by construction.
+// (the conversation it is pricing) by construction. The #279 backward-bindings block adds `preset.listUsage`
+// with TWO classified drivers, because its two arms have two different writers: `settingsChanged` (its
+// `isUserDefault` arm IS `seeds.defaultPresetId`, and activating another preset is a settings write) and the
+// rpg bus's `gameChanged` (the `gmPresetId` knob is the only per-room preset binding there is).
 
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -48,6 +51,7 @@ import { PromptReadout } from "./prompt-readout.tsx";
 import { ReadoutBindingChip } from "./readout-binding.tsx";
 import { CapabilityCard, EffectiveProfile } from "./readout-parts.tsx";
 import { TransformsReadout } from "./transforms-readout.tsx";
+import { UsageReadout } from "./usage-readout.tsx";
 
 export function PresetReadout(): ReactElement {
   const presetId = useSelectedPresetId();
@@ -188,6 +192,10 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
           has a null owner, so the attachment read refuses it by design and its regex stages are known-off
           rather than unread. */}
       {view === "transforms" ? <TransformsReadout attachable={preset.data?.isSystemDefault !== true} config={config} presetId={presetId} /> : null}
+      {/* THE BACKWARD BINDINGS (#279) sit under whichever panel is projected, once — "what depends on this
+          preset" is a property of the preset, not of the active hand, so it is not in `BINDING_VIEWS`'
+          per-view table. Read-only + navigation-only like the rest of this panel. */}
+      <UsageReadout presetId={presetId} />
       {view === "params" ? (
         <>
           <EffectiveProfile

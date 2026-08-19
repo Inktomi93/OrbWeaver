@@ -4,6 +4,7 @@
 // `isSystemDefault` is the derived signal that lets the client identify the un-owned row without the
 // domain-internal `SYSTEM_DEFAULT_PRESET_ID` sentinel.
 
+import type { VisibleRoomRef } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { ModelId, PresetId } from "@orb/kit/ids";
 
@@ -26,6 +27,30 @@ export interface PresetSummary {
 export interface PresetDetail extends PresetSummary {
   readonly config: PromptConfig;
   readonly schemaVersion: number;
+}
+
+/**
+ * WHERE THIS PRESET IS BOUND FROM OUTSIDE THE LIBRARY (#279) — the CONTEXT panel's backward-bindings block.
+ *
+ * The library is full of forward readouts ("what does this preset set"); nothing answered "what would break
+ * if I changed it". The honest answer is short, and the SHAPE of it is the finding: a chat does NOT carry a
+ * preset. A room generates under its HOST's active preset (`UserSettings.seeds.defaultPresetId`, resolved
+ * per turn at `entry/compose/chat.ts::resolvePromptConfigFor`), so there is no per-chat preset column to
+ * roster. Exactly TWO bindings exist on this tree:
+ *   • `isUserDefault` — this preset IS the caller's active pick, i.e. every room they host runs it. One
+ *     boolean, not a room list: enumerating "every chat you host" would restate the chats list, and it is
+ *     the SETTING that is the binding.
+ *   • `gmRooms` — `rpg_games.gmPresetId`, the GM-voice preset REDIRECT (rpg §4.11 #1), which IS per-room and
+ *     overrides the default for that room's narrator turns. Membership-scoped like every room read (D18):
+ *     resolved through the shared `resolveVisibleRooms`, so a game in a room the caller has left is absent.
+ *
+ * There is deliberately NO role/connection arm. A connection binds MODELS to roles; a preset is generation
+ * config and is never referenced by a connection or a role (`domain/preset` owns params/sections only — the
+ * domain map's "never the connection"). A block claiming that binding class would be inventing one.
+ */
+export interface PresetUsageView {
+  readonly isUserDefault: boolean;
+  readonly gmRooms: readonly VisibleRoomRef[];
 }
 
 // ── The EFFECTIVE profile (`resolveEffective`, redesign §4.3) ──────────────────────────────────────

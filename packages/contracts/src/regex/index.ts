@@ -37,6 +37,9 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RegexHistoryDepth, RegexPlacement } from "@orb/kit/regex";
 import { HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { z } from "zod";
+// The chat MODULE FILE, not the `#chat` barrel: `chat/assemble.ts` imports this module, so routing through
+// the barrel would close a cycle (`no-circular`). The shape's home is unchanged — chat owns it.
+import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
 
 // ── Field caps (named so the literals aren't bare magic numbers) ──────────────
 const MIN_CARD_ID_LENGTH = 1;
@@ -305,32 +308,12 @@ export interface RegexAttachmentRef<TId extends PresetId | CharacterId | ChatId>
   readonly name: string;
 }
 
-/**
- * One ROOM that attaches a script — the roster's row, and deliberately NOT a `RegexAttachmentRef`.
- *
- * A preset and a character HAVE a name: one authored string, owned by the row, which the server can hand
- * over finished. A chat does not. Its display title is a fallback CHAIN (authored title → the present cast's
- * display names → "Untitled chat") that the client owns in one place, `#lib`'s `deriveChatTitle`, because
- * the chats list, the topbar, the command palette and the landing strip all render it. So this ref carries
- * the chain's INPUTS and lets the one derivation run, rather than shipping a name the server derived with a
- * second copy of the rule — which is exactly what it used to do, and why an unnamed room read "Untitled
- * chat" here while the chats list called the same room "Azarael" (REGROSTER's parked naming question, owner
- * pick 2026-08-09).
- *
- * `at` is the room's last-activity instant — the same `chats.updatedAt` the chats list ORDERS by. It is on
- * the row for the same reason the chats list carries it: once rooms are titled by their cast, several rooms
- * legitimately share one title, and the recency stamp is the house disambiguator (`rowQualifiers`).
- */
-export interface RegexRoomRef {
-  readonly id: ChatId;
-  /** The AUTHORED title, raw and untrimmed — null or blank means "never renamed", which the chain answers. */
-  readonly title: string | null;
-  /** The present cast's display names, in roster order, MINUS the caller's own seat (the chats list's own
-   *  `summaryCast` rule: the viewer is in every room they can see, so their name carries no information). */
-  readonly participantNames: readonly string[];
-  /** Last activity (`chats.updatedAt`), epoch-ms. */
-  readonly at: number;
-}
+// A ROOM row is deliberately NOT a `RegexAttachmentRef`, and it is not regex's shape either. A preset and a
+// character HAVE a name — one authored string the server can hand over finished. A chat does not: its title
+// is a fallback CHAIN the client owns, and WHICH rooms may even be named is chat's membership question
+// (D18). Both halves are `#chat`'s `VisibleRoomRef`, shared with every other library that keeps a chat-scope
+// attachment junction; regex re-derives from it rather than re-spelling it (promoted 2026-08-19, when
+// databank + preset became the second and third consumers).
 
 /** Where one script already runs, read from the SCRIPT's side — the three roster scopes.
  *  GLOBAL is absent on purpose: it is a property of the script itself (`global_regex_scripts` PKs on the
@@ -342,7 +325,7 @@ export interface RegexRoomRef {
 export interface RegexScriptUsage {
   readonly presets: readonly RegexAttachmentRef<PresetId>[];
   readonly characters: readonly RegexAttachmentRef<CharacterId>[];
-  readonly rooms: readonly RegexRoomRef[];
+  readonly rooms: readonly VisibleRoomRef[];
 }
 
 /** The PORTABLE file shape — one script per `regex/*.json` in a backup bundle. `global` is the only
