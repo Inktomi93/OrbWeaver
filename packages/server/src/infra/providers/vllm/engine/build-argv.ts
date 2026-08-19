@@ -167,7 +167,10 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
 const EMBED_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_vl_embedding_serve.jinja";
 const RERANK_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_vl_reranker_serve.jinja";
 // The gen engine's FIXED chat template (vendored 2026-08-13 from froggeric/Qwen-Fixed-Chat-Templates,
-// sha256 398edf5b…f78dc; owner-directed). The checkpoint's SHIPPED template has four defects this repo
+// original sha256 398edf5b…f78dc — since 2026-08-18 it carries a LOCAL continue/prefill arm on top
+// (assistant + thinking prefill via continue_final_message OR chat_template_kwargs
+// {"assistant_prefill": true}; mechanism + rejected arms in the template's own header), so the file no
+// longer byte-matches the vendored sha. The checkpoint's SHIPPED template has four defects this repo
 // hits directly: (1) mid-dialogue system messages get dropped — our injection system / author's-note
 // INSERTS them; (2) tool-call `arguments` as JSON strings (the standard OpenAI wire — what our client
 // sends) crash it; (3) multi-turn history gets blank `<think></think>` poisoning → prefix-cache misses;

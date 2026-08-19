@@ -1,4 +1,56 @@
-{%- set template_version = "qwen3.8-froggeric-v22" %}
+{#- ── continue_final_message (assistant + thinking prefill) — the local arm on top of froggeric v22 ──
+    MECHANISM (vllm 0.26 + transformers 5.15, read from source): the template NEVER receives
+    `continue_final_message` — transformers consumes it as a named parameter
+    (transformers/utils/chat_template_utils.py:render_jinja_template). It appends the sentinel
+    "CONTINUE_FINAL_MESSAGE_TAG " to the final message's content, renders NORMALLY, then cuts the
+    rendered string at the sentinel's last occurrence. So the turn-OPEN half of prefill is
+    transformers' strip doing its job; the template's job is only (1) render the final assistant
+    content VERBATIM (untrimmed, un-split — trimming eats the sentinel's trailing space, which flips
+    transformers into its cautious branch `rendered[:tag].rstrip()` and eats the prefill's own
+    trailing whitespace, e.g. an open "<think>\n" loses its newline; and the v22 think-SPLIT
+    re-normalizes non-canonical spellings, which trips transformers' containment check into a 400),
+    and (2) inject the think scaffolding the checkpoint requires — an assistant turn with NO think
+    block instantly EOSes (measured live 2026-08-18 on /v1/completions).
+    TWO DOORS, one arm (owner-directed 2026-08-18):
+      · the STANDARD flags — continue_final_message:true + add_generation_prompt:false. The arm's
+        fingerprint is loop.last + role assistant + add_generation_prompt false (the template CAN
+        see add_generation_prompt; vllm forbids the flags both true).
+      · the KWARG — chat_template_kwargs {"assistant_prefill": true}. Template-visible because this
+        file references it (vllm forwards exactly the kwargs the template declares —
+        renderers/hf.py find_undeclared_variables), so it works with add_generation_prompt left at
+        its default and can live statically in an ST custom body: it is INERT unless the final
+        message is an assistant turn. BLANKET trailing-assistant inference is deliberately absent —
+        orb's group-chat assembly ends history with an assistant row while wanting a fresh
+        next-speaker turn (add_generation_prompt true, no kwarg → byte-identical to v22).
+    The arm renders the turn OPEN (no im_end, nothing after the content) and suppresses the
+    trailing generation prompt. In the standard door transformers' strip would cut the im_end
+    anyway — omitting it is byte-equivalent post-strip; in the kwarg door there is no strip, so the
+    template owns the open turn. Guarded to messages WITHOUT tool_calls so a /tokenize of a history
+    ending in a tool-call turn keeps its exact old rendering.
+    THE ARM (in precedence order, on the RAW untrimmed content):
+      1. structured reasoning field (reasoning_content/thinking) present → closed think from the
+         field + raw content appended: "<think>\n" + reasoning + "\n</think>\n\n" + content.
+      2. any "<think"/"</think" marker in content → content as-is, byte-verbatim. An OPEN block ⇒
+         the model CONTINUES the thinking in that voice (the anti-preach steering lever); a CLOSED
+         block ⇒ content continues after the caller's own scaffolding.
+      3. bare content → inject "<think>\n\n</think>\n\n" (the template's own no-thinking generation
+         prompt shape) before it, so content-prefill continues instead of EOSing.
+    PARSER INTERPLAY (vllm/parser/qwen3.py — not fixable in a template): the qwen3 parser engine's
+    initial state is REASONING iff effective enable_thinking (our launch bakes false). A THINKING
+    prefill must send chat_template_kwargs {"enable_thinking": true} so the opener-less output
+    stream splits reasoning/content at "</think>" (the engine absorbs a missing opener); a CONTENT
+    prefill must leave thinking off, or the pure-content continuation lands in reasoning_content.
+    /v1/messages (Anthropic path) is NOT lit up: vllm's conversion never sets continue_final_message
+    and the top-level field overrides chat_template_kwargs in the merge (renderers/params.py
+    merge_kwargs — overrides win, False is not an unset value). Upstream-only fix.
+    REJECTED: venv source patches (die on upgrade); suppressing im_end in the arm (redundant under
+    the strip, larger non-continue delta); routing prefill through the v22 trim+split (400s +
+    whitespace loss, above); sentinel-sniffing (couples to a transformers-internal constant).
+    Regression surface: ONLY {trailing assistant AND (add_generation_prompt false OR
+    assistant_prefill), no tool_calls} renders change; every other render — including the group-turn
+    shape (trailing assistant, add_generation_prompt true, no kwarg) — is byte-identical to v22. -#}
+{%- set template_version = "qwen3.8-froggeric-v22+continue-prefill" %}
+{%- set _assistant_prefill = assistant_prefill if assistant_prefill is defined else false %}
 {%- set _tool_format = tool_call_format if tool_call_format is defined else 'xml' %}
 {%- set image_count = namespace(value=0) %}
 {%- set video_count = namespace(value=0) %}
@@ -168,9 +220,11 @@
     {%- endif %}
 {%- endif %}
 {%- set ns2 = namespace(prev_role='', consecutive_failures=0) %}
+{%- set ns_pf = namespace(open=false) %}
 {%- for message in _msgs %}
     {%- set is_system = (message.role == "system" or message.role == "developer") %}
-    {%- set content = render_content(message.content, true, is_system) | trim %}
+    {%- set content_raw = render_content(message.content, true, is_system) %}
+    {%- set content = content_raw | trim %}
     {%- if is_system or message.role == 'user' %}
         {%- if '<|think_off|>' in content %}
             {%- set content = content.split('<|think_off|>') | join('') | trim %}
@@ -183,6 +237,23 @@
     {%- elif message.role == 'user' %}
         {%- set ns2.consecutive_failures = 0 %}
         {{- '<|im_start|>user\n' + content + '<|im_end|>\n' }}
+    {%- elif message.role == 'assistant' and loop.last and (not add_generation_prompt or _assistant_prefill) and not (message.tool_calls is defined and message.tool_calls) %}
+        {#- the continue/prefill arm — see the header. RAW content, verbatim; scaffolding injected
+            only when the caller supplied none; turn left OPEN (no im_end, no generation prompt). -#}
+        {%- set ns_pf.open = true %}
+        {%- set _cont_reasoning = '' %}
+        {%- if message.reasoning_content is defined and message.reasoning_content is not none %}
+            {%- set _cont_reasoning = message.reasoning_content | string | trim %}
+        {%- elif message.thinking is defined and message.thinking is not none %}
+            {%- set _cont_reasoning = message.thinking | string | trim %}
+        {%- endif %}
+        {%- if _cont_reasoning %}
+            {{- '<|im_start|>assistant\n<think>\n' + _cont_reasoning + '\n</think>\n\n' + content_raw }}
+        {%- elif '<think' in content_raw or '</think' in content_raw %}
+            {{- '<|im_start|>assistant\n' + content_raw }}
+        {%- else %}
+            {{- '<|im_start|>assistant\n<think>\n\n</think>\n\n' + content_raw }}
+        {%- endif %}
     {%- elif message.role == 'assistant' %}
         {%- set reasoning_content = '' %}
         {%- if message.reasoning_content is defined and message.reasoning_content is not none %}
@@ -321,7 +392,7 @@
     {%- endif %}
     {%- set ns2.prev_role = message.role %}
 {%- endfor %}
-{%- if add_generation_prompt %}
+{%- if add_generation_prompt and not ns_pf.open %}
     {{- '<|im_start|>assistant\n' }}
     {%- if not ns_state.thinking %}
         {{- '<think>\n\n</think>\n\n' }}

@@ -131,6 +131,48 @@ const INSTRUCT_SAMPLING = {
 };
 const EFFORTS = ["xhigh", "medium", "low"] as const;
 
+// ── prefill probes (template continue/prefill arm, 2026-08-18) ───────────────────────────────────
+// Two doors into the same template arm: the standard OpenAI-compat flags (continue_final_message +
+// add_generation_prompt:false — transformers renders then cuts at an internal sentinel) and the
+// template-visible kwarg (chat_template_kwargs.assistant_prefill — the template itself leaves the
+// turn open). Content prefill wants thinking OFF (a pure-content continuation under
+// enable_thinking:true lands entirely in reasoning_content — parser initial-state fact,
+// vllm/parser/qwen3.py); thinking prefill wants enable_thinking:true so the opener-less output
+// stream still splits at </think>. A stock-template 400/empty here is a finding, by design.
+const PREFILL_CONTENT_PREFIX = 'Maren sets down her mug, squints at the horizon, and says, "';
+// Ends MID-SENTENCE deliberately: a steer that reads as a complete thought gets closed instantly
+// (measured live 2026-08-18 — immediate "</think>" + a correctly in-register answer, reasoning 0
+// chars); an unfinished clause forces the model to CONTINUE the thinking in that voice first.
+const PREFILL_THINK_OPEN = "<think>\nStay terse and dry, no moralizing — answer like a sailor. The strangest thing I saw from this tower was";
+const PREFILL_STEER = "Keep it to one clipped sentence, in Maren's coastal drawl.";
+
+function verifyPrefillContent(r: ChatResponse, prefix: string): string | null {
+  const content = r.choices?.[0]?.message?.content ?? "";
+  if (content.length === 0) {
+    return "empty content (the no-think-block EOS trap?)";
+  }
+  if (content.includes(prefix)) {
+    return "response repeats the prefill prefix (turn was re-generated, not continued)";
+  }
+  return null;
+}
+
+function verifyPrefillThinking(r: ChatResponse): string | null {
+  const msg = r.choices?.[0]?.message ?? {};
+  const reasoning = msg.reasoning_content ?? msg.reasoning ?? "";
+  const content = msg.content ?? "";
+  if (reasoning.length === 0) {
+    return "no reasoning_content (parser split failed on the opener-less stream?)";
+  }
+  if (reasoning.includes("<think>") || content.includes("</think>")) {
+    return "think tags leaked through the reasoning parser split";
+  }
+  if (content.length === 0) {
+    return "empty content after thinking continuation";
+  }
+  return null;
+}
+
 // ── decensor probes ──────────────────────────────────────────────────────────────────────────────
 // The heretic/abliterated axis is REFUSAL BEHAVIOR IN FICTION — none of the mechanics probes elicit
 // it. These are fiction-framed dark-RP shapes where safety training typically breaks character
@@ -372,6 +414,40 @@ const PROBES: readonly Probe[] = [
       temperature: 0,
       max_tokens: DIFFABLE_MAX_TOKENS,
     }),
+  },
+  {
+    name: "prefill-content",
+    body: (): Record<string, unknown> => ({
+      messages: [{ role: "system", content: RP_SYSTEM }, ...RP_TURNS, { role: "assistant", content: PREFILL_CONTENT_PREFIX }],
+      continue_final_message: true,
+      add_generation_prompt: false,
+      ...INSTRUCT_SAMPLING,
+    }),
+    verify: (r): string | null => verifyPrefillContent(r, PREFILL_CONTENT_PREFIX),
+  },
+  {
+    name: "prefill-thinking-kwarg",
+    body: (): Record<string, unknown> => ({
+      messages: [{ role: "system", content: RP_SYSTEM }, ...RP_TURNS, { role: "assistant", content: PREFILL_THINK_OPEN }],
+      chat_template_kwargs: { assistant_prefill: true, enable_thinking: true },
+      ...THINKING_SAMPLING,
+      max_tokens: THINK_MAX_TOKENS,
+    }),
+    verify: verifyPrefillThinking,
+  },
+  {
+    name: "prefill-combined",
+    body: (): Record<string, unknown> => ({
+      messages: [
+        { role: "system", content: RP_SYSTEM },
+        ...RP_TURNS,
+        { role: "assistant", content: `<think>\n${PREFILL_STEER}\n</think>\n\n${PREFILL_CONTENT_PREFIX}` },
+      ],
+      continue_final_message: true,
+      add_generation_prompt: false,
+      ...INSTRUCT_SAMPLING,
+    }),
+    verify: (r): string | null => verifyPrefillContent(r, PREFILL_CONTENT_PREFIX),
   },
   ...DECENSOR_PROBES,
   VISION_PROBE,
