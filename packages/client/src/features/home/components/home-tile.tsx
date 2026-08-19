@@ -66,7 +66,7 @@ import { useEffect, useId, useRef } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, skeletonRowCountFor } from "#data";
 
 import type { DormantDoorway, HomeTileContribution } from "#state";
-import { rememberHomeTileBox, useHomeTileBox } from "#state";
+import { rememberSurfaceBox, useSurfaceBox } from "#state";
 
 /** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */
 const TILE_SKELETON_ROWS = 3;
@@ -140,7 +140,7 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
 }
 
 /** The tile's LOADING box (F14 boot CLS). The skeleton sits inside the height this tile SETTLED at on
- *  this device last time (`useHomeTileBox` — localStorage, read synchronously, so the value is already
+ *  this device last time (`useSurfaceBox` — localStorage, read synchronously, so the value is already
  *  in the FIRST commit): the tile's box is then the same before and after its read lands, and the tiles
  *  below it in the column never move. No memory (a first-ever boot) ⇒ the tile's own DECLARED row count.
  *
@@ -201,7 +201,7 @@ function TileBody({ tileId, children }: { readonly tileId: string; readonly chil
   useEffect(() => {
     const el = bodyRef.current;
     if (el !== null) {
-      rememberHomeTileBox(tileId, el.getBoundingClientRect().height);
+      rememberSurfaceBox(tileId, el.getBoundingClientRect().height);
     }
   }, [tileId]);
   return <Stack ref={bodyRef}>{children}</Stack>;
@@ -223,7 +223,7 @@ function TileContent({ tile, reserved }: { readonly tile: HomeTileContribution; 
 export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
   const headingId = useId();
-  const reserved = useHomeTileBox(tile.id);
+  const reserved = useSurfaceBox(tile.id);
   if (!visible) {
     return null;
   }

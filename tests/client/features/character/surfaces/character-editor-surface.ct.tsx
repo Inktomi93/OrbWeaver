@@ -21,7 +21,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
-import { chatListResponder } from "../../chat/fixtures.ts";
+import { chatListResponder, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail, makeTagFixture } from "../fixtures.ts";
 
@@ -443,6 +443,7 @@ const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
     participantCharacterIds: ["char_ct_1"],
+    participantPortraits: [makeSeatPortrait("char_ct_1", "Aria Nightshade")],
     lastMessagePreview: null,
     isGame: false,
     viewerRole: "host",
@@ -459,6 +460,7 @@ const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
     messageCount: 2,
     participantNames: ["Someone else"],
     participantCharacterIds: ["char_other"],
+    participantPortraits: [makeSeatPortrait("char_other", "Someone else")],
     lastMessagePreview: null,
     isGame: false,
     viewerRole: "host",

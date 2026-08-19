@@ -23,7 +23,7 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
-import { chatListResponder } from "../../chat/fixtures.ts";
+import { chatListResponder, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharactersListPaneStory, CharactersScreenStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail, makeCharacterSummary } from "../fixtures.ts";
 
@@ -45,7 +45,12 @@ const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: castId<Charact
  *  remains, so a fixture that lists the viewer ("Nate") is not the wire shape any more. */
 const CAST_BY_SEAT: Record<string, string> = { [AZARAEL]: "Azarael", [SERA]: "Sera" };
 
-function chat(fields: { id: string; title: string; seats: readonly string[]; lastMessageAt: number }): ChatSummaryFixture {
+/** `seats` is the row's `participantCharacterIds` — the reverse read, which KEEPS a departed seat.
+ *  `present` is who is still in the room, i.e. the row's own faces (`participantPortraits`, #192); it
+ *  defaults to `seats` for a room nobody has left. The two are deliberately different fields on the wire,
+ *  and this fixture is the one place a CT can hold them apart. */
+function chat(fields: { id: string; title: string; seats: readonly string[]; present?: readonly string[]; lastMessageAt: number }): ChatSummaryFixture {
+  const present = fields.present ?? fields.seats;
   return {
     id: fields.id,
     title: fields.title,
@@ -56,6 +61,7 @@ function chat(fields: { id: string; title: string; seats: readonly string[]; las
     messageCount: 3,
     participantNames: fields.seats.map((seat) => CAST_BY_SEAT[seat] ?? seat),
     participantCharacterIds: fields.seats,
+    participantPortraits: present.map((seat) => makeSeatPortrait(seat, CAST_BY_SEAT[seat] ?? seat)),
     lastMessagePreview: null,
     isGame: false,
     viewerRole: "host",
@@ -67,7 +73,10 @@ function chat(fields: { id: string; title: string; seats: readonly string[]; las
 // Server order = newest-updated first. "The Gilded Ember" is a room Azarael has SINCE LEFT: her seat id is
 // still on the row (the contract's departed-seat guarantee) while the present cast is someone else.
 const HER_NEWEST = chat({ id: "chat_ct_newest", title: "Winter court", seats: [AZARAEL], lastMessageAt: 300 });
-const HER_DEPARTED = chat({ id: "chat_ct_left", title: "The Gilded Ember", seats: [AZARAEL, SERA], lastMessageAt: 200 });
+const HER_DEPARTED = chat({ id: "chat_ct_left", title: "The Gilded Ember", seats: [AZARAEL, SERA], present: [SERA], lastMessageAt: 200 });
+/** A room with TWO seats still IN it — the stack arm of D3. (`HER_DEPARTED` cannot serve that role since
+ *  #192: a face states who is IN the room, so a room she has left paints only the seat that remains.) */
+const HER_GROUP = chat({ id: "chat_ct_group", title: "The Crimson Court", seats: [AZARAEL, SERA], lastMessageAt: 150 });
 const NOT_HERS = chat({ id: "chat_ct_other", title: "Sera alone", seats: [SERA], lastMessageAt: 250 });
 const CHATS = [HER_NEWEST, NOT_HERS, HER_DEPARTED];
 
@@ -163,13 +172,16 @@ test("BOTH modes of the pane declare the INSTRUMENT tier, and both scan at the s
 });
 
 test("D3 the projection INHERITS the shared row upgrade: a multi-seat room stacks, a 1:1 does not", async ({ mount, page }) => {
-  await routeAll(page, CHATS);
+  await routeAll(page, [HER_NEWEST, HER_GROUP, HER_DEPARTED]);
   const component = await mount(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);
   await expect(component.getByText("Winter court")).toBeVisible();
 
-  // One row anatomy, both surfaces (no fork): the 2-seat room she left stacks, her 1:1 keeps one portrait.
-  await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Gilded Ember" }).locator(AVATAR_STACK)).toBeVisible();
+  // One row anatomy, both surfaces (no fork): the 2-present-seat room stacks, her 1:1 keeps one portrait.
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Crimson Court" }).locator(AVATAR_STACK)).toBeVisible();
   await expect(component.locator(LIST_ROW_ROOT, { hasText: "Winter court" }).locator(AVATAR_STACK)).toHaveCount(0);
+  // …and the room she LEFT paints the seat that remains, not the seat that is only on the reverse read
+  // (#192): `participantCharacterIds` still lists her there, and a face would claim she is in the room.
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Gilded Ember" }).locator(AVATAR_STACK)).toHaveCount(0);
 });
 
 test("the band swaps with the pane (D9): back + CHATS · <name> + the New-chat primary", async ({ mount, page }) => {

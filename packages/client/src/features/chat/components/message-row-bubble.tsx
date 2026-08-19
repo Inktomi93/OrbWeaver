@@ -30,9 +30,10 @@ export function renderSingleBubble(args: {
   readonly weldedAvatar: ReactElement | null;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
+  const bubbleStyle = args.decoration?.style;
   if (headerBand !== undefined) {
     return (
-      <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={args.decoration?.style}>
+      <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
         <Stack
           aria-hidden="true"
           data-slot="message-band"
@@ -63,7 +64,7 @@ export function renderSingleBubble(args: {
         // absolutely-positioned tile and clips its feather to the bubble's `rounded-card` corners. No
         // other mode/kind reaches this (the plain bubble is byte-identical without a tile).
         className={cn(args.bubbleClassName, edgeTile !== undefined && "relative overflow-hidden")}
-        style={args.decoration?.style}
+        style={bubbleStyle}
       >
         {edgeTile === undefined ? null : (
           <Stack
@@ -89,7 +90,7 @@ export function renderSingleBubble(args: {
     );
   }
   return (
-    <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={args.decoration?.style}>
+    <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
       {args.role === "user" ? null : args.weldedAvatar}
       <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
         {args.content}

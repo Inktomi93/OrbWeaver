@@ -35,9 +35,10 @@ interface ChatSummaryRowProps {
   readonly chat: ChatSummaryItem;
   readonly onSelect: (chatId: ChatId) => void;
   readonly selected?: boolean;
-  /** The row's resolved character SEATS (`chatPortraits`), in seat order — one paints a portrait, two or
-   *  more paint an `AvatarStack` (D3: a shared room must read SHARED at rest). Empty/omitted falls back to
-   *  the hue-seeded initials blob. Resolved by the SURFACE, which owns the character-list read. */
+  /** The row's character SEATS (`ChatSummary.participantPortraits`), in seat order — one paints a
+   *  portrait, two or more paint an `AvatarStack` (D3: a shared room must read SHARED at rest). Empty/omitted
+   *  falls back to the hue-seeded initials blob. Carried BY THE ROW since #192; the surface no longer
+   *  resolves it against a whole-library character read. */
   readonly portraits?: readonly ChatRowPortrait[];
   /** Extra trailing controls (the chats-list kebab menu), rendered after the relative-time stamp. */
   readonly menu?: ReactNode;
@@ -69,32 +70,30 @@ const STACK_SLOTS = 4;
  *  (`.row .av{width:32px}`). The chats panes ran 24px and the character library 40px, so the two dense
  *  instrument lists scanned at different pitches (side-eye P2-5).
  *
- *  THE SLOT IS SIZED BY THE SEAT COUNT, THE FACES ARE NOT (#147). Which faces this slot can paint depends on
- *  `character.list`, which resolves on its own clock — so a two-seat room rendered one 32px blob, then a
- *  50px stack, and every row's text column was re-laid the moment the character read landed (measured on the
- *  live shell: `[data-slot=list-row-content] moved 18px,0px` per extra seat, `[cls] unexpected` on every cold
- *  load). The COUNT is on the chat row from the first frame, so the slot is born at its settled width and the
- *  portraits land into it. Unresolved seats still paint NO face — `chatPortraits` drops them on purpose,
- *  because an unnamed avatar would be a blank chip claiming a person. */
+ *  THE SLOT IS BORN AT ITS SETTLED WIDTH (#147) — and since #192 that is simply true, rather than arranged.
+ *  #147's defect was that the faces resolved on a DIFFERENT clock from the row: they came from
+ *  `character.list`, so a two-seat room rendered one 32px blob, then a 50px stack, and every row's text
+ *  column was re-laid the moment that read landed (measured on the live shell:
+ *  `[data-slot=list-row-content] moved 18px,0px` per extra seat, `[cls] unexpected` on every cold load).
+ *  Its fix was to size the slot off the seat COUNT, which the row already carried. The seats themselves now
+ *  ride the row, so the count and the faces arrive in the SAME payload and the slot is sized off the
+ *  portraits it is about to paint — same guarantee, one source instead of two. */
 function RowLeading({
   chatId,
   portraits,
-  seatCount,
   title,
 }: {
   readonly chatId: ChatId;
   readonly portraits: readonly ChatRowPortrait[];
-  /** The room's character seats (`participantCharacterIds.length`) — the settled slot budget. */
-  readonly seatCount: number;
   readonly title: string;
 }): ReactElement {
   // At least one slot: an empty-cast room still paints the hue-seeded initials blob below.
-  const reserved = avatarStackInlineSize(Math.min(Math.max(seatCount, 1), STACK_SLOTS), "md");
+  const reserved = avatarStackInlineSize(Math.min(Math.max(portraits.length, 1), STACK_SLOTS), "md");
   return (
     <Row align="center" className="shrink-0" style={{ minInlineSize: reserved }}>
       {portraits.length >= 2 ? (
         <AvatarStack
-          items={portraits.map((seat) => ({ name: seat.name, ...(seat.hash === null ? {} : { src: blobUrl(seat.hash) }) }))}
+          items={portraits.map((seat) => ({ name: seat.name, ...(seat.avatarHash === null ? {} : { src: blobUrl(seat.avatarHash) }) }))}
           max={STACK_SLOTS}
           size="md"
         />
@@ -105,8 +104,8 @@ function RowLeading({
   );
 }
 
-/** A single seat's portrait, or nothing resolved at all (a departed/foreign seat, a portrait-less character,
- *  a character list that hasn't landed) — the initials blob is the honest fallback. */
+/** A single seat's portrait, or nothing at all (an empty-cast room, a portrait-less character, a room whose
+ *  only seats have since departed) — the initials blob is the honest fallback. */
 function RowLeadingSingle({
   chatId,
   portraits,
@@ -116,7 +115,7 @@ function RowLeadingSingle({
   readonly portraits: readonly ChatRowPortrait[];
   readonly title: string;
 }): ReactElement {
-  const hash = portraits[0]?.hash ?? null;
+  const hash = portraits[0]?.avatarHash ?? null;
   // exactOptionalPropertyTypes: omit `src` entirely when there's no portrait so Avatar takes its fallback.
   const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
   return (
@@ -228,7 +227,7 @@ export function ChatSummaryRow({
           }
         : {})}
       clickable={true}
-      leading={<RowLeading chatId={chat.id} portraits={portraits} seatCount={chat.participantCharacterIds.length} title={title} />}
+      leading={<RowLeading chatId={chat.id} portraits={portraits} title={title} />}
       onClick={(): void => onSelect(chat.id)}
       selected={selected}
       subtitle={subtitle}

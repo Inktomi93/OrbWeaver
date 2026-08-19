@@ -5,8 +5,12 @@
 // character seat the first time it appears. That makes the strip "the people you were just with", which is
 // what a launcher shortcut is for — and it costs nothing, because it folds two reads the pane already has.
 //
-// Seats the character page doesn't carry are dropped rather than guessed: a face with no name is a shortcut
-// to an unknown. Pure + structural, so it unit-tests without a data layer.
+// The faces come off the chat ROWS themselves (`ChatSummary.participantPortraits`, #192). They used to be
+// resolved against a whole-library `character.list {limit: 500}` map the pane fetched for exactly this — so
+// a library past that ceiling simply stopped producing faces, and home boot spent a library-sized read on
+// six portraits. Pure + structural, so it unit-tests without a data layer.
+
+import type { CharacterId } from "@orb/kit/ids";
 //
 // UNCAPPED by default (FACEFILT): the curation answers "who, in what order", and the STRIP answers "how many
 // fit" by measuring the pane it lives in — a count here was a second, blinder answer to the same question,
@@ -14,11 +18,9 @@
 // still reachable through the strip's picker, so nothing this returns is wasted. `cap` survives for a caller
 // that genuinely has one.
 
-import type { ChatRowPortrait } from "./chat-summary-row.ts";
-
 /** The chat shape the curation reads (a structural subset of `ChatSummary`), already in recency order. */
 export interface FaceSourceChat {
-  readonly participantCharacterIds: readonly string[];
+  readonly participantPortraits: readonly { readonly characterId: CharacterId; readonly name: string; readonly avatarHash: string | null }[];
 }
 
 /** One curated face — the id the filter chip is set from, in the `FaceStrip` item shape (so the strip takes
@@ -30,21 +32,18 @@ export interface RecentFace {
 }
 
 /** Distinct character seats in first-appearance order across `chats`; `cap` bounds the run when given. */
-export function recentFaces(chats: readonly FaceSourceChat[], characterById: ReadonlyMap<string, ChatRowPortrait>, cap?: number): readonly RecentFace[] {
+export function recentFaces(chats: readonly FaceSourceChat[], cap?: number): readonly RecentFace[] {
   const faces: RecentFace[] = [];
   const seen = new Set<string>();
   for (const chat of chats) {
-    for (const characterId of chat.participantCharacterIds) {
-      if (seen.has(characterId)) {
+    for (const seat of chat.participantPortraits) {
+      if (seen.has(seat.characterId)) {
         continue;
       }
-      seen.add(characterId);
-      const seat = characterById.get(characterId);
-      if (seat !== undefined) {
-        faces.push({ id: characterId, name: seat.name, avatarHash: seat.hash });
-        if (cap !== undefined && faces.length >= cap) {
-          return faces;
-        }
+      seen.add(seat.characterId);
+      faces.push({ id: seat.characterId, name: seat.name, avatarHash: seat.avatarHash });
+      if (cap !== undefined && faces.length >= cap) {
+        return faces;
       }
     }
   }

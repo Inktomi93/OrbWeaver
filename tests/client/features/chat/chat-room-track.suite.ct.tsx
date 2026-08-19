@@ -108,7 +108,7 @@ function seat(): ParticipantView {
   };
 }
 
-function routeRoom(page: Page, chatStyle: string): Promise<unknown> {
+function routeRoom(page: Page, chatStyle: string, content: string = LONG_PROSE): Promise<unknown> {
   return routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
     "settings.getUserSettings": (): unknown => ({
@@ -129,7 +129,7 @@ function routeRoom(page: Page, chatStyle: string): Promise<unknown> {
           id: castId<MessageId>("msg_track_tail"),
           role: "assistant",
           characterId: AZAREAL_ID,
-          content: LONG_PROSE,
+          content,
           variantCount: 3,
           selectedVariantIdx: 1,
         }),
@@ -365,3 +365,114 @@ test("an immersive skin's art does not eat the reading line below the min measur
   expect(line.floorPx).toBeGreaterThan(0);
   expect(line.textWidth).toBeGreaterThanOrEqual(line.floorPx - AXIS_TOLERANCE_PX);
 });
+
+// ── #245: ENTERING EDIT MUST NOT RESHAPE THE ROW (owner-reported, 2026-08-18) ───────────────────────
+//
+// "Entering EDIT on a message reflows the row — the transcript jumps under the user at the exact moment
+// they're trying to work on a message." Read mode and edit mode are the SAME message at the SAME place;
+// the swap is an affordance change, not a content change, so the row's box is the invariant.
+//
+// The measured collapse had three sources, all in one commit: the rendered prose was replaced by a
+// FIXED-height `Textarea` (its default box, blind to what it replaced); the row's chrome below the bubble
+// (tool calls · metadata · the swipe pager) is suppressed while editing — a DELIBERATE ruling, kept — and
+// nothing reserved the height it vacated; and the editor adds its own Save/Cancel control row.
+//
+// The pin is therefore stated as the reader experiences it: the row's TOP does not move, and the row does
+// not SHRINK (a shrink is the jump — everything below slides up under the cursor). Growth is bounded by the
+// editor's own control row, which is a real new affordance and the one honest addition.
+//
+// It rides THIS suite (not message-row.ct.tsx) because the CHAT_TRACK half of the claim — the edit row
+// still resolves the room's one horizontal track — is only reachable on the stage that stamps
+// `--width-shell-content` (see the header).
+
+const EDIT_TEXTAREA = '[data-slot="message-edit-textarea"]';
+const SHORT_PROSE = "It rained.";
+
+/** The row's full box + the reading column's own edges — everything #245 says must hold across the swap. */
+interface RowGeometry {
+  readonly top: number;
+  readonly height: number;
+  readonly left: number;
+  readonly right: number;
+  readonly columnLeft: number;
+  readonly columnRight: number;
+}
+
+async function rowGeometry(page: Page): Promise<RowGeometry> {
+  return await page.evaluate(
+    ([rowSel, columnSel]): RowGeometry => {
+      const row = document.querySelector(String(rowSel));
+      const column = document.querySelector(String(columnSel));
+      if (!(row instanceof HTMLElement && column instanceof HTMLElement)) {
+        throw new Error("row/column not mounted");
+      }
+      const rowRect = row.getBoundingClientRect();
+      const columnRect = column.getBoundingClientRect();
+      return {
+        top: rowRect.top,
+        height: rowRect.height,
+        left: rowRect.left,
+        right: rowRect.right,
+        columnLeft: columnRect.left,
+        columnRight: columnRect.right,
+      };
+    },
+    [MESSAGE_ROW, CONTENT_COLUMN],
+  );
+}
+
+/** Hover first: the action cluster rests `pointer-events-none` (A3), so an unhovered click cannot pass
+ *  Playwright's actionability check. This is the real user's gesture, not a style override. */
+async function enterEdit(page: Page): Promise<void> {
+  await page.locator(MESSAGE_ROW).hover();
+  await page.getByRole("button", { name: "Edit message" }).click();
+  await expect(page.locator(EDIT_TEXTAREA)).toBeVisible();
+}
+
+// The editor's own Save/Cancel row is the ONE thing edit mode legitimately adds; everything else must be
+// absorbed. `gap-field` + a `sm` button ≈ 36px — the bound is set a touch above it so a token retune does
+// not red the suite for a rounding, while the measured pre-fix collapses (hundreds of px) stay caught.
+const EDIT_CONTROL_ROW_MAX_PX = 48;
+
+for (const chatStyle of ["flat", "bubble"] as const) {
+  for (const [lengthName, content] of [
+    ["a long reply", LONG_PROSE],
+    ["a two-word reply", SHORT_PROSE],
+  ] as const) {
+    test(`#245 ${chatStyle} · ${lengthName}: read → edit → cancel keeps the row's box`, async ({ mount, page }) => {
+      await page.setViewportSize({ width: 1360, height: 900 });
+      await routeRoom(page, chatStyle, content);
+
+      await mount(<ChatRoomTrackStory paneWidth={894} />);
+      await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+      await expect(page.locator(COMPOSER)).toBeVisible();
+
+      const read = await rowGeometry(page);
+      await enterEdit(page);
+      const editing = await rowGeometry(page);
+
+      // THE JUMP: the row's own top is where the reader's eye and cursor are. It does not move.
+      expect(Math.abs(editing.top - read.top)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+      // …and the row does not COLLAPSE. A shrink drags every row below it up under the pointer; growth is
+      // bounded by the editor's own control row.
+      expect(editing.height).toBeGreaterThanOrEqual(read.height - AXIS_TOLERANCE_PX);
+      expect(editing.height).toBeLessThanOrEqual(read.height + EDIT_CONTROL_ROW_MAX_PX);
+
+      // THE TRACK STILL HOLDS (#213): edit mode is the same row on the same axis, not a second layout.
+      const composer = await boxOf(page, COMPOSER);
+      expect(Math.abs(editing.left - composer.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+      expect(Math.abs(editing.right - composer.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+      // The reading column keeps its own edges too — the editor occupies the prose's footprint, it does
+      // not re-measure the column.
+      expect(Math.abs(editing.columnLeft - read.columnLeft)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+      expect(Math.abs(editing.columnRight - read.columnRight)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+
+      // Cancel restores the row EXACTLY — the round trip is a no-op, not an approximation.
+      await page.getByRole("button", { name: "Cancel edit" }).click();
+      await expect(page.locator(EDIT_TEXTAREA)).toHaveCount(0);
+      const cancelled = await rowGeometry(page);
+      expect(Math.abs(cancelled.top - read.top)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+      expect(Math.abs(cancelled.height - read.height)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+    });
+  }
+}
