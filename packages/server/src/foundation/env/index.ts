@@ -154,7 +154,14 @@ const UTF8_BOM = "﻿";
 /** The keys the loaded `.env` FILE declared (populated by `loadEnvFileWithOverride`). Provenance the parsed
  *  `env` can't carry: because the file loads with `override:true`, a value in `.env` wins over a launcher's
  *  export, so #301 needs to know which knobs the FILE pinned regardless of what the schema finally resolved.
- *  Empty when the file is absent/unreadable or skipped (`ORB_ENV_NO_FILE`, e.g. under vitest). */
+ *  Empty when the file is absent/unreadable or skipped (`ORB_ENV_NO_FILE`, e.g. under vitest).
+ *
+ *  ASSUMES(single-replica) — and it holds BY CONSTRUCTION, so no DB-backed seam is warranted (unlike a
+ *  per-request process cache, the shape this gate exists to catch). This Set is written EXACTLY ONCE, at
+ *  module load, by the single `loadEnvFileWithOverride(...)` call at the bottom of this file; nothing mutates
+ *  it per request, and its only reader is `authFallbackDeclaredInEnvFile()`. Every replica loads the SAME
+ *  `.env` with `override:true` and computes byte-identical contents, so there is no cross-replica state to
+ *  reconcile — it is boot-constant deployment provenance, not runtime accumulator state. */
 const envFileKeys = new Set<string>();
 
 function loadEnvFileWithOverride(override: boolean): void {

@@ -136,7 +136,8 @@ export function ownerActor(baseUrl: string): ActorClient {
 export async function loginLocal(baseUrl: string, handle: Handle, password: string): Promise<ActorClient> {
   const res = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    // The login route requires the custom CSRF header (blocks login-CSRF); this actor sends it like the client.
+    headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" },
     body: new URLSearchParams({ handle, password }).toString(),
   });
   const setCookie = res.headers.get("set-cookie") ?? "";
