@@ -75,6 +75,23 @@ export function PresetLibrarySurfaceStory(): ReactElement {
   );
 }
 
+/** The library at the DOCKED LIST pane's real floor (272px, the width the shell gives it when both panels
+ *  are out). The row's width budget is only legible here: at the story's comfortable 420px every name fits
+ *  whatever the trailing cluster reserves, which is exactly why the 2026-08-19 clipping was invisible to the
+ *  suite. Same surface, same band — only the track width differs. */
+export function PresetLibraryDockedStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 720, width: 272 }}>
+          <PresetListBand />
+          <PresetLibrarySurface />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The section's own `listHeader` closure, rendered where the shell's PanelChrome renders it — the title,
  *  the count and the create verbs live THERE now (list-pane-projection L4). */
 function PresetListBand(): ReactElement {

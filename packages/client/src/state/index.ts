@@ -181,6 +181,7 @@ export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
 export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store.ts";
+export { setPresetSearchQuery, usePresetSearchQuery } from "./preset-search-store.ts";
 export {
   closePresetSectionDrill,
   drillPresetSection,

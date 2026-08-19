@@ -19,17 +19,34 @@ import type { AppFormInstance } from "#forms";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
-/** The role-handling vocabulary, ordered least→most strict. Unset (`""`) = "Model default" (falls to floor). */
+/** The role-handling vocabulary, ordered least→most strict. Unset (`""`) = "Model default" (falls to floor).
+ *
+ *  NAME AND GLOSS ARE TWO FIELDS (side-eye 2026-08-19 P2). They used to be one `Name — explanation` string
+ *  serving as the option's LABEL, which is also what the closed trigger prints: docked in the horizontal
+ *  row's fixed 200px control column, the pick rendered "Merge — join adjacen…", clipped mid-word, while the
+ *  two Delivery selects one section up (`cols="pair"`, half the column each) showed their values whole. Same
+ *  tab, two select layouts, and the odd one was the one that could not show its own value.
+ *  `SelectOption.description` is the sanctioned home for the gloss — it renders under the option in the popup
+ *  and reaches AT as a DESCRIPTION, never as part of the name (WCAG 2.5.3, the primitive's own header). The
+ *  words are unchanged; only which field carries them. Two consumers below already reached for
+ *  `.split(" — ")[0]` to recover the name from the fused string — the split now IS the data. */
 const ROLE_HANDLING_LABELS: Record<RoleHandling, string> = {
-  none: "None — leave adjacent same-role messages as-is",
-  merge: "Merge — join adjacent same-role runs",
-  "semi-strict": "Semi-strict — merge only where the wire requires",
-  strict: "Strict — always one message per role turn",
+  none: "None",
+  merge: "Merge",
+  "semi-strict": "Semi-strict",
+  strict: "Strict",
+};
+
+const ROLE_HANDLING_GLOSSES: Record<RoleHandling, string> = {
+  none: "leave adjacent same-role messages as-is",
+  merge: "join adjacent same-role runs",
+  "semi-strict": "merge only where the wire requires",
+  strict: "always one message per role turn",
 };
 
 const ROLE_HANDLING_ITEMS: SelectItems<string> = [
   { value: "", label: "Model default" },
-  ...ROLE_HANDLING.map((value) => ({ value, label: ROLE_HANDLING_LABELS[value] })),
+  ...ROLE_HANDLING.map((value) => ({ value, label: ROLE_HANDLING_LABELS[value], description: ROLE_HANDLING_GLOSSES[value] })),
 ];
 
 /** The strictness RANK — a pick below the floor is clamped up to it (the resolver's `max(floor, choice)`). */
@@ -87,10 +104,10 @@ export function MessageHandlingSection({ form, capability }: { readonly form: As
               />
               {floorConstrains(floor) ? (
                 <Row align="center" gap="field">
-                  <Text voice="gloss">This model enforces at least {ROLE_HANDLING_LABELS[floor].split(" — ")[0]} — stricter always wins.</Text>
+                  <Text voice="gloss">This model enforces at least {ROLE_HANDLING_LABELS[floor]} — stricter always wins.</Text>
                   {isBelowFloor(roleHandling, floor) ? (
                     <Badge intent="warning" size="sm" tone="soft">
-                      Applies as {ROLE_HANDLING_LABELS[floor].split(" — ")[0]}
+                      Applies as {ROLE_HANDLING_LABELS[floor]}
                     </Badge>
                   ) : null}
                 </Row>

@@ -26,10 +26,11 @@
 // other region reads. `PRESET_EDITOR_VIEWS[0]` is the default an unset store read resolves to, so the
 // default lives with the vocabulary.
 //
-// HEADER TRUTH (G7): the header states the two facts that change UNDER the editor and are otherwise only
-// legible in another pane — whether this preset is the ACTIVE one for generation, and which model the deck's
-// effective column resolved against ("for <model>"). The fork-once retarget MOVES activation while you edit,
-// and on mobile the LIST is a closed sheet, so a status chip naming an actionable state must be able to act:
+// HEADER TRUTH (G7): the header states the ONE fact that changes UNDER the editor and is otherwise only
+// legible in another pane — whether this preset is the ACTIVE one for generation. (The model chip that used
+// to stand beside it died 2026-08-19; the reversal is recorded at its old site.) The fork-once retarget MOVES
+// activation while you edit, and on mobile the LIST is a closed sheet, so a status naming an actionable
+// state must be able to act:
 // the Activate affordance renders ONLY in the not-active state and rides the SAME `useSetDefaultPreset`
 // mutation as the row toggle and its kebab mirror (§16 row 3 echo b — the sanctioned echo, one writer).
 //
@@ -61,7 +62,6 @@ import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
-import { resolvedForLabel } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
 import { seedConfig, validatePresetConfig } from "../lib/preset-editor-model.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
@@ -103,7 +103,15 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="relative h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
+    // NAMED, for the reason the list surface's twin is (side-eye 2026-08-19 ARIA): `useFocusOnMount` lands
+    // focus here on entry, and an unnamed role-less div announces nothing about where you just arrived.
+    <Stack
+      aria-label="Preset editor"
+      ref={surfaceRef}
+      role="region"
+      tabIndex={-1}
+      className="relative h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none"
+    >
       <QueryBoundary
         fallback={<Text voice="gloss">Loading the preset…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
@@ -284,31 +292,32 @@ function PresetEditorBody({
                   Active
                 </Badge>
               ) : (
-                <Button aria-label={`Activate ${presetName} for generation`} intent="ghost" onClick={onActivate} size="sm" type="button">
+                // ITS NAME IS DISTINCT FROM THE LIST RADIO'S (side-eye 2026-08-19 P2). Both controls spelled
+                // `Activate <name> for generation`, in two different ROLES (a one-of-N `radio` in the list's
+                // radiogroup, a `button` here), so an a11y walk of the app met one name attached to two
+                // contracts — and the walker cannot tell from the name which one it landed on. The ROLE split
+                // is correct and stays: the list is where the pick LIVES (one-of-N, roving tabindex), and this
+                // is a one-shot COMMAND on the thing you are editing. So the command names itself as one, in
+                // the editor's own deictic voice ("this preset" — the header is already about a named preset,
+                // which the h2 two elements away states). One act, one writer, two honestly-different names.
+                <Button aria-label="Use this preset for generation" intent="ghost" onClick={onActivate} size="sm" type="button">
                   <Icon icon={Zap} size="sm" />
                   Activate
                 </Button>
               )}
-              {/* The PROVENANCE of everything the deck ghosts: `resolveEffective` resolves against the
-                  caller's own chat model, so the header names it rather than letting the numbers imply a
-                  model that may have been swapped since. Absent read ⇒ absent chip, never a guessed name.
-                  THE NAME OUTRANKS IT AT NARROW (side-eye F-11): at 430px the chip pushed the preset name
-                  out of the header entirely and overlapped the save status. It truncates, and the name
-                  does not.
-
-                  ITS WORDS ARE THE READOUT'S (crunch-list O-2). It read `for anthropic/claude-sonnet-5`,
-                  which is a sentence about the PRESET — "this preset is for that model" — and the preset is
-                  for nothing: it is a config that resolves against whatever chat model you currently have.
-                  The readout owns resolution truth and already said it correctly, so the vocabulary homes
-                  ONCE in `resolvedForLabel` (`../lib/effective-knobs`, beside the rung vocabulary the same
-                  read's other glosses share) and both spellings come out of it. The chip KEEPS its home:
-                  the readout lives in the CONTEXT panel, which is away on narrow and closable everywhere,
-                  and this is the §16 sanctioned-echo class — a justified echo, not a second home. */}
-              {effective === undefined ? null : (
-                <Badge className="min-w-0 shrink truncate" intent="neutral" size="sm" tone="ghost">
-                  {resolvedForLabel(effective.model)}
-                </Badge>
-              )}
+              {/* THE MODEL CHIP IS DEAD (side-eye 2026-08-19 P1-3), and this REVERSES the sanctioned-echo
+                  ruling recorded here on 2026-08-02 — read both, the orchestrator owns the reconciliation.
+                  The old ruling: the `resolved for <model>` line is the provenance of every ghosted number,
+                  the readout that owns it lives in a CONTEXT panel that is "away on narrow and closable
+                  everywhere", so a truncating chip beside the name is a justified §16 echo.
+                  Today's measurement: the echo is paid in the NAME. At the 568px content pane the header
+                  band spends its width on a chip that is a strict PREFIX of a line the CONTEXT panel is
+                  rendering in full AT THE SAME TIME, and the preset's own name — the one thing the whole
+                  pane is about — truncates to pay for it. The F-11 fix ("it truncates, and the name does
+                  not") held the name's floor but not its legibility.
+                  What survives of the old ruling: the panel-away case. It is a real state, and the answer to
+                  it is that the READOUT is the one home for resolution truth (`resolvedForLabel` still spells
+                  it, once, for that panel) — not a permanent tax on every header in every regime. */}
             </Row>
             <Row align="center" gap="field">
               {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}

@@ -13,8 +13,9 @@
 // loop's mechanism; a CT cannot observe the loop itself (synthetic pointers do not re-hit-test on layout
 // shift — that verification is real-pointer-only), so what is pinned here is rest-vs-hover geometry.
 //
-// The built-in row is deliberately NOT deletable (it renders a "Built-in default" subtitle instead of the
-// actions menu) — asserted here so a future refactor can't hand the user a delete that the server refuses.
+// The built-in row is deliberately NOT deletable and NOT renameable — asserted on its OPEN menu (2026-08-19:
+// it carries a kebab now, holding the one act it CAN do, Duplicate), so a future refactor can't hand the user
+// a delete that the server refuses.
 // `preset.list`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc); the menu + ConfirmDialog
 // render in a PORTAL, so they are located on `page`, not the mounted component.
 
@@ -25,7 +26,7 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
-import { PresetLibrarySurfaceStory } from "./_ct-stories.tsx";
+import { PresetLibraryDockedStory, PresetLibrarySurfaceStory } from "./_ct-stories.tsx";
 
 const BUILT_IN = "preset_00000000000000000000000000";
 const EDITED_ONE = "preset_ct_edited0001";
@@ -60,9 +61,6 @@ const TRANSPARENT = "rgba(0, 0, 0, 0)";
 // matching `…(edited) 2"`.
 function menuFor(name: string): string {
   return `Actions for "${name}" ·`;
-}
-function duplicateFor(name: string): string {
-  return `Duplicate "${name}" ·`;
 }
 /** The activate toggle's accessible name — ONE label in both states (the press only ever activates). */
 function activateFor(name: string): string {
@@ -142,6 +140,41 @@ test("L4 the LIST band names the section, counts the presets, and carries the pa
   await expect(importDoor).toHaveAttribute("title", "Import a preset");
   // The in-pane title is retired, not doubled.
   await expect(page.getByRole("heading", { name: "Presets" })).toHaveCount(1);
+});
+
+// ── The SEARCH lens: one query, two readers (side-eye 2026-08-19 P2 + P3) ────────────────────────
+// The band's census and the rows are rendered by different parts of the shell, so the query lives in
+// `#state`. These pin the two halves the split used to get wrong: the count that ignored the filter, and a
+// no-match state with no way out of itself.
+
+test("P2 the band's census counts what the pane SHOWS, not what the library holds", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  const band = page.getByTestId("list-band");
+  await expect(band.getByText(String(PRESETS.length), { exact: true })).toBeVisible();
+
+  // One row matches "Imported".
+  await component.getByRole("textbox", { name: "Search presets" }).fill("Imported");
+  await expect(component.getByText(IMPORTED_NAME, { exact: true })).toBeVisible();
+  await expect(band.getByText("1", { exact: true })).toBeVisible();
+
+  // …and a search with NO hits reports zero beside "No matches" (it used to print the whole library's 4).
+  await component.getByRole("textbox", { name: "Search presets" }).fill("zzzz-no-such-preset");
+  await expect(component.getByText("No matches", { exact: true })).toBeVisible();
+  await expect(band.getByText(String(PRESETS.length), { exact: true })).toHaveCount(0);
+});
+
+test("P3 the no-match state offers a way OUT — Clear search restores the list", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  const search = component.getByRole("textbox", { name: "Search presets" });
+  await search.fill("zzzz-no-such-preset");
+  await expect(component.getByText("No matches", { exact: true })).toBeVisible();
+
+  await component.getByRole("button", { name: "Clear search", exact: true }).click();
+  // The BOX is cleared too, not just the filter — the store is the one writer of both.
+  await expect(search).toHaveValue("");
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 });
 
 test("the shared LIST layout's INSTRUMENT tier is LIVE, and the title column keeps its scan x", async ({ mount, page }) => {
@@ -255,8 +288,9 @@ test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offer
   const component = await mount(<PresetLibrarySurfaceStory />);
 
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
-  // The locked built-in carries no actions menu (its delete would be a server refusal).
-  await expect(page.getByRole("button", { name: "Actions for" })).toHaveCount(PRESETS.length - 1);
+  // EVERY row has a kebab now, the built-in included (2026-08-19 P3 — its menu holds Duplicate). What the
+  // locked row still has no door to is DELETE, which is asserted on the open menu in its own test above.
+  await expect(page.getByRole("button", { name: "Actions for" })).toHaveCount(PRESETS.length);
 
   // §12.2: the kebab rests hidden + inert like every other row affordance, so reach it by hovering the row.
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_TWO_NAME }).hover();
@@ -312,15 +346,67 @@ test("deleting the ACTIVE '(edited)' row also clears the active-for-generation p
 });
 
 // ── §12 row-action grammar (list-pane-projection) ────────────────────────────────────────────────
-// Presets carry no boolean row state, so the row's ONE inline affordance is the measured frequent VERB:
-// Duplicate (the fork workflow — the "(edited)" twins above are its receipt). It rests hidden and reveals
-// with the row, and the kebab keeps its own Duplicate item (N3 mirror parity).
+// THE CLUSTER IS TWO SLOTS: the state dot and the kebab. The inline Duplicate DIED 2026-08-19 (side-eye
+// P1-1) — it was a verbatim second door to the kebab's own item, and its slot was reserved on every row
+// always, which at the docked 272px pane left the NAME 109px and clipped four rows of six. The kebab's
+// Duplicate is the one home; the pins below are (1) that the standalone control is gone, (2) that the act
+// still works from its one home, and (3) the width the removal bought, measured per row.
 
 interface CreateCall {
   readonly name?: string;
 }
 
-test("§12 the row's frequent verb is INLINE: a revealed Duplicate fires preset.create for THAT row", async ({ mount, page }) => {
+test("P1-1 the row carries NO standalone Duplicate control — the kebab's item is the one home", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  // Not "hidden at rest" — ABSENT. (The old control was `opacity-0` but present and hit-testable, so a
+  // count is the only assertion that tells removal from concealment.)
+  await expect(page.getByRole("button", { name: "Duplicate " })).toHaveCount(0);
+  // …and the cluster is two slots wide, with no spacer standing in for the third.
+  const slots = await component
+    .locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME })
+    .first()
+    .locator(ACTIONS)
+    .evaluate((el) => ({
+      controls: el.querySelectorAll("button").length,
+      spacers: el.querySelectorAll('[data-slot="library-row-cluster-spacer"]').length,
+    }));
+  expect(slots).toEqual({ controls: 2, spacers: 0 });
+});
+
+test("P1-1 at the DOCKED 272px pane the trailing strip costs TWO slots and the name gets the third back", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibraryDockedStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  // THE BUDGET, measured where it hurts (the docked pane's real floor). Asserted as WIDTHS, not as "does
+  // this fixture's name happen to clip": a clip is a property of the row budget AND the name, so a pin
+  // written on the fixture's names passes for the wrong reason the day someone renames one — verified, in
+  // fact, red-first: these four names still FIT at 272px under the old three-slot strip.
+  const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
+  const slot = await row.locator(ACTIONS).evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  const geometry = await row.evaluate((el) => {
+    const rect = (sel: string): DOMRect => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
+    return { cluster: rect('[data-slot="list-row-actions"]').width, title: rect('[data-slot="list-row-title"]').width };
+  });
+  // Two control boxes and nothing else — the dead third (the inline Duplicate) would show up here as a slot more.
+  expect(geometry.cluster).toBeGreaterThanOrEqual(2 * slot);
+  expect(geometry.cluster, "no third slot, and no spacer standing in for one").toBeLessThan(3 * slot);
+  // …and the name column clears the 109px the review measured, by more than the slot it reclaimed.
+  expect(geometry.title, "the name gets the reclaimed slot, not the gutter").toBeGreaterThan(109 + slot);
+
+  // No row clips at this width with these names (the vector, per row — never one sample).
+  const overflow = await component.locator(TITLE).evaluateAll((els) => els.map((el) => el.scrollWidth - el.clientWidth));
+  expect(overflow).toHaveLength(PRESETS.length);
+  expect(
+    overflow.every((delta) => delta <= 0),
+    `per-row overflow at 272px: ${overflow.join(",")}`,
+  ).toBe(true);
+});
+
+test("§12 the kebab's Duplicate fires preset.create for THAT row", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "preset.list": () => PRESETS,
     "settings.getUserSettings": () => ({
@@ -342,31 +428,12 @@ test("§12 the row's frequent verb is INLINE: a revealed Duplicate fires preset.
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
-  const duplicate = component.getByRole("button", { name: duplicateFor(EDITED_ONE_NAME) });
-  // Rest posture: invisible until the row is hovered/focused (it is a shortcut, not permanent chrome) — but
-  // still HIT-TESTABLE, because this cluster is in flow in its own reserved strip and overlays no text.
-  // (P3b's `pointer-events-none` belongs to the FLOAT arm, the one that sits over the title; making an
-  // in-flow control inert breaks programmatic/assistive clicks and protects nothing — see `ROW_REVEAL`.)
-  await expect(duplicate).toHaveCSS("opacity", "0");
-  await expect(duplicate).toHaveCSS("pointer-events", "auto");
-  await expect(duplicate).toHaveClass(REVEAL_ON_HOVER);
-  await expect(duplicate).toHaveClass(REVEAL_ON_FOCUS);
-
-  // Assert the MUTATION fired with this row's name, not a repaint.
-  await row.hover();
-  await duplicate.click();
-  await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual([`Copy of ${EDITED_ONE_NAME}`]);
-});
-
-test("§12 the kebab KEEPS its Duplicate item beside the inline verb (N3 mirror parity)", async ({ mount, page }) => {
-  await routeLibrary(page, null);
-  const component = await mount(<PresetLibrarySurfaceStory />);
-  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
-
+  // Assert the MUTATION fired with this row's name, not a repaint. The kebab rests hidden like every other
+  // trailing control, so the row is hovered first.
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
   await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
-  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Duplicate" }).click();
+  await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual([`Copy of ${EDITED_ONE_NAME}`]);
 });
 
 // §12.2 + side-eye P2d: the kebab is the row grammar's third slot — it rests HIDDEN like the inline verb
@@ -412,14 +479,44 @@ test("P3a two forks with the SAME name expose distinct action names (the stamp d
   expect(names.every((name) => name.startsWith(`Actions for "${EDITED_ONE_NAME}" · `))).toBe(true);
 });
 
-test("§12 the built-in row carries the state toggle ONLY — no inline verb, no kebab", async ({ mount, page }) => {
+test("P3 the built-in row IS duplicable — a kebab holding Duplicate (+ the Activate mirror) and nothing it would refuse", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "preset.list": () => PRESETS,
+    // ANOTHER row holds the pick, deliberately: the built-in IS the null pick, so with nothing chosen it is
+    // already active and its kebab correctly offers no Activate (the menu carries no act it would refuse).
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_preset",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: EDITED_ONE } },
+      updatedAt: 0,
+    }),
+    "preset.get": () => ({ id: BUILT_IN, name: "Default", kind: "system", isSystemDefault: true, config: {}, createdAt: 0, updatedAt: 0 }),
+    "preset.create": () => ({ id: "preset_ct_copy00002", name: "Copy of Default", kind: "generation", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
+  });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await component.locator(LIST_ROW_ROOT, { hasText: "Built-in default" }).first().hover();
+  await page.getByRole("button", { name: menuFor("Default") }).click();
+  // The two acts the packaged row CAN do…
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Activate" })).toBeVisible();
+  // …and none of the three the server would refuse (items are OMITTED, never disabled).
+  await expect(page.getByRole("menuitem", { name: "Rename" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Delete" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
+
+  await page.getByRole("menuitem", { name: "Duplicate" }).click();
+  await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual(["Copy of Default"]);
+});
+
+test("§12 the built-in row still carries NO inline verb, and activation is not CRUD", async ({ mount, page }) => {
   await routeLibrary(page, null);
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
   await expect(page.getByRole("button", { name: "Duplicate Default", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: menuFor("Default") })).toHaveCount(0);
-  // …but activation is not CRUD: the un-renameable, un-deletable built-in is still a pick (D1).
+  // …the un-renameable, un-deletable built-in is still a pick (D1).
   await expect(page.getByRole("radio", { name: activateFor("Default"), exact: true })).toHaveCount(1);
 });
 
@@ -564,8 +661,11 @@ test("G6 the BUILT-IN row offers no Export — the bundle excludes the system de
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  // It has no kebab at all, so there is no menu the item could hide in.
-  await expect(page.getByRole("button", { name: menuFor("Default") })).toHaveCount(0);
+  // It HAS a kebab now (Duplicate lives there — 2026-08-19 P3), so the absence has to be asserted with the
+  // menu OPEN: "no export door" is a claim about the menu's contents, not about the menu's existence.
+  await component.locator(LIST_ROW_ROOT, { hasText: "Built-in default" }).first().hover();
+  await page.getByRole("button", { name: menuFor("Default") }).click();
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
 });
 

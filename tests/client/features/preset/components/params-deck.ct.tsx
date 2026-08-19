@@ -12,7 +12,8 @@
 //  • The capability gate, CONTEXT's blank-means-default placeholders, and ADVANCED's disclosure.
 //
 // The twin is located as a TEXTBOX (Base UI renders the number field as an editable textbox by design) via
-// its `aria-label`; the slider carries `"<label> slider"` so the two modalities never collide.
+// its `aria-label`, which is `"<label> value"`; the SLIDER carries the bare `"<label>"` (the role is not part
+// of a name — F-27). The split is the 2026-08-19 P1-2 fix: the pair used to share one name exactly.
 
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { TOKENS } from "@orb/ui/tokens";
@@ -83,7 +84,7 @@ test("GHOST — an unset knob renders the RESOLVER's effective value + provenanc
 
   // Top-P is unset: the twin is EMPTY (blank-means-default is untouched in storage) and shows the funnel's
   // own 0.92 as its placeholder, with the rung named under the track.
-  const topP = deck.getByRole("textbox", { name: "Top-P", exact: true });
+  const topP = deck.getByRole("textbox", { name: "Top-P value", exact: true });
   await expect(topP).toHaveValue("");
   await expect(topP).toHaveAttribute("placeholder", "0.92");
   await expect(deck.getByText("model default", { exact: true })).toBeVisible();
@@ -92,16 +93,68 @@ test("GHOST — an unset knob renders the RESOLVER's effective value + provenanc
   await expect(deck.getByRole("slider", { name: "Top-P", exact: true })).toHaveValue("0.92");
 
   // A knob the funnel reports NOTHING for claims no number (the honest empty — never a fabricated default).
-  await expect(deck.getByRole("textbox", { name: "Min-P", exact: true })).toHaveAttribute("placeholder", "default");
+  await expect(deck.getByRole("textbox", { name: "Min-P value", exact: true })).toHaveAttribute("placeholder", "default");
 
   // G1: `topA` finally has a row (schema-supported since it was minted, editor-less until now).
-  await expect(deck.getByRole("textbox", { name: "Top-A", exact: true })).toBeVisible();
+  await expect(deck.getByRole("textbox", { name: "Top-A value", exact: true })).toBeVisible();
+});
+
+test("P1-2 an INHERITED thumb announces 'default', never a bare number — and the pair has two names", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+
+  // The reported defect, in the two shapes it takes. Min-P is the funnel-reports-NOTHING arm: the thumb is
+  // parked at `min` because it has to be parked somewhere, and the range's own value is therefore literally
+  // `0` — the reading a screen reader gave for eight knobs at once.
+  const minP = deck.getByRole("slider", { name: "Min-P", exact: true });
+  await expect(minP).toHaveValue("0");
+  await expect(minP).toHaveAttribute("aria-valuetext", "default (model decides)");
+
+  // Top-P is the funnel-HAS-a-reading arm: the number is real but it is the RESOLVED one, not this preset's.
+  await expect(deck.getByRole("slider", { name: "Top-P", exact: true })).toHaveAttribute("aria-valuetext", "0.92 — default (model decides)");
+
+  // THE TWO MODALITIES ARE TELLABLE APART. They used to share one name exactly, so a walk of the deck met
+  // "Top-P" twice per row with no way to know which instrument it was on.
+  await expect(deck.getByRole("textbox", { name: "Top-P value", exact: true })).toBeVisible();
+  await expect(deck.getByRole("slider", { name: "Top-P value", exact: true })).toHaveCount(0);
+  await expect(deck.getByRole("textbox", { name: "Top-P", exact: true })).toHaveCount(0);
+});
+
+test("P1-2 an EXPLICIT thumb announces its own number — the valuetext is the inherited arm's, not decoration", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckExplicitStory />);
+  // Repetition penalty is set (2.5, clamped to 2). A valuetext here would replace a true number with prose.
+  await expect(deck.getByRole("slider", { name: "Repetition penalty", exact: true })).not.toHaveAttribute("aria-valuetext", ANY);
+  // …and the inherited row beside it still carries one.
+  await expect(deck.getByRole("slider", { name: "Top-P", exact: true })).toHaveAttribute("aria-valuetext", "0.92 — default (model decides)");
+});
+
+test("P3 the hint column is a COLUMN — every explainer at one x, at the touch-floor box", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  // The KNOB row's own trigger — deliberately NOT `hint-trigger` first(), which is the QUALITY *Field*'s and
+  // renders the primitive's `inline` box. The two sizes coexist BY RULING: `icon` here is the R-8 touch floor
+  // (a 44px target the label length used to eat into), and matching the Fields downward would re-break it
+  // while matching them upward is a `Field` change reaching every hinted row in the app.
+  const triggers = deck.locator('[data-slot="slider-root"]').first().locator("xpath=..").locator('[data-slot="hint-trigger"]');
+  // The KNOB rows' explainers only (the deck also renders `Field` hints, a different docked anatomy): reach
+  // them from each row's slider, whose ROOT's parent IS the KnobRow line.
+  const lefts = await deck.locator('[data-slot="slider-root"]').evaluateAll((roots) =>
+    roots.map((root) => {
+      const trigger = root.parentElement?.querySelector('[data-slot="hint-trigger"]') ?? null;
+      return trigger === null ? null : Math.round(trigger.getBoundingClientRect().left);
+    }),
+  );
+  const placed = lefts.filter((left): left is number => left !== null);
+  expect(placed.length, "the sampling rows carry explainers at all").toBeGreaterThan(1);
+  expect(new Set(placed).size, `one x for the whole column (got ${placed.join(",")})`).toBe(1);
+  // …and it is still the control-md box R-8 measured, not the primitive's inline default.
+  const box = await triggers.first().boundingBox();
+  const expected = await triggers.first().evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  expect(box?.width).toBe(expected);
 });
 
 test("PROMOTION — typing into the twin writes ONLY that knob's key (the ghost is never written back)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
 
-  await setNumber(deck.getByRole("textbox", { name: "Top-P", exact: true }), "0.5");
+  await setNumber(deck.getByRole("textbox", { name: "Top-P value", exact: true }), "0.5");
 
   // THE PIN: the saved patch carries `topP` and nothing else — not the ghosted top-p the resolver reported
   // for the OTHER rows, not the max-output floor, not a materialized default anywhere.
@@ -115,13 +168,13 @@ test("PROMOTION — typing into the twin writes ONLY that knob's key (the ghost 
 
 test("TWIN CONVERGENCE — the slider follows a typed value (two modalities, ONE field)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  await setNumber(deck.getByRole("textbox", { name: "Temperature", exact: true }), "0.73");
+  await setNumber(deck.getByRole("textbox", { name: "Temperature value", exact: true }), "0.73");
   await expect(deck.getByRole("slider", { name: "Temperature", exact: true })).toHaveValue("0.73");
 });
 
 test("RESET — ↺ clears the knob back to inherit, and the ghost returns", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  const topP = deck.getByRole("textbox", { name: "Top-P", exact: true });
+  const topP = deck.getByRole("textbox", { name: "Top-P value", exact: true });
   await setNumber(topP, "0.5");
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys=topP");
 
@@ -139,7 +192,7 @@ test("F-21 — the provenance gloss BELONGS to its row: both modalities point ar
   // "model default default full window" as one blob, attached to nothing. Both the slider and its twin now
   // name THIS row's line, and the id resolves to that exact text.
   const slider = deck.getByRole("slider", { name: "Top-P", exact: true });
-  const twin = deck.getByRole("textbox", { name: "Top-P", exact: true });
+  const twin = deck.getByRole("textbox", { name: "Top-P value", exact: true });
 
   const glossId = await slider.getAttribute("aria-describedby");
   expect(glossId).not.toBeNull();
@@ -162,7 +215,7 @@ test("CLAMP — an explicit value the model moved says so, visibly (never behind
   const deck = await mount(<ParamsDeckExplicitStory />);
   await expect(deck.getByText("clamped to 2 — this model's max", { exact: true })).toBeVisible();
   // The stored intent is still shown as typed (2.5) — the editor does not silently rewrite it.
-  await expect(deck.getByRole("textbox", { name: "Repetition penalty", exact: true })).toHaveValue("2.5");
+  await expect(deck.getByRole("textbox", { name: "Repetition penalty value", exact: true })).toHaveValue("2.5");
 });
 
 test("QUALITY — the dial is a SELECT and prints the dial's MAPPING datum on ONE line (O-18)", async ({ mount }) => {
@@ -225,20 +278,20 @@ test("STALENESS — Keep dismisses the row for the session without touching the 
 test("OUTPUT — the token caps are KnobRows at the model's real ceilings, and a typed overflow clamps", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
 
-  await expect(deck.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveAttribute("placeholder", "2048");
+  await expect(deck.getByRole("textbox", { name: "Max output tokens value", exact: true })).toHaveAttribute("placeholder", "2048");
   await expect(deck.getByText("default", { exact: true })).toBeVisible();
-  await expect(deck.getByRole("textbox", { name: "Max context tokens", exact: true })).toHaveAttribute("placeholder", "32768");
+  await expect(deck.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveAttribute("placeholder", "32768");
   await expect(deck.getByText("full window", { exact: true })).toBeVisible();
 
-  await setNumber(deck.getByRole("textbox", { name: "Max output tokens", exact: true }), "999999");
+  await setNumber(deck.getByRole("textbox", { name: "Max output tokens value", exact: true }), "999999");
 
   // RAW digits, not "8,192" (crunch-list 9): ONE number grammar across the deck. The clamped value came
   // back through Base UI's formatter, while the row below it ghosts its placeholder as a plain string —
   // same KnobRow family, two grammars, until `KNOB_NUMBER_FORMAT` turned grouping off.
-  await expect(deck.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveValue("8192");
+  await expect(deck.getByRole("textbox", { name: "Max output tokens value", exact: true })).toHaveValue("8192");
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=maxOutputTokens:8192");
   // The ghost placeholder beside it is raw too — that is what "one grammar" means here.
-  await expect(deck.getByRole("textbox", { name: "Max context tokens", exact: true })).toHaveAttribute("placeholder", "32768");
+  await expect(deck.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveAttribute("placeholder", "32768");
 });
 
 test("OUTPUT — the stop-sequence chip list adds and removes (G2)", async ({ mount }) => {
@@ -500,7 +553,7 @@ test("GEOMETRY — label column · flexing track · mono twin, all on ONE line (
   // Scope every measurement to THIS row — the deck stacks seven of them, and a bare `.first()` would
   // silently measure the temperature row against the top-p twin.
   const row = labelColumn.locator("..");
-  const twin = deck.getByRole("textbox", { name: "Top-P", exact: true });
+  const twin = deck.getByRole("textbox", { name: "Top-P value", exact: true });
 
   const labelBox = await labelColumn.boundingBox();
   // The number field's own BOX is the root (the input sits inside its bordered group), and the root is what
@@ -518,6 +571,32 @@ test("GEOMETRY — label column · flexing track · mono twin, all on ONE line (
   const center = (box: { y: number; height: number } | null): number => (box === null ? -1 : Math.round(box.y + box.height / 2));
   expect(Math.abs(center(labelBox) - center(twinBox))).toBeLessThanOrEqual(2);
   expect(Math.abs(center(trackBox) - center(twinBox))).toBeLessThanOrEqual(2);
+});
+
+test("P2 the deck holds a MEASURE at both ends of the width matrix — the track stops growing, the row never overflows", async ({ mount, page }) => {
+  // BOTH ENDS, because a cap is a range property and a single width proves nothing about the other one.
+  // WIDE (the reported end): 1224px gave a 0-2 temperature a 595px rail — ~300px per unit of a dial whose
+  // useful precision is 0.05, i.e. an instrument that got harder to aim as the window got bigger.
+  await page.setViewportSize({ width: 1224, height: 900 });
+  const deck = await mount(<ParamsDeckGhostStory />);
+  // The KnobRow LINE is the slider ROOT's parent (the root is only the flexing track cell — measuring it and
+  // calling it the row is how this pin first read a correctly-capped 430px track as a failure).
+  const row = deck.locator('[data-slot="slider-root"]').first().locator("xpath=..");
+  await expect(row).toBeVisible();
+
+  const cap = tokenPx(TOKENS["width.content-col"].value);
+  const wide = await row.boundingBox();
+  expect(Math.round(wide?.width ?? 0), "the knob row is capped at the measure token, not the pane").toBe(cap);
+  const wideTrack = await deck.locator('[data-slot="slider-control"]').first().boundingBox();
+  // The track is what was over-growing; everything else in the row is a fixed token box.
+  expect(wideTrack?.width ?? 0).toBeLessThan(cap - tokenPx(TOKENS["width.label-col"].value) - tokenPx(TOKENS["width.number-inline"].value));
+
+  // NARROW (the other end): the row must still lay out on ONE line with nothing spilling out of it.
+  await page.setViewportSize({ width: 568, height: 900 });
+  const narrow = await row.boundingBox();
+  expect(Math.round(narrow?.width ?? 0)).toBeLessThanOrEqual(568);
+  const spill = await row.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(spill, "no horizontal overflow at the narrow end").toBeLessThanOrEqual(0);
 });
 
 test("CONTROL COLOR — one grammar, asserted COMPUTED: explicit slider fill IS the ember, inherited paints none", async ({ mount }) => {
@@ -560,7 +639,7 @@ test("CONTROL COLOR — one grammar, asserted COMPUTED: explicit slider fill IS 
 
 test("CLEAR-THEN-BLANK — emptying the twin returns the knob to inherited (blank-means-default survives)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckExplicitStory />);
-  await clearNumber(deck.getByRole("textbox", { name: "Repetition penalty", exact: true }));
+  await clearNumber(deck.getByRole("textbox", { name: "Repetition penalty value", exact: true }));
 
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys=quality");
   await expect(deck.getByText("clamped to 2 — this model's max", { exact: true })).toBeHidden();
