@@ -1,6 +1,6 @@
 // CT fixture — Playwright CT cannot mount components defined inside .ct.tsx files, and the
 // imperative toast API is a hook, so the harness component lives here.
-import { useToastManager } from "@orb/ui/toast";
+import { Toaster, useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 
 const QUICK_TIMEOUT_MS = 500;
@@ -90,10 +90,17 @@ function ToastButtons(): ReactElement {
   );
 }
 
-// No ToastProvider/Toaster here — the CT harness (CtProviders via beforeMount) supplies both
-// globally, so the imperative useToastManager() below binds to the ambient app-wide manager.
+// The PROVIDER comes from the CT harness (CtProviders via beforeMount), so `useToastManager()` above
+// binds to the ambient manager. The VIEWPORT is this fixture's own: the harness stopped mounting a
+// global `<Toaster />` in #247 (it double-mounted against every story with its own outlet), so the
+// component that expects toasts to paint renders the outlet it needs.
 export function ToastPlayground(): ReactElement {
-  return <ToastButtons />;
+  return (
+    <>
+      <ToastButtons />
+      <Toaster />
+    </>
+  );
 }
 
 // The production adjacency the toast viewport has to clear: a bottom-anchored, full-width band standing
@@ -104,6 +111,7 @@ export function ToastOverComposerPlayground(): ReactElement {
   return (
     <div>
       <ToastButtons />
+      <Toaster />
       <div data-composer-standin="true" style={{ background: "#333", bottom: 0, height: "96px", insetInline: 0, position: "fixed" }} />
     </div>
   );

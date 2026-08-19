@@ -17,9 +17,13 @@ export const collapsibleVariants = tv({
       "h-(--collapsible-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-all duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
   },
   variants: {
-    // `instant` snaps the panel to its target height with no perceptible fold. The duration mirrors the
-    // reduced-motion floor (`globals.css` — 0.01ms, NOT 0s: a >0 duration keeps a `transitionend` firing so
-    // Base UI still unmounts the closed panel; a 0s transition emits no event). The reasoning disclosure's
+    // `instant` snaps the panel to its target height with no perceptible fold. 0.01ms, not 0s, so the
+    // fold is a real (imperceptible) transition rather than a jump-cut. It does NOT mirror the
+    // reduced-motion floor any more, and the reason once written here — "a >0 duration keeps a
+    // `transitionend` firing so Base UI still unmounts the closed panel" — was never the mechanism:
+    // Base UI waits on `getAnimations()`/`animation.finished`, and an element with zero animations
+    // resolves immediately (`@base-ui/react/internals/useAnimationsFinished`). The floor now removes
+    // transitions outright (`globals.css`, #257). The reasoning disclosure's
     // AUTO-collapse uses it so the answer prose paints at its final position in one commit rather than being
     // flung up the trace's height; a manual toggle keeps the smooth fold.
     instant: {

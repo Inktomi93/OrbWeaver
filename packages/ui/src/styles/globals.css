@@ -6,7 +6,21 @@
  * what lets `[data-surface-tier] …` beat a primitive's own utility default. */
 @import "./tiers.css";
 
-/* Unlayered reduced-motion floor — a capability @media, legal outside @layer. */
+/* Unlayered reduced-motion floor — a capability @media, legal outside @layer.
+ *
+ * TRANSITIONS ARE REMOVED, NOT SHORTENED (motion guide §3.9), and that spelling is LOAD-BEARING for
+ * performance, not only for doctrine. The floor used to force `transition-duration: 0.01ms` on `*`
+ * while leaving `transition-property` at its INITIAL value — which is `all`. That turns every element
+ * in the document into "transition: all 0.01ms", so every freshly inserted node fires a bogus
+ * transition for `scrollbar-color` (the one INHERITED property whose :root value differs from its
+ * initial on a new node — see the scrollbar block below). Measured on a live room open, #257:
+ * 1,063 transitionstart events, 1,016 of them `scrollbar-color`; with the property list set to `none`
+ * the same drive fires ZERO. The old duration floor is gone with it — `none` already means no
+ * transition can run, and a duration clamp beside it would only re-document a dead property.
+ *
+ * The cost: `transitionend` never fires under reduced motion. Every consumer was checked — Base UI
+ * waits on `getAnimations()`/`animation.finished` (zero animations resolves immediately, so panels
+ * and popups still unmount), and `WeaveVeil` takes its instant path without listening at all. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -16,7 +30,7 @@
     /* biome-ignore lint/complexity/noImportantStyles: same floor — a suppression covers only the line beneath it, so each declaration in the block carries its own */
     animation-iteration-count: 1 !important;
     /* biome-ignore lint/complexity/noImportantStyles: same floor — the a11y override must beat inline styles and high-specificity rules */
-    transition-duration: 0.01ms !important;
+    transition-property: none !important;
     /* biome-ignore lint/complexity/noImportantStyles: same floor — the a11y override must beat inline styles and high-specificity rules */
     scroll-behavior: auto !important;
   }
@@ -32,7 +46,7 @@
   /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — a suppression covers only the line beneath it, so each declaration carries its own */
   animation-iteration-count: 1 !important;
   /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
-  transition-duration: 0.01ms !important;
+  transition-property: none !important;
   /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
   scroll-behavior: auto !important;
 }

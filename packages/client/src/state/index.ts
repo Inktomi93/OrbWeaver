@@ -141,7 +141,6 @@ export { clearDocumentSelection, databankSectionSelection, selectDocumentFromLis
 // of those is now the COMMITTED verb it always shadowed.
 export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-local.ts";
 export { __resetDurableLocal, activeDurableLocalUserId, bindDurableLocalToUser, durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
-export { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox, useSurfaceBox } from "./home-tile-box-store.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
 export {
@@ -332,5 +331,6 @@ export {
   STEER_RECOVERY_CAP,
   useRecentSteers,
 } from "./steer-recovery-store.ts";
+export { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox, useSurfaceBox } from "./surface-box-store.ts";
 export { setTagSortMode, useTagSortMode } from "./tag-library-store.ts";
 export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "./world-entry-selection-store.ts";

@@ -51,11 +51,13 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
     "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
     "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +
     "screen-share spoiler-blur to follow; FINAL-Character §4/§6.1/§12.1)",
-  "home-tile-box":
-    "the last SETTLED body height of each home tile, so the tile's loading skeleton reserves the box its " +
-    "content will occupy on the next boot (F14 boot-CLS: the tiles grew out of a fixed 3-row skeleton and " +
-    "pushed the grid down +189px). A measurement of THIS device's viewport, never a user preference — " +
-    "syncing one device's pixel heights to another would reserve the wrong box (§12.1)",
+  "surface-box":
+    "the last SETTLED body height of each SURFACE (home's tiles first, the rpg HUD's waystone band since " +
+    "#149 — it was keyed `home-tile-box` until #258 renamed it to what it holds), so a loading skeleton " +
+    "reserves the box its content will occupy on the next boot (F14 boot-CLS: the tiles grew out of a " +
+    "fixed 3-row skeleton and pushed the grid down +189px). A measurement of THIS device's viewport, " +
+    "never a user preference — syncing one device's pixel heights to another would reserve the wrong " +
+    "box (§12.1)",
   "appearance-boot":
     "the BOOT HINT for the four synced appearance axes a first paint needs — `appearance.reducedMotion` " +
     "(#188 N-1), `appearance.fontScale`, `appearance.density` and the selected theme's `[data-theme]` value " +

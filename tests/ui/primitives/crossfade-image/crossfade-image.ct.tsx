@@ -55,10 +55,11 @@ test("under prefers-reduced-motion the swap is instant (no transition)", async (
   await component.update(<CrossfadeImage alt="Portrait" aspectRatio="1" src={OTHER_PX_SVG} />);
 
   const current = page.locator('[data-slot="crossfade-image-current"]');
-  // The globals.css reduced-motion floor (D43 §11.4e) collapses every transition-duration to
-  // 0.01ms !important (Chromium reports computed durations in seconds: 1e-05s), regardless of the
-  // component's own duration-(--motion-base)/durationMs.
-  await expect(current).toHaveCSS("transition-duration", "1e-05s");
+  // The globals.css reduced-motion floor (D43 §11.4e) REMOVES transitions — `transition-property: none
+  // !important` (#257), regardless of the component's own duration-(--motion-base)/durationMs.
+  await expect(current).toHaveCSS("transition-property", "none");
+  // With no transition there is no `transitionend`, so the under-layer's removal cannot depend on one:
+  // the component takes its JS reduced-motion arm and never mounts a previous layer at all.
   await expect(page.locator('[data-slot="crossfade-image-previous"]')).toHaveCount(0);
 });
 

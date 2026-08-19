@@ -159,7 +159,13 @@ export function CorpusFamilyMap({ families, focal }: CorpusFamilyMapProps): Reac
           All families →
         </Button>
       </Row>
-      {/* auto-fit at the 13rem plate floor: a wider pane shows MORE plates, never wider ones. */}
+      {/* auto-fit at `cols="auto"`'s 16rem plate floor: a wider pane shows MORE plates, never wider ones.
+          THE 13rem THIS ONCE CLAIMED WAS THE MOCK'S NUMBER, NEVER THE CODE'S, and 16rem is the right one
+          (#256, measured both ends of this surface's width range in corpus-home-surface.ct.tsx — see the
+          table there). A plate is an AvatarStack beside `label` + `N members · <every member name>`; the
+          13rem arm does tile 2-up as the mock draws it, but at a ~150px text column, where the gloss clips
+          on the CT's two-short-name fixture — the best case this component ever sees. The mock's plate does
+          not carry that line. 1-up at the lead column is the honest rendering of the plate we shipped. */}
       <Grid cols="auto" gap="row">
         {families.map((family) => (
           <FamilyPlate family={family} key={`${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`} />

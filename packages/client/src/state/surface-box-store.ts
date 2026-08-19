@@ -1,9 +1,17 @@
 // SURFACE BOX MEMORY — the per-surface settled body height, remembered per device so a LOADING state
 // reserves the same box its content will occupy on the next open. Keyed by an opaque surface id: home's
-// tiles were its first consumers (and its file name), the rpg HUD's waystone band is the second (#149).
-// THE FILE NAME AND THE PERSIST KEY STILL SAY "home-tile" — they are the historical spelling, kept because
-// renaming the persist key discards every device's measurements and renaming the file is a test-baseline
-// `deletions` edit; the CONCEPT is one box memory with one home, which is what the exported names say.
+// tiles were its first consumers (and, until #258, its NAME), the rpg HUD's waystone band is the second
+// (#149).
+//
+// THE PERSIST KEY RENAME DROPPED EVERY DEVICE'S STORED BOXES, DELIBERATELY (#258). `home-tile-box` →
+// `surface-box` is a different localStorage key, so the old blob is simply not read. That costs each
+// device exactly ONE boot of skeleton-sized reservations — the same cost as a first-ever boot, which this
+// store is already designed to absorb (a missing entry reserves nothing and self-heals on that mount, and
+// a stale entry only mis-reserves by the delta). Migrating instead would mean reading a FOREIGN key out of
+// the per-user durable-local namespace before identity resolves (`durable-local.ts` owns that scheme and
+// re-keys on the viewer) — real machinery, to save one boot of a measurement cache. The old key is left
+// where it lies for the same reason: sweeping it needs the same namespace walk, and an orphan
+// height-map is inert.
 //
 // WHY IT EXISTS (measured, 2026-08-02 F14): home's tiles each suspend behind their own QueryBoundary
 // (home-tile.tsx §3.7) and fall back to a fixed 3-row skeleton. When the reads land, the full-span
@@ -30,12 +38,12 @@ const MAX_REMEMBERED_PX = 4000;
 /** Sub-pixel churn is not a new box; ignore writes inside this band so a re-measure isn't a storage write. */
 const WRITE_EPSILON_PX = 1;
 
-interface HomeTileBoxState {
+interface SurfaceBoxState {
   /** surface id → the last settled body height in CSS px. */
   readonly boxes: Readonly<Record<string, number>>;
 }
 
-const DEFAULT_STATE: HomeTileBoxState = { boxes: {} };
+const DEFAULT_STATE: SurfaceBoxState = { boxes: {} };
 
 const PERSIST_VERSION = 1;
 
@@ -52,23 +60,23 @@ function sanitizeBoxes(v: unknown): Record<string, number> {
   return out;
 }
 
-function migrate(persisted: unknown): HomeTileBoxState {
+function migrate(persisted: unknown): SurfaceBoxState {
   if (!isPlainObject(persisted)) {
     return DEFAULT_STATE;
   }
   return { boxes: sanitizeBoxes((persisted as { boxes?: unknown }).boxes) };
 }
 
-const useHomeTileBoxStore = createPersistedStore<HomeTileBoxState>("home-tile-box", (): HomeTileBoxState => DEFAULT_STATE, {
+const useSurfaceBoxStore = createPersistedStore<SurfaceBoxState>("surface-box", (): SurfaceBoxState => DEFAULT_STATE, {
   version: PERSIST_VERSION,
   migrate,
-  partialize: (s): HomeTileBoxState => ({ boxes: s.boxes }),
+  partialize: (s): SurfaceBoxState => ({ boxes: s.boxes }),
 });
 
 /** The height to reserve for `surfaceId`'s loading state, or `null` when this device has never seen it
  *  settle. */
 export function useSurfaceBox(surfaceId: string): number | null {
-  return useHomeTileBoxStore((s) => s.boxes[surfaceId] ?? null);
+  return useSurfaceBoxStore((s) => s.boxes[surfaceId] ?? null);
 }
 
 /** Record a surface body's settled height. Out-of-range or unchanged measurements are dropped (no write). */
@@ -76,20 +84,20 @@ export function rememberSurfaceBox(surfaceId: string, height: number): void {
   if (!(Number.isFinite(height) && height > 0 && height <= MAX_REMEMBERED_PX)) {
     return;
   }
-  const { boxes } = useHomeTileBoxStore.getState();
+  const { boxes } = useSurfaceBoxStore.getState();
   const current = boxes[surfaceId];
   if (current !== undefined && Math.abs(current - height) < WRITE_EPSILON_PX) {
     return;
   }
-  useHomeTileBoxStore.setState({ boxes: { ...boxes, [surfaceId]: height } }, false, "surfaceBox/remember");
+  useSurfaceBoxStore.setState({ boxes: { ...boxes, [surfaceId]: height } }, false, "surfaceBox/remember");
 }
 
 /** Test seam: the remembered box WITHOUT a React render (the `useSurfaceBox` hook needs one). */
 export function __readSurfaceBoxForTest(surfaceId: string): number | null {
-  return useHomeTileBoxStore.getState().boxes[surfaceId] ?? null;
+  return useSurfaceBoxStore.getState().boxes[surfaceId] ?? null;
 }
 
 /** Test seam: drop every remembered box (a CT/unit run must not inherit another test's measurements). */
 export function __resetSurfaceBoxes(): void {
-  useHomeTileBoxStore.setState({ boxes: {} }, false, "surfaceBox/__reset");
+  useSurfaceBoxStore.setState({ boxes: {} }, false, "surfaceBox/__reset");
 }

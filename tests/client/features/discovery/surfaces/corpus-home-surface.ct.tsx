@@ -160,6 +160,56 @@ function focalPaint(page: Page): Promise<{ startWidth: string; endWidth: string;
   });
 }
 
+/** Every truncating span inside the family-map plates, with whether it is actually CLIPPING. `truncate` is
+ *  a promise the text can be read at all — a plate column narrow enough to exercise it is the defect. */
+function plateGeometry(page: Page): Promise<{ rows: number; plateWidths: number[]; clipped: string[] }> {
+  return page.locator('[data-corpus-focal="familyMap"]').evaluate((el) => {
+    const grid = el.querySelector(".grid");
+    if (grid === null) {
+      throw new Error("the family map rendered no plate grid");
+    }
+    const plates = [...grid.children];
+    return {
+      rows: new Set(plates.map((plate) => Math.round(plate.getBoundingClientRect().top))).size,
+      plateWidths: plates.map((plate) => Math.round(plate.getBoundingClientRect().width)),
+      clipped: [...grid.querySelectorAll(".truncate")].filter((t) => t.scrollWidth > t.clientWidth + 1).map((t) => t.textContent ?? ""),
+    };
+  });
+}
+
+// THE PLATE FLOOR IS 16rem, AND THAT IS THE ANSWER, NOT A LAG (#256). `corpus-family-map.tsx` carried a
+// comment claiming a 13rem floor — the MOCK's number, never the code's — and the drift was filed as
+// "plates 1-up in the new lead column, a 13rem arm would give 2-up matching the mock". Measured on this
+// story pair, both ends of the surface's real width range, with the 13rem arm injected as the A/B:
+//
+//   pane 868.81px (lead column, grid 483px):  16rem → 1-up, plate 483px, ZERO clipped spans
+//                                             13rem → 2-up, plate 237px, the gloss CLIPS
+//   pane 484.81px (stacked,     grid 459px):  16rem → 1-up, plate 459px, ZERO clipped spans
+//                                             13rem → 2-up, plate 225px, the gloss CLIPS
+//
+// A plate is an AvatarStack + a two-line text column, and the gloss is `N members · <every member name>`.
+// At 13rem the text column falls to ~143-155px and the gloss stops being readable — on the CT's own
+// two-short-name fixture, i.e. the best case. The mock's 2-up is a picture of a plate that does not carry
+// this text. So the code was right and the COMMENT was repaired; this test is the fence that keeps the
+// number from drifting back on a screenshot's say-so.
+for (const [pane, Story] of [
+  ["the owner's default pane", CorpusHomeDefaultPaneStory],
+  ["the three-pane width", CorpusHomeThreePaneStory],
+] as const) {
+  test(`THE FAMILY PLATES STAY READABLE at ${pane} (#256 — the 16rem floor)`, async ({ mount, page }) => {
+    await routeTrpc(page, ANALYSED);
+    await mount(<Story />);
+    await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+    const geometry = await plateGeometry(page);
+    expect(geometry.clipped, "no plate's name or gloss may clip — that is what the 16rem floor buys").toEqual([]);
+    expect(
+      Math.min(...geometry.plateWidths),
+      "…and every plate fills its column: a floor that tiles them 2-up here is the narrower plate this rejects",
+    ).toBeGreaterThanOrEqual(256);
+  });
+}
+
 for (const [phase, routes] of [
   ["UN-ANALYSED (the invitation holds it)", UNANALYSED],
   ["ANALYSED (the map reclaims it)", ANALYSED],
