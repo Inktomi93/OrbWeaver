@@ -702,6 +702,18 @@
       "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
     {
+      "path": "docs/reviews/security/2026-08-19-lan-auth-impl-review.md",
+      "assignedSha256": "d884d66054b0f936ec737fc2271ab9702b6ce4e6b4624688402e39104bea508f",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-03-combined-nightly.md",
       "assignedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
       "disposition": "archive",

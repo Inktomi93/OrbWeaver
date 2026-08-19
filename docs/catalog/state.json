@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "allowed": {
-    "pending": ["docs/reviews/misc/2026-08-19-lan-auth-unification.md"],
+    "pending": ["docs/reviews/misc/2026-08-19-lan-auth-unification.md", "docs/reviews/security/2026-08-19-lan-auth-impl-review.md"],
     "missingFrontmatter": [],
     "invalidFrontmatter": [],
     "malformedFrontmatter": []
