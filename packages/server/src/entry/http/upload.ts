@@ -69,13 +69,23 @@ async function fileBytes(file: File): Promise<Uint8Array> {
 }
 
 /** Auth-first + CSRF gate, run as middleware before the body-limit belt so an anonymous/cross-site caller
- *  is rejected before a single body byte is read. */
+ *  is rejected before a single body byte is read.
+ *
+ *  CSRF keys on the AMBIENT-credential arms, `via !== "header"` (#300): both `cookie` (the browser auto-sends
+ *  the session cookie) and `fallback` (the loopback owner arm — the browser "auto-sends" its loopback socket)
+ *  are forgeable by a cross-site page, so a mutation on either MUST carry the custom `x-orb-csrf` header a
+ *  cross-origin `fetch` cannot set without a preflight the app never grants. Only `via:"header"` (a trusted
+ *  proxy asserts the identity) is exempt. This route needs the explicit fallback gate BECAUSE multipart
+ *  form-data is a CORS-"simple" content-type — no preflight — so the peer-gate alone still leaves a loopback
+ *  web origin (a browser on the box tricked into POSTing to 127.0.0.1) able to drive an owner write. tRPC is
+ *  NOT in this bucket: it requires JSON, which forces a preflight, so its belt keys on `cookie` only (see
+ *  transport/trpc/trpc.ts). */
 const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
   const principal = c.get("principal");
   if (principal === null) {
     return c.body(null, UNAUTHORIZED);
   }
-  if (principal.via === "cookie" && !hasCsrfHeader(c.req.raw.headers)) {
+  if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
     return c.body(null, FORBIDDEN);
   }
   return await next();

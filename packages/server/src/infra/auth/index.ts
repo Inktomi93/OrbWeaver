@@ -28,11 +28,13 @@ import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
  *   - COOKIE (`local`/`oidc`) — resolves to `null` at infra (post-D40 the seam validates the cookie via
  *     `sessions.validate` BEFORE calling here), so cookie modes fall through to the owner fallback / unauth.
  *   - SSO HEADER (`forward-header`) — the verified header/JWT identity (NO upsert here — that's the seam).
- *   - OWNER FALLBACK — the origin-gated un-credentialed owner identity, stamped `via:"fallback"` (the seam
+ *   - OWNER FALLBACK — the peer-gated un-credentialed owner identity, stamped `via:"fallback"` (the seam
  *     mints the owner from this discriminant — invariant #7). Two conditions, in this order: the
- *     `AUTH_FALLBACK=owner` knob, THEN the origin gate (which `single-user` passes unconditionally). So
- *     `single-user` + `AUTH_FALLBACK=deny` resolves NOBODY — boot-fatal in `foundation/env`, since that
- *     fallback is single-user's only credential.
+ *     `AUTH_FALLBACK=owner` knob, THEN the peer gate (`ownerFallbackAllowed(deps.peerIp)` — a LOOPBACK TCP
+ *     peer, the unspoofable socket, NOT the client `Host` header; #298 f2). So `single-user` +
+ *     `AUTH_FALLBACK=deny` resolves NOBODY — boot-fatal in `foundation/env`, since that fallback is
+ *     single-user's only credential — and a proxied/LAN peer (non-loopback) gets no fallback, making SSO
+ *     mandatory everywhere Caddy fronts.
  *
  * `config` is injectable via `deps.config` (tests vary mode/fallback without re-parsing the frozen env);
  * production omits it → `authConfigFromEnv()`.
@@ -48,9 +50,10 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
     return { identity, via: "header", hasCsrfHeader: csrf };
   }
 
-  if (config.fallback === "owner" && ownerFallbackAllowed(headers, config)) {
-    // The un-credentialed owner path. `via:"fallback"` is the SAFE "this IS the owner" discriminator
-    // (NEVER `externalId === null`); the seam mints the owner from it. NO role/userId is resolved here.
+  if (config.fallback === "owner" && ownerFallbackAllowed(deps.peerIp)) {
+    // The un-credentialed owner path, gated on a LOOPBACK TCP peer (#298 f2). `via:"fallback"` is the SAFE
+    // "this IS the owner" discriminator (NEVER `externalId === null`); the seam mints the owner from it. NO
+    // role/userId is resolved here.
     return {
       identity: {
         externalId: null,
@@ -90,7 +93,7 @@ export type {
   ResolveDeps,
 } from "./contract.ts";
 export { hasCsrfHeader } from "./csrf.ts";
-export { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
+export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 export { normalizeHost } from "./host.ts";
 export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
 export { SESSION_COOKIE_NAME } from "./modes/cookie-session.ts";

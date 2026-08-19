@@ -132,12 +132,14 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
     CHAT_ROUTE,
     // Auth-first + CSRF, ahead of the body-limit belt so an anonymous/cross-site caller is rejected before a
     // body byte is read (the sibling upload routes' belt order). Inline, so the ctx types come off `app`.
+    // CSRF keys on the ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) —
+    // this is a CORS-"simple" multipart route with no preflight (#300; see upload.ts's authCsrfGuard WHY-block).
     async (c, next) => {
       const principal = c.get("principal");
       if (principal === null) {
         return c.body(null, UNAUTHORIZED);
       }
-      if (principal.via === "cookie" && !hasCsrfHeader(c.req.raw.headers)) {
+      if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
         return c.body(null, FORBIDDEN);
       }
       return await next();

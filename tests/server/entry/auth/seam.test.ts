@@ -46,13 +46,15 @@ function baseConfig(overrides: Partial<AuthConfig>): AuthConfig {
     fallback: "owner",
     defaultHandle: OWNER_HANDLE,
     verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
     forwardTrustedProxies: [],
     jwksAllowlist: [],
     ...overrides,
   };
 }
+
+/** The owner fallback is now gated on a LOOPBACK TCP peer (#298 f2), so every fallback-arm assertion drives
+ *  the seam with one. A non-loopback peer is the DENY case (pinned in its own test below). */
+const LOOPBACK: { peerIp: string } = { peerIp: "127.0.0.1" };
 
 /** A SessionsService whose unused verbs throw (the seam touches only validate/ensureUser/provisionIdentity
  *  — a throw proves a path didn't reach a verb it shouldn't). */
@@ -137,7 +139,7 @@ test("single-user fallback resolves the OWNER's row (role read, not stamped; via
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers());
+  const { principal } = await seam.resolvePrincipal(new Headers(), LOOPBACK);
 
   expect(principal).toEqual({
     userId: castId<UserId>(`u_${OWNER_HANDLE}`),
@@ -149,6 +151,19 @@ test("single-user fallback resolves the OWNER's row (role read, not stamped; via
   expect(users.ensured).toEqual([OWNER_HANDLE]);
 });
 
+test("#298 f2: a NON-loopback peer is DENIED the owner fallback → null (was owner on any Host)", async () => {
+  // The re-gate's headline at the seam: even single-user's un-credentialed owner arm mints NOTHING off a
+  // LAN/proxy peer. `ensureUser` must never be reached (a mint here would be the re-opened hole).
+  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  const users = fakeUsers();
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
+
+  const { principal } = await seam.resolvePrincipal(new Headers({ host: "127.0.0.1" }), { peerIp: "192.168.1.27" });
+
+  expect(principal).toBeNull();
+  expect(users.ensured).toEqual([]);
+});
+
 test("D135: the fallback Principal and the frozen-host Principal AGREE about the same caller", async () => {
   // THE defect pin. `OWNER_HANDLES` names a real owner; `DEFAULT_USER_HANDLE` still stamps its "owner"
   // placeholder. Pre-fix the seam ensured the PLACEHOLDER's row (born `user`) and stamped `role:"owner"` on
@@ -158,7 +173,7 @@ test("D135: the fallback Principal and the frozen-host Principal AGREE about the
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers());
+  const { principal } = await seam.resolvePrincipal(new Headers(), LOOPBACK);
   if (principal === null) {
     throw new Error("the owner fallback must admit a principal");
   }
@@ -173,7 +188,7 @@ test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-clas
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers());
+  const { principal } = await seam.resolvePrincipal(new Headers(), LOOPBACK);
 
   // WHO the owner is is resolution-tier policy, never verification's placeholder handle.
   expect(users.ensured).toEqual([REAL_OWNER_HANDLE]);
@@ -194,7 +209,7 @@ test("D135: an owner row demoted below owner is REPORTED, not overridden (the fa
   });
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers());
+  const { principal } = await seam.resolvePrincipal(new Headers(), LOOPBACK);
 
   expect(principal?.role).toBe("user");
 });
@@ -212,7 +227,7 @@ test("the empty-owner-handles guard is LOAD-BEARING: OWNER_HANDLES=',,' still re
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers());
+  const { principal } = await seam.resolvePrincipal(new Headers(), LOOPBACK);
 
   expect(users.ensured).toEqual([OWNER_HANDLE]); // verification's handle, never `undefined`
   expect(principal?.handle).toBe(OWNER_HANDLE);
@@ -389,10 +404,12 @@ test("isAdmin requires a CREDENTIAL as well as the admin role, and never throws"
   // The un-credentialed owner FALLBACK: a real `role:"owner"` principal (so `requireAdmin` passes) that
   // presented no cookie and no header. `via:"fallback"` is not a credential — the origin is not the caller.
   const ownerSeam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
+  // isAdmin threads NO peerIp, so the fallback arm cannot even mint here (peer-gate fails closed) — the
+  // debug gate stays shut against the un-credentialed owner both by that AND by the credential rule.
   expect(await ownerSeam.isAdmin(new Headers())).toBe(false);
-  // …and the same principal still resolves for every OTHER surface: this closes the debug gate, not the
-  // single-user fallback (which is the only way into a single-user box at all).
-  expect((await ownerSeam.resolvePrincipal(new Headers())).principal?.role).toBe("owner");
+  // …and the same principal still resolves for every OTHER surface FROM A LOOPBACK PEER: this closes the
+  // debug gate, not the single-user fallback (which is the only way into a single-user box at all).
+  expect((await ownerSeam.resolvePrincipal(new Headers(), LOOPBACK)).principal?.role).toBe("owner");
 
   const adminSeam = createAuthSeam({
     config: baseConfig({ mode: "local" }),
@@ -481,7 +498,7 @@ test("D135: a DISABLED owner row is refused by the fallback arm (parity with coo
   });
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers());
+  const { principal } = await seam.resolvePrincipal(new Headers(), LOOPBACK);
 
   // Anonymous → transport 401. The origin gate admitted the request; the ROW refused it.
   expect(principal).toBeNull();
@@ -506,7 +523,7 @@ test("D135: an ENABLED fallback caller still deep-equals the frozen-host Princip
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers());
+  const { principal } = await seam.resolvePrincipal(new Headers(), LOOPBACK);
   if (principal === null) {
     throw new Error("an enabled owner must be admitted");
   }

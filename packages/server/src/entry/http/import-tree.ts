@@ -90,13 +90,15 @@ class TreeRejected extends Error {
 }
 
 /** Auth-first + CSRF gate, run BEFORE the body-limit belt so an anonymous/cross-site caller is rejected
- *  before a single body byte is read (identical to the sibling upload routes' guard). */
+ *  before a single body byte is read (identical to the sibling upload routes' guard). CSRF keys on the
+ *  ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) because this is a
+ *  CORS-"simple" multipart route with no preflight — see the WHY-block in upload.ts's authCsrfGuard (#300). */
 const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
   const principal = c.get("principal");
   if (principal === null) {
     return c.body(null, UNAUTHORIZED);
   }
-  if (principal.via === "cookie" && !hasCsrfHeader(c.req.raw.headers)) {
+  if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
     return c.body(null, FORBIDDEN);
   }
   return await next();

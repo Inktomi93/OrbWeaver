@@ -33,7 +33,7 @@ import {
   resolveEnginesPosture,
 } from "#foundation/env";
 import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
-import { authConfigFromEnv, createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
+import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -371,21 +371,21 @@ export function createLifecycle(): Lifecycle {
 
     let authenticate: LocalAuthenticator | undefined;
     let firstRun: FirstRunRouteDeps | undefined;
-    let localFirstRun: ((headers: Headers) => Promise<boolean>) | undefined;
+    let localFirstRun: ((peerIp: string | undefined) => Promise<boolean>) | undefined;
     if (env.AUTH_MODE === "local") {
       authenticate = (handle: Handle, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
       // B4 — the in-app first-run owner-password setup (LOCAL_INITIAL_PASSWORD is now optional). The route +
-      // the config flag share ONE origin gate (`ownerFallbackAllowed`), so the setup screen appears exactly
-      // where the setup endpoint accepts a claim: a local/trusted origin. A public-origin local deploy still
-      // uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ owner has a password ⇒ this never triggers).
-      const localAuthConfig = authConfigFromEnv();
+      // the config flag share ONE gate (`ownerFallbackAllowed`, #298 f2), so the setup screen appears exactly
+      // where the setup endpoint accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client
+      // `Host`). A public-origin/LAN local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ owner
+      // has a password ⇒ this never triggers).
       const hasher = createPasswordHasher(env.SESSION_SECRET);
       firstRun = {
         setOwnerPassword: async (plain: string): Promise<UserId | null> => built.sessions.claimOwnerPassword(await hasher.hash(plain)),
-        originAllowed: (headers: Headers): boolean => ownerFallbackAllowed(headers, localAuthConfig),
+        originAllowed: (peerIp: string | undefined): boolean => ownerFallbackAllowed(peerIp),
       };
-      localFirstRun = async (headers: Headers): Promise<boolean> =>
-        ownerFallbackAllowed(headers, localAuthConfig) ? await built.sessions.ownerNeedsPassword() : false;
+      localFirstRun = async (peerIp: string | undefined): Promise<boolean> =>
+        ownerFallbackAllowed(peerIp) ? await built.sessions.ownerNeedsPassword() : false;
     }
 
     // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed

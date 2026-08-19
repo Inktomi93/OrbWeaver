@@ -181,6 +181,15 @@ describe("registerImportTree — belt chain + guard", () => {
     expect(res instanceof Response ? res.status : null).toBe(403);
   });
 
+  // #300 — the loopback owner FALLBACK arm is ambient-credential too; this CORS-simple multipart route must
+  // require the CSRF header for it (OWNER is via:"fallback"), else a loopback web origin drives an owner import.
+  test("fallback session WITHOUT the CSRF header → 403 (#300)", async () => {
+    // FABRICATION-OK: narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx.
+    const guard = chain()[0] as unknown as GuardMw;
+    const res = await guard(guardCtx(OWNER), () => Promise.resolve());
+    expect(res instanceof Response ? res.status : null).toBe(403);
+  });
+
   test("handler re-checks the principal → anonymous 401", async () => {
     const res = await handler()(makeCtx(null, formOf(fileOf("characters/Aria.png"))));
     expect(res.status).toBe(401);
