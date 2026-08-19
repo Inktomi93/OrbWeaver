@@ -18,8 +18,6 @@ function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
     fallback: "deny",
     defaultHandle: "owner",
     verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
     forwardTrustedProxies: [],
     jwksAllowlist: [],
     ...over,

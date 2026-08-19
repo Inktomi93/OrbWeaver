@@ -319,8 +319,24 @@ describe("registerUpload — auth+CSRF guard (belt order, before the body is rea
       expect(nexted).toBe(true);
     });
 
-    test(`${key}: non-cookie principal (fallback) is not CSRF-eligible → passes with no header`, async () => {
+    // #300 — the fallback (loopback owner) arm is AMBIENT-credential, like cookie: a multipart CSRF from a
+    // loopback web origin rides it. `multipart/form-data` is CORS-simple (no preflight), so the peer gate
+    // alone doesn't stop it — this route MUST require the CSRF header for `via:"fallback"` too.
+    test(`${key}: fallback principal WITHOUT the CSRF header → 403 (#300 — was a silent owner write)`, async () => {
       const { status, nexted } = await runGuard(okDeps, key, guardCtx(OWNER));
+      expect(status).toBe(403);
+      expect(nexted).toBe(false);
+    });
+
+    test(`${key}: fallback principal WITH the CSRF header → passes to the body cap`, async () => {
+      const { status, nexted } = await runGuard(okDeps, key, guardCtx(OWNER, { [CSRF_HEADER]: "1" }));
+      expect(status).toBeNull();
+      expect(nexted).toBe(true);
+    });
+
+    // Only the proxy-asserted `via:"header"` arm stays CSRF-exempt (a browser can't forge the proxy's headers).
+    test(`${key}: SSO header principal is exempt → passes with no CSRF header`, async () => {
+      const { status, nexted } = await runGuard(okDeps, key, guardCtx({ ...OWNER, via: "header" }));
       expect(status).toBeNull();
       expect(nexted).toBe(true);
     });

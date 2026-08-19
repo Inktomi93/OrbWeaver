@@ -151,6 +151,12 @@ const UTF8_BOM = "﻿";
  *       adopting the platform parser. Accepted, and pinned by test so the delta stays deliberate.
  *
  *  A missing or unreadable file is a silent no-op — the same tolerance dotenv's `quiet: true` gave. */
+/** The keys the loaded `.env` FILE declared (populated by `loadEnvFileWithOverride`). Provenance the parsed
+ *  `env` can't carry: because the file loads with `override:true`, a value in `.env` wins over a launcher's
+ *  export, so #301 needs to know which knobs the FILE pinned regardless of what the schema finally resolved.
+ *  Empty when the file is absent/unreadable or skipped (`ORB_ENV_NO_FILE`, e.g. under vitest). */
+const envFileKeys = new Set<string>();
+
 function loadEnvFileWithOverride(override: boolean): void {
   // ORB_ENV_NO_FILE — skip the file ENTIRELY (not merely the override direction). Set globally by
   // vitest.config.ts: filling unset keys from a real `.env` makes a test assert against the operator's
@@ -166,10 +172,22 @@ function loadEnvFileWithOverride(override: boolean): void {
     return;
   }
   for (const [key, value] of Object.entries(parseEnv(raw.startsWith(UTF8_BOM) ? raw.slice(UTF8_BOM.length) : raw))) {
-    if (value !== undefined && (override || process.env[key] === undefined)) {
-      process.env[key] = value;
+    if (value !== undefined) {
+      envFileKeys.add(key);
+      if (override || process.env[key] === undefined) {
+        process.env[key] = value;
+      }
     }
   }
+}
+
+/** #301 — did the loaded `.env` FILE declare `AUTH_FALLBACK`? The convention is that it must NOT: `.env` loads
+ *  with `override:true`, so a value there is forced into EVERY launch (dev AND prod, every mode), which is a
+ *  dev-lockout footgun (SSO mode + a pinned `deny` kills dev's loopback auto-owner) and defeats "prod exports
+ *  deny while dev falls to the default owner". The env superRefine makes this BOOT-FATAL (owner ruling
+ *  2026-08-19) — AUTH_FALLBACK is a launch-time decision, not a `.env` key. */
+export function authFallbackDeclaredInEnvFile(): boolean {
+  return envFileKeys.has("AUTH_FALLBACK");
 }
 
 // Load a local .env before parsing. override:true so a checked-in dev .env wins over a stale shell
@@ -374,14 +392,21 @@ const envSchema = z
     // single-user (default, no SSO) | local (app-stored password, cookie/BFF sessions) | forward-header
     // (proxy forward-auth) | oidc (the app is an OIDC client, cookie/BFF sessions).
     AUTH_MODE: z.enum(AUTH_MODES).default("single-user"),
-    // What an un-credentialed request gets. owner (default) → the owner; deny → 401. In an SSO mode the
-    // owner fallback is origin-gated (granted only on a local origin, never the public FQDN).
+    // What an un-credentialed request gets. owner (default) → the owner; deny → 401. The owner fallback is
+    // gated on a LOOPBACK TCP peer (#298 f2 — the unspoofable socket, NOT the client `Host`). In production
+    // an SSO mode with `owner` is BOOT-FATAL unless AUTH_BREAK_GLASS=true (see the superRefine below): behind a
+    // same-host reverse proxy every request arrives on a loopback socket, which would mint owner for everyone
+    // and bypass SSO — so prod SSO deploys MUST set `deny` (the fallback is break-glass only).
     AUTH_FALLBACK: z.enum(["owner", "deny"]).default("owner"),
-    // Extra hostnames treated as a trusted local origin for the owner fallback in SSO modes. The public
-    // FQDN must never be listed.
-    TRUSTED_LOCAL_HOSTS: z.string().optional(),
-    // Extra CIDR ranges added to the built-in private set for the local-origin owner-fallback gate AND the
-    // trusted-proxy gate.
+    // BREAK-GLASS: deliberately permit the loopback-owner fallback in an otherwise-fatal prod SSO deploy (see
+    // AUTH_FALLBACK). Default false (accepts only `true`/`false`, the house envBool vocabulary — `1`/`on` are
+    // a loud boot refusal). `true` is the operator's acknowledgment for an on-box recovery session (SSH +
+    // loopback curl); it unlocks the boot guard but does NOT itself enable the fallback — set AUTH_FALLBACK=owner
+    // too. Revert both when recovery is done. Lifecycle logs a loud SECURITY warning while it is on.
+    AUTH_BREAK_GLASS: envBool(false),
+    // Extra CIDR ranges added to the built-in private set for the EGRESS/SSRF belt (infra/network/egress.ts).
+    // NOT the auth fallback (that gates on the loopback peer only, #298 f2) and NOT the ingress trusted-proxy
+    // gate (FORWARD_AUTH_TRUSTED_PROXIES owns that).
     TRUSTED_PRIVATE_RANGES: z.string().optional(),
 
     // Seeds the owner account's password on first boot (idempotent after). Required in local mode.
@@ -501,6 +526,58 @@ const envSchema = z
         path: ["AUTH_FALLBACK"],
         message:
           "AUTH_FALLBACK=deny with AUTH_MODE=single-user leaves NO way to authenticate — single-user's only credential IS the owner fallback. Set AUTH_FALLBACK=owner, or pick an SSO mode (local/oidc/forward-header) where deny is the secure default.",
+      });
+    }
+    // THE SSO-FALLBACK LEAK (#298, owner ruling 2026-08-19) — same fail-fast class: a deploy must never
+    // silently bypass SSO. In an SSO mode (anything but single-user) the loopback-peer owner fallback
+    // (`ownerFallbackAllowed`, infra/auth/dispatch.ts) mints owner for any request arriving on a loopback
+    // socket. That is exactly what a SAME-HOST reverse proxy produces: Caddy/nginx terminating on the box and
+    // proxying to the app over 127.0.0.1 makes EVERY external user's request a loopback peer, so AUTH_FALLBACK=owner
+    // would hand owner to the whole internet and OIDC/login would be bypassed for everyone. The signal is
+    // `NODE_ENV==="production"`, chosen over two alternatives that are UNSOUND here:
+    //   • a "behind a proxy" heuristic (FORWARD_AUTH_TRUSTED_PROXIES set, or an explicit flag) — forward-header-
+    //     specific / usually unset under oidc / forgettable: a FALSE-NEGATIVE that leaves the hole open.
+    //   • `bind.publicBind` (bind.ts) — DISQUALIFYING false-negative: a production app with `BIND_HOST=127.0.0.1`
+    //     resolves `publicBind===false` (bind.ts:115), yet that is the EXACT hazard — a host-Caddy proxying to
+    //     127.0.0.1 makes every external user a loopback peer while the app is loopback-bound. A publicBind gate
+    //     would MISS the recommended "bind prod restrictively behind the proxy" topology. (It also false-HARMS:
+    //     it would fatal a deliberate `ALLOW_DEV_PUBLIC_BIND` LAN-dev session, whose LAN-direct hits the peer
+    //     gate already denies — no proxy in front — forcing deny and locking the dev owner out for no gain.)
+    // Production is where the danger lives regardless of bind/topology; dev (NODE_ENV≠production, loopback-bound,
+    // vite proxying over 127.0.0.1) is where AUTH_FALLBACK=owner is the legitimate frictionless auto-owner path,
+    // and stays UNTOUCHED. The ONLY sanctioned prod exception is a deliberate on-box recovery session, opted into
+    // with AUTH_BREAK_GLASS=true (which lifecycle then warns about loudly). Scoped to the leaky triple; `deny`
+    // stays the SSO modes' secure prod default.
+    //
+    // OWNER RULING 2026-08-19 (the HELD discriminator decision): KEEP NODE_ENV, do NOT add a PUBLIC_DEPLOYMENT
+    // flag. Both supported prod launchers set NODE_ENV=production — `pnpm start` (package.json) directly, and
+    // `pnpm stack up prod` via `buildProdSpawnPlan` (`scripts/dev/_kit/stack-mode.ts:369` — `env: {...inherited,
+    // NODE_ENV: "production", ...}`, in the spawn plan itself, not just the status log) — so the signal bites on
+    // every real prod path; a second flag would only be a source of disagreement. The one residual (a bare
+    // hand-rolled `node entry/index.ts` that omits NODE_ENV, behind a loopback proxy, with default owner) is
+    // ACCEPTED defense-in-depth risk, documented (containerize-prod-image-spec.md §4), not guarded — the
+    // supported launchers all set it, and #301 makes the effective mode/fallback legible per launch.
+    if (val.NODE_ENV === "production" && val.AUTH_MODE !== "single-user" && val.AUTH_FALLBACK === "owner" && !val.AUTH_BREAK_GLASS) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_FALLBACK"],
+        message: `AUTH_FALLBACK=owner with AUTH_MODE=${val.AUTH_MODE} in production is a SSO BYPASS: behind a same-host reverse proxy every request arrives on a loopback socket and the owner fallback would mint owner for everyone, bypassing SSO. Set AUTH_FALLBACK=deny (the secure prod default — the owner logs in via SSO, seeded at boot). For a deliberate on-box recovery session ONLY, set AUTH_BREAK_GLASS=true to acknowledge the risk.`,
+      });
+    }
+    // #301 (owner ruling 2026-08-19) — AUTH_FALLBACK is a LAUNCH-TIME decision, NEVER a `.env` KEY, and this
+    // makes the invariant IMPOSSIBLE to violate rather than merely discouraged (constitution §1: the apparatus
+    // makes the shortcut impossible). The file loads with `override:true`, so a value in `.env` is forced into
+    // EVERY launch from that dir — dev AND prod, every mode — which is a dev-lockout footgun (a prod-intended
+    // `.env` run in dev, or an SSO mode + a pinned `deny`, kills dev's loopback auto-owner) and confusingly
+    // collides downstream with the two prod fatals above. There is no legitimate `.env` pin: `single-user`
+    // already DEFAULTS to `owner` (so a redundant pin is deletable at zero cost), dev wants the default, and a
+    // prod launcher exports `deny` in ITS environment. Same fail-fast family as the two blocks above.
+    if (authFallbackDeclaredInEnvFile()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_FALLBACK"],
+        message:
+          "AUTH_FALLBACK must not be set in .env — .env's override:true would force it into every mode including dev (lockout risk). Set it in the prod launcher's environment (`stack up prod`/`start`); dev falls to the default 'owner'.",
       });
     }
     // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09) — same fail-fast class again: a NON-PRODUCTION build

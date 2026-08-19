@@ -140,8 +140,9 @@ export interface AppDeps {
   readonly authenticate?: LocalAuthenticator;
   /** B4 — present in local mode; registers the first-run owner-password setup route + drives the config flag. */
   readonly firstRun?: FirstRunRouteDeps;
-  /** B4 — present in local mode; the origin-scoped "owner needs a first-run password" read for /api/auth/config. */
-  readonly localFirstRun?: (headers: Headers) => Promise<boolean>;
+  /** B4 — present in local mode; the peer-scoped "owner needs a first-run password" read for /api/auth/config
+   *  (#298 f2 — gated on a loopback TCP peer, not the client `Host`). */
+  readonly localFirstRun?: (peerIp: string | undefined) => Promise<boolean>;
   /** A8 — the human-facing IdP name for the login surface's "Continue with …" button (served on /api/auth/config). */
   readonly oidcProviderName: string;
   /** Present in oidc mode. */

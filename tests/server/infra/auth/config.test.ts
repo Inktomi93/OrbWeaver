@@ -18,10 +18,8 @@ describe("env → AuthConfig projection", () => {
     expect(authConfigFromEnv()).toEqual(authConfigFromEnv());
   });
 
-  test("the four list fields are always arrays (parseCsv/parseHostList never yield undefined)", () => {
+  test("the list fields are always arrays (parseCsv/parseHostList never yield undefined)", () => {
     const cfg = authConfigFromEnv();
-    expect(Array.isArray(cfg.trustedLocalHosts)).toBe(true);
-    expect(Array.isArray(cfg.trustedPrivateRanges)).toBe(true);
     expect(Array.isArray(cfg.forwardTrustedProxies)).toBe(true);
     expect(Array.isArray(cfg.jwksAllowlist)).toBe(true);
   });

@@ -22,6 +22,9 @@ interface MockCtx {
   readonly get: (key: "principal") => Principal | null;
   readonly json: (body: Record<string, unknown>, status?: number) => MockResult;
   readonly req: { readonly raw: { readonly headers: Headers } };
+  // /config now reads the raw TCP peer via `getConnInfo(c)` (#298 f2 — the localFirstRun peer gate), which
+  // reads `c.env.incoming.socket.*`. Mirror what `@hono/node-server` binds (see app.test.ts's PEER_ENV).
+  readonly env: { readonly incoming: { readonly socket: { readonly remoteAddress: string } } };
 }
 type Handler = (c: MockCtx) => MockResult | Promise<MockResult>;
 
@@ -47,11 +50,12 @@ function handlers(deps: AuthMetaDeps): { config: Handler; me: Handler } {
   return { config, me };
 }
 
-async function run(handler: Handler, principal: Principal | null = null, headers: Headers = new Headers()): Promise<MockResult> {
+async function run(handler: Handler, principal: Principal | null = null, headers: Headers = new Headers(), peer = "127.0.0.1"): Promise<MockResult> {
   const ctx: MockCtx = {
     get: () => principal,
     json: (body, status = OK): MockResult => ({ body, status }),
     req: { raw: { headers } },
+    env: { incoming: { socket: { remoteAddress: peer } } },
   };
   return await handler(ctx);
 }

@@ -33,7 +33,7 @@ import {
   resolveEnginesPosture,
 } from "#foundation/env";
 import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
-import { authConfigFromEnv, createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
+import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -371,21 +371,21 @@ export function createLifecycle(): Lifecycle {
 
     let authenticate: LocalAuthenticator | undefined;
     let firstRun: FirstRunRouteDeps | undefined;
-    let localFirstRun: ((headers: Headers) => Promise<boolean>) | undefined;
+    let localFirstRun: ((peerIp: string | undefined) => Promise<boolean>) | undefined;
     if (env.AUTH_MODE === "local") {
       authenticate = (handle: Handle, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
       // B4 — the in-app first-run owner-password setup (LOCAL_INITIAL_PASSWORD is now optional). The route +
-      // the config flag share ONE origin gate (`ownerFallbackAllowed`), so the setup screen appears exactly
-      // where the setup endpoint accepts a claim: a local/trusted origin. A public-origin local deploy still
-      // uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ owner has a password ⇒ this never triggers).
-      const localAuthConfig = authConfigFromEnv();
+      // the config flag share ONE gate (`ownerFallbackAllowed`, #298 f2), so the setup screen appears exactly
+      // where the setup endpoint accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client
+      // `Host`). A public-origin/LAN local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ owner
+      // has a password ⇒ this never triggers).
       const hasher = createPasswordHasher(env.SESSION_SECRET);
       firstRun = {
         setOwnerPassword: async (plain: string): Promise<UserId | null> => built.sessions.claimOwnerPassword(await hasher.hash(plain)),
-        originAllowed: (headers: Headers): boolean => ownerFallbackAllowed(headers, localAuthConfig),
+        originAllowed: (peerIp: string | undefined): boolean => ownerFallbackAllowed(peerIp),
       };
-      localFirstRun = async (headers: Headers): Promise<boolean> =>
-        ownerFallbackAllowed(headers, localAuthConfig) ? await built.sessions.ownerNeedsPassword() : false;
+      localFirstRun = async (peerIp: string | undefined): Promise<boolean> =>
+        ownerFallbackAllowed(peerIp) ? await built.sessions.ownerNeedsPassword() : false;
     }
 
     // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed
@@ -393,6 +393,15 @@ export function createLifecycle(): Lifecycle {
     if (env.AUTH_MODE === "forward-header" && (env.FORWARD_AUTH_TRUSTED_PROXIES === undefined || env.FORWARD_AUTH_TRUSTED_PROXIES.trim().length === 0)) {
       log.warn(
         "boot: AUTH_MODE=forward-header with FORWARD_AUTH_TRUSTED_PROXIES unset — the UNSIGNED trusted-header path is FAIL-CLOSED (raw identity headers are rejected). Set FORWARD_AUTH_TRUSTED_PROXIES to the trusted proxy/client source range(s) to enable it; the signed-JWT (authentik) path is unaffected.",
+      );
+    }
+
+    // BREAK-GLASS active: the loopback-owner fallback is deliberately on in an SSO deploy (foundation/env
+    // lets the otherwise-fatal prod triple boot when AUTH_BREAK_GLASS=true). Warn loudly EVERY boot so a
+    // recovery flag left set is impossible to miss — revert AUTH_FALLBACK=deny + AUTH_BREAK_GLASS off when done.
+    if (env.AUTH_MODE !== "single-user" && env.AUTH_FALLBACK === "owner" && env.AUTH_BREAK_GLASS) {
+      log.warn(
+        "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket (incl. a same-host reverse proxy). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
       );
     }
 
@@ -512,6 +521,17 @@ export function createLifecycle(): Lifecycle {
     log.info({ nodeEnv: env.NODE_ENV, bindHost: bind.host ?? "*", publicBind: bind.publicBind }, `boot: ${bind.notice}`);
     for (const warning of bindPostureWarnings(bindPostureInput(), bind)) {
       log.warn({ security: true }, `boot: ${warning}`);
+    }
+
+    // single-user has NO credential but the loopback owner fallback (env fatals single-user+deny), so a
+    // PUBLICLY-bound single-user box is "no auth, every reachable caller can be owner" — intended (the
+    // zero-setup first-run mode), but it must announce itself. The SSO modes get the boot-FATAL guard in
+    // foundation/env instead; single-user is exempt there (it has no other door) and warns here.
+    if (env.AUTH_MODE === "single-user" && bind.publicBind) {
+      log.warn(
+        { security: true },
+        "boot: AUTH_MODE=single-user on a PUBLIC bind — this box has NO login: the un-credentialed owner fallback is its only auth, so any caller that reaches it over a loopback socket (directly on-box, or via a same-host reverse proxy) is the OWNER. Intended for a private/first-run box only; put it behind SSO (AUTH_MODE=oidc/local/forward-header) before exposing it.",
+      );
     }
 
     // Await the bind, don't assume it: serve() binds asynchronously, and a bind failure (EADDRINUSE)

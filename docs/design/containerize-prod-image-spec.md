@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-14
+updated: 2026-08-19
 ---
 
 # Production container image + deployment spec (all auth modes)
@@ -54,8 +54,8 @@ degrades to owner-on-the-public-FQDN.
 
 The identity pipeline is three tiers, and the split matters for what the container must get right:
 
-- **VERIFICATION** (`infra/auth`, db-free, sealed): headers → pre-row `ResolvedIdentity` + the origin-gated
-  owner-fallback discriminant. No role, no userId, no upsert (`infra/auth/index.ts:37-65`).
+- **VERIFICATION** (`infra/auth`, db-free, sealed): headers + the raw TCP peer → pre-row `ResolvedIdentity` +
+  the peer-gated owner-fallback discriminant. No role, no userId, no upsert (`infra/auth/index.ts`).
 - **RESOLUTION** (`domain/sessions`): role policy + users-row upsert.
 - **CONSTRUCTION** (`entry/auth/seam.ts`): the ONE `Principal` mint.
 
@@ -172,8 +172,8 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
   `Secure` over plain HTTP and the browser (talking HTTPS to Caddy) stores/sends it — works. **A stranger
   who runs local mode on plain HTTP silently cannot log in** (the browser drops the Secure cookie). Deploy
   note: local mode MUST be fronted by HTTPS. No code change; document it.
-- **Owner fallback:** `AUTH_FALLBACK` is origin-gated in this SSO-class mode (see §4). Recommended default
-  for a public multi-user local deploy: `AUTH_FALLBACK=deny` (fork C).
+- **Owner fallback:** the fallback is loopback-peer-gated in this SSO-class mode (see §4), and prod REFUSES
+  TO BOOT with `AUTH_FALLBACK=owner` — set `AUTH_FALLBACK=deny` for any public multi-user local deploy.
 - **Container posture:** set `SESSION_SECRET` + `LOCAL_INITIAL_PASSWORD` via secrets; multi-user is a runtime
   admin setting (`localMultiUser` → `MULTI_HUMAN_CAPABLE.local`, `entry/app.ts:134-139`), not env.
 - **Debug gate:** an admin/owner session cookie passes (`DEBUG_GATE_CREDENTIALED.cookie = true`), else
@@ -231,12 +231,12 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 
 ### 3.5 Matrix summary
 
-| Mode | Required secrets (boot-fatal) | Origin gate on owner-fallback | HTTPS-at-edge required? | Secure default for a stranger |
+| Mode | Required secrets (boot-fatal) | Owner-fallback gate | HTTPS-at-edge required? | Secure default for a stranger |
 | - | - | - | - | - |
-| single-user | none (`AUTH_FALLBACK=owner` REQUIRED — `deny` is boot-fatal, it authenticates nobody) | NONE (unconditional owner, given `AUTH_FALLBACK=owner`) | no (but must not be publicly reachable) | private/loopback only; never public without an auth front door |
-| local | `SESSION_SECRET`, `LOCAL_INITIAL_PASSWORD` | origin-gated (Host header) | YES (`__Host-`/Secure cookie) | `AUTH_FALLBACK=deny` for public multi-user |
-| oidc | `OIDC_ISSUER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URIS`, `SESSION_SECRET` | origin-gated (Host header) | YES (cookie + callback proto) | works out of the box behind TLS proxy; owner via `OWNER_GROUP` |
-| forward-header | none hard-fatal; signed path needs a JWKS source | signed: n/a; unsigned: TCP-peer gate | recommended | prefer SIGNED; unsigned needs `FORWARD_AUTH_TRUSTED_PROXIES=<proxy-ip>/32` |
+| single-user | none (`AUTH_FALLBACK=owner` REQUIRED — `deny` is boot-fatal, it authenticates nobody) | loopback TCP peer (given `AUTH_FALLBACK=owner`) | no (but must not be publicly reachable) | private/loopback only; never public without an auth front door |
+| local | `SESSION_SECRET`, `LOCAL_INITIAL_PASSWORD` | loopback TCP peer (prod+owner is boot-fatal) | YES (`__Host-`/Secure cookie) | `AUTH_FALLBACK=deny` for public multi-user |
+| oidc | `OIDC_ISSUER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URIS`, `SESSION_SECRET` | loopback TCP peer (prod+owner is boot-fatal) | YES (cookie + callback proto) | works out of the box behind TLS proxy; owner via `OWNER_GROUP` |
+| forward-header | none hard-fatal; signed path needs a JWKS source | fallback: loopback TCP peer; SSO signed: n/a; unsigned: TCP-peer trusted-proxy gate | recommended | prefer SIGNED; unsigned needs `FORWARD_AUTH_TRUSTED_PROXIES=<proxy-ip>/32` |
 
 ### 3.6 Engine posture — Profile 1 (all-in-one) and Profile 2 (external/off)
 
@@ -305,62 +305,109 @@ The slim app-only image, no CUDA/vLLM/models. Two arms, both via env, no fleet i
   3. **the GPU-detect fix** above (`lifecycle.ts:201-203`) — else the GPU-less app container never registers
      the external engine under `adopt-only`.
 
-## 4. The container trust model — debug-gate / `isLocalOrigin` / owner-fallback posture (AUTHFIX-2)
+## 4. The container trust model — the peer-gated owner fallback + the prod boot guard (#298 f2, owner ruling 2026-08-19)
 
 This is the section the "designing for everyone" contract lives or dies on.
 
-**The owner fallback in the three SSO modes (local/oidc/forward-header) is origin-gated on the `Host`
-HEADER, not the peer IP** (`dispatch.ts:40-70`, `ownerFallbackAllowed` → `isLocalOrigin`). `isLocalOrigin`
-returns true when `Host` is `localhost`, in `TRUSTED_LOCAL_HOSTS`, or **parses as an IP in a private range**.
-It deliberately reads `Host`, never `X-Forwarded-Host` — "a proxy-rewritten Host can only REMOVE trust,
-never grant it" (`dispatch.ts:9-10,47-51`).
+**The owner fallback is gated on the raw LOOPBACK TCP peer, NOT the `Host` header** (`infra/auth/dispatch.ts`,
+`ownerFallbackAllowed(peerIp)`; re-gate #298 f2, 2026-08-19). It returns true iff the socket peer is loopback
+(`127.0.0.0/8` / `::1`) — ONE rule across all four modes, `single-user` included. The credential is the
+unspoofable socket the kernel reports, so a client-supplied `Host:` (the old `isLocalOrigin` gate, now
+removed) grants NOTHING. `peerIp` is the same anti-spoof value the forward-header trusted-proxy gate uses
+(`entry/app.ts` → `PerRequestSeamDeps.peerIp`), never `X-Forwarded-For`/`X-Real-IP`.
 
-**Why this changes in a container, and the concrete exploit if gotten wrong:**
+**The peer-vs-proxy topology model (the contract this section exists to state):**
 
-- Behind Caddy, a public request carries `Host: orbweaver.inktomi.tech` → not local → fallback DENIED → SSO
-  mandatory. Correct, and it is the intended public posture.
-- **The hole:** if the orbweaver container port is reachable OTHER than through Caddy (published to the host,
-  or from another container on `inktomi-net`), an attacker connects directly to `orbweaver:8788` and sends
-  `Host: 127.0.0.1` (or any `Host: 10.x/172.x/192.168.x`). `isLocalOrigin` → **true** → an un-credentialed
-  request is minted a full **owner Principal** for the entire tRPC/API surface. Exact input:
-  `GET /api/trpc/... Host: 127.0.0.1` with no cookie → owner. Severity: **critical** (full app as owner, no
-  credential).
-- **What is NOT exposed by that hole:** `/api/_debug/*`. AUTHFIX-2 (`seam.ts:244-333`,
-  `DEBUG_GATE_CREDENTIALED.fallback = false`) makes the origin-gated fallback NOT a credential, so even a
-  Host-spoofed owner fallback cannot open the principal-blind whole-db debug reads. The debug gate still
-  requires a real admin cookie/JWT or `DEBUG_TOKEN`. Enforcer: `tests/server/entry/debug-gate.suite.test.ts`
-  (every AUTH\_MODE × Host × token state).
+- A request that reaches the app over a NON-loopback socket — a LAN device hitting a published port, a
+  container on `inktomi-net`, Caddy running in its own container and proxying to `host.docker.internal:8788`
+  (peer = the docker bridge, `172.18.0.x`) — gets NO fallback and MUST authenticate. This is correct and is
+  the intended public posture: SSO everywhere Caddy fronts.
+- A request that reaches the app over a LOOPBACK socket gets the un-credentialed owner fallback (if
+  `AUTH_FALLBACK=owner`). The two topologies that produce a loopback peer: (a) a genuine on-box caller
+  (`ssh` + `curl 127.0.0.1` — the break-glass door, and the dev-tooling door); (b) **a SAME-HOST reverse
+  proxy that terminates on the box and forwards to the app over `127.0.0.1`** — and in (b) EVERY external
+  user's request arrives as a loopback peer, so `AUTH_FALLBACK=owner` would mint owner for the whole internet
+  and bypass SSO. Topology (b) is the hazard the boot guard below closes.
+
+**The exploit, and why a forged `Host` no longer achieves it:** `GET /api/trpc/... Host: 127.0.0.1` with no
+cookie now resolves UNAUTHENTICATED whenever the caller's socket is not loopback (a published port, another
+container). The old critical (`Host`-spoof → owner) is closed at the source. The residual is exactly topology
+(b) — a same-host loopback proxy paired with `AUTH_FALLBACK=owner` — which the prod boot guard makes
+unrepresentable.
+
+**What is NOT exposed regardless:** `/api/_debug/*`. AUTHFIX-2 (`entry/auth/seam.ts`,
+`DEBUG_GATE_CREDENTIALED.fallback = false`) keeps the fallback out of the debug gate, and `isAdmin` threads
+no `peerIp` so the fallback cannot even mint there — a SECOND independent belt. Enforcer:
+`tests/server/entry/debug-gate.suite.test.ts` (every AUTH\_MODE × Host × token state).
 
 **The secure-default answer (belt AND suspenders):**
 
-1. **The image/compose MUST NOT publish orbweaver's port to the host.** Use `expose: ["8788"]`, never
-   `ports:`. Only Caddy reaches it, and Caddy's site-block routes by the real Host, so an anonymous public
-   request never carries a private `Host`. This is the primary control and it is a COMPOSE/deploy fact, not
-   a code change.
-2. **For any public multi-user deployment, recommend `AUTH_FALLBACK=deny`** (fork C). This removes the
-   un-credentialed owner path entirely, so even a same-network container that forged `Host: 127.0.0.1`
-   gets 401. The owner authenticates via SSO and is elevated by `OWNER_GROUP`/`OWNER_HANDLES` — no loss of
-   owner capability. **This belt applies to the three SSO modes only.** `single-user` does NOT ignore
-   `AUTH_FALLBACK` (a correction to an earlier claim in this spec, which the shipped container env was
-   written from — `docs/reviews/security/2026-08-08-containerize-surface-review.md` F1): the flag is
-   tested before the mode's unconditional origin arm, so `deny` there authenticates nobody and is now
-   boot-fatal. single-user's protection is network reachability ALONE, which is exactly why it must not be
-   public.
+1. **The image/compose MUST NOT publish orbweaver's port to the host** (`expose: ["8788"]`, never `ports:`).
+   Only Caddy reaches it. A COMPOSE/deploy fact, not a code change. With the peer gate this is now defense in
+   depth rather than the sole control, but it stays required.
+2. **A production SSO deploy MUST set `AUTH_FALLBACK=deny` — and the app now REFUSES TO BOOT otherwise**
+   (`foundation/env/index.ts` superRefine, #298 f2). `NODE_ENV=production` + an SSO mode (local/oidc/
+   forward-header) + `AUTH_FALLBACK=owner` is boot-fatal: it is precisely topology (b)'s mass SSO bypass,
+   and it cannot be reliably detected as "behind a proxy" at boot, so production is the signal. The owner
+   authenticates via SSO and is elevated by `OWNER_GROUP`/`OWNER_HANDLES` — **no owner bootstrap is needed
+   for pure OIDC**: `entry/boot/seed-owner.ts` seeds the owner row at `role=owner`+`enabled` every boot, so
+   `deny`+`oidc` can never lock the owner out at first-run (owner is claim-driven, not fallback-driven).
+   The ONLY prod exception is a deliberate on-box recovery session opted into with `AUTH_BREAK_GLASS=true`
+   (lifecycle then warns loudly every boot) — see §Break-glass below.
 
-   **RULED DEFAULT (owner, 2026-08-08): `single-user` + `AUTH_FALLBACK=owner` — usable-as-owner on first
-   run.** The image boots immediately usable the way SillyTavern's first run does (serving on a private
-   origin with no setup); hardening is what you opt into when you expose it, not a wall you must clear to
-   see the app. Do not re-litigate this toward a deliberately-inert default — the fence above refuses the
-   INCOHERENT pair, not this one.
-3. **`TRUSTED_LOCAL_HOSTS` must NEVER list the public FQDN** (`contract.ts:14`, `env:296-298`). The image
-   ships it unset.
+   **`single-user` is NOT an SSO mode and keeps `AUTH_FALLBACK=owner`** (its only credential IS the fallback;
+   `deny` there is separately boot-fatal). The boot guard is scoped to the SSO modes. A single-user box
+   behind a same-host proxy is still a world-owner shape by construction, which is why single-user must never
+   be public — its protection is network reachability ALONE. **RULED DEFAULT (owner, 2026-08-08):** the image
+   ships `single-user` + `AUTH_FALLBACK=owner` so a stranger's first run is usable-as-owner with no setup;
+   hardening is opt-in on exposure. Not re-litigated here.
+3. **`TRUSTED_LOCAL_HOSTS` is GONE** — the Host-origin gate it fed was removed with #298 f2. The env var and
+   its `AuthConfig` field no longer exist; the image ships neither. (`TRUSTED_PRIVATE_RANGES` survives, but
+   ONLY as the egress/SSRF belt extension — `infra/network/egress.ts` — never the auth gate.)
 
-**Behavioral change the owner must accept:** the current bare-host deploy gives the owner "owner on the raw
-LAN IP (which bypasses caddy)" (`Caddyfile:365-366`) because 8788 is bound on the host and the owner hits
-`http://<lan-ip>:8788` with a private `Host`. **A container with an unpublished port LOSES that path** — the
-container has no LAN identity to hit. That is the point (it is the same path an attacker would use). The
-owner's replacement is SSO login (already live). If the owner insists on keeping raw-LAN owner access, that
-is fork C's "keep `AUTH_FALLBACK=owner` + publish the port to the LAN only" arm, with the exposure understood.
+**Break-glass (on-box recovery when SSO/Authentik is down):** with `deny` there is no ambient (off-box)
+recovery — that is the point. On the box: set `AUTH_FALLBACK=owner` + `AUTH_BREAK_GLASS=true` (the flag is
+mandatory — without it the prod SSO+owner combo is boot-fatal), restart, then `curl http://127.0.0.1:8788/...`
+authenticates as owner over the loopback socket. Revert both knobs when done. `AUTH_BREAK_GLASS` unlocks the
+boot guard only; it does NOT itself enable the fallback (`AUTH_FALLBACK=owner` does).
+
+> **CRITICAL — STOP OR BYPASS THE FRONT PROXY while break-glass is active.** If a same-host reverse proxy that
+> connects to the app over `127.0.0.1` is still running, break-glass does NOT limit owner to the on-box
+> operator: EVERY request the proxy forwards arrives on a loopback socket, so every LAN/internet user behind
+> that proxy is minted owner — the full #298 hole, reopened for the whole network, for as long as the flag is
+> set. Do the recovery through a path that reaches the app WITHOUT the proxy's loopback hop: stop the proxy
+> (or its orbweaver site-block) first, OR curl the app's loopback listener directly from an on-box shell while
+> the proxy is down. This is exactly why break-glass is a brief, on-box, proxy-off procedure — never a knob
+> left flipped on a live public deployment.
+
+Tertiary path if the owner wants a durable credential instead: `AUTH_MODE=local` with `LOCAL_INITIAL_PASSWORD`
+and log in over the HTTPS origin (no fallback, no proxy caveat). Documented at the seam
+(`entry/auth/seam.ts`, the `via:"fallback"` arm).
+
+**`.env` interaction — how ONE image runs dev=owner and prod=deny (ties to #301):** `AUTH_MODE` lives in
+`.env`, which `foundation/env` loads with **`override:true`** (the `.env` value WINS over a process export —
+the #301 footgun), so BOTH `pnpm dev` and `pnpm start` read `AUTH_MODE=oidc` from `.env`. The discriminator
+between the two is the run command, not the mode: `pnpm start` = `NODE_ENV=production node …` (the ONLY place
+production is set); `pnpm dev`/`stack.sh`/the e2e webServer set no `NODE_ENV` → `development`. For prod to run
+`deny` while dev keeps the frictionless auto-owner, **`AUTH_FALLBACK` MUST NOT be placed in `.env`**: leave it
+unset so dev falls to the schema default `owner` (loopback vite proxy → auto-owner, no OIDC in dev), and have
+the prod start command/compose export `AUTH_FALLBACK=deny`. If `AUTH_FALLBACK=owner` ever lands in `.env`,
+`override:true` forces it into prod too and the boot guard (correctly) refuses to start prod — a loud failure,
+not a silent bypass. The dev boot is untouched by the guard because it is `NODE_ENV=development`.
+
+**Behavioral change the owner accepts:** the old bare-host deploy gave "owner on the raw LAN IP (bypasses
+Caddy)" because a LAN device could send a private `Host`. That path is GONE regardless of container/port
+posture — a LAN device's peer is not loopback, so it authenticates via SSO like everyone else. The owner's
+LAN access is the same HTTPS/OIDC origin as the internet (owner ruling 2026-08-19: OIDC everywhere).
+
+**All four modes stay first-class (not an OIDC-only story):** the guard and the `deny` requirement apply
+equally to the three CREDENTIALED SSO modes — **oidc** (JWT/OIDC login), **local** (password + `__Host-`
+cookie), **forward-header** (trusted-proxy header / signed JWT) — each has its own real door, so its ambient
+loopback owner-fallback must be OFF in any public deployment (prod+owner is boot-fatal for all three).
+**single-user** is exempt from the guard because the fallback is its ONLY credential (`deny` there is
+separately boot-fatal); a publicly-bound single-user box instead earns a loud standing boot WARNING
+(`entry/lifecycle.ts`) — it is the "no login, every reachable caller is owner" mode, intended for a
+private/first-run box only. Dev keeps the loopback auto-owner in every mode.
 
 **Peer-IP / XFF trust inside the network (secondary, correct-by-default):** because Caddy's peer IP is
 private, `resolveClientIp` (`ingress.ts:29-51`) trusts the leftmost `X-Forwarded-For` hop, so `IP_ALLOWLIST`
