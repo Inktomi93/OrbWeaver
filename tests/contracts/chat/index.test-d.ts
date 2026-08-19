@@ -102,6 +102,10 @@ test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is
     // the entity→room bridge: a CLOSED enum (`RoomEntityKind`), not free text — a string-literal union does
     // not satisfy `string extends T`, so it stays out of the raw-string pin below by construction
     | "entity"
+    // memory-recall phase (#313): a CLOSED enum (`MemoryRecallPhase`) + a scalar count — neither carries free
+    // text or a secret, so the D16 anchor allowlist is preserved.
+    | "phase"
+    | "count"
   >();
 });
 

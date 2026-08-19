@@ -8,7 +8,7 @@
 // imported inside data/bus/ — gate `chat-stream-writes-in-bus-only`). The slot does not close there —
 // it closes only on the bus's turnAborted (or a race-won turnCompleted).
 
-import type { ChatDeltaEvent, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
+import type { ChatDeltaEvent, MemoryRecallPhase, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { perfMark, perfMeasure } from "#lib";
 import { createGatedStore } from "./create-gated-store.ts";
@@ -64,14 +64,24 @@ export type TurnSlot =
     }
   | { readonly phase: "aborted"; readonly intent: TurnIntent; readonly reason: TurnAbortReason };
 
+/** The per-chat MEMORY-RECALL phase (#313) — the header brain-icon's state, a SEPARATE axis from the turn
+ *  slot (recall runs DURING the pending window, and a group round fires one pair per scoped speaker, so it is
+ *  not a phase of the `TurnSlot` machine). `"idle"` (memory off / no recall this turn) is the ABSENCE of an
+ *  entry, so it never mints a stored object. `count` on `"recalled"` is the surfaced block count. */
+export type RecallState = { readonly phase: "recalling" } | { readonly phase: "recalled"; readonly count: number };
+
 interface ChatStreamState {
   readonly turns: Readonly<Record<string, TurnSlot>>;
+  /** Absent chat ⇒ idle (memory off / no recall this turn). */
+  readonly recalls: Readonly<Record<string, RecallState>>;
 }
 
 /** The stable "no turn" slot — frozen so selectors returning it never mint a fresh object per render. */
 const IDLE_TURN: TurnSlot = Object.freeze({ phase: "idle" as const });
+/** The stable "recalling" state — frozen so the selector returns one reference for the whole window. */
+const RECALLING: RecallState = Object.freeze({ phase: "recalling" as const });
 
-const useChatStreamStore = createGatedStore<ChatStreamState>("chat-stream", (): ChatStreamState => ({ turns: {} }));
+const useChatStreamStore = createGatedStore<ChatStreamState>("chat-stream", (): ChatStreamState => ({ turns: {}, recalls: {} }));
 
 function slotOf(chatId: ChatId): TurnSlot {
   return useChatStreamStore.getState().turns[chatId] ?? IDLE_TURN;
@@ -79,7 +89,21 @@ function slotOf(chatId: ChatId): TurnSlot {
 
 function setSlot(chatId: ChatId, next: TurnSlot, action: string): void {
   const turns = { ...useChatStreamStore.getState().turns, [chatId]: next };
-  useChatStreamStore.setState({ turns }, true, action);
+  // Replace-mode set — carry `recalls` through untouched so a slot write never drops the recall axis.
+  useChatStreamStore.setState({ turns, recalls: useChatStreamStore.getState().recalls }, true, action);
+}
+
+/** Write (or, with `next === null`, CLEAR to idle) one chat's recall state, carrying `turns` through untouched
+ *  (replace-mode set — a recall write must never drop the turn axis). */
+function setRecall(chatId: ChatId, next: RecallState | null, action: string): void {
+  const current = useChatStreamStore.getState().recalls;
+  const recalls = { ...current };
+  if (next === null) {
+    delete recalls[chatId];
+  } else {
+    recalls[chatId] = next;
+  }
+  useChatStreamStore.setState({ turns: useChatStreamStore.getState().turns, recalls }, true, action);
 }
 
 // ── rAF-batched token accumulation (task #20) ──────────────────────────────────────────────────────
@@ -213,6 +237,12 @@ export interface ChatStreamApi {
   /** Stamp the canon row this LIVE turn just wrote (`messageCommitted` for an assistant view) — the
    *  ghost's handover signal (see `TurnSlot`). Idempotent no-op off-turn; never called for a user row. */
   readonly markCommitted: (chatId: ChatId, messageId: MessageId) => void;
+  /** Land a `memoryRecall` bus phase (#313) onto this chat's recall axis — `"recalling"` (count ignored) or
+   *  `"recalled"` with the surfaced count. Drives the header brain-icon; touches no turn slot. */
+  readonly setRecallPhase: (chatId: ChatId, phase: MemoryRecallPhase, count: number | null) => void;
+  /** Clear a chat's recall axis to idle — fired at `turnAccepted` (before recall runs) so each turn starts
+   *  clean and a memory-OFF turn shows idle instead of the prior turn's stale count. */
+  readonly resetRecall: (chatId: ChatId) => void;
 }
 
 // Fire-and-forget notification, not state anyone reads back — homing it as store state would only
@@ -320,6 +350,16 @@ export const chatStream: ChatStreamApi = {
     }
     setSlot(chatId, { ...slot, committedMessageId: messageId }, "turn/committed");
   },
+  setRecallPhase: (chatId, phase, count) => {
+    // `recalling` is a stable frozen ref (one reference across the whole window → no churn); `recalled` carries
+    // its count (null coalesces to 0 — a surfaced-nothing recall is still a completed recall, "retrieved: 0").
+    setRecall(chatId, phase === "recalling" ? RECALLING : { phase: "recalled", count: count ?? 0 }, "recall/phase");
+  },
+  resetRecall: (chatId) => {
+    if (useChatStreamStore.getState().recalls[chatId] !== undefined) {
+      setRecall(chatId, null, "recall/reset");
+    }
+  },
 };
 
 /** The narrow read hook — a component re-renders only when ITS chat's slot changes. */
@@ -330,6 +370,12 @@ export function useTurnSlot(chatId: ChatId | null): TurnSlot {
 /** Phase-only read for chrome (Stop button, spinner) — token churn never reaches subscribers. */
 export function useTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
   return useChatStreamStore((s) => (chatId === null ? "idle" : (s.turns[chatId] ?? IDLE_TURN).phase));
+}
+
+/** The chat's MEMORY-RECALL state for the header brain-icon (#313) — `null` is idle (memory off / no recall
+ *  this turn). Its own store axis, so it never re-renders on a token delta and a delta never re-renders it. */
+export function useRecallState(chatId: ChatId | null): RecallState | null {
+  return useChatStreamStore((s) => (chatId === null ? null : (s.recalls[chatId] ?? null)));
 }
 
 /** The live turn's voiced speaker — stable across every token delta (only text/reasoning change per

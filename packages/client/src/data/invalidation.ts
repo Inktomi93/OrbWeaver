@@ -64,6 +64,8 @@ const BUS_FILTERS: BusFilterMap = {
   // no refetch, exactly like turnStarted.
   turnAccepted: nothing,
   turnStarted: nothing,
+  // #313 — a transient store-axis feed for the header brain-icon; nothing durable changed, no refetch.
+  memoryRecall: nothing,
   warning: nothing,
   worldInfoActivated: nothing,
 
