@@ -168,7 +168,6 @@ async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params
     scopedCharacterId: scope.scopedCharacterId,
     queryText: query,
     mode: memoryMode(rerank),
-    verbatimWindow: 0,
     keywordMatch: false,
     recencyBias: 0,
     minScore: 0,

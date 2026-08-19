@@ -105,7 +105,20 @@ export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<
   const byKey = new Map<string, DigestRow>(union.map((d) => [blockKeyStr(rowKey(scope, d)), d]));
   const selected = await selectKeys(ctx, { args, cfg, union, verdicts });
 
-  const { text, rendered } = formatMemory(selected.keys, byKey);
+  // `rendered` (the trace's admitted set) stays in RETRIEVAL-RANK order — best-scoring first, the order a
+  // debugger reads "why did this block win". #330 P7: the {{memory}} TEXT, by contrast, renders in TIME order
+  // for the embedding modes (mixB/mixC) — a rank-ordered "story so far" reads as scrambled chronology to the
+  // model, and mixA/tiered already inject chronologically. `formatMemory` is pure, so a second call over the
+  // chronologically-sorted rendered keys yields the time-ordered text without disturbing the rank-ordered
+  // trace. For mixA/tiered `selected.keys` is already chronological, so the two orders coincide (byte-identical).
+  const { text: rankedText, rendered } = formatMemory(selected.keys, byKey);
+  const text =
+    cfg.mode === "mixB" || cfg.mode === "mixC"
+      ? formatMemory(
+          [...rendered].sort((a, b) => chronoStart(a, cfg.fanOut) - chronoStart(b, cfg.fanOut)),
+          byKey,
+        ).text
+      : rankedText;
   return finish(ctx, args, {
     startedAt,
     text,
@@ -132,7 +145,8 @@ interface SliceParts {
   readonly candidateCount: number;
   readonly note: string | null;
   readonly verdicts: Verdicts;
-  /** The blocks that actually reached the prompt, in prompt order (the formatter's own answer). */
+  /** The blocks that actually reached the prompt, in RETRIEVAL-RANK order (the trace's admitted set — #330 P7:
+   *  the `{{memory}}` TEXT is re-sorted chronologically for the embedding modes, but the trace keeps rank order). */
   readonly rendered: readonly BlockKey[];
   /** The retrieval numbers per block-key string; null for a mode that ran no scan. */
   readonly scored: ReadonlyMap<string, ScoredBlock> | null;
@@ -299,6 +313,13 @@ function markOutside(
       entry.verdict = verdict;
     }
   }
+}
+
+/** A block's coverage START position on the tier-0 grid (blockIdx times fanOut-to-the-tier) — the chronological
+ *  sort key for the `{{memory}}` TEXT (#330 P7). A tier-k digest at blockIdx covers a tier-0 range starting at
+ *  that position, i.e. the earliest scene it summarizes, so ordering by it reads the arc oldest to newest. */
+function chronoStart(k: BlockKey, fanOut: number): number {
+  return k.blockIdx * fanOut ** k.tier;
 }
 
 /** A digest row → its {@link BlockKey}, carrying the row's own bucket owner. */

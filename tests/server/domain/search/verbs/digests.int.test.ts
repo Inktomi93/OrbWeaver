@@ -8,6 +8,7 @@ import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import { SCOPE_INSTRUCTIONS } from "../../../../../packages/server/src/domain/search/substrate/instructions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedUser, vec } from "../_support.ts";
@@ -19,7 +20,6 @@ function opts(chat: ChatId, scopedCharacterId: CharacterId, over: Partial<Memory
     queryText: "anything",
     scopedCharacterId,
     mode: "mixB",
-    verbatimWindow: 0,
     keywordMatch: false,
     recencyBias: 0,
     minScore: 0,
@@ -158,6 +158,31 @@ describe("digests", () => {
 
     const folded = await svc.digests(opts(chat, char, { minScore: 0.5, keywordMatch: true, queryText: "the dragon" }));
     expect(folded.map((h) => h.blockKey.blockIdx)).toEqual([0]);
+  });
+
+  // #330 P3 (RED-FIRST): the within-chat digest scan conditions its embed + rerank with the digests
+  // SCOPE_INSTRUCTIONS — the SAME per-task hint the corpus digest scan uses. OLD: it embedded + reranked BARE,
+  // the weaker sibling of the corpus path on an instruction-aware family (Qwen3-VL).
+  test("the embed + rerank carry the digests SCOPE_INSTRUCTIONS (#330 P3)", async () => {
+    const db = await freshDb();
+    const { chat, char } = await seedOwnerChatChar(db);
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 0, embedding: vec(1) });
+
+    const embedInstructions: (string | undefined)[] = [];
+    const rerankQueries: string[] = [];
+    const svc = makeSearch(db, {
+      embedVector: () => vec(1),
+      onEmbed: (_input, embedOpts) => embedInstructions.push(embedOpts?.instruction),
+      rerank: (rerankQuery, docs) => {
+        rerankQueries.push(typeof rerankQuery === "string" ? rerankQuery : (rerankQuery.text ?? ""));
+        return Promise.resolve({ hits: docs.map((d, i) => ({ id: d.id, score: docs.length - i })), model: "rerank", usage: { totalTokens: null } });
+      },
+    });
+
+    await svc.digests(opts(chat, char, { mode: "mixC" }));
+
+    expect(embedInstructions).toContain(SCOPE_INSTRUCTIONS.digests.query);
+    expect(rerankQueries.at(0)?.startsWith(SCOPE_INSTRUCTIONS.digests.rerank)).toBe(true);
   });
 
   test("mode mixC reranks the result by the cross-encoder", async () => {

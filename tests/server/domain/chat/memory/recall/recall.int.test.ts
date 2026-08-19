@@ -155,7 +155,9 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(q).toMatchObject({ scope: { chat: chatId }, mode: "mixC", minScore: 0.3 });
     // the bridge candidates were passed (the pool for every mode — §3b).
     expect(q?.candidates).toBeDefined();
-    expect(out).toBe(joinBlocks(facet("[s1]", "b"), facet("[s0]", "a")));
+    // #330 P7: the search returned rank order [block1, block0], but the {{memory}} TEXT injects CHRONOLOGICALLY
+    // (block0 then block1) — a rank-ordered "story so far" reads as scrambled chronology to the model.
+    expect(out).toBe(joinBlocks(facet("[s0]", "a"), facet("[s1]", "b")));
   });
 
   test("tiered → the bridge (coarse high-tier + fine tier-0, uncovered-only, tip excluded)", async () => {

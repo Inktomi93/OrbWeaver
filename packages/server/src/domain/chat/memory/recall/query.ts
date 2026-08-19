@@ -27,7 +27,6 @@ export function buildRecallQuery(
     queryText: renderTranscript(window, recallMacroNames(names)),
     scopedCharacterId: scope.scopedCharacterId,
     mode: cfg.mode,
-    verbatimWindow: cfg.verbatimWindow,
     keywordMatch: cfg.keywordMatch,
     recencyBias: cfg.recencyBias,
     minScore: cfg.minScore,

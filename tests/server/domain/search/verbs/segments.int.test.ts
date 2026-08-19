@@ -17,7 +17,6 @@ function opts(chat: ChatId, scopedCharacterId: CharacterId | undefined, over: Pa
     queryText: "anything",
     scopedCharacterId,
     mode: "mixB",
-    verbatimWindow: 0,
     keywordMatch: false,
     recencyBias: 0,
     minScore: 0,

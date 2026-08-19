@@ -168,8 +168,11 @@ export interface MemoryRecallCandidate {
   /** Cosine `1 − distance`, HIGHER = closer — the readout number a surface prints. Same absence rule as
    *  {@link MemoryRecallCandidate.score}. */
   relevance?: number;
-  /** 0-based position in the ADMITTED order — which is the order the blocks are rendered into `{{memory}}`.
-   *  ABSENT for every non-admitted verdict. */
+  /** 0-based position in the RETRIEVAL-admitted order (best-scoring first — the order this trace lists the
+   *  admitted candidates). NOTE (#330 P7): the `{{memory}}` TEXT itself renders the embedding-mode (mixB/mixC)
+   *  blocks in CHRONOLOGICAL order for prompt readability, so this rank is the retrieval placement, not the
+   *  text position; the pure-assembly modes (mixA/tiered) are chronological in both. ABSENT for every
+   *  non-admitted verdict. */
   rank?: number;
 }
 

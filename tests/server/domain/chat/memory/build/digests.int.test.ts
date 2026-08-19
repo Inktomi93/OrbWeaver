@@ -183,6 +183,55 @@ describe("memory/build/digests", () => {
     }
   });
 
+  // #329 P1 (RED-FIRST): the consolidation is fed the children's FULL stored digests (anchor · facts · keywords),
+  // NOT just the anchor+keywords facets. Facts-stripped input made the summarizer CONFABULATE relations (measured
+  // live: an arc said "Bess married to Nate" when the child tier-0 digest correctly says Liam). The child's facts
+  // BODY must reach the consolidation prompt. Compiles against OLD source (it asserts on the summarizer input).
+  test("the consolidation prompt is fed the children's FULL facts body, not just anchor+keywords (#329 P1)", async () => {
+    const chatId = await seedChat(db, "consolidation-facts");
+    await seedTurns(db, chatId, aria, 4);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
+
+    await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 1 } });
+
+    const consolidation = sum.calls.find((c) => c.systemPrompt === CONSOLIDATION_SYSTEM_PROMPT);
+    expect(consolidation).toBeDefined();
+    // The two children's FACTS lines reach the summarizer — the fix. OLD (renderDigestFacets) stripped them,
+    // passing only "[entities — scene N]\nkeywords: …" and starving the summarizer of the facts.
+    expect(consolidation?.userPrompt).toContain("Facts about turn 1.");
+    expect(consolidation?.userPrompt).toContain("Facts about turn 2.");
+  });
+
+  // #329 P1b (RED-FIRST): the OUTPUT-SHAPE guard against depth starvation — a consolidation whose summarizer
+  // returned an anchor+keywords with NO narrative body (the tier ≥ 3 collapse) must be skipped-and-flagged like
+  // a blank digest, never stored as a bodyless arc. Scripts a summarizer that gives tier-0 real facts but the
+  // consolidation only a keyword list.
+  test("a consolidation that returns NO facts body is skipped, not stored as a bodyless arc (#329 P1b)", async () => {
+    const chatId = await seedChat(db, "bodyless-arc");
+    await seedTurns(db, chatId, aria, 4);
+    const bodylessArc = (inputs: { systemPrompt: string; userPrompt: string }[]): Promise<SummarizeResult> =>
+      Promise.resolve({
+        items: inputs.map((inp) => ({
+          text:
+            inp.systemPrompt === CONSOLIDATION_SYSTEM_PROMPT
+              ? "[entities — arc]\nkeywords: a, b, c"
+              : "[entities — scene]\nReal facts here.\nkeywords: a, b, c",
+          usage: { tokensIn: 1, tokensOut: 1, costUsd: null },
+        })),
+        model: MODEL,
+      });
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: bodylessArc, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
+
+    await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 1 } });
+
+    // Both tier-0 blocks (real facts) stored; the bodyless tier-1 arc is NOT — the guard skips-and-retries it.
+    expect(store.digests.filter((d) => d.key.tier === 0)).toHaveLength(2);
+    expect(store.digests.filter((d) => d.key.tier === 1)).toHaveLength(0);
+  });
+
   // RED-FIRST (the throughput fix): the tier-0 block summarizes go out as ONE batched ctx.summarize call
   // (inputs.length > 1) so the surface's worker pool feeds vLLM's continuous batcher. Under the OLD per-block
   // loop every call carried exactly one input, so `batchSizes` was all 1s — this asserts a >1 batch exists.

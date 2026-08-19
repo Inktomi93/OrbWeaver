@@ -16,9 +16,9 @@ import type { ChatContext } from "../../context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";
 import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types.ts";
-import { parseDigest, renderDigestFacets } from "./substrate/parse.ts";
+import { parseDigest } from "./substrate/parse.ts";
 import { consolidationSystemPrompt, consolidationUserPrompt, digestSystemPrompt, digestUserPrompt } from "./substrate/prompts.ts";
-import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard.ts";
+import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, fitConsolidationChildren, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard.ts";
 import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript.ts";
 import { spanWitnessed } from "./substrate/witnessing.ts";
 
@@ -113,7 +113,8 @@ interface Tier0Counts {
   skippedEmpty: number;
 }
 
-/** A consolidation pass's fold (no token-guard tier — consolidations read stored facets, not raw blocks). */
+/** A consolidation pass's fold. `skippedEmpty` counts BOTH a blank summarizer result AND a bodyless arc (the
+ *  #329 P1b output-shape guard) — a consolidation whose facts body is empty is skipped-and-retried, not stored. */
 interface PassCounts {
   written: number;
   skipped: number;
@@ -462,6 +463,15 @@ export async function collectConsolidationTier(
   // PROSE-1 census 80/81 — the consolidation system prompt + its user-prompt lead, the ROOM HOST's slots.
   const prose = await ctx.resolveChatProse(scope.chatId);
   const consolidationSystem = consolidationSystemPrompt(prose);
+  // #329 P1: the consolidation is fed the children's FULL stored digests (anchor · facts · keywords), fitted to
+  // the summarizer context. Feeding only anchor+keywords starved it of the actual facts and it CONFABULATED
+  // relations (measured: "Bess married to Nate" when the child tier-0 digest correctly says Liam). The budget
+  // is resolved ONCE per tier (the system prompt + output reserve are the same for every parent this pass).
+  const consolidationBudget = {
+    contextTokens: ctx.summarizerContextTokens(),
+    systemPromptTokens: estimateTokens(consolidationSystem),
+    outputReserveTokens: outputReserve(ctx),
+  } as const;
   const pending: ConsPending[] = [];
   let skipped = 0;
   for (const [parentBlockIdx, group] of [...groups].sort((a, b) => a[0] - b[0])) {
@@ -486,7 +496,10 @@ export async function collectConsolidationTier(
         systemPrompt: consolidationSystem,
         userPrompt: consolidationUserPrompt(
           prose,
-          ordered.map((c) => renderDigestFacets(c)),
+          fitConsolidationChildren(
+            ordered.map((c) => c.text),
+            consolidationBudget,
+          ),
         ),
       },
     });
@@ -525,6 +538,15 @@ export async function storeConsolidationTier(
       continue;
     }
     const parsed = parseDigest(raw);
+    // #329 P1b — the OUTPUT-SHAPE guard against DEPTH STARVATION: at tier ≥ 3 the summarizer increasingly
+    // returned an anchor + keywords with NO narrative body (the "story so far" for the deep past collapsed to a
+    // keyword list). An arc with an empty FACTS body is a degraded consolidation, so it is skipped-and-flagged
+    // exactly like a blank digest — NOT stored, the content-hash self-heal retries it next pass (degrade
+    // VISIBLY, never silently ship a bodyless arc as canon).
+    if (parsed.facts.trim().length === 0) {
+      skippedEmpty += 1;
+      continue;
+    }
     // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch; this loop is only the metered/ordered embed-store upserts (idempotent per parent).
     await ctx.embeddingsStore({
       lens: "digest",
