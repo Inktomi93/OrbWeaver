@@ -31,6 +31,10 @@ const ATTRIBUTION = '[data-slot="message-attribution"]';
 const THEME_SCOPE = '[data-slot="theme-scope"]';
 const SPEAKER_ACCENT_RE = /text-speaker/u;
 
+/** Two blank-line-separated paragraphs — the minimum body that makes `tide` actually TRAIN (its pills are
+ *  per-paragraph), i.e. the shape that exercises the one skin with no single container. */
+const TIDE_TWO_PARAGRAPHS = "One.\n\nTwo.";
+
 const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");
 const NATE_PERSONA_ID = castId<PersonaId>("persona_nate");
@@ -133,16 +137,27 @@ function meta(overrides: Partial<MessageMetadataVisibility>): MessageMetadataVis
   };
 }
 
-test("bubble: a two-word reply hugs its text — bubble width well under the content column (w-fit, N3)", async ({ mount }) => {
+// #288 TRUTH-REPAIR OF THE COMPARAND, not of the law. D66 N3 says a bubble is CONTENT-SIZED (`w-fit`),
+// never stretched to fill the room. This measured that against the CONTENT COLUMN — correct while the
+// column's max-content was the name row and the bubble's was its text. Since #288 the header IS the
+// bubble's first child, so the two share one max-content and "bubble < 0.6 × column" is no longer a claim
+// about anything (measured: 166.59 vs 166.59). The comparand moves to the TRACK — the room's actual width
+// budget, which is what "never stretched to fill" always meant — and the ST refs agree: a short reply's
+// pill is as wide as its header and no wider. The bubble is still `w-fit`; nothing about the fill changed.
+test("bubble: a two-word reply is content-sized — bubble width well under the room's track (w-fit, N3)", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="bubble" messageRole="assistant" content="Hi there" characterId={ALICE_ID} participants={[alice()]} />,
   );
   const bubbleBox = await component.locator(BUBBLE).boundingBox();
-  const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
+  const trackBox = await component.locator(ROW).boundingBox();
   expect(bubbleBox?.width).toBeGreaterThan(0);
-  // The two-word bubble hugs its content (fit-content), never stretched to fill the reading column (its
-  // flex parent would otherwise stretch it) — the exact w-fit behavior N3 adds to the bubble family.
-  expect(bubbleBox?.width ?? 0).toBeLessThan((columnBox?.width ?? 0) * 0.6);
+  expect(bubbleBox?.width ?? 0).toBeLessThan((trackBox?.width ?? 0) * 0.6);
+  // …and the header it now contains is what sets that width — the bubble hugs the WIDER of its two
+  // children, so a two-word reply is header-wide rather than stretched. (Without this the assertion
+  // above would also pass on a bubble that had silently lost its header.)
+  const headerBox = await component.locator(NAME_ROW).boundingBox();
+  expect(headerBox?.width ?? 0).toBeGreaterThan(0);
+  expect(bubbleBox?.width ?? 0).toBeGreaterThanOrEqual(headerBox?.width ?? 0);
 });
 
 test("showTimestamps: the timestamp is micro-mono text INSIDE the name row, not a pill (P5)", async ({ mount }) => {
@@ -831,40 +846,61 @@ test("without a bg image, flat stays truly flat — no scrim, no blur (don't scr
   expect(backdrop).toBe("none");
 });
 
-// ── THE ATTRIBUTION GUARANTEE over a bg photo (#167, owner-observed live 2026-08-18) ───────────────
-// The name/actions row is a sibling ABOVE the bubble in EVERY mode (~8px gap, never on the fill), so no
-// mode's bubble fill backs it. The 2026-07-09 follow-up scoped its chip to the no-fill modes anyway
-// (`RowSkin.chromeBacking`), which left the speaker name, the timestamp beside it and the action icons
-// floating on the raw photo in the five bubble-family skins — measured live in the owner's room at
-// 1.63:1 for the timestamp, and the USER row ("Traveler") is the one with no fill anywhere near it.
-// The floor is a GUARANTEE, so it is pinned here as one: ALL EIGHT skins, BOTH roles.
+// ── THE ATTRIBUTION GUARANTEE over a bg photo (#167 · re-homed by #288) ────────────────────────────
+// #167's RULING: the speaker name, the timestamp beside it and the action icons are a legibility
+// GUARANTEE over ANY art in ANY skin — never a per-skin opt-in. It was measured live in the owner's room
+// at 1.63:1 for the timestamp, with the USER row ("Traveler") the naked one.
+//
+// #167's MECHANISM was a second surface: a `BG_PHOTO_CHROME_PLATE` chip minted for a header that had none,
+// because the header was a sibling ABOVE the bubble in every mode. #288 changed that premise — in seven of
+// the eight skins the header is the CONTAINER's own header row now, so the box the prose already rides is
+// what backs it, and minting a second plate beside the first is the very two-object read #288 removed.
+//
+// So the guarantee is pinned where it now lives: the header's NEAREST PAINTED BACKDROP over art, whichever
+// element that is. `tide` (the one `outside` skin — a train of pills has no single container) still
+// answers with its own chip; every other skin answers with the container. ALL EIGHT skins, BOTH roles —
+// the coverage #167 minted, asserted through the anatomy #288 left.
 const ACTIONS_ROW = '[data-slot="message-actions-row"]';
 const ALL_CHAT_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const;
 
+/** The header's own fill if it paints one, else its container's — i.e. what a reader actually sees behind
+ *  the speaker name. Returns the painted ancestor's fill + blur, so the assertion survives either anatomy. */
+async function headerBackdrop(component: Locator): Promise<{ readonly bg: string; readonly backdrop: string }> {
+  return await component.locator(NAME_ROW).evaluate((el: HTMLElement) => {
+    for (let node: HTMLElement | null = el; node !== null; node = node.parentElement) {
+      const cs = getComputedStyle(node);
+      if (cs.backgroundColor !== "rgba(0, 0, 0, 0)") {
+        return { bg: cs.backgroundColor, backdrop: getComputedStyle(node).backdropFilter };
+      }
+    }
+    return { bg: "rgba(0, 0, 0, 0)", backdrop: "none" };
+  });
+}
+
+/** THE FLOOR ITSELF, stated once: a surface anchors chrome over art if it either OCCLUDES the photo
+ *  outright (alpha 1 — the filled skins' `--color-ai-bubble`/`--color-user-bubble`, which is why they
+ *  never needed a blur) or is the translucent reading plate WITH its blur (the no-fill skins' plate and
+ *  tide's chip — the alpha floor `palette-contrast.suite.test.ts` proves is only sound with the blur that
+ *  collapses the art's bright peaks). Asserting "not transparent" alone would pass a 5%-alpha wash;
+ *  asserting "has a blur" alone would fail every opaque fill for no reader-visible reason. */
+function expectAnchoredOverArt(surface: { readonly bg: string; readonly backdrop: string }): void {
+  expect(surface.bg).not.toBe(TRANSPARENT);
+  const [, , , alpha] = parseOklch(surface.bg);
+  // One expect, not a branch: the failure prints the fill and the filter that actually rendered.
+  expect({ ...surface, anchored: alpha === 1 || surface.backdrop !== "none" }).toMatchObject({ anchored: true });
+}
+
 for (const style of ALL_CHAT_STYLES) {
-  test(`${style} over a bg image: the ASSISTANT name row's nearest backdrop is the scrim chip, not the raw photo`, async ({ mount }) => {
+  test(`${style} over a bg image: the ASSISTANT name row's nearest backdrop is a real surface, not the raw photo`, async ({ mount }) => {
     const component = await mount(
       <div data-has-bg-image="">
         <MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
       </div>,
     );
-    // The action-icon row itself paints no bg; its NEAREST backdrop is the name-row chip that wraps it.
+    // The action-icon row itself paints no bg; its backdrop is whatever backs the header that wraps it.
     const actionsRow = component.locator(ACTIONS_ROW);
     await expect(actionsRow).toHaveCount(1);
-    const nameRow = component.locator(NAME_ROW);
-    const { bg, backdrop, radius } = await nameRow.evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return {
-        bg: cs.backgroundColor,
-        backdrop: cs.backdropFilter,
-        radius: cs.borderTopLeftRadius,
-      };
-    });
-    expect(bg).not.toBe(TRANSPARENT);
-    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
-    expect(backdrop).not.toBe("none");
-    // A backed CHIP (rounded), not a full-bleed band.
-    expect(Number.parseFloat(radius)).toBeGreaterThan(0);
+    expectAnchoredOverArt(await headerBackdrop(component));
   });
 
   test(`${style} over a bg image: the USER name row is backed too (the row the live defect showed naked)`, async ({ mount }) => {
@@ -884,14 +920,29 @@ for (const style of ALL_CHAT_STYLES) {
     // both inside this one backed box.
     await expect(nameRow.locator(ATTRIBUTION)).toContainText("Alex");
     await expect(nameRow.locator(TIMESTAMP)).toHaveCount(1);
-    const { bg, backdrop } = await nameRow.evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
-    });
-    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
-    expect(backdrop).not.toBe("none");
+    expectAnchoredOverArt(await headerBackdrop(component));
   });
 }
+
+// The chip mechanism itself is not gone, it is SCOPED — `tide` is the skin that still needs a surface
+// minted for it, and it must still be the derived reading plate (the #204 derive law), still blurred,
+// still a rounded CHIP rather than a full-bleed band. Pinned separately so "the guarantee holds" and
+// "the chip is spelled correctly" cannot pass for each other.
+test("#167/#288 tide's chip is still the derived reading plate — blurred, rounded, paired ink", async ({ mount }) => {
+  const component = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="tide" messageRole="assistant" content={TIDE_TWO_PARAGRAPHS} characterId={ALICE_ID} participants={[alice()]} />
+    </div>,
+  );
+  const nameRow = component.locator(NAME_ROW);
+  const { bg, backdrop, radius } = await nameRow.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, backdrop: cs.backdropFilter, radius: cs.borderTopLeftRadius };
+  });
+  expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
+  expect(backdrop).not.toBe("none");
+  expect(Number.parseFloat(radius)).toBeGreaterThan(0);
+});
 
 test("the sticky chip SUPERSEDES the wallpaper one without doubling the box: a sticky row over art measures like the same row un-stuck", async ({ mount }) => {
   // #113's layout-neutrality invariant, now that the wallpaper chip lands on EVERY row (#167): the sticky
@@ -1066,30 +1117,44 @@ test("action cluster is hidden-at-rest (opacity 0, in-flow, inert) and never sta
   expect(overflow).toBe(false);
 });
 
-// ── #204: the chip HUGS ITS TEXT — the invisible action cluster contributes NO height ───────────────
+// ── #204: the HEADER HUGS ITS TEXT — the invisible action cluster contributes NO height ─────────────
 // The hover-reveal cluster is a ~34px row of icon buttons, opacity-0 at rest but in flow at full
 // height, and it SET the painted chip's height: 50px around a 16px name (50 = 34 + 2×py-row). Over
 // wallpaper that painted the owner's "phantom empty scrim bands" (the chip's empty top/bottom thirds)
-// and the "name separated from the messages" gap. The cluster now rides a zero-height slot: full WIDTH
+// and the "name separated from the messages" gap. The cluster rides a zero-height slot: full WIDTH
 // stays reserved (the A3 pin above), buttons still paint/hit at full size (overflow visible), and the
-// chip's height derives from the NAME + its own padding. RED on the pre-fix source (height was 50px).
-test("#204 the name chip's height derives from the name, not the invisible action cluster", async ({ mount }) => {
-  const component = await mount(
+// header's height derives from the NAME.
+//
+// #288 TRUTH-REPAIR: the "+ 2×py-row" half of the old arithmetic was the CHIP's padding, and an inside
+// header has no chip — so `flat` over art now measures the bare name line. The invariant #204 actually
+// minted ("the invisible cluster adds no height") is unchanged and is what is asserted; the padding term
+// moved to `tide`, the one skin still carrying the chip, which is asserted in the same test so the
+// arithmetic keeps a live home. RED on the pre-#204 source in both arms (height was 50px).
+test("#204/#288 the header's height derives from the name, not the invisible action cluster", async ({ mount }) => {
+  const inside = await mount(
     <div data-has-bg-image="">
       <MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  const nameRow = component.locator(NAME_ROW);
-  const attribution = component.locator(ATTRIBUTION);
   const rowPadPx = remTokenPx(TOKENS["spacing.row"].value);
-  const nameRowHeight = await nameRow.evaluate((el) => el.getBoundingClientRect().height);
-  const attributionHeight = await attribution.evaluate((el) => el.getBoundingClientRect().height);
-  // chip = name line + 2×py-row (the chrome plate's own padding) — the cluster adds nothing.
-  expect(Math.abs(nameRowHeight - (attributionHeight + 2 * rowPadPx))).toBeLessThan(2);
+  const insideHeight = await inside.locator(NAME_ROW).evaluate((el) => el.getBoundingClientRect().height);
+  const insideName = await inside.locator(ATTRIBUTION).evaluate((el) => el.getBoundingClientRect().height);
+  // An INSIDE header takes no plate of its own: it is exactly the name line, no padding term at all.
+  expect(Math.abs(insideHeight - insideName)).toBeLessThan(2);
   // …while the cluster's buttons keep their full interactive box (they overflow the slot, not shrink).
-  const editButton = component.getByRole("button", { name: "Edit message" });
-  const buttonBox = await editButton.boundingBox();
-  expect(buttonBox?.height ?? 0).toBeGreaterThan(nameRowHeight - 2 * rowPadPx);
+  const buttonBox = await inside.getByRole("button", { name: "Edit message" }).boundingBox();
+  expect(buttonBox?.height ?? 0).toBeGreaterThan(insideHeight);
+  await inside.unmount();
+
+  const outside = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="tide" messageRole="assistant" content={TIDE_TWO_PARAGRAPHS} characterId={ALICE_ID} participants={[alice()]} />
+    </div>,
+  );
+  const outsideHeight = await outside.locator(NAME_ROW).evaluate((el) => el.getBoundingClientRect().height);
+  const outsideName = await outside.locator(ATTRIBUTION).evaluate((el) => el.getBoundingClientRect().height);
+  // The OUTSIDE header still hugs `name + 2×py-row` — the chip's own padding and nothing else.
+  expect(Math.abs(outsideHeight - (outsideName + 2 * rowPadPx))).toBeLessThan(2);
 });
 
 // ── #204: the DERIVE LAW — a plate's ink comes from the SAME palette as the plate ────────────────────
@@ -1766,6 +1831,130 @@ test.describe("#220 coarse name band", () => {
     );
     await expect(component.locator(MODEL_SLOT)).toBeHidden();
   });
+});
+
+// ── #288: THE HEADER IS THE CONTAINER'S OWN HEADER ROW, NOT A PILL FLOATING ABOVE IT ───────────────
+// Owner, three raisings and two evidence rounds (2026-08-19): "the split header from message thing".
+// ST renders name + timestamp + actions INSIDE the bubble as its header row — ONE container; we rendered
+// a name pill with its OWN backing above a separate bubble — TWO. The polarity report is the same
+// mechanism seen from one side: the pill's #167 legibility chip dissolves into a dark room and reads as a
+// hard second object over a light/art one.
+//
+// The fix is anatomical, so it is pinned anatomically: for every skin with a single container box the
+// name row is a CHILD of `message-bubble`, and it carries NO backing of its own — the container's fill
+// (or, over art, the container's plate) is what backs it. `tide` is the one skin with no single container
+// (`bubbleLayout: "trains"` — N per-paragraph pills), and its ST reference also puts the name above the
+// train, so it keeps the sibling row + the #167 chip. That split is declared in the skin table
+// (`RowSkin.headerPlacement`), which is why this loop is driven off the same axis as the #113 one.
+const HEADER_INSIDE_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple"] as const;
+
+for (const style of HEADER_INSIDE_STYLES) {
+  test(`#288 ${style}: the name row is INSIDE the message container, not a sibling above it`, async ({ mount }) => {
+    const component = await mount(<MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+    // The header is a descendant of the container the body renders in …
+    await expect(component.locator(BUBBLE).first().locator(NAME_ROW)).toHaveCount(1);
+    // … and there is no second name row left floating in the column beside it (half a migration is rot).
+    await expect(component.locator(`${CONTENT_COLUMN} > ${NAME_ROW}`)).toHaveCount(0);
+    await expect(component.locator(NAME_ROW)).toHaveCount(1);
+    await expect(component.locator(NAME_ROW)).toContainText("Alice");
+  });
+
+  test(`#288 ${style} over art: the header takes NO backing of its own — the container backs it`, async ({ mount }) => {
+    const component = await mount(
+      <div data-has-bg-image="">
+        <MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
+      </div>,
+    );
+    const nameRow = component.locator(NAME_ROW);
+    // The second plate is GONE: no fill, no blur, no chip radius on the header itself …
+    const own = await nameRow.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, backdrop: cs.backdropFilter, radius: cs.borderTopLeftRadius };
+    });
+    expect(own.bg).toBe(TRANSPARENT);
+    expect(own.backdrop).toBe("none");
+    expect(Number.parseFloat(own.radius)).toBe(0);
+    // … while the legibility GUARANTEE #167 minted is intact, one box out: the container the header now
+    // lives in paints a real backing over the wallpaper.
+    const container = await component
+      .locator(BUBBLE)
+      .first()
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(container).not.toBe(TRANSPARENT);
+  });
+}
+
+test("#288 tide keeps the sibling header + its chip — a train has no single container to be inside", async ({ mount }) => {
+  const component = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="tide" messageRole="assistant" content={TIDE_TWO_PARAGRAPHS} characterId={ALICE_ID} participants={[alice()]} />
+    </div>,
+  );
+  await expect(component.locator(`${CONTENT_COLUMN} > ${NAME_ROW}`)).toHaveCount(1);
+  const nameRow = component.locator(NAME_ROW);
+  expect(parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor))).toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
+});
+
+// THE DARK CONTROL. The owner's dark rooms read fine today and are sacred, so the claim being pinned is
+// not "it changed for the better" but "the header is on the SAME surface as the prose, in both
+// polarities" — which is what makes the light arm stop reading as two objects without touching the dark
+// one's tone. Measured through the rendered fill, never the class.
+for (const theme of ["light", "mocha"] as const) {
+  test(`#288 ${theme}: the header and the body paint on ONE surface (the container's own fill)`, async ({ mount }) => {
+    const component = await mount(
+      <div data-theme={theme}>
+        <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
+      </div>,
+    );
+    const bubble = component.locator(BUBBLE).first();
+    const nameRow = component.locator(NAME_ROW);
+    await expect(bubble.locator(NAME_ROW)).toHaveCount(1);
+    // The header paints nothing itself, so what is behind it IS the bubble fill — no second tone, on
+    // either polarity. (`--color-ai-bubble` differs per seed; the assertion is the token, not a literal.)
+    await expect.poll(async () => await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(TRANSPARENT);
+    expect(parseOklch(await bubble.evaluate((el) => getComputedStyle(el).backgroundColor))).toEqual(parseOklch(await cssVar(bubble, "--color-ai-bubble")));
+  });
+}
+
+// ST's user-side header is MIRRORED (`datetime · name · actions`, packed to the trailing edge) — the
+// report's :219 MINOR row. Taken here rather than deferred, but as PAINT: the identity cluster reverses
+// with `flex-row-reverse`, so the DOM (and every assistive reading order) still names the SPEAKER first
+// and the timestamp second, exactly as the assistant row does.
+test("#288 a user row mirrors its header like the ST ref — time paints before the name, DOM order unchanged", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="user"
+      personaId={NATE_PERSONA_ID}
+      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
+      metadataVisibility={meta({ showTimestamps: true })}
+    />,
+  );
+  const nameBox = await component.locator(ATTRIBUTION).boundingBox();
+  const timeBox = await component.locator(TIMESTAMP).boundingBox();
+  expect(timeBox?.x ?? 0).toBeLessThan(nameBox?.x ?? 0);
+  // The a11y order is the one that did NOT flip: the speaker still comes first in the tree.
+  const domOrder = await component
+    .locator(NAME_ROW)
+    .evaluate((el) =>
+      [...el.querySelectorAll('[data-slot="message-attribution"], [data-slot="message-metadata-timestamp"]')].map((n) => n.getAttribute("data-slot")),
+    );
+  expect(domOrder).toEqual(["message-attribution", "message-metadata-timestamp"]);
+});
+
+test("#288 an assistant row is NOT mirrored — name then time, leading edge (the ST character side)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showTimestamps: true })}
+    />,
+  );
+  const nameBox = await component.locator(ATTRIBUTION).boundingBox();
+  const timeBox = await component.locator(TIMESTAMP).boundingBox();
+  expect(nameBox?.x ?? 0).toBeLessThan(timeBox?.x ?? 0);
 });
 
 // The FINE arm is untouched: the same row at the same width still offers Edit + Fork inline, so the

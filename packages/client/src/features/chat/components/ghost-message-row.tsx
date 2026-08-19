@@ -49,7 +49,8 @@ import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-
 import type { RowAttribution } from "../lib/attribution.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { CardBlock } from "./card-block.tsx";
-import { renderGhostNameRow, renderRowAvatar } from "./message-row-parts.tsx";
+import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
+import { renderRowAvatar } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 
 // Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
@@ -258,12 +259,18 @@ export function GhostMessageRow({
           avatarShape,
           avatarAspect,
           avatarRing,
+          alignToInsideHeader: skin.headerPlacement === "inside",
         });
 
+  // #116/#288 — the SPEAKER, for the whole generation, in the SAME home the settled row will put it in.
+  // The placement is read off the skin here rather than hardcoded because a live turn whose header sat
+  // above the bubble and jumped inside it at commit would be a visible one-frame reflow on every reply.
+  const header = placeRowHeader(renderGhostNameRow({ attribution, stickyAttribution, placement: skin.headerPlacement }), skin.headerPlacement);
   const bubble = (
     // w-full so the shimmer/streaming-markdown children have a sized parent (the assistant skin is
     // otherwise shrink-to-fit).
     <Stack gap="row" data-slot="message-bubble" className={cn(skin.inner("assistant"), "w-full", decoration?.className)} style={decoration?.style}>
+      {header.inside}
       {reasoning.length > 0 ? (
         <ReasoningBlock
           reasoning={reasoning}
@@ -302,8 +309,9 @@ export function GhostMessageRow({
           {/* #116 — the SPEAKER, for the whole generation. Same slot, same frame and same sticky mechanics
               as the settled row's name row (`renderGhostNameRow`), so a multi-viewport streaming turn pins
               its attribution exactly the way the committed one does instead of being the one row in the
-              transcript with no speaker on it. */}
-          {renderGhostNameRow({ attribution, stickyAttribution })}
+              transcript with no speaker on it. Since #288 this arm carries it only for a skin whose header
+              is `outside` (tide); every other skin's header rides inside the bubble above. */}
+          {header.above}
           {decoratedBubble}
         </Stack>
       </Row>

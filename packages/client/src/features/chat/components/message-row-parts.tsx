@@ -1,13 +1,13 @@
 // message-row.tsx's render helpers, split out to stay under the component-size cap. No state of its
 // own — every export is a pure (args) => ReactElement/ReactNode the row calls with already-resolved data.
+// The row's HEADER (speaker · timestamp · actions) and its placement decision are a second module,
+// message-row-header.tsx, split off when #288 pushed this file past the cap.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
-import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Stack } from "@orb/ui/layout";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
@@ -16,14 +16,12 @@ import { cn, renderMessageForDisplay } from "#lib";
 
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
-import { BG_PHOTO_CHROME_PLATE, STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
+import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
-import { MessageActionsRow } from "./message-actions-row.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
-import { MessageTimestamp } from "./message-metadata-row.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 import { SwipeStrip } from "./swipe-strip.tsx";
@@ -99,6 +97,11 @@ export function renderRowBubble(args: {
    *  the body — the same place the streaming ghost puts it, so commit doesn't jump the affordance out of the
    *  bubble. Trains (Tide) have no single bubble, so it leads the paragraph stack instead. */
   readonly reasoning: ReactNode;
+  /** #288 — the speaker header, when this skin's `headerPlacement` is `inside`; null when it is not (the
+   *  row renders it as a sibling above instead). It leads the container's content in EVERY bubble shape —
+   *  the plain box, whisper's below-the-band stack and ripple's welded-portrait row — so "one container"
+   *  is a property of the anatomy rather than of one branch. */
+  readonly header: ReactNode;
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
@@ -120,6 +123,7 @@ export function renderRowBubble(args: {
     args.trainParagraphs === null ? (
       renderSingleBubble({
         role: args.role,
+        header: args.header,
         content:
           args.reasoning === null ? (
             args.content
@@ -134,7 +138,12 @@ export function renderRowBubble(args: {
         weldedAvatar: args.weldedAvatar,
       })
     ) : (
+      // A train has no single container, so an `inside` header would have nowhere to be inside — `tide` is
+      // declared `outside` for exactly that reason and never reaches this with a header. Rendering it at
+      // the head of the stack anyway keeps the slot TOTAL: a future trains skin that chose `inside` would
+      // paint a header above its pills, never silently drop the speaker.
       <Stack gap="field" data-slot="message-bubble-train">
+        {args.header}
         {args.reasoning}
         {args.trainParagraphs.map((paragraph, index) => (
           <Stack
@@ -168,27 +177,6 @@ export function renderRowBubble(args: {
   );
 }
 
-function renderAttributionName(attribution: RowAttribution): ReactElement | null {
-  if (attribution.name === null) {
-    return null;
-  }
-  // The speaker's name IS the name of this row's one datum — the `label` voice (density-pass-spec.md §2.3).
-  if (attribution.tokens === null) {
-    return (
-      <Text as="span" voice="label">
-        {attribution.name}
-      </Text>
-    );
-  }
-  return (
-    <ThemeScope tokens={attribution.tokens} className="contents">
-      <Text as="span" voice="label" className="text-speaker">
-        {attribution.name}
-      </Text>
-    </ThemeScope>
-  );
-}
-
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via
 // position:sticky, forcing shape="square" regardless of the avatarShape pref. Its weld rounds only the
 // outer edge (away from the bubble it welds to — mirrored for role==="user") so the inner edge sits
@@ -202,10 +190,20 @@ export function renderRowAvatar(args: {
   readonly avatarShape: "round" | "square" | "rounded";
   readonly avatarAspect: "square" | "portrait";
   readonly avatarRing: "none" | "accent";
+  /** #288 — the gutter chip aligns with the SPEAKER'S NAME, and since the header moved inside the
+   *  container that line starts one `--spacing-row` below the container's top edge. Without this the chip
+   *  top-aligned with the box instead of the name and sat 8px high of it (measured; the "chip top-aligns
+   *  with the name row" CT is the fence). ST's own refs align the chip to the header line, not the card.
+   *  False for an `outside` skin, where the header IS the column's first line and nothing is offset. */
+  readonly alignToInsideHeader: boolean;
 }): ReactElement | null {
   if (args.attribution.name === null || !args.showInChatAvatars) {
     return null;
   }
+  // The welded portrait spans the card and has no line to align to — offset only the gutter chip.
+  // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (the `avatarSrcProp`
+  // precedent one file over).
+  const headerOffset = args.alignToInsideHeader ? { className: "mt-row" } : {};
   if (args.avatarTreatment === "sticky-portrait") {
     const weldRounding = args.role === "user" ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
     return (
@@ -231,157 +229,11 @@ export function renderRowAvatar(args: {
       ring={args.avatarRing}
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
+      {...headerOffset}
       {...avatarSrcProp(args.attribution.avatarHash)}
     >
       {initialsFor(args.attribution.name)}
     </Avatar>
-  );
-}
-
-// The name-row left cluster (D66 N3): the speaker name (when a roster is threaded) + the quiet inline
-// timestamp beside it. Split out (not inlined in message-row.tsx) so the row body stays under the
-// cognitive-complexity ceiling. Renders nothing when there is neither a name nor a shown timestamp.
-function renderRowIdentity(args: { readonly attribution: RowAttribution; readonly message: MessageView; readonly showTimestamp: boolean }): ReactNode {
-  const { attribution, message, showTimestamp } = args;
-  if (attribution.name === null && !showTimestamp) {
-    return null;
-  }
-  return (
-    <Row gap="field" align="baseline">
-      {attribution.name === null ? null : (
-        <Row gap="field" align="baseline" data-slot="message-attribution">
-          {renderAttributionName(attribution)}
-        </Row>
-      )}
-      <MessageTimestamp message={message} show={showTimestamp} />
-    </Row>
-  );
-}
-
-/** The name row's FRAME — the ONE home for the chrome row's anatomy, shared by the settled row
- *  ({@link renderRowNameRow}) and the streaming ghost ({@link renderGhostNameRow}, #116). Both must carry
- *  the same `data-slot`, the same two stacking backings and the same sticky mechanics, because #113's pin
- *  is keyed off exactly this element: a ghost with its own hand-spelled name row would be a second home
- *  that silently stops inheriting the next fix to this one.
- *
- *  Two backings can land on it, and they are ALTERNATIVES, not layers (#168):
- *   · `BG_PHOTO_CHROME_PLATE` — the wallpaper-gated legibility chip (plate + paired ink, #204 derive
- *     law). UNCONDITIONAL here since #167: the speaker name and its timestamp are a GUARANTEE over any
- *     art in any skin, and the name row is above the bubble box in every mode, so no mode's fill can
- *     back it (the old per-skin `RowSkin.chromeBacking` opt-in left both roles naked in the five
- *     bubble-family skins — see message-row-backing.ts for the reversal and its live receipt).
- *     Self-gated on the shell's `data-has-bg-image`: no wallpaper, no chip.
- *   · `STICKY_ATTRIBUTION_CHROME` (#113) — pin + OPAQUE chip, any mode, only for a row the virtualizer
- *     measured as taller than the scrollport. It is the row's one RAISED layer (z-order:
- *     message-row-backing.ts).
- *
- *  The sticky chip SUPERSEDES the wallpaper one because an opaque fill is a strict superset of a
- *  translucent plate, and both spell the same property: applied together,
- *  `in-data-[has-bg-image]:bg-reading-plate` outranks a plain `bg-reading-band` on specificity (the two
- *  are the same COLOUR since #241 — but not the same ALPHA, which is the whole ruling), so over ART —
- *  the exact mount #168's live receipt came from — the band would stay translucent and keep showing the
- *  prose scrolling under it. Layout neutrality is unchanged by the swap: over art both arms carry one
- *  `py-row`, and without art the sticky arm's own `-my-row` cancels its `py-row` (pinned by the
- *  "supersedes without doubling the box" CT).
- *
- *  THE ACTION CLUSTER CONTRIBUTES NO HEIGHT (#204 — the owner's "phantom empty scrim bands" and "the
- *  name is separated from the messages", both one mechanism). The hover-reveal cluster is a 34px row of
- *  icon buttons that is `opacity: 0` at rest but stayed IN FLOW at full height — so the painted chip
- *  measured 50px around a 16px name (50 = 34 + 2×py-row): the empty top/bottom thirds were the phantom
- *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster now
- *  rides a ZERO-HEIGHT flex wrapper (`h-0` + centered items): it keeps its full WIDTH in flow (the A3
- *  geometry pin — a name can never be starved sideways), its buttons paint/hit-test centered on the
- *  text line (overflow is visible; ±1px past the chip box), and reveal remains opacity-only, so hover
- *  still reflows NOTHING. The chip hugs `name + 2×py-row` (~32px) in BOTH backing arms — the sticky
- *  arm's layout-neutrality measurement holds because both arms shrink together. */
-function nameRowFrame(args: { readonly identity: ReactNode; readonly actions: ReactNode; readonly stickyAttribution: boolean }): ReactElement {
-  return (
-    <Row
-      justify="between"
-      align="center"
-      gap="field"
-      data-slot="message-name-row"
-      data-sticky={args.stickyAttribution ? "" : undefined}
-      className={args.stickyAttribution ? STICKY_ATTRIBUTION_CHROME : BG_PHOTO_CHROME_PLATE}
-    >
-      {args.identity}
-      {args.actions === null ? null : (
-        <Row align="center" className="h-0" data-slot="message-actions-slot">
-          {args.actions}
-        </Row>
-      )}
-    </Row>
-  );
-}
-
-/** The settled row's chrome row: the identity cluster on the left, the action cluster on the right. Split
- *  out of `message-row.tsx` so that row's body stays under the cognitive-complexity ceiling. */
-export function renderRowNameRow(args: {
-  readonly attribution: RowAttribution;
-  readonly message: MessageView;
-  readonly showTimestamp: boolean;
-  readonly stickyAttribution: boolean;
-  readonly actions: ReactNode;
-}): ReactElement {
-  return nameRowFrame({
-    identity: renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp }),
-    actions: args.actions,
-    stickyAttribution: args.stickyAttribution,
-  });
-}
-
-/** THE LIVE TURN'S NAME ROW (#116) — the same anatomy as the settled row's, minus the two clusters a
- *  pre-commit turn has no data for: there is no `MessageView` yet, so no timestamp, and the action cluster
- *  (edit/swipe/kebab) only exists for canon. What is left is exactly the fact the ghost was missing: WHO is
- *  speaking, for the whole minutes-long generation, in a group room where arbitration picks the speaker.
- *
- *  Riding the shared frame is what buys #113's sticky pin for the live turn for free — once the growing
- *  ghost exceeds the scrollport the surface passes `stickyAttribution` and the name pins to the top of the
- *  scrollport with the stream flowing under it, layout-neutral (`-my-row` cancels `py-row`).
- *
- *  ARIA: plain text inside the transcript's `role="log"`/`aria-live="polite"` region, and nothing more. It
- *  is deliberately NOT given a second accessible home (no `role="article"`/`aria-label` on the ghost, the
- *  way the settled row has one): the region is not `aria-atomic`, so the name enters the announcement
- *  stream exactly ONCE, when the row appears, and every later delta announces only the delta. */
-export function renderGhostNameRow(args: { readonly attribution: RowAttribution | undefined; readonly stickyAttribution: boolean }): ReactElement | null {
-  const attribution = args.attribution;
-  if (attribution === undefined || attribution.name === null) {
-    return null;
-  }
-  return nameRowFrame({
-    identity: (
-      <Row gap="field" align="baseline" data-slot="message-attribution">
-        {renderAttributionName(attribution)}
-      </Row>
-    ),
-    actions: null,
-    stickyAttribution: args.stickyAttribution,
-  });
-}
-
-export function renderRowActions(args: {
-  readonly editing: boolean;
-  readonly selecting: boolean;
-  readonly message: MessageView;
-  readonly onChatForked: ((chatId: ChatId) => void) | undefined;
-  readonly messageActions: "expanded" | "hover" | undefined;
-  /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
-  readonly viewerIsHost: boolean | undefined;
-  /** #167 — the raw model identifier this reply is credited to, already gated by the `showModelIcon`
-   *  appearance toggle upstream; null ⇒ no credit. The cluster derives its DISPLAY name. */
-  readonly modelCredit: string | null;
-}): ReactNode {
-  if (args.editing || args.selecting) {
-    return null;
-  }
-  return (
-    <MessageActionsRow
-      message={args.message}
-      onChatForked={args.onChatForked}
-      messageActions={args.messageActions}
-      viewerIsHost={args.viewerIsHost}
-      modelCredit={args.modelCredit}
-    />
   );
 }
 

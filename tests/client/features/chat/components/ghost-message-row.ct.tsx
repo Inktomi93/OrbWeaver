@@ -344,20 +344,32 @@ const NAME_ROW = '[data-slot="message-name-row"]';
 const GHOST_ROW = '[data-slot="ghost-message-row"]';
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
-test("#116: a streaming turn names its speaker — the name row leads the ghost's content column", async ({ mount }) => {
+test("#116/#288: a streaming turn names its speaker — the header leads the ghost's CONTAINER", async ({ mount }) => {
   const component = await mount(<GhostRowScriptedStory chunks={["The lantern gutters. "]} speakerName="Marguerite" />);
   await driveScript(component, 1);
 
   const nameRow = component.locator(NAME_ROW);
   await expect(nameRow).toBeVisible();
   await expect(nameRow).toContainText("Marguerite");
-  // ANATOMY: the name row is a SIBLING ABOVE the bubble inside the content column, exactly as the settled
-  // row composes it — not inside the bubble, where it would scroll away with the prose.
-  const [nameBox, bubbleBox] = await Promise.all([nameRow.boundingBox(), component.locator('[data-slot="message-bubble"]').boundingBox()]);
+  // ANATOMY, truth-repaired by #288. This used to pin "a SIBLING ABOVE the bubble" — the anatomy every
+  // skin had. Seven of the eight now render the header as the container's own header row, and the claim
+  // that matters for the GHOST is the one that was always the point: it composes the way the SETTLED row
+  // composes, so commit does not jump the speaker's name out of the box it was streaming in. Pinned as
+  // containment plus leading position, which is that claim and not a coordinate.
+  const bubble = component.locator('[data-slot="message-bubble"]');
+  await expect(bubble.locator(NAME_ROW)).toHaveCount(1);
+  const [nameBox, bubbleBox] = await Promise.all([nameRow.boundingBox(), bubble.boundingBox()]);
   if (nameBox === null || bubbleBox === null) {
     throw new Error("expected both the ghost's name row and its bubble to be laid out");
   }
-  expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(bubbleBox.y + 1);
+  // It LEADS the container: first child in the box, and above the streamed prose rather than beside it.
+  await expect(bubble.locator("> *").first()).toHaveAttribute("data-slot", "message-name-row");
+  const proseBox = await component.getByText("The lantern gutters", { exact: false }).boundingBox();
+  if (proseBox === null) {
+    throw new Error("expected the ghost's streamed prose to be laid out");
+  }
+  expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(proseBox.y + 1);
+  expect(nameBox.y).toBeGreaterThanOrEqual(bubbleBox.y);
 });
 
 test("#116: with no resolved attribution the ghost is byte-identically bare — no empty name row", async ({ mount }) => {
@@ -432,12 +444,17 @@ test("#116: the aria-live semantics are UNCHANGED — the name enters the announ
 
   const ghost = component.locator(GHOST_ROW);
   await expect(ghost).toHaveCount(1);
+  // BARRIER ON THE SETTLED ARM. The pending TypingDots ARE a live region and are the one legal descendant
+  // before the first token; sampling before the first chunk has painted catches them and reads as a
+  // regression. Wait for streamed prose, then sample. (Caught as an intermittent red while #288 moved the
+  // header into the bubble — the extra child shifted the commit enough to lose the race sometimes.)
+  await expect(component.getByText("The lantern gutters", { exact: false })).toBeVisible();
   const aria = await ghost.evaluate((el: HTMLElement) => ({
     role: el.getAttribute("role"),
     label: el.getAttribute("aria-label"),
     live: el.getAttribute("aria-live"),
     atomic: el.getAttribute("aria-atomic"),
-    liveDescendants: el.querySelectorAll("[aria-live],[role=status],[role=alert],[aria-atomic]").length,
+    liveDescendants: [...el.querySelectorAll("[aria-live],[role=status],[role=alert],[aria-atomic]")].map((n) => n.outerHTML.slice(0, 120)),
   }));
   expect(aria.role).toBeNull();
   expect(aria.label).toBeNull();
@@ -445,7 +462,7 @@ test("#116: the aria-live semantics are UNCHANGED — the name enters the announ
   expect(aria.atomic).toBeNull();
   // The ONE live-region descendant a streaming ghost is allowed is the pending typing indicator, and it is
   // gone by the first token — so mid-stream there is nothing announcing on its own.
-  expect(aria.liveDescendants).toBe(0);
+  expect(aria.liveDescendants).toEqual([]);
   // …and the speaker's name appears exactly once in the row's text, not once in chrome + once in a label.
   const occurrences = await ghost.evaluate((el: HTMLElement) => (el.textContent ?? "").split("Marguerite").length - 1);
   expect(occurrences).toBe(1);

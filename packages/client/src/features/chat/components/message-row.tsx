@@ -27,15 +27,8 @@ import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
-import {
-  renderRowActions,
-  renderRowAvatar,
-  renderRowBubble,
-  renderRowNameRow,
-  renderRowReasoning,
-  renderRowSwipe,
-  resolveRowContent,
-} from "./message-row-parts.tsx";
+import { placeRowHeader, renderRowActions, renderRowNameRow } from "./message-row-header.tsx";
+import { renderRowAvatar, renderRowBubble, renderRowReasoning, renderRowSwipe, resolveRowContent } from "./message-row-parts.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
 
 export interface MessageRowProps {
@@ -269,6 +262,7 @@ export function MessageRow({
     avatarShape,
     avatarAspect,
     avatarRing,
+    alignToInsideHeader: skin.headerPlacement === "inside",
   });
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || role === "user" ? null : avatarNode;
@@ -285,6 +279,23 @@ export function MessageRow({
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
   const modelCredit = resolveModelCredit(message, metadataVisibility);
+  // #288 — THE HEADER IS BUILT ONCE AND PLACED ONCE. `inside` (seven of the eight skins) hands it to the
+  // bubble, which renders it as the container's own header row; `outside` (tide, whose train of pills has
+  // no single container to be inside) keeps the pre-#288 sibling above the box. Splitting the node from
+  // its placement is what makes "one header" structural rather than a convention two branches must agree
+  // on — see `HeaderPlacement` in message-row-variants.ts for the two-plate defect it closes.
+  const header = placeRowHeader(
+    renderRowNameRow({
+      attribution,
+      message,
+      role,
+      showTimestamp: metadataVisibility.showTimestamps,
+      stickyAttribution,
+      placement: skin.headerPlacement,
+      actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost, modelCredit }),
+    }),
+    skin.headerPlacement,
+  );
 
   return (
     // The boundary divider is a sibling before the article, never nested inside role="article".
@@ -311,16 +322,11 @@ export function MessageRow({
               suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
               longer draft can still grow the box out to the column's own cap. */}
           <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1" style={resolveColumnStyle(skin.columnStyle, reservedInlineSize)}>
-            {renderRowNameRow({
-              attribution,
-              message,
-              showTimestamp: metadataVisibility.showTimestamps,
-              stickyAttribution,
-              actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost, modelCredit }),
-            })}
+            {header.above}
             {renderRowBubble({
               role,
               message,
+              header: header.inside,
               content,
               reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
               trainParagraphs,
