@@ -44,8 +44,20 @@ export function SectionContent({ activeSection, contentBySection, fallback, focu
 
   const prevActiveRef = useRef<SectionId>(activeSection);
   useLayoutEffect(() => {
-    if (prevActiveRef.current !== activeSection) {
-      prevActiveRef.current = activeSection;
+    if (prevActiveRef.current === activeSection) {
+      return;
+    }
+    prevActiveRef.current = activeSection;
+    // Restore focus to the content anchor ONLY when the swap actually DROPPED focus — i.e. the element
+    // that held it was inside the content Activity now being hidden, so the browser has already moved focus
+    // to <body>/null (a display:none subtree cannot hold it). Stealing focus UNCONDITIONALLY also fired on
+    // rail NAVIGATION, where focus sits on the rail button the user just activated: it yanked focus into
+    // <main>, PAST the LIST pane's primary create action (the band is DOM-before <main>), so a forward-Tab
+    // could never reach "New character" et al. on any library section (a11y #283). Left where it is, the
+    // natural DOM order (rail → list-band primary → content) keeps that primary in the arrival tab order,
+    // while the genuine focus-loss case (WCAG: a hidden subtree can't hold focus) is still restored below.
+    const active = document.activeElement;
+    if (active === null || active === document.body) {
       focusAnchorRef.current?.focus();
     }
   }, [activeSection, focusAnchorRef]);
