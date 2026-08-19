@@ -19,7 +19,9 @@
 // LIFECYCLE (single active stage, keyed by sha — one fixed offset port pair, so it never self-collides):
 //   • Stage worktree cached at .cache/snap-stage/<short-sha>/ (`.cache/` is gitignored wholesale).
 //   • `pnpm install` there once — the shared pnpm store makes it cheap (hardlinks, no re-download).
-//   • The stage's OWN db (a best-effort copy of the dev db, so real data renders — ISOLATED, stage writes
+//   • The stage's OWN db — MEASURED 2026-08-18: NOT a copy of the dev db (a stage booted with 6 chats vs the
+//     live 895); boot-seeded content only. A seeded-row surface or a chat-by-id from the owner's corpus is
+//     unreachable here — rendered receipts for those come from CT or live-main. (ISOLATED, stage writes
 //     never touch dev's) + assets (symlink to the content-addressed dev blob dir; reads are safe).
 //   • Boots the WORKTREE's stack.sh with offset PORT/VITE_PORT/VITE_API_TARGET/DATABASE_URL/ASSETS_DIR, and
 //     stays WARM (setsid-detached) for reuse across snap calls.
