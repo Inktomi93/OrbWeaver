@@ -7,7 +7,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { ArrowLeft, ChartColumn, Icon } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Grid, Section, Stack } from "@orb/ui/layout";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -85,7 +85,9 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Section heading="Activity">
         <Stack gap="block">
-          <Row gap="block" className="flex-wrap">
+          {/* A real grid, not flex-wrap (side-eye rail-analytics 2026-08-19 Taste) — even 1fr tracks at a
+              fixed column-min, so the column-gap is uniform at every width instead of the flex voids. */}
+          <Grid cols="cell" gap="block">
             <StatFigure label="Chats" value={formatCompact(stats.chats)} />
             <StatFigure label="Replies" value={formatCompact(stats.assistantTurns)} />
             <StatFigure label="Your turns" value={formatCompact(stats.userTurns)} />
@@ -96,7 +98,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             <StatFigure label="Words" value={formatCompact(stats.userWords + stats.assistantWords)} />
             <StatFigure label="Assistant words" value={formatCompact(stats.assistantWords)} />
             <StatFigure label="Forked chats" value={formatCompact(stats.forkedChats)} />
-          </Row>
+          </Grid>
           <Text voice="gloss">
             Words counts your turns and the replies you kept; the {formatCompact(stats.swipeWords)} words in swipes you didn't keep are not included.
           </Text>
@@ -105,7 +107,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Section heading="Economics">
         <Stack gap="block">
-          <Row gap="block" className="flex-wrap">
+          <Grid cols="cell" gap="block">
             <StatFigure label="Tokens in" value={formatCount(stats.tokensIn)} />
             <StatFigure label="Tokens out" value={formatCount(stats.tokensOut)} />
             <StatFigure label="Spend" value={formatUsd(stats.costUsd)} />
@@ -118,7 +120,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
                 unrendered rollup column. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
             <StatFigure label="Throughput" value={`${stats.throughputTps.toFixed(1)} t/s`} />
-          </Row>
+          </Grid>
           <Text voice="gloss">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a
             dash here. {UNRECORDED_NOTE}
@@ -127,14 +129,14 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       </Section>
 
       <Section heading="Latency">
-        <Row gap="block" className="flex-wrap">
+        <Grid cols="cell" gap="block">
           <StatFigure label="Avg TTFT" value={formatMs(latency.avgTtftMs)} />
           <StatFigure label="p50 TTFT" value={formatMs(latency.p50TtftMs)} />
           <StatFigure label="p90 TTFT" value={formatMs(latency.p90TtftMs)} />
           <StatFigure label="Avg gen" value={formatMs(latency.avgGenMs)} />
           <StatFigure label="p50 gen" value={formatMs(latency.p50GenMs)} />
           <StatFigure label="p90 gen" value={formatMs(latency.p90GenMs)} />
-        </Row>
+        </Grid>
       </Section>
     </Stack>
   );

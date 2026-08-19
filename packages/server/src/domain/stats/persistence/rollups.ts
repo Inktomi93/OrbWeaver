@@ -34,6 +34,12 @@ const DEFAULT_LIMIT = 50;
 const UNKNOWN_PROVIDER = "(unknown)";
 const DAY_MS = 86_400_000;
 
+/** Escape the LIKE metacharacters (`%` `_`) and the escape char itself so a user's search term matches
+ *  literally — paired with an `ESCAPE '\'` clause at every call site. */
+function escapeLike(term: string): string {
+  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
 export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsView | null> {
   const row = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
   if (!row) {
@@ -131,21 +137,31 @@ export async function readLeaderboard(db: Db, ownerId: UserId, opts: Leaderboard
     lastActivityAt: characterStats.lastActivityAt,
   } as const;
   const col = sortCols[sort];
+  // The LIST-pane name search (the same predicate narrows the page AND the census below, so a searched
+  // band reads an honest "N of M matches"). Wildcards in the term are escaped so a name with `%`/`_`
+  // matches literally; the comparison is lowered on both sides for a case-insensitive match on unicode
+  // names SQLite's ASCII-only LIKE would miss. Empty/whitespace ⇒ no predicate (the whole population).
+  const needle = (opts.search ?? "").trim();
+  const pattern = needle === "" ? null : `%${escapeLike(needle.toLowerCase())}%`;
+  const nameMatch = pattern === null ? undefined : sql`lower(${characters.name}) LIKE ${pattern} ESCAPE '\\'`;
+  const rowsWhere = nameMatch === undefined ? eq(characters.ownerId, ownerId) : and(eq(characters.ownerId, ownerId), nameMatch);
   const rows = await db
     .select({ cs: characterStats, name: characters.name })
     .from(characterStats)
     .innerJoin(characters, eq(characters.id, characterStats.characterId))
-    .where(eq(characters.ownerId, ownerId))
+    .where(rowsWhere)
     .orderBy(desc(col))
     .limit(limit);
-  // The RANKED population, not the library: the same JOIN + owner predicate as the page above, uncapped.
-  // Without it a consumer can only print `rows.length`, which silently becomes the cap (D: "ANALYTICS 50").
+  // The RANKED population, not the library: the same JOIN + owner predicate (and the same optional name
+  // filter) as the page above, uncapped. Without it a consumer can only print `rows.length`, which
+  // silently becomes the cap (D: "ANALYTICS 50"); under a search it becomes the MATCH count.
+  const searchFilter = pattern === null ? sql`` : sql` AND lower(c.name) LIKE ${pattern} ESCAPE '\\'`;
   const total =
     (
       await db.all<{ n: number }>(sql`
     SELECT COUNT(*) AS n FROM character_stats cs
     JOIN characters c ON c.id = cs.character_id
-    WHERE c.owner_id = ${ownerId}
+    WHERE c.owner_id = ${ownerId}${searchFilter}
   `)
     )[0]?.n ?? 0;
   return {
