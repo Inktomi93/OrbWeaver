@@ -8,6 +8,7 @@
 // Owner = `runAsUserId` (the host, who funds + owns the turn). `triggeredBy` is the budget axis, not the
 // stats owner — they differ in a hosted by-proxy turn.
 
+import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { modelKey, utcDay, wordCount } from "@orb/kit/stats-tally";
@@ -27,6 +28,10 @@ interface TurnEconomicsInput {
   readonly genTimeMs?: number | null | undefined;
   /** The generation's context window → `owner_stats.maxContextTokens` (a MAX extremum, owner grain only). */
   readonly contextWindow?: number | null | undefined;
+  /** The variant's OPEN metadata sidecar — read for `reasoning_duration` only (#184). The swipe/continue
+   *  builders below read the same key off the COMMITTED row; this is the new-slot path's copy of it, so all
+   *  three modes contribute reasoning time and the live writer can't drift from a rebuild on this column. */
+  readonly metadata?: Record<string, unknown> | null | undefined;
 }
 
 /** Set `target[key]` only when `value` is a real number (omit absent economics). */
@@ -46,11 +51,13 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
   if (model === null) {
     return {};
   }
+  const reasoningMs = reasoningMsOf(e.metadata ?? null);
   return {
     modelGenerations: 1,
     // A gen-time sample is counted only when a gen time is present, symmetric with the delete mirror.
     modelGenSamples: has(e.genTimeMs) ? 1 : 0,
     ...(typeof e.reasoning === "string" && e.reasoning.trim().length > 0 ? { modelReasoningGenerations: 1 } : {}),
+    ...(reasoningMs > 0 ? { modelReasoningMs: reasoningMs } : {}),
     ...(has(e.tokensIn) ? { modelTokensIn: e.tokensIn } : {}),
     ...(has(e.tokensOut) ? { modelTokensOut: e.tokensOut } : {}),
     ...(has(e.costUsd) ? { modelCostUsd: e.costUsd } : {}),
@@ -84,6 +91,10 @@ export function assistantTurnDelta(params: {
   setNum(optional, "dailyTokensOut", e.tokensOut);
   // A reasoningGeneration counts only on trim().length > 0 (a whitespace-only thinking block is not one).
   const hasReasoning = typeof e.reasoning === "string" && e.reasoning.trim().length > 0;
+  // #184: the measured reasoning window the turn stamped into the variant's metadata. Before it had a live
+  // producer this was structurally always 0 here, which is why the new-slot builder never carried it while
+  // the swipe/continue builders (reading the committed row) did — a drift that could not fire until now.
+  const reasoningMs = reasoningMsOf(e.metadata ?? null);
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
@@ -95,6 +106,7 @@ export function assistantTurnDelta(params: {
     contentBytes: e.content.length,
     genSamples: typeof e.genTimeMs === "number" ? 1 : 0,
     ...(hasReasoning ? { reasoningGenerations: 1 } : {}),
+    ...(reasoningMs > 0 ? { reasoningMs } : {}),
     ...(has(e.contextWindow) ? { maxContextTokens: e.contextWindow } : {}),
     lastAt: params.now,
     now: params.now,
@@ -186,9 +198,11 @@ interface SwipeRowInput {
   readonly metadata: Record<string, unknown> | null;
 }
 
-/** metadata.reasoning_duration as non-negative rounded ms, or 0 (mirrors the rebuild's `reasoningMsOf`). */
+/** metadata.reasoning_duration as non-negative rounded ms, or 0 (mirrors the rebuild's `reasoningMsOf`).
+ *  The key has ONE home (`VARIANT_METADATA_REASONING_MS_KEY`), shared with the live turn's writer — this
+ *  reader is exactly the half that had no live producer until #184. */
 function reasoningMsOf(metadata: Record<string, unknown> | null): number {
-  const d = Number(metadata?.["reasoning_duration"]);
+  const d = Number(metadata?.[VARIANT_METADATA_REASONING_MS_KEY]);
   return Number.isFinite(d) && d > 0 ? Math.round(d) : 0;
 }
 

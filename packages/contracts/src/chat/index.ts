@@ -138,6 +138,7 @@ export {
   standaloneVariableDeltasSchema,
   toolCallRecordSchema,
   userMacroDrawsSchema,
+  VARIANT_METADATA_REASONING_MS_KEY,
   variableDeltaSchema,
   varOpSchema,
 } from "./messages.ts";

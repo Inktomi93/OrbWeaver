@@ -11,7 +11,7 @@
 //   • no jsonSchema → the plain reply text (trimmed).
 //   • the spawn is the FIREWALL BASE (tools disabled, strict MCP, no settings), maxTurns:2, NO resume/
 //     sessionStore (a stateless utility turn), and `maxTokens` rides the output-cap env override.
-//   • temperature/minP/repetitionDetection are DROPPED (no sampling on the agent-sdk).
+//   • temperature/minP are DROPPED (no sampling on the agent-sdk).
 //   • whole-batch-on-first-error: one failed item rejects the whole batch (the vLLM/OR convention).
 //   • the per-item watchdog aborts a hung turn (fake timers).
 
@@ -261,7 +261,6 @@ describe("agent-sdk summarize", () => {
         maxTokens: 256,
         temperature: 0.9,
         minP: 0.05,
-        repetitionDetection: { maxPatternSize: 4, minCount: 3 },
       }),
     );
 
@@ -272,7 +271,6 @@ describe("agent-sdk summarize", () => {
     // No sampling knobs reach the SDK options (the agent-sdk exposes none).
     expect(options).not.toHaveProperty("temperature");
     expect(options).not.toHaveProperty("minP");
-    expect(options).not.toHaveProperty("repetitionDetection");
   });
 
   test("a batch summarizes every input, index-aligned, one turn per item", async () => {

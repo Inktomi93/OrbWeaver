@@ -105,17 +105,12 @@ describe("runVllmChatCompletion", () => {
       maxTokens: 256,
       temperature: 0.3,
       minP: 0.05,
-      repetitionDetection: { maxPatternSize: 4, minCount: 3 },
     });
 
     const body = need(bodies[0]);
     expect(body["max_tokens"]).toBe(256);
     expect(body["temperature"]).toBe(0.3);
     expect(body["min_p"]).toBe(0.05);
-    const rd = body["repetition_detection"] as Record<string, number>;
-    expect(rd["max_pattern_size"]).toBe(4);
-    expect(rd["min_pattern_size"]).toBe(1); // defaulted
-    expect(rd["min_count"]).toBe(3);
   });
 
   test("emits the penalty/nucleus sampler set (top_p/top_k/frequency_penalty/presence_penalty/repetition_penalty) when provided", async () => {
@@ -166,7 +161,6 @@ describe("runVllmChatCompletion", () => {
     const body = need(bodies[0]);
     expect("max_tokens" in body).toBe(false);
     expect("response_format" in body).toBe(false);
-    expect("repetition_detection" in body).toBe(false);
     // an unset penalty is ABSENT, never a fabricated 0/null (no-op knob doctrine).
     expect("presence_penalty" in body).toBe(false);
     expect("top_p" in body).toBe(false);

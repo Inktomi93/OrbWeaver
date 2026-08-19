@@ -273,9 +273,9 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
         idByName,
       });
     },
-    enqueueBackfill: ({ ownerId: o }): Promise<void> => {
+    enqueueBackfill: ({ ownerId: o }): Promise<boolean> => {
       backfills.push({ ownerId: o });
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
     reconcileStats: ({ ownerId: o }): Promise<void> => {
       reconciles.push({ ownerId: o });

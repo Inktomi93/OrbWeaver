@@ -160,7 +160,7 @@ function stImportContext(db: Db, ownerId: UserId, personas: Map<string, PersonaI
       personaByUserName: personas,
       bulkImportChats: createBulkImportChats(importCtx(db)),
       bulkImportPersonas: inert,
-      enqueueBackfill: (): Promise<void> => Promise.resolve(),
+      enqueueBackfill: (): Promise<boolean> => Promise.resolve(false),
       reconcileStats: (): Promise<void> => Promise.resolve(),
     },
   };

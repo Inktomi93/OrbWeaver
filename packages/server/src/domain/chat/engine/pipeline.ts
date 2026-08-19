@@ -57,6 +57,9 @@ import {
  *  uses for the RESULT (`Awaited<ReturnType<typeof runTurnPipeline>>`), so there is exactly one definition. */
 interface RunTurnPipelineArgs {
   readonly runChatTurn: RunChatTurnOp;
+  /** The turn's clock (`ChatContext.now`) — the pipeline's ONE time source, used to measure the reasoning
+   *  stream window. Injected, never ambient: no `Date.now()` in a verb (determinism law). */
+  readonly now: () => number;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** Resolves a parsed message-image ref → a model-fetchable URL, or null to drop it. */
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
@@ -137,6 +140,11 @@ interface TurnPipelineResult {
   readonly request: TurnRequest;
   readonly content: string;
   readonly reasoning: string | null;
+  /** The measured REASONING WINDOW in ms, summed over recursion depths — the live producer for
+   *  `message_variants.metadata.$.reasoning_duration` (#184), which the stats rollups read as `reasoningMs`.
+   *  Null ⇒ the turn never reasoned (or the window had no positive width): absence, never a fabricated 0.
+   *  See {@link reasoningClock} for exactly which window this is and why. */
+  readonly reasoningMs: number | null;
   readonly economics: TurnEconomics | null;
   readonly cacheBreakpointFromEnd: number | null;
   readonly droppedCount: number;
@@ -197,6 +205,57 @@ function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: 
   });
 }
 
+/**
+ * THE REASONING WINDOW (#184). `message_variants.metadata.$.reasoning_duration` had exactly one producer —
+ * the SillyTavern import — while three live readers rolled it into `reasoning_ms` on three stats tables, so a
+ * user's own reasoning-heavy turns were worth 0ms in their own stats and every rendered number was
+ * archaeology. Nothing upstream reports the figure: OpenAI-compatible wires carry reasoning as DELTAS and no
+ * backend sends a duration, so the only honest source is what the engine can WATCH.
+ *
+ * WHAT IS MEASURED: first reasoning delta → the moment the model starts answering (the first TEXT delta after
+ * reasoning began), or the last reasoning delta when the stream never turns to prose. Deliberately NOT
+ * turn-start → first-answer-token: that window also contains queueing, prefill and network, none of which is
+ * thinking. A window that never closes above 0ms yields `null` (a single instant is not a duration) — absence
+ * over a fabricated zero, the same posture the economics fields take.
+ *
+ * ONE-SHOT PER STREAM: once the answer starts, later reasoning deltas at the SAME depth do not reopen the
+ * window (they belong to a continuation the wire does not distinguish); a tool-recursion's next depth gets its
+ * own clock and the depths SUM, exactly as tokens do.
+ */
+function reasoningClock(now: () => number): {
+  readonly onReasoningDelta: () => void;
+  readonly onAnswerDelta: () => void;
+  readonly elapsedMs: () => number | null;
+} {
+  let startedAt: number | null = null;
+  let endedAt: number | null = null;
+  let closed = false;
+  return {
+    onReasoningDelta: (): void => {
+      if (closed) {
+        return;
+      }
+      const t = now();
+      startedAt ??= t;
+      endedAt = t;
+    },
+    onAnswerDelta: (): void => {
+      if (closed || startedAt === null) {
+        return;
+      }
+      endedAt = now();
+      closed = true;
+    },
+    elapsedMs: (): number | null => {
+      if (startedAt === null || endedAt === null) {
+        return null;
+      }
+      const span = Math.round(endedAt - startedAt);
+      return span > 0 ? span : null;
+    },
+  };
+}
+
 /** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` chunks
  *  collect for the engine's bus emit (D41 — the runner's honest-degrade codes, still in the infra vocabulary;
  *  the engine narrows them to chat's own); the terminal final chunk yields economics. The runner's
@@ -204,16 +263,19 @@ function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: 
 async function reduceStream(
   stream: AsyncIterable<{ kind: string }>,
   args: RunTurnPipelineArgs,
-): Promise<{ content: string; reasoning: string | null; economics: TurnEconomics | null; warnings: readonly WarningCode[] }> {
+): Promise<{ content: string; reasoning: string | null; economics: TurnEconomics | null; warnings: readonly WarningCode[]; reasoningMs: number | null }> {
   let text = "";
   let reasoning = "";
   let economics: TurnEconomics | null = null;
   const warnings: WarningCode[] = [];
+  const clock = reasoningClock(args.now);
   for await (const chunk of stream as AsyncIterable<TurnStreamChunk>) {
     if (chunk.kind === "text") {
+      clock.onAnswerDelta();
       text += chunk.text;
       args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
     } else if (chunk.kind === "reasoning") {
+      clock.onReasoningDelta();
       reasoning += chunk.text;
       args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
     } else if (chunk.kind === "warning") {
@@ -224,7 +286,7 @@ async function reduceStream(
   }
   const content = economics?.content ?? text;
   const finalReasoning = economics?.reasoning ?? (reasoning.length > 0 ? reasoning : null);
-  return { content, reasoning: finalReasoning, economics, warnings };
+  return { content, reasoning: finalReasoning, economics, warnings, reasoningMs: clock.elapsedMs() };
 }
 
 /** Strips a per-speaker canon row down to only its own speaker's content: removes a leaked leading
@@ -535,6 +597,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     request: structured.request,
     content: received.content,
     reasoning: received.reasoning,
+    // The MEASURED window, not a transform of the text — the receive pass rewrites reasoning bytes
+    // (regex scripts, the <think> demux) and none of that changes how long the model spent producing them.
+    reasoningMs: loop.reasoningMs,
     economics: loop.economics,
     cacheBreakpointFromEnd: structured.request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
@@ -685,12 +750,16 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
   economics: TurnEconomics | null;
   records: readonly ToolCallRecord[];
   warnings: readonly WarningCode[];
+  reasoningMs: number | null;
 }> {
   const { args, set } = input;
   let history = input.request.history;
   let content = "";
   let reasoning: string | null = null;
   let economics: TurnEconomics | null = null;
+  // The reasoning windows SUM across recursion depths, exactly as tokens do — each depth is its own
+  // generation, and a turn that reasons at three depths spent all three windows thinking.
+  let reasoningMs: number | null = null;
   const records: ToolCallRecord[] = [];
   // Deduped across depths: the same request-level degrade (a customParameters blob, a dropped knob) re-fires at
   // every recursion, but it is ONE degrade and the user gets ONE notice (the `image_dropped` "once" precedent).
@@ -707,6 +776,9 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
     if (reduced.reasoning !== null && reduced.reasoning.length > 0) {
       reasoning = (reasoning ?? "") + reduced.reasoning;
     }
+    if (reduced.reasoningMs !== null) {
+      reasoningMs = (reasoningMs ?? 0) + reduced.reasoningMs;
+    }
     economics = aggregateEconomics(economics, reduced.economics);
     const calls = pivotCalls(set, args.tools, reduced.economics);
     if (calls === null || args.tools === null) {
@@ -721,7 +793,7 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
     history = [...history, ...toolExchangeMessages(reduced.content, batch)];
     depth += 1;
   }
-  return { content, reasoning, economics, records, warnings: [...warnings] };
+  return { content, reasoning, economics, records, warnings: [...warnings], reasoningMs };
 }
 
 /** Recurses only when tools rode this request AND the finish reason says "tool" AND the reducer assembled
