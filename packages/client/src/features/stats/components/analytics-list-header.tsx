@@ -9,6 +9,12 @@
 // It is a non-suspending `useQuery` sharing the `leaderboard` cache with the list surface below (the
 // DEFAULT_SORT key), so no extra fetch: the title renders immediately and the count settles in place
 // instead of the whole band suspending.
+//
+// THE COUNT STATES A RELATIONSHIP, NOT A LENGTH (side-eye rail-analytics 2026-08-19 P2g). The band read
+// `ANALYTICS 50` against a 328-character library, because `rows.length` on a page capped at 50 IS the cap.
+// The verb now returns the ranked `total` beside the page, so a truncated band reads `50 of 328` — the
+// string arm of `ListPaneHeader.count`, minted for exactly this (a page-BOUNDED count that already read
+// `100+` off its own limit). An untruncated band keeps the bare number: `12 of 12` is noise.
 
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -18,7 +24,9 @@ import { ANALYTICS_DEFAULT_SORT } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsListHeader(): ReactElement {
   const trpc = useTRPC();
-  const { data: rows } = useQuery(trpc.stats.leaderboard.queryOptions({ sort: ANALYTICS_DEFAULT_SORT }));
+  const { data: page } = useQuery(trpc.stats.leaderboard.queryOptions({ sort: ANALYTICS_DEFAULT_SORT }));
+  const shown = page?.rows.length ?? 0;
+  const total = page?.total ?? 0;
 
-  return <ListPaneHeader count={rows?.length ?? 0} title="Analytics" />;
+  return <ListPaneHeader count={total > shown ? `${shown} of ${total}` : shown} title="Analytics" />;
 }

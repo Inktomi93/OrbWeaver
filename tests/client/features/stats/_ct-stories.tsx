@@ -4,7 +4,7 @@
 // the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) — the shell's own
 // consumers — driving the `header`/`listHeader` slots the analytics section supplies.
 
-import { AnalyticsListAnchor, AnalyticsListSurface, AnalyticsOverviewSurface } from "@orb/client/features/stats";
+import { AnalyticsListAnchor, AnalyticsListSurface, AnalyticsModelsTab, AnalyticsOverviewSurface, AnalyticsPersonasTab } from "@orb/client/features/stats";
 import { clearAnalyticsSelection, selectAnalyticsCharacter, useSectionRegistry } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -80,6 +80,54 @@ export function AnalyticsContextHeaderStory({ drilled }: AnalyticsContextHeaderS
       <CtRealSectionRegistry>
         <AnalyticsContextHeaderHarness />
       </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** Drives the drill selection the CONTEXT tabs read, then renders `children`. The selection is client
+ *  state (`#state`), not a prop, so a CT that wants the DRILLED arm has to set it the way the leaderboard
+ *  does. Seeded in an effect and cleared on unmount, mirroring the context-header story above. */
+function WithDrill({ drilled, children }: { readonly drilled: boolean; readonly children: ReactElement }): ReactElement {
+  useEffect(() => {
+    if (drilled) {
+      selectAnalyticsCharacter(ANALYTICS_DRILLED_ID);
+    } else {
+      clearAnalyticsSelection();
+    }
+    return (): void => clearAnalyticsSelection();
+  }, [drilled]);
+  return children;
+}
+
+export interface AnalyticsTabStoryProps {
+  /** `true` seeds a leaderboard drill — the state each CONTEXT tab must answer for honestly. */
+  readonly drilled: boolean;
+}
+
+/** The CONTEXT "Models" tab in either drill state (P1b): the model rollup has no character axis, so the
+ *  drilled arm must say so and must NOT render a second, owner-scoped copy of CONTENT's latency quartet. */
+export function AnalyticsModelsTabStory({ drilled }: AnalyticsTabStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <WithDrill drilled={drilled}>
+        <div style={{ height: 640, width: 420 }}>
+          <AnalyticsModelsTab />
+        </div>
+      </WithDrill>
+    </CtDataProviders>
+  );
+}
+
+/** The CONTEXT "Personas" tab in either drill state (P1b): `personaUsage` is a live canon GROUP BY, so
+ *  the drilled arm SCOPES (it does not merely caption). */
+export function AnalyticsPersonasTabStory({ drilled }: AnalyticsTabStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <WithDrill drilled={drilled}>
+        <div style={{ height: 640, width: 420 }}>
+          <AnalyticsPersonasTab />
+        </div>
+      </WithDrill>
     </CtDataProviders>
   );
 }

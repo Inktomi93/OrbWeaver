@@ -30,18 +30,34 @@ function ctxWith(stats: Partial<StatsService>): Context {
 
 describe("stats.leaderboard — sort wire-through", () => {
   test("passes the validated sort + limit to the service, scoped to the principal", async () => {
-    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => [] as LeaderboardRow[]);
+    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => ({ rows: [] as LeaderboardRow[], total: 0 }));
     await caller(ctxWith({ leaderboard })).stats.leaderboard({ sort: "swipes", limit: 10 });
     expect(leaderboard).toHaveBeenCalledWith(OWNER, { sort: "swipes", limit: 10 });
   });
 
   test("rejects a sort outside the LEADERBOARD_SORTS tuple at the wire boundary", async () => {
-    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => [] as LeaderboardRow[]);
+    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => ({ rows: [] as LeaderboardRow[], total: 0 }));
     await expect(
       // @ts-expect-error — "bogus" is not a LeaderboardSort; the z.enum derived from the tuple rejects it.
       caller(ctxWith({ leaderboard })).stats.leaderboard({ sort: "bogus" }),
     ).rejects.toThrow();
     expect(leaderboard).not.toHaveBeenCalled();
+  });
+});
+
+// P1b: the CONTEXT Personas tab narrows to the drilled character. The id is a PROJECTION filter — the
+// verb's ownerId stays the principal, so the wire-through must not be able to swap whose data is read.
+describe("stats.personaUsage — character scope wire-through", () => {
+  test("passes the validated characterId through, still scoped to the principal", async () => {
+    const personaUsage = vi.fn<StatsService["personaUsage"]>(async () => []);
+    await caller(ctxWith({ personaUsage })).stats.personaUsage({ characterId: CHARACTER });
+    expect(personaUsage).toHaveBeenCalledWith(OWNER, { characterId: CHARACTER });
+  });
+
+  test("no input reads the whole library", async () => {
+    const personaUsage = vi.fn<StatsService["personaUsage"]>(async () => []);
+    await caller(ctxWith({ personaUsage })).stats.personaUsage();
+    expect(personaUsage).toHaveBeenCalledWith(OWNER, { characterId: undefined });
   });
 });
 

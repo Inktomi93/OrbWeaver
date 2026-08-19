@@ -2,6 +2,12 @@
 // assistant-turn + output-token histogram), `temporal` (streaks / active days / busiest day + the
 // weekday activity vector as a bar-list), and `activityHeatmap` (the true 7×24 weekday×hour matrix as a
 // <Heatmap> with a VisualMap gradient + the peak cell). Read-only analytics.
+//
+// SCOPE HONESTY (side-eye rail-analytics 2026-08-19 P1b). `daily_stats` is owner+day grain — no character
+// axis — so `timeseries` and `temporal` cannot narrow to the leaderboard-drilled character whose face the
+// CONTEXT band shows. The tab says so rather than passing library numbers off as that character's. The
+// heatmap alone COULD scope (it is a canon scan), but a scoped chart between two unscoped ones is a worse
+// lie than one honest statement over a uniform tab.
 
 import { BarList } from "@orb/ui/bar-list";
 import { Heatmap } from "@orb/ui/heatmap";
@@ -13,6 +19,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { activityHeatmapMatrix, dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, weekdayBarItems } from "../lib/analytics-view-model.ts";
+import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 import { RhythmFigures } from "./rhythm-figures.tsx";
 
 export function AnalyticsTimeTab(): ReactElement {
@@ -35,6 +42,8 @@ function TimeBody(): ReactElement {
 
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsTimeTab")}>
+      <LibraryScopeNotice reason="Daily activity is rolled up per day across every character, with no per-character breakdown to narrow to." />
+
       <Section heading="Daily replies">
         <Histogram buckets={dailyTurnBuckets(points)} label="Assistant turns per day" />
       </Section>

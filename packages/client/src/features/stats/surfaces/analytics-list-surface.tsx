@@ -16,7 +16,14 @@ import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacter, useSelectedAnalyticsCharacterId } from "#state";
-import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS, formatCompact, formatDurationMs } from "../lib/analytics-view-model.ts";
+import {
+  ANALYTICS_DEFAULT_SORT,
+  ANALYTICS_SORT_OPTIONS,
+  disambiguatedNames,
+  formatCompact,
+  formatDurationMs,
+  formatTokens,
+} from "../lib/analytics-view-model.ts";
 
 // The sort-id union derived from the shared vocabulary (a local, non-exported alias — no-inline-types
 // gates EXPORTED types outside a contract home; this list-only union has no cross-boundary consumer).
@@ -58,15 +65,19 @@ export function AnalyticsListSurface(): ReactElement {
 function LeaderboardRows({ sort }: { readonly sort: SortId }): ReactElement {
   const trpc = useTRPC();
   const selectedId = useSelectedAnalyticsCharacterId();
-  const { data: rows } = useSuspenseQuery(trpc.stats.leaderboard.queryOptions({ sort }));
+  const { data: page } = useSuspenseQuery(trpc.stats.leaderboard.queryOptions({ sort }));
 
-  if (rows.length === 0) {
+  if (page.rows.length === 0) {
     return <Text voice="gloss">No characters have any rolled-up activity yet.</Text>;
   }
 
+  // Two characters can share a name; the row, its accessible name and the crown callout were then
+  // identical. The map is computed over the WHOLE page so a ref appears on both twins, never just one.
+  const names = disambiguatedNames(page.rows);
+
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="row" role="list">
-      {rows.map((row, index) => (
+      {page.rows.map((row, index) => (
         <ListRow
           key={row.characterId}
           data-testid={testId("analyticsLeaderboardRow")}
@@ -78,11 +89,11 @@ function LeaderboardRows({ sort }: { readonly sort: SortId }): ReactElement {
               {index + 1}
             </Text>
           }
-          title={row.name}
+          title={names[row.characterId] ?? row.name}
           subtitle={`${formatCompact(row.assistantTurns)} replies · ${formatDurationMs(row.totalGenTimeMs)}`}
           actions={
             <Text voice="gloss" className="whitespace-nowrap font-mono">
-              {formatCompact(row.tokensOut)} tok
+              {formatTokens(row.tokensOut)}
             </Text>
           }
         />

@@ -11,10 +11,13 @@ import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-b
 import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 
 const COMPUTED_AT = 1_750_000_000_000;
+/** A four-digit year — the tell that the `title=` carries the ABSOLUTE stamp, whatever the runner's locale. */
+const ABSOLUTE_STAMP = /\d{4}/;
 
 const OVERVIEW = {
   tokensIn: 1000,
   tokensOut: 2000,
+  swipeWords: 30_200_000,
   avgGenMs: 900,
   p50GenMs: 800,
   p90GenMs: 1500,
@@ -85,6 +88,81 @@ test("the Economics band renders the reasoning WINDOW beside the reasoning rate"
   await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText("45.0s");
   // The rate is a DIFFERENT question (how often it reasons) and must survive beside the duration.
   await expect(component.locator('[data-slot="stat-figure"]', { hasText: "Reasoning" }).first()).toBeVisible();
+});
+
+// ── The readout states what it is a readout OF (side-eye rail-analytics 2026-08-19) ────────────────
+// P1a: `Cache hits` divided cacheRead by (cacheRead + cacheWrite). Only Anthropic reports cache WRITES,
+// so on every other backend the tile was pinned at exactly 100% — a constant wearing a percentage's
+// clothes. The live wire: 32,217 read / 0 write / 1,664,309 in, rendered "100%" where the true share of
+// input was 1.9%. The denominator is now tokensIn, and it says so in the label.
+test("the cache tile names its denominator and reports the INPUT share, not a constant", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => ({ ...OVERVIEW, cacheHitRate: 0.019_36 }),
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  const figure = component.locator('[data-slot="stat-figure"]', { hasText: "Cache hits (of input)" });
+  await expect(figure).toHaveCount(1);
+  await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText("2%");
+});
+
+// P1a/P2a: an imported library records no cache tokens and no usage at all. It used to read `100%`,
+// `0 tok`, `$0.00` — three assertions about measurements that never happened.
+test("an unmeasured figure renders an em dash, never a zero", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => ({ ...OVERVIEW, cacheHitRate: null, tokensIn: null, tokensOut: null }),
+    "stats.wrapped": () => ({ ...WRAPPED, costUsd: null }),
+    "stats.momentum": () => MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  await Promise.all(
+    ["Cache hits (of input)", "Tokens in", "Tokens out", "Spend"].map(async (label) => {
+      const value = component.locator('[data-slot="stat-figure"]', { hasText: label }).locator('[data-slot="stat-figure-value"]');
+      await expect(value).toHaveText("—");
+    }),
+  );
+  // …and the surface TEACHES the dash rather than leaving a reader to guess it means zero.
+  await expect(component.getByText("A dash means the figure was never recorded", { exact: false }).first()).toBeVisible();
+});
+
+// P2d: "Words" meant user+assistant here and assistant-only on the drill, under the same label; and
+// 30.2M words of unselected swipes were excluded with no mention, right beside a "Swipes" tile.
+test("the Words definition and the swipe-word exclusion are stated where they are rendered", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  await expect(component.getByText("Words counts your turns and the replies you kept", { exact: false })).toBeVisible();
+  await expect(component.getByText("30.2M words in swipes you didn't keep", { exact: false })).toBeVisible();
+});
+
+// P2e: `2026-07 → 2026-08` is a machine sort key, printed in a column whose other time text is relative
+// prose ("Updated 4h ago"). One vocabulary per column: prose months, and the exact stamp in `title=`.
+test("the momentum band names its months and the freshness line carries the absolute stamp", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => ({ latestMonth: "2026-08", prevMonth: "2026-07", rising: [], falling: [] }),
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  await expect(component.getByText("July 2026 → August 2026")).toBeVisible();
+  await expect(component.getByText("2026-07", { exact: false })).toHaveCount(0);
+  await expect(component.getByText("Updated", { exact: false })).toHaveAttribute("title", ABSOLUTE_STAMP);
 });
 
 /** Park the `stats.reconcile` response until the returned release fires; everything else falls through to
