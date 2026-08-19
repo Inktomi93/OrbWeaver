@@ -135,6 +135,66 @@ test("an open typeahead never covers a result: row 1 is clickable with the sugge
   await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
 });
 
+// ── P2-B: A NEAREST-NEIGHBOUR ENGINE HAS NO EMPTY ARM, SO THE SURFACE HAS TO SAY SO ───────────────────
+// `zzqqxwvfoobarbaz` returned twenty rows at 39-41% and the live region announced them as results: cosine
+// always answers, so the omnibox structurally could not reach its "nothing matched" state. The fix labels
+// rather than hides — the measurement in `CORPUS_NEAREST_ONLY_BELOW` (a coherent off-topic query scores
+// BELOW gibberish on the digest index) is why hiding rows would be the wrong arm. These two tests are the
+// pair: the degraded arm SAYS it, and a real answer is untouched.
+/** Digest relevances under the measured digest band (0.61) — what gibberish scores against that index. */
+const NOISE_HITS: TrpcRoutes = {
+  "search.search": {
+    over: "digests",
+    hits: [
+      {
+        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selene" },
+        score: 0,
+        relevance: 0.41,
+        text: BATH_TEXT,
+        chatTitle: NAMED_ROOM,
+        scopedCharacterName: "Selene",
+      },
+      {
+        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" },
+        score: 0,
+        relevance: 0.39,
+        text: FARM_TEXT,
+        chatTitle: null,
+        scopedCharacterName: "Kira",
+      },
+    ],
+  },
+};
+
+/** The banner's own words, loosely matched: the tell is the caveat, not the sentence's punctuation. */
+const NEAREST_ONLY = /Nothing matched strongly/;
+/** The same caveat as the live region speaks it (hoisted — a regex literal in a test body is lint-RED). */
+const NEAREST_ONLY_SPOKEN = /nothing matched strongly/;
+
+test("a nonsense query is LABELLED, not presented as an answer — and keeps its rows (P2-B)", async ({ mount, page }) => {
+  await routeTrpc(page, NOISE_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchMemories(component);
+  const banner = component.getByText(NEAREST_ONLY);
+  await expect(banner).toBeVisible();
+  // The ceiling is STATED, in the surface's one similarity spelling — not left as twenty confident rows.
+  await expect(banner).toContainText("41%");
+  // NOTHING IS HIDDEN: both rows still render. The measured reason is in `CORPUS_NEAREST_ONLY_BELOW` —
+  // a low score is not a bad result, so the surface labels instead of dropping.
+  await expect(component.locator('[data-slot="list-row-subtitle"]')).toHaveCount(2);
+  // …and a listener hears the same caveat the reader sees, rather than "2 results".
+  await expect(component.locator("[role=status]").getByText(NEAREST_ONLY_SPOKEN)).toBeVisible();
+});
+
+test("a real answer carries NO caveat — the banner is a state, not a disclaimer (P2-B)", async ({ mount, page }) => {
+  await routeTrpc(page, MEMORY_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchMemories(component);
+  await expect(component.getByText(NEAREST_ONLY)).toHaveCount(0);
+});
+
 // ── THE IMAGES TARGET IS A REAL RESULT LIST (side-eye corpus re-pass U4) ──────────────────────────────
 // It shipped as twenty rows with a generic glyph, no image, no button and `cursor: auto`, in the SAME
 // ListRow geometry as the Memories rows that ARE doors: an image search that showed no images, and a dead
@@ -397,6 +457,45 @@ test("SCENES: the honesty line is readable, not clipped to '…— showin' (P2-3
   await expect(scent).toContainText("79 matching moments");
   const clipped = await scent.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   expect(clipped, "the line that says what the list does NOT show must not itself be cut off").toBe(false);
+});
+
+// ── P3-D: ONE ROOM, SAID ONCE ────────────────────────────────────────────────────────────────────────
+// The ordinary library case is the mirror of P1-1's duplicated-room case: several passages out of the SAME
+// room, which printed byte-identical doors under each of them. The grouping is NOT inverted back (that trade
+// was measured and lost); the door lifts out only when it is true of every passage — which is what the
+// SCENE_HITS fixture above is the control for, since its rooms differ per passage.
+const ONE_ROOM_HITS: TrpcRoutes = {
+  "search.search": {
+    over: "discover",
+    hits: [
+      {
+        characterId: "character_anika",
+        score: 0.1,
+        relevance: 0.83,
+        name: "Anika",
+        avatarHash: null,
+        genre: "noir",
+        tone: "wry",
+        elevatorPitch: null,
+        matchCount: 12,
+        segments: [
+          { chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Anika Jan 28" },
+          { chatId: "chat_harbour", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Anika Jan 28" },
+        ],
+      },
+    ],
+  },
+};
+
+test("SCENES: two passages from ONE room render that room's door once (P3-D)", async ({ mount, page }) => {
+  await routeTrpc(page, ONE_ROOM_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchScenes(component);
+  // Both passages still render — nothing was collapsed but the echo.
+  await expect(component.getByText(PASSAGE)).toHaveCount(1);
+  await expect(component.getByText(OTHER_PASSAGE)).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Anika Jan 28", exact: true })).toHaveCount(1);
 });
 
 test("SCENES: a numbered room title explains its own number (P3-6)", async ({ mount, page }) => {

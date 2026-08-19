@@ -189,6 +189,50 @@ test("A5: the readiness failure keeps the door to the log it names", async ({ mo
   await expect(component.getByRole("button", { name: JOBS_DOOR })).toBeVisible();
 });
 
+// ── P3-F + "quieter": THE FAILURE SAYS *WHEN*, AND STOPS OUT-SHOUTING THE COLUMN ──────────────────────
+// Five green checks over a red sentence read as contradicting one another: the rows report the library's
+// state, the sentence reports one RUN. The kicker names that. The second half is a FORK with the P2-7 ruling
+// recorded in the rail's own header (which moved this line UP from `gloss`) — re-pass #3 measured the other
+// end, "CTA-amber + danger-red read as one warm mass", receipt "the CTA is the only warm element in the
+// column". Both hold: the STEP stays a reading step (P2-7's concern) and the COLOUR joins the rail's quiet
+// register (re-pass #3's). See the rail's own comment for the full statement.
+/** The readable floor for non-interactive copy on this surface — the step P2-7 refused to go below. */
+const READABLE_FLOOR_PX = 11;
+
+test("the readiness failure is dated by a kicker and reads in the rail's quiet register (P3-F)", async ({ mount, page }) => {
+  await routeTrpc(page, FAILED_PASS);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  const block = component.locator('[data-slot="readiness-rerun-failure"]');
+  await expect(block).toBeVisible();
+  const paint = await block.evaluate((el) => {
+    const kicker = el.firstElementChild;
+    const sentence = el.lastElementChild;
+    if (kicker === null || sentence === null) {
+      throw new Error("the failure block did not render its kicker and its sentence");
+    }
+    const kickerStyle = globalThis.getComputedStyle(kicker);
+    const sentenceStyle = globalThis.getComputedStyle(sentence);
+    return {
+      kickerText: kicker.textContent ?? "",
+      kickerTop: kicker.getBoundingClientRect().top,
+      sentenceTop: sentence.getBoundingClientRect().top,
+      colour: sentenceStyle.color,
+      quietColour: kickerStyle.color,
+      sizePx: Number.parseFloat(sentenceStyle.fontSize),
+    };
+  });
+
+  expect(paint.kickerText, "the sentence reports a RUN, and now says so").toBe("Last run");
+  expect(paint.kickerTop, "the kicker sits over the block it dates").toBeLessThan(paint.sentenceTop);
+  // The warm mass is gone: the sentence paints the same quiet ink the rail's own band label does, leaving
+  // the primary CTA as the column's one warm element.
+  expect(paint.colour, "the failure joined the rail's quiet register").toBe(paint.quietColour);
+  // …and it did NOT go back to the footnote step P2-7 rejected.
+  expect(paint.sizePx).toBeGreaterThanOrEqual(READABLE_FLOOR_PX);
+});
+
 test("…and the jobs door is present in the CLEAN arm too — the fix did not just move the hole", async ({ mount, page }) => {
   await routeTrpc(page, ANALYSED);
   const component = await mount(<CorpusHomeDefaultPaneStory />);

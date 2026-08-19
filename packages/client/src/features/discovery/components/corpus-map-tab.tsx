@@ -14,6 +14,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { selectCorpusCharacter } from "#state";
 import { toGenreSeries } from "../lib/corpus-charts.ts";
+import { facetLabel } from "../lib/corpus-vocabulary.ts";
 import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
 
 const SKELETON_ROW_COUNT = 3;
@@ -48,7 +49,14 @@ function MapBody(): ReactElement {
 
   // The point `id` round-trips a CharacterId through <Scatter>'s opaque string slot; it re-brands here at
   // the click boundary (the value came straight off `corpusProjection`, so the brand is genuine).
-  const series = toGenreSeries(points.map((p) => ({ id: p.characterId, label: p.name, x: p.x, y: p.y, genre: p.genre })));
+  // THE KEY SPEAKS THE READER'S VOCABULARY (side-eye corpus re-pass #3, P3-C). The key printed the
+  // distiller's raw token — `slice-of-life 115` — while the other three consumers of a facet on this section
+  // already route through `facetLabel`. It is a display projection at the render edge: the grouping key, and
+  // everything stored, stay exactly the token they were.
+  const series = toGenreSeries(points.map((p) => ({ id: p.characterId, label: p.name, x: p.x, y: p.y, genre: p.genre }))).map((s) => ({
+    ...s,
+    name: facetLabel(s.name),
+  }));
 
   return (
     // THE PLOT TAKES THE PANEL (side-eye corpus re-pass #2, P3-9). The chart was `aspect-square`, so at the

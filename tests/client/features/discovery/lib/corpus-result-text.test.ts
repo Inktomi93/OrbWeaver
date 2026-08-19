@@ -11,6 +11,7 @@ import {
   evidenceScent,
   groupEvidenceByPassage,
   roomNumberingHint,
+  sharedRooms,
   snippetForDisplay,
 } from "../../../../../packages/client/src/features/discovery/lib/corpus-result-text.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -117,6 +118,33 @@ describe("groupEvidenceByPassage (P1-1)", () => {
   test("an unnamed room still names itself through the title chain, never an id", () => {
     const passages = groupEvidenceByPassage([segment(CHAT_A, null, "a line")], "Anika");
     expect(passages[0]?.rooms[0]?.title).toBe("Anika");
+  });
+});
+
+describe("sharedRooms (P3-D)", () => {
+  const passage = (snippet: string, ...rooms: readonly ChatId[]): { snippet: string; rooms: { chatId: ChatId; title: string }[] } => ({
+    snippet,
+    rooms: rooms.map((chatId) => ({ chatId, title: `room ${chatId}` })),
+  });
+
+  test("three passages out of ONE room hand the door back, so it can be said once", () => {
+    const rooms = sharedRooms([passage("a", CHAT_A), passage("b", CHAT_A), passage("c", CHAT_A)]);
+    expect(rooms?.map((room) => room.chatId)).toEqual([CHAT_A]);
+  });
+
+  test("passages from DIFFERENT rooms keep their own doors — a hoisted door would lie", () => {
+    expect(sharedRooms([passage("a", CHAT_A), passage("b", CHAT_B)])).toBeNull();
+    // A superset is not a share: the second passage was never found in CHAT_B.
+    expect(sharedRooms([passage("a", CHAT_A, CHAT_B), passage("b", CHAT_A)])).toBeNull();
+  });
+
+  test("the shared set is order-insensitive — the same two rooms in either order is one answer", () => {
+    expect(sharedRooms([passage("a", CHAT_A, CHAT_B), passage("b", CHAT_B, CHAT_A)])).toHaveLength(2);
+  });
+
+  test("a lone passage has nothing to share it with, so the door stays where the evidence is", () => {
+    expect(sharedRooms([passage("a", CHAT_A)])).toBeNull();
+    expect(sharedRooms([])).toBeNull();
   });
 });
 

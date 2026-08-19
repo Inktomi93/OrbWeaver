@@ -128,7 +128,12 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
           // exists only to tell you what you cannot do from here. Both verbs live in one place, so one door
           // is the honest count (`corpus-distill-empty-state.tsx`'s "Go to Refinery", same route).
           <Stack align="start" gap="field">
-            <Text voice="gloss">Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.</Text>
+            {/* THE SAME MEASURE CAP ITS SIBLINGS GOT (side-eye corpus re-pass #3, P3-E). This sentence was
+                the one paragraph on the surface that escaped the 65-75ch reading law — 78.6ch at
+                `max-width: none`, beside a pitch and a masthead headline that both carry the token. */}
+            <Text className="max-w-(--reading-measure)" voice="gloss">
+              Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.
+            </Text>
             <Button intent="ghost" onClick={(): void => setActiveSection("refinery")} size="sm">
               Open the Refinery →
             </Button>
