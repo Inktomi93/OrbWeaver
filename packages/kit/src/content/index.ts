@@ -1087,8 +1087,12 @@ const PREVIEW_LINK_RE = /!?\[([^\]]*)\]\([^)]*\)/g;
 
 /** A line's leading BLOCK markers — heading, quote, bullet, ordered-list — plus the markdown code-fence
  *  OPEN/CLOSE line itself (triple-backtick + its language tag, which carries no prose; the fenced body is
- *  kept, since a code block a character actually wrote is still what was last said). */
-const PREVIEW_BLOCK_PREFIX_RE = /^[ \t]*(?:```[^\n]*|>+|#{1,6}|[-*+]|\d+[.)])[ \t]*/gm;
+ *  kept, since a code block a character actually wrote is still what was last said).
+ *
+ *  The marker group REPEATS: markdown stacks these (`> ### heading inside a quote`, `- > nested`), and a
+ *  single-marker pass stripped the outer one and rendered the inner one as literal syntax — measured on the
+ *  corpus Scenes snippets, which are raw transcript prose (side-eye re-pass 2026-08-19, C1). */
+const PREVIEW_BLOCK_PREFIX_RE = /^[ \t]*(?:(?:```[^\n]*|>+|#{1,6}|[-*+]|\d+[.)])[ \t]*)+/gm;
 
 /** Any whitespace run (incl. the newlines a body is full of) — collapsed to ONE space: the preview is a
  *  SINGLE line, so a multi-paragraph body must not smuggle its layout into a one-line slot. */

@@ -6,8 +6,9 @@
 // the rows client-visibly.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CorpusListSurfaceStory } from "../_ct-stories.tsx";
+import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory } from "../_ct-stories.tsx";
 
 const CHARACTER_HIT = {
   characterId: "char_aria",
@@ -95,7 +96,9 @@ test("switching to the Scenes target renders the per-chat evidence preview", asy
   await component.getByLabel("Search your corpus").fill("market");
 
   // The discover branch previews the matching chat moments (the J10 chat-search preview).
-  await expect(component.getByText("2 matching moments")).toBeVisible();
+  // The scent line says what EXISTS and what is under it (C3) — here the preview is complete, so it is
+  // "in N rooms" rather than a promise the list below cannot keep.
+  await expect(component.getByText("2 matching moments in 1 room")).toBeVisible();
   await expect(component.getByText("The night market hums with secrets.")).toBeVisible();
   await expect(component.getByText("She slips between the stalls.")).toBeVisible();
 });
@@ -148,6 +151,149 @@ test("the Text target runs the lexical fields search and names the hits from the
   await component.getByRole("button", { name: "Search Text" }).click();
   await component.getByLabel("Search your corpus").fill("lexeme");
   await expect(component.getByText("Zed the Lexeme")).toBeVisible();
+});
+
+// ── U1: THE SEARCH IS A PLACE YOU CAN STAY ───────────────────────────────────────────────────────────
+// The single defect behind the owner's "search and select a result is SUPER useful… not": `query` and
+// `targetId` were component `useState` on a surface the shell UNMOUNTS on a rail switch, so opening a hit's
+// room and coming back landed on an empty box with the target reset to Characters — while the dossier
+// selection beside it survived the identical bounce, because that one is a store. This pin bounces the rail
+// and reads the three things a returning user expects back: the words, the target, the answers.
+test("a rail bounce restores the omnibox: the query, the target, and the results", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": [],
+    "search.suggest": [],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceRailBounceStory />);
+
+  await component.getByRole("button", { name: "Search Scenes" }).click();
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("market");
+  await expect(component.getByText("2 matching moments in 1 room")).toBeVisible();
+
+  // Away (the shell unmounts the surface) …
+  await component.getByRole("button", { name: "Leave Corpus" }).click();
+  await expect(component.getByRole("combobox", { name: "Search your corpus" })).toHaveCount(0);
+  // … and back.
+  await component.getByRole("button", { name: "Back to Corpus" }).click();
+
+  await expect(component.getByRole("combobox", { name: "Search your corpus" })).toHaveValue("market");
+  await expect(component.getByRole("button", { name: "Search Scenes" })).toHaveAttribute("aria-pressed", "true");
+  await expect(component.getByText("2 matching moments in 1 room")).toBeVisible();
+});
+
+// ── §5 TASTE: THE TARGET PICKER IS A FIT PROBLEM ─────────────────────────────────────────────────────
+// Five content-sized cells in a wrapping flex row missed row one by ~2px: "Memories" dropped to a second
+// line, leaving a hole beside "Scenes" and a ragged right edge on the first thing the pane renders (mobile
+// wrapped 4+1). The fix is unconditional track sizing — a 6-track grid, 2-track cells on row one and
+// 3-track cells on row two — so BOTH rows end flush at every width. Asserted at both ends of the real pane
+// range, because a point measurement cannot prove a range property.
+const PICKER_CELL_NAME = /^Search (Characters|Scenes|Memories|Images|Text)$/;
+
+async function pickerCellBoxes(component: Locator): Promise<{ x: number; right: number; y: number }[]> {
+  const cells = component.getByRole("button", { name: PICKER_CELL_NAME });
+  await expect(cells).toHaveCount(5);
+  const boxes = await cells.all();
+  return Promise.all(
+    boxes.map(async (cell) => {
+      const box = await cell.boundingBox();
+      if (box === null) {
+        throw new Error("a target-picker cell did not render a box");
+      }
+      return { x: Math.round(box.x), right: Math.round(box.x + box.width), y: Math.round(box.y) };
+    }),
+  );
+}
+
+for (const width of [320, 360]) {
+  test(`the target picker fills both of its rows at ${width}px — no hole, no ragged edge`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "discovery.characterFacets": { genres: [], tones: [] },
+      "discovery.catalog": EMPTY_CATALOG,
+      "discovery.browseCharacters": [],
+      "search.suggest": [],
+      "search.search": searchResponder,
+    });
+    const component = await mount(<CorpusListSurfaceWidthStory width={width} />);
+
+    const cells = await pickerCellBoxes(component);
+    const rows = [...new Set(cells.map((cell) => cell.y))].sort((a, b) => a - b);
+    expect(rows, "the picker is exactly two deliberate rows").toHaveLength(2);
+    const first = cells.filter((cell) => cell.y === rows[0]);
+    const second = cells.filter((cell) => cell.y === rows[1]);
+    expect(first, "row one carries three targets").toHaveLength(3);
+    expect(second, "row two carries the remaining two").toHaveLength(2);
+    // BOTH rows start at the same left edge and END AT THE SAME RIGHT EDGE — that is what "no 99px hole
+    // beside Scenes, no ragged right" means in geometry rather than in taste.
+    expect(second.at(0)?.x).toBe(first.at(0)?.x);
+    expect(second.at(-1)?.right).toBe(first.at(-1)?.right);
+  });
+}
+
+// ── B4: THE TYPEAHEAD SHOWS WHAT ITS BOX CAN HOLD, AND ONLY REAL PHRASES ─────────────────────────────
+// Measured on the live surface: `scrollHeight 210` vs `clientHeight 158` — two of six options cut with no
+// visible scrollbar — with `"elf elf<"` (a torn tokenizer fragment) and the query already in the box among
+// them. The shared inline list is deliberately a fixed ~4-row scroller that may not grow this pane, so the
+// caller must not overfill it.
+test("the typeahead renders only clean, non-echo suggestions — and never overflows its own box", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": [],
+    "search.suggest": [
+      { suggestion: "elf elf<", score: 0.99 },
+      { suggestion: "elf", score: 0.95 },
+      { suggestion: "elven ranger", score: 0.9 },
+      { suggestion: "elf queen", score: 0.85 },
+      { suggestion: "elfstone keep", score: 0.8 },
+      { suggestion: "elven court", score: 0.75 },
+      { suggestion: "**elf**", score: 0.7 },
+      { suggestion: "elf market", score: 0.65 },
+    ],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceWidthStory width={360} />);
+
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("elf");
+  await expect(page.getByRole("option", { name: "elven ranger" })).toBeVisible();
+
+  // The tokenizer junk and the verbatim query are gone; what is left fits the box.
+  await expect(page.getByRole("option", { name: "elf elf<" })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "**elf**" })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "elf", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("option")).toHaveCount(4);
+
+  const list = page.locator('[data-slot="autocomplete-inline-list"]');
+  const fit = await list.evaluate((node) => ({ scrollHeight: node.scrollHeight, clientHeight: node.clientHeight }));
+  expect(fit.scrollHeight, `the suggestion list must fit its own box (${JSON.stringify(fit)})`).toBeLessThanOrEqual(fit.clientHeight);
+});
+
+// ── A6 + B3: THE RESULT LIST IS A REAL LIST, AND IT COUNTS ITSELF ────────────────────────────────────
+// `role="list"` with non-`listitem` children makes every row generic to AT and the list announce empty
+// (axe `aria-required-children`, score 0). And the only live region on this surface was the typeahead's,
+// which counts SUGGESTIONS — a screen reader heard "2 results" over twenty rendered hits.
+test("the result list owns listitem children and announces the REAL hit count", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": [],
+    "search.suggest": [{ suggestion: "aria nightshade", score: 0.9 }],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceStory />);
+
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("aria");
+  // Barrier on the ROW, not on the name: the typeahead is populated here and its option carries the same
+  // words, so a bare text query resolves to two nodes.
+  await expect(component.getByRole("button", { name: "Aria Nightshade" })).toBeVisible();
+
+  const list = component.getByRole("list", { name: "Search results — Characters" });
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  // The typeahead's own status counts what it is: suggestions. The RESULTS status counts hits.
+  await expect(component.getByRole("status").filter({ hasText: "1 result in Characters" })).toBeVisible();
+  await expect(page.locator('[data-slot="autocomplete-status"]')).toHaveText("1 suggestion");
 });
 
 test("the omnibox surfaces as-you-type suggestions from search.suggest", async ({ mount, page }) => {

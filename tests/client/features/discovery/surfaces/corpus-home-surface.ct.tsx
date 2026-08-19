@@ -178,3 +178,28 @@ for (const [phase, routes] of [
     ).toBe("1");
   });
 }
+
+// ── A6: THE "NEVER PLAYED" LIST OWNS REAL listitem CHILDREN (side-eye corpus re-pass 2026-08-19) ──────
+// The re-pass listed this list beside "Distilled catalog" as a `role="list"` with div children (axe
+// `aria-required-children` 0). Unlike the catalog, this one renders through the shared `VirtualList`, which
+// ships `role="list"` on its scroller and `role="listitem"` + setsize/posinset on every measured row shell
+// (packages/ui/src/primitives/virtual-list/virtual-list.tsx) — with the virtualizer's own viewport div in
+// between. This is the RENDERED check of that chain, because a source read cannot tell whether the
+// intervening node breaks the ownership: it asserts the roles the browser actually computes.
+const NEVER_PLAYED: TrpcRoutes = {
+  ...ANALYSED,
+  "discovery.unusedCharacters": [
+    { characterId: "character_imai", name: "Imai", avatarHash: null },
+    { characterId: "character_kestrel", name: "Kestrel", avatarHash: null },
+  ],
+};
+
+test("the Never-played list announces as a list of listitems, not a bag of divs (A6)", async ({ mount, page }) => {
+  await routeTrpc(page, NEVER_PLAYED);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator("[data-corpus-focal]")).toBeVisible();
+
+  const list = component.getByRole("list", { name: "Never played characters" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list.getByRole("listitem").first().getByRole("button", { name: "Imai" })).toBeVisible();
+});

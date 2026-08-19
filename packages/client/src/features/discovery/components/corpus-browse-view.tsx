@@ -126,9 +126,14 @@ function BrowseRows({
     );
   }
   return (
+    // `role="list"` needs real `listitem` CHILDREN or every row is generic to AT and the list announces
+    // empty (axe `aria-required-children`, side-eye re-pass A6) — the wrapper carries the role, never the
+    // row's own button, exactly as the gem tiles spell it.
     <Stack aria-label="Distilled catalog" className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="row" role="list">
       {rows.map((row) => (
-        <BrowseCharacterRow key={row.characterId} row={row} />
+        <Stack key={row.characterId} role="listitem">
+          <BrowseCharacterRow row={row} />
+        </Stack>
       ))}
     </Stack>
   );

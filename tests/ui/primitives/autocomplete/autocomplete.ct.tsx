@@ -118,7 +118,10 @@ test("keyboard: arrow highlights an item, Enter selects it into the input", asyn
   await expect(input).toHaveValue("adventure");
 });
 
-test("the Status live region announces the filtered result count", async ({ mount, page }) => {
+// "suggestion(s)", not "result(s)" (side-eye corpus re-pass 2026-08-19, B3): this list is things to TYPE,
+// and a caller that renders its own hits below the field had a screen reader hearing the typeahead's count
+// as the search's answer. Combobox/Command keep "results".
+test("the Status live region announces the filtered suggestion count", async ({ mount, page }) => {
   await mount(<Autocomplete aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
   await input.click();
@@ -128,7 +131,7 @@ test("the Status live region announces the filtered result count", async ({ moun
   // Empty part also carries role="status", so target the seal's Status by its data-slot.)
   const status = page.locator('[data-slot="autocomplete-status"]');
   await expect(status).toHaveRole("status");
-  await expect(status).toHaveText("1 result");
+  await expect(status).toHaveText("1 suggestion");
 });
 
 test("the native Clear button empties the input", async ({ mount, page }) => {

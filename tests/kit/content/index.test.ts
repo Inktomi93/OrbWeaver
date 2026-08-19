@@ -722,6 +722,13 @@ describe("projectBodyForPreview", () => {
     expect(projectBodyForPreview(body)).toBe("The Gate The door gives way. iron hinges const x = 1; Ash on the wind.");
   });
 
+  test("STACKED block markers all come off — a heading inside a quote, a quote inside a bullet", () => {
+    // Markdown stacks its leading markers and a single-marker pass left the inner one as literal syntax:
+    // "> ### the copper tub" rendered as "### the copper tub" in the corpus Scenes snippets (C1).
+    expect(projectBodyForPreview("> ### the copper tub\n\nThey settle in.")).toBe("the copper tub They settle in.");
+    expect(projectBodyForPreview("- > she said nothing")).toBe("she said nothing");
+  });
+
   test("HIDDEN-class spans are dropped — a preview is a durable, member-reachable artifact", () => {
     const body = 'She smiles. <lie character="Aria" type="claim" truth="she has the key" reason="cover"/> The room waits.';
     const preview = projectBodyForPreview(body);
