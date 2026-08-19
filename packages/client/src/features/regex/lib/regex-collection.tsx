@@ -10,7 +10,14 @@ import { Code } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { RegexCollectionRows } from "../components/regex-collection-rows.tsx";
 import { RegexContextBody } from "../components/regex-context-body.tsx";
-import { useCreateRegexMember, useImportRegexMember, useRegexBulkMode, useRegexCount, useRegexMemberTitle } from "../hooks/use-regex-collection.ts";
+import {
+  useCreateRegexMember,
+  useImportRegexMember,
+  useRegexBulkMode,
+  useRegexCount,
+  useRegexMemberTitle,
+  useRegexPreview,
+} from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
 import { REGEX_COLLECTION_ID } from "./regex-model.ts";
 
@@ -24,6 +31,10 @@ export const regexCollection: CollectionContribution = {
   blurb: "Find/replace that runs on input, output, or both; everywhere, or only where you attach it.",
   emptyText: "No scripts yet.",
   useCount: useRegexCount,
+  // The welcome hero's chip wall (side-eye 2026-08-19 P1-2 — this library used to declare no preview at
+  // all, so its launcher rendered as a 106px hollow shell beside the tag hero's 198px census and the lead
+  // column's "a hero has a preview" grammar was true 1/3). The rank is RECENCY, named by the kicker.
+  preview: { label: "Recently edited", useEntries: useRegexPreview },
   useMemberTitle: useRegexMemberTitle,
   create: { label: "New script", useRun: useCreateRegexMember },
   // The two REGX2 band affordances, declared as DATA the host renders in its own chrome grammar (C-4).

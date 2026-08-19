@@ -97,7 +97,10 @@ test("over a member whose collection DOES answer something, the band names it an
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator('[data-slot="config-roster"]').getByRole("button", { name: REGEX_BAND }).click();
-  await workspace.getByText("strip ooc").click();
+  // SCOPED TO THE ROSTER, the same reason the tag arm above is (side-eye 2026-08-19 P1-2): the regex hero's
+  // preview wall now prints SCRIPT NAMES too, so an unscoped "strip ooc" also matches a launcher chip —
+  // and clicking that opens the collection instead of the member, which left the context band neutral.
+  await workspace.locator('[data-slot="config-roster"]').getByText("strip ooc").click();
 
   await expect(workspace.locator(CONTEXT_BAND)).toHaveText("Where it runs");
   await expect(workspace.locator(CONTEXT_PANE).getByText("Where it runs")).toHaveCount(1);

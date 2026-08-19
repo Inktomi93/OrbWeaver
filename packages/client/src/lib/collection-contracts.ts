@@ -57,15 +57,24 @@ export const COLLECTION_WINDOW_MAX_HEIGHT = "max-h-96";
  *  sortable list). */
 export const COLLECTION_PREVIEW_LIMIT = 12;
 
-/** ONE entry in a collection's welcome PREVIEW: a member's own name and how much of the library it
- *  accounts for. It homes HERE rather than in the owning feature because the HOST draws it blind for every
+/** ONE entry in a collection's welcome PREVIEW: a member's own name and the ONE datum that earns it a place
+ *  in the glance. It homes HERE rather than in the owning feature because the HOST draws it blind for every
  *  contribution that has one — the same reason `blurb` and `emptyText` are contract fields and not host
- *  string tables. */
+ *  string tables.
+ *
+ *  `detail` IS A STRING, NOT A NUMBER (widened 2026-08-19, when regex and world-info grew previews of their
+ *  own). A number can only ever mean "how much", which is the tag library's ranking and nobody else's: the
+ *  regex library ranks by RECENCY ("4m ago") and the world-info library by ATTACHMENT ("42 entries ·
+ *  attached ×3"). Forcing those through a numeric field would have meant the host inventing a unit for each
+ *  — the insider-knowledge naming §3 forbids — so the owner formats its own datum in its own vocabulary and
+ *  the host renders it at the `datum` voice. The owner is also the party that already has that spelling
+ *  (`bookScent`, `formatRelative`); a second one here would be the drift those single homes exist to
+ *  prevent. */
 export interface CollectionPreviewEntry {
   /** The member's own name, as the library spells it. */
   readonly label: string;
-  /** How much of the library this member accounts for — a usage total, not a rank. */
-  readonly count: number;
+  /** The ONE datum that ranks this member, in the library's own units and already formatted. */
+  readonly detail: string;
 }
 
 /** What the host hands a collection's LIST half. */
@@ -138,16 +147,25 @@ export interface CollectionContribution {
    *  sheds its count + create because the band already carries them; the hero has to say something the
    *  band does not, or promoting it is chrome. The preview is that something — and it must stay a top-N
    *  glance plus a door. The moment it grows into a second full sortable list it IS the roster, which is
-   *  the one-home line the trim ruling drew (`config-welcome.tsx`'s `CollectionLauncher` header states it).
+   *  the one-home line the trim ruling drew (`config-welcome.tsx`'s `BuiltLibrary` header states it).
+   *
+   *  DECLARED AS DATA + A HOOK, the `create`/`importFile`/`bulkSelect` grammar exactly, because the RANKING
+   *  IS PART OF THE CLAIM (side-eye 2026-08-19 P1-2). The host used to hardcode "Most used" over whatever a
+   *  contribution handed up, which was true of the one library that had a preview and would have been a lie
+   *  the moment a second ranked by anything else — and both new adopters do: regex ranks by RECENCY,
+   *  world-info by ATTACHMENT. `label` is the wall's kicker and names the rank in the library's own words,
+   *  so a contribution cannot ship a glance whose ordering is unstated.
    *
    *  OPTIONAL, unlike `blurb`: a library with nothing rankable has no honest glance to offer, so it simply
-   *  declines and its hero draws label + blurb + the door alone (regex and world-info today). `undefined`
-   *  takes the SAME arm as a declined field — the read has not landed, and a hero that flashed an empty
-   *  chip wall would be worse than one that never drew it.
+   *  declines and its hero draws label + blurb + the door alone. `undefined` from `useEntries` takes the
+   *  SAME arm as a declined field — the read has not landed, and a hero that flashed an empty chip wall
+   *  would be worse than one that never drew it.
    *
-   *  MUST be exactly ONE cache-first `useQuery` over the SAME key the collection's other hooks read, like
-   *  {@link useCount}: this is a second reader of a list the roster already has, never a second request. */
-  readonly usePreview?: () => readonly CollectionPreviewEntry[] | undefined;
+   *  `useEntries` MUST be exactly ONE cache-first `useQuery` over the SAME key the collection's other hooks
+   *  read, like {@link useCount}: this is a second reader of a list the roster already has, never a second
+   *  request. All three adopters satisfy that today — the tag/regex/world-info list reads are the ones the
+   *  roster's own rows already loaded. */
+  readonly preview?: { readonly label: string; readonly useEntries: () => readonly CollectionPreviewEntry[] | undefined };
   /** The OPEN member's own name, for the mobile pushed frame's topbar title (the config section's
    *  `useSelectionTitle` — side-eye P2: a pushed detail must name the MEMBER, not the section). A hook over
    *  the member id, same call discipline as {@link useCount}: cache-first, non-suspending, `undefined`

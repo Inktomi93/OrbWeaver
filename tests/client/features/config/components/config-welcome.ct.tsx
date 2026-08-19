@@ -21,9 +21,22 @@ import { ConfigWelcomeStory } from "../_ct-stories.tsx";
 
 const WELCOME = '[data-slot="config-welcome"]';
 const CONTENT = '[data-slot="config-content"]';
-/** The hero's accessible name is its own CONTENT, and the blurb is the half the roster band does not
- *  carry — so the blurb is how the door is addressed, the roster CT's own convention. */
-const TAGS_LAUNCHER = /Color-coded labels/;
+/** THE HERO'S DOOR, as of the 2026-08-19 fork (see the `BuiltLibrary` header): the island is a named
+ *  REGION and the door is a real button, so the control is addressed by the verb it performs — not, as it
+ *  was until this pass, by a ~45-word recitation of the card's whole content. */
+const TAGS_LAUNCHER = "Open Tags →";
+/** An accessible name a screen-reader user can act on without listening to the library first. The measured
+ *  defect was ~45 WORDS; this ceiling is stated in characters so it also fails a name that grows back by
+ *  absorbing the blurb. */
+const MAX_CONTROL_NAME_CHARS = 30;
+/** The coarse-pointer tap floor (WCAG 2.5.5 / the house `size-control-md` coarse step). */
+const TOUCH_FLOOR_PX = 44;
+/** `--shadow-glow`'s own ring alpha (`packages/ui/src/styles/theme.css`) — the multiplier that turns the
+ *  focal pseudo's opacity into how much accent actually paints. */
+const SHADOW_GLOW_RING_ALPHA = 0.4;
+/** How much accent a SIBLING island's border carries once `enableThemeColorization` retints
+ *  `--color-border` (`packages/client/src/styles/globals.css`: `color-mix(… primary 22% …)`). */
+const COLORIZED_BORDER_ACCENT_SHARE = 0.22;
 /** Every collection's create verb as one pattern — `New tag` / `New script` / `New book` is the door
  *  array's whole create vocabulary, so a count over this pattern is a total claim. */
 const ANY_CREATE_VERB = /^New /;
@@ -254,7 +267,7 @@ test("the built library LEADS and the not-built ones sit in the rail beside it",
 // ── THE PROMOTION IS PAID FOR ───────────────────────────────────────────────────────────────────────
 // The 2026-08-08 trim ruling drops the count and the create verb from a POPULATED launcher because the
 // roster band already carries both. That leaves promoting one to hero weight needing a reason, and the
-// reason is content: `usePreview` shows what is actually IN the library, which the collapsed band does
+// reason is content: `preview` shows what is actually IN the library, which the collapsed band does
 // not carry. This test is the pair of claims at once — the wall is there, and the trim still holds.
 test("the hero shows the library's real contents and still sheds the count + create verb", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
@@ -274,8 +287,40 @@ test("the hero shows the library's real contents and still sheds the count + cre
 
   // THE TRIM (owner ruling 2026-08-08, C7 arm 2) — no count numeral, no create verb, on the populated arm.
   await expect(hero.getByText(String(TAG_COUNT), { exact: true }), "the hero does not restate the band's count").toHaveCount(0);
-  await expect(hero.getByRole("button"), "and it contains no create verb (the island IS the control)").toHaveCount(0);
   await expect(pane.locator(WELCOME).getByRole("button", { name: "New tag" })).toHaveCount(0);
+  // …and the ONE button it does carry is the door, not a verb the band already owns. (Until the 2026-08-19
+  // fork this assertion read `toHaveCount(0)` — "the island IS the control"; that ruling is superseded and
+  // its reasoning is preserved verbatim in the `BuiltLibrary` header.)
+  await expect(hero.getByRole("button"), "the hero's only control is its door").toHaveCount(1);
+  await expect(hero.getByRole("button", { name: TAGS_LAUNCHER })).toBeVisible();
+});
+
+// ── THE 45-WORD NAME (side-eye 2026-08-19 P3 · owner-ruled arm 3) ───────────────────────────────────
+// Before: `Card interactive` made the whole island a button, so its accessible name was its entire content
+// — icon, label, blurb, twelve chips with their counts, the "+N more", and the door line, ~45 words recited
+// before the word "button". The content-as-name ruling that produced it was protecting the blurb and the
+// census from being hidden by an `aria-label` verb; making them a LABEL hid them just as thoroughly, as
+// unnavigable text. The island is now a named region and the door is the control.
+test("the door is a short-named control and the census is CONTENT, not part of a label", async ({ mount, page }) => {
+  await stub(page, { tags: TAGS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 1, 2);
+
+  const door = pane.getByRole("button", { name: TAGS_LAUNCHER });
+  // The name the assistive tech actually computes, not the source string.
+  const name = await door.evaluate((el: HTMLElement) => el.textContent ?? "");
+  expect(name.trim().length, `the control's accessible name is "${name.trim()}"`).toBeLessThan(MAX_CONTROL_NAME_CHARS);
+
+  // The island is ADDRESSABLE (the ARIA sweep's map-dom-fallback finding) without swallowing its contents:
+  // a named region's name does not replace its subtree the way a button's does.
+  const island = pane.getByRole("region", { name: "Tags" });
+  await expect(island).toBeVisible();
+  // …and every part of the census is still reachable AS CONTENT inside it — the exposure the superseded
+  // ruling wanted, now actually navigable.
+  await expect(island.getByText("Most used")).toBeVisible();
+  await expect(island.getByText("Color-coded labels", { exact: false })).toBeVisible();
+  // The library's NAME is a real heading now that it is not inside a button (it could not be before).
+  await expect(island.getByRole("heading", { name: "Tags", level: 3 })).toBeVisible();
 });
 
 // ── THE COLD FIRST RUN ──────────────────────────────────────────────────────────────────────────────
@@ -327,6 +372,67 @@ test("with EVERYTHING built the rail's band disappears and exactly ONE island is
   expect(first.width, "with no rail to hold, the lead column takes the pane").toBeCloseTo(welcome.width, 0);
 });
 
+// ── CD3 UNDER COLORIZATION (side-eye 2026-08-19, "the single-focal collapses under maximal") ────────
+// `appearance.enableThemeColorization` retints `--color-border` to 22% of the accent, so on the all-built
+// arm every sibling island's border carries accent — while the focal's own halo painted at an effective
+// 0.12 (`--shadow-glow`'s 0.4 ring × a 30% pseudo). The one element that is supposed to carry the accent
+// carried the LEAST of it, and CD3 became arm-conditional. The claim is now unconditional, so the pin
+// drives BOTH appearance arms and asserts they agree.
+test("exactly one focal at rest, and its accent does not collapse under theme colorization", async ({ mount, page }) => {
+  await stub(page, { books: BOOKS, scripts: SCRIPTS, tags: TAGS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 3, 0);
+
+  // Read off the PAINTED pseudo-elements, per card — a class-list assertion would survive the variant
+  // breaking, and `first:` is the whole CD3 verdict.
+  const readFocal = (): Promise<{ glow: number[]; striped: number }> =>
+    pane.locator(BUILT).evaluateAll((cards) => ({
+      // `content: none` means the pseudo does not EXIST — and its computed `opacity` still reads the
+      // inherited 1, which is exactly the false positive an opacity-only read produces on a card that
+      // paints no halo at all. Existence first, then strength.
+      glow: cards.map((card) => {
+        const painted = getComputedStyle(card, "::before");
+        return painted.content === "none" ? 0 : Number.parseFloat(painted.opacity);
+      }),
+      striped: cards.filter((card) => Number.parseFloat(getComputedStyle(card, "::after").width) > 0).length,
+    }));
+
+  const setArms = (colorized: boolean, shadows: boolean): Promise<void> =>
+    page.evaluate(
+      ({ colorized: on, shadows: withShadow }) => {
+        // The TOTAL appearance state this test depends on, stated rather than assumed — CDP/attribute
+        // emulation leaks between tests when only the deltas are written.
+        document.documentElement.toggleAttribute("data-theme-colorization", on);
+        document.documentElement.toggleAttribute("data-shadow", withShadow);
+      },
+      { colorized, shadows },
+    );
+
+  // The four appearance arms this treatment has to hold on: colorization × the elevation (shadow) arm.
+  const arms = await Promise.all(
+    [
+      [false, false],
+      [false, true],
+      [true, false],
+      [true, true],
+    ].map(async ([colorized, shadows]) => {
+      await setArms(colorized === true, shadows === true);
+      return { colorized, read: await readFocal(), shadows };
+    }),
+  );
+
+  for (const { colorized, read, shadows } of arms) {
+    expect(read.striped, `one focal, no more and no fewer (colorized=${String(colorized)} shadow=${String(shadows)})`).toBe(1);
+    // 0.4 (the `--shadow-glow` ring's own alpha) × this opacity must clear the 0.22 of accent a colorized
+    // sibling BORDER carries, or the focal is the weakest accent on its own grid.
+    const focalGlow = read.glow[0] ?? 0;
+    expect(focalGlow * SHADOW_GLOW_RING_ALPHA, "the focal's resting ring out-weighs a colorized sibling border").toBeGreaterThan(COLORIZED_BORDER_ACCENT_SHARE);
+    // …and the other two islands carry NO halo at all, on every arm.
+    const sibling = read.glow.slice(1).filter((opacity) => opacity > 0);
+    expect(sibling, "only the focal has a halo").toHaveLength(0);
+  }
+});
+
 // ── THE FIRST PAINT (pinned as of 2026-08-17 — this block used to state it as an honest gap) ─────────
 // A live `snap --isolated` drive against the real corpus reported an unexpected 0.073 CLS —
 // `[data-slot=config-hearth]` moving 541px sideways — because a SETTLING count read as "not built", so
@@ -357,6 +463,12 @@ test("a settling count paints NO slot — the in-flight arm is neither column (t
   // flight, so THREE invitations painted across the full pane and then reflowed into a 1.55fr/1ff split
   // when the counts landed. A settling count is not a verdict, so nothing paints.
   await expect(pane.locator("[data-collection]"), "a count in flight is not a verdict — no slot, in either column").toHaveCount(0);
+  // …AND NEITHER DOES THE GRID (2026-08-19). Suppressing the SLOTS was only half of it: the track count is
+  // a `:has()` verdict over what rendered, so one count landing a frame ahead of its siblings painted the
+  // hero across the whole pane and then reflowed it into the lead track — the 0.0283 residue, root-caused
+  // from the browser's own shift sources (843→482.75px on the hero's door row). The hearth now stands down
+  // until no collection is still settling, so its first paint is its final geometry.
+  await expect(pane.locator('[data-slot="config-hearth"]'), "the hearth does not paint a geometry it is about to change").toBeHidden();
 
   hold.release(TAGS);
   await settled(pane, 1, 2);
@@ -420,13 +532,75 @@ test("the hero is an operable door, by pointer and by keyboard", async ({ mount,
   const pane = await mount(<ConfigWelcomeStory />);
   await settled(pane, 1, 2);
 
-  // Named by its own content — the blurb and the wall are what the roster band does NOT carry, so naming
-  // the control by them keeps this pane's whole contribution readable to a screen reader.
-  const hero = pane.getByRole("button", { name: TAGS_LAUNCHER });
-  await expect(hero).toBeVisible();
-  const heroBox = await box(hero);
-  expect(heroBox.height, "a door a thumb cannot land on is not a door").toBeGreaterThanOrEqual(44);
+  const door = pane.getByRole("button", { name: TAGS_LAUNCHER });
+  await expect(door).toBeVisible();
+  // The island stays the whole pointer target (its `onClick` mirrors the door's), so the tap floor is
+  // measured there — the door's own coarse floor rides `Button`'s `::after` touch-target pseudo, which a
+  // bounding box structurally cannot see.
+  const islandBox = await box(pane.locator(BUILT));
+  expect(islandBox.height, "a door a thumb cannot land on is not a door").toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
 
-  await hero.focus();
-  await expect(hero).toBeFocused();
+  await door.focus();
+  await expect(door).toBeFocused();
+});
+
+// ── THE HOLLOW LAUNCHERS (side-eye 2026-08-19 P1-2) ─────────────────────────────────────────────────
+// On the OWNER's corpus every collection has count>0, so all three land in the lead column — and only tags
+// declared a preview, so the pane rendered one 198px census beside two 106px hollow shells. The lead
+// column's whole grammar is "a hero has a preview"; it was true 1/3. This is the all-built arm, which is
+// exactly the owner's state.
+test("every hero in the lead column shows real contents — no hollow shells", async ({ mount, page }) => {
+  await stub(page, { tags: TAGS, scripts: SCRIPTS, books: BOOKS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 3, 0);
+
+  // EACH card carries a wall — asserted per collection, because a total count would pass on three walls in
+  // one card. The kicker is the CONTRIBUTION's own word for its rank: a hardcoded host "Most used" over a
+  // recency ranking and an attachment ranking would be two lies out of three.
+  const previews = [
+    ["tags", "Most used", "tag-000"],
+    ["regex", "Recently edited", "strip ooc"],
+    ["worldInfo", "Most attached", "The Ninefold Reach"],
+  ] as const;
+  await Promise.all(
+    previews.flatMap(([id, kicker, chip]) => {
+      const card = pane.locator(`[data-config-built="${id}"]`);
+      return [
+        expect(card.getByText(kicker, { exact: true }), `${id} names its own rank`).toBeVisible(),
+        expect(card.getByText(chip, { exact: false }), `${id} shows a real member`).toBeVisible(),
+        expect(card.locator('[data-slot="text"][data-voice="datum"]').first(), `${id}'s chip carries a datum`).toBeVisible(),
+      ];
+    }),
+  );
+
+  // THE MEASURED DEFECT, as geometry: the hollow shells were 106px against the census's 198px. The claim is
+  // RELATIVE, never a frozen pixel — a preview-bearing card cannot be a bare name+blurb+door stub, and the
+  // three cards no longer differ by ~2x.
+  const heights = await pane.locator(BUILT).evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height));
+  expect(heights.length).toBe(3);
+  expect(Math.min(...heights), "no card is a hollow name+blurb+door shell").toBeGreaterThan(120);
+  expect(Math.max(...heights) / Math.min(...heights), "the lead column is not one hero and two stubs").toBeLessThan(2);
+});
+
+// ── THE BLURB'S MEASURE (side-eye 2026-08-19 P3) ────────────────────────────────────────────────────
+// The masthead was capped on the paragraph and the launcher blurbs were not — 161ch latent. A measure
+// belongs to the line, and this pane's lead column grows with the window.
+test("every launcher blurb is capped at the reading measure, like the masthead", async ({ mount, page }) => {
+  await stub(page, { tags: TAGS, scripts: SCRIPTS, books: BOOKS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 3, 0);
+
+  const measured = await Promise.all(
+    (["tags", "regex", "worldInfo"] as const).map(async (id) => {
+      const blurb = pane.locator(`[data-config-built="${id}"]`).locator('[data-slot="text"][data-voice="gloss"]').first();
+      // Probed IN THE BLURB'S OWN FONT CONTEXT — `--reading-measure` is a `ch` value and `ch` resolves
+      // against the ELEMENT's font, so probing it on the pane reads a different number for the same rule.
+      const [measure, drawn] = await Promise.all([resolvedPx(blurb, "--reading-measure"), box(blurb)]);
+      return { drawn, id, measure };
+    }),
+  );
+  for (const { drawn, id, measure } of measured) {
+    expect(measure, "the reading measure resolves in this document").toBeGreaterThan(0);
+    expect(drawn.width, `${id}'s blurb is capped, not pane-wide`).toBeLessThanOrEqual(measure + 1);
+  }
 });
