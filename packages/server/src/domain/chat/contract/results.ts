@@ -293,6 +293,14 @@ export interface TurnPrep {
   readonly speakerCharacterId: CharacterId | null;
   /** A synthetic trailing user turn (regen prompt/continue nudge); null for a plain send. */
   readonly appendUserTurn?: string | null | undefined;
+  /** `true` ⇒ {@link TurnPrep.appendUserTurn} exists ONLY because the wire cannot continue the model's own
+   *  trailing row — it is the FALLBACK spelling of "keep going", not an instruction the user asked for. The
+   *  pipeline DROPS it on a wire that honors assistant prefill, delivering the partial assistant row for the
+   *  model to continue instead (which is what a continue means; a trailing `[Continue…]` user row asks for a
+   *  NEW message). Set by the `continue` verb alone: an impersonate nudge steers a USER-voiced draft and a
+   *  response nudge asks for a REPLY to the last row — neither is a continuation, and both must survive on
+   *  every wire. Absent/false ⇒ the tail rides exactly as it always has. */
+  readonly appendUserTurnIsContinuationFallback?: boolean | undefined;
   /** The group nudge, set only on a multi-speaker round; null for the single-speaker core. */
   readonly groupNudge?: string | null | undefined;
   /** The union of gather-contributed tool names. Absent/empty means no tools ride, and the loop degenerates

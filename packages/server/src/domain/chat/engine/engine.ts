@@ -1414,6 +1414,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       ownerConsented,
       chatId: prep.chatId,
       appendUserTurn: prep.appendUserTurn,
+      appendUserTurnIsContinuationFallback: prep.appendUserTurnIsContinuationFallback,
       groupNudge: prep.groupNudge,
       // Set by the group round driver; absent falls back to the single-speaker pinned/merged default.
       shape: prep.shape,
@@ -1718,6 +1719,7 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
       ownerConsented,
       chatId: prep.chatId,
       appendUserTurn: prep.appendUserTurn,
+      appendUserTurnIsContinuationFallback: prep.appendUserTurnIsContinuationFallback,
       groupNudge: prep.groupNudge,
       shape: prep.shape,
       signal: prep.signal,
@@ -1850,6 +1852,7 @@ function toChatWarningCode(code: WarningCode): ChatWarningCode | null {
     case "reasoning_mandatory_clamp":
     case "reasoning_budget_clamped":
     case "tool_result_error_dropped":
+    case "reasoning_dropped_for_prefill":
       return null;
     default:
       return assertNeverWarningCode(code);

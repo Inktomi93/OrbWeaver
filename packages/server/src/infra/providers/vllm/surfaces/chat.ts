@@ -3,6 +3,8 @@
 // one provider, no routing/cache_control choreography, no reasoning strip-and-replay.
 
 import type { ChatContentPart } from "@orb/contracts/chat";
+import type { ModelCapability } from "@orb/contracts/connection";
+import { acceptsAssistantPrefill } from "@orb/contracts/connection";
 import { DEFAULT_MAX_OUTPUT_TOKENS, isVllmBeltOwnedParameterKey } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -181,9 +183,17 @@ const UNKNOWN_TO_TEMPLATE_EFFORT = "minimal";
  *  the descriptor is `defaultEnabled:false`, so silence means off) emits NOTHING — byte-identical to every
  *  pre-reasoning body, so the baked launch default stands and no prefix-cache entry is disturbed. A resolved
  *  effort emits the pair; a budget never appears (this wire has no per-request budget field, permanently —
- *  the `--reasoning-config` mechanism is owner-ruled out, and the funnel makes that drop loud). */
-function reasoningFields(reasoning: ResolvedReasoning): Record<string, unknown> {
+ *  the `--reasoning-config` mechanism is owner-ruled out, and the funnel makes that drop loud).
+ *
+ *  A CONTENT PREFILL TAKES PRECEDENCE OVER THINKING, dropped-and-loud — see {@link PrefillMode} for the
+ *  measurement. The two cannot ride the same turn on this wire, and the prefill is the more explicit request
+ *  (a user authored the assistant row / pressed continue; `enable_thinking` came off a preset default). */
+function reasoningFields(reasoning: ResolvedReasoning, prefill: PrefillMode, warnings: ResolvedWarning[]): Record<string, unknown> {
   if (!reasoning.enabled || reasoning.effort === undefined) {
+    return {};
+  }
+  if (prefill === "content") {
+    warnings.push({ code: "reasoning_dropped_for_prefill", message: REASONING_DROPPED_FOR_PREFILL });
     return {};
   }
   const wire = effortToOpenAIReasoning({ enabled: true, effort: reasoning.effort }).effort;
@@ -193,6 +203,70 @@ function reasoningFields(reasoning: ResolvedReasoning): Record<string, unknown> 
       reasoning_effort: wire === UNKNOWN_TO_TEMPLATE_EFFORT ? TEMPLATE_EFFORT_FLOOR : wire,
     },
   };
+}
+
+// ── THE PREFILL DOOR ON THIS WIRE — `continue_final_message` + `add_generation_prompt`.
+//
+// On an array wire like Anthropic's, prefill IS the array shape: deliver a trailing assistant row and the
+// model continues it. Not here. Our vendored template (`scripts/dev/qwen3_gen_thinking_serve.jinja`, served by
+// `genArgv`) decides per RENDER, and its default arm closes the last assistant block and appends a fresh
+// `<|im_start|>assistant` header — so a delivered prefill row silently becomes a completed prior turn. Nothing
+// errors; the prefill just stops existing. The template's continuation arm (:240) fires on
+// `loop.last and role == assistant and (not add_generation_prompt or _assistant_prefill)`, and vLLM forbids
+// `continue_final_message` and `add_generation_prompt` both true — hence the PAIR, sent together or not at all.
+//
+// The kwarg door (`chat_template_kwargs: {"assistant_prefill": true}`) renders byte-identically (measured
+// 2026-08-19, `VLLM_TURNS`), and is deliberately NOT the one used: it exists for a caller that cannot set the
+// standard flags on a static body. We build the request, so we take the standard flags — the same reason
+// `reasoningFields` rides `chat_template_kwargs` and this does not: that one IS a template variable, this one
+// is a request-level render mode transformers/vLLM already model by name.
+//
+// THREE CONDITIONS, and each is a different kind of fact:
+//   1. the CAPABILITY (`acceptsAssistantPrefill`) — does this wire × checkpoint continue at all. Read through
+//      the contracts helper, never re-spelled: a checkpoint swap that loses the arm flips the descriptor, and
+//      the surface must stop sending the pair with it (D143 — capability here varies per checkpoint).
+//   2. the DELIVERED SHAPE — the assembled array actually ends on an assistant row. SHAPE decides this
+//      upstream (its ends-on-assistant invariant appends a continuation nudge when prefill is NOT honored), so
+//      the surface reads the outcome rather than re-deriving the policy; `toMessages` is the last transform
+//      before the wire (it drops empty rows), so the check runs on ITS output, not on `req.history`.
+//   3. NO `tool_calls` on that row — the template's continuation arm excludes a tool-call turn, so the pair
+//      would render a prompt with NO generation prompt at all. The chat pipeline already suppresses prefill
+//      when tools ride; this is the surface holding its own end for any other caller of the wire.
+
+/** Which prefill this turn delivers — the axis {@link reasoningFields} also reads, so it is derived ONCE.
+ *
+ *  `content` vs `open-think` is not decoration: it decides whether the thinking kwargs may ride, and both arms
+ *  come off the same template fact. This checkpoint EOSes an assistant turn that lacks a think block, so for a
+ *  BARE-CONTENT prefill the template injects an empty, already-CLOSED `<think></think>` ahead of the delivered
+ *  text — the model is structurally done reasoning before it writes a token. Ask for thinking anyway and the
+ *  reply DISAPPEARS: vLLM's qwen3 reasoning parser, told `enable_thinking:true`, treats the output as reasoning
+ *  until a `</think>` the model has no reason to emit. MEASURED 2026-08-19, seed-pinned, on the gen engine —
+ *  same messages, same flags, thinking the only difference:
+ *    • thinking off ⇒ `content: ". It was cold. It was wet. It ended."`, reasoning null — a true continuation.
+ *    • thinking on  ⇒ `content: null`, the identical prose sitting in the reasoning channel. An empty reply.
+ *  A prefill that leaves a `<think>` OPEN is the other door the vendored template was built for (the thinking
+ *  steer — `scripts/dev/model-ab.ts`'s `prefill-thinking-kwarg` probe): there the parser's reasoning-first
+ *  assumption is CORRECT, the model closes the block itself, and the kwargs must ride. */
+const PREFILL_MODES = ["none", "content", "open-think"] as const;
+type PrefillMode = (typeof PREFILL_MODES)[number];
+
+/** Does this delivered text leave a think block open (a thinking-steer prefill)? Last-index comparison, not a
+ *  count: `<think>…</think>\n\n<think>` is open, and a closed block followed by prose is not. */
+function leavesThinkOpen(content: string): boolean {
+  const open = content.lastIndexOf("<think>");
+  return open !== -1 && open > content.lastIndexOf("</think>");
+}
+
+function prefillMode(capability: ModelCapability, messages: readonly WireMessage[]): PrefillMode {
+  const last = messages.at(-1);
+  if (!acceptsAssistantPrefill(capability) || last === undefined || last.role !== "assistant" || last.tool_calls !== undefined) {
+    return "none";
+  }
+  return leavesThinkOpen(last.content) ? "open-think" : "content";
+}
+
+function continuationFields(prefill: PrefillMode): Record<string, unknown> {
+  return prefill === "none" ? {} : { continue_final_message: true, add_generation_prompt: false };
 }
 
 function buildBody(req: VllmChatRequest, resolved: ResolvedChatKnobs, defaults: SamplerDefaults, warnings: ResolvedWarning[]): Record<string, unknown> {
@@ -216,13 +290,16 @@ function buildBody(req: VllmChatRequest, resolved: ResolvedChatKnobs, defaults: 
     // window, which would let generation overflow the reserved history and 400 vLLM).
     maxTokens: resolved.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   });
+  const messages = toMessages(req);
+  const prefill = prefillMode(req.capability, messages);
   const modeled: Record<string, unknown> = {
     model: req.model,
     stream: true,
     stream_options: { include_usage: true },
-    messages: toMessages(req),
+    messages,
     ...sampling,
-    ...reasoningFields(resolved.reasoning),
+    ...reasoningFields(resolved.reasoning, prefill, warnings),
+    ...continuationFields(prefill),
     ...(req.tools !== undefined ? { tools: rawWireTools(req.tools) } : {}),
     ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
     ...(req.responseFormat !== undefined ? { response_format: rawResponseFormat(strictByDefault(req.responseFormat)) } : {}),
@@ -345,6 +422,8 @@ function applyCustomParameters(
   return Object.keys(allowed).length === 0 ? base : deepMergeRequestBody(allowed, base);
 }
 
+const REASONING_DROPPED_FOR_PREFILL =
+  "thinking dropped for this turn: the local engine cannot reason INTO a content prefill (its template closes the think block ahead of the delivered text, and asking for thinking anyway routes the whole continuation into the reasoning channel, leaving an empty reply)";
 const CUSTOM_PARAMETERS_BELT_DROPPED = "customParameters keys dropped — owned by the vLLM infra belt and not overridable from a preset";
 // The vLLM `tool` message is {role,tool_call_id,content} and nothing else (see `wireToolResults`), so a failed
 // tool result reads to the model as an ordinary one — the identical wire limitation custom-byo reports.

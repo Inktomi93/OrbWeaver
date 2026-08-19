@@ -182,7 +182,17 @@ export const modelCapabilitySchema = z.object({
   turns: z
     .object({
       /** The wire accepts a DELIVERED trailing-assistant message as prefill; false ⇒ SHAPE normalizes at
-       *  delivery (a false-model receiving one hard-400s). Per-model, per-transport. */
+       *  delivery. Per-model, per-transport. Read through {@link acceptsAssistantPrefill}, never re-spelled.
+       *
+       *  WHAT `false` COSTS DIFFERS BY WIRE, and both failure modes are why this is a capability rather than a
+       *  try-it: Anthropic hard-400s a delivered trailing-assistant row it will not continue, while a
+       *  TEMPLATE-driven local engine silently renders it as a COMPLETED prior turn plus a fresh assistant
+       *  header — no error, just a prefill that quietly became history.
+       *
+       *  `true` DOES NOT MEAN "deliver and hope": a wire whose continuation is a REQUEST FIELD rather than an
+       *  array shape (vLLM's `continue_final_message`/`add_generation_prompt` pair) needs its surface to send
+       *  that field, and this bit is what authorizes it. Measured `true` on the vLLM arm 2026-08-19 (receipts
+       *  on `catalog/turns.ts::VLLM_TURNS`) after the vendored template gained the continuation arm. */
       assistantPrefill: z.boolean(),
       /** A mid-conversation system-authority channel exists and this model honors it, placement-correct. */
       midConversationSystem: z.boolean(),
@@ -248,6 +258,20 @@ export function coEmitsProseWithTools(capability: ModelCapability): boolean {
  *  and any future consumer must read the identical fact rather than re-spell `turns?.historySystemRows`. */
 export function acceptsHistorySystemRows(capability: ModelCapability): boolean {
   return capability.turns?.historySystemRows === true;
+}
+
+/** MAY this wire continue a DELIVERED trailing-assistant row (`capability.turns.assistantPrefill`)? The ONE
+ *  home of the prefill read, for the same reason {@link acceptsHistorySystemRows} has one: it now has readers
+ *  in TWO packages — the chat assembler (SHAPE keeps an assistant\@depth-0 injection at depth 0 and skips the
+ *  continuation nudge) and the vLLM chat surface (which must additionally send the wire's own continuation
+ *  flags), and a per-reader re-spelling is how those two drift apart into a prompt that ends on an assistant
+ *  row nobody told the engine to continue. Absent `turns` ⇒ `TURNS_FLOOR` ⇒ false.
+ *
+ *  It is the CAPABILITY half only. The assembler ANDs it with "no tools ride this turn" (a prefill and a tool
+ *  call are incompatible instructions about the same turn end — `engine/pipeline`), and the surface ANDs it
+ *  with "the delivered array actually ends on an assistant row". Neither of those is a fact about the model. */
+export function acceptsAssistantPrefill(capability: ModelCapability): boolean {
+  return capability.turns?.assistantPrefill === true;
 }
 
 /** The conservative today-behavior `turns` cell every model defaults to when the resolver can't refine
