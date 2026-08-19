@@ -22,7 +22,7 @@ import { env as processEnv } from "node:process";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import type { CharacterId, Handle } from "@orb/kit/ids";
+import type { CharacterId, Handle, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { env as orbEnv } from "@orb/server/foundation/env";
 import { createBackendRegistry, createProviderExecutor } from "@orb/server/infra/providers";
@@ -76,7 +76,7 @@ async function embedAll(inputs: readonly string[], inputType: "query" | "documen
   const executor = createProviderExecutor({ backends });
   // The deployment's OWN resolved embed model (the `backend-matrix.live` precedent for reading `orbEnv`) —
   // never a hardcoded id, so the floor is measured against whatever the box actually serves.
-  return await executor.embed({ credential: makeResolvedCredential("vllm"), model: orbEnv.VLLM_EMBED_MODEL, input: [...inputs], inputType });
+  return await executor.embed({ credential: makeResolvedCredential("vllm"), model: castId<ModelId>(orbEnv.VLLM_EMBED_MODEL), input: [...inputs], inputType });
 }
 
 describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
