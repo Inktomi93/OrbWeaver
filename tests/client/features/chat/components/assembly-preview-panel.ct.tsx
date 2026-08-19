@@ -24,6 +24,25 @@ const PREVIEW_TRACE = {
   matchedKeys: [{ key: "cake", matchedLatestUserMessage: true }],
   compactSummaryIncluded: true,
   memoryIncluded: false,
+  // The recall slice (#250) — the wire shape `recallMemory` produces: two surfaced blocks with the scores
+  // they were admitted on, plus the rejects carrying the STAGE that eliminated each.
+  memoryRecall: {
+    mode: "mixC" as const,
+    queryText: "Alex: is the bath house still open?",
+    queryEmbedded: true,
+    poolSize: 5,
+    candidateCount: 4,
+    surfaced: 2,
+    ms: 31,
+    note: null,
+    candidates: [
+      { tier: 0, blockIdx: 3, scopedCharacterId: "character_group", verdict: "admitted" as const, rank: 0, score: -0.81, relevance: 0.81 },
+      { tier: 1, blockIdx: 0, scopedCharacterId: "character_group", verdict: "admitted" as const, rank: 1, score: -0.62, relevance: 0.62 },
+      { tier: 0, blockIdx: 2, scopedCharacterId: "character_group", verdict: "below-floor" as const },
+      { tier: 0, blockIdx: 1, scopedCharacterId: "character_group", verdict: "bridge-covered" as const },
+      { tier: 0, blockIdx: 0, scopedCharacterId: "character_group", verdict: "live-window" as const },
+    ],
+  },
   guidedInstructionIncluded: true,
   staticCacheBusters: [],
   chatInjectionsIncluded: 1,
@@ -378,7 +397,40 @@ test("the diagnostics drawer still carries the BUILD + SHAPE traces (collapsed b
   await expect(component.getByText("World info — 2 activated")).toBeVisible();
   await expect(component.getByText("we_dragon")).toBeVisible();
   await expect(component.getByText("always")).toBeVisible();
-  await expect(component.getByText("Memory")).toHaveCount(0); // memoryIncluded:false → not an active flag badge.
+  // memoryIncluded:false → no active flag BADGE. Scoped to the badge and exact-matched on purpose: a bare
+  // `getByText("Memory")` now also matches the recall section's heading (#250), which would make this pin
+  // fail for a reason that has nothing to do with the flag it is about.
+  await expect(component.locator("[data-slot=badge]").getByText("Memory", { exact: true })).toHaveCount(0);
+});
+
+test("the diagnostics drawer explains MEMORY RECALL — what was fetched, on what score, and why the rest lost", async ({ mount, page }) => {
+  // #250: before this section the ONLY observable memory fact was the `Memory` flag badge — "something was
+  // included", with no way to see WHICH blocks or why. The owner's words: "no real easy way to see what
+  // memories were fetched and why".
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+  await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
+
+  await expect(component.getByText("Memory recall — 2 of 5 surfaced")).toBeVisible();
+  // The funnel, in one line: what it chose from → what it scanned → what landed.
+  await expect(component.getByText("5 → 4 → 2")).toBeVisible();
+  // The QUERY is the "why did it match that" datum — nothing else on the tab carries it.
+  await expect(component.getByText("Alex: is the bath house still open?")).toBeVisible();
+
+  const candidates = component.locator("[data-slot=memory-recall-candidate]");
+  await expect(candidates).toHaveCount(5);
+  // Admitted blocks lead in RANK order and carry the relevance they won on, as a percentage a host can read.
+  await expect(candidates.nth(0)).toContainText("#1 tier 0 · block 3");
+  await expect(candidates.nth(0)).toContainText("81% match");
+  await expect(candidates.nth(1)).toContainText("#2 tier 1 · block 0");
+  // …and every reject states the STAGE that eliminated it, in a host's words rather than the internal arm name.
+  await expect(candidates.nth(2)).toContainText("below the score floor");
+  await expect(candidates.nth(3)).toContainText("covered by a higher tier");
+  await expect(candidates.nth(4)).toContainText("still in the live history");
 });
 
 test("the diagnostics drawer lists the DELIVERED wire rows in order, with role · speaker · provenance", async ({ mount, page }) => {

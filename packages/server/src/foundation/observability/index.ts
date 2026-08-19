@@ -21,6 +21,7 @@ export {
   inspectChatState,
   integrityProbe,
   isWireCaptureEnabled,
+  type MemoryRecallInspector,
   type RpgTraceInspector,
   recentTurnOutcomes,
   recentWireCaptures,

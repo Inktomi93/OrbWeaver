@@ -11,6 +11,7 @@ import type {
   AssembleWorldEntry,
   ChatInjection,
   MacroFreezeRecord,
+  MemoryRecallSlice,
   RoomOverrides,
   SpeakerRef,
 } from "@orb/contracts/chat";
@@ -308,6 +309,10 @@ interface BuildAssembleContextInput {
   readonly currentInput?: string | undefined;
   readonly userInjections: readonly ChatInjection[];
   readonly memory?: string | null | undefined;
+  /** The recall trace explaining {@link BuildAssembleContextInput.memory} (#250) — staged by the gather that
+   *  produced the text. Absent ⇒ recall never ran for this build ⇒ the assembly trace reports
+   *  `memoryRecall: null` (a preview / hand-built ctx), which is distinct from a recall that surfaced nothing. */
+  readonly memoryTrace?: MemoryRecallSlice | undefined;
   /** The `{{databank}}` slot value (DB6) — reading-order-restored, budget-fitted document chunks. Absent ⇒
    *  the slot resolves empty (byte-identical to a non-databank turn). */
   readonly databank?: string | null | undefined;
@@ -427,6 +432,7 @@ function buildBaseContext(
   setIf(base, "timezone", input.timezone);
   setIf(base, "nowMs", input.nowMs);
   setIf(base, "memory", input.memory);
+  setIf(base, "memoryTrace", input.memoryTrace);
   // Absent (undefined) ⇒ skipped ⇒ byte-identical to a non-databank build (the null-op pin, DB6).
   setIf(base, "databank", input.databank);
   setIf(base, "compactSummary", input.compactSummary);

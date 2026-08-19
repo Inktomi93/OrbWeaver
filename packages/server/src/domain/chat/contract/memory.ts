@@ -11,7 +11,7 @@
 // `__group__${chatId}` for solo/merged/narrator / a per-witnessing cast char under scoped; NO `''` sentinel,
 // NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
 
-import type { BackfillPassResult, MemoryBackfillResult, MessageKind } from "@orb/contracts/chat";
+import type { BackfillPassResult, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -178,14 +178,43 @@ export interface WitnessInterval {
   readonly leftSeq: number | null;
 }
 
-/** The per-call recall observability fragment (core/Knowledge-Cluster.md §3a `memoryTrace.recall`). `queryEmbedded`
- *  is whether the per-turn query embed fired (false for off / empty-pool / non-embedding modes — inv 10). */
-export interface MemoryRecallTrace {
-  readonly mode: MemoryRetrievalMode;
-  readonly poolSize: number;
-  readonly surfaced: number;
-  readonly queryEmbedded: boolean;
-  readonly ms: number;
+/** What `recallMemory` produces: the rendered `{{memory}}` block AND the explanation of how it got there.
+ *  ONE return, not a value plus an optional out-param sink — the trace is the reason #250 exists, and a shape
+ *  a caller can forget to collect is exactly the hole that let recall run unobserved. `text` is `""` for every
+ *  zero-work path (off / empty pool / nothing survived); the slice then carries the REASON. */
+export interface MemoryRecallResult {
+  readonly text: string;
+  readonly trace: MemoryRecallSlice;
+}
+
+/** The recall observability RECORD as the bounded ring buffers it — one recall call, stamped with its
+ *  monotonic sequence + wall-clock time by the recorder (the emitter supplies neither: determinism, the
+ *  `RpgTraceRecord` precedent). */
+export interface MemoryRecallRecord {
+  readonly seq: number;
+  readonly at: number;
+  readonly chatId: ChatId;
+  readonly scopedCharacterId: CharacterId;
+  readonly trace: MemoryRecallSlice;
+}
+
+/** The read filter for the ring: narrow to one chat's recalls, and/or the most-recent N. */
+export interface MemoryRecallFilter {
+  readonly chatId?: ChatId;
+  readonly limit?: number;
+}
+
+/** The injected recall-trace sink (`ChatContext.recordRecall`) — synchronous, side-effect-only, and it must
+ *  never throw into the turn path. Absent ⇒ nothing records (a hand-built ctx / a unit test), and recall is
+ *  byte-identical either way. */
+export type MemoryRecallSink = (record: Omit<MemoryRecallRecord, "seq" | "at">) => void;
+
+/** The compose singleton (`memory/recall/recorder.ts` builds ONE): the injected {@link MemoryRecallSink} plus
+ *  the host-only ring read `/api/_debug/memory/recalls` tails. */
+export interface MemoryRecallRecorder {
+  readonly sink: MemoryRecallSink;
+  /** The matching records in chronological order, capped to the most-recent `limit` (default: ring depth). */
+  readonly recent: (filter?: MemoryRecallFilter) => readonly MemoryRecallRecord[];
 }
 
 /** The per-call build observability fragment (core/Knowledge-Cluster.md §3a `memoryTrace.build`). Folded into
@@ -213,7 +242,9 @@ export type MemoryLogEntry =
       readonly event: "memory.recall";
       readonly chatId: ChatId;
       readonly scopedCharacterId: CharacterId;
-      readonly trace: MemoryRecallTrace;
+      /** The SAME slice the assembly trace + the debug ring carry — one recall shape, three readers (#250);
+       *  the log fragment is deliberately not a narrower second spelling of it. */
+      readonly trace: MemoryRecallSlice;
       readonly note?: string | undefined;
     }
   | {

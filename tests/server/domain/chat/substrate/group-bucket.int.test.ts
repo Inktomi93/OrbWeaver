@@ -74,7 +74,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     const group = await ctx.findSyntheticGroupCharacter({ ownerId: host, chatId });
     const recallKey = group?.characterId ?? c1;
     expect(recallKey).toBe(buildKey); // build key === recall key (the round-trip invariant that was broken)
-    const memory = await recallMemory(ctx, {
+    const { text: memory } = await recallMemory(ctx, {
       scope: { chatId, scopedCharacterId: recallKey, isGroup: true },
       groupCharacterId: recallKey,
       config: { mode: "mixA" },

@@ -31,7 +31,7 @@ import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/s
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, seedChat, stubRunCompaction, testConnection } from "../_support.ts";
+import { fakeRecallResult, makeChatContext, seedChat, stubRunCompaction, testConnection } from "../_support.ts";
 
 const PREVIOUS_WIRE_CAPTURE = vi.hoisted((): string | undefined => {
   const previous = globalThis.process.env["WIRE_CAPTURE"];
@@ -101,7 +101,7 @@ function engineOver(database: Db, runChatTurn: ChatContext["runChatTurn"]): Retu
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
     loadWitnessHorizons: () => Promise.resolve([]),
-    recallMemory: () => Promise.resolve(""),
+    recallMemory: () => Promise.resolve(fakeRecallResult("")),
     runCompaction: stubRunCompaction,
   });
 }

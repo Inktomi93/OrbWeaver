@@ -8,7 +8,7 @@
 // one no surface prints a number for (memory recall, databank gather) — do not add it speculatively.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
-import type { BlockKey } from "@orb/contracts/search";
+import type { BlockKey, ScoredBlock } from "@orb/contracts/search";
 import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId } from "@orb/kit/ids";
 
 export interface SearchHit {
@@ -31,11 +31,11 @@ export interface CharacterCardHit {
   readonly elevatorPitch: string | null;
 }
 
-/** A memory-digest hit as RETRIEVAL returns it — what `memory.recall` assembles a prompt from. */
-export interface DigestSearchHit {
-  readonly blockKey: BlockKey;
-  readonly score: number;
-  readonly relevance: number;
+/** A memory-digest hit as RETRIEVAL returns it — what `memory.recall` assembles a prompt from. EXTENDS the
+ *  cross-domain {@link ScoredBlock} (the seam shape `memory`'s injected `searchDigests` op speaks) rather
+ *  than re-spelling its three fields: this shape IS that one plus the source text, and the extends clause is
+ *  what makes a widened seam fail `tsc` here instead of drifting. */
+export interface DigestSearchHit extends ScoredBlock {
   readonly text: string;
 }
 

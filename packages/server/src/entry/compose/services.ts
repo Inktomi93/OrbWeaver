@@ -50,8 +50,8 @@ import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder } from "#domain/chat";
-import { createDemoChatSeeder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
+import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryRecallRecorder } from "#domain/chat";
+import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
 import type { LocalEngineReachability } from "#domain/connection";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
@@ -259,6 +259,9 @@ export interface ServicesResult {
    *  to `createApp`, which registers `/api/_debug/rpg/traces` only when it is present (the route's own
    *  `rpgTrace === undefined ⇒ not registered` contract, `foundation/observability/debug/routes.ts`). */
   readonly rpgTrace: RpgTraceRecorder | undefined;
+  /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
+   *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
+  readonly recallRecorder: MemoryRecallRecorder;
   /** The ONE tool-use registry (rpg's 7 state tools registered into it) — surfaced so the composed-real int
    *  test drives a CHEAP tool turn through the REAL registered handlers (`resolveTools` + `executeToolCalls`),
    *  proving the compose tool-registration is live. Not on the transport `Services` bundle. */
@@ -657,10 +660,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     handoffHealStatements: (args) => rpgOps().handoffHealStatements(args),
     handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
   };
+  // #250 — the memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains
+  // is produced by every recall anyway (it is the assembly trace's memory row), so the ring's only cost is
+  // holding a bounded number of already-built objects — and an observability lens that first requires a
+  // restart with a flag set does not answer "why did memory surface that".
+  const recallRecorder = createMemoryRecallRecorder({ now });
   const chatCompose = buildChatService({
     toolUse,
     db,
     now,
+    recallRecorder,
     emitChatEvent,
     emitChatEventLive,
     holder: deps.holder ?? "replica-default",
@@ -992,6 +1001,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     demoChatSeeder,
     rpgChatOps: rpgCompose.chatOps,
     rpgTrace,
+    recallRecorder,
     toolUse,
     chatRpgOps: chatCompose.rpgChatOps,
   };

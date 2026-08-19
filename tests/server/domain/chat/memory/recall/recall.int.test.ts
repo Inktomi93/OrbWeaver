@@ -17,6 +17,10 @@ import { fakeEmbeddingsStore, fakeSearchDigests, fakeSummarize, GROUP_CHAR, seed
 const aria = castId<CharacterId>("character_aria");
 const bram = castId<CharacterId>("character_bram");
 
+/** #250 — `recallMemory` now returns `{ text, trace }`. These suites assert the RENDERED `{{memory}}` block,
+ *  so they read `.text` through this alias; the trace itself is pinned by `recall-trace.int.test.ts`. */
+const recallText = async (...args: Parameters<typeof recallMemory>): Promise<string> => (await recallMemory(...args)).text;
+
 let db: Db;
 beforeEach(async () => {
   db = await freshDb();
@@ -38,7 +42,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0 });
     const ctx = makeChatContext(db);
     expect(
-      await recallMemory(ctx, {
+      await recallText(ctx, {
         scope: sharedScope(chatId),
         groupCharacterId: GROUP_CHAR,
         config: { mode: "off" },
@@ -53,7 +57,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     await seedDigest(db, { chatId, tier: 1, blockIdx: 0, topicAnchor: "[T1]", keywords: ["x"] }); // higher tier ignored by mixA
     // searchDigests left as the throwing stub — mixA must NOT call it.
     const ctx = makeChatContext(db);
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -75,7 +79,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
       makeChatContext(db, { summarize: fakeSummarize().fn, embeddingsStore: fakeEmbeddingsStore(db).store });
 
     await generateDigests(build(), { scope: sharedScope(chatId), config: cfg });
-    const before = await recallMemory(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
+    const before = await recallText(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
     // Both blocks' digests are recallable — the fake summarizer numbers each call, so block 1's is "scene 2".
     expect(before).toContain("scene 1");
     expect(before).toContain("scene 2");
@@ -89,7 +93,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     }
     await generateDigests(build(), { scope: sharedScope(chatId), config: cfg });
 
-    const after = await recallMemory(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
+    const after = await recallText(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
     expect(after).toContain("scene 1"); // the surviving block still recalls
     expect(after).not.toContain("scene 2"); // …the hidden span's digest does not
   });
@@ -104,7 +108,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     ];
     const search = fakeSearchDigests(ranked);
     const ctx = makeChatContext(db, { searchDigests: search.fn });
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixC", minScore: 0.3 },
@@ -135,7 +139,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     await seedDigest(db, { chatId, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
     await seedDigest(db, { chatId, tier: 1, blockIdx: 1, topicAnchor: "[T1.1]", keywords: [] });
     const ctx = makeChatContext(db); // tiered is pure assembly — no search call
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "tiered", fanOut: 2 },
@@ -169,7 +173,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     });
     const ctx = makeChatContext(db);
 
-    const ariaOut = await recallMemory(ctx, {
+    const ariaOut = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: aria, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -177,7 +181,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(ariaOut).toBe("[aria]");
     expect(ariaOut).not.toContain("[bram]");
 
-    const bramOut = await recallMemory(ctx, {
+    const bramOut = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: bram, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -215,7 +219,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     });
     const ctx = makeChatContext(db);
 
-    const ariaOut = await recallMemory(ctx, {
+    const ariaOut = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: aria, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -225,7 +229,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(ariaOut).toContain("[aria]");
     expect(ariaOut).not.toContain("[bram]");
 
-    const bramOut = await recallMemory(ctx, {
+    const bramOut = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: bram, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -253,7 +257,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const ctx = makeChatContext(db);
 
     // aria joined at seq 9 (the start of block 1) → block 0 (seq 1-8) is pre-join → NOT witnessed.
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: aria, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       witnessing: [{ joinSeq: 9, leftSeq: null }],
@@ -281,7 +285,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const ctx = makeChatContext(db);
 
     // Present for block 0 (seq 1-8), kicked before block 1 (left at seq 9), re-added at seq 17 (block 2).
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: aria, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       witnessing: [
@@ -313,7 +317,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const bramHorizons = await loadWitnessHorizons(db, chatId, bram);
 
     const recall = async (scopedCharacterId: typeof aria, witnessing: Awaited<ReturnType<typeof loadWitnessHorizons>>): Promise<string> =>
-      recallMemory(ctx, { scope: { chatId, scopedCharacterId, isGroup: true }, groupCharacterId: GROUP_CHAR, witnessing, config: { mode: "mixA" } });
+      recallText(ctx, { scope: { chatId, scopedCharacterId, isGroup: true }, groupCharacterId: GROUP_CHAR, witnessing, config: { mode: "mixA" } });
 
     const ariaOut = await recall(aria, ariaHorizons);
     const bramOut = await recall(bram, bramHorizons);
@@ -329,7 +333,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const chatId = await seedChat(db, "empty");
     const entries: MemoryLogEntry[] = [];
     const ctx = makeChatContext(db, { log: (e) => entries.push(e) });
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -346,7 +350,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0, topicAnchor: "[s0]", keywords: ["a"] });
     const entries: MemoryLogEntry[] = [];
     const ctx = makeChatContext(db, { log: (e) => entries.push(e) });
-    await recallMemory(ctx, {
+    await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -365,7 +369,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     const chatId = await seedChat(db, "mixc-empty");
     const search = fakeSearchDigests([]);
     const ctx = makeChatContext(db, { searchDigests: search.fn });
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixC" },
@@ -390,7 +394,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     await seedDigest(db, { chatId, tier: 1, blockIdx: 1, topicAnchor: "[T1.1]", keywords: [] });
     const search = fakeSearchDigests([]);
     const ctx = makeChatContext(db, { searchDigests: search.fn });
-    await recallMemory(ctx, {
+    await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixC", fanOut: 2 },
@@ -414,7 +418,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
       searchDigests: fakeSearchDigests(ranked).fn,
       log: (e) => entries.push(e),
     });
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixC" },
@@ -446,7 +450,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     });
     const ctx = makeChatContext(db);
     // speaking AS the group char (currently merged/narrator): pool = shared ∪ own(==shared) = shared ONLY.
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -477,7 +481,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
     await seedSegment(db, { chatId, blockIdx: 1, seqStart: 9, seqEnd: 16 });
     const ctx = makeChatContext(db);
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: { chatId, scopedCharacterId: aria, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       witnessing: [{ joinSeq: 9, leftSeq: null }],
@@ -499,7 +503,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     });
     // NO seedSegment → the span resolver cannot find block 0's seq-span.
     const ctx = makeChatContext(db);
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       witnessing: [{ joinSeq: 1000, leftSeq: null }], // WOULD exclude it if the span resolved
@@ -541,7 +545,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     });
     const ctx = makeChatContext(db);
     // control: a member present from seq 1 sees the coarse arc T1.0 for the distant past.
-    const full = await recallMemory(ctx, {
+    const full = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       witnessing: [{ joinSeq: 1, leftSeq: null }],
@@ -549,7 +553,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     });
     expect(full).toContain("[T1.0]");
     // joined at seq 17 → never witnessed tier-1 block 0's span (seq 1-16) → its arc is filtered out (tier>0 math).
-    const late = await recallMemory(ctx, {
+    const late = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       witnessing: [{ joinSeq: 17, leftSeq: null }],
@@ -571,7 +575,7 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
       text: fullText,
     });
     const ctx = makeChatContext(db);
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
@@ -606,7 +610,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
     const ctx = makeChatContext(db);
     // cutoff 9 ⇒ blocks starting at seq ≥ 9 (b1 @9, b2 @17) are verbatim in the live window → dropped; b0 (@1) surfaces.
     // `verbatimWindow` is deliberately HUGE — a mutant filtering by the fixed window (not the cutoff) would differ.
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       liveWindowCutoffSeq: 9,
@@ -622,7 +626,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
     await seedThreeBlocks(chatId);
     const ctx = makeChatContext(db);
     // cutoff 17 ⇒ b2 starts AT 17 (dropped); b1 (@9) and b0 (@1) are strictly below → surfaced.
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       liveWindowCutoffSeq: 17,
@@ -637,7 +641,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
     const chatId = await seedChat(db, "lw-tiered");
     await seedThreeBlocks(chatId);
     const ctx = makeChatContext(db);
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       liveWindowCutoffSeq: 9,
@@ -654,7 +658,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
     await seedThreeBlocks(chatId);
     const search = fakeSearchDigests([]);
     const ctx = makeChatContext(db, { searchDigests: search.fn });
-    await recallMemory(ctx, {
+    await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       liveWindowCutoffSeq: 9,
@@ -669,7 +673,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
     const chatId = await seedChat(db, "lw-none");
     await seedThreeBlocks(chatId);
     const ctx = makeChatContext(db);
-    const out = await recallMemory(ctx, {
+    const out = await recallText(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
