@@ -47,6 +47,8 @@
 //     style/format/order. (no-conflicting-classes / no-duplicate-classes are correctness-adjacent and
 //     available; deferred until @orb/ui's class surface stabilizes — revisit then.)
 //   • typescript-eslint's recommended RULE set — tsc + Biome own type/style; we take the PARSER only.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
@@ -65,6 +67,37 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 // @orb/client is skeletal but wired so the gate is live the moment code lands.
 const UI_SRC = "packages/ui/src/**/*.{ts,tsx}";
 const CLIENT_SRC = "packages/client/src/**/*.{ts,tsx}";
+
+// ── Author classes: the DERIVED half of `no-unknown-classes` (#249) ─────────────────────────────
+// A hand-written CSS class (`orb-skeleton-shimmer`, `shell-rail`) is real paint but not a Tailwind
+// utility, so the unknown-class check would red it. It is fed the class names BY NAME, parsed out of
+// the sanctioned stylesheets themselves — NEVER a `^shell-`/`^orb-` prefix wildcard. A wildcard is a
+// rubber stamp that silently passes `shell-raill`, which is EXACTLY the compiles-to-nothing defect the
+// rule exists to catch (`inset-block-0` shipped a band 490px short; `z-base` reached the train gate).
+// Two-sided by construction: a sheet that moves makes this file throw at lint startup rather than
+// silently widening the ignore set, and a deleted class stops being ignored the run after it dies.
+const UI_STYLESHEET = "packages/ui/src/styles/globals.css";
+// The client's entry `@import`s @orb/ui's, so its authored surface is the union of all three sheets;
+// `shell.css` is the ONE sanctioned feature-tier stylesheet (client-architecture-lockdown §4, gated by
+// `feature-css-files`).
+const CLIENT_STYLESHEETS = [UI_STYLESHEET, "packages/client/src/styles/globals.css", "packages/client/src/features/app-shell/surfaces/shell.css"];
+
+/** Class names authored as CSS SELECTORS in `sheets`, as anchored `ignore` regex strings. Comments are
+ *  blanked and only the selector half of each rule is read — a `.foo` named in prose or inside a
+ *  declaration value must not widen the ignore set (the permissive direction is the dangerous one). */
+function authorClassIgnores(sheets) {
+  const names = new Set();
+  for (const rel of sheets) {
+    const css = readFileSync(join(ROOT, rel), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const chunk of css.split("{")) {
+      const selector = chunk.slice(chunk.lastIndexOf("}") + 1);
+      for (const m of selector.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) {
+        names.add(m[1]);
+      }
+    }
+  }
+  return [...names].map((name) => `^${name}$`);
+}
 // Browser component tests (the ones @orb/ui's / @orb/client's tsconfigs own — real components +
 // hooks). The node `tests/ui/**/*.test.ts` (tokens, etc.) are NOT matched here — no hooks/components.
 const UI_CT = "tests/ui/**/*.ct.tsx";
@@ -405,13 +438,33 @@ export default tseslint.config(
     files: [UI_SRC],
     plugins: { "better-tailwindcss": betterTailwindcss },
     settings: {
-      "better-tailwindcss": { entryPoint: "packages/ui/src/styles/globals.css" },
+      "better-tailwindcss": { entryPoint: UI_STYLESHEET },
     },
     rules: {
       // `orb-*` are the kit's own bespoke component classes (keyframe animations Tailwind utilities
       // can't express — e.g. `orb-skeleton-shimmer`, D62 UIP-309), defined in globals.css and composed
-      // by name; they are legitimately not Tailwind utilities, so the unknown-class check ignores them.
-      "better-tailwindcss/no-unknown-classes": ["error", { ignore: ["^orb-"] }],
+      // by name; they are legitimately not Tailwind utilities, so the unknown-class check ignores them —
+      // BY NAME, derived from that same stylesheet (see `authorClassIgnores`).
+      "better-tailwindcss/no-unknown-classes": ["error", { ignore: authorClassIgnores([UI_STYLESHEET]) }],
+      "better-tailwindcss/enforce-consistent-variable-syntax": ["error", { syntax: "shorthand" }],
+      "better-tailwindcss/no-deprecated-classes": "error",
+    },
+  },
+  {
+    // The SAME correctness gate over @orb/client (#249). It was ui-only until 2026-08-19, which is the
+    // whole reason `inset-block-0` had to be caught by rendered geometry and `z-base` by the train gate:
+    // client code carries class strings too (it composes @orb/ui primitives by passing `className`), and
+    // nothing was checking them against the engine's actual utility set. Its entry point is the CLIENT
+    // stylesheet — the one that `@import`s @orb/ui's — so the known set is exactly what the client bundle
+    // registers. Measured at landing: 37 findings, all of them authored `shell-*`/`ctx-tab-*` classes,
+    // zero real dead utilities; the derived ignore set absorbs the 37 by name and nothing else.
+    files: [CLIENT_SRC],
+    plugins: { "better-tailwindcss": betterTailwindcss },
+    settings: {
+      "better-tailwindcss": { entryPoint: "packages/client/src/styles/globals.css" },
+    },
+    rules: {
+      "better-tailwindcss/no-unknown-classes": ["error", { ignore: authorClassIgnores(CLIENT_STYLESHEETS) }],
       "better-tailwindcss/enforce-consistent-variable-syntax": ["error", { syntax: "shorthand" }],
       "better-tailwindcss/no-deprecated-classes": "error",
     },

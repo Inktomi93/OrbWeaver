@@ -190,6 +190,13 @@ export type ContrastInput = {
    *  distinction is load-bearing for the rules that are about an authored COLOR rather than about
    *  luminance — see checkGrayOnColor. */
   readonly backdropMethod?: "css-resolve" | "pixel-sample";
+  /** This text sits inside an `aria-hidden="true"` subtree. It is COLLECTED anyway and every rule over
+   *  this sample family judges it, because contrast is a property of PIXELS and a sighted user reads
+   *  decorative text exactly as well as announced text (issue #253 — three findings vanished from a scan
+   *  the day their host became aria-hidden, without one pixel changing). The flag exists so an
+   *  a11y-flavoured rule added here later excludes it EXPLICITLY rather than by an omission nobody can
+   *  see. Optional: absent in the fixture sample sets that predate it. */
+  readonly ariaHidden?: boolean;
   /** Product of `opacity` over the text element AND its ancestors. Below 1 the glyphs are painted as a
    *  BLEND of `color` and the backdrop (CSS opacity groups the subtree and composites it), while
    *  `color` still reports the undimmed value — so the ratio must be measured on the composite, exactly
@@ -624,12 +631,21 @@ export type TextStyleInput = {
    *  text) — not merely text inside an interactive ancestor: a micro-voice caption inside a large
    *  clickable card is the ratified gloss voice and does NOT owe the 11px control floor. */
   readonly interactive: boolean;
-  /** Inside pre/code/kbd/samp/var/svg/aria-hidden — exempt from type floors. */
+  /** Inside pre/code/kbd/samp/var/svg — glyphs that are DATA or GEOMETRY, which the type ramp does not
+   *  govern. `aria-hidden` was in this selector until issue #253 and must never return: it is an
+   *  accessibility-tree fact, and using it as a type-floor exemption silently excused every
+   *  decorative-but-rendered string in the product. */
   readonly codeContext: boolean;
   /** Screen-reader-only text — exempt from everything here (it paints no pixels to judge). Either
    *  shape: a clipped visually-hidden state (`clip-path: inset(50%)` / `clip: rect(0,0,0,0)` over a
    *  clipping overflow — the `sr-only` posture, which keeps a FULL-SIZE box), or a ≤2px plumbing box. */
   readonly srOnly: boolean;
+  /** Inside an `aria-hidden="true"` subtree — JUDGED ANYWAY by every rule here (issue #253). This family
+   *  is entirely VISUAL (size, leading, tracking, measure, caps, justification): all of it is pixels a
+   *  sighted user reads whether or not a screen reader announces it, and the opposite posture cost three
+   *  live findings the day their host was correctly marked aria-hidden. Contrast with `srOnly`, which IS
+   *  an exemption — clipped text paints no pixels at all. Optional: absent in older fixture sample sets. */
+  readonly ariaHidden?: boolean;
 };
 
 const LINE_LENGTH_TEXT_MIN = 80;
@@ -1433,6 +1449,80 @@ export function checkScriptErrors(pageErrors: readonly string[]): Finding[] {
   return findings;
 }
 
+// ── Duplicate action doors — the RUNTIME half of issue #252 ─────────────────────────────────────────
+// "New chat lives in three places." The STATIC gate (`duplicate-action-doors`, scripts/check/gates) censuses
+// tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action — one call site
+// behind N rendered slots, which is precisely how the founding complaint escapes it (its three doors all
+// call one shared state action). This lens is the other half: the same (role, accessible name) OFFERED more
+// than once on one rendered plane. Neither arm subsumes the other — the static one catches one verb wearing
+// N different labels, this one catches one label rendered N times from one verb.
+//
+// NOTHING IS HARDCODED. The key is the control's own computed name; no procedure or affordance is named here.
+//
+// THE FALSE-POSITIVE CLASS IS PER-DATUM REPETITION — twelve "Open" buttons in a chat list are twelve
+// different chats, not twelve doors to one action — and the discriminator is STRUCTURAL PATH. Per-datum
+// instances are rendered by ONE piece of code, so their paths from the root are IDENTICAL; genuinely
+// separate homes (a hero CTA, a rail button, a topbar glyph) are reached by DIFFERENT paths. A twin-SIBLING
+// count was tried first and refused with a receipt: keyed on tag+class it reads two bare wrapper divs as a
+// list and swallowed every door on a three-door stage.
+
+export type ActionDoorInput = {
+  readonly selector: string;
+  /** Explicit `role`, else the implicit role of the tag (`input:<type>` for inputs). */
+  readonly role: string;
+  /** The accessible name as a COMPARISON KEY: case-folded, whitespace-collapsed, trailing punctuation
+   *  stripped. Never empty — an unnamed control is the `aria-name` rule's finding, not this one. */
+  readonly name: string;
+  /** The chain of tag@data-slot.classes signatures from this control up to `<body>`, POSITION-FREE.
+   *  Two doors sharing a path are one component rendered per datum; two doors with different paths are two
+   *  homes. */
+  readonly path: string;
+};
+
+/** Above this the surface is a per-datum grid the structural test failed to recognise, not an IA defect —
+ *  reporting it would be a false-positive factory rather than a finding. */
+const DOOR_GROUP_MAX = 6;
+
+export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[] {
+  const groups = new Map<string, ActionDoorInput[]>();
+  for (const door of doors) {
+    if (door.name.length === 0) {
+      continue;
+    }
+    const key = `${door.role}|${door.name}`;
+    const bucket = groups.get(key) ?? [];
+    bucket.push(door);
+    groups.set(key, bucket);
+  }
+  const findings: Finding[] = [];
+  for (const [key, bucket] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
+    // ONE DOOR PER DISTINCT PATH: the same path is one component rendered per datum, however many rows it
+    // has. Distinct paths are distinct homes, which is the whole finding.
+    const homes = new Map<string, ActionDoorInput>();
+    for (const door of bucket) {
+      if (!homes.has(door.path)) {
+        homes.set(door.path, door);
+      }
+    }
+    if (homes.size < 2 || homes.size > DOOR_GROUP_MAX) {
+      continue;
+    }
+    const [role = "control", name = ""] = key.split("|");
+    const at = [...homes.values()].map((d) => d.selector);
+    findings.push({
+      rule: "duplicate-action-door",
+      severity: "P3",
+      selector: at[0] ?? "page",
+      value: `${homes.size}x ${role} "${name}"`,
+      message: `the same action is offered from ${homes.size} structurally distinct places on one plane — a ${role} named "${name}" at ${at.join(
+        " AND ",
+      )}. One verb wants one home per plane (the more-than-one-home IA class, docs/architecture/core/client-architecture-lockdown.md §13); if a second door is ruled UX, the ruling is what makes it one`,
+      origin: "orbweaver",
+    });
+  }
+  return findings;
+}
+
 // ── Aggregation ──────────────────────────────────────────────────────────────
 
 export type RawSamples = {
@@ -1440,6 +1530,9 @@ export type RawSamples = {
   readonly images: readonly ImageDistortionInput[];
   readonly tapTargets: readonly TapTargetInput[];
   readonly accessibleNames: readonly AccessibleNameInput[];
+  /** Named, offered, non-per-datum controls — the runtime dual-home lens (#252). Optional: absent from the
+   *  fixture sample sets that predate it, where it reads as "no doors censused". */
+  readonly actionDoors?: readonly ActionDoorInput[];
   readonly mainLandmarkPresent: boolean;
   readonly tabIndexes: readonly TabIndexInput[];
   readonly zIndexes: readonly ZIndexInput[];
@@ -1489,6 +1582,7 @@ export function collectFindings(samples: RawSamples): Finding[] {
   pushFindings(findings, samples.images, checkImageDistortion);
   pushFindings(findings, samples.tapTargets, (t) => checkTapTarget(t, samples.pointerCoarse));
   pushFindings(findings, samples.accessibleNames, checkAccessibleName);
+  findings.push(...checkDuplicateDoors(samples.actionDoors ?? []));
   const landmark = checkMainLandmark({ main: samples.mainLandmarkPresent });
   if (landmark !== null) {
     findings.push(landmark);
