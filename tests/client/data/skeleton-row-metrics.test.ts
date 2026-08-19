@@ -13,7 +13,7 @@ import { expect, test } from "../../support/fixtures.ts";
 
 const PX_PER_REM = 16;
 const FALLBACK = 3;
-/** The two boxes the defect was MEASURED on, verbatim from the re-check's `orb:home-tile-box` read. */
+/** The two boxes the defect was MEASURED on, verbatim from the re-check's `orb:surface-box` read. */
 const RECENTS_BOX_PX = 349;
 const TEMP_CHAT_BOX_PX = 110.890_625;
 

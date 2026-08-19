@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
+import { usePrefersReducedMotion } from "#lib";
 import { Icon, ImageOff } from "#primitives/icons";
 import { crossfadeImageVariants } from "./variants.ts";
 
@@ -38,11 +39,14 @@ function initialLayers(src: string | null): Layers {
 }
 
 /**
- * Two-layer CSS opacity crossfade on `src` change. Collapses to an instant swap under
- * `prefers-reduced-motion` via the globals.css unlayered floor — no JS media-query branching needed.
- * A failing `src` swaps to a styled broken-image fallback instead of the browser's native glyph.
+ * Two-layer CSS opacity crossfade on `src` change. Collapses to an instant swap under reduced motion —
+ * and that arm is JS, not CSS: the globals.css floor REMOVES transitions (`transition-property: none`,
+ * #257), so `onTransitionEnd` never fires there and the under-layer would stay mounted for the life of
+ * the component. Reduced motion therefore mounts the new layer already revealed with no under-layer at
+ * all. A failing `src` swaps to a styled broken-image fallback instead of the browser's native glyph.
  */
 export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, className }: CrossfadeImageProps): ReactElement {
+  const reduced = usePrefersReducedMotion();
   // Mirrors `src` so a prop change is detected and reacted to DURING render, not a setState-in-effect cascade.
   const [propSrc, setPropSrc] = useState(src);
   const [layers, setLayers] = useState<Layers>(() => initialLayers(src));
@@ -54,8 +58,8 @@ export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, classNa
     const generation = layers.generation + 1;
     setLayers({
       generation,
-      previousSrc: src === null ? null : (layers.top?.src ?? null),
-      top: src === null ? null : { key: generation, src, revealed: false },
+      previousSrc: src === null || reduced ? null : (layers.top?.src ?? null),
+      top: src === null ? null : { key: generation, src, revealed: reduced },
     });
   }
 

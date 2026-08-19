@@ -272,10 +272,15 @@ in order. The sourced synthesis and design-writing quotes behind these live in
 
 9. **`prefers-reduced-motion` is REMOVE, not shorten.** Parallax, auto-playing motion, and
    large-scale transforms are removed outright, not sped up. The CSS floor does this
-   (`animation-duration`/`transition-duration: 0.01ms !important`, OS `@media` +
+   (`animation-duration: 0.01ms !important` + `transition-property: none !important`, OS `@media` +
    shell-stamped `[data-reduced-motion="true"]`, both unlayered — `ui/src/styles/globals.css`);
    the JS hook `usePrefersReducedMotion` degrades `useSmoothText` to full passthrough. New
-   motion replicates this — no "reduced but still animated" middle ground.
+   motion replicates this — no "reduced but still animated" middle ground. **Transitions are
+   REMOVED, so `transitionend` never fires under reduced motion** — any component that unmounts
+   or cleans up on that event owes an explicit reduced-motion arm (`CrossfadeImage`, `WeaveVeil`,
+   `flashAnchor`). The transition floor was a `0.01ms` duration clamp until #257, where it was
+   measured turning every element in the document into `transition: all` and firing 1,064 bogus
+   `scrollbar-color` transitions per room open.
 
 10. **Staggering communicates grouping.** A small stagger (20–50ms/item, capped \~5-6) reads as
     "one group arriving." Never stagger removals — a deleted item leaves immediately.

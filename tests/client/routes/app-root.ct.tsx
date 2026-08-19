@@ -210,13 +210,24 @@ test("picking a character in the library CREATES the chat and lands in it (the l
   await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
   // Scope to the library row's unique "Chat with X" CTA — the bare name "Aria Nightshade" is now
   // ambiguous (home stays mounted with a quick-picks tile row of the same name).
-  await expect(page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true })).toBeVisible();
+  const chatCta = page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true });
+  await expect(chatCta).toBeVisible();
   // On the Characters section the chat composer is NOT mounted (CONTENT is the library).
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 
+  // HOVER THE ROW BEFORE CLICKING ITS CTA. The character row took `ActionsFloat` in the 2026-08-18 rail
+  // pass (750991149, P1-3 row-width inversion), and a floated cluster is INERT at rest on a fine pointer
+  // by ruling — `pointer-fine:pointer-events-none` on the wrapper AND its children (`list-row/variants.ts`
+  // `float`: "an invisible control must not be hit-testable", side-eye P3), restored on the row's
+  // hover/:focus-within. A real mouse reveals it by entering the row; Playwright evaluates actionability
+  // BEFORE it moves the pointer, so a bare `.click()` deadlocks against the row body forever (#260: the
+  // row body's subtree "intercepts pointer events", 30s timeout through 2 retries). The hover goes on the
+  // ROW ROOT, never the CTA — hovering the CTA runs the same hit-test and deadlocks identically.
+  await page.locator('[data-slot="list-row-root"]').filter({ has: chatCta }).hover();
+
   // Chat with Aria (the §4.4 dual-purpose CTA — "Chat with X", resume-or-new; renamed from "Start
   // chat with X" in the Wave 1 rework) → the store seam flips CONTENT back to a fresh, seeded room.
-  await page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }).click();
+  await chatCta.click();
 
   // The route (the sole store reader) navigated to the Chats section, into a REAL room: the composer is
   // back, and Aria's greeting is canon read off the row `startChat` just created — character-first from the

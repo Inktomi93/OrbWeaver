@@ -404,6 +404,7 @@
     "tests/client/state/settings-section-registry-context.ct.tsx",
     "tests/client/state/shell-store.ct.tsx",
     "tests/client/state/steer-recovery-store.test.ts",
+    "tests/client/state/surface-box-store.test.ts",
     "tests/client/state/tag-library-store.ct.tsx",
     "tests/client/state/world-entry-selection-store.ct.tsx",
     "tests/contracts/assets/index.contract.test.ts",
@@ -1731,6 +1732,9 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/client/state/home-tile-box-store.test.ts": {
+      "why": "renamed to tests/client/state/surface-box-store.test.ts with its store (#258 — the file and persist key still said `home-tile` for a store whose exports have been `useSurfaceBox`/`rememberSurfaceBox` since #149 generalized it to the rpg band). Every case moved verbatim; nothing was dropped. Un-deletes only if a home-tile-SPECIFIC box memory is ever re-homed away from the shared surface store."
+    },
     "tests/server/entry/compose/emit-character-updated.int.test.ts": {
       "why": "retargeted, not dropped: `entry/compose/emit-character-updated.ts` became the `character` row of the entity→room reach table (`entry/compose/room-reach.ts`, the entity→room member-freshness bridge, 2026-08-14), fanning a live-only `roomEntityChanged` instead of a durable `chatUpdated`. Both of its cases survive verbatim in intent in tests/server/entry/compose/room-reach.int.test.ts (present-seat fan incl. the departed/non-seat/other-character isolation, and the seated-nowhere no-op), which additionally covers the persona and world-info kinds. Un-deletes only if a character-specific fan is ever re-homed outside the reach table."
     },

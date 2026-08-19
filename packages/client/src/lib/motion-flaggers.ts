@@ -186,7 +186,7 @@ function skipTransition(el: Element, propertyName: string): boolean {
  *  `getAnimations`, called from here**, of 640ms blocking / 1190ms long tasks — 84% of the jank the
  *  instrument exists to report. `snap --eval` tally, same room: **1,108 transitionstart events, 1,064 of
  *  them `scrollbar-color`**, each paying a full classify before `raise` discarded it as a duplicate. (That
- *  1,064 is ALSO an APP finding, paid in production too, and not this handler's to fix — reported.)
+ *  1,064 was the reduced-motion floor's doing — fixed in #257, ZERO now; this fast path must not rely on it.)
  *  THE FIX IS THE EVENT'S OWN DATUM: a `transitionstart` NAMES its property, so both verdicts are reachable
  *  without touching the DOM — compositor-safe is never flaggable, and one ALREADY FLAGGED on this surface
  *  has nothing new to say (`raise` dedupes on `anim|<label>|<property>`). The check moves in FRONT of the
