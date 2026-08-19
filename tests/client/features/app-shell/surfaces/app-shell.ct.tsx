@@ -2161,17 +2161,18 @@ test("#188 the app's reduced-motion pref floors an animation OUTSIDE the shell g
 // `data-reduced-motion` can only be right once `settings.getUserSettings` resolves, and the boot veil
 // weaves + drops frames a beat before that — so the app's own reduced-motion setting loses the boot race
 // on every visit. The fix persists the last authoritative answer per device and replays it before React
-// mounts (`main.tsx` → `stampReducedMotionHint`), which only holds if the shell's own stamp does not
+// mounts (`main.tsx` → `stampAppearanceBootHint`), which only holds if the shell's own stamp does not
 // CLOBBER it back to the schema default while the read is still in flight. That clobber is what these
 // pin, at the seam a CT can actually see: the settings read is HELD open (`trpcHold`), so "unresolved"
 // is an indefinitely stable rendered state, never a flash.
 const REDUCED_MOTION_ATTR = "data-reduced-motion";
-/** The device-local boot hint's blob (`createPersistedStore("reduced-motion")`, legacy/unbound key). */
-const REDUCED_MOTION_HINT_BLOB = JSON.stringify({ state: { reducedMotion: true }, version: 1 });
+/** The device-local boot hint's blob (`createPersistedStore("appearance-boot")`, legacy/unbound key).
+ *  The store carries all four boot axes since #231; this arm only ever asserts the motion one. */
+const REDUCED_MOTION_HINT_BLOB = JSON.stringify({ state: { reducedMotion: true, fontScale: 1, density: "comfortable", dataTheme: null }, version: 1 });
 
 test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while getUserSettings is still in flight", async ({ mount, page }) => {
   await page.addInitScript({
-    content: `try { localStorage.setItem("orb:reduced-motion", ${JSON.stringify(REDUCED_MOTION_HINT_BLOB)}); } catch { /* storage disabled */ }`,
+    content: `try { localStorage.setItem("orb:appearance-boot", ${JSON.stringify(REDUCED_MOTION_HINT_BLOB)}); } catch { /* storage disabled */ }`,
   });
   await page.reload();
   const settings = trpcHold();
@@ -2785,4 +2786,74 @@ test("a11y: on the DESKTOP the rail still reads first — it is the leftmost col
     return [...grid.children].map(regionOf);
   });
   expect(order.indexOf("rail")).toBeLessThan(order.indexOf("main"));
+});
+
+// ── #231 — the same NO-CLOBBER contract, widened to the axes that resize and repaint the whole shell ──
+// `--font-scale` sets the ROOT font size and every shell dimension is rem-derived, and `data-theme`
+// selects the whole palette. Both arrive from reads the shell cannot wait for, so `main.tsx` replays this
+// device's remembered answers before React mounts (`stampAppearanceBootHint`). That only holds if the
+// shell's own first commit RECONCILES with the replay instead of stamping the schema default over it —
+// measured cost of the clobber: boot CLS 0.1963–0.3398 at scale 1.25 (2–3.4× budget, and 209ms AFTER the
+// boot veil's own exit stamp), plus a dark→light palette swap animating colour on everything.
+//
+// The init script does exactly what the composition root does, in the same order: seed the remembered
+// blob, then stamp the root. The barrier is the HELD request, so "unresolved" is an indefinitely stable
+// rendered state rather than a flash that a fast machine would miss.
+const FONT_SCALE_VAR = "--font-scale";
+const DATA_THEME_ATTR = "data-theme";
+/** The boot hint's blob (`createPersistedStore("appearance-boot")`, legacy/unbound key). */
+const APPEARANCE_HINT_BLOB = JSON.stringify({
+  state: { reducedMotion: false, fontScale: 1.25, density: "compact", dataTheme: "light" },
+  version: 1,
+});
+
+async function bootWithAppearanceHint(page: Page): Promise<void> {
+  await page.addInitScript({
+    content: `try {
+      localStorage.setItem("orb:appearance-boot", ${JSON.stringify(APPEARANCE_HINT_BLOB)});
+      document.documentElement.style.setProperty("--font-scale", "1.25");
+      document.documentElement.setAttribute("data-theme", "light");
+    } catch { /* storage disabled */ }`,
+  });
+  await page.reload();
+}
+
+test("#231 a remembered fontScale survives the shell's first commit while getUserSettings is in flight", async ({ mount, page }) => {
+  await bootWithAppearanceHint(page);
+  const settings = trpcHold();
+  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await mount(<AppShellStory />);
+  await settings.requested;
+  await expect
+    .poll(async () => page.evaluate((v) => document.documentElement.style.getPropertyValue(v), FONT_SCALE_VAR), { intervals: [20, 50, 100] })
+    .toBe("1.25");
+  // …and the grid it painted is already the remembered DENSITY, so it does not reflow into it either.
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-density", "compact");
+});
+
+test("#231 a remembered theme survives it too — a Light user never cold-boots the dark palette", async ({ mount, page }) => {
+  await bootWithAppearanceHint(page);
+  const settings = trpcHold();
+  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await mount(<AppShellStory />);
+  await settings.requested;
+  await expect
+    .poll(async () => page.evaluate((attr) => document.documentElement.getAttribute(attr), DATA_THEME_ATTR), { intervals: [20, 50, 100] })
+    .toBe("light");
+});
+
+test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending read — remembered, never guessed", async ({ mount, page }) => {
+  const settings = trpcHold();
+  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await mount(<AppShellStory />);
+  await settings.requested;
+  const root = await page.evaluate(
+    ([v, attr]) => ({
+      scale: document.documentElement.style.getPropertyValue(v as string),
+      theme: document.documentElement.getAttribute(attr as string),
+    }),
+    [FONT_SCALE_VAR, DATA_THEME_ATTR],
+  );
+  expect(root.scale).toBe("1");
+  expect(root.theme).toBeNull();
 });

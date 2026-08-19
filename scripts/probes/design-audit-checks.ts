@@ -54,6 +54,13 @@ export const INTERACTIVE_TEXT_FLOOR_PX = 11;
 /** The smallest ratified leading step — `leading.label` (1.25). Below it is `tight-leading`.
  *  (Impeccable uses 1.3; ours is ramp-bound so ratified label-voice text stays legal.) */
 export const LEADING_FLOOR = Number(TOKENS["leading.label"].value);
+/** Rounding slack on the leading floor (#233). `getComputedStyle` hands back a TRUNCATED line-height
+ *  string — at `--font-scale: 1.25` the body step measures 13.125px and Chrome reports "16.4062px" for
+ *  a line-height that is exactly 16.40625px, so the ratio arrives as 1.2499657 and a ramp-legal
+ *  paragraph fires `tight-leading` against a floor it actually sits on (three such findings on the
+ *  home reading arm, all retracted in-report). Chrome truncates at 4 decimals, so the worst error is
+ *  bounded by 1e-4 / fontSizePx — well inside this; anything genuinely tight is ≥ 0.01 below the floor. */
+const LEADING_FLOOR_EPSILON = 0.005;
 
 const GENERIC_FONT_TOKENS = new Set([
   "sans-serif",
@@ -685,7 +692,8 @@ function checkTightLeading(input: TextStyleInput): Finding | null {
     return null;
   }
   const ratio = input.lineHeightPx / input.fontSizePx;
-  if (ratio <= 0 || ratio >= LEADING_FLOOR) {
+  // The epsilon is the instrument's own rounding allowance, not a lowered floor — see LEADING_FLOOR_EPSILON.
+  if (ratio <= 0 || ratio >= LEADING_FLOOR - LEADING_FLOOR_EPSILON) {
     return null;
   }
   return {
