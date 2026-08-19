@@ -6,9 +6,9 @@
 // scope UNIQUE, the ABSENCE of ownerId on every vector row (D20), chat-child CASCADE, and the
 // chat_digest_speakers join.
 
-import { IMAGE_LENSES } from "@orb/contracts/embeddings";
+import { IMAGE_LENSES, IMAGE_SKIP_REASONS } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { assets, characterEmbeddings, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings } from "@orb/db";
+import { assets, characterEmbeddings, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterEmbeddingId, CharacterHandle, CharacterId, ChatDigestId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -288,6 +288,43 @@ test("image_embeddings.lens CHECK rejects a non-member lens value", async () => 
     caught = err;
   }
   expect(isConstraintViolation(caught)?.kind).toBe("check");
+});
+
+// ── image_index_skips: the admission-floor skip-log (#273) — the reason test-mirror + CHECK + CASCADE ───
+test("image_index_skips.reason enum mirrors IMAGE_SKIP_REASONS (db derives the contracts tuple)", () => {
+  expect(imageIndexSkips.reason.enumValues).toEqual([...IMAGE_SKIP_REASONS]);
+});
+
+test("image_index_skips round-trips a skip verdict keyed by assetId, with its sniffed dims", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_skip", handle: castId<Handle>("h-user_skip") });
+  const assetId = await seedAsset(db, ownerId, "asset_skip");
+  await db.insert(imageIndexSkips).values({ assetId, reason: "below-dimension-floor", width: 1, height: 1, createdAt: 123 });
+  const rows = await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, assetId));
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ assetId, reason: "below-dimension-floor", width: 1, height: 1 });
+});
+
+test("image_index_skips.reason CHECK rejects a non-member reason value", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_badreason", handle: castId<Handle>("h-user_badreason") });
+  const assetId = await seedAsset(db, ownerId, "asset_badreason");
+  let caught: unknown;
+  try {
+    await db.insert(imageIndexSkips).values({ assetId, reason: "nope" as never });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("check");
+});
+
+test("image_index_skips CASCADEs when its asset is deleted (owner-scope derives via the asset, D20)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_skipcascade", handle: castId<Handle>("h-user_skipcascade") });
+  const assetId = await seedAsset(db, ownerId, "asset_skipcascade");
+  await db.insert(imageIndexSkips).values({ assetId, reason: "below-dimension-floor", width: 2, height: 2 });
+  await db.delete(assets).where(eq(assets.id, assetId));
+  expect(await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, assetId))).toHaveLength(0);
 });
 
 // ── chat_digests / chat_segments: the `text` body round-trips + is NOT NULL ───────────────────────────

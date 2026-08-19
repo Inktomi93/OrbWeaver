@@ -77,6 +77,27 @@ const TEST_IMAGE_BREAKDOWN = {
   tags: ["test", "portrait", "fixture"],
 } as const satisfies ImageBreakdown;
 
+const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
+const BYTE = 256;
+
+/** A 24-byte buffer `@orb/kit/image-sniff` reads as a PNG of `(width, height)`: the 8-byte signature then the
+ *  width/height u32BE fields at offsets 16/20 (the only bytes the sniffer parses for PNG). The image
+ *  admission-floor tests seed a degenerate `pngBytes(1, 1)` and a real `pngBytes(64, 64)`. Arithmetic
+ *  byte-composition, not bitwise (the kit-purity house rule the sniffer itself follows). */
+export function pngBytes(width: number, height: number): Uint8Array {
+  const b = new Uint8Array(24);
+  b.set(PNG_SIG, 0);
+  const u32be = (n: number, at: number): void => {
+    b[at] = Math.floor(n / (BYTE * BYTE * BYTE)) % BYTE;
+    b[at + 1] = Math.floor(n / (BYTE * BYTE)) % BYTE;
+    b[at + 2] = Math.floor(n / BYTE) % BYTE;
+    b[at + 3] = n % BYTE;
+  };
+  u32be(width, 16);
+  u32be(height, 20);
+  return b;
+}
+
 /** A deterministic, non-zero `dim`-length vector (the `seed` distinguishes distinct embeds). */
 export function fakeVector(dim: number = EMBED_DIM, seed = 1): Float32Array<ArrayBuffer> {
   const v = new Float32Array(dim);
@@ -205,8 +226,11 @@ export interface IndexerHarness {
 }
 
 /** Build an `EmbeddingsIndexerContext` over a real store verb + recording canon-reader fakes. `assetMime`
- *  defaults to an image mime so an asset event embeds unless a test overrides it (the embeddability gate). */
+ *  defaults to an image mime so an asset event embeds unless a test overrides it (the embeddability gate).
+ *  `db` is the real handle the indexer's OWN `image_index_skips` table (the admission floor) is read/written
+ *  through — the same `db` the store verb closes over; `now` is a frozen clock for the skip-record's stamp. */
 export function makeIndexerHarness(
+  db: Db,
   store: EmbeddingsService["store"],
   roleClients: FakeRoleClients,
   sources: { readonly cardText?: string | undefined; readonly assetBytes?: Uint8Array | undefined; readonly assetMime?: string },
@@ -220,8 +244,11 @@ export function makeIndexerHarness(
   const loadAssetBytes: Mock<EmbeddingsIndexerContext["loadAssetBytes"]> = vi.fn<EmbeddingsIndexerContext["loadAssetBytes"]>(() =>
     Promise.resolve(sources.assetBytes),
   );
+  const clock = createFrozenClock(FROZEN_AT);
   const ctx: EmbeddingsIndexerContext = {
     store,
+    db,
+    now: (): number => clock.now(),
     loadCardText,
     loadAssetMime,
     loadAssetBytes,

@@ -44,9 +44,9 @@ export type ScopingRow = ExemptionRow & { readonly scope: ScopingClass };
  *  a listed table the schema no longer declares is RED. The (a) rows mirror `ownerid-registry`'s
  *  OWNERID_ALLOWLIST (that gate owns WHETHER the stamp is legal; this one owns what the stamp MEANS for a
  *  read), so their reasons stay short and cite it. Verified against the schema 2026-08-08 (refinery R0 —
- *  which also corrected a two-row drift the previous census missed): 84 tables — 23 ownerId ·
- *  19 membership · 15 junction · 22 parent · 5 global (D121-E added the regex library + its four scope
- *  junctions; refinery R0 added its two parent-scoped tables). */
+ *  which also corrected a two-row drift the previous census missed): 85 tables — 23 ownerId ·
+ *  19 membership · 15 junction · 23 parent · 5 global (D121-E added the regex library + its four scope
+ *  junctions; refinery R0 added its two parent-scoped tables; #273 added `image_index_skips`, parent). */
 export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   // ── (a) ownerId-scoped — the D23 stamp. Reasons live in ownerid-registry's OWNERID_ALLOWLIST. ──────────
   assets: { scope: "ownerId", why: "D21 single-owned; reads go through `fetchOwned` (ownerid-registry owns the stamp's justification)." },
@@ -177,6 +177,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   },
   global_books: { scope: "parent", why: "the always-on book set — a single PK/FK to `world_books`, so scope is the book's owner." },
   image_embeddings: { scope: "parent", why: "derived image vectors — scope derives through `assets.ownerId`." },
+  image_index_skips: {
+    scope: "parent",
+    why: "the indexer's admission-floor skip-log — a single PK/FK to `assets`, so scope derives through `assets.ownerId` (no stamped owner, D20).",
+  },
   message_variants: {
     scope: "parent",
     why: "D26 the generation record — scope derives through `messages` to the room; a variant carries no attribution of its own.",

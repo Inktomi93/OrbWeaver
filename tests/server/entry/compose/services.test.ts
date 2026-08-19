@@ -425,6 +425,9 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
   const store: Mock<EmbeddingsService["store"]> = vi.fn<EmbeddingsService["store"]>(() => Promise.resolve({ outcome: "written", contentHash: "stub-hash" }));
   const indexer = createEmbeddingsIndexer({
     store,
+    // The indexer reads/writes its OWN `image_index_skips` table (the admission floor) through db + clock.
+    db,
+    now: (): number => 0,
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     loadAssetMime: async (assetId): Promise<string | null> => (await assets.assetCasRefById(assetId))?.mime ?? null,
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,

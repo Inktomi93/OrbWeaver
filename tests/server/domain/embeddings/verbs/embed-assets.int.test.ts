@@ -9,18 +9,42 @@
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
 
-import { imageEmbeddings } from "@orb/db";
-import type { AssetId, Handle } from "@orb/kit/ids";
+import { imageEmbeddings, imageIndexSkips } from "@orb/db";
+import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, IMAGE_EMBED_MODEL, makeStoreHarness, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
+import { EMBED_DIM, IMAGE_EMBED_MODEL, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 const signal = (): AbortSignal => new AbortController().signal;
+
+/** A degenerate 1×1 asset and a real 64×64 asset seeded for one owner, plus the per-asset bytes map the
+ *  sweep's `loadAssetBytes` fake serves. Distinct hashes — `assets` is unique(owner, hash). */
+async function seedAdmissionMix(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
+  owner: UserId;
+  degenerate: AssetId;
+  real: AssetId;
+  ids: readonly AssetId[];
+  bytes: ReadonlyMap<AssetId, Uint8Array>;
+}> {
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const degenerate = await seedAsset(db, owner, { id: "asset_tiny", hash: "hash-tiny" });
+  const real = await seedAsset(db, owner, { id: "asset_real", hash: "hash-real" });
+  return {
+    owner,
+    degenerate,
+    real,
+    ids: [degenerate, real],
+    bytes: new Map([
+      [degenerate, pngBytes(1, 1)],
+      [real, pngBytes(64, 64)],
+    ]),
+  };
+}
 
 async function seedOneAsset(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
   assetId: AssetId;
@@ -187,5 +211,75 @@ describe("embedAssets — the bulk image sweep", () => {
     expect(result).toEqual({ embedded: 0, skipped: 0 });
     expect(h.loadAssetBytes).not.toHaveBeenCalled();
     expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
+  });
+});
+
+// ── The admission floor (#273): a degenerate asset never reaches caption/embed, and its skip is RECORDED so
+//    a re-index honors it rather than re-attempting it every pass (the content-hash self-heal is blind to a
+//    silently-dropped asset). ──────────────────────────────────────────────────────────────────────────────
+describe("embedAssets — the image admission floor", () => {
+  test("a degenerate asset is SKIPPED with a recorded reason; a real asset embeds — same sweep", async () => {
+    const db = await freshDb();
+    const seeded = await seedAdmissionMix(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+
+    const result = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+    // (a) degenerate skipped, (b) real embedded — one pass over the two.
+    expect(result).toEqual({ embedded: 1, skipped: 1 });
+    // The expensive calls ran for the REAL asset only (two lenses, one caption) — never for the 1×1.
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
+    expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
+    // The degenerate asset wrote ZERO vectors and ONE attributable skip row (reason + the sniffed dims).
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.degenerate))).toHaveLength(0);
+    const skips = await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, seeded.degenerate));
+    expect(skips).toHaveLength(1);
+    expect(skips[0]).toMatchObject({ reason: "below-dimension-floor", width: 1, height: 1 });
+    // The real asset embedded both lenses and is NOT in the skip-log.
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.real))).toHaveLength(2);
+    expect(await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, seeded.real))).toHaveLength(0);
+  });
+
+  test("(c) a re-index HONORS the record — the skipped asset is not re-attempted (no byte reload, no spend)", async () => {
+    const db = await freshDb();
+    const seeded = await seedAdmissionMix(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+    h.loadAssetBytes.mockClear();
+    h.roleClients.imageEmbed.mockClear();
+    h.roleClients.summarize.mockClear();
+
+    const rerun = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+    expect(rerun).toEqual({ embedded: 0, skipped: 2 });
+    // The record short-circuits BEFORE loadAssetBytes — proving the skip is HONORED, not merely re-derived
+    // from a re-sniff (which would still load the bytes). The real asset still loads bytes for its hash gate.
+    expect(h.loadAssetBytes).not.toHaveBeenCalledWith(seeded.degenerate);
+    expect(h.loadAssetBytes).toHaveBeenCalledWith(seeded.real);
+    // No caption/embed compute on the rerun for either asset (degenerate honored, real hash-current).
+    expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
+    expect(h.roleClients.summarize).not.toHaveBeenCalled();
+    // Still exactly one skip row (onConflictDoNothing — the first verdict stands, no duplicate).
+    expect(await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, seeded.degenerate))).toHaveLength(1);
+  });
+
+  test("`force` re-admits a skipped asset (a deliberate whole re-index bypasses the recorded skip)", async () => {
+    const db = await freshDb();
+    const seeded = await seedAdmissionMix(db);
+    const h = makeStoreHarness(db, { imageAssetIds: [seeded.degenerate], assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+    h.loadAssetBytes.mockClear();
+
+    // force bypasses the recorded-skip read, so the degenerate asset's bytes ARE re-loaded — but the
+    // dimension gate still refuses it (the floor is not force-able; force only re-admits to the CHECK).
+    await svc.embedAssets({ ownerId: null, force: true, signal: signal() });
+
+    expect(h.loadAssetBytes).toHaveBeenCalledWith(seeded.degenerate);
+    expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.degenerate))).toHaveLength(0);
   });
 });

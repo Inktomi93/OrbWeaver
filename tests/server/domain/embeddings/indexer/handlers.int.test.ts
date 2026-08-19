@@ -5,7 +5,7 @@
 //     via the injected `summarize` op, persisting it on the captioned row;
 //   • a source deleted between emit and handler (loader → undefined) is a silent skip — no store, no row.
 
-import { characterEmbeddings, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "@orb/server/domain/embeddings";
@@ -13,7 +13,17 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_MODEL, IMAGE_EMBED_MODEL, makeIndexerHarness, makeStoreHarness, seedAsset, seedCharacter, seedUser, TEST_CAPTION } from "../_support.ts";
+import {
+  EMBED_MODEL,
+  IMAGE_EMBED_MODEL,
+  makeIndexerHarness,
+  makeStoreHarness,
+  pngBytes,
+  seedAsset,
+  seedCharacter,
+  seedUser,
+  TEST_CAPTION,
+} from "../_support.ts";
 
 const CARD_TEXT = "Bryn — a lighthouse keeper who collects shipwreck letters.";
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 5, 6, 7, 8]);
@@ -25,7 +35,7 @@ describe("onCharacterUpdated", () => {
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onCharacterUpdated({
@@ -47,7 +57,7 @@ describe("onCharacterUpdated", () => {
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: undefined });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { cardText: undefined });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onCharacterUpdated({
@@ -72,7 +82,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onCharacterUpdated({
@@ -93,7 +103,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onCharacterUpdated({
@@ -114,7 +124,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     const event = { type: "character.updated", characterId, contentChanged: true } as const;
@@ -130,7 +140,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onCharacterUpdated({
@@ -159,7 +169,7 @@ describe("onAssetCreated", () => {
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetBytes: IMG });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onAssetCreated({ type: "asset.created", assetId });
@@ -180,7 +190,7 @@ describe("onAssetCreated", () => {
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetBytes: undefined });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: undefined });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onAssetCreated({ type: "asset.created", assetId });
@@ -199,7 +209,7 @@ describe("onAssetCreated", () => {
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetMime: "video/mp4", assetBytes: IMG });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetMime: "video/mp4", assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onAssetCreated({ type: "asset.created", assetId });
@@ -219,7 +229,7 @@ describe("onAssetCreated", () => {
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
-    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetMime: "image/png", assetBytes: IMG });
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetMime: "image/png", assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
     await indexer.onAssetCreated({ type: "asset.created", assetId });
@@ -227,5 +237,65 @@ describe("onAssetCreated", () => {
     expect(ih.loadAssetBytes).toHaveBeenCalledWith(assetId);
     expect(storeH.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
     expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId))).toHaveLength(2);
+  });
+
+  // The admission floor on the ON-WRITE path (#273): a 1×1 asset carries no visual signal, so `asset.created`
+  // must NOT caption or embed it — it records an attributable skip and stops before any model spend, so the
+  // vector store + discovery substrate never gain a degenerate row.
+  test("a degenerate (1×1) asset records a skip and is NEVER captioned/embedded", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const assetId = await seedAsset(db, owner);
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: pngBytes(1, 1) });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+
+    expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
+    expect(storeH.roleClients.summarize).not.toHaveBeenCalled();
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId))).toHaveLength(0);
+    const skips = await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, assetId));
+    expect(skips).toHaveLength(1);
+    expect(skips[0]).toMatchObject({ reason: "below-dimension-floor", width: 1, height: 1 });
+  });
+
+  // A real avatar keeps embedding exactly as before — the floor only refuses the degenerate case.
+  test("a real (64×64) asset passes the floor and embeds both lenses", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const assetId = await seedAsset(db, owner);
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: pngBytes(64, 64) });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+
+    expect(storeH.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId))).toHaveLength(2);
+    expect(await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, assetId))).toHaveLength(0);
+  });
+
+  // A duplicate delivery of an already-skipped asset is HONORED — the record short-circuits before the bytes
+  // are even re-loaded, so a re-fired event never re-attempts a known-degenerate asset.
+  test("a re-fired event for a skipped asset is honored — no byte reload, no spend", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const assetId = await seedAsset(db, owner);
+    const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: pngBytes(1, 1) });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+    ih.loadAssetBytes.mockClear();
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+
+    expect(ih.loadAssetBytes).not.toHaveBeenCalled();
+    expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
+    expect(await db.select().from(imageIndexSkips).where(eq(imageIndexSkips.assetId, assetId))).toHaveLength(1);
   });
 });
