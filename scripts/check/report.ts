@@ -45,8 +45,6 @@ function toStructureReport(pass: PassResult, gatesByName: ReadonlyMap<string, Ga
       file: f.file,
       line: f.line,
       message: f.message ?? descriptor?.message ?? g.name,
-      // exactOptionalPropertyTypes: the key may only exist when a non-default tier is present.
-      ...(f.severity !== undefined && f.severity !== "error" ? { severity: f.severity } : {}),
     }));
     return { name: g.name, ok: violations.length === 0, violations, scan: g.scan };
   });

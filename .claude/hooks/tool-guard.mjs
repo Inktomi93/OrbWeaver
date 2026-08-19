@@ -381,6 +381,15 @@ const GREP_HEAD = /^\s*(?:\/usr\/bin\/)?grep\s/;
 const GREP_RECURSIVE_FLAG = /\s-[a-zA-Z]*r/i;
 const GREP_EXCLUDE_DIR = /--exclude-dir/;
 const GREP_BROAD_ROOT = /^(\.|\.\/|packages\/?|tests\/?|src\/?|scripts\/?|\*)$/;
+// ripgrep's `-r`/`--replace` REWRITES matched text (it does not list matches); glued directly to another
+// flag letter (`-rln`, `-rl`, `-rc`…) rg parses the glued letters as the REPLACEMENT VALUE, so the intended
+// listing/count flag silently vanishes and output is REPLACED text instead of a match list — no error, no
+// warning (four paid offenses this era, three by the orchestrator; owner ruling 2026-08-19, orchestration.md
+// "rg flag discipline"). Scoped to an `rg` head only (a bare `-r` glued to a value on another tool, e.g.
+// `tar -rf`, is that tool's own business). A bare `-r`/`--replace` with a SEPARATE token (or `--replace=`)
+// is unambiguous and passes — only the glued-cluster shape silently mangles.
+const RG_HEAD = /^\s*(?:\S*\/)?rg\b/;
+const RG_REPLACE_MANGLE = /(?:^|\s)-r[A-Za-z]/;
 const SQLITE_HEAD = /^\s*sqlite3\b/;
 const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
 const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b/;
@@ -528,6 +537,8 @@ const REASONS = {
     "`rm -rf` on a target that is not scratch (/tmp, scratchpad, node_modules, reports/, .claude/worktrees/, dist, coverage, .cache, *.bak, playwright/.cache). This used to reach the permission layer on its way past; it no longer does, so it stops here. Re-read the path — if it is right, confirm.",
   sqliteLive:
     "Never run bare `sqlite3` against the LIVE db — a stray write or a held lock corrupts the running stack's state, and WAL makes the damage non-obvious. Probe a COPY, or use `/api/_debug/*`. If this really is a scratch/:memory: db, confirm.",
+  rgReplaceMangle:
+    "`rg -r`/`--replace` glued directly to another flag letter (e.g. `-rln`) is parsed by ripgrep as `-r` TAKING the glued letters as its REPLACEMENT VALUE — so the intended listing/count flag silently vanishes and the command REPLACES matched text instead of listing matches, with no error (four paid offenses this era). Spell it out: `-n`/`--files-with-matches`/`--count` for listing, or `-r 'text'`/`--replace='text'` (a SEPARATE token) when you actually mean a replacement.",
   scriptBody: (script, line, inner) =>
     `This runs the untracked script ${script}, and tool-guard read its CONTENTS — a wrapper file is not a shield, the rules judge what actually executes.${line === null ? "" : `\nThe line that decided it:\n    ${line}`}\n\n${inner}`,
   scriptTooLarge: (script, bytes) =>
@@ -1523,6 +1534,18 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   //     push to origin with no word at all — the one thing the standing law forbids outright.
   if (GIT_PUSH.test(blank)) {
     return { decision: "ask", rule: "git-push", reason: REASONS.ownerWordPush, contexts };
+  }
+
+  // 9c. rg -r/--replace GLUED to a shorthand flag cluster (`-rln`) — DENY. ripgrep silently REPLACES
+  //     matched text instead of listing it, with no error (four paid offenses, owner ruling 2026-08-19).
+  //     Scoped to an `rg` HEAD stage only — the same glued cluster on an unrelated tool is not this rule.
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const text = blank.slice(stage.start, stage.end);
+      if (RG_HEAD.test(text) && RG_REPLACE_MANGLE.test(text)) {
+        return { decision: "deny", rule: "rg-replace-mangle", reason: REASONS.rgReplaceMangle, contexts };
+      }
+    }
   }
 
   // NOTE — deliberately NO `git reset` rule. The owner's GLOBAL settings wildcard-allow `git reset *`

@@ -919,6 +919,12 @@ function writeFixtures(): void {
     "tests/ui/primitives/__g_oneshot/__g_oneshot.ct.tsx",
     'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const el = page.locator("div");\n  expect(await el.boundingBox()).not.toBe(null);\n});\n',
   );
+  // ct-story-single-import: the same local name bound by TWO import specifiers in one CT file — the
+  // literal duplicate-import spelling of the "Identifier already declared" bundler collision.
+  fx(
+    "tests/ui/primitives/__g_ctdupe/__g_ctdupe.ct.tsx",
+    'import { StoryA } from "./_ct-stories.tsx";\nimport { StoryA as StoryA } from "./_ct-stories.tsx";\nStoryA;\n',
+  );
   // two-class-role-authority: an inline `role === "host"` in an ENFORCEMENT position (the comparison gates a
   // `throw`) in a domain file that is neither a SANCTIONED_HOMES chokepoint nor ALLOWLISTed — the founding
   // shape (the six rpg verbs that re-spelled their chokepoint's compare). The gate's scanRoot is

@@ -3,8 +3,6 @@
 // shared walk.
 import type { Node, Project, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 
-export type Severity = "error" | "warn"; // "warn" is the advisory tier reserved for a future non-failing gate.
-
 /** A single-pass finding — one per distinct violation instance (a class-string gate emits one per
  *  offending token, not one per className). The reason lives once on the gate descriptor
  *  (`message`/`fix`); a Finding never repeats prose. `message`/`fix` here are per-occurrence overrides
@@ -16,7 +14,6 @@ export interface Finding {
   readonly token?: string; // the exact offending lexeme (the class token / identifier / import name)
   readonly message?: string; // per-occurrence override; normally OMITTED — the reason lives on the gate
   readonly fix?: string; // per-occurrence override; normally OMITTED — the fix lives on the gate
-  readonly severity?: Severity; // default "error"
 }
 
 /** ONE exemption row — the shared shape for every allowlist / sanctioned-home / deferred-debt table a gate
