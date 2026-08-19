@@ -9,7 +9,7 @@ import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECEIVE_POST_PROCESS_ORDER, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import type { ContentSpan } from "@orb/kit/content";
+import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -112,7 +112,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
         economics: { content: "Hello", tokensIn: 3, tokensOut: 1, model: "test-model" },
       },
     ]),
-    resolveImageUrl: (ref) => Promise.resolve(ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url),
+    resolveImageUrl: (ref) => Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "image" as const }),
     assembleContext: ctxOf(),
     canon: [userRow("u1")],
     connection: CONNECTION,
@@ -391,6 +391,74 @@ describe("runTurnPipeline — request shaping + fit", () => {
     const result = await runTurnPipeline(args);
     const tail = result.request.history.at(-1);
     expect(tail?.content).toEqual([{ type: "text", text: "[image omitted]" }]);
+  });
+
+  // ── #317: the VIDEO twin of the D45 rule — same seam, gated by `input.video`, kind decided by the resolver.
+  const resolveAsVideo = (ref: ContentImageRef): Promise<{ url: string; media: "video" }> =>
+    Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "video" });
+
+  test("#317: a video-capable model receives a VIDEO part for a video attachment", async () => {
+    const videoCapable = {
+      ...CONNECTION,
+      capability: makeModelCapability({ input: { vision: true, video: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+    };
+    const { args } = baseArgs({
+      connection: videoCapable,
+      resolveImageUrl: resolveAsVideo,
+      canon: [userRow("watch ![a clip](asset:ast_9) now")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.videoDropped).toBe(false);
+    expect(result.request.history.at(-1)?.content).toEqual([
+      { type: "text", text: "watch " },
+      { type: "video", url: "https://cas.test/ast_9" },
+      { type: "text", text: " now" },
+    ]);
+  });
+
+  test("#317: a vision-only model (no input.video) DROPS the video part + flags videoDropped — never junk on the wire", async () => {
+    const visionOnly = {
+      ...CONNECTION,
+      capability: makeModelCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+    };
+    const { args } = baseArgs({
+      connection: visionOnly,
+      resolveImageUrl: resolveAsVideo,
+      canon: [userRow("watch ![a clip](asset:ast_9) now")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.videoDropped).toBe(true);
+    expect(result.imageDropped).toBe(false);
+    expect(result.request.history.at(-1)?.content).toEqual([
+      { type: "text", text: "watch " },
+      { type: "text", text: " now" },
+    ]);
+  });
+
+  test("#317: a video-only user row whose part drops keeps the honest `[video: alt]` placeholder", async () => {
+    const visionOnly = {
+      ...CONNECTION,
+      capability: makeModelCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+    };
+    const { args } = baseArgs({
+      connection: visionOnly,
+      resolveImageUrl: resolveAsVideo,
+      canon: [rowOf("assistant", "prev reply"), userRow("![a clip](asset:ast_9)")],
+    });
+    const result = await runTurnPipeline(args);
+    const tail = result.request.history.at(-1);
+    expect(tail?.content).toEqual([{ type: "text", text: "[video: a clip]" }]);
+  });
+
+  test("#317: a media-blind model (no input at all) drops WITHOUT resolving — no asset I/O per turn", async () => {
+    const resolver = vi.fn(resolveAsVideo);
+    const { args } = baseArgs({
+      resolveImageUrl: resolver,
+      canon: [userRow("look ![a cat](asset:ast_9) here")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.imageDropped).toBe(true);
+    expect(resolver).not.toHaveBeenCalled();
   });
 
   test("the §8 fit drops oldest turns under a tiny window (keeps the newest)", async () => {
@@ -2085,7 +2153,7 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
 // embedded image is DISPLAY-ONLY and never rides the wire plane at all (see `WIRE_PART_HANDLERS`'s `image`
 // comment in `pipeline.ts`).
 describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
-  const wireEnv = { visionOk: true, resolveImageUrl: async () => null, fullCards: new Set<ContentSpan>() };
+  const wireEnv = { visionOk: true, videoOk: false, resolveImageUrl: async () => null, fullCards: new Set<ContentSpan>() };
   const wireRow = { role: "assistant" as const, userAuthored: false };
 
   test('wire:"full" classes (text/hidden/unknown-directive) ride VERBATIM', async () => {

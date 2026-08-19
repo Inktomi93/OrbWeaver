@@ -92,7 +92,10 @@ function imageSpanBlock(span: Extract<ContentSpan, { kind: "image" }>): MessageC
   if (span.ref.kind === "external") {
     return {
       kind: "media",
-      media: "image", // the D51 grammar embeds images; native a/v arrives via html-card/native paths
+      // The D51 grammar is mime-blind, so the PROJECTION says image; the client's ASSET arm re-picks the
+      // element off the resolved asset mime (`video/*` → the native <video>, #317). External refs stay
+      // image (the attachment machinery never mints them).
+      media: "image",
       src: { kind: "external", url: span.ref.url },
       alt: span.alt,
     };

@@ -57,13 +57,14 @@ export async function ownedAssetCasRef(db: Db, ownerId: UserId, assetId: AssetId
   return rows[0];
 }
 
-/** The `(assetId, hash)` pairs owned by `ownerId` among `assetIds` — foreign/gone ids are simply absent. */
+/** The `(assetId, hash, mime)` triples owned by `ownerId` among `assetIds` — foreign/gone ids are simply
+ *  absent. `mime` rides for the render-side element pick (#317 — `video/*` renders a `<video>`). */
 export async function selectOwnedAssetRefs(db: Db, ownerId: UserId, assetIds: readonly AssetId[]): Promise<AssetBlobRef[]> {
   if (assetIds.length === 0) {
     return [];
   }
   const rows = await db
-    .select({ assetId: assets.id, hash: assets.hash })
+    .select({ assetId: assets.id, hash: assets.hash, mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...assetIds])));
   return rows;

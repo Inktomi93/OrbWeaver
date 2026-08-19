@@ -65,6 +65,7 @@ export type {
   CostDetails,
   HistoryRole,
   NormalizedFinishReason,
+  OpenAiRawContentPart,
   OpenRouterChatRequest,
   OrSkinTierModels,
   ResponseFormat,

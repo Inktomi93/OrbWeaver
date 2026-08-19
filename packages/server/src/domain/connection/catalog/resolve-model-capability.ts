@@ -413,9 +413,18 @@ export function resolveModelCapability(
       // `midConversationSystem`/`historySystemRows` pair demoted every system-role injection into a
       // `[Note from system: …]` user row on a template that renders mid-array system blocks in place. See
       // {@link VLLM_TURNS} for the two 2026-08-18 probe receipts (D143 errs-open).
+      //
+      // `input` — the gen slot serves a VL checkpoint by deployment design (the engine launches its video
+      // frame sampler unconditionally — `vllm/engine/build-argv.ts` `--mm-processor-kwargs {fps, max_frames}`),
+      // and D143(c) rules this source ERRS PERMISSIVE: per-checkpoint modality truth is undetectable on the
+      // wire, so the descriptor advertises both chat-input modalities rather than hiding the knob. A non-VL
+      // checkpoint swap rejects the part loudly at the engine; before this cell existed the OPPOSITE failure
+      // was live and silent — `input` absent meant `input.vision !== true`, so the owner's Qwen3-VL model got
+      // `image_dropped` on every attachment (#317).
       return {
         ...staticProfile(caches?.vllmGenWindow ?? env.VLLM_GEN_MAX_MODEL_LEN, true, true),
         reasoning: VLLM_REASONING,
+        input: { vision: true, video: true },
         tools: { parallel: true, silencesProse: true },
         turns: { ...VLLM_TURNS },
       };
