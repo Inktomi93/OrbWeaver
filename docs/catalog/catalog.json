@@ -1018,16 +1018,16 @@
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 146,
-      "bytes": 19718,
-      "sha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
+      "lines": 207,
+      "bytes": 23836,
+      "sha256": "b85dec77c702ea4f688f6a49e95cae2c7629b5890461776c5c1ea7ac195220a4",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-13"
+          "updated": "2026-08-18"
         },
         "errors": []
       },
@@ -1037,9 +1037,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "b85dec77c702ea4f688f6a49e95cae2c7629b5890461776c5c1ea7ac195220a4",
+        "verifiedCommit": "8095a88078273acd0a4658ebdcdab8cf94038d44",
+        "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1432,16 +1432,16 @@
       "path": "docs/architecture/core/UI-Gates-and-Lessons.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 318,
-      "bytes": 24843,
-      "sha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
+      "lines": 345,
+      "bytes": 29552,
+      "sha256": "41c8855299fafa1c469f15b9dcfbdce630b0da670edcb85594c0bce6523fb062",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-13"
+          "updated": "2026-08-18"
         },
         "errors": []
       },
@@ -1451,9 +1451,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "41c8855299fafa1c469f15b9dcfbdce630b0da670edcb85594c0bce6523fb062",
+        "verifiedCommit": "8095a88078273acd0a4658ebdcdab8cf94038d44",
+        "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
