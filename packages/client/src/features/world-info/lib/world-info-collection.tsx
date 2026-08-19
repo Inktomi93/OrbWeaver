@@ -17,7 +17,13 @@ import { BookOpen } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { WorldInfoCollectionRows } from "../components/world-info-collection-rows.tsx";
 import { WorldInfoContextBody } from "../components/world-info-context-body.tsx";
-import { useCreateWorldInfoMember, useImportWorldInfoMember, useWorldInfoCount, useWorldInfoMemberTitle } from "../hooks/use-world-info-collection.ts";
+import {
+  useCreateWorldInfoMember,
+  useImportWorldInfoMember,
+  useWorldInfoCount,
+  useWorldInfoMemberTitle,
+  useWorldInfoPreview,
+} from "../hooks/use-world-info-collection.ts";
 import { WorldInfoMemberSurface } from "../surfaces/world-info-member-surface.tsx";
 import { WORLD_INFO_COLLECTION_ID } from "./world-info-model.ts";
 
@@ -30,6 +36,9 @@ export const worldInfoCollection: CollectionContribution = {
   blurb: "Keyword-triggered lore your characters draw on, and a book fires where you attach it.",
   emptyText: "No books yet.",
   useCount: useWorldInfoCount,
+  // The welcome hero's chip wall (side-eye 2026-08-19 P1-2 — this library used to declare no preview, so its
+  // launcher rendered as a hollow shell in the lead column). The rank is ATTACHMENT, named by the kicker.
+  preview: { label: "Most attached", useEntries: useWorldInfoPreview },
   useMemberTitle: useWorldInfoMemberTitle,
   create: { label: "New book", useRun: useCreateWorldInfoMember },
   importFile: { label: "Import a world-info book", accept: "application/json", useRun: useImportWorldInfoMember },

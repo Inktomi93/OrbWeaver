@@ -25,16 +25,17 @@ export function useTagCount(): number | undefined {
  *  hero shows the TOTAL, because "how much of the library this tag accounts for" is the one number that
  *  ranks the wall and the breakdown belongs to the member editor. */
 function previewEntry(row: { readonly name: string; readonly usage: { readonly total: number } }): CollectionPreviewEntry {
-  return { label: row.name, count: row.usage.total };
+  return { label: row.name, detail: String(row.usage.total) };
 }
 
-/** The welcome hero's CHIP WALL (the `usePreview` seam): the most-used slice of the library, ranked by the
+/** The welcome hero's CHIP WALL (the `preview` seam): the most-used slice of the library, ranked by the
  *  ONE comparator the roster and the tag picker already rank by (`sortTagsBy(…, "used")` — a second
  *  spelling of "most used" here would be the drift that function exists to prevent).
  *
  *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request —
- *  the `useMemberTitle` discipline. It is also why the tag library is the one collection that HAS a
- *  preview: usage totals already ride every row of a query the pane has loaded anyway. */
+ *  the `useMemberTitle` discipline: usage totals already ride every row of a query the pane has loaded
+ *  anyway. (This clause used to say tags was "the one collection that HAS a preview" — regex and world-info
+ *  grew their own on 2026-08-19, ranked by recency and by attachment.) */
 export function useTagPreview(): readonly CollectionPreviewEntry[] | undefined {
   const trpc = useTRPC();
   const rows = useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data;

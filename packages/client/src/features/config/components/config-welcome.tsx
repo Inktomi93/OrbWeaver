@@ -46,8 +46,15 @@
 // POPULATED (the lead column) is a LAUNCHER, promoted to a hero: icon + name + blurb + its real contents
 // + one door. It keeps shedding the count and the create verb (owner ruling 2026-08-08, C7 arm 2 — the
 // roster band carries both, beside the rows they act on). The 2026-08-08 trim is HONORED: this pane does
-// not restate the band, and the promotion is paid for with `usePreview` — content the collapsed band does
+// not restate the band, and the promotion is paid for with `preview` — content the collapsed band does
 // NOT carry — rather than with a display-scale numeral.
+//
+// AND THE GRAMMAR IS NOW TRUE 3/3 (side-eye 2026-08-19 P1-2). "A hero has a preview" was a promise the
+// surface kept for exactly one library: on the owner's real corpus all three collections have count>0, so
+// all three landed in the lead column, and regex + world-info drew 106px hollow shells beside the tag
+// hero's 198px census. Both now declare a `preview` of their own (recency · attachment), so the split
+// promises nothing it cannot pay for. `BuiltLibrary` still renders the wall only when there is one, because
+// a future contribution may still honestly decline.
 //
 // EMPTY (the rail) keeps COUNT(0) + CREATE. That is the 2026-08-03 "genuinely good teaching state"
 // verdict, which was the cold-first-timer test: at zero the verb is the onboarding next step, not a
@@ -90,6 +97,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import { goToCollection } from "#state";
+import { CONFIG_WELCOME } from "../lib/config-copy.ts";
 import { orderCollections } from "../lib/order-collections.ts";
 
 export interface ConfigWelcomeProps {
@@ -103,9 +111,26 @@ export interface ConfigWelcomeProps {
  *  radius the Card resolves from `tiers.css`, so the halo tracks the edge it is a halo for; the literal
  *  `rounded-card` utility is the ELEVATED-family step the density A1 arm reserves for the sealed package.
  *  The stripe is an overlay rather than home's inline `border-inline-start`, because a border WIDTH cannot
- *  be gated on `first:` and the whole CD3 verdict here is DOM order. */
+ *  be gated on `first:` and the whole CD3 verdict here is DOM order.
+ *
+ *  THE RESTING GLOW IS 60%, NOT 30% (side-eye 2026-08-19, "under maximal the CD3 single-focal collapses").
+ *
+ *  THE ARITHMETIC, SOURCE-PINNED. `--shadow-glow` is `0 0 0 1px oklch(from var(--color-primary) … / 0.4)`
+ *  plus an 18px bloom at 0.18 (`packages/ui/src/styles/theme.css`), so a pseudo at `opacity-30` painted its
+ *  ring at an effective **0.12** alpha of the accent — the exact number the review measured. Meanwhile
+ *  `appearance.enableThemeColorization` retints `--color-border` to `color-mix(… primary 22% …)`
+ *  (`client/src/styles/globals.css`), so under that arm EVERY sibling island's 1px border carries **0.22**
+ *  of the accent. The focal's halo was the WEAKEST accent on a grid it is supposed to be the only carrier
+ *  of, and CD3's "exactly one element carries the accent at rest" became arm-conditional.
+ *
+ *  60% puts the ring at 0.24 — over the siblings' 0.22 on the colorized arm and unchanged in KIND on the
+ *  plain one, where the borders are neutral and the focal was never in doubt. It is ONE unconditional
+ *  value rather than a `[data-theme-colorization]` variant on purpose: an arm-conditional focal is what the
+ *  finding is about, and a treatment that only holds on one appearance arm is the same defect rewritten.
+ *  Hover still steps up (0.75), and the accent stays far under the 10% ceiling — this is a 1px ring plus a
+ *  bloom on ONE island, with no fill anywhere on the surface. */
 const FOCAL_GLOW =
-  "first:before:pointer-events-none first:before:absolute first:before:-inset-px first:before:-z-10 first:before:rounded-(--radius-card) first:before:opacity-30 first:before:shadow-glow first:before:transition-opacity first:before:duration-(--motion-base) first:before:ease-out-expo first:before:content-[''] hover:first:before:opacity-75";
+  "first:before:pointer-events-none first:before:absolute first:before:-inset-px first:before:-z-10 first:before:rounded-(--radius-card) first:before:opacity-60 first:before:shadow-glow first:before:transition-opacity first:before:duration-(--motion-base) first:before:ease-out-expo first:before:content-[''] hover:first:before:opacity-75";
 const FOCAL_STRIPE =
   "first:after:pointer-events-none first:after:absolute first:after:inset-y-0 first:after:start-0 first:after:w-(--immersive-stripe-width) first:after:rounded-s-(--radius-card) first:after:bg-(--color-speaker) first:after:content-['']";
 const FOCAL = `relative isolate ${FOCAL_GLOW} ${FOCAL_STRIPE}`;
@@ -127,6 +152,25 @@ const COLLAPSE_WITHOUT_UNBUILT = "not-has-[[data-config-unbuilt]]:@4xl:grid-cols
 const HIDE_WITHOUT_BUILT = "not-has-[[data-config-built]]:hidden";
 const HIDE_WITHOUT_UNBUILT = "not-has-[[data-config-unbuilt]]:hidden";
 
+/** THE OTHER HALF OF THE FIRST-PAINT FIX (side-eye 2026-08-19 P3 — the 0.0283 CLS residue the in-flight
+ *  guard left behind, reproduced here at 0.0289 and root-caused).
+ *
+ *  THE GUARD WAS PER-CHILD AND THE GEOMETRY IS PER-PANE. `UnbuiltLibrary` correctly refuses to paint a slot
+ *  whose own count is still in flight; but the TRACK COUNT above is a `:has()` verdict over what the other
+ *  children rendered, so a corpus where ONE count lands a frame before the others paints the hero across the
+ *  whole 843px pane (no `[data-config-unbuilt]` yet ⇒ collapse to one column) and then reflows it into the
+ *  482px lead track when the rail arrives. Measured, from the browser's own layout-shift sources: the hero's
+ *  door row 843→482.75px and every preview chip 577→127px on x. In production all three counts ride ONE
+ *  batched response, which is why this is a RESIDUE rather than the original 541px slide — it needs the
+ *  three cache writes to land in two paints instead of one, which they intermittently do (3 of 5 runs).
+ *
+ *  SO THE PANE WAITS FOR THE WHOLE VERDICT, and it does it WITHOUT the parent count census the file header
+ *  rules out: a settling child renders a zero-box MARKER instead of nothing, and one `:has()` on the grid
+ *  stands the whole hearth down until no marker is left. The census stays in CSS over rendered DOM, every
+ *  hook stays unconditional and in a fixed position, and the reader's FIRST paint of the hearth is its final
+ *  geometry — which is the whole claim the in-flight guard was making. */
+const HIDE_WHILE_SETTLING = "has-[[data-config-settling]]:hidden";
+
 export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement {
   const ordered = orderCollections(collections);
   return (
@@ -141,20 +185,26 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
           four-side zero in the roster CT. */}
       <Stack className="w-full" data-slot="config-welcome" gap="section">
         <Stack gap="tight">
+          {/* THE STRINGS ARE `config-copy`'s, not this file's, since the mobile LIST grew a teaching header
+              of its own — one frame spoken by two panes (see that module's header). */}
           <Heading level={2} voice="masthead">
-            The parts every chat is built from
+            {CONFIG_WELCOME.title}
           </Heading>
           {/* ONE SENTENCE TRUE FOR BOTH READERS (side-eye 2026-08-03 P2; #104 item 3 took the em-dash).
               At the READING step and capped on the PARAGRAPH, never on the page — a measure belongs to
               the line, and capping the page is what put 160px of void down each side of this pane. */}
           <Text className="max-w-(--reading-measure)" voice="reading">
-            Tags label your library. Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Nothing here is
-            required, and nothing here is spent once: build a part, then attach it wherever you need it.
+            {CONFIG_WELCOME.teaching}
           </Text>
         </Stack>
         {/* `items-start` (mock `.hearth-grid{align-items:start}`): grid's default `stretch` would make the
             rail as tall as the lead column and hang its last invitation in dead space. */}
-        <Grid className={`items-start ${COLLAPSE_WITHOUT_BUILT} ${COLLAPSE_WITHOUT_UNBUILT}`} cols="lead" data-slot="config-hearth" gap="gutter">
+        <Grid
+          className={`items-start ${HIDE_WHILE_SETTLING} ${COLLAPSE_WITHOUT_BUILT} ${COLLAPSE_WITHOUT_UNBUILT}`}
+          cols="lead"
+          data-slot="config-hearth"
+          gap="gutter"
+        >
           {/* `min-w-0` IS THE SPLIT (the home hearth's P1-1, paid for once already): a grid TRACK CHILD is
               `min-width:auto`, so the track is floored at its content's min-content width and a chip wall's
               longest unbreakable run would silently override the declared ratio. */}
@@ -188,58 +238,76 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
  *  hooks are called unconditionally, once, in a fixed position (the `TrailWidget`/`HomeTile` shape), and
  *  so the content verdict stays a per-child fact (the header's fork note).
  *
- *  IT IS THE CONTROL, not a card containing one (side-eye 2026-08-08 P1): shedding the count and the verb
- *  left the old populated card with no click target, no tab stop and no focus ring. `Card interactive`
- *  supplies role=button + tabIndex + Enter/Space + the house focus ring, and clicking opens that
- *  collection's group in the LIST through `goToCollection` — the same intent every cross-surface "manage
- *  it over there" door fires. Selection stays the roster's.
+ *  ═══ THE SECOND RULING FORK, STATED (side-eye 2026-08-19 P3 · owner-pre-ruled arm 3) ═══════════════
  *
- *  THE ACCESSIBLE NAME IS THE CARD'S OWN CONTENT (label + blurb + the wall), never an `aria-label` verb:
- *  the blurb and the preview are the two things the roster band does not carry, and an override would hide
- *  them from exactly the reader who cannot see them. */
+ *  THIS FILE'S OWN HEADER USED TO RULE THE ISLAND *IS* THE CONTROL: "shedding the count and the verb left
+ *  the old populated card with no click target, no tab stop and no focus ring" (side-eye 2026-08-08 P1), so
+ *  the card took `interactive` (role=button) and "THE ACCESSIBLE NAME IS THE CARD'S OWN CONTENT (label +
+ *  blurb + the wall), never an `aria-label` verb". Both halves were right about their own defect. Together
+ *  they produced a **~45-word button name** — a screen-reader user hears the entire chip census recited
+ *  before the word "button" — which DEFEATS the exposure the content-as-name half was protecting: content
+ *  read as one atomic label is not content a reader can navigate, skim, or leave.
+ *
+ *  SATISFY THE NEW SYMPTOM, PRESERVE THE OLD MECHANISM. The island is now a NAMED REGION: the collection's
+ *  name is a real `h3` (it can be, now that it is not inside a button), the chip census is ordinary content
+ *  in the accessibility tree rather than fragments of a label, and the DOOR IS A REAL BUTTON whose whole
+ *  accessible name is "Open Tags →". Every affordance the 2026-08-08 finding demanded still exists — a
+ *  click target, a tab stop, the house focus ring — it is just carried by a control instead of by an island,
+ *  and the 2026-08-08 trim ruling (no count numeral, no create verb on a populated launcher) is untouched.
+ *  The card keeps a mirroring `onClick` so a pointer user can still hit anywhere on the island; that is a
+ *  CONVENIENCE, never the addressable control, which is why it is not paired with a key handler or a role.
+ *
+ *  `goToCollection` is the same intent every cross-surface "manage it over there" door fires; selection
+ *  stays the roster's. Both doors call it, so a click on the button (which bubbles) is idempotent. */
 function BuiltLibrary({ collection }: { readonly collection: CollectionContribution }): ReactNode {
   const visible = collection.useVisible?.() ?? true;
   const count = collection.useCount?.();
-  const preview = collection.usePreview?.();
+  const entries = collection.preview?.useEntries();
   if (!visible || count === undefined || count === 0) {
     return null;
   }
-  const shown = preview ?? [];
+  const shown = entries ?? [];
   const remainder = count - shown.length;
+  const open = (): void => goToCollection(collection.id);
   return (
     // `data-collection` is the per-card hook the CTs address (a caller `data-slot` is silently overwritten
     // — `Card` writes `card-root` AFTER `{...props}`); `data-config-built` is the column's own `:has()`
     // marker, deliberately a SECOND attribute so the marker cannot be confused with the identity.
-    <Card
-      className={FOCAL}
-      data-collection={collection.id}
-      data-config-built={collection.id}
-      interactive={true}
-      onClick={(): void => goToCollection(collection.id)}
-    >
+    // `role=region` + `aria-label` is the ADDRESSABLE IDENTITY the ARIA sweep asked for (the welcome's three
+    // cards were map-dom-fallbacks): naming a region does not replace its content the way naming a button
+    // does, so the blurb and the census stay reachable — the whole point of the fork above.
+    <Card aria-label={collection.label} className={FOCAL} data-collection={collection.id} data-config-built={collection.id} onClick={open} role="region">
       <Stack gap="row">
         <Row align="center" gap="field">
           <Icon icon={collection.icon} size="sm" />
-          {/* The HEADLINE step, and NOT a heading: a heading inside a button is not addressable by AT, so
-              the promotion is carried by the `focal` voice (the type half of CD3). */}
-          <Text as="span" voice="focal">
+          {/* The HEADLINE step AND a real `h3` — legal now that the island is not a button (a heading inside
+              one is not addressable by AT, which is why this used to be a `Text as="span"`). The `focal`
+              voice still carries the type half of CD3. */}
+          <Heading level={3} voice="focal">
             {collection.label}
-          </Text>
+          </Heading>
         </Row>
-        <Text voice="gloss">{collection.blurb}</Text>
+        {/* CAPPED ON THE PARAGRAPH, like the masthead (side-eye 2026-08-19 P3: 161ch latent). A measure
+            belongs to the line — the lead column is 1.55fr of a 917px pane and grows with it. */}
+        <Text className="max-w-(--reading-measure)" voice="gloss">
+          {collection.blurb}
+        </Text>
         {shown.length === 0 ? null : (
-          // WHAT IS ACTUALLY IN IT — the half that pays for the promotion (see the contract's `usePreview`).
+          // WHAT IS ACTUALLY IN IT — the half that pays for the promotion (see the contract's `preview`).
           // A collection that declares no preview simply skips this and reads as name + blurb + door.
           <Stack gap="field">
+            {/* THE RANK IS THE CONTRIBUTION'S WORD, not the host's (side-eye 2026-08-19 P1-2). This was a
+                hardcoded "Most used", which was true of the one library that had a preview and became a lie
+                the moment two more declared one: regex ranks by recency, world-info by attachment. */}
             <Text as="span" voice="kicker">
-              Most used
+              {collection.preview?.label}
             </Text>
             <Row className="flex-wrap" gap="tight">
               {shown.map((entry) => (
                 <Badge intent="neutral" key={entry.label} tone="soft">
                   {entry.label}
                   <Text as="span" voice="datum">
-                    {entry.count}
+                    {entry.detail}
                   </Text>
                 </Badge>
               ))}
@@ -253,15 +321,15 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
             </Row>
           </Stack>
         )}
-        {/* THE DOOR SAYS SO AT REST (side-eye 2026-08-08 P2). Hover, focus ring and keyboard operability
-            all need the pointer or the keyboard to have already arrived; the resting affordance is what
-            tells a sighted scan this island is a door. It is the same TEXT arrow every other "All chats →"
-            affordance uses — the `@orb/ui/icons` export list is a curated seal — and NOT a nested button:
-            the island is the control. */}
+        {/* THE DOOR SAYS SO AT REST (side-eye 2026-08-08 P2) — and as of the fork above it IS the control,
+            so the resting affordance and the operable one are the same object instead of a text line inside
+            a 45-word button. `secondary`, never primary: CD3 rations the accent to the focal stripe, and the
+            rail's create verbs are secondary for the same reason. The TEXT arrow is the same one every other
+            "All chats →" affordance uses (the `@orb/ui/icons` export list is a curated seal). */}
         <Row className="border-border border-t pt-row">
-          <Text as="span" className="text-primary" voice="label">
+          <Button intent="secondary" onClick={open} size="sm" type="button">
             Open {collection.label} →
-          </Text>
+          </Button>
         </Row>
       </Stack>
     </Card>
@@ -280,16 +348,28 @@ function UnbuiltLibrary({ collection }: { readonly collection: CollectionContrib
   const visible = collection.useVisible?.() ?? true;
   const count = collection.useCount?.();
   const create = collection.create.useRun();
+  if (!visible) {
+    return null;
+  }
   // THE IN-FLIGHT ARM IS NEITHER COLUMN (snap `--isolated` on the real corpus, 2026-08-17): while the
   // counts are settling every collection reads as not-built, so the surface first painted a rail-only
   // one-column layout and then SLID `[data-slot=config-hearth]` 541px sideways when the tag count landed
   // and the lead column appeared — an unexpected 0.073 CLS on the pane's own first paint. A settling count
-  // is not a verdict, so it renders no slot and both columns arrive already in their final geometry.
+  // is not a verdict, so it renders no slot.
+  //
+  // IT RENDERS A ZERO-BOX MARKER RATHER THAN `null` (2026-08-19, the 0.0283 residue — the whole mechanism is
+  // in `HIDE_WHILE_SETTLING` above). `hidden` is the ATTRIBUTE, so the marker has no box, no track and no
+  // accessibility-tree presence; it exists only to be seen by one `:has()` on the grid. It rides
+  // `UnbuiltLibrary` because this component is already the one that computes "my count has not landed" —
+  // a second component to carry the marker would be a second home for one verdict.
   //
   // A collection that declares NO count hook is the opposite case and must NOT be swallowed by it: its
-  // count is permanently unknown, and the 2026-08-03 ruling keeps its create verb rather than silently
-  // losing the only way into an empty library. That is what `declaresCount` separates.
-  if (!visible || (declaresCount && count === undefined) || (count !== undefined && count > 0)) {
+  // count is permanently unknown — never SETTLING — and the 2026-08-03 ruling keeps its create verb rather
+  // than silently losing the only way into an empty library. That is what `declaresCount` separates.
+  if (declaresCount && count === undefined) {
+    return <span data-config-settling="" hidden={true} />;
+  }
+  if (count !== undefined && count > 0) {
     return null;
   }
   return (
@@ -309,7 +389,10 @@ function UnbuiltLibrary({ collection }: { readonly collection: CollectionContrib
           </Text>
         )}
       </Row>
-      <Text voice="gloss">{collection.blurb}</Text>
+      {/* Capped on the paragraph, the hero's rule and the masthead's (side-eye 2026-08-19 P3). */}
+      <Text className="max-w-(--reading-measure)" voice="gloss">
+        {collection.blurb}
+      </Text>
       {/* THE VERB IS A BUTTON (side-eye 2026-08-06 P2). At `ghost` it was transparent, borderless and
           full-bleed, so the invitation read as a third line of copy. `secondary` is the house's
           non-primary chrome, and the `Row` keeps it intrinsically sized (a `Stack` child stretches to the

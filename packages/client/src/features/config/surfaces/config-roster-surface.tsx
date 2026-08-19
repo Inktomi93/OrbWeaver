@@ -11,6 +11,7 @@ import { useRef } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import { CollectionGroup } from "../components/collection-group.tsx";
+import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
 import { orderCollections } from "../lib/order-collections.ts";
 
 export interface ConfigRosterSurfaceProps {
@@ -26,6 +27,11 @@ export function ConfigRosterSurface({ collections }: ConfigRosterSurfaceProps): 
     // expanded 400-row group grows the pane instead of scrolling inside it.
     <Container className="h-full min-h-0">
       <Stack className="relative h-full min-h-0 overflow-y-auto outline-none" data-slot="config-roster" gap="field" ref={surfaceRef} tabIndex={-1}>
+        {/* THE PHONE'S ONLY TEACHING FRAME (side-eye 2026-08-19 P2) — mobile viewport + no selection only,
+            and it stands itself down to `null` everywhere else, so the desktop roster is byte-identical to
+            what it was. It lives INSIDE this scroller rather than above it because it is part of what the
+            list screen says, not a fixed band over it. */}
+        <ConfigMobileTeaching collections={collections} />
         {orderCollections(collections).map((collection) => (
           <CollectionGroup collection={collection} key={collection.id} />
         ))}

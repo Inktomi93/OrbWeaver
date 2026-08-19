@@ -197,8 +197,13 @@ function PipelineStageRow({ stage, index }: { readonly stage: RegexPipelineStage
  *  in the always-on set, so its true position is after every script above it — wherever it is attached. */
 function SubjectMarker({ appended }: { readonly appended: boolean }): ReactElement {
   return (
-    <Badge intent={appended ? "neutral" : "info"} size="sm">
-      {appended ? "this script, wherever it’s attached" : "this script"}
+    // SENTENCE CASE, AND IT TAKES A `normal-case` TO GET THERE (side-eye 2026-08-19 P3, all-caps-body).
+    // `text-transform` INHERITS, and this badge is rendered inside `<Section kicker>` — whose micro-caps
+    // voice therefore reached down into it and printed a nine-word CLAUSE as "THIS SCRIPT, WHEREVER IT'S
+    // ATTACHED". The kicker voice is law for a section NAME; a sentence wearing it is the narrow defect, and
+    // the source string was already lowercase, so nothing but the inherited transform was ever wrong here.
+    <Badge className="normal-case" intent={appended ? "neutral" : "info"} size="sm">
+      {appended ? "This script, wherever it’s attached" : "This script"}
     </Badge>
   );
 }
