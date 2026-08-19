@@ -18,6 +18,10 @@ test("image_dropped → the model can't see images", () => {
   expect(warningNotice("image_dropped").description).toContain("can't see images");
 });
 
+test("video_dropped → the model can't watch videos (#317)", () => {
+  expect(warningNotice("video_dropped").description).toContain("can't watch videos");
+});
+
 test("tools_unsupported → tools were turned off", () => {
   expect(warningNotice("tools_unsupported").title).toContain("Tools were turned off");
 });

@@ -60,7 +60,7 @@ import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/prov
 import type { ActiveTurns } from "./active-turns.ts";
 import type { ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryLog, MemoryRecallSink } from "./memory.ts";
-import type { TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
+import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
  *  catastrophic-backtracking pattern throws instead of hanging the turn. */
@@ -197,9 +197,10 @@ type ResolveUserPublicsOp = (
   avatarAssetId: AssetId | null;
 } | null>;
 
-/** Resolves a parsed message-image ref to a model-fetchable URL/data-URI. Null blocks the image (owner
- *  policy or a gone asset) and the engine drops that image part. */
-type ResolveImageUrlOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId; readonly ref: ContentImageRef }) => Promise<string | null>;
+/** Resolves a parsed message-image ref to a model-fetchable URL/data-URI + its media kind
+ *  ({@link ResolvedMediaRef}, homed in `results.ts` — the D51 seam set). Null blocks the attachment (owner
+ *  policy or a gone asset) and the engine drops that part. */
+type ResolveImageUrlOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId; readonly ref: ContentImageRef }) => Promise<ResolvedMediaRef | null>;
 
 /** Resolves an asset id to just its content hash — a hash is not a secret, so this is a bare lookup, never
  *  an existence/ownership oracle. Null for a null id or a gone row. */

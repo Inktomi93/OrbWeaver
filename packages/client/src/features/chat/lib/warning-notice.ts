@@ -35,6 +35,8 @@ export function warningNotice(code: ChatWarningCode): NotifyNotice {
   switch (code) {
     case "image_dropped":
       return { description: "This model can't see images, so it was left out of the turn.", title: "Your image was ignored" };
+    case "video_dropped":
+      return { description: "This model can't watch videos, so it was left out of the turn.", title: "Your video was ignored" };
     case "tools_unsupported":
       return { description: "This model doesn't support them, so the reply came back without any tool use.", title: "Tools were turned off for this reply" };
     case "memory_build_failed":

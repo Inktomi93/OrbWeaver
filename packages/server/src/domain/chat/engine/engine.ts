@@ -47,7 +47,7 @@ import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscr
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { MemoryConfig, MemoryPassCounts, MemoryRecallResult, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
-import type { GeneratedText, HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results.ts";
+import type { GeneratedText, HistoryMacroNames, ResolvedMediaRef, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import {
   appendVariantStatements,
@@ -1398,7 +1398,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       runChatTurn: ctx.runChatTurn,
       now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
-      resolveImageUrl: (ref): Promise<string | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       assembleContext: speakerAssembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
@@ -1793,6 +1793,7 @@ async function emitCapabilityDropWarnings(
   chatId: ChatId,
   result: {
     readonly imageDropped: boolean;
+    readonly videoDropped: boolean;
     readonly toolsUnsupported: boolean;
     readonly structuredOutputUnsupported: boolean;
     readonly guidedPlacedAsInjection: boolean;
@@ -1801,6 +1802,9 @@ async function emitCapabilityDropWarnings(
 ): Promise<void> {
   if (result.imageDropped) {
     await emit({ type: "warning", chatId, code: "image_dropped" });
+  }
+  if (result.videoDropped) {
+    await emit({ type: "warning", chatId, code: "video_dropped" });
   }
   if (result.toolsUnsupported) {
     await emit({ type: "warning", chatId, code: "tools_unsupported" });

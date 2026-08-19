@@ -2,9 +2,10 @@
 // the raw bytes, verify the bytes match the claim BEFORE they enter the CAS (the upload boundary's byte-level
 // defense; a mislabeled binary must fail here, never confusingly-late at extraction). Four families:
 //   • `image/*` → the shared magic-signature sniff (`@orb/kit/image-sniff`); the sniffed mime must equal the claim.
-//   • `video/*` → the container magic for the two we accept (BG-V video backgrounds): `video/mp4` = the ISO-BMFF
-//     `ftyp` box tag at byte 4; `video/webm` = the Matroska/WebM EBML header magic at byte 0. Kit's sniff is
-//     image-only, so these dispatch here (the DBK-A belt pattern — a signature check, never a conversion).
+//   • `video/*` → the container magic for the two we accept (BG-V video backgrounds AND #317 chat
+//     attachments): `video/mp4` = the ISO-BMFF `ftyp` box tag at byte 4; `video/webm` = the Matroska/WebM
+//     EBML header magic at byte 0. Kit's sniff is image-only, so these dispatch here (the DBK-A belt
+//     pattern — a signature check, never a conversion).
 //   • `application/pdf` / the zip-container document mimes (docx/epub) → their own leading signatures (`%PDF`,
 //     the ZIP local-file header `PK\x03\x04`) — kit's sniff is image-only, so these dispatch here.
 //   • `text/*` → NO magic exists; the strongest cheap check a text format admits is a strict-UTF-8 decode
@@ -61,7 +62,8 @@ function startsWith(bytes: Uint8Array, signature: string): boolean {
   return matchesAt(bytes, 0, signature);
 }
 
-/** The `video/*` arm — the two container formats BG-V accepts, by their leading magic (never a decode/convert). */
+/** The `video/*` arm — the two container formats we accept (BG-V backgrounds + #317 chat attachments), by
+ *  their leading magic (never a decode/convert). */
 function assertVideoMagic(bytes: Uint8Array, base: string, claimedMime: string): void {
   if (base === MP4_MIME) {
     if (!matchesAt(bytes, FTYP_OFFSET, FTYP_SIGNATURE)) {

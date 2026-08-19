@@ -142,8 +142,10 @@ export const modelCapabilitySchema = z.object({
   verbosity: z.array(verbositySchema).optional(),
   /** `vision` = accepts image content-parts (gates the multimodal send). `imageEdit` = accepts an
    *  init/reference image on the image-GENERATION call — distinct from `vision` (chat-input images).
-   *  `file`/`audio`/`video` = the model accepts that input modality (OpenRouter advertises them; capability
-   *  TRUTH now — absent ⇒ false, no consumer sends these parts yet). */
+   *  `video` = accepts video content-parts — gates the chat video send exactly as `vision` gates images
+   *  (#317; the engine drops-with-`video_dropped` when absent). `file`/`audio` = the model accepts that
+   *  input modality (OpenRouter advertises them; capability TRUTH — absent ⇒ false, no consumer sends
+   *  those parts yet). */
   input: z
     .object({
       vision: z.boolean(),

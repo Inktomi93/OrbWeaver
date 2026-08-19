@@ -32,7 +32,7 @@ export {
   providerErrorFromHttp,
 } from "./error-classify.ts";
 // ── History content-part → text (D45 multimodal send; image parts wire-mapped per-backend later) ────
-export { chatHistoryText } from "./history.ts";
+export { chatHistoryOpenAiContent, chatHistoryText } from "./history.ts";
 // ── Idle-abort wrapper for streaming HTTP runners ──────────────────────────────────────────────────
 export type { IdleAbort } from "./idle-timeout.ts";
 export { IDLE_TIMEOUT_MS, turnAbortSignal } from "./idle-timeout.ts";

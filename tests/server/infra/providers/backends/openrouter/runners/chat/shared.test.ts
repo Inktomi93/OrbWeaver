@@ -56,6 +56,59 @@ describe("buildHistoryMessages", () => {
   });
 });
 
+describe("buildHistoryMessages — the D45 multimodal send", () => {
+  test("a user turn carrying an image part becomes a content-part ARRAY with an imageUrl member", () => {
+    const messages = buildHistoryMessages([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "what is this?" },
+          { type: "image", url: "data:image/png;base64,AAAA" },
+        ],
+      },
+    ]);
+    expect(messages).toEqual([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "what is this?" },
+          { type: "image_url", imageUrl: { url: "data:image/png;base64,AAAA" } },
+        ],
+      },
+    ]);
+  });
+
+  test("a text-only user turn stays PLAIN-STRING content (byte-stable request bodies)", () => {
+    expect(buildHistoryMessages([{ role: "user", content: [{ type: "text", text: "hi" }] }])).toEqual([{ role: "user", content: "hi" }]);
+  });
+
+  test("#317: a video part becomes the SDK's videoUrl content item (video_url on the serialized wire)", () => {
+    const messages = buildHistoryMessages([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "watch" },
+          { type: "video", url: "data:video/mp4;base64,BBBB" },
+        ],
+      },
+    ]);
+    expect(messages).toEqual([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "watch" },
+          { type: "video_url", videoUrl: { url: "data:video/mp4;base64,BBBB" } },
+        ],
+      },
+    ]);
+  });
+
+  test("#317: a media-only user turn (no text) is KEPT — the parts are its content", () => {
+    const messages = buildHistoryMessages([{ role: "user", content: [{ type: "video", url: "data:video/webm;base64,CCCC" }] }]);
+    expect(messages).toHaveLength(1);
+  });
+});
+
 describe("buildHistoryMessages — the D48 tool exchange (T2)", () => {
   test("assistant tool-call parts → SDK toolCalls; a TEXT-LESS tool-call turn is KEPT", () => {
     const messages = buildHistoryMessages([

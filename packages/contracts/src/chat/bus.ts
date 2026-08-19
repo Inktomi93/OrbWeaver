@@ -31,12 +31,19 @@ export type ChatDeltaEvent = { chatId: ChatId; kind: "text"; text: string } | { 
  *  array; a text-only turn is a one-element `[{ type:"text" }]` (no `if(hasImage)` branch — the no-special-case
  *  discipline). `image.url` is the resolved, model-fetchable URL/data-URI the chat domain produced at the
  *  engine REQUEST seam (asset→CAS URL or a gated external URL); a non-vision model never receives image parts
- *  (the engine drops them, gated by `ModelCapability.input.vision`, + emits a `warning` bus event). This is
+ *  (the engine drops them, gated by `ModelCapability.input.vision`, + emits a `warning` bus event), and a
+ *  non-video model never receives video parts (`input.video`, `video_dropped` — the #317 twin). This is
  *  the ONE home (D45 "the cross-boundary message DTOs in `@orb/contracts/chat` carry the same"); the infra
  *  `ChatHistoryMessage` imports it. Distinct from the D44 RENDER `MessageContentBlock` (display ⇆ client). */
 export type ChatContentPart =
   | { readonly type: "text"; readonly text: string }
   | { readonly type: "image"; readonly url: string }
+  /* The #317 video sibling of the image part — same resolve seam, same attachment-only rule, gated by
+   * `ModelCapability.input.video` instead of `input.vision`. The MEDIA KIND is a fact of the stored asset
+   * (mime, plus the animated byte-fact for gif-as-motion), classified ONCE by the engine's injected
+   * resolver — a translator dispatches on `type` and never re-sniffs. `url` is a data URI/model-fetchable
+   * URL exactly like `image.url`. */
+  | { readonly type: "video"; readonly url: string }
   /* The D48 tool exchange (tool-use-design/02 §1): parts are the WIRE form only — persisted form is
    * `ToolCallRecord[]` on the variant (never markdown in a body, never a slot row); assembly MATERIALIZES
    * a recorded exchange into `assistant(tool-call)` + `tool(tool-result)` messages at the engine REQUEST
@@ -63,6 +70,9 @@ export type ChatContentPart =
 export const CHAT_WARNING_CODES = [
   // Image parts were stripped because the resolved model's `input.vision` isn't true (D45).
   "image_dropped",
+  // Video parts (mp4/webm/animated-gif attachments, #317) were stripped because the resolved model's
+  // `input.video` isn't true — the video twin of `image_dropped`, emitted from the same engine seam.
+  "video_dropped",
   // Tools were attached but `capability.tools` is absent → dropped; the turn proceeds tool-less
   // (D48; the domain-side gate per D51's rule — the emit site is the engine's attach gate).
   "tools_unsupported",

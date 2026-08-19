@@ -23,19 +23,16 @@
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
-import { Button } from "@orb/ui/button";
-import { CrossfadeImage } from "@orb/ui/crossfade-image";
-import { Icon, X } from "@orb/ui/icons";
+import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
-import { cn, IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
+import { cn, IMAGE_GEN_NEEDS_TEXT, notify, oversizeUploadMessage, testId } from "#lib";
 import { setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
-import type { PendingAttachment } from "../hooks/use-composer-attachments.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
@@ -48,6 +45,7 @@ import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashCompletionAria } from "../lib/slash-command.ts";
+import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
@@ -149,16 +147,7 @@ function resolveImageGenReason(hasText: boolean): string | undefined {
   return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
 }
 
-function AttachmentPreview({ attachment, onRemove }: { readonly attachment: PendingAttachment; readonly onRemove: () => void }): ReactElement {
-  return (
-    <Row gap="field" align="center" className="shrink-0" data-slot="composer-attachment">
-      <CrossfadeImage src={attachment.url} alt={`Attachment preview: ${attachment.file.name}`} aspectRatio={1} fit="cover" className="size-16 rounded-card" />
-      <Button type="button" intent="ghost" size="icon" aria-label={`Remove ${attachment.file.name}`} onClick={onRemove} shape="pill">
-        <Icon icon={X} size="sm" />
-      </Button>
-    </Row>
-  );
-}
+const VIDEO_MIME_PREFIX = "video/";
 
 export interface ComposerProps {
   /** The room this composer belongs to — also its composer-draft SCOPE KEY (a room's id is stable for the
@@ -175,9 +164,11 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
   // shared ancestor, so a keystroke re-renders only this subtree and never cascades to the message thread.
   const value = useComposerDraft(chatId);
   const onChange = (text: string): void => setComposerDraft(chatId, text);
-  // A composer attachment is an image, so the pre-check ceiling is the SERVED image cap (the tighter of the
-  // route cap and the admin `maxImageBytes`); the server re-caps + magic-byte checks regardless.
-  const maxAttachmentBytes = useUploadCaps().image;
+  // A composer attachment is an image OR a video (#317). The shared picker's ceiling is the single-asset
+  // route cap (videos are the bigger class); IMAGE files are additionally pre-checked per file against the
+  // tighter admin-tunable image cap in `addAttachmentFiles`. The server re-caps + magic-byte checks regardless.
+  const uploadCaps = useUploadCaps();
+  const maxAttachmentBytes = uploadCaps.assetUpload;
   const slash = useSlashCommands(chatId);
   // The refusal from the LAST send attempt (unknown/unavailable command). Cleared on the next keystroke —
   // it explains one action, it is not a persistent state.
@@ -326,13 +317,35 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
     });
   };
 
+  // The picker's own rejection line is invisible here (it renders `hidden` inside the ✨ menu), so size
+  // rejections surface as warn toasts instead of silently vanishing — both the dropzone's own (over the
+  // route cap) and the per-file IMAGE cap check (the admin-tunable `maxImageBytes` is image-only; a video
+  // rides the route cap the dropzone already enforced).
+  const addAttachmentFiles = (result: FileDropzoneResult): void => {
+    for (const rejection of result.rejected) {
+      notify.warn(oversizeUploadMessage(rejection.file, maxAttachmentBytes) ?? `${rejection.file.name} couldn't be attached`);
+    }
+    const accepted: File[] = [];
+    for (const file of result.accepted) {
+      const overImageCap = file.type.startsWith(VIDEO_MIME_PREFIX) ? undefined : oversizeUploadMessage(file, uploadCaps.image);
+      if (overImageCap !== undefined) {
+        notify.warn(overImageCap);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length > 0) {
+      addFiles({ accepted, rejected: [] });
+    }
+  };
+
   // The image controls, re-homed OFF the composer bar and INTO the ✨ utility menu (owner). Attach still uses
   // the sanctioned FileDropzone picker; generate-from-text still clears only on a green settle (F-P1). The
   // wand renders these as menu rows — the bar top row is just the guided icons + the ✨ menu.
   const imageControls: ComposerImageControls = {
     maxAttachmentBytes,
     uploadDisabled: sendMessage.isPending,
-    onAddFiles: addFiles,
+    onAddFiles: addAttachmentFiles,
     canGenerate: canGenerateImage,
     generateReason: imageGenReason,
     generating: generateImage.isPending,
@@ -357,13 +370,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             is what tells a non-sighted user that typing `/` surfaced offers. The primitive stays mounted so
             the text CHANGE announces (its own header states the never-unmount rule). */}
         <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
-        {hasAttachments ? (
-          <Row gap="field" align="center" data-slot="composer-attachments" className={cn(CHAT_TRACK, "flex-wrap")}>
-            {attachments.map((attachment, index) => (
-              <AttachmentPreview key={attachment.url} attachment={attachment} onRemove={(): void => removeAttachment(index)} />
-            ))}
-          </Row>
-        ) : null}
+        <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
         {/* TWO ROWS (wand v2): the guided cluster sits ABOVE the textarea so the busy controls aren't crammed
             beside it. One outer card holds both rows so the focus-lift/backing spans the whole composer. */}
         <Stack

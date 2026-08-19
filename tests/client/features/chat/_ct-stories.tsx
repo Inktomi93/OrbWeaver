@@ -134,6 +134,7 @@ import { RoomOverridesForm } from "../../../../packages/client/src/features/chat
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select.tsx";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip.tsx";
+import type { ResolvedAttachment } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context.tsx";
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
@@ -2296,25 +2297,35 @@ const CT_ATTACH_ASSET_ID = castId<AssetId>("asset_ct_attach");
 /** A valid 1×1 transparent PNG data URL — an ASSET src (own origin) renders it directly (no network, no
  *  `onError` broken-fallback), so the CT can assert the real `<img>` src deterministically. */
 const CT_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+// A tiny VALID mp4 (ffmpeg lavfi black 16x16, ~1.6 KB) — the #317 video arm needs a source Chromium can
+// actually open: an undecodable stub data URI flips MessageMedia into its broken fallback and the <video>
+// element vanishes before the assertion.
+const CT_MP4_DATA_URL =
+  "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAANdbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAAXcAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAod0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAAXcAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAF3AAAQAAABAAAAAAH/bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAGABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABqm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAWpzdGJsAAAAvnN0c2QAAAAAAAAAAQAAAK5hdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANGF2Y0MBZAAK/+EAF2dkAAqs2V7ARAAAAwAEAAADAEA8SJZYAQAGaOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAAD0AAAA9AAAAABhzdHRzAAAAAAAAAAEAAAADAAAIAAAAABRzdHNzAAAAAAAAAAEAAAABAAAAKGN0dHMAAAAAAAAAAwAAAAEAABAAAAAAAQAAGAAAAAABAAAIAAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAwAAAAEAAAAgc3RzegAAAAAAAAAAAAAAAwAAAsQAAAAMAAAADAAAABRzdGNvAAAAAAAAAAEAAAONAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY2MC4xNi4xMDAAAAAIZnJlZQAAAuRtZGF0AAACrQYF//+p3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTggc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAPZYiEABD//veBvzLLZD+5AAAACEGaImxDv/7gAAAACAGeQXkO/7eB";
 
 export interface AttachmentMediaStoryProps {
   /** `true` mounts the context EMPTY (the provider-less / still-loading placeholder path); default provides
    *  the resolved data-URL blob for the asset (the render path). A boolean — not an optional url — so the
    *  empty case can't be swallowed by a default param. */
   readonly empty?: boolean;
+  /** `true` resolves the asset as a VIDEO (#317 — the context carries a `video/mp4` mime, so the block must
+   *  pick the native `<video>` arm off the resolved mime; the span/block projection is mime-blind). */
+  readonly video?: boolean;
 }
 
-/** `MessageMediaBlock`'s ASSET arm (#67) over the `AttachmentUrlContext`: the resolved case provides a url
- *  (renders the gated `<MessageMedia>` image); `empty` provides an empty map (the `[image]` placeholder
- *  degrade). A pure-render story (no data layer — the context IS the seam). */
-export function AttachmentMediaStory({ empty = false }: AttachmentMediaStoryProps): ReactElement {
+/** `MessageMediaBlock`'s ASSET arm (#67/#317) over the `AttachmentUrlContext`: the resolved case provides a
+ *  `{url, mime}` (renders the gated `<MessageMedia>` image, or the `<video>` arm for a video mime); `empty`
+ *  provides an empty map (the `[image]` placeholder degrade). A pure-render story (no data layer — the
+ *  context IS the seam). */
+export function AttachmentMediaStory({ empty = false, video = false }: AttachmentMediaStoryProps): ReactElement {
   const block = {
     kind: "media",
     media: "image",
     src: { kind: "asset", assetId: CT_ATTACH_ASSET_ID },
     alt: "an attached image",
   } as const;
-  const map = new Map<AssetId, string>(empty ? [] : [[CT_ATTACH_ASSET_ID, CT_PNG_DATA_URL]]);
+  const resolved: ResolvedAttachment = video ? { url: CT_MP4_DATA_URL, mime: "video/mp4" } : { url: CT_PNG_DATA_URL, mime: "image/png" };
+  const map = new Map<AssetId, ResolvedAttachment>(empty ? [] : [[CT_ATTACH_ASSET_ID, resolved]]);
   return (
     <AttachmentUrlContext value={map}>
       <MessageMediaBlock block={block} allowExternal={false} />

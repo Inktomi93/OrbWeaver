@@ -26,3 +26,15 @@ test("an unresolved asset ref degrades to the [image] placeholder, never a broke
   await expect(component.getByText("[image]")).toBeVisible();
   await expect(component.locator(MEDIA_IMG)).toHaveCount(0);
 });
+
+test("#317: an asset resolved with a video mime renders the native <video> arm, not an <img>", async ({ mount, page }) => {
+  // The block projection is mime-blind (`media:"image"` on the block); the ASSET arm re-picks the element
+  // off the resolved mime — this pins that a video attachment never renders a broken <img>. Page-scoped
+  // locator: the <video> IS the mounted component's root node (the image arm nests under a zoom button,
+  // the video arm does not), so a component-scoped search would look INSIDE it and find nothing.
+  await mount(<AttachmentMediaStory video={true} />);
+  const media = page.locator(MEDIA_IMG);
+  await expect(media).toHaveCount(1);
+  const tag = await media.evaluate((el) => el.tagName);
+  expect(tag).toBe("VIDEO");
+});

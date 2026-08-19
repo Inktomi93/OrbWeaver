@@ -6,8 +6,9 @@
 //   • Reply  — Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
 //              steer-aware reroll stays the ⟳ Swipe icon, §2.3e dual-home) · Simple send (post without generating)
 //   • Continuation — Undo / Revert continuation
-//   • Images — Attach images (the sanctioned FileDropzone, ref-triggered off the row so the input is NOT a focus
-//              target inside the menuitem's accessible name — P1-C) · Generate image from text
+//   • Media  — Attach images & video (the sanctioned FileDropzone, ref-triggered off the row so the input is
+//              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
+//              #317) · Generate image from text
 //   • Plot   — game-only: the six plot steers nested under a Plot submenu (P1-B) + the Offer choices one-shot
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
 // never hidden.
@@ -135,10 +136,10 @@ export function UtilityMenu(props: UtilityMenuProps): ReactElement {
           />
         </MenuGroup>
         <MenuSeparator />
-        {/* IMAGES — the re-homed image controls (owner: image things into the menu, NOT back on the bar). */}
+        {/* MEDIA — the re-homed image/video controls (owner: image things into the menu, NOT back on the bar). */}
         <MenuGroup>
-          <MenuGroupLabel>Images</MenuGroupLabel>
-          <AttachImagesItem maxAttachmentBytes={image.maxAttachmentBytes} disabled={image.uploadDisabled} onAddFiles={image.onAddFiles} />
+          <MenuGroupLabel>Media</MenuGroupLabel>
+          <AttachMediaItem maxAttachmentBytes={image.maxAttachmentBytes} disabled={image.uploadDisabled} onAddFiles={image.onAddFiles} />
           <MenuItem
             closeOnClick={false}
             disabled={!image.canGenerate}
@@ -216,12 +217,18 @@ function PlotSteersSubmenu({ onSteer }: { readonly onSteer: (kind: GuidedGameSte
   );
 }
 
-// Attach images — the sanctioned FileDropzone picker (a raw file input is gate-banned in features). The input is
-// kept OUT of the menuitem's accessible-name subtree (P1-C): it renders hidden (aria-hidden + tabIndex -1 so it
-// is neither a focus target nor an announced control), and the menuitem TRIGGERS it via a ref click. The
-// menuitem carries the single clean accessible name; `closeOnClick={false}` keeps the menu open through the OS
-// dialog. Screen readers see exactly one control: "Attach images, up to {size} per file."
-function AttachImagesItem({
+// The picker's file-type filter (#317): every image family plus the two video containers the upload
+// boundary's magic sniff verifies (`domain/assets/substrate/mime.ts` — mp4's ftyp box, webm's EBML header).
+// Animated gif rides `image/*` and is classified video-for-the-model at the server resolve seam.
+const ATTACH_MEDIA_ACCEPT = "image/*,video/mp4,video/webm";
+
+// Attach images & video — the sanctioned FileDropzone picker (a raw file input is gate-banned in features).
+// The input is kept OUT of the menuitem's accessible-name subtree (P1-C): it renders hidden (aria-hidden +
+// tabIndex -1 so it is neither a focus target nor an announced control), and the menuitem TRIGGERS it via a
+// ref click. The menuitem carries the single clean accessible name; `closeOnClick={false}` keeps the menu
+// open through the OS dialog. Screen readers see exactly one control: "Attach images & video, up to {size}
+// per file."
+function AttachMediaItem({
   maxAttachmentBytes,
   disabled,
   onAddFiles,
@@ -239,18 +246,18 @@ function AttachImagesItem({
       <MenuItem
         closeOnClick={false}
         disabled={disabled}
-        aria-label={`Attach images, up to ${formatMib(maxAttachmentBytes)} per file`}
+        aria-label={`Attach images & video, up to ${formatMib(maxAttachmentBytes)} per file`}
         data-testid={testId("composerAttachImages")}
         onClick={disabled ? undefined : openPicker}
       >
         <Icon icon={ImagePlus} size="sm" />
-        Attach images
+        Attach images & video
       </MenuItem>
       {/* The real picker, hidden off the accessible tree — the row above triggers its input via the ref. Kept
           inside the popup so its focus/portal context is the menu's, never a stray body-level input. */}
       <FileDropzone
         ref={inputRef}
-        accept="image/*"
+        accept={ATTACH_MEDIA_ACCEPT}
         multiple={true}
         maxSizeBytes={maxAttachmentBytes}
         disabled={disabled}

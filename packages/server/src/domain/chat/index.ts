@@ -59,7 +59,7 @@ export {
   TOOL_RECURSE_LIMIT_DEFAULT,
   toolRecurseLimitSchema,
 } from "./contract/metadata.ts";
-export type { ImpersonateStreamDelta, RequestTurnOp, TurnMessage, TurnRequest, TurnStreamChunk } from "./contract/results.ts";
+export type { ImpersonateStreamDelta, RequestTurnOp, ResolvedMediaRef, TurnMessage, TurnRequest, TurnStreamChunk } from "./contract/results.ts";
 export type { ChatService } from "./contract/service.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard.ts";

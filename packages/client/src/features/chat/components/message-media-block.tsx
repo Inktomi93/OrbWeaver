@@ -43,16 +43,22 @@ function MediaWithZoom({
   );
 }
 
+const VIDEO_MIME_PREFIX = "video/";
+
 function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; readonly assetId: AssetId }): ReactElement {
-  const url = useAttachmentUrl(assetId);
-  if (url === undefined) {
+  const resolved = useAttachmentUrl(assetId);
+  if (resolved === undefined) {
     return (
       <Text as="span" voice="gloss" data-slot="message-media-asset-pending">
         [image]
       </Text>
     );
   }
-  return <MediaWithZoom block={block} src={{ kind: "asset", url }} allowExternal={true} />;
+  // #317: the block projection is mime-blind (the span carries only the ref), so the ELEMENT pick happens
+  // here, off the resolved asset's stored mime — an mp4/webm attachment renders the native <video> arm.
+  // A gif keeps the <img> arm (browsers animate it natively; only the MODEL wire treats it as frames).
+  const media = resolved.mime.startsWith(VIDEO_MIME_PREFIX) ? "video" : block.media;
+  return <MediaWithZoom block={{ ...block, media }} src={{ kind: "asset", url: resolved.url }} allowExternal={true} />;
 }
 
 export interface MessageMediaBlockProps {
