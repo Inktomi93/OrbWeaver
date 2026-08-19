@@ -128,9 +128,12 @@ export interface CorpusFamilyMapProps {
   readonly families: readonly VisualFamily[];
   /** Carry the surface's ONE focal treatment (stripe + glow + elevated island). Exactly one caller may. */
   readonly focal: boolean;
+  /** Whether the Archetypes CONTEXT tab will actually DRAW the families — its own distill gate. False means
+   *  the tab answers with the understanding invitation, so the "All families →" door does not render (A7). */
+  readonly canOpenFamilies: boolean;
 }
 
-export function CorpusFamilyMap({ families, focal }: CorpusFamilyMapProps): ReactElement | null {
+export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFamilyMapProps): ReactElement | null {
   const titleId = useId();
   if (families.length === 0) {
     // NOT an empty state. When the clustering has produced nothing the readiness rail already says
@@ -153,11 +156,24 @@ export function CorpusFamilyMap({ families, focal }: CorpusFamilyMapProps): Reac
         </Stack>
         {/* THE REAL DOOR, and deliberately not the mockup's "Open map →". That link points at the CONTEXT
             "Map" tab, which draws the SEMANTIC projection of distilled cards — a different artifact from
-            these visual families, and empty on exactly the library this island is loudest on. The families
-            live on the Archetypes tab, which is populated whenever this island renders at all. */}
-        <Button className="shrink-0" intent="ghost" onClick={(): void => revealContextPanel("archetypes")} size="sm">
-          All families →
-        </Button>
+            these visual families, and empty on exactly the library this island is loudest on.
+
+            TRUTH-REPAIR (side-eye corpus re-pass A7). The line that stood here — "the families live on the
+            Archetypes tab, which is populated whenever this island renders at all" — was refuted twice by
+            the live render. (1) The tab OPENED ON WRITING ARCHETYPES: the art half was the second section,
+            below a bar chart and ten cluster cards, so the door named families and delivered a different
+            artifact. That is fixed at the destination — the art half now leads that tab. (2) "Populated
+            whenever this island renders" is FALSE: the tab gates its whole cluster surface on
+            `catalog.totalDistilled > 0` (the #154 owner ruling), while this island renders off
+            `visualArchetypes` alone and is at its loudest on exactly the undistilled library the tab
+            refuses to draw. A door onto an invitation is the thing this pass exists to delete, so on that
+            library there is no door — `canOpenFamilies` is the destination's OWN gate signal, passed down
+            rather than re-derived, and the readiness rail is already the one place that says why. */}
+        {canOpenFamilies ? (
+          <Button className="shrink-0" intent="ghost" onClick={(): void => revealContextPanel("archetypes")} size="sm">
+            All families →
+          </Button>
+        ) : null}
       </Row>
       {/* auto-fit at `cols="auto"`'s 16rem plate floor: a wider pane shows MORE plates, never wider ones.
           THE 13rem THIS ONCE CLAIMED WAS THE MOCK'S NUMBER, NEVER THE CODE'S, and 16rem is the right one

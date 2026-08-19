@@ -28,8 +28,10 @@
 // is dropped silently. The rows are addressed by role + accessible name instead, which is also what a user
 // meets them as.
 
+import { blobUrl } from "@orb/contracts/assets";
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { Avatar } from "@orb/ui/avatar";
 import { Icon, Images, MessagesSquare, Search } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -260,7 +262,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
       <>
         {data.hits.map((hit) => (
           <Stack key={hit.assetId} role="listitem">
-            <ImageHitRow caption={hit.caption} relevance={hit.relevance} />
+            <ImageHitRow caption={hit.caption} characterId={hit.characterId} characterName={hit.characterName} hash={hit.hash} relevance={hit.relevance} />
           </Stack>
         ))}
       </>
@@ -376,11 +378,62 @@ function DigestHitRow({
   );
 }
 
-/** An avatar caption hit. No destination exists for an image yet — `ImageSearchHit` carries no asset hash
- *  and no owning character, so a click would have nowhere to go and the row stays a preview (the family-map
- *  precedent: a plate becomes a door when there is somewhere to land, not before). */
-function ImageHitRow({ caption, relevance }: { readonly caption: string | null; readonly relevance: number }): ReactElement {
-  return <ListRow leading={<Icon icon={Images} size="sm" />} title={caption ?? "Uncaptioned avatar"} actions={<RelevanceBadge relevance={relevance} />} />;
+/**
+ * An image hit — the picture it found, and the character wearing it when one does.
+ *
+ * WHAT THIS REPLACED (side-eye corpus re-pass U4): twenty rows with a generic glyph, no image, no button and
+ * `cursor: auto`, in the exact ListRow geometry as the Memories rows that ARE doors — an image search that
+ * showed no images and a dead end dressed as a live one. The old note here claimed `ImageSearchHit` "carries
+ * no asset hash and no owning character"; the wire always carried `assetId`, the scan always joined `assets`,
+ * and `characters.avatarAssetId` is the owning-character edge. Both now ride the hit (search's
+ * `contract/results.ts`), so the row shows the blob and lands on the dossier — the same
+ * `selectCorpusCharacter` door every other character row on this surface is.
+ *
+ * AN ASSET NOBODY WEARS STAYS A PREVIEW, and looks like one: no `clickable`, so no button, no pointer, no
+ * hover — and the subtitle says WHY rather than leaving the reader to discover it by clicking. The
+ * family-map precedent holds (a thing becomes a door when there is somewhere to land, not before); what
+ * changed is that most of these do have somewhere to land, and a thumbnail with a dead click would be the
+ * original defect wearing better clothes.
+ */
+function ImageHitRow({
+  hash,
+  caption,
+  characterId,
+  characterName,
+  relevance,
+}: {
+  readonly hash: string;
+  readonly caption: string | null;
+  readonly characterId: CharacterId | null;
+  readonly characterName: string | null;
+  readonly relevance: number;
+}): ReactElement {
+  if (characterId === null) {
+    return (
+      <ListRow
+        leading={
+          // No `alt`: the row's TITLE is already this image's caption, and naming the thumbnail with the
+          // same words would announce it twice (`CharacterAvatar` leaves it empty for the same reason).
+          <Avatar hueSeed={hash} shape="rounded" src={blobUrl(hash)}>
+            <Icon icon={Images} size="sm" />
+          </Avatar>
+        }
+        title={caption ?? "Uncaptioned image"}
+        subtitle="No card uses this image — nothing to open"
+        actions={<RelevanceBadge relevance={relevance} />}
+      />
+    );
+  }
+  return (
+    <ListRow
+      clickable={true}
+      onClick={(): void => selectCorpusCharacter(characterId)}
+      leading={<CharacterAvatar hash={hash} id={characterId} name={characterName ?? ""} />}
+      title={characterName ?? "Untitled card"}
+      subtitle={caption ?? "Uncaptioned image"}
+      actions={<RelevanceBadge relevance={relevance} />}
+    />
+  );
 }
 
 /** Open the room a hit came from: the corpus's one cross-section destination, spelled exactly as chat's own

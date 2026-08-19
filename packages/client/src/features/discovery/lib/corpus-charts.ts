@@ -16,11 +16,64 @@ export function toBarItems<T>(rows: readonly T[], label: (row: T) => string, val
   }));
 }
 
+// ── cluster-label disambiguation ──────────────────────────────────────────────
+/** One labelled cluster's inputs: the label k-means produced, and the facets that describe it. File-local
+ *  (the exported surface is the function) — a caller passes the shape structurally, as `MapPoint`'s callers do. */
+interface LabelledCluster {
+  readonly label: string;
+  /** Ordered most-distinguishing-first — the first one unique to this cluster wins. */
+  readonly facets: readonly string[];
+}
+
+/**
+ * Make repeated cluster labels tell their clusters apart (side-eye corpus re-pass B6).
+ *
+ * The archetype labeller names a cluster from its dominant facets, so on a homogeneous library SEVEN of ten
+ * bars came back "melancholic slice-of-life" — three bars, three cluster cards and three announcements that
+ * a reader (and a screen reader, three times in a row) cannot tell apart, over data that genuinely differs.
+ *
+ * A repeated label takes the first facet NO other cluster sharing that label carries — the real difference,
+ * in the labeller's own vocabulary. When the facets are identical too there is no distinguishing content to
+ * borrow, so the ordinal is the honest last resort: it says "these are different groups and we have nothing
+ * better to call them", which is true, rather than implying they are the same one. Unique labels are
+ * returned untouched — nothing is decorated that was never ambiguous.
+ *
+ * Pure and order-preserving: index i of the result names cluster i.
+ */
+export function disambiguateLabels(clusters: readonly LabelledCluster[]): string[] {
+  const byLabel = new Map<string, number[]>();
+  clusters.forEach((cluster, index) => {
+    byLabel.set(cluster.label, [...(byLabel.get(cluster.label) ?? []), index]);
+  });
+
+  return clusters.map((cluster, index) => {
+    const peers = byLabel.get(cluster.label) ?? [index];
+    if (peers.length === 1) {
+      return cluster.label;
+    }
+    const others = new Set(peers.filter((peer) => peer !== index).flatMap((peer) => clusters[peer]?.facets ?? []));
+    const distinguishing = cluster.facets.find((facet) => facet !== "" && !others.has(facet));
+    if (distinguishing !== undefined) {
+      return `${cluster.label} · ${distinguishing}`;
+    }
+    return `${cluster.label} (${peers.indexOf(index) + 1} of ${peers.length})`;
+  });
+}
+
 // ── semantic-map genre grouping ───────────────────────────────────────────────
 // The N top genres get their own colored series; the rest (+ null/empty) fall into this one.
 const OTHER_GENRE_LABEL = "Other";
-// Cap named genre series to the `@orb/ui` chart ramp (5 stops) so <Scatter>'s per-series color never wraps.
-const MAX_GENRE_SERIES = 5;
+/**
+ * Named genre series, capped so the TOTAL series count (named + "Other") fits the `@orb/ui` chart ramp.
+ *
+ * FOUR, NOT FIVE (side-eye corpus re-pass B5). The cap was the ramp length itself, which is right only if
+ * "Other" is free — it is not: it is a series like any other, so a five-genre corpus produced SIX series and
+ * `buildScatterOption`'s `palette[index % length]` wrapped "Other" back onto the top genre's exact colour.
+ * Nobody could see it while the plot had no key; the moment the legend below names each colour, two rows
+ * would have carried the same swatch and the key would have been the lie. The plot loses its fifth named
+ * genre to the pool, which is the honest trade — a colour that means two things is worse than a pool.
+ */
+const MAX_GENRE_SERIES = 4;
 
 /** A card's map point — the caller's row shaped for `<Scatter>` (id echoed back on click). */
 interface MapPoint extends ScatterPoint {

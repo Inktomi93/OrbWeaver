@@ -5,12 +5,17 @@
 // range (~0.05–0.17) — adding hub_score would dominate and INVERT the ranking (verified: generic
 // placeholder avatars outrank relevant matches). This verb ranks on raw cosine distance alone, never
 // cslsAdjust; hub_score exists on that table only for a future image↔image similarity verb.
+//
+// A HIT CARRIES ITS PICTURE AND ITS PLACE (side-eye corpus re-pass U4). `hash` rides off the assets row the
+// scan already joins, and the avatar's owning character is resolved for the returned page — an image result
+// that can be neither seen nor opened is a row pretending to be a result, which is exactly what shipped.
 
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { ImagesParams } from "../contract/params.ts";
 import type { ImageSearchHit } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
+import { resolveAvatarOwners } from "../persistence/display.ts";
 import { nearestImages } from "../persistence/image-nearest.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
@@ -40,6 +45,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     const ranked = pool.map((r) => ({
       id: r.assetId,
       assetId: r.assetId,
+      hash: r.hash,
       sourceText: r.caption,
       caption: r.caption,
       score: r.distance,
@@ -48,7 +54,30 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     const ordered =
       params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), ctx.roleClients.rerank, topN) : ranked;
 
+    // A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4). The hash makes the result renderable; the
+    // avatar owner makes it navigable. Resolved AFTER the slice, so the enrichment join is sized by what is
+    // actually returned rather than by the overfetch pool.
+    const hits = ordered.slice(0, topN);
+    const owners = await resolveAvatarOwners(
+      ctx.db,
+      ownerId,
+      hits.map((r) => r.assetId),
+    );
+    const ownerByAsset = new Map(owners.map((o) => [o.assetId, o]));
+
     // `score` here IS the raw distance (the CSLS skip above), so the readout derives from it directly.
-    return ordered.slice(0, topN).map((r) => ({ assetId: r.assetId, score: r.score, relevance: relevanceOf(r.score), lens, caption: r.caption }));
+    return hits.map((r) => {
+      const owner = ownerByAsset.get(r.assetId);
+      return {
+        assetId: r.assetId,
+        hash: r.hash,
+        characterId: owner?.characterId ?? null,
+        characterName: owner?.name ?? null,
+        score: r.score,
+        relevance: relevanceOf(r.score),
+        lens,
+        caption: r.caption,
+      };
+    });
   };
 }

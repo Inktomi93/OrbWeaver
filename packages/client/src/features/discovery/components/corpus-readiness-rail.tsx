@@ -98,18 +98,22 @@ function CorpusReadinessRerun(): ReactElement {
       <Button disabled={pass.starting} intent="primary" onClick={pass.start} size="sm">
         Run the passes again
       </Button>
-      {pass.failure === null ? (
-        <Button intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
-          All jobs in Settings → Jobs
-        </Button>
-      ) : (
-        // A DIED run and a FAILED run are different sentences (issue #166 rider 3): `worker_died` carries no
-        // reason of its own, so quoting `pass.failure` printed "stopped: undefined" — a failure state that
-        // reads as a broken message rather than a run to retry. It was visible only in Settings → Jobs.
+      {/* A DIED run and a FAILED run are different sentences (issue #166 rider 3): `worker_died` carries no
+          reason of its own, so quoting `pass.failure` printed "stopped: undefined" — a failure state that
+          reads as a broken message rather than a run to retry.
+
+          THE FAILURE AND THE DOOR ARE NOT ALTERNATIVES (side-eye corpus re-pass A5). This was a ternary: the
+          jobs door rendered only while `pass.failure === null`, so the ONE branch whose copy sends you to
+          the error log was the one branch that deleted the route to it — the recovery affordance vanished
+          at precisely the moment it became the point. The message is conditional; the door never is. */}
+      {pass.failure === null ? null : (
         <Text className="text-destructive" data-slot="readiness-rerun-failure" voice="gloss">
           {pass.failureWasCrash ? "The last pass stopped unexpectedly — run it again." : `The last pass stopped: ${pass.failure}`}
         </Text>
       )}
+      <Button data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
+        All jobs in Settings → Jobs
+      </Button>
     </Stack>
   );
 }

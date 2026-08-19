@@ -13,7 +13,9 @@
 //      words"). The field is the model's OUTPUT TOKEN total — as a word claim it overstates by ~30-40%, and
 //      this app already counts real words elsewhere off a real `wordCount()` (`stats.wrapped.words`, the
 //      analytics overview's "Words" figure), so the two are separately true numbers and the label decides
-//      which one the reader thinks they are reading.
+//      which one the reader thinks they are reading. AND THE COLUMN HAS A THIRD STATE (B2): "not recorded".
+//      The zeros came back on an imported library because nothing had ever written a token count, which the
+//      wire reported as 0; `tokensOut` is nullable now and that case says so in words and draws no bar.
 //
 // THE TILE IS A GHOST BUTTON, not a Card — the shipped precedent for an interactive grid cell whose subject
 // is a character (`home-quick-picks-tile-body.tsx`), and it keeps the name at the `label` step, which is the
@@ -46,12 +48,18 @@ type ForgottenGem = inferOutput<Trpc["discovery"]["forgottenGems"]>[number];
 /** The tile's MAGNITUDES — the two lifetime totals, on their own line so the third fact can have one. */
 function gemMagnitudes(gem: ForgottenGem): string {
   const exchanges = `${formatCount(gem.messageCount)} ${gem.messageCount === 1 ? "exchange" : "exchanges"}`;
-  return `${formatCount(gem.tokensOut)} tokens returned · ${exchanges}`;
+  // ABSENT ACCOUNTING IS NOT A ZERO (side-eye corpus re-pass B2, owner-observed). This read "0 tokens
+  // returned · 1,187 exchanges" for five characters, because the economics op coalesced a missing count to
+  // 0 — and an imported library has no token counts at all, so the tile's leading number was a confident
+  // measurement of something never measured. `tokensOut` is nullable to the wire now, and null says so.
+  const tokens = gem.tokensOut === null ? "tokens not recorded" : `${formatCount(gem.tokensOut)} tokens returned`;
+  return `${tokens} · ${exchanges}`;
 }
 
-/** The tile's POINT. "last opened <ago>", never "<stamp> quiet": `formatRelativeAgo` is the kit's ONE
- *  sentence-ago form and returns "just now" for a sub-minute span, so no call site can compose the "now ago"
- *  this app has already shipped once. The band above supplies the "lifetime totals" framing. */
+/** The tile's POINT, on its own line (B1). "last opened <ago>", never "<stamp> quiet": `formatRelativeAgo`
+ *  is the kit's ONE sentence-ago form and returns "just now" for a sub-minute span, so no call site can
+ *  compose the "now ago" this app has already shipped once. The band above supplies the "lifetime totals"
+ *  framing; the tile states plain facts. */
 function gemLastOpened(gem: ForgottenGem): string {
   return `last opened ${timeLib.formatRelativeAgo(gem.lastActiveAt)}`;
 }
@@ -64,8 +72,10 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
     return null;
   }
   // The shelf's own top value sets the bar scale — these are relative investments within YOUR library, and
-  // there is no external maximum a tokens-returned total could be a fraction of.
-  const topTokensOut = Math.max(...gems.map((gem) => gem.tokensOut), 1);
+  // there is no external maximum a tokens-returned total could be a fraction of. An UNRECORDED gem
+  // contributes nothing to the scale and draws no bar: a zero-length bar for "we don't know" would be the
+  // same lie the gloss just stopped telling, in a shape that cannot carry the word "unrecorded".
+  const topTokensOut = Math.max(...gems.map((gem) => gem.tokensOut ?? 0), 1);
 
   return (
     <Section kicker="Invested, but quiet" level={2}>
@@ -117,7 +127,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                 </Stack>
               </Row>
             </Button>
-            <TrackBar accent="info" max={topTokensOut} value={gem.tokensOut} />
+            {gem.tokensOut === null ? null : <TrackBar accent="info" max={topTokensOut} value={gem.tokensOut} />}
           </Stack>
         ))}
       </Grid>
