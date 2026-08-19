@@ -85,7 +85,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Text } from "@orb/ui/text";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog.tsx";
@@ -1500,6 +1500,24 @@ export function ChatRoomSurfaceStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <ChatRoomHarness />
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** THE SHARED-TRACK STAGE (#213): the same room pane, mounted inside a fixed-width box that stands in for
+ *  the shell's CONTENT region at one pane state, carrying the production `--width-shell-content` expression
+ *  verbatim (`app-shell.tsx` — a clamp against the VIEWPORT, which is exactly why the composer's box and the
+ *  transcript's own measure disagree as the pane narrows). Without this wrapper the var is unset in CT and
+ *  every `max-w-(--width-shell-content)` computes to `none`, i.e. the defect is unreachable on the stage.
+ *  `chatWidthPct` is the shipped default so the clamp reads as production does. */
+export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div data-testid="room-pane" style={{ width: paneWidth, "--width-shell-content": "clamp(680px, 50dvw, 100dvw)" } as CSSProperties}>
+          <ChatRoomHarness />
+        </div>
       </SocketHost>
     </CtDataProviders>
   );

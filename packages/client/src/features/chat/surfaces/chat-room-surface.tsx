@@ -29,6 +29,7 @@ import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import { resolveRoomTheme } from "../lib/attribution.ts";
+import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { MessageListSurface } from "./message-list-surface.tsx";
 
 export interface ChatRoomSurfaceProps {
@@ -147,9 +148,16 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
             </Container>
           )}
           <MessageSelectionBar chatId={chatId} />
-          {aboveComposerContributions.map((c) => (
-            <Fragment key={c.id}>{c.node}</Fragment>
-          ))}
+          {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same
+              vertical stack, so it takes the same centred box — otherwise a contribution renders at its own
+              content width against the left edge of the pane while the two things it sits between centre. */}
+          {aboveComposerContributions.length === 0 ? null : (
+            <Stack gap="row" className={CHAT_TRACK} data-slot="chat-above-composer">
+              {aboveComposerContributions.map((c) => (
+                <Fragment key={c.id}>{c.node}</Fragment>
+              ))}
+            </Stack>
+          )}
           <ComposerSlot chatId={chatId} />
         </Stack>
       </Surface>

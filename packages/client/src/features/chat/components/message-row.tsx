@@ -248,6 +248,7 @@ export function MessageRow({
       avatarHash: attribution.avatarHash,
       hueSeed: attribution.hueSeed,
       initial: attribution.name === null ? "" : initialsFor(attribution.name),
+      showInChatAvatars,
     }) ?? null;
   const avatarNode = renderRowAvatar({
     attribution,
@@ -292,7 +293,7 @@ export function MessageRow({
         {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
         <Row align="start" className="@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6" gap="row" data-slot="message-row-body">
           {leadingAvatar}
-          <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
+          <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1" style={skin.columnStyle}>
             {renderRowNameRow({
               attribution,
               message,

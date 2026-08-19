@@ -114,7 +114,7 @@
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;
   --blur-saturate: 1.4;
-  --immersive-echo-feather: 55%;
+  --immersive-echo-art-width: 12rem;
   --immersive-whisper-feather: 70%;
   --immersive-stripe-width: 0.1875rem;
   --immersive-ripple-portrait-width: 11.25rem;
@@ -122,6 +122,7 @@
   --reading-letter-spacing: 0em;
   --reading-paragraph-spacing: 0.75rem;
   --reading-measure: 75ch;
+  --reading-measure-min: 65ch;
   --fade-edge-stop: 10%;
   --border-width-hairline: 1.25px;
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
