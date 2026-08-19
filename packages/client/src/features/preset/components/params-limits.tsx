@@ -37,7 +37,7 @@ import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { CustomParametersEditor } from "./custom-parameters-editor.tsx";
-import { KnobRow } from "./knob-row.tsx";
+import { KnobGrid, KnobRow } from "./knob-row.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -81,7 +81,9 @@ function OutputCluster({
   const verbosityLevels = verbosityLevelsFor(capability);
   return (
     <Section kicker="Output">
-      <Stack gap="tight">
+      {/* The two LONGEST names on the deck live here, and the fixed label box clipped both at every pane
+          width until the column became a content-sized grid track (side-eye 2026-08-19 P1-1). */}
+      <KnobGrid>
         {/* Blank-means-default in STORAGE; the ghost shows what the turn would actually send. Max output's
             ghost is the funnel's own floor (`DEFAULT_MAX_OUTPUT_TOKENS`, provenance `default`). */}
         <KnobRow
@@ -109,7 +111,7 @@ function OutputCluster({
           name="params.maxContextTokens"
           step={1}
         />
-      </Stack>
+      </KnobGrid>
       <FieldLayout orientation="horizontal">
         {verbosityLevels === undefined ? null : (
           <form.AppField name="params.verbosity">

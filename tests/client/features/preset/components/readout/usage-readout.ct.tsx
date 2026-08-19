@@ -27,6 +27,10 @@ const GM_ROOM = "chat_ct_gmroom0000000000000";
 const GM_ROOM_DOOR = /Ythraen/;
 const ACTIVE_LINE = /Your active preset/;
 const NOT_ACTIVE_LINE = /Not your active preset/;
+/** The zero-binding arm: it names the state AND both doors out of it. */
+const NOTHING_USES_LINE = /Nothing uses this preset yet/;
+/** The word that may only be spoken when there is in fact something below it. */
+const BELOW_RE = /below/;
 
 const PRESET_DETAIL = {
   id: PRESET,
@@ -61,6 +65,30 @@ test("the CONTEXT panel states the ACTIVE-PICK binding, on a view the chat bindi
 
   await expect(panel.getByRole("heading", { name: "Used by" })).toBeVisible();
   await expect(panel.getByText(ACTIVE_LINE)).toBeVisible();
+});
+
+test("the ZERO-BINDING arm states the answer and points at both doors — never at a list that isn't there", async ({ mount, page }) => {
+  // Side-eye 2026-08-19 P2: the not-active copy ended "…through the GM voice of a game below." while the
+  // rooms list renders only when there ARE rooms, so the one state the block exists to report — nothing is
+  // bound — read as a half-rendered panel. The deictic "below" is now spoken ONLY when something is below.
+  await routeTrpc(page, usageRoutes({ isUserDefault: false, gmRooms: [] }));
+  const panel = await mount(<PresetReadoutUsageStory />);
+
+  await expect(panel.getByText(NOTHING_USES_LINE)).toBeVisible();
+  await expect(panel.getByText(BELOW_RE)).toHaveCount(0);
+});
+
+test("USED BY holds ONE position across views — the tail, under whatever the view projects", async ({ mount, page }) => {
+  // It was declared BEFORE the `params` block and after every other view's, so the block that is identical
+  // on all five views led on one and trailed on four — and the projected readout, which is what the reader
+  // came for, was the thing that moved. Asserted on DOM order, which is what both the eye and a screen
+  // reader walk.
+  await routeTrpc(page, usageRoutes({ isUserDefault: true, gmRooms: [] }));
+  const panel = await mount(<PresetReadoutUsageStory />);
+  await expect(panel.getByRole("heading", { name: "Used by" })).toBeVisible();
+
+  const isLast = await panel.locator('[data-slot="preset-usage"]').evaluate((el) => el.parentElement?.lastElementChild === el);
+  expect(isLast, "the backward-bindings block is the panel's tail on the params view too").toBe(true);
 });
 
 test("a GM-VOICE room is named by the ONE title chain and OPENS (#279)", async ({ mount, page }) => {
