@@ -16,7 +16,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
-import { RefineryDoorStory, SetupTabBodyStory } from "../_ct-stories.tsx";
+import { RefineryDoorStory, RunsTabBodyStory, SetupTabBodyStory } from "../_ct-stories.tsx";
 
 // MINTED, never hand-written (the `typeIdSchema` 26-char-suffix rule).
 const SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
@@ -100,6 +100,10 @@ function baseRoutes(): TrpcRoutes {
 const DESCRIBE_PLACEHOLDER = /rating 1-10, a mood enum/;
 /** The Scope row's note, which names scope's ONE editing home (#158 item 1). */
 const SCOPE_HOME_NOTE = /Changed on the workbench/;
+/** The RAW wire names a user was being shown — the vocabulary this pane must not speak. */
+const RAW_WIRE_NAMES = /exampleMessages|creatorNotes/;
+/** An authored guidance sentence, distinctive enough that its presence anywhere in the tab is the echo. */
+const GUIDANCE_TEXT = "keep her mean, and never soften the last line";
 
 /** The "Change" action inside the Setup row whose kicker is `rowLabel` — each row is one `Card`
  *  (`data-slot="card-root"`), so scoping by the card carrying the unique kicker names exactly one button. */
@@ -223,6 +227,54 @@ test("PROMPT FIT is not restated here — the per-stage budget lives beside the 
   // It printed `≈ N/M tok` from the SCORE stage's input estimate alone, beside `LaneRunControl`'s
   // per-stage `in ≈ … · out ≈ …` on the same screen — a third of one datum, in a second home.
   await expect(setup.getByText("Prompt fit", { exact: true })).toHaveCount(0);
+});
+
+test("the LEDGER's own Run score is the quiet twin — the loud one belongs to the work pane (§14)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": (): unknown[] => [] });
+  await mount(<RunsTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+
+  // THE DEFECT: "Run score" existed twice on one screen and the FILLED one was HERE, in the pane that
+  // records what happened, while the SCORE lane's own verb sat secondary. Asserted as the resolved
+  // background — a ghost paints none — because a class list cannot see a skin that stopped applying.
+  const run = page.getByRole("button", { name: "Run score" });
+  await expect(run).toBeVisible();
+  const background = await run.evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(background, "the ledger's twin is unfilled").toBe("rgba(0, 0, 0, 0)");
+});
+
+// ── ONE VOCABULARY, AND NO SECOND HOME FOR AN AUTHORED VALUE (side-eye 2026-08-19 P2) ────────────────
+
+test("the scope readout speaks the user's words, never the wire's field names", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.getSession": (): unknown => ({ ...(sessionView() as object), selection: { fields: ["exampleMessages", "creatorNotes"] } }),
+  });
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  const setup = page.getByTestId(testId("refinerySetupTab"));
+  await expect(setup).toBeVisible();
+
+  // THE DEFECT: this row printed the raw wire names while the masthead's chips, describing the SAME
+  // selection four inches away, printed the humanized ones. Both readouts derive from `scopeChipLabelOf`
+  // now, so they cannot drift apart again.
+  await expect(setup.getByText("Example messages · Creator notes")).toBeVisible();
+  await expect(setup.getByText(RAW_WIRE_NAMES)).toHaveCount(0);
+});
+
+test("Setup says guidance is IN FORCE — it does not reprint the sentence the workbench holds", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.getSession": (): unknown => ({ ...(sessionView() as object), guidance: GUIDANCE_TEXT }),
+  });
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  const setup = page.getByTestId(testId("refinerySetupTab"));
+  await expect(setup).toBeVisible();
+
+  // The anti-echo law (`lib/refinery-section.tsx:5-7`): no CONTEXT tab restates CONTENT's payload. This
+  // row quoted the guidance verbatim — the exact string the run bar's textarea holds live and editable on
+  // the same screen, one of the two read-only. The row still states real in-force state, and its door
+  // (proven above) is what makes that actionable.
+  await expect(setup.getByText(GUIDANCE_TEXT)).toHaveCount(0);
+  await expect(setup.getByText("in force on every stage")).toBeVisible();
 });
 
 test("the Setup tab reaches custom-ANALYZE authoring — a stage the single old door never offered", async ({ mount, page }) => {

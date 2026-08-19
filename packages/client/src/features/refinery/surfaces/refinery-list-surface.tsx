@@ -45,7 +45,7 @@ import { useRef, useState } from "react";
 import { CharacterPicker, LibraryListLayout } from "#components";
 import { useOpenRefinery, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
-import { clearRefinerySelection, selectRefinerySessionFromList, useSelectedRefinerySessionId } from "#state";
+import { selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
 
 const VERDICT_TONE: Record<string, RenderHintTone> = {
@@ -115,6 +115,47 @@ function readoutSubtitleOf(row: ResolvedRow): string {
   return row.sessionName === null ? readout : `${row.sessionName} · ${readout}`;
 }
 
+/**
+ * The START DOOR, as one anatomy for the two chromes this file draws: the chrome band's `+` glyph and the
+ * empty state's worded CTA. Both are an anchored Popover around the shared `CharacterPicker` firing the
+ * shared `useOpenRefinery` flow — the ONE resume-or-mint rule behind all three of the product's doors
+ * (#157) — so the only thing a caller supplies is the control the user actually sees.
+ *
+ * IT EXISTS BECAUSE THE EMPTY STATE'S CTA WAS DEAD (side-eye 2026-08-19 P1-1). "Pick a character" called
+ * `clearRefinerySelection()` — in the arm where it renders, no selection can exist, so the press was an
+ * unconditional no-op and the shell was byte-identical before and after it. That is the SAME defect the
+ * owner ruled on for the `+` (#157, recorded 60 lines below: "the primary action must not be a visible dead
+ * control while the real affordance hides below the fold") — the fix landed on the `+` and left its twin
+ * standing in the same file. On a phone it was worse than a no-op: the roster IS the screen there, the
+ * copy pointed at a "main pane" the viewport does not have, and the only working door was a 24px glyph in
+ * the worst thumb corner. One door, two chromes, no dead arm.
+ */
+function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean) => ReactElement }): ReactElement {
+  const { openRefinery, isPending } = useOpenRefinery();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  return (
+    <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
+      {/* The trigger is a FUNCTION of the in-flight state, not a fixed element: a start is a real await
+          (the flow resolves resume-vs-mint against the roster at CLICK time), and the control the user
+          pressed is the honest place to say so — which only the caller's own chrome can spell. */}
+      <PopoverTrigger render={trigger(isPending)} />
+      <PopoverPopup>
+        <CharacterPicker
+          autoFocusSearch={true}
+          emptyText="No characters match."
+          label="Start a refinery session"
+          onEscape={(): void => setPickerOpen(false)}
+          onSelect={(id): void => {
+            setPickerOpen(false);
+            void openRefinery(id).catch(() => undefined);
+          }}
+          placeholder="Search characters…"
+        />
+      </PopoverPopup>
+    </Popover>
+  );
+}
+
 export function RefineryListSurface(): ReactElement {
   const trpc = useTRPC();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
@@ -150,13 +191,21 @@ export function RefineryListSurface(): ReactElement {
         empty={
           <EmptyState
             action={
-              <Button intent="secondary" onClick={(): void => clearRefinerySelection()} size="sm">
-                Pick a character
-              </Button>
+              <StartSessionDoor
+                trigger={(busy): ReactElement => (
+                  <Button aria-busy={busy} intent="secondary" size="sm">
+                    Pick a character
+                  </Button>
+                )}
+              />
             }
             description={
               sessions.data.length === 0
-                ? "A session pins a card as it is right now, then scores, rewrites and re-checks it against that pinned version. Pick a character in the main pane to start."
+                ? // NO "IN THE MAIN PANE" (side-eye 2026-08-19 P1-2). On a phone this pane IS the screen —
+                  // there is no main pane to point at — and on a desktop the sentence was directing the user
+                  // away from the button directly beneath it. The CTA opens the picker here, so the copy
+                  // names the act rather than a place.
+                  "A session pins a card as it is right now, then scores, rewrites and re-checks it against that pinned version. Pick a character to start."
                 : "No sessions match that search."
             }
             title={sessions.data.length === 0 ? "No refinery sessions yet" : "Nothing matches"}
@@ -214,39 +263,37 @@ export function RefineryListSurface(): ReactElement {
  * anchored-Popover-around-a-shared-Command-body shape is `AddMemberPopover`'s, which is also what
  * `CharacterDoor` does one folder over; the OUTER chrome differs (a glyph button in a chrome band, not a
  * secondary button that echoes a choice), which is exactly the part each consumer is supposed to own.
+ *
+ * ── …AND NOT WHEN CONTENT IS ALREADY SHOWING THAT PICKER (side-eye 2026-08-19 P1-3) ──────────────────
+ * "From cold open and with a session open alike" turned out to be one arm too many. With nothing selected
+ * the landing MOUNTS the full-library picker in the content pane; the `+` opened a SECOND one over it —
+ * two identical 100-row pickers on one plane, which the duplicate-door lens fires on and which makes the
+ * glyph a worse copy of a control already on screen. So the `+` earns its keep only where the landing is
+ * not: with a session open (the landing is replaced by the pipeline), or on a PHONE with nothing selected,
+ * where the one-shell rule makes this roster the whole screen and CONTENT is not rendered at all
+ * (`resolvePanelMode`'s `listIsScreen` arm) — there the glyph is the only door and hiding it would leave
+ * the phone startable only from the empty state. Not `disabled`: that is the #157 defect itself.
  */
 export function RefineryListHeader(): ReactElement {
   const trpc = useTRPC();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
-  const { openRefinery, isPending } = useOpenRefinery();
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const selectedId = useSelectedRefinerySessionId();
+  const isMobile = useMobileViewport();
+  const contentShowsPicker = selectedId === null && !isMobile;
   return (
     <>
       <Text voice="kicker">Sessions</Text>
       <Text voice="gloss">{sessions.data.length}</Text>
       <Row className="flex-1" gap="field" justify="end">
-        <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
-          <PopoverTrigger
-            render={
-              <Button aria-busy={isPending} aria-label="Start a new session" intent="ghost" size="glyph-md" title="Start a new session">
+        {contentShowsPicker ? null : (
+          <StartSessionDoor
+            trigger={(busy): ReactElement => (
+              <Button aria-busy={busy} aria-label="Start a new session" intent="ghost" size="glyph-md" title="Start a new session">
                 <Icon icon={Plus} size="sm" />
               </Button>
-            }
+            )}
           />
-          <PopoverPopup>
-            <CharacterPicker
-              autoFocusSearch={true}
-              emptyText="No characters match."
-              label="Start a refinery session"
-              onEscape={(): void => setPickerOpen(false)}
-              onSelect={(id): void => {
-                setPickerOpen(false);
-                void openRefinery(id).catch(() => undefined);
-              }}
-              placeholder="Search characters…"
-            />
-          </PopoverPopup>
-        </Popover>
+        )}
       </Row>
     </>
   );

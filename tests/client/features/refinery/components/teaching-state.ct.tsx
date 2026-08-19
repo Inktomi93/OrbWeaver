@@ -36,6 +36,9 @@ const MARKERS = ["01", "02", "03"];
 const GLYPH_COUNT = 5;
 /** The narrowest real mount for this state: a 390px phone with the shell's CONTENT gutters removed. */
 const PHONE_CONTENT_PX = 358;
+/** A desktop CONTENT pane wide enough to clear the `@md` container step the three-track arm engages at. */
+const WIDE_CONTENT_PX = 900;
+const STEP_COUNT = 3;
 /** Sub-pixel slack for a fractional layout box — never a real overflow budget. */
 const SUBPIXEL = 0.5;
 
@@ -87,6 +90,39 @@ test("each flow chevron is paired with its card, never a free child of the wrapp
   await expect(row.locator("> svg")).toHaveCount(0);
   // …and all five glyphs (3 stage + 2 chevrons) still render, just nested — the redraw's decoration intact.
   await expect(row.locator("svg")).toHaveCount(GLYPH_COUNT);
+});
+
+test("the three steps are EQUAL BASES at a wide pane — one pipeline, not a staircase (side-eye 2026-08-19)", async ({ mount, page }) => {
+  // The defect, as geometry: as a wrapping flex row of content-sized cards the cells measured
+  // 279/384/482px, so the step with the longest sentence claimed the most width and the sequence read as
+  // a staircase. Three grid tracks make each step exactly a third. Measured at a pane wide enough for the
+  // container step — the SAME `<Container>` the production surface wraps this state in.
+  await mount(<TeachingStateStory width={WIDE_CONTENT_PX} />);
+  const cells = page.locator(`${STEPS_ROW} > div`);
+  await expect(cells).toHaveCount(STEP_COUNT);
+  const widths = await cells.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().width));
+  const first = widths[0] ?? 0;
+  expect(first, "the cells have a real rendered width").toBeGreaterThan(0);
+  for (const width of widths) {
+    expect(Math.abs(width - first), "every step is the same base").toBeLessThanOrEqual(SUBPIXEL);
+  }
+  // …and they are on ONE line: three equal cells stacked would also satisfy the equality above.
+  const tops = await cells.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
+  expect(new Set(tops).size, "the three steps share a row at a wide pane").toBe(1);
+});
+
+test("below the container step the flow STACKS and its chevrons turn to face the way the eye travels", async ({ mount, page }) => {
+  await mount(<TeachingStateStory width={PHONE_CONTENT_PX} />);
+  const cells = page.locator(`${STEPS_ROW} > div`);
+  await expect(cells).toHaveCount(STEP_COUNT);
+  const tops = await cells.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
+  expect(new Set(tops).size, "one column: three distinct rows").toBe(STEP_COUNT);
+
+  // A right-pointing chevron between two stacked cells points at the pane's edge, not at the next step.
+  // The rotation is asserted as the RESOLVED transform — a class assertion cannot see a variant that
+  // stopped matching, which is the whole failure mode of a container-queried arm.
+  const rotations = await page.locator(`${STEPS_ROW} svg`).evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).rotate));
+  expect(rotations.filter((rotate) => rotate === "90deg").length, "each between-step chevron points DOWN when stacked").toBe(STEP_COUNT - 1);
 });
 
 test("the stage glyphs and the flow chevrons are decoration — the sequence is DOM order, not five new graphics", async ({ mount, page }) => {

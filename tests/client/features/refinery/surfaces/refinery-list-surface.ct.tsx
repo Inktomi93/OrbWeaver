@@ -16,6 +16,14 @@ import { makeRefinerySessionSummary } from "../fixtures.ts";
 
 /** The one card the header's picker offers — MINTED, never a hand-written literal (`typeIdSchema`). */
 const HEADER_PICK_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
+/** A session for the arm where CONTENT shows the pipeline rather than the landing picker. */
+const OPEN_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+
+// The affordance names + the copy pins, hoisted (biome `useTopLevelRegex`).
+const START_A_NEW_SESSION = /^Start a new session$/;
+/** The pane the phone does not have — the sentence that used to send a user there. */
+const MAIN_PANE = /in the main pane/;
+const PICK_TO_START = /Pick a character to start\./;
 
 /** The iteration readout the row's subtitle prints (now inside the row content, not a trailing sibling). */
 const ITERATION_READOUT = /iteration 3/;
@@ -95,25 +103,64 @@ test("search finds a session by its CHARACTER name, including one no character p
   await expect(page.getByText("Nothing matches")).toBeVisible();
 });
 
-test("the roster's EMPTY arm teaches and offers the start door; the header's + is LIVE at cold open and opens the picker", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "refinery.listSessions": () => [],
+/** A roster with nothing in it, plus the one card its start door offers. */
+function emptyRosterRoutes(): TrpcRoutes {
+  return {
+    "refinery.listSessions": (): unknown[] => [],
     "character.list": characterListResponder([makeCharacterSummary({ id: HEADER_PICK_CHARACTER_ID, name: "Zephyrine Vale" })]),
-  });
+  };
+}
+
+test("the roster's EMPTY arm teaches, and its CTA is a real door — it opens the picker instead of doing nothing", async ({ mount, page }) => {
+  await routeTrpc(page, emptyRosterRoutes());
   await mount(<RefineryRosterStory />);
   await expect(page.getByText("No refinery sessions yet")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Pick a character" })).toBeVisible();
-  // THIS PIN IS THE REVERSE OF THE ONE IT REPLACES, and the old text is kept rather than deleted so the
-  // next reader sees which claim lost and to what. It used to read: "P1-6's start door exists but is
-  // disabled while nothing is selected — pressing it would be a no-op, and a live-looking control that
-  // does nothing is the defect that door was built to remove." That premise was OWNER-OVERRULED on
-  // 2026-08-17 (#157): "the primary action must not be a visible dead control while the real affordance
-  // hides below the fold". The `+` is no longer a selection-clearing no-op — it IS the picker door, at
-  // cold open and with a session open alike, so there is nothing left for it to be inert about.
-  const start = page.getByRole("button", { name: "Start a new session" });
+
+  // THE DEFECT, as an affordance (side-eye 2026-08-19 P1-1). "Pick a character" called
+  // `clearRefinerySelection()`, and in the arm it renders in no selection can exist — so the press was an
+  // unconditional no-op and the shell was byte-identical before and after it. It is the SAME dead-control
+  // defect the owner ruled on for the `+` (#157), left standing in the same file. The pin is the picker
+  // appearing on the press: against the old source the click produces no picker at all.
+  await page.getByRole("button", { name: "Pick a character" }).click();
+  await expect(page.getByRole("option", { name: "Zephyrine Vale" })).toBeVisible();
+});
+
+test("the copy names the ACT, not a pane the phone does not have", async ({ mount, page }) => {
+  await routeTrpc(page, emptyRosterRoutes());
+  await mount(<RefineryRosterStory mobile={true} />);
+  // "Pick a character in the main pane to start" pointed at a region that does not exist on a phone (this
+  // roster IS the screen there) and, on a desktop, away from the button directly beneath the sentence.
+  await expect(page.getByText(MAIN_PANE)).toHaveCount(0);
+  await expect(page.getByText(PICK_TO_START)).toBeVisible();
+});
+
+test("the header's + is SUPPRESSED where CONTENT already shows the landing picker, and LIVE where it does not", async ({ mount, page }) => {
+  await routeTrpc(page, emptyRosterRoutes());
+  await mount(<RefineryRosterStory />);
+  await expect(page.getByText("No refinery sessions yet")).toBeVisible();
+
+  // DESKTOP, nothing selected: the landing mounts the full-library picker in CONTENT, so a `+` opening a
+  // second identical one is the duplicate door (side-eye 2026-08-19 P1-3). Suppressed, not `disabled` —
+  // a visible dead control is the #157 defect itself.
+  await expect(page.getByRole("button", { name: START_A_NEW_SESSION })).toHaveCount(0);
+});
+
+test("…and on a PHONE with nothing selected the + SURVIVES — there the roster is the whole screen and CONTENT is not rendered", async ({ mount, page }) => {
+  await routeTrpc(page, emptyRosterRoutes());
+  await mount(<RefineryRosterStory mobile={true} />);
+
+  // The one-shell rule (`resolvePanelMode`'s `listIsScreen` arm): suppressing the glyph here would leave a
+  // phone with a non-empty roster no start door at all. It is still a real door, not an inert glyph.
+  const start = page.getByRole("button", { name: START_A_NEW_SESSION });
   await expect(start).toBeEnabled();
   await start.click();
   await expect(page.getByRole("option", { name: "Zephyrine Vale" })).toBeVisible();
+});
+
+test("…and with a SESSION open the + is back on the desktop too — the landing is replaced by the pipeline", async ({ mount, page }) => {
+  await routeTrpc(page, emptyRosterRoutes());
+  await mount(<RefineryRosterStory selectedSessionId={OPEN_SESSION_ID} />);
+  await expect(page.getByRole("button", { name: START_A_NEW_SESSION })).toBeEnabled();
 });
 
 test("the row folds the readout into its accessible DESCRIPTION — a screen reader hears more than the name (P2 a11y)", async ({ mount, page }) => {

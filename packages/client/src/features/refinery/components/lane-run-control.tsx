@@ -27,6 +27,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
 import type { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
+import type { preflightViewOf } from "../lib/preflight-warn.ts";
+import { stageWarnOf, warnScopeOf } from "../lib/preflight-warn.ts";
 
 // Re-derived locally from the preflight hook's wire shape (§7.4 — never an exported alias).
 type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["data"]>["stages"][number];
@@ -49,13 +51,20 @@ export interface LaneRunControlProps {
   readonly blocked: string | null;
   readonly onRun: () => void;
   readonly onScopeOpen: () => void;
-}
-
-/** The two §8 over-budget verdicts, derived once. */
-function overBudgetOf(stagePre: StagePreflightView | undefined, contextTokens: number | null): { outputOver: boolean; inputOver: boolean } {
-  const outputOver = stagePre !== undefined && stagePre.maxOutputTokens !== null && stagePre.outputEstimate > stagePre.maxOutputTokens;
-  const inputOver = stagePre !== undefined && contextTokens !== null && stagePre.inputEstimate > contextTokens;
-  return { outputOver, inputOver };
+  /** This lane is the canvas's ONE focal (CD3 — decided in `lib/workbench-lanes.ts`), so its verb is the
+   *  canvas's ONE filled run control. Every other lane's stays `secondary`.
+   *
+   *  WHY IT IS A PROP (side-eye 2026-08-19 P1-4). "Run score" existed twice on one screen — here, and in
+   *  the CONTEXT Runs tab's empty state — and the FILLED one was the ledger's. §14 is bolder in the work
+   *  pane, quieter in the ledger, so the ledger's went ghost and the loud one belongs here. It cannot be
+   *  unconditional: three filled run buttons plus the foot bar's terminal apply is the inverted-hierarchy
+   *  defect P1-11 named, one lane over. The focal is exactly one lane, and it already means "the step to
+   *  take", so it is also the right verb to paint. @defaultValue false */
+  readonly focal?: boolean;
+  /** The §8 WARN is being rendered ONCE at session level because more than one stage breached with the
+   *  SAME sentence — so this lane prints the ⚠ on its fit line and nothing else. Derived by the surface
+   *  (`lib/preflight-warn.ts`), never here. @defaultValue false */
+  readonly warnHoisted?: boolean;
 }
 
 /** The fit readout: both directions, ceilings included where resolved, the ⚠ on either overrun. */
@@ -80,32 +89,42 @@ function FitLine({ stagePre, contextTokens, warn }: { stagePre: StagePreflightVi
   );
 }
 
-/** The §8 WARN arm — advisory copy + the narrow-the-selection action (warns, never blocks). */
-function PreflightWarn({
-  stagePre,
-  outputOver,
-  stage,
-  onScopeOpen,
-}: {
-  stagePre: StagePreflightView;
-  outputOver: boolean;
-  stage: RefineryStage;
-  onScopeOpen: () => void;
-}): ReactElement {
+/** The §8 WARN arm — advisory copy + the narrow-the-selection action (warns, never blocks).
+ *
+ *  TWO CALLERS IN THIS FILE, because the SESSION-LEVEL instance is the same drawing (side-eye 2026-08-19
+ *  P2): when two stages breach with the identical sentence, `SessionPreflightWarn` renders exactly one of
+ *  these above the lanes instead of two inside them. The copy comes from `lib/preflight-warn.ts` — and the
+ *  `scope` names the button so a reader meeting the control out of visual context is told WHAT it narrows.
+ *  Two buttons reading "Narrow the selection" with nothing else to tell them apart is the thing the review
+ *  filed; if they ever coexist again (divergent messages), each names its own stage. */
+function PreflightWarn({ message, scope, onScopeOpen }: { message: string; scope: string; onScopeOpen: () => void }): ReactElement {
   return (
     <Stack data-testid={testId("refineryPreflightWarn")} gap="tight">
-      <Text voice="gloss">
-        {outputOver
-          ? `The expected ${stage} output likely exceeds the resolved max output (${stagePre.maxOutputTokens} tok) — a thinking model spends this budget on reasoning too. Raise max output in the preset, or narrow the selection.`
-          : "The assembled prompt likely exceeds the model's context — narrow the selection."}
-      </Text>
+      <Text voice="gloss">{message}</Text>
       <Row justify="start">
-        <Button intent="ghost" onClick={onScopeOpen} size="sm">
+        <Button aria-label={`Narrow the selection for ${scope}`} intent="ghost" onClick={onScopeOpen} size="sm">
           Narrow the selection
         </Button>
       </Row>
     </Stack>
   );
+}
+
+/** The hoisted §8 warn, drawn ONCE for the whole session — nothing when the stages fit, and nothing when
+ *  they breach differently (then each lane keeps its own; see `lib/preflight-warn.ts`). It lives beside
+ *  `PreflightWarn` rather than in the surface because it is the same drawing at a different scope, and the
+ *  surface is at its `component-size` cap. */
+export function SessionPreflightWarn({
+  warn,
+  onScopeOpen,
+}: {
+  warn: ReturnType<typeof preflightViewOf>["sessionWarn"];
+  onScopeOpen: () => void;
+}): ReactElement | null {
+  if (warn === null) {
+    return null;
+  }
+  return <PreflightWarn message={warn.message} onScopeOpen={onScopeOpen} scope={warnScopeOf(warn.stages)} />;
 }
 
 /** The lane's running ornament — see the header for the reduced-motion contract it carries. */
@@ -120,17 +139,29 @@ function RunningHairline(): ReactElement {
   );
 }
 
-export function LaneRunControl({ stage, stagePre, contextTokens, hasRun, running, busy, blocked, onRun, onScopeOpen }: LaneRunControlProps): ReactElement {
-  const { outputOver, inputOver } = overBudgetOf(stagePre, contextTokens);
+export function LaneRunControl({
+  stage,
+  stagePre,
+  contextTokens,
+  hasRun,
+  running,
+  busy,
+  blocked,
+  onRun,
+  onScopeOpen,
+  focal = false,
+  warnHoisted = false,
+}: LaneRunControlProps): ReactElement {
+  const warn = stageWarnOf(stagePre, contextTokens);
   return (
     <Stack data-lane-run={stage} gap="tight">
       {/* WRAPS, and the verb keeps its content floor. The rails are 15rem/17rem wide: a fit readout and a
           verb cannot share one line's slack there, and the verb is the thing that must never shrink under
           its own label (the run-bar overlap this exact pair produced at 3-pane width, side-eye P1). */}
       <Row align="center" className="flex-wrap" gap="field">
-        {stagePre === undefined ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={outputOver || inputOver} />}
+        {stagePre === undefined ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={warn.message !== null} />}
         <Row className="flex-1 justify-end" gap="field">
-          <Button aria-busy={running} disabled={busy || blocked !== null} intent="secondary" onClick={onRun} size="sm">
+          <Button aria-busy={running} disabled={busy || blocked !== null} intent={focal ? "primary" : "secondary"} onClick={onRun} size="sm">
             {hasRun ? `Re-run ${stage}` : `Run ${stage}`}
           </Button>
         </Row>
@@ -139,9 +170,10 @@ export function LaneRunControl({ stage, stagePre, contextTokens, hasRun, running
           pointer-only, and this sentence is the whole of how a user learns what to press instead. */}
       {blocked === null ? null : <Text voice="gloss">{blocked}</Text>}
       {running ? <RunningHairline /> : null}
-      {(outputOver || inputOver) && stagePre !== undefined ? (
-        <PreflightWarn onScopeOpen={onScopeOpen} outputOver={outputOver} stage={stage} stagePre={stagePre} />
-      ) : null}
+      {/* The ⚠ on the fit line above stays either way — that mark is about THIS stage's numbers. What the
+          hoist suppresses is the paragraph and the button, which are about the SELECTION and were being
+          printed once per breaching stage. */}
+      {warn.message === null || warnHoisted ? null : <PreflightWarn message={warn.message} onScopeOpen={onScopeOpen} scope={stage} />}
     </Stack>
   );
 }

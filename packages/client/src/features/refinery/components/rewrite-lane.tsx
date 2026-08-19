@@ -8,16 +8,28 @@
 // settled for rewrite yet", while 1 · SCORE — the step to take — sat in a plain rail. CD3 is one focal
 // that POINTS WHERE THE USER SHOULD GO, so it has to move; `lib/workbench-lanes.ts` decides which lane
 // wears it (score until a score lands, this island thereafter — never analyze, which is a readout) and
-// `lib/focal-treatment.ts` is the treatment both lanes share. Un-focal, this stays a `Card`: it holds the
-// widest content on the canvas and a plain card is not an emphasis, it is a container.
+// `lib/focal-treatment.ts` is the treatment both lanes share.
+//
+// ── …AND UN-FOCAL IT IS NOT A CARD EITHER (side-eye 2026-08-19 P2) ───────────────────────────────────
+// The line above used to end "un-focal, this stays a `Card`: it holds the widest content on the canvas and
+// a plain card is not an emphasis, it is a container." On a canvas of three lanes that produced three
+// different container treatments — two kickered rails and one boxed lane — with the box on the lane that
+// was NOT focal, which is the same inversion #158 item 5 fixed for the stripe. The surface's own law is
+// its INSTRUMENT tier (`refinery-content-surface.tsx`: "its islands resolve the dense steps and its rails
+// are kickers + hairlines, not boxes"), and CD1 is at most ONE box on the canvas — the focal's. So this is
+// the same `Section` `PayloadLane` renders, with the same focal treatment applied to that same element:
+// three lanes, one anatomy, and the emphasis is the only thing that ever differs. Changing ELEMENT as the
+// pipeline advances is what the payload lane's header forbids, and this now does not.
+//
+// IT ALSO GAINS THE REGION LANDMARK the other two lanes had (the `aria-label`ed `Section`): the widest,
+// most interactive lane on the canvas was the one a landmark walk could not reach.
 //
 // THE LANE STATES ITS OWN LIFE: not-run-yet says WHY (the stage-order rule the server enforces), a call in
 // flight replaces that with what is happening, a walked-back run says superseded and offers the way home,
 // and a rewrite the pipeline has moved past says so rather than sitting fresh-looking beside a newer score.
 
-import { Card } from "@orb/ui/card";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
-import { Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -129,10 +141,13 @@ export function RewriteLane({
   const provenance = provenanceOf(run);
   const settled = run !== null && run.stage === "rewrite";
   return (
-    <Card
+    <Section
+      aria-label="Rewrite"
+      className={focal ? `gap-row rounded-(--radius-base) p-row ${FOCAL_GLOW}` : "gap-row"}
       data-focal={focal ? "true" : undefined}
+      data-lane="rewrite"
       data-testid={testId("refineryRewriteLane")}
-      {...(focal ? { className: FOCAL_GLOW, style: FOCAL_STRIPE } : {})}
+      {...(focal ? { style: FOCAL_STRIPE } : {})}
     >
       <Stack gap="row">
         <LaneBand kicker={provenance === null ? "2 · Rewrite" : `2 · Rewrite · ${provenance}`}>
@@ -148,6 +163,6 @@ export function RewriteLane({
         <LaneNotes behind={behind} iteration={run?.iteration ?? null} onBackToLatest={onBackToLatest} viewingBack={viewingBack} />
         <RewriteBody decided={decided} entries={entries} onDecide={onDecide} running={running} settled={settled} />
       </Stack>
-    </Card>
+    </Section>
   );
 }

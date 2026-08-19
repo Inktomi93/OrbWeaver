@@ -53,7 +53,7 @@ import {
 import { ApplyOutcome } from "../components/apply-outcome.tsx";
 import type { OutcomeState } from "../components/apply-row.tsx";
 import { ApplyRow } from "../components/apply-row.tsx";
-import { LaneRunControl } from "../components/lane-run-control.tsx";
+import { LaneRunControl, SessionPreflightWarn } from "../components/lane-run-control.tsx";
 import type { ManualTarget } from "../components/manual-rewrite-dialog.tsx";
 import { ManualRewriteDialog } from "../components/manual-rewrite-dialog.tsx";
 import { PayloadLane } from "../components/payload-lane.tsx";
@@ -65,6 +65,7 @@ import { SessionMasthead } from "../components/session-masthead.tsx";
 import { useIterateRefinery, useRunRefineryStage, useSubmitManualRewrite, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
+import { preflightViewOf } from "../lib/preflight-warn.ts";
 import { reviewEntriesOf } from "../lib/review-entries.ts";
 import { scorePayloadOf } from "../lib/run-views.ts";
 import type { LaneView } from "../lib/workbench-lanes.ts";
@@ -136,16 +137,21 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   const manualTargets = manualTargetsOf(view.selection, card);
   const backToLatest = (): void => setRefineryViewedRun(null);
 
+  const pre = preflightViewOf(preflight.data);
+
   const runControlFor = (lane: LaneView): ReactElement => (
     <LaneRunControl
       busy={running}
-      contextTokens={preflight.data?.contextTokens ?? null}
+      contextTokens={pre.contextTokens}
+      // CD3's one focal is also the canvas's one FILLED run verb (the prop's own note).
+      focal={lane.focal}
       hasRun={lane.run !== null}
       onRun={(): void => runStage.mutate({ sessionId, stage: lane.stage }, { onSuccess: (run): void => noteLanded(run.id) })}
       onScopeOpen={(): void => setScopeOpen(true)}
       running={lane.running}
       stage={lane.stage}
       stagePre={preflightSliceOf(preflight.data, lane.stage)}
+      warnHoisted={pre.hoistedStages.includes(lane.stage)}
       // The gate is the DOMAIN'S, re-derived in `workbench-lanes.ts` off `assertStageReady` — never a
       // stricter client rule (#158 item 4).
       blocked={lane.blocked}
@@ -161,12 +167,18 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           anchoredAt={view.createdAt}
           applied={outcome !== null && outcome.applied.length > 0}
           cardName={card.name}
+          characterId={view.characterId}
           model={lanes.rewrite.run?.model ?? lanes.score.run?.model ?? null}
           onEditScope={(): void => setScopeOpen(true)}
           round={view.iterationCount}
           selection={view.selection}
           status={view.status}
         />
+
+        {/* SESSION-LEVEL, above the lanes, because that is what it is about: the selection every stage
+            shares. It sits outside the outcome switch on purpose — a budget that does not fit is still
+            true while the apply outcome is on screen. */}
+        <SessionPreflightWarn onScopeOpen={(): void => setScopeOpen(true)} warn={pre.sessionWarn} />
 
         {outcome === null ? (
           // THE THREE LANES ACROSS THE WIDTH. Fixed rails either side of a fluid focal, and a container
