@@ -103,7 +103,16 @@ function staleWireName(knob: string): string {
 export function ParamsDeck({ form, capability, effective, capabilityError }: ParamsDeckProps): ReactElement {
   return (
     <Surface tier="instrument">
-      <Stack gap="section">
+      {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to
+          `--width-content-col-wide` (896px) once the pane clears @5xl — right for prose and for the rack,
+          wrong for an instrument: every surplus pixel goes into the knob TRACK, because the track is the
+          row's only flexing cell. Measured at a 1224px pane: 595px of rail for a 0-2 temperature, i.e. ~300px
+          per unit of a dial whose useful precision is 0.05 — a slider that got harder to aim as the window
+          got bigger. The cap is `--width-content-col` (720px, the token whose own description IS this
+          measure), and it is CENTERED inside the breathing column so the surplus is a symmetric margin
+          rather than a one-sided void. Nothing else moves: the label cell, the numeric twin and the reset are
+          fixed-width by token, so capping the row caps exactly the cell that was over-growing. */}
+      <Stack className="mx-auto w-full max-w-(--width-content-col)" gap="section">
         <QualityCluster effective={effective} form={form} />
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
             PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two

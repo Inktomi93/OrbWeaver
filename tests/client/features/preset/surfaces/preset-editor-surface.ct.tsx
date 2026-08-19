@@ -202,9 +202,9 @@ test("capability freshness — a settingsChanged tick swaps the failed-capabilit
   // The GHOST: each twin is genuinely EMPTY (blank-means-default is the storage semantic) while showing the
   // effective value as its placeholder — max output from the funnel's floor, max context from the model's
   // own window — each with its provenance gloss visible.
-  await expect(component.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveAttribute("placeholder", "2048");
-  await expect(component.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveValue("");
-  await expect(component.getByRole("textbox", { name: "Max context tokens", exact: true })).toHaveAttribute("placeholder", "32768");
+  await expect(component.getByRole("textbox", { name: "Max output tokens value", exact: true })).toHaveAttribute("placeholder", "2048");
+  await expect(component.getByRole("textbox", { name: "Max output tokens value", exact: true })).toHaveValue("");
+  await expect(component.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveAttribute("placeholder", "32768");
   await expect(component.getByText("default", { exact: true })).toBeVisible();
   await expect(component.getByText("full window", { exact: true })).toBeVisible();
 });
@@ -421,7 +421,9 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
 // field's debounce fires. Unserialized, that second save still carries the built-in id → mint #2.
 const MINT_DELAY_MS = 2000;
 const BUILT_IN_DETAIL = { ...presetDetail(BUILT_IN, "Default", undefined), isSystemDefault: true };
-const MAX_OUTPUT_LABEL = "Max output tokens";
+/** The numeric TWIN's accessible name — `<label> value`, distinct from the slider's bare `<label>` since the
+ *  2026-08-19 P1-2 name split (the pair used to share one name, so a walk could not tell them apart). */
+const MAX_OUTPUT_LABEL = "Max output tokens value";
 
 test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the racing save and the active pick all retarget to it", async ({ mount, page }) => {
   // The server's fork row, accumulating every patch — the CT's stand-in for the persisted copy.
@@ -1017,7 +1019,10 @@ test("G7 a NOT-active preset's header offers Activate — the same setDefault se
   // No chip while it isn't the pick — the state that IS true is the one that shows.
   await expect(component.getByText("Active", { exact: true })).toHaveCount(0);
 
-  await component.getByRole("button", { name: "Activate Preset A for generation" }).click();
+  // The header's command NAMES ITSELF as one, distinctly from the LIST's one-of-N radio (2026-08-19 P2:
+  // both used to be `Activate <name> for generation`, in two different roles).
+  await expect(component.getByRole("radio", { name: "Activate Preset A for generation" })).toHaveCount(0);
+  await component.getByRole("button", { name: "Use this preset for generation" }).click();
   await expect
     .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SeedsPatchCall[]).map((call) => call.patch?.defaultPresetId))
     .toEqual([PRESET_A]);
@@ -1034,10 +1039,15 @@ test("G7 the ACTIVE preset's header wears the chip and offers NO Activate", asyn
 
   await expect(component.getByText("Preset A", { exact: true })).toBeVisible();
   await expect(component.getByText("Active", { exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Activate Preset A for generation" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Use this preset for generation" })).toHaveCount(0);
 });
 
-test("G7 the header names the model the effective column resolved AGAINST, and omits it when there is none", async ({ mount, page }) => {
+test("P1-3 the header spends its width on the NAME — the model chip is gone, resolved or not", async ({ mount, page }) => {
+  // THE REVERSAL (side-eye 2026-08-19 P1-3, reversing the 2026-08-02 sanctioned-echo call recorded in the
+  // surface): the chip was a strict PREFIX of a line the CONTEXT readout renders in full at the same time,
+  // and at 568px the header truncated the preset's own name to pay for it. Resolution truth homes in the
+  // readout; the header states the one fact that is only legible here (Active).
+  await page.setViewportSize({ width: 568, height: 900 });
   await routeTrpc(page, {
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
@@ -1046,24 +1056,13 @@ test("G7 the header names the model the effective column resolved AGAINST, and o
   });
   const component = await mount(<PresetEditorSurfaceStory />);
 
-  // The provenance of every ghosted number in the deck, stated where the preset is named — in the ONE
-  // grammar the readout uses for the same fact (O-2), so the header echo cannot drift into a claim that
-  // the PRESET belongs to a model.
-  await expect(component.getByText(`resolved for ${EFFECTIVE_FLOOR.model}`, { exact: true })).toBeVisible();
-});
-
-test("G7 no resolvable model ⇒ NO provenance chip (never a guessed name)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "preset.get": () => PRESET_A_DETAIL,
-    "preset.list": () => [PRESET_A_DETAIL],
-    "settings.getUserSettings": () => settingsWithActive(PRESET_A),
-    "preset.resolveEffective": () => trpcError({ message: "no chat connection configured" }),
-  });
-  const component = await mount(<PresetEditorSurfaceStory />);
-
-  await expect(component.getByText("Preset A", { exact: true })).toBeVisible();
-  await expect(component.getByText("Active", { exact: true })).toBeVisible();
+  const name = component.getByRole("heading", { name: "Preset A", level: 2 });
+  await expect(name).toBeVisible();
+  // The chip is ABSENT even on a fully-resolved read — the arm that used to render it.
   await expect(component.getByText(FOR_MODEL_RE)).toHaveCount(0);
+  // …and the name is unclipped at the narrow end, which is what the chip was costing.
+  const overflow = await name.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow, "the preset's own name fits at 568px").toBeLessThanOrEqual(0);
 });
 
 // ── O-13★: THE GUIDED-INSTRUCTION CROSS-LINK IS A REAL DOOR ───────────────────────────────────────────

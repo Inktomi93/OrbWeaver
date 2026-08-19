@@ -39,9 +39,17 @@ import { LibraryRow, RowToggleAction } from "#components";
 import { timeLib } from "#lib";
 import { presetRowSubtitle } from "../lib/preset-row-view.ts";
 
-/** How many §12.2 cluster slots THIS list reserves on every row — a fork row's state dot + inline Duplicate
- *  + kebab is the widest cluster in the list, so the dot column holds one x on the built-in row too. */
-const PRESET_CLUSTER_SLOTS = 3;
+/** How many §12.2 cluster slots THIS list reserves on every row — the state dot + the kebab, which is now
+ *  EVERY row's cluster (the built-in carries both too), so the dot column lands at one x with no spacer.
+ *
+ *  IT WAS THREE (side-eye 2026-08-19 P1-1). The third slot was the inline Duplicate, and the reservation is
+ *  spent on EVERY row ALWAYS (the file header's own "the cost is honest" note): measured at the docked 272px
+ *  pane it left the NAME 109px and clipped four of six rows — while the verb it reserved for is a verbatim
+ *  copy of the kebab's own Duplicate item, i.e. 40px of permanent width bought a second door to one act. The
+ *  regex roster settled the same trade the same way (`library-row.tsx` — a 1-verb list stopped reserving
+ *  three). The kebab's item is the ONE home now; nothing about the fork workflow got harder, it moved one
+ *  click into the menu that already offered it. */
+const PRESET_CLUSTER_SLOTS = 2;
 
 /** The minimal preset shape the row renders (a `PresetSummary` — tRPC-inferred at the surface). */
 interface PresetRowItem {
@@ -100,8 +108,8 @@ export function PresetLibraryRow({
     <LibraryRow
       // The cluster carries a rest-visible control (the pressed dot), so the strip is reserved in flow —
       // see the file header.
-      // The LIST's widest cluster is the full three (state dot · inline Duplicate · kebab) — a fork row
-      // renders all three, so every row reserves three and the dot column holds one x.
+      // The LIST's widest cluster is TWO (state dot · kebab) and every row now renders both, so the dot
+      // column holds one x with no spacer at all.
       actionsReserved={PRESET_CLUSTER_SLOTS}
       onSelect={(): void => onSelect(preset.id)}
       selected={selected}
@@ -136,7 +144,31 @@ export function PresetLibraryRow({
         />
       }
       {...(preset.isSystemDefault
-        ? { subtitle: "Built-in default" }
+        ? {
+            subtitle: "Built-in default",
+            // THE BUILT-IN IS DUPLICABLE (side-eye 2026-08-19 P3). It was the one preset in the library you
+            // could not copy: `actions` was withheld whole because the row is un-renameable and un-deletable,
+            // so the Duplicate that has nothing to do with either went with them. The only copy path was
+            // "edit something and the server forks it for you" — a copy you cannot ask for by name, and the
+            // starting point every fork workflow actually wants. The menu carries what the row OFFERS and
+            // nothing it would refuse: Duplicate (+ the Activate mirror, §16 row 3 echo a), never Rename,
+            // Delete or Export.
+            actions: {
+              name: preset.name,
+              qualifier,
+              onDuplicate: (): void => onDuplicate(preset.id),
+              ...(active
+                ? {}
+                : {
+                    menuItemsBefore: (
+                      <MenuItem onClick={activate}>
+                        <Icon icon={Zap} size="sm" />
+                        Activate
+                      </MenuItem>
+                    ),
+                  }),
+            },
+          }
         : {
             // F5: the row's scent — forks of the same base share a name, so the edit stamp (+ a
             // meaningful kind, + the fork lineage when the source is known) tells the rows apart.
@@ -148,10 +180,9 @@ export function PresetLibraryRow({
             // second derivation.
             subtitle: presetRowSubtitle({ kind: preset.kind, updatedAt: preset.updatedAt, forkedFromName, active }, timeLib.formatRelativeCompact),
             actions: {
-              // §12.2 per-list assignment: DUPLICATE is the measured frequent verb (the fork workflow —
-              // nine "Default (edited)" rows are its receipt), so it is the row's ONE inline verb beside the
-              // state toggle. The kebab keeps its own Duplicate item (mirror parity).
-              inlineVerb: "duplicate",
+              // §12.2 per-list assignment: this list declares NO inline verb. Duplicate is the frequent verb
+              // and it lives in the kebab ONLY — see PRESET_CLUSTER_SLOTS for the measurement that killed the
+              // inline twin (it was a verbatim second door whose reserved width starved the name on every row).
               name: preset.name,
               // Nine forks share the name "Default (edited)" — the edit stamp the subtitle already shows is
               // what tells their ACTION names apart too (side-eye P3a), escalated by the SURFACE where the
