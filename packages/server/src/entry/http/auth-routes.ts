@@ -88,6 +88,9 @@ const LOGOUT_TOKEN_FIELD = "logout_token";
 // raw JSON on a top-level navigation). The codes below are a fixed lowercase snake_case set LoginSurface
 // maps to copy; the IdP-supplied ones are already sanitized to the same shape.
 const LOGIN_SURFACE_ROUTE = "/login";
+// A6 — the OIDC RP-Initiated Logout query param (spec-fixed snake_case). A string literal, so it never trips
+// the identifier-only `useNamingConvention` lint.
+const POST_LOGOUT_REDIRECT_URI_PARAM = "post_logout_redirect_uri";
 const AUTH_ERROR_INVALID_STATE = "invalid_state";
 const AUTH_ERROR_NO_IDENTITY = "no_identity";
 const AUTH_ERROR_NOT_AUTHORIZED = "not_authorized";
@@ -168,17 +171,45 @@ export function serializeClearedSessionCookie(): string {
   return `${SESSION_COOKIE_NAME}=; Max-Age=0; ${COOKIE_ATTRS}`;
 }
 
+/** A6 — the Orbweaver `/login` surface on the SAME validated origin the OIDC callback derives
+ *  ({@link deriveRedirectUri}), for the RP-initiated logout `post_logout_redirect_uri`. Reusing that
+ *  derivation is what makes it safe: the origin (proto+host) is only accepted when the reconstructed callback
+ *  URL exact-matches OUR `OIDC_REDIRECT_URIS` allowlist, so an attacker-spoofed `X-Forwarded-Host` yields null
+ *  (no param) rather than an open redirect — and the IdP still validates the value against its own registered
+ *  post-logout allowlist as the second gate. Only the path segment is swapped (callback → `/login`); the
+ *  origin is provably one of our own registered OIDC origins. Null ⇒ off-allowlist origin (append no param). */
+function deriveLogoutRedirectUri(headers: Headers, allowlist: readonly string[]): string | null {
+  const callbackUri = deriveRedirectUri(headers, allowlist);
+  return callbackUri === null ? null : new URL(LOGIN_SURFACE_ROUTE, callbackUri).href;
+}
+
 /** A6 — the IdP end-session (RP-initiated logout) URL, read from the discovered openid-client Configuration
- *  (`serverMetadata().end_session_endpoint`). Best-effort: null when there is no oidc config, discovery
- *  fails, or the issuer exposes no endpoint. The client navigates there after the local revoke so the
- *  upstream SSO session ends too. */
-async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined): Promise<string | null> {
+ *  (`serverMetadata().end_session_endpoint`) and carrying `post_logout_redirect_uri` so the IdP returns the
+ *  browser to OUR `/login` after ending the SSO session — without it the user lands on the IdP's own
+ *  logged-out page. Best-effort: null when there is no oidc config, discovery fails, or the issuer exposes no
+ *  endpoint; the redirect param is omitted (not the whole URL) when the request origin is off our allowlist.
+ *  The client navigates there after the local revoke so the upstream SSO session ends too.
+ *
+ *  `id_token_hint` is intentionally NOT sent: this deployment does not persist the OIDC id_token (the
+ *  `sessions` table stores only a token hash, by design), so there is no hint to thread. Most IdPs — authentik
+ *  included, given a registered post-logout redirect — complete the logout on `post_logout_redirect_uri`
+ *  alone; the only cost of the missing hint is a possible IdP confirmation interstitial (#141 fork). */
+async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined, headers: Headers): Promise<string | null> {
   if (oidc === undefined) {
     return null;
   }
   try {
     const endpoint = (await oidc.getConfig()).serverMetadata().end_session_endpoint;
-    return typeof endpoint === "string" && endpoint.length > 0 ? endpoint : null;
+    if (typeof endpoint !== "string" || endpoint.length === 0) {
+      return null;
+    }
+    const url = new URL(endpoint);
+    const postLogoutRedirectUri = deriveLogoutRedirectUri(headers, oidc.redirectAllowlist);
+    if (postLogoutRedirectUri !== null) {
+      // `set` (not append) so a discovered endpoint that already pins the param is not doubled.
+      url.searchParams.set(POST_LOGOUT_REDIRECT_URI_PARAM, postLogoutRedirectUri);
+    }
+    return url.href;
   } catch {
     return null;
   }
@@ -535,7 +566,7 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
     // A6 — surface the IdP end-session URL so the client can end the UPSTREAM SSO session after the local
     // revoke (else "sign out → Continue" logs straight back in). Best-effort + null when there is no oidc
     // config or the issuer exposes no end_session_endpoint. The local session is already dead regardless.
-    return c.json({ endSessionUrl: await resolveEndSessionUrl(deps.oidc) }, OK);
+    return c.json({ endSessionUrl: await resolveEndSessionUrl(deps.oidc, c.req.raw.headers) }, OK);
   });
 
   const oidc = deps.oidc;
