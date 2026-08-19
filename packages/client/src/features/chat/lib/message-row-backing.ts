@@ -1,5 +1,6 @@
-// The message row's LEGIBILITY BACKINGS — one seam, three constants, split out of message-row-variants.ts
-// to keep it under the 450-line component-size cap (UI-Architecture §2.1).
+// The chat surface's LEGIBILITY BACKINGS — one seam, four constants, split out of message-row-variants.ts
+// to keep it under the 450-line component-size cap (UI-Architecture §2.1). Named for the message row it was
+// minted from; the over-art rule it carries is the CHAT SURFACE's, and the cast bar takes it too (#229).
 //
 // ── THE DERIVE LAW (#204) — a plate and its ink come from ONE palette, and a surface cannot exist
 // outside the law ────────────────────────────────────────────────────────────────────────────────────
@@ -24,16 +25,17 @@
 // ink is the VIEWER's palette while the plate follows the CARRIED one (the #204 two-polarity paragraph).
 // Each plate constant therefore names its ink token beside its fill, gated by the same wallpaper flag.
 //
-// The first two are the background-PHOTO backings (the side-eye P1 + its follow-up, extended by #106):
-// both are self-gated by Tailwind's `in-*` ANCESTOR variant on `data-has-bg-image` (the shell grid stamps
-// it, shell.css) — the declarative way to react to a shell-level flag with NO render-time DOM read — so
-// they are INERT without a bg image (a plain background is byte-identical to pre-fix).
+// The first three are the background-PHOTO backings (the side-eye P1 + its follow-up, extended by #106
+// and #229) — reading surface, floating CHIP, full-bleed BAND: all self-gated by Tailwind's `in-*`
+// ANCESTOR variant on `data-has-bg-image` (the shell grid stamps it, shell.css) — the declarative way to
+// react to a shell-level flag with NO render-time DOM read — so they are INERT without a bg image (a plain
+// background is byte-identical to pre-fix). They differ ONLY in ink and geometry, never in the plate.
 //
-// The third (`STICKY_ATTRIBUTION_CHROME`, #113) is NOT wallpaper-gated, because what it backs the chrome
+// The fourth (`STICKY_ATTRIBUTION_CHROME`, #113) is NOT wallpaper-gated, because what it backs the chrome
 // against is the row's own scrolling prose rather than a photo. Read its own note before merging it with
-// the other two — they answer different questions and share only a visual recipe.
+// the other three — they answer different questions and share only a visual recipe.
 //
-// All three are static (no transition) ⇒ reduced-motion-safe.
+// All four are static (no transition) ⇒ reduced-motion-safe.
 
 // Reading backing (side-eye live P1, 2026-07-09): flat/hush/document carry NO bubble fill, AND the shell
 // strips their float halo (they stamp `data-slot="message-bubble"`, which shell.css targets to kill the
@@ -89,6 +91,23 @@ export const BG_PHOTO_READING_PLATE = "in-data-[has-bg-image]:bg-reading-plate i
 // Self-gated on `in-data-[has-bg-image]` like its sibling, so a plain-background theme is byte-identical.
 export const BG_PHOTO_CHROME_PLATE =
   "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-foreground";
+
+// BAND backing (#229/#237) — the SAME over-art question as the chip above, answered for a full-bleed
+// STRIP rather than a floating chip. The cast bar sits above the transcript inside `.shell-main`, which
+// over a wallpaper is `background: transparent` (shell.css) with only the halo text-shadow, so its chips
+// and names floated on the raw photo — the pass-3 cast-bar finding, and the same class as the list pane's
+// 3.69:1 under Light. It takes the plate + blur + paired chrome ink and NOTHING ELSE: a band already owns
+// its own padding and spans its column, so the chip's `rounded-card`/`px-field`/`py-row` would fight it
+// (the strip's `px-block` and the chip's `px-field` are the same property at different modifiers — both
+// would emit and the variant would shrink the strip's gutters the moment a wallpaper appeared).
+//
+// It is spelled as its own full literal rather than composed off the chip constant: these two answer
+// different geometry questions and only share a visual recipe (the STICKY_ATTRIBUTION_CHROME precedent
+// directly below), and a composed string is one refactor away from the class literals Tailwind scans for
+// no longer appearing whole in the source.
+//
+// Self-gated on `in-data-[has-bg-image]` like both siblings, so a plain background is byte-identical.
+export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:text-foreground";
 
 // STICKY SPEAKER ATTRIBUTION (#113) — a DIFFERENT backing from the two above, deliberately not merged
 // with them. Those two answer "the chrome is floating on a wallpaper at rest" and are wallpaper-gated.

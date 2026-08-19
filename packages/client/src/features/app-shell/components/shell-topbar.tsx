@@ -131,9 +131,9 @@ function listToggleLabel(mobile: boolean, listCollapsed: boolean, title: string)
 
 /** The topbar's one title voice. A single component so the file carries ONE element with the `<Text>` type
  *  axes (the density-tier A3 budget this file is baselined at), rendered from both identity arms. */
-function TopbarTitle({ className, children }: { readonly className?: string; readonly children: ReactNode }): ReactElement {
+function TopbarTitle({ className, children, title }: { readonly className?: string; readonly children: ReactNode; readonly title?: string }): ReactElement {
   return (
-    <Text className={className} size="title" weight="semibold">
+    <Text className={className} size="title" weight="semibold" title={title}>
       {children}
     </Text>
   );
@@ -158,7 +158,11 @@ export function ShellTopbar(props: ShellTopbarProps): ReactElement {
           {wideIdentity(props)}
         </div>
         <div className="shell-topbar-identity" data-identity="narrow">
-          <TopbarTitle className="shell-topbar-title truncate">{props.screenTitle ?? props.title}</TopbarTitle>
+          {/* Same full-value affordance as the chat identity cluster's title (#239) — this arm truncates
+              under exactly the same rule, and on the narrow container it is the ONLY copy of the name. */}
+          <TopbarTitle className="shell-topbar-title truncate" title={props.screenTitle ?? props.title}>
+            {props.screenTitle ?? props.title}
+          </TopbarTitle>
         </div>
       </div>
 
