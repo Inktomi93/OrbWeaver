@@ -24,6 +24,11 @@ function withoutBubblePadding(className: string): string {
 
 export function renderSingleBubble(args: {
   readonly role: MessageRole;
+  /** #288 — the speaker/timestamp/actions header, when this skin renders it INSIDE its container. It
+   *  leads the PADDED content in all three shapes below (plain box · whisper's below-the-band stack ·
+   *  ripple's welded-portrait row), so it always sits on the container's own reading inset and shares the
+   *  `gap="row"` that separates the body's blocks. Null when the skin's `headerPlacement` is `outside`. */
+  readonly header: ReactNode;
   readonly content: ReactNode;
   readonly bubbleClassName: string;
   readonly decoration: BubbleDecoration | null;
@@ -49,6 +54,7 @@ export function renderSingleBubble(args: {
           )}
         </Stack>
         <Stack gap="row" className="px-block py-row">
+          {args.header}
           {args.content}
         </Stack>
       </Stack>
@@ -85,6 +91,7 @@ export function renderSingleBubble(args: {
             </Text>
           </Stack>
         )}
+        {args.header}
         {args.content}
       </Stack>
     );
@@ -93,6 +100,7 @@ export function renderSingleBubble(args: {
     <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
       {args.role === "user" ? null : args.weldedAvatar}
       <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
+        {args.header}
         {args.content}
       </Stack>
       {args.role === "user" ? args.weldedAvatar : null}

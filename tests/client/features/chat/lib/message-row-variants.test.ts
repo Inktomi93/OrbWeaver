@@ -54,6 +54,27 @@ test("every mode but tide renders a single bubble; tide trains", () => {
   }
 });
 
+// #288 — WHERE EACH SKIN PUTS ITS SPEAKER HEADER. The owner raised the split-header read three times on
+// 2026-08-19 and its mechanism is one sentence: a row reads as TWO objects whenever the body carries a
+// backing and the header carries a DIFFERENT one. That is true of the FILLED skins in every room
+// (`--color-ai-bubble` under a header sitting on bare background) AND of the no-fill skins over a
+// wallpaper (the body's `BG_PHOTO_READING_PLATE` under the header's own `BG_PHOTO_CHROME_PLATE` chip) —
+// which is why the answer is not "the bubble family" but "every skin with a single container box".
+// `tide` is the ONE exception on a structural fact, not a taste call: `bubbleLayout: "trains"` renders N
+// per-paragraph pills, so there is no single container to be inside, and its ST reference names the
+// speaker above the train anyway. The two conditions are asserted TOGETHER so the exception can never
+// drift into a preference — a future trains skin gets `outside` for the same stated reason, and a future
+// single-container skin cannot quietly opt out.
+test("#288 every single-container skin homes its header INSIDE it; only a trains skin stays outside", () => {
+  for (const [name, skin] of Object.entries(MESSAGE_ROW_SKINS)) {
+    expect(skin.headerPlacement, name).toBe(skin.bubbleLayout === "trains" ? "outside" : "inside");
+  }
+  // Stated as a count as well, so a table that silently lost a row cannot pass the biconditional above.
+  const inside = Object.values(MESSAGE_ROW_SKINS).filter((skin) => skin.headerPlacement === "inside");
+  expect(inside).toHaveLength(THEME_CHAT_STYLES.length - 1);
+  expect(MESSAGE_ROW_SKINS.tide.headerPlacement).toBe("outside");
+});
+
 test("the 3 clean modes + hush/tide never special-case avatar art (icon-left always)", () => {
   for (const name of ["bubble", "flat", "document", "hush", "tide"] as const) {
     const skin = MESSAGE_ROW_SKINS[name];

@@ -29,6 +29,36 @@ type AvatarTreatment = (typeof AVATAR_TREATMENTS)[number];
 /** `trains` (Tide) splits the body into per-paragraph bubbles; every other mode is `single`. */
 type BubbleLayout = "single" | "trains";
 
+/** WHERE THIS SKIN PUTS ITS SPEAKER HEADER (#288, owner raised three times over 2026-08-19).
+ *
+ *  `inside` — name · timestamp · actions are the CONTAINER's own header row, the first child inside the
+ *  box the prose renders in. `outside` — the pre-#288 anatomy: a sibling row above the container, backed
+ *  by its own `BG_PHOTO_CHROME_PLATE` chip over art.
+ *
+ *  THE DEFECT THIS AXIS EXISTS FOR is one mechanism with two arms, and naming it here is why the axis is
+ *  per-skin rather than global. A row reads as TWO objects whenever the body carries a backing and the
+ *  header carries a DIFFERENT one:
+ *    · the filled skins (bubble/echo/whisper/ripple — `inner: bubbleInner`) paint `--color-ai-bubble` /
+ *      `--color-user-bubble` in EVERY room, so their header always sat on bare background above a filled
+ *      box (the owner's two "Orb bubble" captures, 50% and 100% chat width);
+ *    · the no-fill skins (flat/hush/document) have no box at rest — genuinely attached, by proximity —
+ *      but over a wallpaper the body takes `BG_PHOTO_READING_PLATE` and the header takes the CHIP, which
+ *      is the same two-plate split arriving through the art arm. That is why the fix is not "the bubble
+ *      family": the owner's "the split thing in chat wasn't just bubbles" is mechanically right.
+ *  The polarity report (#288 round 1: "dark reads fine, light reads separated") is this seen from one
+ *  side — the chip dissolves into a dark room's plate and goes crisp over a light/art one.
+ *
+ *  `outside` therefore survives for exactly ONE skin: `tide`, whose `bubbleLayout: "trains"` renders N
+ *  per-paragraph pills and has no single container to be inside. Its ST reference agrees (the name sits
+ *  above the train), so it is parity, not a concession.
+ *
+ *  It is a REQUIRED field: a new chatStyle fails tsc here until it decides where its speaker goes, the
+ *  same enforcement `avatarTreatment`/`bubbleLayout` carry. */
+// NOT exported: a consumer reads it off the table it belongs to (`RowSkin["headerPlacement"]`), the same
+// way `avatarTreatment`'s return type is reached. An exported alias here would be a second home for a
+// shape the skin table already owns, which `no-inline-types` reds.
+type HeaderPlacement = "inside" | "outside";
+
 /** Input to a mode's `bubbleDecoration`. The avatar HASH, not a prebuilt URL — each decorator requests
  *  its own correctly-shaped variant (Echo → blobPortraitUrl, Whisper → blobBannerUrl). */
 export interface BubbleDecorationArgs {
@@ -66,6 +96,8 @@ export interface RowSkin {
   readonly avatarTreatment: (kind: RowAttribution["kind"]) => AvatarTreatment;
   readonly bubbleDecoration?: (args: BubbleDecorationArgs) => BubbleDecoration | null;
   readonly bubbleLayout: BubbleLayout;
+  /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives (#288). */
+  readonly headerPlacement: HeaderPlacement;
   /** A SKIN-OWNED override of the content column's width, as an inline style (#212-2). The styles tier caps
    *  that column at the reading measure — a rule about a column that holds PROSE. Echo's column holds prose
    *  AND an art pane, so capping the two together is what squeezed its line to 28 characters: the cap has to
@@ -266,18 +298,24 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
+    headerPlacement: "inside",
   },
   flat: {
     outer: flatOuter,
     inner: flatInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
+    // Flat has no box at rest, so `inside` buys it two things rather than one: over a wallpaper the
+    // header stops minting a second plate beside the body's, and at rest the header finally shares the
+    // body's `px-section` inset instead of hanging off the column's own left edge.
+    headerPlacement: "inside",
   },
   document: {
     outer: () => cx(CHAT_TRACK, "items-center"),
     inner: () => cx("w-full max-w-prose px-block py-row text-prose-body", BG_PHOTO_READING_PLATE),
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
+    headerPlacement: "inside",
   },
   echo: {
     outer: echoOuter,
@@ -286,6 +324,11 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     bubbleDecoration: echoDecoration,
     bubbleLayout: "single",
     columnStyle: ECHO_COLUMN_STYLE,
+    // DELIBERATE DIVERGENCE FROM ECHO'S OWN REFERENCE (skin-parity-2026-08-18.md:138 rates ST's
+    // name-above-the-card as MINOR against ours). Echo is a FILLED container, so leaving its header
+    // outside would keep exactly the two-object read #288 exists to kill; the owner's attachment ruling
+    // outranks a MINOR ref row. One word here reverts it if the reference ever wins.
+    headerPlacement: "inside",
   },
   whisper: {
     outer: bubbleOuter,
@@ -293,6 +336,11 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: whisperDecoration,
     bubbleLayout: "single",
+    // DELIBERATE DIVERGENCE (skin-parity-2026-08-18.md:171/:173): ST OVERLAYS whisper's header on the
+    // banner art; ours sits inside the card BELOW the band. The band is a real block child precisely so
+    // text can never sit on art (the §0 reading-surface law the same report credits us for) — the
+    // anatomy question #288 asked is "one container or two", and below-the-band answers it as one.
+    headerPlacement: "inside",
   },
   hush: {
     outer: flatOuter,
@@ -300,18 +348,29 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
     bubbleLayout: "single",
+    // Inside also puts the header to the RIGHT of hush's speaker stripe, which the stripe previously
+    // started below — the ST ref's "name row inside the card" for the same reason.
+    headerPlacement: "inside",
   },
   ripple: {
     outer: bubbleOuter,
     inner: bubbleInner,
     avatarTreatment: rippleAvatarTreatment,
     bubbleLayout: "single",
+    // The welded portrait is a sibling INSIDE the bubble, so `inside` lands the header exactly where
+    // ripple's reference has it: in the card, right of the portrait (skin-parity-2026-08-18.md:121 —
+    // "ours reads as a caption floating above a picture card, ref reads as a titled panel").
+    headerPlacement: "inside",
   },
   tide: {
     outer: bubbleOuter,
     inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "trains",
+    // THE ONE `outside`, and not a concession: a train is N per-paragraph pills with no single container
+    // to be inside, and ST's tide reference also names the speaker above the train. It therefore keeps
+    // the sibling row AND the #167 chip — over art there is nothing else to back it.
+    headerPlacement: "outside",
   },
 };
 
