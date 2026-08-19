@@ -1,7 +1,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
-import { getLog, securityEvent } from "#foundation/observability";
+import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionResult } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
@@ -110,7 +110,13 @@ async function updateExisting(
   if (Object.keys(changes).length > 0) {
     await updateUser(ctx.db, existing.id, { ...changes, updatedAt: ctx.now() });
     const roleChange = changes.role !== undefined ? { roleChanged: { from: existing.role, to: changes.role } } : {};
-    getLog().info({ handle: identity.handle, externalId: identity.externalId, ...roleChange }, "user: provisioned SSO identity (updated)");
+    // #140 — the login's GROUPS ride every provisioning line: they are what `deriveIdentityAccess` decided
+    // the role from, so a `roleChanged` with no groups beside it is an un-auditable demotion. Bounded NAMES
+    // only (`groupsLogFields`); the claim object and the token are never logged.
+    getLog().info(
+      { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), ...roleChange },
+      "user: provisioned SSO identity (updated)",
+    );
   }
   return {
     outcome: "provisioned",
@@ -159,7 +165,7 @@ async function insertNew(
     throw new Error(`provisionIdentity: row missing after insert (handle=${identity.handle}, externalId=${identity.externalId ?? "null"})`);
   }
   getLog().info(
-    { handle: identity.handle, externalId: identity.externalId, role: settled.role, enabled: settled.enabled },
+    { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), role: settled.role, enabled: settled.enabled },
     settled.enabled
       ? "user: provisioned SSO identity (created)"
       : "user: provisioned SSO identity (created, DISABLED — awaiting admin approval, OIDC_REQUIRE_APPROVAL)",
@@ -217,7 +223,7 @@ async function bindOwnerSubject(ctx: SessionsContext, owner: ExistingUser, ident
   }
   await updateUser(ctx.db, owner.id, patch);
   getLog().info(
-    { handle: identity.handle, externalId, ownerId: owner.id },
+    { handle: identity.handle, externalId, ...groupsLogFields(identity.groups), ownerId: owner.id },
     "user: bound OIDC subject to the existing owner row (owner-flip reconciliation, D17)",
   );
   // W7b: the bind writes `externalId` (+ maybe `email`) and deliberately leaves the owner's handle and role
@@ -236,7 +242,7 @@ function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefi
     return "owner";
   }
   getLog().warn(
-    { handle: identity.handle, externalId: identity.externalId, existingOwnerId: ownerId },
+    { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), existingOwnerId: ownerId },
     "user: owner policy matched but an owner already exists (D17: exactly one owner) — provisioning as `user`; grant admin via setRole",
   );
   return "user";
@@ -355,8 +361,11 @@ async function resolveNonOwnerProvision(ctx: SessionsContext, args: NonOwnerProv
   // Non-owner login access gate + role from IdP groups. A denied identity creates/updates no row (fail-closed).
   const access = deriveIdentityAccess(identity.handle, identity.groups);
   if (access.outcome === "deny") {
+    // #140 — the groups the identity DID carry are the whole diagnosis here: an empty list means the claim
+    // never arrived (see the mapper's `oidc_groups_claim` line), a populated one that misses the allowlist
+    // means the operator's group names disagree with the IdP's.
     getLog().warn(
-      { handle: identity.handle, externalId: identity.externalId },
+      { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups) },
       "user: SSO login denied — identity is in none of OIDC_ALLOWED_GROUPS (fail-closed access gate)",
     );
     return { outcome: "denied" };

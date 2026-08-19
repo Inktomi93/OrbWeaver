@@ -41,6 +41,7 @@ export {
   bindRequestUser,
   getLog,
   getRequestUserId,
+  groupsLogFields,
   logger,
   logRing,
   type RequestRecord,
