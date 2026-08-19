@@ -421,8 +421,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 347,
-      "bytes": 162084,
-      "sha256": "a861a80cb8bd8bc736b77954c20a5c12b93dbd739d0c41d8fe0c15fd1af596ff",
+      "bytes": 162247,
+      "sha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -471,7 +471,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
