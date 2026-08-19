@@ -54,7 +54,18 @@ function MapBody(): ReactElement {
     <Stack gap="block" className="min-h-0 flex-1">
       <Text voice="gloss">{points.length} cards, projected by semantic similarity, colored by genre. Click a card to open its dossier.</Text>
       <Stack className="aspect-square w-full">
-        <Scatter className="h-full w-full" label="Corpus semantic map" onPointClick={(id): void => selectCorpusCharacter(id as CharacterId)} series={series} />
+        {/* THE KEY IS THE HALF THAT COULD BE READ (side-eye corpus re-pass B5). The tab said "colored by
+            genre" and named no genre anywhere — eight-pixel dots in five hues with no decoder, over ~350px
+            of empty panel. The meaning was carried by colour ALONE, which is both the accessibility failure
+            and the reason the plot answered nothing. `legend` is @orb/ui's, not this file's: ui owns the
+            palette (so the swatch matches the plot by construction) and ui is the only painter. */}
+        <Scatter
+          className="h-full w-full"
+          label="Corpus semantic map"
+          legend={true}
+          onPointClick={(id): void => selectCorpusCharacter(id as CharacterId)}
+          series={series}
+        />
       </Stack>
     </Stack>
   );
