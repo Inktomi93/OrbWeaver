@@ -4,8 +4,9 @@
 // WHY THESE ASSERTIONS AND NOT THE TESTID. `data-testid="corpus-search-hit"` matched ZERO nodes in the
 // rendered DOM for this branch — `ListRow` builds its body from named props and forwards no `data-*`
 // (packages/ui/src/primitives/list-row/list-row.tsx), so the prop was dropped on the floor and any probe
-// keyed on it was a silent no-op. The claim is gone; a memory hit is now addressed the way a user meets
-// it — a button with the memory's own text as its accessible name.
+// keyed on it was a silent no-op. The claim is gone; a memory hit is addressed the way a user meets it —
+// a button whose accessible name is the ROOM it opens (see the U2 block below; it was the memory's whole
+// text until 2026-08-19, which is the defect that block pins).
 //
 // WHAT EACH TEST PINS:
 //   • RELEVANCE GOES THE RIGHT WAY. The rendered number used to be `cslsAdjust` — a hub-adjusted cosine
@@ -33,10 +34,12 @@ import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { CorpusListSurfaceNavStory } from "../_ct-stories.tsx";
 
-/** The subtitle the row used to carry: the literal word "Chat" plus a 6-character id slice. */
+/** The line the row used to carry for its room: the literal word "Chat" plus a 6-character id slice. */
 const RAW_CHAT_REF = /^Chat \w{6}$/;
 const NAMED_CHAT = "chat_amethyst";
 const UNNAMED_CHAT = "chat_unnamed";
+/** The named room's authored title — since U2 this is the ROW'S NAME (and its accessible name). */
+const NAMED_ROOM = "Amethyst Hollow";
 const BATH_TEXT = "[Nate, Selene — hotel room bath scene] All three strip and settle into the copper tub.";
 const FARM_TEXT = "[Nate, Kira — farmhouse porch] The harvest is in and the evening is quiet.";
 
@@ -91,11 +94,12 @@ test("a memory hit is a door: clicking it opens its chat", async ({ mount, page 
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
+  // The row is named by the ROOM it opens (U2) — which is also the thing the click does.
   // NO DISMISSAL STEP. This test carried `page.keyboard.press("Escape")` here until 2026-08-18, because the
   // typeahead rendered as an anchored POPUP over the rows and an unforced click on result #1 waited for
   // actionability forever. The omnibox now renders its suggestions IN FLOW (`Autocomplete inline`), so the
   // first result is reachable the way a user reaches it — one click, no dismissal.
-  await component.getByRole("button", { name: BATH_TEXT }).click();
+  await component.getByRole("button", { name: NAMED_ROOM }).click();
 
   await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
 });
@@ -120,14 +124,14 @@ test("an open typeahead never covers a result: row 1 is clickable with the sugge
   const suggestion = page.getByRole("option", { name: "shared bath house" });
   await expect(suggestion).toBeVisible();
 
-  const [suggestionBox, rowBox] = await Promise.all([suggestion.boundingBox(), component.getByRole("button", { name: BATH_TEXT }).boundingBox()]);
+  const [suggestionBox, rowBox] = await Promise.all([suggestion.boundingBox(), component.getByRole("button", { name: NAMED_ROOM }).boundingBox()]);
   if (suggestionBox === null || rowBox === null) {
     throw new Error("the typeahead suggestion or the first result row did not render a box");
   }
   expect(suggestionBox.y + suggestionBox.height, "the suggestion list ends above the first result row").toBeLessThanOrEqual(rowBox.y);
 
   // …and the door still opens on ONE unforced click, with the list still showing.
-  await component.getByRole("button", { name: BATH_TEXT }).click();
+  await component.getByRole("button", { name: NAMED_ROOM }).click();
   await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
 });
 
@@ -136,10 +140,80 @@ test("a memory hit names its room, never a raw chat id", async ({ mount, page })
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
-  // Read the SUBTITLE slot specifically: "Kira" also appears inside its row's memory text, so a bare
-  // text query would resolve to two nodes and prove nothing about where the name is rendered.
-  const subtitles = component.locator('[data-slot="list-row-subtitle"]');
+  // Read the TITLE slot specifically: "Kira" also appears inside its row's memory text, so a bare text
+  // query would resolve to two nodes and prove nothing about where the name is rendered.
+  const titles = component.locator('[data-slot="list-row-title"]');
   // The unnamed room falls through the chat-title chain to its cast, never to a hex slice.
-  await expect(subtitles).toHaveText(["Amethyst Hollow", "Kira"]);
+  await expect(titles).toHaveText([NAMED_ROOM, "Kira"]);
   await expect(component.getByText(RAW_CHAT_REF)).toHaveCount(0);
+});
+
+// ── U2: THE ROOM IS THE NAME, THE MEMORY IS THE BODY (side-eye corpus re-pass 2026-08-19) ─────────────
+// Measured on the live surface: `{ accNameLen: 1154, visibleTitleWidthPx: 221, fullTitleWidthPx: 8030 }` —
+// 97% of the row's primary line was invisible, twenty rows opened with the same bracketed header, five were
+// visually indistinguishable, and axe scored `label-content-name-mismatch` 0 across 6 nodes (WCAG 2.5.3: a
+// spoken name must contain the read label, and nothing could read an 8030px line). The prescription said
+// "room + date"; the DATE half is refused on the wire's own law — `DigestSourceHit` carries no timestamp and
+// its contract header says why (`chats.updatedAt` is when the ROOM was touched, which would read as a lie).
+// Whatever date a room's title holds is the room's authored name and arrives here for free.
+test("a memory row's accessible name is its ROOM, short and readable — not the whole digest", async ({ mount, page }) => {
+  await routeTrpc(page, MEMORY_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchMemories(component);
+  const row = component.getByRole("button", { name: NAMED_ROOM });
+  const accName = await row.evaluate((node) => node.getAttribute("aria-label") ?? "");
+  expect(accName).toBe(NAMED_ROOM);
+  expect(accName.length, "an accessible name a person can hear").toBeLessThan(120);
+  // LABEL-IN-NAME: the name is exactly the text rendered as the row's title.
+  await expect(row.locator('[data-slot="list-row-title"]')).toHaveText(accName);
+  // The memory itself is still on the row — as the body, where it is allowed to wrap.
+  await expect(row.locator('[data-slot="list-row-subtitle"]')).toHaveText(BATH_TEXT);
+});
+
+// ── C1 + C2: HONEST BODIES, ONE PER PIECE OF EVIDENCE ────────────────────────────────────────────────
+// C1: the wire hands back raw model prose sliced at 280 chars — markdown rendered as literal syntax, cut
+// mid-word, then closed by the row's own quotation mark. C2: a duplicated room yields digest blocks whose
+// text is byte-identical, and the ranked list showed both.
+const MARKDOWN_DIGEST = "**Selene** said:\n\n> ### the copper tub\n\nThey settle in, and the steam takes the room.";
+const DUPLICATE_HITS: TrpcRoutes = {
+  "search.search": {
+    over: "digests",
+    hits: [
+      {
+        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selene" },
+        score: 0,
+        relevance: 0.91,
+        text: MARKDOWN_DIGEST,
+        chatTitle: NAMED_ROOM,
+        scopedCharacterName: "Selene",
+      },
+      {
+        // The SAME evidence out of a duplicated room, one day later and one block over — two rows a reader
+        // cannot tell apart, spending two of twenty slots on one memory.
+        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 5, scopedCharacterId: "character_selene" },
+        score: 0,
+        relevance: 0.9,
+        text: MARKDOWN_DIGEST,
+        chatTitle: "Amethyst Hollow (copy)",
+        scopedCharacterName: "Selene",
+      },
+    ],
+  },
+};
+
+test("a memory body reads as prose — flattened markdown, no raw syntax — and identical evidence renders ONCE", async ({ mount, page }) => {
+  await routeTrpc(page, DUPLICATE_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await component.getByRole("button", { name: "Search Memories" }).click();
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("copper tub");
+
+  const bodies = component.locator('[data-slot="list-row-subtitle"]');
+  // C2: byte-identical evidence collapses to the higher-scored copy — the room that scored 0.91.
+  await expect(bodies).toHaveCount(1);
+  await expect(component.getByRole("button", { name: NAMED_ROOM })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Amethyst Hollow (copy)" })).toHaveCount(0);
+  // C1: one line of prose — the emphasis markers, the quote/heading prefixes and the blank lines are gone.
+  await expect(bodies).toHaveText("Selene said: the copper tub They settle in, and the steam takes the room.");
 });

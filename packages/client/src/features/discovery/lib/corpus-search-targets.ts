@@ -40,8 +40,27 @@ export const CORPUS_TARGET_REST_HINTS: Record<CorpusSearchTargetId, string> = {
 /** How many hits the omnibox pulls per query — a bounded preview, not the whole ranked pool. */
 export const CORPUS_SEARCH_TOP_N = 20;
 
-/** How many as-you-type suggestions the typeahead pulls per keystroke. */
+/** How many as-you-type suggestions the typeahead pulls per keystroke — the POOL the display filter draws
+ *  from, deliberately wider than what is shown so dropping junk does not empty the list. */
 export const CORPUS_SUGGEST_LIMIT = 8;
+
+/** How many suggestions the typeahead RENDERS — what the shared `Autocomplete` `inline` list can show
+ *  without scrolling (its box is a fixed ~4-row scroller so it can never grow this pane). Measured against
+ *  the rendered box in `corpus-list-surface.ct.tsx`, not guessed. */
+export const CORPUS_SUGGEST_SHOWN = 4;
+
+/** A suggestion worth offering: it reads as a phrase. Letters/digits/marks plus the punctuation names carry
+ *  (spaces, apostrophes, hyphens, periods) — and it must START on a letter or digit.
+ *
+ *  The suggest index is built over raw transcript tokens, so it hands back fragments like `"elf elf<"` (a
+ *  torn tag) and bare punctuation runs. They are unusable as a query AND they cost one of the four rendered
+ *  slots. Unicode-aware on purpose: character names here are routinely non-ASCII. */
+const CLEAN_SUGGESTION_RE = /^[\p{L}\p{N}][\p{L}\p{N}\p{M} '’.-]*$/u;
+
+/** Whether a raw server suggestion is a phrase a person could have typed (see {@link CLEAN_SUGGESTION_RE}). */
+export function isCleanSuggestion(suggestion: string): boolean {
+  return CLEAN_SUGGESTION_RE.test(suggestion.trim());
+}
 
 /** The image target's lens — the caption-aware avatar embedding (image bytes + generated caption). */
 export const CORPUS_IMAGE_LENS: ImageLens = "image-captioned";

@@ -39,9 +39,10 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { deriveChatTitle, testId } from "#lib";
+import { testId } from "#lib";
 import { selectChat, selectCorpusCharacter, setActiveSection } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
+import { chatSubtitle, dedupeByEvidence, evidenceScent, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 
@@ -98,20 +99,42 @@ function UnifiedResults({ query, over, label }: { readonly query: string; readon
   }
 
   const data = result.data;
-  if (data.hits.length === 0) {
-    return <NoMatches label={label} query={trimmed} />;
+  // THE SAME EVIDENCE TWICE IS ONE ANSWER (side-eye re-pass C2). A duplicated room (an import run twice, a
+  // branch chat) produces digest blocks whose text is byte-identical, and the ranked list showed both — two
+  // rows a reader cannot tell apart, spending two of twenty slots on one memory. The server's order is
+  // descending relevance, so first-wins keeps the better-scored copy. Deliberately NOT applied to the other
+  // branches: a character or an image is its own identity, and two scenes that quote the same block are two
+  // different rooms' evidence, which the grouped preview already tells apart.
+  const shown = data.over === "digests" ? { ...data, hits: dedupeByEvidence(data.hits, (hit) => hit.text) } : data;
+  if (shown.hits.length === 0) {
+    return <NoMatches label={label} query={trimmed} lexical={false} />;
   }
 
   return (
-    <Stack
-      aria-label={`Search results — ${label}`}
-      className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
-      data-testid={testId("corpusSearchResults")}
-      gap="row"
-      role="list"
-    >
-      <ResultBranch data={data} />
-    </Stack>
+    <>
+      <ResultsStatus count={shown.hits.length} label={label} />
+      <Stack
+        aria-label={`Search results — ${label}`}
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        data-testid={testId("corpusSearchResults")}
+        gap="row"
+        role="list"
+      >
+        <ResultBranch data={shown} />
+      </Stack>
+    </>
+  );
+}
+
+/** The RESULT list's own live region (side-eye re-pass B3). The only status this surface announced was the
+ *  shared `Autocomplete`'s, which counts SUGGESTIONS — so a screen reader heard "2 results" over twenty
+ *  rendered hits, and "0 results" while resting over a 200-row catalog. This one counts what the list
+ *  actually renders, and names the target so two targets' counts can't be confused for one number. */
+function ResultsStatus({ count, label }: { readonly count: number; readonly label: string }): ReactElement {
+  return (
+    <Text as="span" className="sr-only" role="status">
+      {`${count} ${count === 1 ? "result" : "results"} in ${label}`}
+    </Text>
   );
 }
 
@@ -129,43 +152,56 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
     return <QueryErrorState label="the text search" onRetry={hits.refetch} />;
   }
   if (hits.data.length === 0) {
-    return <NoMatches label={label} query={trimmed} />;
+    return <NoMatches label={label} query={trimmed} lexical={true} />;
   }
 
   const byId = new Map((catalog.data?.items ?? []).map((card) => [card.id, card]));
   return (
-    <Stack
-      aria-label={`Search results — ${label}`}
-      className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
-      data-testid={testId("corpusSearchResults")}
-      gap="row"
-      role="list"
-    >
-      {hits.data.map((hit) => {
-        const card = byId.get(hit.characterId);
-        return (
-          <CharacterHitRow
-            key={hit.characterId}
-            characterId={hit.characterId}
-            name={card?.name ?? `Character ${hit.characterId.slice(-ID_REF_LEN)}`}
-            avatarHash={card?.avatarHash ?? null}
-            genre={null}
-            tone={null}
-            pitch={null}
-            relevance={null}
-          />
-        );
-      })}
-    </Stack>
+    <>
+      <ResultsStatus count={hits.data.length} label={label} />
+      <Stack
+        aria-label={`Search results — ${label}`}
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        data-testid={testId("corpusSearchResults")}
+        gap="row"
+        role="list"
+      >
+        {hits.data.map((hit) => {
+          const card = byId.get(hit.characterId);
+          return (
+            <Stack key={hit.characterId} role="listitem">
+              <CharacterHitRow
+                characterId={hit.characterId}
+                name={card?.name ?? `Character ${hit.characterId.slice(-ID_REF_LEN)}`}
+                avatarHash={card?.avatarHash ?? null}
+                genre={null}
+                tone={null}
+                pitch={null}
+                relevance={null}
+              />
+            </Stack>
+          );
+        })}
+      </Stack>
+    </>
   );
 }
 
-function NoMatches({ label, query }: { readonly label: string; readonly query: string }): ReactElement {
+/** The empty state TEACHES THE ENGINE (side-eye re-pass C8). "Nothing matched" alone leaves a reader with
+ *  no next move and no way to know why a phrase that is definitely in their library found nothing — the two
+ *  engines behind this one box answer different questions, and only the lexical one cares about exact
+ *  words. The second line names the engine and the next thing to try. */
+function NoMatches({ label, query, lexical }: { readonly label: string; readonly query: string; readonly lexical: boolean }): ReactElement {
   return (
     <Stack align="center" className="p-block" gap="field">
       <Icon icon={Search} size="lg" />
       <Text>
         Nothing in your {label.toLowerCase()} matched “{query}”.
+      </Text>
+      <Text voice="gloss">
+        {lexical
+          ? "Text matches card wording exactly. Check the spelling, or try Memories or Scenes — those search by meaning."
+          : "This target searches by meaning, not exact words. Try a fuller phrase, or another target: Text matches card wording exactly."}
       </Text>
     </Stack>
   );
@@ -178,16 +214,17 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
     return (
       <>
         {data.hits.map((hit) => (
-          <CharacterHitRow
-            key={hit.characterId}
-            characterId={hit.characterId}
-            name={hit.name}
-            avatarHash={hit.avatarHash}
-            genre={hit.genre}
-            tone={hit.tone}
-            pitch={hit.elevatorPitch}
-            relevance={hit.relevance}
-          />
+          <Stack key={hit.characterId} role="listitem">
+            <CharacterHitRow
+              characterId={hit.characterId}
+              name={hit.name}
+              avatarHash={hit.avatarHash}
+              genre={hit.genre}
+              tone={hit.tone}
+              pitch={hit.elevatorPitch}
+              relevance={hit.relevance}
+            />
+          </Stack>
         ))}
       </>
     );
@@ -205,14 +242,15 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
     return (
       <>
         {data.hits.map((hit) => (
-          <DigestHitRow
-            key={`${hit.blockKey.chatId}-${hit.blockKey.tier}-${hit.blockKey.blockIdx}`}
-            chatId={hit.blockKey.chatId}
-            chatTitle={hit.chatTitle}
-            scopedCharacterName={hit.scopedCharacterName}
-            text={hit.text}
-            relevance={hit.relevance}
-          />
+          <Stack key={`${hit.blockKey.chatId}-${hit.blockKey.tier}-${hit.blockKey.blockIdx}`} role="listitem">
+            <DigestHitRow
+              chatId={hit.blockKey.chatId}
+              chatTitle={hit.chatTitle}
+              scopedCharacterName={hit.scopedCharacterName}
+              text={hit.text}
+              relevance={hit.relevance}
+            />
+          </Stack>
         ))}
       </>
     );
@@ -221,7 +259,9 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
     return (
       <>
         {data.hits.map((hit) => (
-          <ImageHitRow key={hit.assetId} caption={hit.caption} relevance={hit.relevance} />
+          <Stack key={hit.assetId} role="listitem">
+            <ImageHitRow caption={hit.caption} relevance={hit.relevance} />
+          </Stack>
         ))}
       </>
     );
@@ -268,13 +308,13 @@ function CharacterHitRow({
 function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
   const groups = groupByChat(hit.segments);
   return (
-    <Stack gap="field">
+    <Stack gap="field" role="listitem">
       <ListRow
         clickable={true}
         onClick={(): void => selectCorpusCharacter(hit.characterId)}
         leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
         title={hit.name}
-        subtitle={`${hit.matchCount} matching moment${hit.matchCount === 1 ? "" : "s"}`}
+        subtitle={evidenceScent(hit.matchCount, hit.segments.length, groups.length)}
         actions={<RelevanceBadge relevance={hit.relevance} />}
       />
       <Stack className="pl-gutter" gap="field" data-testid={testId("corpusDiscoverEvidence")}>
@@ -283,7 +323,7 @@ function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
             <ListRow clickable={true} onClick={(): void => openChat(chatId)} title={chatSubtitle(segments[0]?.chatTitle ?? null, hit.name)} />
             {segments.map((segment) => (
               <Text key={`${chatId}-${segment.blockIdx}`} voice="gloss">
-                “{segment.snippet}”
+                “{snippetForDisplay(segment.snippet)}”
               </Text>
             ))}
           </Stack>
@@ -293,7 +333,23 @@ function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
   );
 }
 
-/** A memory (digest) hit — the memory, the room it happened in, and the door into that room. */
+/** A memory (digest) hit — the room it happened in, the memory itself, and the door into that room.
+ *
+ * THE ROOM IS THE NAME, THE MEMORY IS THE BODY (side-eye re-pass U2). This row had it inverted: `title` was
+ * the whole digest, so the row's primary line held 8030px of text inside a 221px column — 97% of it
+ * invisible — and, because a clickable `ListRow`'s title IS its accessible name, the button announced 1154
+ * characters (axe `label-content-name-mismatch`, WCAG 2.5.3: the spoken name has to contain the read label,
+ * and nothing here could read it). Twenty rows all opened with the same bracketed header, which is why five
+ * of them were visually indistinguishable.
+ *
+ * Swapped: the ROOM names the row (short, speakable, and the thing the click actually opens), and the digest
+ * becomes the two-line clamped body — where two rows from ONE room still read apart, because the clamp shows
+ * two lines of the memory instead of one clipped line of its header. No date is invented: `DigestSourceHit`
+ * carries no timestamp of its own and says why in its own contract header — whatever date a room's title
+ * holds is the room's authored name, which arrives here for free through the ONE title chain.
+ *
+ * The digest goes through the shared preview projection first, for the same reason the Scenes snippet does:
+ * a digest is raw model prose, and its markdown would render as literal syntax in the body line. */
 function DigestHitRow({
   chatId,
   chatTitle,
@@ -312,8 +368,9 @@ function DigestHitRow({
       clickable={true}
       onClick={(): void => openChat(chatId)}
       leading={<Icon icon={MessagesSquare} size="sm" />}
-      title={text}
-      subtitle={chatSubtitle(chatTitle, scopedCharacterName)}
+      title={chatSubtitle(chatTitle, scopedCharacterName)}
+      subtitle={snippetForDisplay(text)}
+      subtitleWrap={true}
       actions={<RelevanceBadge relevance={relevance} />}
     />
   );
@@ -332,11 +389,6 @@ function ImageHitRow({ caption, relevance }: { readonly caption: string | null; 
 function openChat(chatId: ChatId): void {
   setActiveSection("chats");
   selectChat(chatId);
-}
-
-/** The room's name for a subtitle: the ONE title chain, with the hit's own character as the cast rung. */
-function chatSubtitle(chatTitle: string | null, castName: string | null): string {
-  return deriveChatTitle(chatTitle, castName === null ? [] : [castName]);
 }
 
 // Quiet metadata (§6.3 P5): a relevance readout is a readout, not a pill — inline micro/mono/muted text,

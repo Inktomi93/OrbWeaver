@@ -17,6 +17,7 @@ import { useActiveChatId, useActiveSection } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The Corpus LIST navigator (omnibox + browse) over the real data layer. */
@@ -51,6 +52,35 @@ export function CorpusListSurfaceNavStory(): ReactElement {
         <CorpusListSurface />
         <NavReadout />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Corpus LIST navigator at an EXPLICIT pane width. The target picker is a FIT question — five cells
+ *  over a pane that is 320-360px in production — so its proof needs both ends of that range, not one width.
+ *  Fixed-width host (`overflow: visible`) so a content-sized root cannot agree with a wrapping bug. */
+export function CorpusListSurfaceWidthStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, overflow: "visible", width }}>
+        <CorpusListSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** THE RAIL BOUNCE (U1): the shell UNMOUNTS a section's LIST surface when you switch rails and mounts a
+ *  fresh one when you come back, which is why the omnibox's query and target have to live somewhere that
+ *  outlives the component. The switch here is that unmount/remount — the smallest honest stand-in for a rail
+ *  switch, and the exact thing that used to empty the box. */
+export function CorpusListSurfaceRailBounceStory(): ReactElement {
+  const [inCorpus, setInCorpus] = useState(true);
+  return (
+    <CtDataProviders>
+      <button type="button" onClick={(): void => setInCorpus((here) => !here)}>
+        {inCorpus ? "Leave Corpus" : "Back to Corpus"}
+      </button>
+      <div style={{ height: 640, width: 360 }}>{inCorpus ? <CorpusListSurface /> : <p>Another section</p>}</div>
     </CtDataProviders>
   );
 }

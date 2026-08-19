@@ -2,7 +2,7 @@ import type { AutocompletePositionerProps as BasePositionerProps, AutocompleteRo
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer } from "#lib";
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants.ts";
 
@@ -102,8 +102,13 @@ export interface AutocompleteProps extends AutocompletePassthrough {
 }
 
 /**
- * Announces the live result count to screen readers via `Autocomplete.Status`. Reads the
+ * Announces the live SUGGESTION count to screen readers via `Autocomplete.Status`. Reads the
  * library's own filtered-item set, flattening grouped entries to count leaf suggestions.
+ *
+ * "Suggestions", not "results" (side-eye corpus re-pass 2026-08-19, B3): this list is things to TYPE, and
+ * on a surface that renders its own hits below the field, announcing it as "2 results" over twenty rendered
+ * hits reported the wrong number for the wrong list. Combobox/Command keep `formatResultCount` — there the
+ * list IS the result set.
  */
 function AutocompleteResultStatus(): ReactElement {
   const filtered = BaseAutocomplete.useFilteredItems<unknown>();
@@ -113,7 +118,7 @@ function AutocompleteResultStatus(): ReactElement {
   }, 0);
   return (
     <BaseAutocomplete.Status className={slots.status()} data-slot="autocomplete-status">
-      {formatResultCount(count)}
+      {formatSuggestionCount(count)}
     </BaseAutocomplete.Status>
   );
 }

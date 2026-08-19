@@ -6,6 +6,13 @@
 // BM25 surface). With an empty query the omnibox rests on the BROWSE view — a facet filter over the
 // distilled catalog. Selecting any character hit drives the dossier in CONTENT (`selectCorpusCharacter`).
 // Per A2 the ONE primary here is the search itself; there is no create action in this section.
+//
+// THE SEARCH OUTLIVES THIS COMPONENT. Query + target live in `#state`'s corpus-search store, not in
+// `useState`: the shell UNMOUNTS a section's LIST surface on a rail switch, so component state meant that
+// opening a result's room and coming back emptied the box and reset the target — while the dossier
+// selection beside it survived, because that one is a store (side-eye corpus re-pass 2026-08-19, U1;
+// UI-Architecture-and-Layout.md's "per-section selection is REMEMBERED"). Session-scoped, not persisted —
+// the store's own header says why a reload should NOT re-ask yesterday's question.
 
 import { Autocomplete } from "@orb/ui/autocomplete";
 import { Icon, Search } from "@orb/ui/icons";
@@ -15,40 +22,62 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useDeferredValue, useRef, useState } from "react";
+import { useDeferredValue, useRef } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
+import { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "#state";
 import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
-import { CORPUS_SEARCH_TARGETS, CORPUS_SUGGEST_LIMIT, CORPUS_TARGET_REST_HINTS, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
+import {
+  CORPUS_SEARCH_TARGETS,
+  CORPUS_SUGGEST_LIMIT,
+  CORPUS_SUGGEST_SHOWN,
+  CORPUS_TARGET_REST_HINTS,
+  isCleanSuggestion,
+  resolveSearchTarget,
+} from "../lib/corpus-search-targets.ts";
 
 const DEFAULT_TARGET = CORPUS_SEARCH_TARGETS[0].id;
 const SKELETON_ROW_COUNT = 5;
 const MIN_SUGGEST_LEN = 2;
+/** The picker's grid: five cells over SIX tracks, so the two rows fill their width exactly — three
+ *  2-track cells, then two 3-track cells. See the wrap note on `CorpusListSurface`. */
+const PICKER_TRACKS = "grid w-full grid-cols-6";
+const PICKER_FIRST_ROW = 3;
 
 export function CorpusListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
-  const [query, setQuery] = useState("");
-  const [targetId, setTargetId] = useState<string>(DEFAULT_TARGET);
+  const query = useCorpusSearchQuery();
+  // The axis owns its own default: an unset/stale stored id resolves to the first target.
+  const targetId = resolveSearchTarget(useCorpusSearchTargetId()).id;
   const deferredQuery = useDeferredValue(query);
   const searching = deferredQuery.trim() !== "";
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusListSurface")} gap="block">
+      {/* THE PICKER WRAPS ON PURPOSE (side-eye corpus re-pass 2026-08-19 §5). Five content-sized cells in a
+          `w-fit` wrapping flex row missed one row by ~2px at the LIST pane's real width: "Memories" dropped
+          to a second line, leaving a 99px hole beside "Scenes" and a ragged right edge on the first thing
+          the pane shows. Five labels cannot fit one row at a 320-360px pane without truncating names that
+          ARE the vocabulary, so the wrap is made DELIBERATE and balanced instead of emergent: a 6-track grid
+          with 2-track cells on row one and 3-track cells on row two fills both rows exactly at EVERY width —
+          unconditional track sizing, no measurement, no count gate, and the mobile 4+1 ragged arm is gone
+          with it. */}
       <ToggleGroup
         aria-label="Search target"
+        className={PICKER_TRACKS}
         data-testid={testId("corpusSearchTarget")}
         value={[targetId]}
-        onValueChange={(picked): void => setTargetId((picked[0] ?? DEFAULT_TARGET) as string)}
+        onValueChange={(picked): void => setCorpusSearchTarget(picked[0] ?? DEFAULT_TARGET)}
       >
-        {CORPUS_SEARCH_TARGETS.map((target) => (
-          <Toggle key={target.id} value={target.id} aria-label={`Search ${target.label}`}>
+        {CORPUS_SEARCH_TARGETS.map((target, index) => (
+          <Toggle key={target.id} value={target.id} aria-label={`Search ${target.label}`} className={index < PICKER_FIRST_ROW ? "col-span-2" : "col-span-3"}>
             {target.label}
           </Toggle>
         ))}
       </ToggleGroup>
-      <SearchOmnibox query={query} deferredQuery={deferredQuery} onQuery={setQuery} />
+      <SearchOmnibox query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
       <Stack className="min-h-0 flex-1">
         {searching ? <CorpusSearchResults query={deferredQuery} targetId={targetId} /> : <CorpusRestState targetId={targetId} />}
       </Stack>
@@ -86,7 +115,8 @@ function SearchOmnibox({
   const suggestions = useQuery(
     trpc.search.suggest.queryOptions({ query: trimmed, limit: CORPUS_SUGGEST_LIMIT }, { enabled: trimmed.length >= MIN_SUGGEST_LEN }),
   );
-  const items = (suggestions.data ?? []).map((hit) => hit.suggestion);
+  const pool = (suggestions.data ?? []).map((hit) => hit.suggestion);
+  const items = suggestionsToShow(pool, trimmed);
 
   return (
     <Stack data-testid={testId("corpusSearchSuggest")}>
@@ -98,10 +128,42 @@ function SearchOmnibox({
         open={true}
         value={query}
         onValueChange={onQuery}
-        placeholder="Search characters, scenes, memories…"
+        // SHORT ENOUGH TO RENDER WHOLE (side-eye re-pass C9): the old line ("Search characters, scenes,
+        // memories…") clipped with NO ellipsis under the `reading` appearance preset — a placeholder cut
+        // mid-word reads as a rendering fault, and the per-target rest hint below already teaches what each
+        // target searches, so the placeholder only has to name the act.
+        placeholder="Search your corpus…"
       />
     </Stack>
   );
+}
+
+/** What the typeahead actually renders: server suggestions minus the junk, capped to what its bounded
+ *  in-flow box can SHOW.
+ *
+ *  Three measured defects, one seam (side-eye re-pass B4). (1) The list overflowed its own box —
+ *  `scrollHeight 210` vs `clientHeight 158`, two of six options cut with no visible scrollbar — because the
+ *  caller asked for eight suggestions while the shared inline list is deliberately a fixed ~4-row scroller
+ *  (it sits INSIDE this pane and may not grow it). Asking for more than fits is the caller's bug, so the
+ *  ask is capped here rather than the primitive's box being unsealed. (2) The suggest index leaks raw
+ *  tokenizer fragments (`"elf elf<"`), which teach nothing and cost a slot a real phrase wanted.
+ *  (3) The verbatim query already in the box was offered back as a suggestion — a row whose only effect is
+ *  to retype what you typed. The server keeps returning the wider set; only the DISPLAY is narrowed. */
+function suggestionsToShow(suggestions: readonly string[], query: string): readonly string[] {
+  const seen = new Set<string>([query.toLowerCase()]);
+  const kept: string[] = [];
+  for (const suggestion of suggestions) {
+    const key = suggestion.trim().toLowerCase();
+    if (key === "" || seen.has(key) || !isCleanSuggestion(suggestion)) {
+      continue;
+    }
+    seen.add(key);
+    kept.push(suggestion);
+    if (kept.length === CORPUS_SUGGEST_SHOWN) {
+      break;
+    }
+  }
+  return kept;
 }
 
 /** The empty-query rest state. Only the Characters target has a distilled catalog to rest on; every
