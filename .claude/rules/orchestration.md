@@ -183,10 +183,12 @@ Every lane, without being told per-brief:
   HMR onto the served page (client-file edits do). Rendered verification of a workspace-dep change is
   INVALID until you prove the served module (`curl :5173/@fs/<abs path> | grep <your symbol>`) or the
   stack restarts. Flag "needs restart" in your merge report whenever you touch those packages.
-- **Isolated AND --dirty snap stages carry a THIN db** (boot-seeded demo rooms only — never the
-  owner's imported corpus). A done-bar room by id is unreachable there; rendered receipts for
-  seeded-row surfaces come from CT or live-main. The stage band (`:8888`/`:5273`) is ONE pair —
-  if a sibling holds it, fall back to CT and say so; never tear a sibling's stage down.
+- **A snap stage's db is whatever its cached dir already holds** (corrected 2026-08-19 — the seed
+  copies the dev db only into a FRESH stage dir; a cached stage keeps its old state, which can be
+  thin). Verify provenance before using owner-corpus rows as receipts (fresh sha, or probe a known
+  row); when unverified, rendered receipts come from CT or live-main. Stage writes land in the
+  stage's copy — read-only discipline still applies to drives. The stage band (`:8888`/`:5273`) is
+  ONE pair — if a sibling holds it, fall back to CT and say so; never tear a sibling's stage down.
 - **`__orb.queries()` is a CACHE CENSUS, never an in-flight network count.** Any "N parallel
   queries" perf claim owes a network re-derivation before a dedupe is prescribed.
 - **A CPU profile's top self-time frame can be the INSTRUMENT** (dev-only tooling). Attribute before

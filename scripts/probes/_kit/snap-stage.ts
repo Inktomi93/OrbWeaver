@@ -19,10 +19,13 @@
 // LIFECYCLE (single active stage, keyed by sha — one fixed offset port pair, so it never self-collides):
 //   • Stage worktree cached at .cache/snap-stage/<short-sha>/ (`.cache/` is gitignored wholesale).
 //   • `pnpm install` there once — the shared pnpm store makes it cheap (hardlinks, no re-download).
-//   • The stage's OWN db — MEASURED 2026-08-18: NOT a copy of the dev db (a stage booted with 6 chats vs the
-//     live 895); boot-seeded content only. A seeded-row surface or a chat-by-id from the owner's corpus is
-//     unreachable here — rendered receipts for those come from CT or live-main. (ISOLATED, stage writes
-//     never touch dev's) + assets (symlink to the content-addressed dev blob dir; reads are safe).
+//   • The stage's OWN db — RECONCILED 2026-08-19 (two contradictory measurements, one mechanism): the seed
+//     copies the dev db ONLY when the stage dir has no db yet (`!existsSync(stageDb)` below), so a FRESH
+//     stage sha boots with a full dev-db copy while a CACHED stage keeps whatever it already had — which is
+//     how one stage measured 6 chats (stale cache, 2026-08-18) and the next measured the full corpus
+//     (fresh sha, same night). Rendered receipts against owner-corpus rows are valid ONLY on a stage whose
+//     db provenance you verified (fresh sha, or check a known row) — otherwise CT or live-main. (ISOLATED,
+//     stage writes never touch dev's) + assets (symlink to the content-addressed dev blob dir; reads safe).
 //   • Boots the WORKTREE's stack.sh with offset PORT/VITE_PORT/VITE_API_TARGET/DATABASE_URL/ASSETS_DIR, and
 //     stays WARM (setsid-detached) for reuse across snap calls.
 //   • A new HEAD sha ⇒ the active stage is stale ⇒ rebuild (the stale one is torn down first). `--fresh`
