@@ -47,6 +47,9 @@ export async function login(handle: Handle, password: string): Promise<void> {
   const res = await fetch("/api/auth/login", {
     method: "POST",
     credentials: "same-origin",
+    // The login route requires the custom CSRF header (a cross-site form-POST cannot set it without a
+    // preflight this app never grants → blocks login-CSRF). Same belt as logout; presence is enough.
+    headers: { [CSRF_HEADER]: "1" },
     body,
   });
   if (!res.ok) {
@@ -63,6 +66,9 @@ export async function firstRunSetup(password: string): Promise<void> {
   const res = await fetch("/api/auth/first-run", {
     method: "POST",
     credentials: "same-origin",
+    // Same CSRF belt as login: the header a cross-site page cannot forge blocks a first-run CSRF driven from
+    // the owner's own (loopback-peer) browser, which the route's peer gate does not stop.
+    headers: { [CSRF_HEADER]: "1" },
     body: new URLSearchParams({ password }),
   });
   if (!res.ok) {

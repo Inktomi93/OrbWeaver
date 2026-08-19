@@ -19,7 +19,7 @@ import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { Context, Hono } from "hono";
+import type { Context, Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
@@ -399,14 +399,31 @@ function loginHandleThrottler(deps: AuthRoutesDeps): RateLimiter {
   });
 }
 
-/** Register `POST /api/auth/login` (local mode only): body cap → per-IP throttle → per-HANDLE throttle →
- *  verify → mint cookie. The two throttle axes are independent and BOTH must pass (B1). */
+/**
+ * The CSRF belt for the FORM-encoded mint routes (login + first-run). Both read a CORS-SIMPLE body
+ * (`parseBody` → application/x-www-form-urlencoded / multipart), so entry/app.ts's JSON-only tRPC content-type
+ * belt never reaches them — a cross-site `<form>` auto-POST arrives here with no preflight and no CORS grant.
+ * Without this belt that is a CSRF: login-CSRF logs the victim into the ATTACKER's account, and first-run CSRF
+ * sets the owner password (the loopback-peer gate does NOT stop that class — the owner's OWN browser is a
+ * loopback peer, so a cross-origin page the owner visits satisfies it). Require the custom `x-orb-csrf` header
+ * a cross-site page cannot set without a preflight this app never grants — the SAME belt logout uses (spine
+ * invariant #9). Runs as a route belt BEFORE the handler, so a CSRF-less request is refused before any
+ * throttle / origin gate / body parse / scrypt work. The same-origin client always sends it
+ * (data/auth-bootstrap.ts login + firstRunSetup).
+ */
+const csrfGuard: MiddlewareHandler = (c, next) =>
+  hasCsrfHeader(c.req.raw.headers) ? next() : Promise.resolve(c.json({ error: "missing CSRF header" }, FORBIDDEN));
+
+/** Register `POST /api/auth/login` (local mode only): CSRF belt → body cap → per-IP throttle → per-HANDLE
+ *  throttle → verify → mint cookie. The two throttle axes are independent and BOTH must pass (B1). */
 function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
   // Body-limit belt runs first so a huge POST is rejected before the body buffers; the throttles then cap
   // brute-force + scrypt-CPU-flood.
   const loginLimiter = loginThrottler(deps);
   const handleLimiter = loginHandleThrottler(deps);
-  app.post(LOGIN_ROUTE, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+  app.post(LOGIN_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+    // CSRF is enforced by the `csrfGuard` belt above (spine invariant #9) — it runs before this handler (and
+    // before the body is buffered), so a cross-site form-POST is refused before the throttle / scrypt work here.
     // The IP axis stays FIRST — it is the cheaper decision (no body parse) and it is the one that caps the
     // scrypt-CPU flood from a single source.
     const throttled = await throttleLogin(loginLimiter, c);
@@ -438,13 +455,15 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
   });
 }
 
-/** B4 — register `POST /api/auth/first-run` (local mode only): origin gate → body cap → per-IP throttle →
- *  min-length → ONE-SHOT owner-password claim → mint cookie. Guarded like the owner-fallback (see
+/** B4 — register `POST /api/auth/first-run` (local mode only): CSRF belt → origin gate → body cap → per-IP
+ *  throttle → min-length → ONE-SHOT owner-password claim → mint cookie. Guarded like the owner-fallback (see
  *  {@link FirstRunRouteDeps}): only reachable from a local/trusted origin, and it can never overwrite an
- *  owner credential that is already set (the claim is null-guarded and atomic). */
+ *  owner credential that is already set (the claim is null-guarded and atomic). The CSRF belt is NOT redundant
+ *  with the peer gate — the owner's own browser is a loopback peer, so only the header stops a cross-origin
+ *  page the owner visits from driving the owner-password set (see {@link csrfGuard}). */
 function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstRunRouteDeps): void {
   const limiter = loginThrottler(deps);
-  app.post(FIRST_RUN_ROUTE, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+  app.post(FIRST_RUN_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     // Peer gate FIRST: an unauthenticated password-set must never be reachable off-box (owner-fallback
     // parity, #298 f2 — the LOOPBACK TCP peer, not the client `Host`). A LAN/public local deploy sets
     // LOCAL_INITIAL_PASSWORD instead of using this screen.

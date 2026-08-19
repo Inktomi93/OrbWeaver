@@ -203,13 +203,16 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
   // RED-FIRST: on the unmodified `via === "cookie"` guard the fallback+no-header case DISPATCHES the owner
   // write (202, `started` carries the owner id — the exploit); after the `via !== "header"` fix it is 403.
   test("bundle route CSRF (#300): a fallback principal WITHOUT x-orb-csrf → 403, no owner write dispatched", async (): Promise<void> => {
-    const started: UserId[] = [];
-    const recordingWorkloads = {
-      start: (args: { readonly ownerId: UserId }): Promise<{ id: WorkloadId }> => {
+    // A real typed double (no fabrication cast): annotating with the port type gives `args` the true
+    // `StartWorkloadParams` shape, so `start` cannot silently drift if that contract changes. `ownerId` is
+    // `UserId | null` on the real params, hence the widened recorder element type below.
+    const started: (UserId | null)[] = [];
+    const recordingWorkloads: ImportBundleDeps["workloads"] = {
+      start: (args): Promise<{ id: WorkloadId }> => {
         started.push(args.ownerId);
         return Promise.resolve({ id: castId<WorkloadId>("wl_csrf_test") });
       },
-    } as unknown as ImportBundleDeps["workloads"];
+    };
     const routes = captureImport({ workloads: recordingWorkloads });
     const handler = routes.get("POST /api/import/bundle");
     if (handler === undefined) {

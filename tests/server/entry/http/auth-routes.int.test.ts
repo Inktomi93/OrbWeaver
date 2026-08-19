@@ -71,13 +71,15 @@ async function appWith(over: Partial<AuthRoutesDeps> = {}): Promise<Hono> {
   return app;
 }
 
-/** POST a form-encoded login body from a given fake peer IP. */
+/** POST a form-encoded login body from a given fake peer IP. Carries the `x-orb-csrf` header by default —
+ *  the SAME-ORIGIN client always sends it (data/auth-bootstrap.ts), so the behavioral arms model a real
+ *  login; the CSRF-gate arms below inline `app.request` to omit it (the cross-origin form-POST shape). */
 async function postLogin(app: Hono, ip: string, body: Record<string, string>, extraHeaders: Record<string, string> = {}): Promise<Response> {
   return await app.request(
     LOGIN,
     {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded", ...extraHeaders },
+      headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1", ...extraHeaders },
       body: new URLSearchParams(body).toString(),
     },
     connEnv(ip),
@@ -103,6 +105,53 @@ describe("local login — behavioral (real app + freshDb)", () => {
     const app = await appWith();
     const res = await postLogin(app, "10.0.0.3", { handle: "owner" });
     expect(res.status).toBe(400);
+  });
+});
+
+// LOGIN CSRF gate. Login is form-encoded (CORS-simple), so the JSON content-type belt at entry/app.ts never
+// reaches it — a cross-site page could auto-POST a `<form>` to log the victim into the ATTACKER's account
+// (login-CSRF). The custom `x-orb-csrf` header a cross-site page cannot set without a preflight this app
+// never grants is the fix (the same belt logout uses; spine invariant #9). Same-origin client always sends it.
+describe("login — CSRF gate (real app)", () => {
+  /** The cross-origin form-POST shape: a form-urlencoded body with NO custom header (a `<form>` auto-POST
+   *  cannot set one). Bypasses the `postLogin` helper, which injects `x-orb-csrf` like the real client. */
+  const postLoginNoCsrf = async (app: Hono, ip: string): Promise<Response> =>
+    app.request(
+      LOGIN,
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ handle: "owner", password: "hunter2pw" }).toString(),
+      },
+      connEnv(ip),
+    );
+
+  test("cross-origin form-POST login WITHOUT the CSRF header → 403, no cookie (blocks login-CSRF)", async () => {
+    const app = await appWith();
+    const res = await postLoginNoCsrf(app, "10.9.9.1");
+    expect(res.status).toBe(403);
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  test("WITH the CSRF header → 200 + session cookie (the same-origin client sends it)", async () => {
+    const app = await appWith();
+    const res = await postLogin(app, "10.9.9.2", { handle: "owner", password: "hunter2pw" });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie") ?? "").toContain(`${COOKIE}=tok-123`);
+  });
+
+  test("the CSRF gate fires BEFORE the per-IP throttle (a CSRF-less flood never burns the victim's bucket)", async () => {
+    // 20 CSRF-less POSTs from one IP all 403; a legitimate login from that same IP still succeeds — proof the
+    // 403s consumed no throttle points (a >10 burst would otherwise have tripped the 10/min/IP cap).
+    const app = await appWith();
+    const attacker = "10.9.9.3";
+    for (let i = 0; i < 20; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: sequential — asserting the throttle bucket is untouched.
+      const res = await postLoginNoCsrf(app, attacker);
+      expect(res.status).toBe(403);
+    }
+    const legit = await postLogin(app, attacker, { handle: "owner", password: "hunter2pw" });
+    expect(legit.status).toBe(200);
   });
 });
 
@@ -252,7 +301,13 @@ describe("first-run owner-password setup (B4) — real app + freshDb", () => {
   async function postFirstRun(app: Hono, ip: string, password: string): Promise<Response> {
     return await app.request(
       firstRunPath,
-      { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ password }).toString() },
+      {
+        method: "POST",
+        // The same-origin client sends the CSRF header (data/auth-bootstrap.ts firstRunSetup); the behavioral
+        // arms model that. The CSRF-gate arm below inlines a request omitting it (the cross-origin shape).
+        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1" },
+        body: new URLSearchParams({ password }).toString(),
+      },
       connEnv(ip),
     );
   }
@@ -283,6 +338,26 @@ describe("first-run owner-password setup (B4) — real app + freshDb", () => {
     expect(res.headers.get("set-cookie")).toBeNull();
     // The password-set was never even attempted from an untrusted origin.
     expect(fr.calls).toEqual([]);
+  });
+
+  // CSRF gate: the loopback-peer origin gate does NOT stop this class — the owner's OWN browser is a loopback
+  // peer, so a cross-origin page the owner visits could drive the unauthenticated owner-password set. The
+  // custom header a cross-site page cannot set (without a preflight this app never grants) is the real fix.
+  test("a LOCAL origin but NO CSRF header → 403 BEFORE the claim (blocks first-run CSRF from the owner's browser)", async () => {
+    const fr = firstRunStub({ originAllowed: true, claim: castId<UserId>("usr_owner") });
+    const app = await appWith({ firstRun: fr.deps });
+    const res = await app.request(
+      firstRunPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ password: "hunter2password" }).toString(),
+      },
+      connEnv("10.0.1.9"),
+    );
+    expect(res.status).toBe(403);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(fr.calls).toEqual([]); // the password-set was never attempted
   });
 
   test("a too-short password → 400, no claim attempted", async () => {
