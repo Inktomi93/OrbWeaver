@@ -1,7 +1,9 @@
 // CT: the regex MEMBER EDITOR mounted in CONTENT (config-rail C-7). It replaces the settings pane's
 // Dialog-in-a-modal without changing one field: the same authored set (name · find pattern · replace ·
 // placement chips · enabled · run-on-edit) bound to the same autosave form, saving through the same
-// `regex.updateScript` verb — and the delete verb, which the pane's list used to own.
+// `regex.updateScript` verb. The editor is autosave-ONLY now — DELETE converged onto the ROW's kebab
+// (config-delete #271), where it already lived alongside Duplicate · Export; its wire proof is in
+// `regex-collection-rows.ct.tsx`.
 //
 // The autosave writes are asserted at the WIRE (busDriven — the stubbed response doesn't refetch), the same
 // way the retired pane CT did.
@@ -14,7 +16,6 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { RegexMemberStory } from "../_ct-stories.tsx";
 
 const RUN_ON_EDIT = /Run on edit/;
-const DELETE_CASCADE = /removes it from every preset, character, and room/;
 
 const SCRIPT = {
   id: "regex_script_stripooc",
@@ -37,7 +38,6 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "regex.listScripts": () => [SCRIPT],
     "regex.listGlobal": () => [],
     "regex.updateScript": () => SCRIPT,
-    "regex.removeScript": () => ({ deleted: true }),
   });
 }
 
@@ -122,13 +122,13 @@ test("a narrowed bound rides the save; dropping the chip drops the controls AND 
   await expect.poll(() => savedDepth(trpc), { intervals: [50, 100, 250, 500], timeout: 5000 }).toBeUndefined();
 });
 
-test("delete confirms, then fires removeScript", async ({ mount, page }) => {
-  const trpc = await stub(page);
+// DELETE IS NO LONGER A BUTTON IN THIS EDITOR — it converged onto the row's kebab (config-delete #271). The
+// editor's own destructive control is gone; its absence here is the other half of that convergence's proof.
+test("the editor carries no Delete button — the row's kebab owns that verb now", async ({ mount, page }) => {
+  await stub(page);
   const editor = await mount(<RegexMemberStory />);
-  await editor.getByRole("button", { name: "Delete" }).click();
-  await expect(page.getByText(DELETE_CASCADE)).toBeVisible();
-  await page.getByRole("button", { name: "Delete", exact: true }).last().click();
-  await expect.poll(() => trpc.lastInput("regex.removeScript"), { intervals: [20, 50, 100] }).toEqual({ scriptId: SCRIPT.id });
+  await expect(editor.getByRole("heading", { name: "strip ooc", exact: true })).toBeVisible();
+  await expect(editor.getByRole("button", { name: "Delete" })).toHaveCount(0);
 });
 
 test("a deleted member says so instead of rendering a dead form", async ({ mount, page }) => {
