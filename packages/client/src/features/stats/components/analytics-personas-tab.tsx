@@ -51,18 +51,21 @@ function PersonasBody(): ReactElement {
         {personas.length === 0 ? (
           <Text voice="gloss">You haven't played as any persona yet.</Text>
         ) : (
-          <Stack gap="row" role="list">
-            {personas.map((persona) => (
-              <ListRow
-                key={persona.personaId}
-                title={persona.name}
-                subtitle={`${formatCompact(persona.chatCount)} chats · ${formatCompact(persona.messageCount)} messages${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
-                actions={
-                  <Text voice="gloss" className="whitespace-nowrap font-mono">
-                    {formatTokens(persona.tokensOut)}
-                  </Text>
-                }
-              />
+          /* `role="list"` needs `listitem` CHILDREN or every row is generic to AT and the list announces
+             empty (side-eye ANALYTICS 2026-08-19, P2c). The wrapper carries the role, never the ListRow. */
+          <Stack aria-label="Personas" gap="row" role="list">
+            {personas.map((persona, index) => (
+              <Stack aria-posinset={index + 1} aria-setsize={personas.length} key={persona.personaId} role="listitem">
+                <ListRow
+                  title={persona.name}
+                  subtitle={`${formatCompact(persona.chatCount)} chats · ${formatCompact(persona.messageCount)} messages${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
+                  actions={
+                    <Text voice="gloss" className="whitespace-nowrap font-mono">
+                      {formatTokens(persona.tokensOut)}
+                    </Text>
+                  }
+                />
+              </Stack>
             ))}
           </Stack>
         )}

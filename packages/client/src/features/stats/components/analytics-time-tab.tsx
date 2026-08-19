@@ -44,12 +44,14 @@ function TimeBody(): ReactElement {
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsTimeTab")}>
       <LibraryScopeNotice reason="Daily activity is rolled up per day across every character, with no per-character breakdown to narrow to." />
 
+      {/* `formatCompact` on the value axis, like every figure beside it: the token histogram used to print
+          raw digits while the stat rows printed "1.2M" — one surface, two number vocabularies (P2f). */}
       <Section heading="Daily replies">
-        <Histogram buckets={dailyTurnBuckets(points)} label="Assistant turns per day" />
+        <Histogram buckets={dailyTurnBuckets(points)} countFormatter={formatCompact} label="Assistant turns per day" />
       </Section>
 
       <Section heading="Daily tokens">
-        <Histogram buckets={dailyTokenBuckets(points)} label="Output tokens per day" />
+        <Histogram buckets={dailyTokenBuckets(points)} countFormatter={formatCompact} label="Output tokens per day" />
       </Section>
 
       <RhythmFigures temporal={temporal} />
@@ -64,7 +66,7 @@ function TimeBody(): ReactElement {
             Peak: {peak} ({formatCompact(heatmap.peak?.count ?? 0)})
           </Text>
         )}
-        <Heatmap label="Messages by weekday and hour (UTC)" matrix={activityHeatmapMatrix(heatmap.matrix)} />
+        <Heatmap countFormatter={formatCompact} label="Messages by weekday and hour (UTC)" matrix={activityHeatmapMatrix(heatmap.matrix)} />
       </Section>
     </Stack>
   );
