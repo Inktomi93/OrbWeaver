@@ -11106,21 +11106,21 @@
       },
       "receipt": {
         "path": "docs/design/list-pane-projection-proposal.md",
-        "assignedSha256": "5da7af6c07564ff8baa55b4160a3f7e9bfe1e1dce27a269b4535dca0ab56913f",
+        "assignedSha256": "5417b5a1b4ec187a6068d4ee10170e6dd9010db21427e04057904d16b8d0da17",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "5da7af6c07564ff8baa55b4160a3f7e9bfe1e1dce27a269b4535dca0ab56913f",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "5417b5a1b4ec187a6068d4ee10170e6dd9010db21427e04057904d16b8d0da17",
+        "verifiedCommit": "54e813466f2a7ac3eceb448c4ba49cd85d677ec9",
+        "verifiedAt": "2026-08-19",
         "evidence": [
-          "docs/design/list-pane-projection-proposal.md:1 (spec; draft)",
-          "git log --oneline -1 -- docs/design/list-pane-projection-proposal.md: c8bdf92bf docs(history): archive three closed programs + two closed reviews (2nd sweep)",
+          "docs/design/list-pane-projection-proposal.md:1 (spec; archived, BUILT)",
+          "git log --oneline -1 -- docs/design/list-pane-projection-proposal.md: 54e813466 docs(list-pane-projection): truth-repair D2 citation authority (#264)",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
         "summary": "LIST-PANE PROJECTION — the character screen's pane becomes her chats (face → history → play): full content read against frozen tree; landed-state record retained as historical evidence."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/lite-plus-guided-substrate-spec.md",
