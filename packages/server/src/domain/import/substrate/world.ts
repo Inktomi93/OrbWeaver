@@ -8,9 +8,14 @@
 // the SAME shared mapper (`loreEntryColumns` + `loreEntryMetadata`) an embedded card book uses — embedded and
 // standalone converge on ONE entry-normalization path (position/at-depth/constant all resolved identically).
 // The book NAME comes from the filename (an ST worlds file carries no internal name).
+//
+// ONE deliberate divergence from the shared mapper lives here: `metadata.keyMode` is DERIVED from the
+// delimited key form (`/re/flags`) because this format has no `use_regex` field to carry it — see
+// `stEntryKeyMode` and owner ruling 2026-08-19 (#268 arm (a)).
 
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
+import { isDelimitedKeyPattern } from "@orb/kit/world-info";
 import { loreEntryColumns, loreEntryMetadata } from "#kit/serde/card";
 
 /** ST-native world entries object → order-preserving list of entry OBJECTS (non-object junk dropped). ST keys
@@ -40,9 +45,31 @@ function toCharacterBookEntry(stEntry: Record<string, unknown>): Record<string, 
   };
 }
 
+/** Derive `metadata.keyMode` for a NATIVE ST world entry: this format carries NO `use_regex` field, so a key
+ *  written in the delimited form (`/he(llo|y)/i`) is the only signal its author had that the key is a pattern
+ *  — honoring it here is format fidelity, not a semantic change (owner ruling 2026-08-19, #268 arm (a): the
+ *  delimited form IS this format's regex marker; card-embedded books keep flag-only semantics, and no stored
+ *  entry is ever re-interpreted). Scoped to THIS parser deliberately — the shared entry mapper stays
+ *  flag-only, so an embedded book with a delimited-looking key still imports literal.
+ *
+ *  ANY delimited key flips the whole entry, because `keyMode` is per-entry while ST's form is per-key: a
+ *  mixed entry's plain siblings then compile as (unanchored) patterns, which is a small precision loss —
+ *  the alternative, requiring every key to be delimited, leaves the author's actual pattern inert, which is
+ *  exactly the bug. An unparseable sibling still falls back to the literal compile (`keyRegex`). */
+function stEntryKeyMode(adapted: Record<string, unknown>, metadata: Record<string, unknown>): Record<string, unknown> {
+  if (metadata["keyMode"] !== undefined) {
+    return metadata;
+  }
+  const keys = Array.isArray(adapted["keys"]) ? adapted["keys"] : [];
+  if (!keys.some((k) => typeof k === "string" && isDelimitedKeyPattern(k))) {
+    return metadata;
+  }
+  return { ...metadata, keyMode: "regex" };
+}
+
 function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput {
   const adapted = toCharacterBookEntry(stEntry);
-  return { ...loreEntryColumns(adapted), metadata: loreEntryMetadata(adapted) };
+  return { ...loreEntryColumns(adapted), metadata: stEntryKeyMode(adapted, loreEntryMetadata(adapted)) };
 }
 
 /** Parse an ST-native `worlds/<name>.json` upload into the canonical lorebook shape, or null when the bytes

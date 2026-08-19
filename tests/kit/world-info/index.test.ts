@@ -2,6 +2,7 @@ import {
   buildKeywordHaystack,
   ENTRY_POSITIONS,
   ENTRY_SCOPE_MODES,
+  isDelimitedKeyPattern,
   keyRegex,
   matchEntryKeys,
   resolveEntryInjection,
@@ -201,6 +202,22 @@ test("an INVALID or over-complex regex key falls back to a literal match and war
   // The ReDoS heuristic (the `@orb/kit/regex` executor's cap) rejects a stacked-quantifier pattern the same way.
   expect(matchEntryKeys(["(a+)+(b+)+(c+)+"], "plain text", { keyMode: "regex", onKeyCompileFailure })).toEqual([]);
   expect(failures).toEqual(["(unclosed", "(unclosed", "(a+)+(b+)+(c+)+"]);
+});
+
+test("isDelimitedKeyPattern recognizes ONLY a genuine /pattern/flags key (#268 arm (a) detector)", () => {
+  expect(isDelimitedKeyPattern("/he(llo|y)/i")).toBe(true);
+  expect(isDelimitedKeyPattern("/x/")).toBe(true);
+  expect(isDelimitedKeyPattern("/a.b/gimsu")).toBe(true);
+  // Literal keys a user may legitimately have typed — a false positive here would silently turn one into a
+  // pattern at import.
+  expect(isDelimitedKeyPattern("and/or")).toBe(false); // no opening delimiter
+  expect(isDelimitedKeyPattern("/path/to/file")).toBe(false); // "file" is not a flag string
+  expect(isDelimitedKeyPattern("/unclosed")).toBe(false); // no closing delimiter
+  expect(isDelimitedKeyPattern("//")).toBe(false); // empty pattern
+  expect(isDelimitedKeyPattern("he(llo|y)")).toBe(false); // bare form: valid in regex MODE, not a marker
+  // Same guards `keyRegex` applies: a syntax error or a stacked-quantifier ReDoS shape is not a pattern.
+  expect(isDelimitedKeyPattern("/(unclosed/i")).toBe(false);
+  expect(isDelimitedKeyPattern("/(a+)+(b+)+(c+)+/")).toBe(false);
 });
 
 test("resolveEntryKeyMode reads metadata.keyMode in isolation, defaulting to literal", () => {
