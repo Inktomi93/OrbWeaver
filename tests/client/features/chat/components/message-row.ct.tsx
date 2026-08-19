@@ -1730,6 +1730,54 @@ test("without a bg image the swipe strip stays unbacked — don't chip what does
   expect(backdrop).toBe("none");
 });
 
+// ── #312: THE SWIPE STRIP RIDES THE TRAILING EDGE, aligned with the row's other actions ────────────
+// Owner-observed: the ‹ n/m › pager sat LEFT-by-omission — it is a `w-fit` chip and a direct child of the
+// content column (a `flex-col` Stack whose cross-start is the LEFT edge), while every other row action
+// (edit/fork/kebab, in the name row) packs to the TRAILING edge. It belongs with them. The fix places the
+// chip at the column's RIGHT edge (`self-end`) so its right edge shares the actions cluster's right edge —
+// verified across a NARROW and a WIDE column (a point measurement never proves a range property), because a
+// left-aligned chip and a trailing one only diverge once the column is wider than the chip.
+//
+// The strip is an assistant-only affordance and the name row's actions are trailing for the assistant side,
+// so the two clusters share ONE right edge; the assertion is that shared edge, not a hardcoded coordinate.
+for (const width of [360, 720] as const) {
+  test(`the swipe strip packs to the content column's trailing edge, with the row actions (#312, ${width}px)`, async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+    const component = await mount(
+      <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} width={width} />,
+    );
+    const strip = component.locator(SWIPE_STRIP);
+    await expect(strip).toHaveCount(1);
+    // The full pager is present (the story seeds variantCount 3), so the chip is genuinely narrower than
+    // the column — the precondition that makes "left vs trailing" an observable difference at all.
+    await expect(strip.getByRole("button", { name: "Next variant" })).toBeVisible();
+
+    const stripBox = await strip.boundingBox();
+    const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
+    const actionsBox = await component.locator(ACTIONS_ROW).boundingBox();
+    const stripRight = (stripBox?.x ?? 0) + (stripBox?.width ?? 0);
+    const columnRight = (columnBox?.x ?? 0) + (columnBox?.width ?? 0);
+    const actionsRight = (actionsBox?.x ?? 0) + (actionsBox?.width ?? 0);
+
+    // A genuine chip: narrower than the column, so its horizontal position is not forced.
+    expect(stripBox?.width ?? 0).toBeGreaterThan(0);
+    expect(stripBox?.width ?? 0).toBeLessThan((columnBox?.width ?? 0) - 8);
+    // It sits at the TRAILING edge — its right edge is the column's right edge (the mirror of the metadata
+    // row, whose chips hug the column's LEFT edge). This is THE fix: left-by-omission fails here.
+    expect(Math.abs(stripRight - columnRight)).toBeLessThan(2);
+    // …the SAME trailing edge the edit/kebab cluster packs to (the owner's "aligned with the actions"). The
+    // strip reaches at least as far right as the kebab and no further than a bubble's inner padding past it:
+    // the actions live INSIDE the bubble (inset by its right padding) while the strip is a sibling below it
+    // at the column's outer edge, so a few px of overhang is the padding, not a misalignment. A left-hugging
+    // strip (old source) sits hundreds of px LEFT of the kebab and fails the first of these.
+    expect(stripRight).toBeGreaterThanOrEqual(actionsRight - 2);
+    expect(stripRight - actionsRight).toBeLessThan(24);
+    // …and it is genuinely PUSHED right, not full-width or left-hugging: its left edge is well clear of the
+    // column's left edge (a left-by-omission chip fails here — its left edge would BE the column's left).
+    expect((stripBox?.x ?? 0) - (columnBox?.x ?? 0)).toBeGreaterThan(24);
+  });
+}
+
 // ── #220: THE MOBILE NAME BAND'S BUDGET — identity first, chrome second ──────────────────────────────
 //
 // MEASURED on --mobile (chats-rescore 2026-08-18): the speaker name held 65×49px — 16% of the band,
