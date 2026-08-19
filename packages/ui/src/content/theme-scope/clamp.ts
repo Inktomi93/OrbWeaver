@@ -24,7 +24,14 @@
 // serving both jobs is exactly how #204 happened — a light palette's dark inks landed on the app's fixed
 // dark smoke. A token names ONE polarity semantic.
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
-import { THEME_DERIVATION as KIT_THEME_DERIVATION, oklabToOklch, proseInkLightness, readingPlateAlpha, srgbToOklch } from "@orb/kit/theme-derivation";
+import {
+  THEME_DERIVATION as KIT_THEME_DERIVATION,
+  oklabToOklch,
+  proseInkLightness,
+  READING_BAND_ALPHA,
+  readingPlateAlpha,
+  srgbToOklch,
+} from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 
@@ -111,6 +118,10 @@ export const THEME_SCOPE_EMIT_VARS = [
   // alpha (#217) — the one ramp member with its own alpha, because it composites over wallpaper art.
   // Never `--color-backdrop`.
   "--color-reading-plate",
+  // …and its OPAQUE sibling, the sticky attribution BAND (#241): the SAME derived colour at alpha 1, so
+  // the band and the prose plate under it can never step apart. Emitted rather than left to the base
+  // theme because it backs the CARRIED palette's own prose — the #204 two-polarity paragraph.
+  "--color-reading-band",
   // Neutral foregrounds, derived for contrast from the surface they sit on — never picked directly.
   "--color-foreground",
   "--color-card-foreground",
@@ -307,6 +318,24 @@ function readingPlateOn(background: string, base: ParsedOklch | null): string {
 }
 
 /**
+ * The STICKY ATTRIBUTION BAND for a picked base (#241): the plate's colour at `READING_BAND_ALPHA`.
+ *
+ * It is spelled as the SAME one-base L shift rather than as a relative colour off the emitted plate
+ * (`oklch(from var(--color-reading-plate) l c h / 1)`) for two reasons, both load-bearing: the plate's
+ * alpha is polarity-DERIVED in node, so a var-origin form would make the band's value depend on a
+ * substitution this function cannot judge; and every other derived token here is computed single-level
+ * off the base, never nested off an already-derived surface (see `foregroundOnShifted`). The alpha slot
+ * is spelled EXPLICITLY — relative-colour syntax inherits the ORIGIN's alpha for an omitted slot, and
+ * the origin here is a background that may itself be translucent.
+ *
+ * It needs no `base` and no fail-open arm: unlike the plate's alpha there is nothing to solve, so an
+ * unjudgeable base (a named colour) still gets a correct band.
+ */
+function readingBandOn(background: string): string {
+  return `oklch(from ${background} calc(l + ${KIT_THEME_DERIVATION.readingPlate.deltaL}) c h / ${READING_BAND_ALPHA})`;
+}
+
+/**
  * ONE author-picked prose ink, judged against the base surface it will be painted on (`null` ⇒ nothing
  * statically readable to judge against ⇒ fail open, the pre-#204 pass-through).
  *
@@ -411,6 +440,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string): Clam
     // The plate derives from the CARRIED base only — never the ambient one (#236): this branch runs
     // only when a background IS carried, and its alpha must answer the art behind THIS scope's surface.
     vars["--color-reading-plate"] = readingPlateOn(t.background, carriedBase);
+    vars["--color-reading-band"] = readingBandOn(t.background);
     vars["--color-accent-foreground"] = foregroundOnShifted(t.background, RAMP_DL_ACCENT);
     const fg = foregroundOn(t.background);
     vars["--color-foreground"] = fg;

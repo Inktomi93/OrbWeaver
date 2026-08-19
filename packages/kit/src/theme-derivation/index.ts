@@ -38,7 +38,11 @@
  *  1.32→6.79 and body 1.14→14.33 while the dark-art room stayed 12.06/13.60 and visually identical),
  *  pinned by the plate-floor proof in `palette-contrast.suite.test.ts`. `alpha` is the FLOOR the
  *  polarity-aware {@link readingPlateAlpha} starts from, no longer the emitted value for every palette
- *  (#217 — read that function's contract for the algebra and for `inkReferenceRatio`). */
+ *  (#217 — read that function's contract for the algebra and for `inkReferenceRatio`).
+ *
+ *  The plate's OPAQUE sibling — the sticky attribution BAND — is {@link readingBandSurface}: the same
+ *  `deltaL` off the same base, at {@link READING_BAND_ALPHA}. It carries no alpha of its own to declare
+ *  here precisely because it is the plate at α 1 (#241). */
 export const THEME_DERIVATION = {
   fgPivotL: 0.62,
   fgSteepness: 1000,
@@ -344,6 +348,38 @@ export function readingPlateAlpha(base: Oklch): number {
     }
   }
   return 1;
+}
+
+/**
+ * THE STICKY ATTRIBUTION BAND'S ALPHA — opaque, and that is an OWNER RULING, not a tuning (#168,
+ * re-stated as the hard constraint of #241's ruling). A pinned band that lets the prose it is pinned
+ * over show through does not own its slice; the band is the one over-prose backing in the transcript
+ * that must OCCLUDE. Named rather than inlined because relative-colour syntax DEFAULTS the omitted
+ * alpha slot to the ORIGIN's — deriving the band off a translucent plate without spelling `/ 1` would
+ * silently reproduce the translucency this constant exists to refuse (the same fixed-point that bit the
+ * §7a ink clamp, stickler F1).
+ */
+export const READING_BAND_ALPHA = 1;
+
+/**
+ * THE STICKY ATTRIBUTION BAND'S COLOUR for a base surface — the reading plate's colour, at
+ * {@link READING_BAND_ALPHA} (#241, owner-ruled off #223).
+ *
+ * WHY IT IS THE PLATE AND NOT A RAMP MEMBER. The band shipped as the `card` ramp surface
+ * (`base + ramp.card`, +0.047) while the prose under it rides the plate (`base + readingPlate.deltaL`,
+ * −0.038): two backings on ONE column, a constant ΔL ≈ 0.085 apart, which the owner filed as an
+ * unintentional-looking step ("two stacked whites of different opacity per message"). Deriving the band
+ * FROM the plate makes the step disappear BY CONSTRUCTION rather than by matching two numbers that can
+ * drift apart again — the same one-home move D144(b) made for the plate itself. There is no separate
+ * `deltaL` to tune here on purpose: a band that is anything other than the plate at α 1 is the defect.
+ *
+ * The band is judged for legibility exactly like the plate's own surface: it is the plate composited on
+ * an OPAQUE backing, so it is never darker/lighter than the plate over any art, and the ink it pairs
+ * with is the base's derived foreground (`--color-foreground`), which
+ * `palette-contrast.suite.test.ts` floors against this surface.
+ */
+export function readingBandSurface(base: Oklch): Oklch {
+  return rampSurface(base, THEME_DERIVATION.readingPlate.deltaL);
 }
 
 /**

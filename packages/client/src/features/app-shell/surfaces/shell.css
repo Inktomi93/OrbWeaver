@@ -111,12 +111,80 @@
   box-shadow: var(--shadow-overlay);
 }
 
-/* A docked panel occupies its grid track; overlay/collapsed leave the track at 0. */
+/* A docked panel occupies its grid track; overlay/collapsed leave the track at 0. The track takes the
+ * pane's DOCKED width (`--*-track-docked`), which is the clamp unless the #242 squeeze below is answering
+ * a reading-floor deficit — one indirection, so the FLIP keyframes can name the same distance the track
+ * actually moves. */
 .shell-grid[data-list-mode="docked"] {
-  --list-track: var(--panel-w);
+  --list-track: var(--list-track-docked);
 }
 .shell-grid[data-context-mode="docked"] {
-  --context-track: var(--panel-context-w);
+  --context-track: var(--context-track-docked);
+}
+
+/* ── THE CONDITIONAL BOTH-DOCKED SQUEEZE (#242, owner-ruled off the #240 fork) ────────────────────────
+ * With BOTH panels docked the content track is `100dvw - rail - panel - panel-context`, and at a normal
+ * desktop that lands under the transcript's reading floor: at 1360 the track is 569.6px and the line
+ * falls below 65 real characters — the state a reader who keeps Members open lives in permanently
+ * (#213 measured it and could not fix it from the transcript: no rule inside a pane can widen the pane,
+ * and a `min-width` there only spills the column out of it). The owner ruled the shell-grid arm: the
+ * panels give up slack, but ONLY as much as the deficit and ONLY where there IS one — the overlay and
+ * accept-59ch arms were rejected.
+ *
+ * IT IS CONTINUOUS, NOT A BREAKPOINT. `--pane-deficit` is `max(0px, floor - what the content track would
+ * get with both panes at their clamps)`, so above the floor (viewport ≳1513px) it is 0px and every
+ * declaration below resolves to the unsqueezed clamp — byte-identical, no threshold to tune, no state
+ * where a pixel of viewport flips 70px of layout. It writes only the DOCKED-WIDTH vars, so an
+ * overlay/collapsed panel (which pushes nothing and sizes off `--panel-w`/`--panel-context-w`) is
+ * untouched, as is mobile, where the grid is a single track and neither mode is `docked`.
+ *
+ * EACH PANE'S SQUEEZE IS GATED ON THE **OTHER** PANE'S MODE, and that is the FLIP's requirement, not a
+ * cute spelling. `--list-track-docked` means "what the list track measures WHILE DOCKED", and the list's
+ * own dock/undock must not change it — the panel-push keyframes below animate `.shell-main` by exactly
+ * that distance, and read it AFTER the mode attribute has flipped (`out` reads it while the list is
+ * already collapsed). Gating the list's squeeze on `[data-context-mode="docked"]` keeps the value stable
+ * across the toggle it is describing, in both directions, so the counter-translate still cancels the move
+ * EXACTLY and the shift stays unrecorded. The two vars compose to the ruled behaviour: both docked ⇒ both
+ * squeezed; one docked ⇒ that one at its clamp, because its squeeze asks about a pane that is not there.
+ *
+ * THE SPLIT IS NOT EVEN, AND THAT IS AN INHERITED OWNER RULING. The context pane may not squeeze below
+ * `--dimension-panel-context-step` (24rem): 660b2dd4 widened this pane to 30vw precisely so a standard
+ * 1280px desktop REACHES that container step, where the rpg takeover's Waystone paints at its focal
+ * 120px. So the list pane carries the larger share and the context pane's floor is that step, not the
+ * shared 17rem — the ruled recovery is bought out of list width first, and the takeover's focal stone is
+ * not traded for it. (#242's issue text sketches ~380px on the context side; that number crosses the
+ * step, so this takes the ruled recovery by the split that keeps both rulings — reported as a fork.)
+ * Where the deficit outlives both floors (≲1280px, both docked) the content track simply stays short:
+ * a shell-grid limit, stated rather than faked.
+ *
+ * THE CONTEXT TOGGLE NOW MOVES THE CONTENT PANE'S LEFT EDGE TOO (~49px at 1360), and it is unanimated —
+ * stated because it is a real consequence of the ruled behaviour, not an oversight. Docking the context
+ * pane already re-laid the whole content column instantly (there is no context FLIP; only the LIST track
+ * has one, use-list-track-flip.ts), so this enlarges an existing single-frame relayout rather than adding
+ * a new class of motion. Erasing it means giving the context toggle its own FLIP — a hook, an attribute
+ * and a keyframe pair, i.e. its own change, and it is the recorded follow-up if this ever measures as
+ * jank rather than reading as the panes making room.
+ *
+ * NEITHER PANE REACHES A WIDTH IT COULD NOT ALREADY BE: the list floor IS its clamp's own floor (any
+ * viewport ≤1133px resolves it there) and the context floor is well inside its clamp's range, so every
+ * pane consumer is being asked for a width it already had to render — the squeeze makes those widths
+ * COMMON at desktop, not new (the coupled pins live with those consumers: the character library's title
+ * floor at 272, the context strip's own tracks). */
+.shell-grid {
+  /* Pure arithmetic, no side effect: what the content track would MISS if both panes took their clamps.
+   * Declared on the grid (not inside a mode rule) so both docked-width vars below can read it. */
+  --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w)));
+  /* The list pane's share of that deficit. The context pane takes the rest and hits its step floor first,
+   * so this is what decides how much of the recovery survives at a narrower desktop. */
+  --pane-squeeze-list-share: 0.7;
+  --list-track-docked: var(--panel-w);
+  --context-track-docked: var(--panel-context-w);
+}
+.shell-grid[data-context-mode="docked"] {
+  --list-track-docked: max(var(--dimension-panel-floor), calc(var(--panel-w) - var(--pane-deficit) * var(--pane-squeeze-list-share)));
+}
+.shell-grid[data-list-mode="docked"] {
+  --context-track-docked: max(var(--dimension-panel-context-step), calc(var(--panel-context-w) - var(--pane-deficit) * (1 - var(--pane-squeeze-list-share))));
 }
 
 /* ── THE PANEL PUSH IS A FLIP, NOT A TRACK ANIMATION (guide §3.7 — compositor-only is a CORRECTNESS
@@ -151,14 +219,19 @@
  * `useLayoutEffect` on the commit that changes the track (use-list-track-flip.ts), the same
  * attribute-driven grammar Base UI's own `data-starting-style` uses — and it is ABSENT on first paint,
  * which is what keeps a page load from playing an entrance nobody asked for (guide §3.8). */
+/* The distance is `--list-track-docked`, NOT the raw `--panel-w` clamp (#242): with the context pane
+ * docked the list track is squeezed, so the clamp would over-translate by the squeeze (up to ~49px at
+ * 1360) and leave exactly the recorded shift this mechanism exists to erase. That var is gated on the
+ * CONTEXT pane's mode, so it reads the same on both sides of a list toggle — which is what makes the
+ * `out` arm (sampled while the list is already collapsed) name the width that just disappeared. */
 @keyframes shell-list-push-in {
   from {
-    translate: calc(-1 * var(--panel-w)) 0;
+    translate: calc(-1 * var(--list-track-docked)) 0;
   }
 }
 @keyframes shell-list-push-out {
   from {
-    translate: var(--panel-w) 0;
+    translate: var(--list-track-docked) 0;
   }
 }
 /* The docking panel arrives in a track that is ALREADY its full width, so it slides in from under the

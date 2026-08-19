@@ -368,7 +368,11 @@ html[data-shadow] [data-slot="message-bubble"] {
  * the pane). A `min-width` cannot help (b): the percentage resolves against the row body, which also holds
  * the avatar gutter, so the floor would spill the column out of its own pane — strictly worse than a short
  * line. Holding the floor there is a shell-grid question (how narrow a docked panel may push the content
- * pane), reported as a fork rather than faked here. */
+ * pane) — the fork this reported is RULED and BUILT (#240 → #242): the shell grid now squeezes both docked
+ * panes when the content track would fall under `--dimension-content-reading-floor`, which moved that pane
+ * 509 → 579px and its line from 55.3 to 65.1 REAL characters. Nothing here changed: the answer was always
+ * the pane's, and the ruled floor is the real-character one, not this token's 65 `ch` (still unmet at that
+ * pane — the stated residual, pinned in chat-room-track.suite.ct.tsx). */
 [data-slot="message-content-column"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));

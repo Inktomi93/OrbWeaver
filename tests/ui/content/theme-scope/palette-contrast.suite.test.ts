@@ -8,7 +8,7 @@
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
-import { readingPlateAlpha } from "@orb/kit/theme-derivation";
+import { READING_BAND_ALPHA, readingBandSurface, readingPlateAlpha } from "@orb/kit/theme-derivation";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { Rgb } from "../../../../scripts/probes/design-audit-checks.ts";
@@ -308,6 +308,42 @@ test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the reading-plate
   expect(plate.c, "plate chroma = base chroma").toBeCloseTo(base.c, 4);
   expect(plate.h, "plate hue = base hue").toBeCloseTo(base.h, 4);
   expect(plate.alpha, "plate alpha = readingPlateAlpha(background)").toBeCloseTo(readingPlateAlpha(base), 4);
+});
+
+// ── #241: THE STICKY ATTRIBUTION BAND (`--color-reading-band`) — the plate's colour at alpha 1 ──
+// The band pins a tall turn's speaker name over that turn's OWN prose, so it stays OPAQUE (#168). What
+// #241 rules is its COLOUR: it shipped as the `card` ramp surface while the prose under it rides the
+// plate, a constant ΔL ≈ 0.085 step down one column. Two properties, and the first is the ruling:
+//   1. every shipped palette's band literal IS the plate's colour (readingBandSurface(background)) — so
+//      the step is not "matched", it cannot exist;
+//   2. the band's paired ink (the base's derived foreground, `text-foreground`) clears AA on it — the
+//      band is opaque, so unlike the plate there is no art in this composite and no alpha to solve.
+const READING_BAND_PATH = "color.reading-band" as const;
+
+test.each(PALETTES.map((p) => [p.name, p] as const))("#241 %s: the reading-band literal IS the plate's colour at alpha 1", (_name, palette) => {
+  const band = parseOklch(palette.vars[TOKENS[READING_BAND_PATH].cssVar] ?? TOKENS[READING_BAND_PATH].value);
+  const plate = parseOklch(palette.vars[TOKENS[READING_PLATE_PATH].cssVar] ?? TOKENS[READING_PLATE_PATH].value);
+  const base = parseOklch(palette.vars[TOKENS["color.background"].cssVar] ?? TOKENS["color.background"].value);
+  const derived = readingBandSurface(base);
+  expect(band.l, "band L = readingBandSurface(background).l").toBeCloseTo(derived.l, 3);
+  expect(band.c, "band chroma = base chroma").toBeCloseTo(derived.c, 4);
+  expect(band.h, "band hue = base hue").toBeCloseTo(derived.h, 4);
+  // THE STEP, stated as an equality against the OTHER shipped literal rather than only against the
+  // formula: the two tokens a message column stacks must be one colour.
+  expect(band.l, "band L = plate L — the #223 step, gone by construction").toBeCloseTo(plate.l, 3);
+  expect(band.c).toBeCloseTo(plate.c, 4);
+  expect(band.h).toBeCloseTo(plate.h, 4);
+  // …differing ONLY in alpha (#168 untouched). Non-vacuous on every shipped palette: the plate is a window.
+  expect(band.alpha, "the band is opaque").toBe(READING_BAND_ALPHA);
+  expect(plate.alpha, "…and the plate is not (or there was no step to kill)").toBeLessThan(READING_BAND_ALPHA);
+});
+
+test("#241 the band's paired ink (the derived foreground) clears AA on the band, every realistic base", () => {
+  for (const baseStr of REALISTIC_BASES) {
+    const base = parseOklch(baseStr);
+    const ratio = contrastRatio(foregroundRgb(base), oklchToRgb(readingBandSurface(base)));
+    expect(ratio, `derived foreground on the band @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  }
 });
 
 test("#204 the plate alpha FLOORS AA for the derived foreground over worst-case art on every realistic base", () => {
