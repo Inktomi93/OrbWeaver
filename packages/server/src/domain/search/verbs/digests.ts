@@ -12,7 +12,7 @@ import type { DigestSearchHit } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { nearestDigests } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
@@ -85,6 +85,8 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
 
     const ordered = params.mode === "mixC" ? await applyRerank(text, ranked, ctx.roleClients.rerank, ranked.length) : ranked;
 
-    return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
+    // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
+    // definition of "how close is this", never a second.
+    return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, relevance: relevanceOf(c.distance), text: c.sourceText }));
   };
 }

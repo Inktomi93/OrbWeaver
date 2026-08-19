@@ -139,7 +139,6 @@ function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement 
   const subtitle = row.elevatorPitch ?? (facet === "" ? "Not distilled" : facet);
   return (
     <ListRow
-      data-testid={testId("corpusBrowseRow")}
       clickable={true}
       onClick={(): void => selectCorpusCharacter(row.characterId)}
       leading={<CharacterAvatar id={row.characterId} name={row.name} hash={row.avatarHash} />}

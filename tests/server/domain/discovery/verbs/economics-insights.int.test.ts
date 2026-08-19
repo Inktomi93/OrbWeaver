@@ -26,6 +26,33 @@ async function seedGenre(db: Db, characterId: CharacterId, genre: string): Promi
 }
 
 describe("forgottenGems", () => {
+  test("INVESTED **AND** QUIET is a conjunction: the most-played character is not the headline gem", async () => {
+    // The shelf is titled "Invested, but quiet" and used to sort by messageCount with lastActiveAt as a
+    // tie-break — on a real library 20 of 20 candidates had distinct counts, so the quiet term never fired
+    // and the top tile was the character played six hours ago (corpus forensics §6). The rank is now
+    // messageCount × log1p(days quiet), measured against the library's own newest activity (no clock).
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedChat(db, "chat_a");
+    const live = await seedCharacter(db, { id: "character_live", ownerId: owner, name: "Live" });
+    const quietBig = await seedCharacter(db, { id: "character_big", ownerId: owner, name: "QuietBig" });
+    const quietSmall = await seedCharacter(db, { id: "character_small", ownerId: owner, name: "QuietSmall" });
+    const day = 86_400_000;
+
+    // Live: the most played BY FAR, and played most recently — quiet = 0, so it is not forgotten at all.
+    // QuietBig: real investment, 60 days untouched. QuietSmall: quieter still, but barely played — age
+    // alone must not beat real investment.
+    const turns = [
+      ...Array.from({ length: 20 }, (_, i) => ({ id: `m_live_${i.toString()}`, seq: 100 + i, createdAt: FROZEN_AT, characterId: live })),
+      ...Array.from({ length: 6 }, (_, i) => ({ id: `m_big_${i.toString()}`, seq: 200 + i, createdAt: FROZEN_AT - 60 * day, characterId: quietBig })),
+      ...Array.from({ length: 2 }, (_, i) => ({ id: `m_small_${i.toString()}`, seq: 300 + i, createdAt: FROZEN_AT - 90 * day, characterId: quietSmall })),
+    ];
+    await Promise.all(turns.map((turn) => seedMessage(db, { ...turn, chatId: chat, variant: {} })));
+
+    const gems = await svcFor(db).forgottenGems(owner);
+    expect(gems.map((g) => g.characterId)).toEqual([quietBig, quietSmall, live]);
+  });
+
   test("ranks by message volume (then staleness) and attaches injected economics", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

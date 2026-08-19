@@ -26,8 +26,24 @@
 //     a time, and the 2026-08-08 collapse only reduced it from seven bricks to one.
 //   • THE DEAD $0.00 COLUMN IS GONE. See `corpus-gem-tiles.tsx`: the trailing magnitude is tokens returned
 //     (labelled as tokens since #174 — it is `tokensOut`, and it shipped calling itself "words").
-//     Model economics survives as a section that renders only when there is spend to report — on a local
-//     instance `modelRouting` is `[]` and the block simply is not there.
+//     Model economics survives as a section that renders only when there is SPEND to report.
+//
+// ── THE UN-DRAWN TAIL, CUT (corpus forensics 2026-08-18 §7/§8, R4) ─────────────────────────────────────
+// The mock ends after the gem tiles. Everything below it was authored here anyway and measured 6,900px of a
+// 9,438px surface — 73% of the page, every pixel of it a `BarList`, which by construction exposes no item
+// click. Three blocks are gone, each for its own reason:
+//   • MODEL ECONOMICS was guarded on `routing.length === 0` while the paragraph above claimed it renders
+//     "only when there is spend to report" — `modelRouting` returns a row per (genre × model) whether or not
+//     money moved, so a local instance rendered 134 rows, 133 of them exactly $0.00, at 4,304px. The guard
+//     now tests SPEND, which is what the header always said.
+//   • THE CATALOG FACET BARS (Genres · Tones · Top tags, 1,904px) duplicated the browse view's own Genre /
+//     Tone / Tag selects, WITH the same counts — and those are interactive and narrow the list. Two spellings
+//     of one dataset, one of which could not be acted on.
+//   • THE "ALL STORY THEMES" BAR CHART (400px) was the non-interactive twin of the theme ROWS 400px above
+//     it. The rows survive, and they are now COMPLETE rather than a top-8 slice (`discovery.home`), because
+//     with the chart gone they are the only place a theme is met.
+// The `discovery.themes` and `discovery.catalog.topTags` reads are untouched — the browse view and the
+// context tabs are their real consumers.
 //
 // ── THE TIER IS `form`, DELIBERATELY (density-pass-spec.md §3.1) ───────────────────────────────────────
 // Corpus reads like analytics but it is a surface you LAND on and act from — prose, a focal island, one
@@ -66,14 +82,14 @@ import { selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusFamilyMap } from "../components/corpus-family-map.tsx";
 import { CorpusGemTiles } from "../components/corpus-gem-tiles.tsx";
-import { AllStoryThemes, CatalogFacets, KeywordExplorer, StoryThemeDrift } from "../components/corpus-home-charts.tsx";
+import { KeywordExplorer, StoryThemeDrift } from "../components/corpus-home-charts.tsx";
 import { CorpusReadinessRail } from "../components/corpus-readiness-rail.tsx";
 import { CorpusUnderstandingInvitation } from "../components/corpus-understanding-invitation.tsx";
 import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 
 type ThemeLevel = "scene" | "arc";
-type ThemeRow = inferOutput<Trpc["discovery"]["home"]>["topSceneThemes"][number];
+type ThemeRow = inferOutput<Trpc["discovery"]["home"]>["sceneThemes"][number];
 
 const MONEY_PRECISION = 2;
 const CORPUS_INSIGHT_ROW_ESTIMATE_PX = 52;
@@ -124,17 +140,26 @@ function CorpusHomeBody(): ReactElement {
   // hook already holds, so this is a cache hit rather than a second question. NON-suspending: an unresolved
   // queue must not hold the whole surface, and its honest pre-answer is the conservative "not run".
   const runs = useQuery(trpc.workloads.list.queryOptions({}));
-  const duplicatesEverRan = (runs.data ?? []).some((row) => row.kind === "find-duplicates" && row.status === "succeeded");
+  const ranSuccessfully = (kind: string): boolean => (runs.data ?? []).some((row) => row.kind === kind && row.status === "succeeded");
+  // KEYWORDS ARE THEIR OWN PASS (issue #164's lesson, applied one row up). The rail row said "Story themes &
+  // keywords" and read story themes ALONE, so it marked the keyword pass done on the theme pass's evidence
+  // while `topKeywords` was empty and the dossier printed "No keyword profile computed yet." The keyword
+  // tables are written only by `compute-cooccurrence`, which is NOT in the understanding pass's chain — so
+  // the row needed both halves of its own state: what it produced, and whether it has ever run.
+  const { data: keywords } = useSuspenseQuery(trpc.discovery.topKeywords.queryOptions());
 
   const state = deriveCorpusAnalysisState({
     characters: home.coverage.characters,
     familySizes: families.map((family) => family.size),
     distilled: catalog.totalDistilled,
-    sceneThemes: home.topSceneThemes.length,
-    arcThemes: home.topArcThemes.length,
+    sceneThemes: home.sceneThemes.length,
+    arcThemes: home.arcThemes.length,
+    keywords: keywords.length,
+    keywordsEverRan: ranSuccessfully("compute-cooccurrence"),
     duplicateCharacters: home.duplicateCounts.characters,
     duplicateChats: home.duplicateCounts.chats,
-    duplicatesEverRan,
+    identicalCharacterPairs: home.duplicateCounts.identicalCharacterPairs,
+    duplicatesEverRan: ranSuccessfully("find-duplicates"),
   });
 
   if (state.phase === "empty") {
@@ -156,7 +181,7 @@ function CorpusHomeBody(): ReactElement {
   }
 
   const mapIsFocal = state.phase === "analysed";
-  const hasStoryThemes = home.topSceneThemes.length > 0 || home.topArcThemes.length > 0;
+  const hasStoryThemes = home.sceneThemes.length > 0 || home.arcThemes.length > 0;
 
   return (
     // NO `size`: the container-query context survives (the split answers to THIS pane's inline size — the
@@ -214,15 +239,13 @@ function CorpusHomeBody(): ReactElement {
 
         {hasStoryThemes ? (
           <Section kicker="Story themes" level={2}>
-            <ThemeGroup label="Scenes" onSelect={setTheme} selected={theme} themes={home.topSceneThemes} />
-            <ThemeGroup label="Arcs" onSelect={setTheme} selected={theme} themes={home.topArcThemes} />
+            <ThemeGroup label="Scenes" onSelect={setTheme} selected={theme} themes={home.sceneThemes} />
+            <ThemeGroup label="Arcs" onSelect={setTheme} selected={theme} themes={home.arcThemes} />
             {theme === null ? null : <ThemeDetailCard onDismiss={(): void => setTheme(null)} selection={theme} />}
           </Section>
         ) : null}
 
-        <AllStoryThemes />
         <KeywordExplorer />
-        <CatalogFacets catalog={catalog} />
         <StoryThemeDrift />
 
         {unused.length === 0 ? null : (
@@ -248,7 +271,8 @@ function CorpusHomeBody(): ReactElement {
           </Section>
         )}
 
-        {routing.length === 0 ? null : (
+        {/* SPEND, not rows: a local-model instance records a route per (genre × model) and zero dollars. */}
+        {routing.every((route) => route.costUsd <= 0) ? null : (
           <Section kicker="Model economics" level={2}>
             <BarList
               items={toBarItems(

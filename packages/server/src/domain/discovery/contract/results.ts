@@ -352,12 +352,25 @@ interface CorpusCoverage {
   readonly segments: number;
 }
 
-/** The corpus home view — index coverage + top scene/arc themes + near-duplicate counts. */
+/**
+ * The corpus home view — index coverage + the scene/arc theme clusters + near-duplicate counts.
+ *
+ * THE THEME LISTS ARE COMPLETE, not a top-N (2026-08-18): they were `topSceneThemes`/`topArcThemes`, sliced
+ * to 8, beside a non-interactive bar chart that drew ALL of them. The chart is gone (it duplicated the rows
+ * and could not be clicked), so the rows are now the ONE place a theme is met and a truncated list would
+ * have deleted half of them from the surface. The list is bounded by the k-means k, not by the library.
+ *
+ * `duplicateCounts.identicalCharacterPairs` is the near-dup pass's BLIND SPOT, counted at read time: the
+ * pass scans content-hash-collapsed representatives, so byte-identical cards can never form a pair and two
+ * cosine-1.00 same-name pairs sat one tab away from a rail reading "1 found". The collapse is correct for
+ * the clustering passes it was written for; the READOUT is what was wrong, so the count is derived here
+ * rather than by changing what the pass writes.
+ */
 export interface HomeView {
   readonly coverage: CorpusCoverage;
-  readonly topSceneThemes: ThemeRow[];
-  readonly topArcThemes: ThemeRow[];
-  readonly duplicateCounts: { readonly characters: number; readonly chats: number };
+  readonly sceneThemes: ThemeRow[];
+  readonly arcThemes: ThemeRow[];
+  readonly duplicateCounts: { readonly characters: number; readonly chats: number; readonly identicalCharacterPairs: number };
 }
 
 /** One character's presence in a theme cluster (its digest count in the cluster). */
@@ -369,11 +382,15 @@ export interface ThemeMember {
 
 /** One neighbour in a `characterDossier` — a discovery-local projection of search's `similarCharacters`
  *  (injected cross-domain at the root). Deliberately NOT search's `CharacterCardHit` — the search shape stays
- *  out of the discovery contract; discovery owns this narrowed neighbour view. `score` is search's CSLS unit. */
+ *  out of the discovery contract; discovery owns this narrowed neighbour view. `score` is search's CSLS unit
+ *  (a clamped DISTANCE, for ranking only); `relevance` is the cosine similarity the dossier RENDERS — five of
+ *  the eight neighbours on the live library read `0.00` under the old readout precisely because they were the
+ *  closest matches in the library (corpus forensics §3). */
 export interface DossierNeighbor {
   readonly characterId: CharacterId;
   readonly name: string;
   readonly score: number;
+  readonly relevance: number;
   readonly avatarHash: string | null;
   readonly genre: string | null;
   readonly tone: string | null;
