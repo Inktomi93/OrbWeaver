@@ -82,7 +82,7 @@ export interface HomeTileContribution {
    *  empty card). NOT for gating a BUILD fact — that is the `{dormant}` body arm (H7). */
   readonly useVisible?: () => boolean;
   /** How many skeleton rows this tile's LOADING box holds on a device that has never seen it settle —
-   *  the FIRST-EVER-boot arm of the F14 reservation (`home-tile-box-store`: from the second boot on, the
+   *  the FIRST-EVER-boot arm of the F14 reservation (`surface-box-store`: from the second boot on, the
    *  measured box wins and this is only the fill-count fallback).
    *
    *  IT IS THE TILE'S OWN PAGE LIMIT, NOT A PIXEL GUESS. The store's header rules out a static reservation

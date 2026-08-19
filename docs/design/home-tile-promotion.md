@@ -53,7 +53,7 @@ satisfy a side-eye finding would be trading one finding for another.
 The promotion signal is **query data** (`databank.list` → `bankHealth`). It is not known at first paint. So
 any data-driven promotion moves a **full-span** tile (the jump grid) after the databank read lands — a boot
 layout shift on the one surface whose CLS is a tracked, measured, already-fixed defect (F14; the
-`home-tile-box-store` reservation in `home-tile.tsx` exists precisely because a tile changing size after its
+`surface-box-store` reservation in `home-tile.tsx` exists precisely because a tile changing size after its
 read cost CLS 0.0913–0.24). A tile changing POSITION is the same defect one axis over.
 
 **Any correct build of this feature must therefore resolve the promotion at first paint, or it ships a
@@ -66,7 +66,7 @@ DOM-correct, F14-consistent, no hook in a map, no state lifting:
 1. **A new `#state` store, `home-tile-promotion`** — `promoteHomeTile(id, promoted)` /
    `useHomeTilePromotions(): ReadonlySet<string>`, localStorage-backed and read **synchronously**, so the
    value is present in the FIRST commit. This is not a new idea on this surface: it is exactly the
-   `home-tile-box-store` shape and the same bargain (shift once, remembered thereafter).
+   `surface-box-store` shape and the same bargain (shift once, remembered thereafter).
 2. **`HomeSurface` calls `useHomeTilePromotions()` ONCE** at its own top level — one hook, no map — and
    passes the set to `orderHomeTiles(list, promoted)`, which sorts promoted ids ahead of the static order.
    The sort stays pure; the data arrives as an argument.

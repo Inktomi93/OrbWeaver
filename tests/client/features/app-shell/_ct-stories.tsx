@@ -35,6 +35,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
+import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
@@ -288,13 +289,20 @@ function DropZonePane(): ReactElement {
   );
 }
 
-/** The shell with a real import zone in CONTENT — for the stray-file-drop guard CT (both arms). */
+/** The shell with a real import zone in CONTENT — for the stray-file-drop guard CT (both arms).
+ *
+ *  IT MOUNTS ITS OWN TOAST OUTLET. The guard's whole affordance is a toast ("Nothing imports from here —
+ *  drop the file on an import zone.", `use-stray-file-drop-guard.ts`), so the outlet is part of what this
+ *  story is FOR — it used to ride the CT harness's ambient `<Toaster />` and would have gone silently
+ *  untestable the moment the harness stopped mounting one (#247). A story that asserts a toast paints owns
+ *  the surface it paints on. */
 export function AppShellDropGuardStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry sections={{ chats: { content: <DropZonePane /> } }}>
         <LandOn section="chats" />
         <AppShell />
+        <Toaster />
       </CtFakeSectionRegistry>
     </CtDataProviders>
   );

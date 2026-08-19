@@ -66,8 +66,10 @@ export const workloadsRouter = t.router({
     .input(z.object({ id: brandedId<WorkloadId>() }))
     .mutation(({ ctx, input }) => ctx.services.workloads.retry({ id: input.id, caller: ctx.auth })),
 
-  // @test-fixture: the cross-tenant sweep's IDOR probe target — no client panel reads a single workload by
-  // id (the client drives off `list`); the sweep needs this id-taking read to prove owner-scoping.
+  // Also the cross-tenant sweep's IDOR probe target (an id-taking read is what proves owner-scoping). It
+  // carried an `@test-fixture` exemption while the sweep was its ONLY consumer; the import tracker's
+  // reconnect gap-heal reads it for real now (#248 — one run to resolve, no list to drive off), so the
+  // exemption is deleted rather than left standing as a false claim about who calls this.
   get: authedProcedure
     .input(z.object({ id: brandedId<WorkloadId>() }))
     .query(({ ctx, input }) => ctx.services.workloads.get({ id: input.id, caller: ctx.auth })),
