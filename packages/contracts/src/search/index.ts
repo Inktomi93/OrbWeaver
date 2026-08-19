@@ -71,4 +71,9 @@ export interface MemoryQueryOptions {
   recencyBias: number;
   /** Raw-cosine inclusion floor. */
   minScore: number;
+  /** The vector candidate pool size for mixB/mixC — the cosine-ranked, floor-passing pool is cut to its top
+   *  `retrieveK` (the neo "top retrieveK" retrieval count). In mixC this is the pool the cross-encoder reranks. */
+  retrieveK: number;
+  /** The mixC rerank cut — after the cross-encoder reorders the retrieved pool, keep the top `rerankTo`. */
+  rerankTo: number;
 }
