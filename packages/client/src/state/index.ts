@@ -115,6 +115,7 @@ export {
   selectCollectionMemberFromList,
   useCollectionSelection,
 } from "./config-selection-store.ts";
+export { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "./corpus-search-store.ts";
 export {
   clearCorpusSelection,
   corpusSectionSelection,
