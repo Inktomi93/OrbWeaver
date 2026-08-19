@@ -7,7 +7,6 @@ import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
 import { Row, Stack } from "@orb/ui/layout";
-import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -20,7 +19,6 @@ import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { BG_PHOTO_CHROME_PLATE, STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
-import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import { MessageContent } from "./message-content.tsx";
@@ -426,26 +424,4 @@ export function renderRowSwipe(args: {
     );
   }
   return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} backingClass={BG_PHOTO_CHROME_PLATE} /> : null;
-}
-
-export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string | undefined, compactSummary?: string | null | undefined): ReactNode {
-  if (!show) {
-    return null;
-  }
-  const compacted = compactSummary !== null && compactSummary !== undefined && compactSummary.length > 0;
-  return (
-    <Row gap="field" align="center" data-slot="context-boundary-divider" className="w-full">
-      <Separator className="flex-1 bg-(--color-primary)/35" />
-      {/* The divider NAMES a region of the transcript ("everything below is in context") — the `kicker`
-          voice, which is exactly the caps-micro-with-a-hairline shape this line was already assembling by
-          hand. The noun is COMPACTION, never memory: compaction writes `chats.compactSummary`, its own
-          summary — the Memory plane is a different subsystem (vocab repair, 2026-08-02). */}
-      <Text voice="kicker">
-        {compacted ? "Older messages compacted into a summary" : "In context from here"}
-        {budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
-      </Text>
-      {compacted ? <CompactSummaryPeek summary={compactSummary} /> : null}
-      <Separator className="flex-1 bg-(--color-primary)/35" />
-    </Row>
-  );
 }
