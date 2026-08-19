@@ -40,9 +40,14 @@ export interface LibraryRowActions {
    *  no server-side copy, and re-uploading the same bytes dedups on `importHash`, so a Duplicate item there
    *  would be a control with no action behind it. Presets/world-info books are unaffected — both pass it. */
   readonly onDuplicate?: () => void;
-  readonly onDelete: () => void;
-  /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). */
-  readonly deleteDescription: ReactNode;
+  /** OPTIONAL — omit for an entity that cannot be deleted. Absent ⇒ the menu renders NO destructive arm at
+   *  all (no separator, no Delete item, no confirm). Minted for the built-in preset row (side-eye 2026-08-19
+   *  P3): that row is packaged, so Rename and Delete are both refusals — but Duplicate is not, and
+   *  withholding the whole `actions` bag to withhold two of its items left the one preset in the library the
+   *  owner could not copy. Every other consumer passes it and is unchanged. */
+  readonly onDelete?: () => void;
+  /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). Meaningless without `onDelete`. */
+  readonly deleteDescription?: ReactNode;
   /** The row's ONE frequent non-navigational verb, surfaced INLINE beside the kebab (§12.2) — a
    *  `ROW_REVEAL` ghost icon (rest hidden, revealed on the row's hover/focus-within, always-on for coarse).
    *  The kebab KEEPS the same item (N3 mirror parity — inline is a shortcut, never the only path).
@@ -227,9 +232,9 @@ function LibraryRowActionsMenu({
         </Button>
       )}
       <LibraryRowMenu
-        deleteDescription={deleteDescription}
         name={name}
-        onDelete={onDelete}
+        {...(deleteDescription === undefined ? {} : { deleteDescription })}
+        {...(onDelete === undefined ? {} : { onDelete })}
         {...(onRename === undefined ? {} : { onRename })}
         {...(duplicate === undefined ? {} : { onDuplicate: duplicate })}
         {...(qualifier === undefined ? {} : { qualifier })}
@@ -257,17 +262,24 @@ function LibraryRowMenu({
   // Aliased for the same reason `duplicate` is below: under `exactOptionalPropertyTypes` a destructured
   // optional is `T | undefined`, which is not assignable back into the optional property it came from.
   const rename = onRename;
+  const remove = onDelete;
   return (
     <RowActionsMenu
       label={`Actions for ${actionSubject(name, qualifier)}`}
       reveal={true}
       triggerSize="icon"
-      destructive={{
-        separator: false,
-        title: `Delete "${name}"?`,
-        description: deleteDescription,
-        onConfirm: onDelete,
-      }}
+      // A row with no delete VERB renders no destructive arm — items are OMITTED, never disabled (the
+      // §12.2 rule the built-in's absent Rename already follows).
+      {...(remove === undefined
+        ? {}
+        : {
+            destructive: {
+              separator: false,
+              title: `Delete "${name}"?`,
+              description: deleteDescription,
+              onConfirm: remove,
+            },
+          })}
     >
       {menuItemsBefore}
       {rename === undefined ? null : (

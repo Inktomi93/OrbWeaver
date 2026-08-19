@@ -26,6 +26,20 @@ export interface SliderProps<Value extends number | readonly number[] = number>
    * beside the control, so the line belongs to its own row instead of fusing with its neighbours' text.
    */
   thumbDescribedBy?: string | undefined;
+  /**
+   * `aria-valuetext` for the THUMB — the human reading of a position whose NUMBER is not the fact.
+   *
+   * Minted for the KnobRow's inherited arm (side-eye 2026-08-19 P1-2): an unset knob paints no fill and
+   * parks its thumb at the resolved effective value — or at `min` when the funnel reports none — while the
+   * native range still announced a bare `0`. Eight thumbs then read "everything at minimum" to a screen
+   * reader, which is the exact opposite of "inherited". The DISPLAY carried the distinction (bare rail,
+   * muted thumb) and the a11y tree did not.
+   *
+   * Base UI forwards this to the real `<input type=range>` inside the thumb, so it replaces the announced
+   * number rather than decorating it. Omit wherever the number IS the fact — a valuetext that restates the
+   * value is noise.
+   */
+  thumbValueText?: string | undefined;
   showValue?: boolean;
   formatValue?: (formattedValues: readonly string[], values: readonly number[]) => ReactNode;
 }
@@ -38,7 +52,7 @@ export interface SliderProps<Value extends number | readonly number[] = number>
  * hidden, but a bare rail makes no magnitude claim about a value you did not set; §4.1).
  */
 export function Slider<Value extends number | readonly number[] = number>(props: SliderProps<Value>): ReactElement {
-  const { className, label, thumbLabels, thumbDescribedBy, showValue = false, formatValue, tone, ...rootProps } = props;
+  const { className, label, thumbLabels, thumbDescribedBy, thumbValueText, showValue = false, formatValue, tone, ...rootProps } = props;
   const slots = sliderVariants({ tone });
   const count = thumbCount(rootProps.value ?? rootProps.defaultValue);
   const isRange = count > 1;
@@ -77,6 +91,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
           <BaseSlider.Thumb
             aria-describedby={thumbDescribedBy}
             aria-label={isRange ? thumbLabels?.[index] : singleAriaLabel}
+            aria-valuetext={thumbValueText}
             className={slots.thumb()}
             data-slot="slider-thumb"
             index={isRange ? index : undefined}

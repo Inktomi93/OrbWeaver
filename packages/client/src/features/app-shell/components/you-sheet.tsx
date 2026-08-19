@@ -11,10 +11,14 @@
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
+import { Heading } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry } from "#state";
 import { closeModal, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
+
+/** The overflow group's heading id — the group points its `aria-labelledby` at it, so the heading names the
+ *  block once instead of the group restating the word. Static: this sheet renders exactly one. */
+const MORE_HEADING_ID = "you-sheet-more-heading";
 
 /** One `rail.end` chrome entry, projected into the sheet. A component (not a bare map body) so `useVisible`
  *  is a top-level hook over the door-frozen list (the rail's `RailChromeEntry` precedent). A widget renders
@@ -75,10 +79,14 @@ export function YouSheet(): ReactElement {
       ))}
 
       {overflowSections.length === 0 ? null : (
-        <Stack gap="row">
-          <Text size="micro" weight="semibold" tone="muted" transform="caps">
+        // "More" IS A HEADING (side-eye 2026-08-19 ARIA). It looked like one and announced as a paragraph, so
+        // the sheet's overflow rows belonged to nothing a heading walk could find — the block above it is a
+        // named `role="group"`, and this one had neither. `Heading` at the same four axes the band's own
+        // micro-caps title uses, so the paint is unchanged; h3 because the drawer's Title is the h2.
+        <Stack aria-labelledby={MORE_HEADING_ID} gap="row" role="group">
+          <Heading id={MORE_HEADING_ID} level={3} size="micro" tone="muted" transform="caps" weight="semibold">
             More
-          </Text>
+          </Heading>
           {overflowSections.map((entry) => (
             <ListRow
               key={entry.id}
