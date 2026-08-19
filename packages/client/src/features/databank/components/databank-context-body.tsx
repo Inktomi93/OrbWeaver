@@ -25,15 +25,16 @@
 
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { FileText, Icon } from "@orb/ui/icons";
+import { FileText, Icon, SlidersHorizontal } from "@orb/ui/icons";
 import { Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { useSelectedDocumentId } from "#state";
+import { openSettingsTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
 
@@ -113,8 +114,30 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
       <Stack gap="section" padding="block">
         <EverywhereSection documentId={doc.id} name={doc.name} />
         <ActiveInSection documentId={doc.id} />
-        <Section heading="Retrieval">
-          <Text voice="gloss">How many passages get pulled, and how close a match must be, is tuned in Settings → Chat behavior → Databank.</Text>
+        {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): these three are read-only groupings in a
+            320px context rail, which is the shape the micro-caps + hairline exists for. */}
+        <Section kicker="Retrieval">
+          <Stack gap="row">
+            <Text voice="gloss">How many passages get pulled, and how close a match must be, is tuned once for the whole bank.</Text>
+            {/* A DOOR, NOT A BREADCRUMB (side-eye 2026-08-19 P2). It used to spell the path in prose —
+                "Settings → Chat behavior → Databank" — beside an `openSettingsTo` seam that lands on that
+                exact subcategory. A path a user has to retrace by hand is a control we declined to render. */}
+            <Button
+              className="self-start"
+              intent="ghost"
+              // The category + subcategory as LITERALS, the house spelling for a settings deep link
+              // (`openSettingsTo("workloads", "jobs")`, `openSettingsTo("chat-behavior", "memory")`).
+              // The `DATABANK_SETTINGS_SUBCATEGORY` const that carries the same id lives in `features/chat`
+              // (chat owns the {{databank}} slot's settings section), and a feature never sideways-imports
+              // another feature's lib.
+              onClick={(): void => openSettingsTo("chat-behavior", "databank")}
+              size="sm"
+              type="button"
+            >
+              <Icon icon={SlidersHorizontal} size="sm" />
+              Retrieval settings
+            </Button>
+          </Stack>
         </Section>
       </Stack>
     </Surface>
@@ -131,7 +154,7 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
   const isGlobal = globalIds.includes(documentId);
 
   return (
-    <Section heading="Everywhere">
+    <Section kicker="Everywhere">
       <Row align="center" gap="row" justify="between">
         <Text voice="gloss">Feed this document to every chat, on top of any per-chat or per-character attachments.</Text>
         <Switch
@@ -163,8 +186,24 @@ function ScopeChip({ count, singular, plural }: { readonly count: number; readon
   );
 }
 
-/** Read-only provenance: WHERE this document is switched on. Non-suspending — the panel's own two reads
- *  already resolved, and a slow junction read must not blank the toggle above it. */
+/**
+ * Read-only provenance: WHERE this document is switched on. Non-suspending — the panel's own two reads
+ * already resolved, and a slow junction read must not blank the toggle above it.
+ *
+ * ── THE COUNT-VS-ROSTER FORK, RESOLVED (side-eye 2026-08-19 P1; orchestrator ruling, same day) ──
+ * The file header's ruling — a COUNT, not a roster — STANDS, and its reasoning is why. Chats carry no
+ * `ownerId` (D18) and `attachToChat` is host-gated, so a `chat_documents` row OUTLIVES the attacher's
+ * seat: naming rooms straight off this wire would tell an ex-host that a room they can no longer open
+ * still exists and still feeds on their document. That is a real constraint, not a shrug.
+ *
+ * What the review was right about was the PROMISE, not these chips: the no-selection copy used to offer to
+ * show "WHICH chats and characters it already feeds" and then paid in two integers. The copy downgraded
+ * (`databank-copy.ts`) so the pane offers what it delivers.
+ *
+ * The roster is not refused, it is UNBUILT: it needs `listAttachments` to return names, which needs the
+ * leak-safe read chat already exposes to regex (`resolveVisibleRooms`, `entry/compose/regex.ts`) injected
+ * into databank as well. Filed as its own item — not a layout change.
+ */
 function ActiveInSection({ documentId }: { readonly documentId: DocumentId }): ReactElement {
   const trpc = useTRPC();
   const attachments = useQuery(trpc.databank.listAttachments.queryOptions({ id: documentId }));
@@ -175,7 +214,7 @@ function ActiveInSection({ documentId }: { readonly documentId: DocumentId }): R
   const nowhere = !everywhere && chats === 0 && characters === 0;
 
   return (
-    <Section heading="Active in">
+    <Section kicker="Active in">
       {attachments.isPending ? (
         <Text voice="gloss">Checking…</Text>
       ) : (

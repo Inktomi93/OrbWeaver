@@ -15,6 +15,7 @@ import {
   ingestPollInterval,
   ingestStallHint,
   isIngestInFlight,
+  passageCount,
   showsPhaseChip,
 } from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -88,7 +89,7 @@ describe("ingestPhase — the STALLED overlay (a frozen in-flight row)", () => {
     // The whole point: this verdict is reachable from the LIST, where the user actually notices six of seven
     // documents never finished. `Queued`/`Indexing` are warnings that say "wait"; this one says "act".
     expect(showsPhaseChip("stalled")).toBe(true);
-    expect(ingestBadge("stalled")).toEqual({ label: "Stalled", intent: "danger" });
+    expect(ingestBadge("stalled")).toEqual({ label: "Stalled", intent: "danger", glyph: null });
   });
 });
 
@@ -101,15 +102,21 @@ describe("showsPhaseChip — Ready is the ABSENCE of a chip (§6.1)", () => {
   });
 
   test("the badge each non-ready phase renders names its state and its urgency", () => {
-    expect(ingestBadge("indexing")).toEqual({ label: "Queued", intent: "warning" });
-    expect(ingestBadge("embedding")).toEqual({ label: "Indexing", intent: "warning" });
+    expect(ingestBadge("indexing")).toEqual({ label: "Queued", intent: "warning", glyph: null });
+    expect(ingestBadge("embedding")).toEqual({ label: "Indexing", intent: "warning", glyph: null });
     // `Empty` IS A WARNING — REVERSED 2026-08-08 (side-eye P3), and the old reasoning is kept here because
     // it was not wrong about the SYSTEM: nothing is in flight and nothing failed internally, so `neutral`
     // said "no state to report". What it missed is the USER's position: an empty extraction is a document
     // that will never feed a chat, waiting for a human to re-upload or paste the text, and neutral filed
     // that beside "nothing to report" — a shrug on a document that is dead weight. It stops short of
     // `danger`, which stays reserved for the job that WEDGED (this one completed, honestly, with nothing).
-    expect(ingestBadge("empty")).toEqual({ label: "Empty", intent: "warning" });
+    //
+    // …and the GLYPH is 2026-08-19's third differentiator on top of it: the amber is shared by ruling, so
+    // the arm that asks the user to act carries a mark the wait arms do not. Asserted as presence, not as
+    // a named icon — which glyph it is, is taste; that only this arm has one is the finding.
+    expect(ingestBadge("empty").label).toBe("Empty");
+    expect(ingestBadge("empty").intent).toBe("warning");
+    expect(ingestBadge("empty").glyph).not.toBeNull();
   });
 });
 
@@ -251,10 +258,22 @@ describe("ingestStallHint — a wedged job, derived from updatedAt with an INJEC
 describe("the row subtitle + byte format", () => {
   test("provenance · size · passage count, with the singular passage", () => {
     expect(documentSubtitle(doc())).toBe("Upload · 24.5 KB · 12 passages");
-    expect(documentSubtitle(doc({ origin: "youtube", byteSize: 219_136, chunkCount: 1 }))).toBe("YouTube · 214 KB · 1 passage");
+    expect(documentSubtitle(doc({ origin: "youtube", byteSize: 219_136, chunkCount: 1, embeddedCount: 1 }))).toBe("YouTube · 214 KB · 1 passage");
   });
 
   test("a not-yet-chunked document reads 0 passages — the chip carries the in-flight signal, not the subtitle", () => {
     expect(documentSubtitle(doc({ chunkCount: 0, embeddedCount: 0 }))).toBe("Upload · 24.5 KB · 0 passages");
+  });
+
+  // A PASSAGE IS AN EMBEDDED CHUNK (the contract's own phase note; `BankHealthView.passages` = "chunks a
+  // chat can actually retrieve"). This printed `chunkCount`, so a document 22-of-39 through its embed
+  // claimed "39 passages" — a 77% overstatement of reach, printed while the number is moving and the user
+  // is watching it (side-eye 2026-08-19 P2). Both numbers while they differ, one once they cannot: the
+  // shape `bankHealthLine` already settled on for the same overstatement on 2026-08-08.
+  test("a PARTIALLY embedded document states both numbers, never the chunk count alone", () => {
+    expect(documentSubtitle(doc({ chunkCount: 39, embeddedCount: 22 }))).toBe("Upload · 24.5 KB · 22 / 39 passages");
+    // The detail readout is the SAME string — one number, one vocabulary, both panes.
+    expect(passageCount(doc({ chunkCount: 39, embeddedCount: 22 }))).toBe("22 / 39 passages");
+    expect(passageCount(doc())).toBe("12 passages");
   });
 });
