@@ -1,15 +1,20 @@
-// domain/chat/memory/build/substrate/parse — parse the summarizer output into the digest's persisted facets
-// (topic anchor + keywords) and render the inverse (the facet text used by both consolidation input and the
-// `{{memory}}` format step). PURE — no I/O, no state. Robust to a sloppy model: a missing keywords line → no
-// keywords; a missing anchor → the first non-empty line (or "").
+// domain/chat/memory/build/substrate/parse — parse the summarizer output into the digest's three parts
+// (topic anchor · significance-filtered facts · keywords). PURE — no I/O, no state. Robust to a sloppy model:
+// a missing keywords line → no keywords; a missing anchor → the first non-empty line (or "").
 
 import type { ParsedDigest } from "../../types.ts";
 
-const KEYWORDS_LINE = /^\s*keywords\s*:/iu;
+/** The keywords MARKER — matched ANYWHERE on a line, not just at its start (#330 P5). A sloppy model often
+ *  appends `Keywords: …` inline after the final fact sentence ("… behind the painting. Keywords: ledger, …")
+ *  rather than on its own line; anchoring on `^\s*keywords:` silently dropped that block's keywords (1 in 26
+ *  real digests measured). The prefix BEFORE the marker on that line stays part of the facts body. */
+const KEYWORDS_MARKER = /keywords\s*:/iu;
 
 /** Parse a summarizer digest into `{topicAnchor, facts, keywords}`. The first non-empty line is the anchor;
- *  the `keywords:` line (anywhere) yields the comma-split keyword list (trimmed, de-duped, empties dropped);
- *  everything between is the facts body. */
+ *  the LAST line carrying a `keywords:` marker (at its start OR inline after a fact) yields the comma-split
+ *  keyword list (trimmed, de-duped, empties dropped) and any prose BEFORE the marker on that line stays in the
+ *  facts; everything between the anchor and that line is the facts body. Scanning from the END keeps a fact
+ *  that merely MENTIONS "keywords:" mid-body from stealing the real trailing keyword list. */
 export function parseDigest(raw: string): ParsedDigest {
   const lines = raw.split("\n");
   let topicAnchor = "";
@@ -24,18 +29,22 @@ export function parseDigest(raw: string): ParsedDigest {
   }
   let keywords: string[] = [];
   let keywordsIdx = lines.length;
-  for (let i = anchorIdx + 1; i < lines.length; i += 1) {
+  let keywordsLinePrefix = "";
+  for (let i = lines.length - 1; i > anchorIdx; i -= 1) {
     const line = lines[i] ?? "";
-    if (KEYWORDS_LINE.test(line)) {
+    const match = KEYWORDS_MARKER.exec(line);
+    if (match !== null) {
       keywordsIdx = i;
-      keywords = parseKeywordList(line.replace(KEYWORDS_LINE, ""));
+      keywordsLinePrefix = line.slice(0, match.index).trim();
+      keywords = parseKeywordList(line.slice(match.index + match[0].length));
       break;
     }
   }
-  const facts = lines
-    .slice(anchorIdx + 1, keywordsIdx)
-    .join("\n")
-    .trim();
+  const factsLines = lines.slice(anchorIdx + 1, keywordsIdx);
+  if (keywordsLinePrefix.length > 0) {
+    factsLines.push(keywordsLinePrefix);
+  }
+  const facts = factsLines.join("\n").trim();
   return { topicAnchor, facts, keywords };
 }
 
@@ -51,17 +60,4 @@ function parseKeywordList(s: string): string[] {
     }
   }
   return out;
-}
-
-/** Render a digest's persisted facets → the canonical text used as consolidation input AND the `{{memory}}`
- *  block (the inverse of {@link parseDigest} over what `chat_digests` actually stores — anchor + keywords; the
- *  facts body is not persisted, FLAG[no-digest-body]). A null anchor → just the keywords; no keywords → just
- *  the anchor. */
-export function renderDigestFacets(d: { readonly topicAnchor: string | null; readonly keywords: readonly string[] }): string {
-  const anchor = d.topicAnchor ?? "";
-  if (d.keywords.length === 0) {
-    return anchor;
-  }
-  const kw = `keywords: ${d.keywords.join(", ")}`;
-  return anchor.length > 0 ? `${anchor}\n${kw}` : kw;
 }

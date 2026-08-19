@@ -63,8 +63,6 @@ export interface MemoryQueryOptions {
    *  `search` scores ONLY these. Absent ⇒ scan the full scoped pool. */
   candidates?: BlockKey[] | undefined;
   mode: MemoryRetrievalMode;
-  /** Recent messages used as the protected verbatim retrieval window (mixB/mixC). */
-  verbatimWindow: number;
   /** Fold keyword-overlap hits into the kept set even below the cosine floor. */
   keywordMatch: boolean;
   /** Mild score boost toward more-recent digests (0 = off). */
