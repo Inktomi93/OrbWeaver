@@ -178,6 +178,33 @@ function compileKeyPattern(key: string, onCompileFailure?: (key: string, reason:
   }
 }
 
+// Every RegExp flag letter the runtime accepts. Used ONLY to reject a slash-containing literal key
+// (`/path/to/file` → trailing "file" is not a flag string) before {@link isDelimitedKeyPattern} treats
+// a key as authored-as-a-pattern.
+const REGEX_FLAG_LETTERS = /^[dgimsuvy]*$/;
+
+/** Is this key written in ST's DELIMITED regex form (`/pattern/` or `/pattern/flags`)? — the exact spelling
+ *  {@link keyRegex} already compiles in `regex` mode, asked as a question so an importer can DERIVE the mode
+ *  for a source format that carries no explicit flag.
+ *
+ *  Owner ruling 2026-08-19 (#268 arm (a)): ST's NATIVE world file (`worlds/*.json`) has no `use_regex` field
+ *  at all, so for THAT format the delimited form IS the regex marker; card-embedded books keep flag-only
+ *  semantics. The sole consumer is `domain/import/substrate/world` — this is deliberately NOT applied in the
+ *  shared entry mapper, and stored data is never re-interpreted.
+ *
+ *  Strict on purpose — a false positive would silently turn a user's literal key into a pattern. All four
+ *  must hold: opens with `/`, has a LATER closing `/`, the pattern between them is non-empty, the trailing
+ *  characters are all real flag letters, and the whole thing actually compiles under the same ReDoS cap +
+ *  flag normalization `keyRegex` applies. `and/or`, `/path/to/file` and `/unclosed` are literal keys. */
+export function isDelimitedKeyPattern(key: string): boolean {
+  const lastSlash = key.lastIndexOf("/");
+  // < 2 covers both "no closing slash" (`/unclosed`, lastSlash 0) and an empty pattern (`//`, lastSlash 1).
+  if (!key.startsWith("/") || lastSlash < 2 || !REGEX_FLAG_LETTERS.test(key.slice(lastSlash + 1))) {
+    return false;
+  }
+  return compileKeyPattern(key) !== null;
+}
+
 /** How {@link matchEntryKeys} compiles an entry's keys. `keyMode` comes from {@link resolveEntryKeyMode} off
  *  the entry's metadata; `onKeyCompileFailure` is the host's warn seam for a bad user-authored pattern (kit is
  *  pure — the caller owns the logger, as it does for the regex executor's `onScriptFailure`). */

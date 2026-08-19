@@ -774,6 +774,14 @@ describe("the WI-entry round-trip (IN ∘ OUT is the exact inverse — byte-iden
     expect(loreEntryMetadata(out)["keyMode"]).toBe("regex");
   });
 
+  test("a CARD-EMBEDDED book keeps FLAG-ONLY semantics: a delimited-looking key without use_regex stays literal", () => {
+    // The scope fence for #268 arm (a) (owner, 2026-08-19): delimited-form detection is native-ST-world-file
+    // ONLY (`domain/import/substrate/world`) — that format has no flag to carry the intent. The SHARED entry
+    // mapper, which every embedded chara_card book runs through, must NOT derive a mode, or existing imported
+    // literal keys that happen to look delimited would change meaning.
+    expect(loreEntryMetadata({ keys: ["/he(llo|y)/i"], content: "c" })).not.toHaveProperty("keyMode");
+  });
+
   test("an entry WITHOUT use_regex stays literal-keyed on both halves", () => {
     const meta = loreEntryMetadata({ keys: ["dr."], content: "c" });
     expect(meta).not.toHaveProperty("keyMode");
