@@ -56,7 +56,12 @@ function parseEpilogue(stderr: string): Record<string, string> {
 }
 
 function runAst(argv: readonly string[]): AstRun {
-  const res = spawnSync(process.execPath, [AST_CLI, ...argv], {
+  // The TYPED whole-workspace verbs — `columns --all` above all — load the full type graph AND row-shape
+  // scan every table; past ~86 tables (#273's `image_index_skips` landing) the sweep's peak exceeds node's
+  // default old-space ceiling and aborts (SIGABRT → status null, ~5.6GB RSS). Raise the heap to match the
+  // `pnpm ast` script; this harness spawns node DIRECTLY so it does not inherit that script's flag, and a
+  // higher ceiling is harmless for the lighter syntactic rows (node allocates only what it uses).
+  const res = spawnSync(process.execPath, ["--max-old-space-size=8192", AST_CLI, ...argv], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     timeout: SPAWN_TIMEOUT_MS,
