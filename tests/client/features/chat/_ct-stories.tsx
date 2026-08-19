@@ -1756,14 +1756,17 @@ export function RoomOverridesSwitchStory(): ReactElement {
 
 /** The read-only cast bar (chat-cast-bar.tsx) — the roster comes from the routeTrpc `chat.getChat`
  *  stub the `.ct.tsx` sets per case (a solo roster → the bar renders `null`; a 2+ roster → chips). */
-export function ChatCastBarStory(): ReactElement {
+export function ChatCastBarStory({ overArt = false }: { readonly overArt?: boolean } = {}): ReactElement {
   return (
     <CtDataProviders>
       {/* A wrapping div so the mount `component` locator is the WRAPPER, not the cast bar's own root
           element — a `component.getByTestId`/`getByText` then searches its descendants (the
           ComposerStory precedent; without it `component` IS the bar and its own testid is not a
-          descendant of itself). */}
-      <div>
+          descendant of itself).
+          `overArt` stamps the shell's OWN wallpaper flag on that wrapper (#229): the strip's backing is
+          self-gated by Tailwind's `in-data-[has-bg-image]` ANCESTOR variant, so without an ancestor
+          carrying the flag the class is structurally inert and the arm cannot be measured at all. */}
+      <div {...(overArt ? { "data-has-bg-image": "" } : {})}>
         <ChatCastBar chatId={CHAT_ID} />
       </div>
     </CtDataProviders>
