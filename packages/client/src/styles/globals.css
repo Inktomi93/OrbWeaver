@@ -78,6 +78,35 @@ body {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
     }
+    /* #237 — THE CHROME PANES TAKE D144'S POLARITY FLOOR OVER ART. The rule above mixes the pane's own
+     * tint at a FIXED 70%, so over a room wallpaper 30% of the art lands inside the pane. Under the dark
+     * arm that measured 8.48:1; under the LIGHT seed the same list-pane kicker measured 3.69:1 live
+     * (pixel-sampled — the css-resolve path reports 7.01 and misses it entirely, because a wallpaper is a
+     * PAINT layer, not a computed background). Same defect class #217 closed for the reading plate: an
+     * alpha that was DESIGNED rather than derived.
+     *
+     * The fix mixes the pane's tint over `--color-reading-plate` — D144(b)'s already-derived, already
+     * polarity-aware over-art backing (`readingPlateAlpha`, #217) — instead of over `transparent`. NO NEW
+     * NUMBER IS INVENTED: both partners of the mix are at or above the plate's own derived alpha (the
+     * tint is opaque, the plate IS the floor), so the composited alpha is too, by construction, at every
+     * value of `--blur-fill-chrome` including the reduced-transparency/contrast arms' 100%.
+     *
+     * ONLY THE LIGHT ARM MOVES, and that is D144(d), not caution: the dark arm's panes already clear the
+     * floor, and the sacred dark rooms do not move. `light-dark()` is the house polarity mechanism
+     * (D71-3) and reads the SAME `color-scheme` the clamp derives (`colorSchemeFor`) and the seed blocks
+     * declare — scheme polarity and this floor can never disagree. The dark arm re-spells the rule above
+     * verbatim so it stays byte-identical.
+     *
+     * Gated on `[data-has-bg-image]` because that is the whole question: without a wallpaper the pane's
+     * translucency composites over the shell's own opaque base and nothing unknown is behind it.
+     * Rendered pin: the two `#237:` cases in tests/client/features/app-shell/surfaces/app-shell.ct.tsx
+     * (the derived-alpha floor + the kicker ink over worst-case black art). */
+    html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel {
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
+      );
+    }
     html[data-blur-composer] [data-slot="composer"] {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);

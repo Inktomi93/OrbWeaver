@@ -99,3 +99,34 @@ test("a host sees the add-member '+'", async ({ mount, page }) => {
 
   await expect(component.getByRole("button", { name: "Add a character" })).toBeVisible();
 });
+
+// ── #229/#237: the strip's OVER-ART legibility backing ────────────────────────────────────────────
+// The bar sits in `.shell-main`, which a wallpaper makes transparent (shell.css), so its chips and names
+// floated on the raw photo behind only a halo text-shadow — the over-art chrome class #106/#221 closed
+// for the message row's own bands, and the one rule #237 extends across the shell's chrome. The backing
+// is self-gated on the shell's `data-has-bg-image`, so the plain-background arm must not move a pixel.
+test("#229: over a wallpaper the strip takes the derived plate + blur; without one it is byte-identical", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.getChat": () => roster(character("a", "Birdie"), character("b", "Hikari")) });
+  const plain = await mount(<ChatCastBarStory />);
+  const plainStrip = plain.getByTestId("chat-cast-bar");
+  await expect(plainStrip).toBeVisible();
+  const plainPaint = await plainStrip.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { backdrop: s.backdropFilter, bg: s.backgroundColor };
+  });
+  // No wallpaper ⇒ no plate, no blur: the strip is exactly the transparent band it always was.
+  expect(plainPaint).toStrictEqual({ backdrop: "none", bg: "rgba(0, 0, 0, 0)" });
+  await plain.unmount();
+
+  const overArt = await mount(<ChatCastBarStory overArt={true} />);
+  const artStrip = overArt.getByTestId("chat-cast-bar");
+  await expect(artStrip).toBeVisible();
+  const artPaint = await artStrip.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { backdrop: s.backdropFilter, bg: s.backgroundColor, plate: s.getPropertyValue("--color-reading-plate").trim() };
+  });
+  // The fill is the ROW'S OWN plate token — the polarity-derived backing, never a hand-picked smoke.
+  expect(artPaint.plate).not.toBe("");
+  expect(artPaint.bg).not.toBe("rgba(0, 0, 0, 0)");
+  expect(artPaint.backdrop).toContain("blur");
+});

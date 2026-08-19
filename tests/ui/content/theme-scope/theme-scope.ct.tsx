@@ -254,3 +254,94 @@ test("an OPEN dialog popup (no explicit container) resolves the ThemeScope overr
   await expect(popup).toBeVisible();
   await expect.poll(() => popup.evaluate(readPrimary)).toBe(FLOAT_ACCENT); // Hearth would be oklch(0.72 0.175 52)
 });
+
+// ── #236: the AMBIENT-BASE arm — an ink-only card override judged against the app theme it lands on ──
+// The ST-imported library carries prose inks and NO background (a 113-116 byte scope payload). Pre-#236
+// the §7a clamp failed open there, so a dark-authored ink painted raw on the Light seed's base at
+// 2.11-2.43:1 — RENDERED proof, because the clamp emits relative-color syntax only the browser resolves.
+const ST_DARK_INK = "oklch(0.72 0.16 174)"; // the measured ST ink; all three voices carry it
+const LIGHT_SEED_BASE = "oklch(0.98 0.004 75)"; // SEED_THEME_VALUE_SETS.light --color-background
+const DARK_SEED_BASE = "oklch(0.158 0.006 60)"; // the base @theme (Hearth) surface
+
+// Framebuffer-honest contrast: the browser normalizes whatever it computed (rgb/oklch/relative-color)
+// through a 1x1 canvas, then WCAG in-page — the same instrument the derived-foreground test above uses.
+const renderedContrast = (el: Element): number => {
+  const toRgb = (color: string): [number, number, number] => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return [r ?? 0, g ?? 0, b ?? 0];
+  };
+  const lum = (rgb: [number, number, number]): number => {
+    const [r, g, b] = rgb.map((v) => {
+      const c = v / 255;
+      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    }) as [number, number, number];
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const style = getComputedStyle(el);
+  const la = lum(toRgb(style.color));
+  const lb = lum(toRgb(style.backgroundColor));
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+};
+
+test("an INK-ONLY scope under a LIGHT ambient renders its three voices at AA — the #236 washout", async ({ mount }) => {
+  const cmp = await mount(
+    <ThemeScope tokens={{}} ambientBackground={LIGHT_SEED_BASE}>
+      <ThemeScope tokens={{ speaker: ST_DARK_INK, dialogueColor: ST_DARK_INK, narrationColor: ST_DARK_INK }}>
+        <span data-testid="speaker" style={{ backgroundColor: LIGHT_SEED_BASE, color: "var(--color-speaker)" }}>
+          Hikari
+        </span>
+        <span data-testid="dialogue" style={{ backgroundColor: LIGHT_SEED_BASE, color: "var(--color-dialogue)" }}>
+          "HE'S DOING THE THING!"
+        </span>
+        <span data-testid="narration" style={{ backgroundColor: LIGHT_SEED_BASE, color: "var(--color-narration)" }}>
+          she leans in
+        </span>
+      </ThemeScope>
+    </ThemeScope>,
+  );
+  // Pre-#236 every one of these measured 2.11:1 — pale teal ghosts on warm white.
+  await Promise.all(
+    ["speaker", "dialogue", "narration"].map((voice) =>
+      expect.poll(() => cmp.getByTestId(voice).evaluate(renderedContrast), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(4.5),
+    ),
+  );
+});
+
+test("the ambient chain re-bases at a CARRIED palette: an ink-only scope inside a dark room stays dark-judged", async ({ mount }) => {
+  // A carried-palette room under the LIGHT app theme is theme-immune (D144): the room's own background is
+  // what its inks land on, so the ambient must stop at that scope, not leak past it. A dark ink that is
+  // legible on the app's Light base would be a washout on the room's dark one, and vice versa.
+  const cmp = await mount(
+    <ThemeScope tokens={{}} ambientBackground={LIGHT_SEED_BASE}>
+      <ThemeScope tokens={{ background: DARK_SEED_BASE }}>
+        <ThemeScope tokens={{ narrationColor: "oklch(0.3 0.1 40)" }}>
+          <span data-testid="in-room" style={{ backgroundColor: DARK_SEED_BASE, color: "var(--color-narration)" }}>
+            she leans in
+          </span>
+        </ThemeScope>
+      </ThemeScope>
+    </ThemeScope>,
+  );
+  await expect.poll(() => cmp.getByTestId("in-room").evaluate(renderedContrast), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(4.5);
+});
+
+test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte-identically", async ({ mount }) => {
+  // Nothing named the surface (a preview, a CT story, any mount outside the shell) ⇒ the pre-#236 rule
+  // stands: never guess a polarity. The author's value reaches the DOM untouched.
+  const cmp = await mount(
+    <ThemeScope tokens={{ narrationColor: ST_DARK_INK }}>
+      <span data-testid="loose">she leans in</span>
+    </ThemeScope>,
+  );
+  const value = await cmp.getByTestId("loose").evaluate((el) => getComputedStyle(el).getPropertyValue("--color-narration").trim());
+  expect(value).toBe(ST_DARK_INK);
+});

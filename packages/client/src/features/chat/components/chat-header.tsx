@@ -66,12 +66,23 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
 }
 
 /** The shared identity cluster — lead avatar(s) + truncating title. The topbar surface appends the
- *  member-count chip; the context header renders it bare. Consumers own the `<Row>` wrapper. */
+ *  member-count chip; the context header renders it bare. Consumers own the `<Row>` wrapper.
+ *
+ *  THE TITLE CARRIES ITS OWN FULL VALUE (#239). At `list:docked, context:docked` this element measured
+ *  clientWidth 141 for scrollWidth 226 — an 85px truncation with `title` NULL, so the room's full name had
+ *  no home in the CONTENT region at all; the list pane's copy is the only other one and it disappears the
+ *  moment the list collapses, which is the state where the truncated one is ALL there is. The ellipsis
+ *  itself is correct (it is the "graceful ellipsis, never 0 chars" floor, shell.css `.shell-topbar-title`)
+ *  — what was missing is discoverability, and the native tooltip is the affordance that costs no layout.
+ *  It is set UNCONDITIONALLY rather than gated on `scrollWidth > clientWidth`: that comparison is a
+ *  render-time DOM read (banned) or a ResizeObserver for a string that is already exactly what the eye
+ *  sees, and an untruncated tooltip repeating the visible text is inert. It must stay BYTE-EQUAL to the
+ *  rendered text — a re-worded tooltip would be a second, disagreeing home for one fact. */
 function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; readonly title: string }): ReactElement {
   return (
     <>
       {avatars}
-      <Text size="title" weight="semibold" className="shell-topbar-title min-w-0 truncate">
+      <Text size="title" weight="semibold" className="shell-topbar-title min-w-0 truncate" title={title}>
         {title}
       </Text>
     </>
