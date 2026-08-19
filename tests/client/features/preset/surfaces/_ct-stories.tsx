@@ -34,6 +34,31 @@ export function PresetEditorSurfaceStory(): ReactElement {
   );
 }
 
+/** The editor at the NARROWEST real content pane (390px — a 1280 viewport with both panels docked, which is
+ *  where side-eye 2026-08-19 P1-1 measured ten 0px rails and a 503px tab strip in a 390px box). A FIXED
+ *  width, never a content-sized mount: a mount that sizes to its content agrees with the bug. */
+export function PresetEditorNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 720, width: 390 }}>
+        <PresetEditorSurface presetId={PRESET_A} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The editor at a pane PAST the content column's `@5xl` breathe step — the regime where an uncapped header
+ *  band spans the whole pane over a capped, centered body (the 1822-over-744 measurement). */
+export function PresetEditorWidePaneStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 720, width: 1520 }}>
+        <PresetEditorSurface presetId={PRESET_A} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** Stands in for the user-bus SSE frame the server fans when Connections writes `routing.roleDefaults`
  *  (`settings.updateUserSettingsSection` is busDriven — `settingsChanged` is the ONLY freshness driver for
  *  the editor's capability read). Drives the REAL `useInvalidation()` seam, so the map row is what's under

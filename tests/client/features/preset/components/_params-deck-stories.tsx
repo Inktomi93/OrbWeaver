@@ -12,6 +12,7 @@ import type { AppFormInstance } from "@orb/client/forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "@orb/client/forms";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
@@ -217,12 +218,18 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customP
         <>
           <output>{saved}</output>
           <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />
-          <ParamsDeck
-            capability={resolvedCapability}
-            capabilityError={capabilityError}
-            effective={effective}
-            form={session.form as AppFormInstance<PromptConfig>}
-          />
+          {/* THE `@container` IS PRODUCTION, NOT SCAFFOLDING: the editor mounts every view body inside one
+              (`preset-editor-surface.tsx`), and the KnobRow's narrow fold is a CONTAINER query. A story that
+              omits it has no query root at all, so the fold would resolve to its default arm at every width
+              and the width matrix would be measuring nothing. */}
+          <Container className="w-full">
+            <ParamsDeck
+              capability={resolvedCapability}
+              capabilityError={capabilityError}
+              effective={effective}
+              form={session.form as AppFormInstance<PromptConfig>}
+            />
+          </Container>
         </>
       )}
     </StoryForm>

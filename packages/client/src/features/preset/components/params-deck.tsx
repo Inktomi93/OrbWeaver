@@ -49,7 +49,7 @@ import { qualityDeckGloss } from "../lib/effective-knobs.ts";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
 import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { CapabilityGate } from "./capability-gate.tsx";
-import { KnobRow } from "./knob-row.tsx";
+import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -197,7 +197,10 @@ function SamplingCluster({
     <Section kicker="Sampling">
       <form.Subscribe selector={(state): Quality | undefined => state.values.params.quality}>
         {(quality): ReactElement => (
-          <Stack gap="tight">
+          // ONE grid per cluster: the name track sizes to the widest name IN THIS CLUSTER, which is what
+          // gives the column its single x (`KnobGrid`'s own note carries why the track keeps the token as a
+          // floor rather than sizing purely to content).
+          <KnobGrid>
             {knobs.map((knob) => (
               <KnobRow
                 effective={effective?.knobs[knob.key]}
@@ -212,7 +215,7 @@ function SamplingCluster({
                 step={knob.step}
               />
             ))}
-          </Stack>
+          </KnobGrid>
         )}
       </form.Subscribe>
       {supportsSeed(capability) ? (
@@ -326,17 +329,20 @@ function BudgetKnob({
   readonly effective: EffectiveProfileRow | undefined;
 }): ReactElement {
   return (
-    <KnobRow
-      effective={effective?.knobs["thinkingBudgetTokens"]}
-      form={form}
-      hint="Cap the tokens the model may spend reasoning before it answers."
-      label="Thinking budget"
-      largeStep={pageStep(range.min, range.max)}
-      max={range.max}
-      min={range.min}
-      name="params.thinkingBudgetTokens"
-      step={1}
-    />
+    // A one-row cluster still needs the grid — a KnobRow IS cells, so its tracks have to come from somewhere.
+    <KnobGrid>
+      <KnobRow
+        effective={effective?.knobs["thinkingBudgetTokens"]}
+        form={form}
+        hint="Cap the tokens the model may spend reasoning before it answers."
+        label="Thinking budget"
+        largeStep={pageStep(range.min, range.max)}
+        max={range.max}
+        min={range.min}
+        name="params.thinkingBudgetTokens"
+        step={1}
+      />
+    </KnobGrid>
   );
 }
 

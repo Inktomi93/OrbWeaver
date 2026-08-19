@@ -36,8 +36,10 @@ import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-b
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
 import {
   PresetEditorCapabilityFreshnessStory,
+  PresetEditorNarrowStory,
   PresetEditorSurfaceStory,
   PresetEditorSwitchStory,
+  PresetEditorWidePaneStory,
   PresetForkChoiceStory,
   PresetForkOnceStory,
 } from "./_ct-stories.tsx";
@@ -56,6 +58,15 @@ const BALANCED = "Balanced";
 const DEEP = "Deep";
 const QUALITY_OFF_LABEL = "Don't use quality";
 const RESET_ITEM_RE = /Reset to starter/;
+/** The header's reset door, by its O-3 one-string name — the band's TRAILING element, which is what the
+ *  content-column pin measures the right inset from. */
+const RESET_NAME_RE = /^Reset to starter arrangement$/;
+/** The Activate command, matched on the half of its name that is NOT under test (the visible label is what
+ *  the WCAG 2.5.3 pin reads off the DOM and compares). */
+const ACTIVATE_NAME_RE = /use this preset for generation/i;
+/** A band flush to the pane is ~one padding step in; a band sharing a capped column at 1520px is >300px in.
+ *  Stated as a floor well clear of any padding so the pin cannot pass on chrome alone. */
+const MIN_COLUMN_INSET_PX = 100;
 // The G7 provenance chip, matched loosely so its ABSENCE can be asserted without naming a model. The
 // grammar is the READOUT's (crunch-list O-2): "resolved for <model>", never the bare "for <model>" that
 // read as "this preset is FOR anthropic/…" — a claim about the preset instead of a statement about which
@@ -1026,6 +1037,123 @@ test("G7 a NOT-active preset's header offers Activate — the same setDefault se
   await expect
     .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SeedsPatchCall[]).map((call) => call.patch?.defaultPresetId))
     .toEqual([PRESET_A]);
+});
+
+test("P2 TRANSFORMS speaks ONE field layout — DELIVERY docks its controls like COLLAPSING, not full-width", async ({ mount, page }) => {
+  // Side-eye 2026-08-19 P2: DELIVERY's two selects were the only Fields in the view rendering VERTICAL —
+  // label over a full-width control — with COLLAPSING's right-docked rows three inches under them. Asserted
+  // on `data-orientation`, which is the Field primitive's own rendered statement of which arm it took, and
+  // COMPARATIVELY: the claim is that the view speaks one grammar, so the neighbour is the oracle.
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "regex.listForPreset": () => [],
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await component.getByRole("tab", { name: "Transforms" }).click();
+
+  const fieldRoot = (label: string): Locator => component.getByText(label, { exact: true }).locator('xpath=ancestor::*[@data-slot="field-root"][1]');
+  await expect(component.getByText("Speaker names", { exact: true })).toBeVisible();
+  await expect(fieldRoot("Speaker names")).toHaveAttribute("data-orientation", "horizontal");
+  await expect(fieldRoot("Continue delimiter")).toHaveAttribute("data-orientation", "horizontal");
+  // The oracle: the cluster right under it, whose arm nobody disputed.
+  await expect(fieldRoot("Collapse blank lines")).toHaveAttribute("data-orientation", "horizontal");
+});
+
+test("P1-2 the Activate command's ACCESSIBLE NAME contains its visible label (WCAG 2.5.3)", async ({ mount, page }) => {
+  // The F-5 split gave the header command a name distinct from the LIST radio's, and in doing so dropped the
+  // visible word out of the accessible name entirely: visible "Activate", name "Use this preset for
+  // generation", `contains: false`. Speech users say what they see, so the control became unaddressable by
+  // its own label. The fix keeps BOTH halves — the distinct role-appropriate gloss AND the visible word.
+  //
+  // Asserted as the LAW, not as the new string: whatever the button says, its name must contain it.
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(null),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  const activate = component.getByRole("button", { name: ACTIVATE_NAME_RE });
+  await expect(activate).toBeVisible();
+  const visible = (await activate.innerText()).trim();
+  const name = (await activate.getAttribute("aria-label")) ?? "";
+  expect(visible.length, "the command has a visible word at all").toBeGreaterThan(0);
+  expect(name.toLowerCase(), `accessible name "${name}" must contain the visible label "${visible}"`).toContain(visible.toLowerCase());
+});
+
+test("P1-1 the VIEW STRIP degrades to a scroller — every view reachable in a 390px pane, nothing painting past it", async ({ mount, page }) => {
+  // MEASURED on the shipped strip: a 503px tablist inside a 390px content pane, so "Transforms" painted
+  // under the CONTEXT panel and no pointer could reach it. The house rule for a strip that outgrows its box
+  // is already written (shell.css: "degrade to a SCROLL, never into an ellipsis"); this makes the preset
+  // editor's strip obey it.
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorNarrowStory />);
+  const strip = component.getByRole("tablist");
+  await expect(strip).toBeVisible();
+
+  const pane = await component.boundingBox();
+  // The strip's own box is its CONTENT width by design (the tabs measure their words — degrade to a scroll,
+  // never to an ellipsis). What must fit the pane is the box it scrolls inside, found by walking up to the
+  // first ancestor that actually clips the inline axis — structure-agnostic, so the pin survives a re-wrap.
+  const measured = await strip.evaluate((el: HTMLElement) => {
+    let box: HTMLElement | null = el.parentElement;
+    while (box !== null && getComputedStyle(box).overflowX === "visible") {
+      box = box.parentElement;
+    }
+    if (box === null) {
+      return null;
+    }
+    const rect = box.getBoundingClientRect();
+    return { client: Math.round(rect.width), right: Math.round(rect.right), scrollable: box.scrollWidth - box.clientWidth };
+  });
+  expect(measured, "the strip sits inside a box that clips the inline axis").not.toBeNull();
+  // CONTAINED: the scroll box stays inside the pane…
+  expect(measured?.client ?? 0, "the strip's box is laid out inside its pane, not through it").toBeLessThanOrEqual(Math.round(pane?.width ?? 0));
+  expect(measured?.right ?? 0, "…and its trailing edge does not paint past the pane's").toBeLessThanOrEqual(
+    Math.round((pane?.x ?? 0) + (pane?.width ?? 0)) + 1,
+  );
+  // …and it is a SCROLLER, not a clipper: the tabs that do not fit are still reachable.
+  expect(measured?.scrollable ?? 0, "the overflowing views are scrolled to, never cut off").toBeGreaterThan(0);
+
+  // …and REACHABLE: the last view scrolls into the box and takes a real click.
+  const last = component.getByRole("tab", { name: "Transforms" });
+  await last.scrollIntoViewIfNeeded();
+  await last.click();
+  await expect(last).toHaveAttribute("aria-selected", "true");
+});
+
+test("P1-1 the header band shares the BODY's content column — capped and centered, not full-bleed", async ({ mount, page }) => {
+  // At a 1520px pane the header spanned the whole pane while the body sat in a capped, centered column, so
+  // the preset's name and its own Activate/Reset cluster stood a hand-span outside the thing they belong to.
+  // Asserted structure-agnostically: the band is INSET from both pane edges, and by the SAME amount.
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(null),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorWidePaneStory />);
+  const heading = component.getByRole("heading", { level: 2, name: "Preset A" });
+  await expect(heading).toBeVisible();
+  const reset = component.getByRole("button", { name: RESET_NAME_RE });
+
+  const pane = await component.boundingBox();
+  const lead = await heading.boundingBox();
+  const trail = await reset.boundingBox();
+  const leftInset = Math.round((lead?.x ?? 0) - (pane?.x ?? 0));
+  const rightInset = Math.round((pane?.x ?? 0) + (pane?.width ?? 0) - ((trail?.x ?? 0) + (trail?.width ?? 0)));
+
+  expect(leftInset, "the band is inset from the pane's leading edge, not flush to it").toBeGreaterThan(MIN_COLUMN_INSET_PX);
+  expect(Math.abs(leftInset - rightInset), `the band is centered (left ${String(leftInset)} vs right ${String(rightInset)})`).toBeLessThanOrEqual(2);
 });
 
 test("G7 the ACTIVE preset's header wears the chip and offers NO Activate", async ({ mount, page }) => {
