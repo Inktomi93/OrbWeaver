@@ -24,7 +24,7 @@ import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
@@ -58,6 +58,11 @@ export interface CommandPaletteSurfaceProps {
 export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  // The palette is a search-first surface. Its generic surface focus keeps the initial-page guard shared
+  // with every other surface; once this user-opened modal mounts, move to the actual command input.
+  useEffect(() => {
+    surfaceRef.current?.querySelector<HTMLInputElement>('[data-slot="command-input"]')?.focus();
+  }, []);
   // The palette can be opened from anywhere, so the projection is the ACTIVE chat (null outside one) — a
   // command that needs a room says so through `unavailableReason` and renders disabled, never hidden.
   const slash = useSlashCommands(useActiveChatId());

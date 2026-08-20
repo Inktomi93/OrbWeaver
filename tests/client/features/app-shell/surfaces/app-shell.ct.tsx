@@ -308,6 +308,194 @@ test("closing a modal returns focus to the control that opened it (finalFocus)",
   await expect(trigger).toBeFocused();
 });
 
+test("positive control: the desktop Jump click opens the command palette and Escape returns to its durable trigger", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  const shell = await mount(<AppShellStory />);
+  const trigger = shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE });
+
+  await trigger.click();
+  await expect(page.getByRole("dialog", { name: "Jump to…" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+for (const { chord, title } of [
+  { chord: "Meta+KeyK", title: "Meta+K" },
+  { chord: "Control+KeyK", title: "Control+K" },
+] as const) {
+  test(`${title} opens the click-owned command palette and Escape returns to the Jump trigger`, async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+    const shell = await mount(<AppShellStory />);
+    const trigger = shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE });
+    await expect(trigger).toBeVisible();
+    await page.keyboard.press(chord);
+    const dialog = page.getByRole("dialog", { name: "Jump to…" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("combobox")).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+}
+
+interface ShortcutEventInit {
+  readonly altKey?: boolean;
+  readonly ctrlKey?: boolean;
+  readonly key?: string;
+  readonly metaKey?: boolean;
+  readonly repeat?: boolean;
+  readonly shiftKey?: boolean;
+}
+
+function dispatchCommandKey(page: Page, init: ShortcutEventInit, targetSelector?: string): Promise<boolean> {
+  return page.evaluate(
+    ({ eventInit, selector }) => {
+      const target = selector === undefined ? document : document.querySelector(selector);
+      if (target === null) {
+        throw new Error(`missing shortcut target: ${selector}`);
+      }
+      const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "k", ...eventInit });
+      target.dispatchEvent(event);
+      return event.defaultPrevented;
+    },
+    { eventInit: init, selector: targetSelector },
+  );
+}
+
+test("the command shortcut ignores text-entry targets without preventing their browser behavior", async ({ mount, page }) => {
+  await mount(<AppShellStory />);
+  await page.evaluate(() => {
+    const host = document.createElement("div");
+    host.dataset["shortcutInputs"] = "true";
+    host.innerHTML =
+      '<input data-kind="input"><textarea data-kind="textarea"></textarea><select data-kind="select"><option>one</option></select><div contenteditable="true" data-kind="editable"><span data-kind="editable-child">edit</span></div>';
+    document.body.append(host);
+  });
+
+  const kinds = ["input", "textarea", "select", "editable", "editable-child"] as const;
+  const prevented = await Promise.all(kinds.map((kind) => dispatchCommandKey(page, { metaKey: true }, `[data-kind="${kind}"]`)));
+  expect(prevented).toEqual(kinds.map(() => false));
+  await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
+});
+
+test("default is prevented only for an exact, non-repeating command shortcut", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await mount(<AppShellStory />);
+
+  const ignored = [
+    { key: "j", metaKey: true },
+    { metaKey: true, shiftKey: true },
+    { altKey: true, ctrlKey: true },
+    { ctrlKey: true, metaKey: true },
+    { metaKey: true, repeat: true },
+    {},
+  ] satisfies readonly ShortcutEventInit[];
+  expect(await Promise.all(ignored.map((init) => dispatchCommandKey(page, init)))).toEqual(ignored.map(() => false));
+  await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
+
+  expect(await dispatchCommandKey(page, { ctrlKey: true })).toBe(true);
+  await expect(page.getByRole("dialog", { name: "Jump to…" })).toBeVisible();
+});
+
+test("rapid command shortcuts own one pending frame and unmount cancels it", async ({ mount, page }) => {
+  const component = await mount(<AppShellStory />);
+  await page.evaluate(() => {
+    const callbacks = new Map<number, FrameRequestCallback>();
+    const probe = { callbacks, canceled: 0, nextId: 1, requested: 0 };
+    Object.assign(globalThis, { __commandFrameProbe: probe });
+    globalThis.requestAnimationFrame = (callback: FrameRequestCallback): number => {
+      const id = probe.nextId;
+      probe.nextId += 1;
+      probe.requested += 1;
+      callbacks.set(id, callback);
+      return id;
+    };
+    globalThis.cancelAnimationFrame = (id: number): void => {
+      if (callbacks.delete(id)) {
+        probe.canceled += 1;
+      }
+    };
+  });
+  const readProbe = (): Promise<{ canceled: number; pending: number; requested: number }> =>
+    page.evaluate(() => {
+      const probe = (
+        globalThis as typeof globalThis & {
+          __commandFrameProbe: { callbacks: Map<number, FrameRequestCallback>; canceled: number; requested: number };
+        }
+      ).__commandFrameProbe;
+      return { canceled: probe.canceled, pending: probe.callbacks.size, requested: probe.requested };
+    });
+
+  expect(await dispatchCommandKey(page, { metaKey: true })).toBe(true);
+  expect(await dispatchCommandKey(page, { ctrlKey: true })).toBe(true);
+  expect(await readProbe()).toEqual({ canceled: 0, pending: 1, requested: 1 });
+
+  await component.unmount();
+  expect(await readProbe()).toEqual({ canceled: 1, pending: 0, requested: 1 });
+});
+
+test("an open Settings modal owns the overlay and the command shortcut does nothing", async ({ mount, page }) => {
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "Settings" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Settings");
+  const close = dialog.getByRole("button", { name: "Close" });
+  await close.focus();
+
+  expect(await dispatchCommandKey(page, { metaKey: true })).toBe(false);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+  await expect(dialog).toContainText("Settings");
+  await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
+  await expect(close).toBeFocused();
+});
+
+test("the command keydown listener does not duplicate across rerenders and is removed on unmount", async ({ mount, page }) => {
+  await page.evaluate(() => {
+    const active = new Set<EventListenerOrEventListenerObject>();
+    const originalAdd = document.addEventListener.bind(document);
+    const originalRemove = document.removeEventListener.bind(document);
+    const probe = { active, adds: 0, removes: 0 };
+    Object.assign(globalThis, { __commandListenerProbe: probe });
+    document.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void => {
+      if (type === "keydown" && !active.has(listener)) {
+        active.add(listener);
+        probe.adds += 1;
+      }
+      originalAdd(type, listener, options);
+    }) as typeof document.addEventListener;
+    document.removeEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void => {
+      if (type === "keydown" && active.delete(listener)) {
+        probe.removes += 1;
+      }
+      originalRemove(type, listener, options);
+    }) as typeof document.removeEventListener;
+  });
+  const component = await mount(<AppShellStory />);
+  const readProbe = (): Promise<{ active: number; adds: number; removes: number }> =>
+    page.evaluate(() => {
+      const probe = (
+        globalThis as typeof globalThis & { __commandListenerProbe: { active: Set<EventListenerOrEventListenerObject>; adds: number; removes: number } }
+      ).__commandListenerProbe;
+      return { active: probe.active.size, adds: probe.adds, removes: probe.removes };
+    });
+  await expect.poll(async () => (await readProbe()).active).toBe(1);
+  const mounted = await readProbe();
+  expect(mounted.active).toBe(1);
+
+  await page.getByRole("button", { name: "Corpus", exact: true }).click();
+  expect(await readProbe()).toEqual(mounted);
+
+  await component.unmount();
+  const unmounted = await readProbe();
+  expect(unmounted.active).toBe(0);
+  expect(unmounted.removes).toBe(mounted.adds);
+  expect(await dispatchCommandKey(page, { metaKey: true })).toBe(false);
+});
+
 for (const handoff of [
   { name: "Theme", trigger: "Switch theme" },
   { name: "Settings", trigger: "Settings" },
