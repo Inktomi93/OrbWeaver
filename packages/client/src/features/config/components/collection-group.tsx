@@ -53,13 +53,13 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
       {/* The band carries its own `data-collection` as well as the group's (side-eye 2026-08-19: the three
           bands were map-dom-fallbacks — addressable only as a descendant of the group, which is a path, not
           an identity). A slot names a KIND; the pair names THIS band. */}
-      <Row align="center" data-collection={collection.id} data-slot="collection-band" gap="tight">
+      <Row align="center" className="gap-0" data-collection={collection.id} data-slot="collection-band" gap="tight">
         {/* A ZERO-MEMBER GROUP HAS NOTHING TO DISCLOSE (side-eye 2026-08-06 P2), so it renders no chevron and
             no body: the old band kept a live toggle whose panel opened onto nothing, one row above the empty
             card that had already said so. The identity cluster stays — same glyph, same kicker, same
             horizon — it just stops pretending to be a door. */}
         {isEmpty ? (
-          <Row align="center" className="min-w-0 flex-1 px-field" gap="tight">
+          <Row align="center" className="min-w-0 flex-1 px-tight" gap="tight">
             {/* THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED (side-eye 2026-08-08 P3). Dropping the
                 chevron also dropped its 16px box and the 4px joint, so a zero-member band's glyph started
                 20px left of every sibling's and the roster's left edge became data-dependent — a ragged
@@ -69,7 +69,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
                 chevron it stands in for the way a re-spelled width would. */}
             <Icon className="invisible" icon={ChevronRight} size="sm" />
             <Icon icon={collection.icon} size="sm" />
-            <Text as="span" voice="kicker" className="truncate">
+            <Text as="span" voice="interactiveKicker" className="truncate">
               {collection.label}
             </Text>
             {/* AND IT SAYS ZERO (same finding). Every other band carries its count, so the one band with
@@ -109,7 +109,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
             // collection that ALSO draws all three trailing verbs — lost its tail to an ellipsis at the
             // panel's 17rem clamp floor. `tight` is the token minted for exactly this (glyph↔text inside an
             // island); the padding drops one step for the same reason. Pinned by the narrow-pane CT.
-            className="min-w-0 flex-1 justify-start gap-tight px-field"
+            className="min-w-0 flex-1 justify-start gap-tight px-tight"
             intent="ghost"
             onClick={(): void => toggleCollectionGroup(collection.id)}
             size="sm"
@@ -117,7 +117,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
           >
             <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
             <Icon icon={collection.icon} size="sm" />
-            <Text as="span" voice="kicker" className="truncate">
+            <Text as="span" voice="interactiveKicker" className="truncate">
               {collection.label}
             </Text>
             {count === undefined ? null : (
@@ -135,7 +135,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
             and with the Configuration launcher card carrying a third copy of the same action, side-eye
             measured THREE "New script" affordances on one screen (2026-08-08 P2). The design call the older
             note deferred has now been made: the `+` and the LAUNCHER card live, the zero-slot's button dies. */}
-        <Button aria-label={collection.create.label} intent="ghost" onClick={create} size="icon" title={collection.create.label} type="button">
+        <Button aria-label={collection.create.label} intent="ghost" onClick={create} size="glyph-lg" title={collection.create.label} type="button">
           <Icon icon={Plus} size="sm" />
         </Button>
       </Row>
@@ -181,7 +181,7 @@ function CollectionBulkTrigger({ collection }: CollectionGroupProps): ReactNode 
 function CollectionBulkToggle({ bulk }: { readonly bulk: NonNullable<CollectionContribution["bulkSelect"]> }): ReactElement {
   const mode = bulk.useMode();
   return (
-    <Button aria-label={bulk.label} aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="icon" title={bulk.label} type="button">
+    <Button aria-label={bulk.label} aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="glyph-lg" title={bulk.label} type="button">
       <Icon icon={ListChecks} size="sm" />
     </Button>
   );
@@ -212,9 +212,9 @@ function CollectionImportDoor({ door }: { readonly door: NonNullable<CollectionC
       }}
     >
       {({ open }): ReactElement => (
-        // `size="icon"` (not `sm`): an icon-only trigger in an `sm` box measures under the 44px coarse
-        // floor — `size="icon"` is `size-control-md`, 34px fine / 48px coarse BY TOKEN (D62 P1).
-        <Button aria-label={door.label} intent="ghost" onClick={open} size="icon" title={door.label} type="button">
+        // Glyph-lg preserves the compact dense-row display box while its shared pseudo-element carries the
+        // pointer-conditional touch floor; the full control-md box starved the required 13px band label.
+        <Button aria-label={door.label} intent="ghost" onClick={open} size="glyph-lg" title={door.label} type="button">
           <Icon icon={Upload} size="sm" />
         </Button>
       )}

@@ -237,6 +237,7 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
 });
 
 test("a collapsed CONTEXT body mounts only when opened, then follows the active section (§4.2 rule 1)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await mount(<AppShellStory />);
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const panelText = (): Promise<string> => contextPanel.evaluate((el) => el.textContent ?? "");
@@ -246,8 +247,12 @@ test("a collapsed CONTEXT body mounts only when opened, then follows the active 
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(contextPanel.locator(".shell-panel-body")).toBeEmpty();
   await page.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  // At CONTENT's floor, CONTEXT is a transient overlay. This must be true on the FIRST click: deriving
+  // the regime from the just-written context override made the first click persist `docked` then vanish.
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
   await expect.poll(panelText, { intervals: [20, 50, 100] }).toContain("chats context pane");
+  await page.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
 
   // Switch to corpus (no context slot) — the chats panel must be GONE (not merely hidden: the shell
   // reads only sections[activeSection], so the stale body is unmounted) and the honest placeholder in.
@@ -1964,12 +1969,31 @@ function backdropFilterOf(locator: Locator): Promise<string> {
   return locator.evaluate((el) => getComputedStyle(el).backdropFilter);
 }
 
+function filterOf(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => getComputedStyle(el).filter);
+}
+
 test("baseline (flat, no glass, no bg-image): surfaces are opaque, no backdrop-filter", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture />);
   await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => backdropFilterOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe("none");
+});
+
+test("Surface glow has one valid painted carrier without turning Surface into a box", async ({ mount }) => {
+  const glowing = await mount(<ShellCascadeFixture elevation="glow" />);
+  const root = glowing.locator('[data-slot="surface-root"]');
+  await expect(root).toHaveCSS("display", "contents");
+  await expect(root).toHaveCSS("border-top-width", "0px");
+  await expect(root).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(root).toHaveCSS("border-top-left-radius", "0px");
+  await expect.poll(() => filterOf(glowing.getByTestId("surface-carrier")), { intervals: [20, 50, 100] }).not.toBe("none");
+});
+
+test("flat Surface carrier keeps no glow filter", async ({ mount }) => {
+  const flat = await mount(<ShellCascadeFixture elevation="flat" />);
+  await expect.poll(() => filterOf(flat.getByTestId("surface-carrier")), { intervals: [20, 50, 100] }).toBe("none");
 });
 
 test("glass beats elevation: ramp + blur-panels still leaves .shell-panel translucent", async ({ mount }) => {

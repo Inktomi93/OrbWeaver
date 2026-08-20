@@ -9,6 +9,7 @@
 import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import type { ThemeDensity } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
+import { Surface } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
@@ -18,7 +19,7 @@ import "../../../../packages/client/src/styles/globals.css";
 const PANEL_PROBE_WIDTH = "346px";
 
 export interface ShellCascadeFixtureProps {
-  readonly elevation?: "flat" | "ramp";
+  readonly elevation?: "flat" | "ramp" | "glow";
   readonly hasBgImage?: boolean;
   readonly blurSurfaces?: readonly BlurSurface[];
   readonly density?: ThemeDensity;
@@ -118,6 +119,9 @@ export function ShellCascadeFixture({
         </div>
       )}
       <div data-slot="composer" data-testid="composer-probe" />
+      <Surface tier="instrument">
+        <div data-testid="surface-carrier">Surface carrier</div>
+      </Surface>
       <div data-role={messageRole}>
         <div data-slot="message-bubble" data-testid="bubble-probe" />
       </div>
