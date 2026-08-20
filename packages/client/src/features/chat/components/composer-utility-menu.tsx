@@ -21,10 +21,13 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Compass, Eraser, Icon, ImagePlus, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
+import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
+import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
 
 /** The image controls re-homed into the ✨ utility menu (owner) — attach + generate-from-text. Owned by the
  *  composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders them. Homed
@@ -39,7 +42,7 @@ export interface ComposerImageControls {
   readonly onGenerate: () => void;
 }
 
-export interface UtilityMenuProps {
+interface UtilityMenuProps {
   readonly hasText: boolean;
   readonly canTargetTail: boolean;
   readonly canUndoRevert: boolean;
@@ -57,20 +60,64 @@ export interface UtilityMenuProps {
   readonly image: ComposerImageControls;
 }
 
-export function UtilityMenu(props: UtilityMenuProps): ReactElement {
+interface ComposerGuidedUtilityMenuProps {
+  readonly hasText: boolean;
+  readonly trimmed: string;
+  readonly idle: boolean;
+  readonly canTargetTail: boolean;
+  readonly guided: ReturnType<typeof useGuidedActions>;
+  readonly utilities: ReturnType<typeof useComposerUtilities>;
+  readonly onChange: (text: string) => void;
+  readonly onRewrite: () => void;
+  readonly game: { readonly isGame: boolean; readonly plotAvailable: boolean };
+  readonly image: ComposerImageControls;
+}
+
+/** Adapts the guided cluster's resolved action bundles to the utility menu without making the cluster own
+ *  the menu's phase-specific wiring. */
+export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps): ReactElement {
+  const { hasText, trimmed, idle, canTargetTail, guided, utilities, onChange, onRewrite, game, image } = props;
+  const tailId = guided.tailAssistantMessageId;
+  return (
+    <UtilityMenu
+      hasText={hasText}
+      canTargetTail={canTargetTail}
+      canUndoRevert={guided.tailHasContinuation}
+      onRewrite={onRewrite}
+      onRecall={onChange}
+      onUndo={tailId !== null ? (): void => utilities.undoContinue(tailId) : undefined}
+      onRevert={tailId !== null ? (): void => utilities.revertContinue(tailId) : undefined}
+      onClear={hasText ? (): void => onChange("") : undefined}
+      onSimpleSend={hasText ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
+      // Regenerate is a plain reroll of the tail assistant, distinct from the steer-aware top-row action.
+      onRegenerate={canTargetTail && idle ? (): void => guided.fireSwipe("") : undefined}
+      game={game.isGame ? { plotAvailable: game.plotAvailable, onSteer: guided.fireGameSteer } : undefined}
+      image={image}
+    />
+  );
+}
+
+function UtilityMenu(props: UtilityMenuProps): ReactElement {
   const { hasText, canTargetTail, canUndoRevert, onRewrite, onRecall, onUndo, onRevert, onClear, onSimpleSend, onRegenerate, game, image } = props;
   const recentSteers = useRecentSteers();
   return (
     <Menu>
-      <MenuTrigger
-        aria-label="Message tools"
-        data-testid={testId("composerUtility")}
-        render={
-          <Button type="button" intent="ghost" size="icon" title="Message tools" shape="pill" className="shrink-0">
-            <Icon icon={WandSparkles} size="sm" />
-          </Button>
-        }
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <MenuTrigger
+              aria-label="Message tools"
+              data-testid={testId("composerUtility")}
+              render={
+                <Button type="button" intent="ghost" size="icon" title="Message tools" shape="pill" className="shrink-0">
+                  <Icon icon={WandSparkles} size="sm" />
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipPopup side="top">More message actions</TooltipPopup>
+      </Tooltip>
       <MenuPopup>
         {/* INPUT — the draft-editing actions (most frequent). */}
         <MenuGroup>

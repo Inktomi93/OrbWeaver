@@ -1,8 +1,8 @@
-// The chat composer: a TWO-ROW footer (wand v2). Row 1 = the ⋯ chat-options menu at the LEFT (D111's drawn
-// map, owner-ruled 2026-08-09 — its ONE home; the topbar trail widget went with it) + the guided-action
-// cluster (impersonate·swipe·response·continue + the ✨ menu) at the right, above the textarea. Row 2 = the growing textarea + SpeakAs + one right-side control that toggles Send
-// <-> Stop off the live turn phase. The IMAGE controls (attach + generate-from-text) live INSIDE the ✨ menu,
-// not loose on the bar; attach still uploads local images to CAS and rides the send as attachmentAssetIds.
+// The chat composer is a TWO-ROW footer. Row 1 owns Chat actions plus three wrapping action groups: Your
+// message (Draft + its conditional stream Stop), Their reply (reroll/generate/continue + speaker), and Attach
+// and send (message tools + the terminal Send/turn-Stop slot). Row 2 is the growing textarea alone. Image
+// controls (attach + generate-from-text) live inside Message tools; attach still uploads local images to CAS
+// and rides the send as attachmentAssetIds.
 //
 // EMPTY-ENTER (PD-146 continue + W-E generate): a bare Enter on an empty composer either extends the tail
 // assistant reply (`continueOnSend`) or prompts a fresh reply on a committed non-assistant tail
@@ -385,13 +385,13 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             "rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
           )}
         >
-          {/* ROW 1 — D111 §3's control map, drawn left→right: the ⋯ chat-options menu in the LEFT gutter, then
-              the guided cluster (four dual-mode icons impersonate·swipe·response·continue + the ✨ utility
-              menu). The composer text is the steer. `justify="between"` keeps the cluster over the Send corner
-              (side-eye UGLY-1, the detached-toolbar impression) and fills the gutter that left empty with the
-              ⋯'s ONE home — the topbar trail widget was removed in the same change, never two. */}
-          <Row gap="field" align="center" justify="between" data-slot="composer-actions">
-            <ActiveChatOptionsMenu chatId={chatId} />
+          {/* ROW 1 — chat actions plus three truthful, atomic action groups. The outer row and guided cluster
+              both participate in wrapping: groups stay intact while the cluster takes the width left after
+              Chat actions, so coarse controls reflow inside the composer's actual content box. */}
+          <Row gap="field" align="start" className="min-w-0 flex-wrap" data-slot="composer-actions">
+            <Row aria-label="Chat actions" data-slot="composer-chat-actions" gap="field" role="group">
+              <ActiveChatOptionsMenu chatId={chatId} />
+            </Row>
             <ComposerGuidedCluster
               chatId={chatId}
               value={value}
@@ -401,11 +401,23 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
               imageControls={imageControls}
               sendUnavailable={sendAvailability.unavailable}
               sendUnavailableReason={sendAvailability.reason}
+              speakerControl={<SpeakAsSelect chatId={chatId} />}
+              sendControl={
+                <ComposerSendControl
+                  showStop={showStop}
+                  stopping={stopping}
+                  onStop={stopTurn.stop}
+                  onSend={submit}
+                  sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+                  sendPending={sendMessage.isPending || continueOnEmpty.isPending}
+                  unavailable={sendAvailability.unavailable}
+                  unavailableReason={sendAvailability.reason}
+                />
+              }
             />
           </Row>
-          {/* ROW 2 — the textarea + speaker picker + Send/Stop. */}
+          {/* ROW 2 — the textarea owns the full input line; speaker selection lives with Their reply above. */}
           <Row gap="field" align="center" data-slot="composer-input">
-            <SpeakAsSelect chatId={chatId} />
             <Textarea
               ref={textareaRef}
               aria-label="Message"
@@ -427,16 +439,6 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
               disabled={sendMessage.isPending}
               className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
-            />
-            <ComposerSendControl
-              showStop={showStop}
-              stopping={stopping}
-              onStop={stopTurn.stop}
-              onSend={submit}
-              sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
-              sendPending={sendMessage.isPending || continueOnEmpty.isPending}
-              unavailable={sendAvailability.unavailable}
-              unavailableReason={sendAvailability.reason}
             />
           </Row>
         </Stack>
