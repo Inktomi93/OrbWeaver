@@ -203,14 +203,16 @@ const QUALITY_META: Record<Quality, { readonly label: string; readonly descripti
 };
 
 /** One quality-dial option (the dial's segmented picker). */
-export interface QualityOption {
+interface QualityOption {
   readonly value: Quality;
   readonly label: string;
   readonly description: string;
 }
 
 /** The quality-dial options in canonical order (fast → balanced → deep). The raw descriptor knobs
- *  above live under the panel's "advanced" reveal. */
+ *  above live under the panel's "advanced" reveal.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const QUALITY_OPTIONS: readonly QualityOption[] = QUALITY_LEVELS.map((value) => ({
   value,
   label: QUALITY_META[value].label,

@@ -65,7 +65,9 @@ const PEOPLE_TAB_FLOOR = 2;
  *  SPEAKER ARBITER (mute · talkativeness · "make X speak next"), and un-hiding them put arbitration chrome in
  *  every 1:1 room. `committed-members-tab.tsx` now gates those three on {@link resolveIsGroupChat} — the
  *  SECTION floor above stays ZERO, which is what the #162 ruling was about. Read both comments together
- *  before touching either: the roster is not a group affordance, the arbiter's knobs are. */
+ *  before touching either: the roster is not a group affordance, the arbiter's knobs are.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function castSectionVisible(participants: readonly ParticipantView[]): boolean {
   return filterCharacters(participants).length >= CAST_SECTION_FLOOR;
 }

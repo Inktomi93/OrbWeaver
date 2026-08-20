@@ -16,7 +16,9 @@ import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/con
 // so a per-user `UserSettings.imagery` override composes over it). These re-exports keep every existing
 // consumer's import path (D15 front-door) AND remain the byte-identical FALLBACK the resolver reads when the
 // caller has no override — never a re-spelled literal that could drift from the catalog (`no-inline-union-redecl`).
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const PROMPT_TEMPLATES = DEFAULT_PROMPT_TEMPLATES;
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const CAPTION_INSTRUCTIONS = DEFAULT_CAPTION_INSTRUCTIONS;
 
 /** The composition each non-free mode's keyword list must OPEN with — the templates instruct the LLM to

@@ -160,7 +160,7 @@ type LifecycleCommand =
   | { readonly kind: "claim"; readonly issue: number; readonly lane: string }
   | { readonly kind: "ready" | "review" | "needs-owner"; readonly issue: number }
   | { readonly kind: "set"; readonly issue: number; readonly field: string; readonly value: string }
-  | { readonly kind: "verify" | "done"; readonly issue: number; readonly evidence: string }
+  | { readonly kind: "verify" | "reverify" | "done"; readonly issue: number; readonly evidence: string }
   | { readonly kind: "park"; readonly issue: number; readonly wake: string }
   | { readonly kind: "block"; readonly issue: number; readonly blocker: number }
   | { readonly kind: "unblock"; readonly issue: number; readonly blocker: number };
@@ -315,7 +315,7 @@ function parseLifecycle(name: string | undefined, issue: number, rest: readonly 
   if (name === "set") {
     return parseSet(issue, rest);
   }
-  if (name === "verify" || name === "done") {
+  if (name === "verify" || name === "reverify" || name === "done") {
     return { kind: name, issue, evidence: option(rest, "--evidence") };
   }
   if (name === "park") {
@@ -324,7 +324,7 @@ function parseLifecycle(name: string | undefined, issue: number, rest: readonly 
   if (name === "block" || name === "unblock") {
     return { kind: name, issue, blocker: issueNumber(option(rest, "--by")) };
   }
-  throw new WorkItemUsageError("command must be help, show, create, claim, ready, review, needs-owner, set, verify, done, park, block, or unblock");
+  throw new WorkItemUsageError("command must be help, show, create, claim, ready, review, needs-owner, set, verify, reverify, done, park, block, or unblock");
 }
 
 export function parseWorkCommand(argv: readonly string[]): WorkCommand {
@@ -731,6 +731,12 @@ function verify(work: WorkItemContext, evidence: string): void {
   transitionStatusLast(work.item, "Verify", [{ name: "Evidence", value: evidence }]);
 }
 
+function reverify(work: WorkItemContext, evidence: string): void {
+  requireStatus(work, ["Verify"], "work item must already be Verify before Evidence can be replaced");
+  requireUnblocked(work.target, "work item cannot be reverified while blocked");
+  writeFields(work.item, [{ name: "Evidence", value: evidence }], "WorkItemFields");
+}
+
 function done(work: WorkItemContext, evidence: string): void {
   requireStatus(work, ["Verify", "Done"], "work item must be Verify before Done");
   requireUnblocked(work.target, "work item cannot be Done while blocked");
@@ -883,7 +889,7 @@ list [--status <status>]
 create <work|bug|decision|program|evidence> --title <title> --body-file <file>
 ready <issue> | claim <issue> --lane <lane> | review <issue> | needs-owner <issue> | set <issue> <field> <value>
 block <issue> --by <blocker> | unblock <issue> --by <blocker> | park <issue> --wake <condition>
-verify <issue> --evidence <receipt> | done <issue> --evidence <same-receipt>
+verify <issue> --evidence <receipt> | reverify <issue> --evidence <replacement-receipt> | done <issue> --evidence <same-receipt>
 
 Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.\n`);
 }
@@ -912,6 +918,9 @@ function runLifecycle(command: LifecycleCommand): void {
       break;
     case "verify":
       verify(work, command.evidence);
+      break;
+    case "reverify":
+      reverify(work, command.evidence);
       break;
     case "done":
       done(work, command.evidence);

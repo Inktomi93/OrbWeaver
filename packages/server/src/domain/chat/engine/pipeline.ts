@@ -1094,7 +1094,9 @@ function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts)
 }
 
 /** Test-only seam: the CONTENT_CLASS_POLICY/dispatch binding test calls the real dispatch directly (no
- *  reason to reassemble a full turn to exercise one span → wire-part rule). */
+ *  reason to reassemble a full turn to exercise one span → wire-part rule).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const __spanToWirePartForTest = spanToWirePart;
 
 /** Projects a row's spans into provider content-parts. Adjacent text parts MERGE, so a body whose spans all

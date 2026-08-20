@@ -24,7 +24,9 @@ import { sniffImageBytes } from "@orb/kit/image-sniff";
 import type { ImageAdmissionVerdict } from "../contract/results.ts";
 
 /** The admission floor: an asset whose shorter edge is under this many pixels is refused before caption+embed
- *  spend. See the file header for the rationale. */
+ *  spend. See the file header for the rationale.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const MIN_IMAGE_EDGE_PX = 16;
 
 /**

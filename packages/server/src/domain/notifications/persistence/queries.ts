@@ -90,7 +90,9 @@ export async function selectInbox(
 }
 
 /** Idempotent recipient-scoped read-flip: set `readAt` only if currently null, pinned to the caller. Returns
- *  the row, or `undefined` when no row of the caller's matches the id. */
+ *  the row, or `undefined` when no row of the caller's matches the id.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function markReadScoped(
   db: Db,
   recipientUserId: NotificationEvent["recipientUserId"],

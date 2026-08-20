@@ -2,6 +2,7 @@
 // keyspace so an attacker walking `?w=1..10000` can't mint unbounded distinct variants on disk, and every
 // cache reusable across call sites that snap to the same rung. `resolveVariant` 404s anything a snap* rejects.
 
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 // biome-ignore lint/style/noMagicNumbers: a fixed display-width ladder; the literals are the data itself.
 export const BLOB_WIDTHS = [48, 64, 96, 128, 240, 400] as const;
 
@@ -44,6 +45,7 @@ export function snapPortraitWidth(requested: number): { readonly width: number; 
 }
 
 // The banner (3:1, face-safe smart-crop) ladder — a wide, fixed-aspect crop, never a caller-chosen height.
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 // biome-ignore lint/style/noMagicNumbers: a fixed 3:1 display-size ladder; the literals are the data itself.
 export const BANNER_WIDTHS = [480, 800] as const;
 // biome-ignore lint/style/noMagicNumbers: the 3:1 ratio IS the data (mirrors PORTRAIT_ASPECT_HEIGHT_OVER_WIDTH).

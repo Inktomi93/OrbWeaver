@@ -155,6 +155,7 @@ export const THEME_SCOPE_EMIT_VARS = [
  * whether a foreign palette converts safely — a base surface whose derived pairs would not clear WCAG AA is
  * refused rather than imported. This alias keeps every existing consumer's name (`THEME_DERIVATION` off the
  * clamp) while the values have exactly one declaration.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export const THEME_DERIVATION = KIT_THEME_DERIVATION;
 

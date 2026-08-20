@@ -896,7 +896,9 @@ type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly person
 
 /** memory's digest write payload → `embeddings.store`. `contentHash` is the staleness/collapse key;
  *  `key.scopedCharacterId` is always a real CharacterId (the synthetic group-as-character bucket, or a cast
- *  member, never a sentinel/null). */
+ *  member, never a sentinel/null).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export interface StoreDigestParams {
   readonly lens: "digest";
   readonly key: BlockKey;
@@ -923,7 +925,10 @@ export interface StoreSegmentParams {
   readonly contentHash: string;
 }
 
-/** memory's digest vector write — the one write path. */
+/** memory's digest vector write — the one write path.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<void>;
 
 /**
@@ -932,6 +937,7 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<void>;
  * collects every chat's pending chunks, hands them over in ONE call, and the embeddings side submits them to
  * the engine as a single flood with no client-side throttle; the live post-turn build calls the same op with
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[]) => Promise<void>;
 

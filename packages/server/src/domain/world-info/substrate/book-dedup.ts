@@ -41,7 +41,9 @@ function normalizeEntry(entry: DedupLoreEntry): Record<string, unknown> {
 
 /** The content-equality key: name + the SORTED per-entry canonical JSON. Sorting the entry keys makes the
  *  book key independent of entry array order; `stableStringify` makes each entry key independent of object
- *  key order. Two books with the same name and the same entry set produce the same key. */
+ *  key order. Two books with the same name and the same entry set produce the same key.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function bookContentKey(book: DedupBook): string {
   const entryKeys = book.entries.map((entry) => stableStringify(normalizeEntry(entry))).sort();
   return stableStringify({ name: book.name, entries: entryKeys });

@@ -32,7 +32,10 @@ import type { ChatDetail, ChatVariables } from "./views.ts";
 
 export type { TurnIntent } from "@orb/contracts/chat";
 
-/** The output axis: per-speaker (one message per speaker) vs narrator (one call voices the cast). */
+/** The output axis: per-speaker (one message per speaker) vs narrator (one call voices the cast).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export type GroupOutput = GroupConfig["output"];
 /** The card-scope axis: merged (all member cards in one block) vs scoped (own card + egocentric history).
  *  Lives only on the per-speaker arm — narrator is always merged. */

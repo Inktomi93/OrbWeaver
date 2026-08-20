@@ -45,7 +45,9 @@ export const EMPTY_MACRO_NAMES: RowMacroNameContext = {
  *  room's synthetic group card, whose name is the literal string **"Group"** (`buildGroupCard`, a
  *  never-rendered memory bucket), so every narrator recap reached the summarizer labelled `Group:` — and once
  *  that card is deleted its `characterId` SET-NULLs and the row fell through to `NARRATOR_LABEL` by ACCIDENT,
- *  i.e. the label changed because an unrelated card was deleted. Declared purpose answers both. */
+ *  i.e. the label changed because an unrelated card was deleted. Declared purpose answers both.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): string {
   if (row.kind === "narrator") {
     return NARRATOR_LABEL;

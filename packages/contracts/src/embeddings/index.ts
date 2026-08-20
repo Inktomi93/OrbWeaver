@@ -29,8 +29,6 @@ export const IMAGE_SKIP_REASONS = ["below-dimension-floor"] as const;
 
 export type ImageSkipReason = (typeof IMAGE_SKIP_REASONS)[number];
 
-export const imageSkipReasonSchema = z.enum(IMAGE_SKIP_REASONS);
-
 // ── The VL image breakdown (`image_embeddings.caption_meta`) ──────────────────────────────────────────
 //
 // WHY THIS LIVES IN CONTRACTS AND NOT IN EITHER DOMAIN. `caption_meta` is a domain↔domain wire column:

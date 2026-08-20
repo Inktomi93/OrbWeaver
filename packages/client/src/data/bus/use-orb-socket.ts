@@ -80,7 +80,9 @@ const SOCKET_CAP_CODE = "TOO_MANY_REQUESTS";
  *  The cap arm says what happened in the user's own vocabulary (TABS, which is the thing they can close)
  *  and deliberately does NOT quote the number: that digit lives inside the server's message string, and
  *  reading it here would key the client on message TEXT. Both arms carry the retry, because both are
- *  recoverable by exactly one action — re-subscribing. */
+ *  recoverable by exactly one action — re-subscribing.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function socketNotice(code: string | undefined, message: string, retry: () => void): NotifyNotice {
   const action = { label: "Try again", onClick: retry };
   if (code === SOCKET_CAP_CODE) {

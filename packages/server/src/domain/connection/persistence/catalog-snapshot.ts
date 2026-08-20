@@ -40,6 +40,7 @@ export async function persistCatalogSnapshot(db: Db, snapshot: CatalogSnapshot):
   seedOrModelCache(snapshot.models, snapshot.fetchedAt);
 }
 
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export async function writeCatalogSnapshot(db: Db, snapshot: CatalogSnapshot): Promise<void> {
   // CatalogSnapshot is JSON-shaped at runtime; cast bridges interface → index-signature only.
   const value = snapshot as JsonValue;

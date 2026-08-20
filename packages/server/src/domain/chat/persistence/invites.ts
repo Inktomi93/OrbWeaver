@@ -193,7 +193,9 @@ export async function claimPendingTurn(db: Db, id: PendingTurnId): Promise<typeo
  *  returning host across ALL their chats via {@link loadPendingTurnsForHost}, since a host's reconnect
  *  should reclaim every chat they fund at once, not one chat at a time. This chat-scoped sibling is the
  *  precise read for asserting a single chat's queue state (used throughout the `turn`/`invites` int
- *  suites) and remains available for a future per-chat "reply pending" surface. */
+ *  suites) and remains available for a future per-chat "reply pending" surface.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function loadPendingTurns(db: Db, chatId: ChatId): Promise<(typeof pendingTurns.$inferSelect)[]> {
   return await db.select().from(pendingTurns).where(eq(pendingTurns.chatId, chatId)).orderBy(asc(pendingTurns.createdAt));
 }

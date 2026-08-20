@@ -78,7 +78,9 @@ export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
 /** The BAND label over one sub-cluster (the Actions-tab IA §2.1) — keyed by the contracts union, so a new
  *  cluster id fails `tsc` HERE until labeled: the `TEMPLATE_KIND_LABEL` registration shape, one level down.
  *  Kicker-voiced copy a person reads (the bands are the map; the rows inside no longer re-say these nouns —
- *  X-7 anti-echo). Owner-vetoable chrome copy, deliberately ALL in this one file. */
+ *  X-7 anti-echo). Owner-vetoable chrome copy, deliberately ALL in this one file.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const TEMPLATE_CLUSTER_LABEL: Record<TemplateClusterId, string> = {
   round: "Round framing",
   scene: "The scene plane",
@@ -186,7 +188,9 @@ function templateRow(def: TemplateDef): TemplateRow {
 }
 
 /** Does a row match the tab's filter? Over the two strings a reader can SEE (label + fires) — matching
- *  hidden fields would make rows appear for no visible reason. `""` matches everything (no filter). */
+ *  hidden fields would make rows appear for no visible reason. `""` matches everything (no filter).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function templateRowMatches(row: TemplateRow, filter: string): boolean {
   const needle = filter.trim().toLowerCase();
   if (needle === "") {

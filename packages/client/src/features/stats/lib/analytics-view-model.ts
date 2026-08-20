@@ -16,7 +16,10 @@ import type { BarListItem } from "@orb/ui/bar-list";
 import type { HeatmapMatrix } from "@orb/ui/heatmap";
 import type { HistogramBucket } from "@orb/ui/histogram";
 
-/** Sun..Sat, index 0 = Sunday — matches the server's `dayOfWeek` / heatmap row ordering. */
+/** Sun..Sat, index 0 = Sunday — matches the server's `dayOfWeek` / heatmap row ordering.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 /** Jan..Dec, index 0 = January — the momentum band's `YYYY-MM` → prose map. */
@@ -172,7 +175,9 @@ export function activityHeatmapMatrix(matrix: readonly (readonly number[])[]): H
 
 /** `2026-07-13` → `07-13`, EXCEPT the first bucket of a year, which keeps its full `2026-01-04` — a
  *  ~1,100-day axis otherwise wraps `11-22 → 01-24` with no mark that a year turned over (side-eye P2f).
- *  `prevDay` is the preceding point in series order; absent (the first bucket) counts as a crossing. */
+ *  `prevDay` is the preceding point in series order; absent (the first bucket) counts as a crossing.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function formatDayLabel(day: string, prevDay?: string): string {
   const crossesYear = prevDay === undefined || day.slice(0, YEAR_PREFIX_LEN) !== prevDay.slice(0, YEAR_PREFIX_LEN);
   return crossesYear || day.length <= YEAR_PREFIX_LEN ? day : day.slice(YEAR_PREFIX_LEN);

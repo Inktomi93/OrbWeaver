@@ -186,6 +186,7 @@ async function loadWithCpuFallback<T>(device: DeviceType, build: (device: Device
   }
 }
 
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => void): (id: string) => Promise<T> {
   const entries = new Map<string, Promise<T>>();
   return (id) => {

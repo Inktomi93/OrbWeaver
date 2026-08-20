@@ -60,7 +60,10 @@ export const CREATE_SCHEDULE_FORM_DEFAULTS: CreateScheduleFormValues = {
   source: "all",
 };
 
-/** Extract the run-param slots from a schedule row's stored `params` blob — the inverse of `buildStartInput`, seeding the edit dialog's controls. */
+/** Extract the run-param slots from a schedule row's stored `params` blob — the inverse of `buildStartInput`, seeding the edit dialog's controls.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function scheduleParamsToRunValues(params: Record<string, unknown>): WorkloadRunValues {
   const source = params["source"];
   const k = params["k"];

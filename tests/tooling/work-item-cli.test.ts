@@ -337,6 +337,15 @@ defineTest("claim requires a lane and produces the mutation intent", () => {
   expect(() => parseWorkCommand(["claim", "11", "--lane", "docs-catalog", "extra"])).toThrow("--lane accepts exactly one value");
 });
 
+defineTest("reverify requires replacement evidence", () => {
+  expect(parseWorkCommand(["reverify", "11", "--evidence", "replacement receipt"])).toEqual({
+    kind: "reverify",
+    issue: 11,
+    evidence: "replacement receipt",
+  });
+  expect(() => parseWorkCommand(["reverify", "11"])).toThrow("--evidence requires a value");
+});
+
 defineTest("list accepts an optional status filter", () => {
   expect(parseWorkCommand(["list"])).toEqual({ kind: "list" });
   expect(parseWorkCommand(["list", "--status", "Needs owner"])).toEqual({ kind: "list", status: "Needs owner" });
@@ -471,6 +480,27 @@ defineTest("review gates verification and rejects blocked work", () => {
   const review = drive(blocked, "review", "11");
   expect(review.status).toBe(TOOL_ERROR_EXIT);
   expect(review.stderr).toContain("cannot enter Review while blocked");
+});
+
+defineTest("reverify repairs stale Verify evidence without weakening the normal verify guard", () => {
+  const state = createState("Verify");
+  const item = state.items[0];
+  if (item !== undefined) {
+    item[EVIDENCE_FIELD] = "stale receipt";
+  }
+
+  const guarded = drive(state, "verify", "11", "--evidence", "replacement receipt");
+  expect(guarded.status).toBe(TOOL_ERROR_EXIT);
+  expect(fieldValue(state, EVIDENCE_FIELD)).toBe("stale receipt");
+
+  expect(drive(state, "reverify", "11", "--evidence", "replacement receipt").status).toBe(0);
+  expect(fieldValue(state, EVIDENCE_FIELD)).toBe("replacement receipt");
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Verify");
+  expect(drive(state, "done", "11", "--evidence", "replacement receipt").status).toBe(0);
+
+  const review = drive(createState("Review"), "reverify", "11", "--evidence", "too early");
+  expect(review.status).toBe(TOOL_ERROR_EXIT);
+  expect(review.stderr).toContain("must already be Verify");
 });
 
 defineTest("set compares field names case-insensitively before writing", () => {

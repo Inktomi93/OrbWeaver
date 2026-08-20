@@ -60,14 +60,20 @@ const SERIES_COLOR: Record<BarListIntent, (colors: ChartColors) => string> = {
   negative: (colors) => colors.seriesNegative,
 };
 
-/** The right gutter the bar-end value labels actually need, measured at the font they are drawn in. */
+/** The right gutter the bar-end value labels actually need, measured at the font they are drawn in.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function valueGutterPx(labels: readonly string[], widthPx: number): number {
   const needed = widestChartLabelPx(labels) + VALUE_LABEL_GAP_PX + VALUE_LABEL_EDGE_PAD_PX;
   const ceiling = widthPx > 0 ? widthPx * MAX_VALUE_GUTTER_SHARE : Number.POSITIVE_INFINITY;
   return Math.round(Math.max(MIN_VALUE_GUTTER_PX, Math.min(needed, ceiling)));
 }
 
-/** The width a category name is ellipsized to — a share of the container, never the name's own length. */
+/** The width a category name is ellipsized to — a share of the container, never the name's own length.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function categoryLabelBudgetPx(widthPx: number): number {
   return Math.round(Math.max(MIN_CATEGORY_LABEL_PX, widthPx * CATEGORY_LABEL_SHARE));
 }

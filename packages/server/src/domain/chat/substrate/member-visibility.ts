@@ -67,7 +67,9 @@ import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/view
 /** Strip hidden-class spans from one message view's content. Identity when nothing is hidden (the common
  *  case allocates nothing). Only `content` carries body prose; the `reasoning` channel is handled SEPARATELY
  *  by the P3 game-conditional reasoning strip ({@link stripReasoningFromView}) — a body strip never touches
- *  reasoning, so a non-deception game's reasoning is unaffected. */
+ *  reasoning, so a non-deception game's reasoning is unaffected.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function stripHiddenForMember(view: MessageView): MessageView {
   const { content, hadHidden } = stripHiddenSpans(view.content);
   return hadHidden ? { ...view, content } : view;
@@ -75,7 +77,9 @@ export function stripHiddenForMember(view: MessageView): MessageView {
 
 /** P3 (§3.6): withhold the whole REASONING channel from a member of a deception-active game. Nulls
  *  `view.reasoning` (identity when it is already null — the common non-reasoning row allocates nothing). The
- *  BODY is left to {@link stripHiddenForMember}; a caller applies BOTH when the game is deception-active. */
+ *  BODY is left to {@link stripHiddenForMember}; a caller applies BOTH when the game is deception-active.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function stripReasoningFromView(view: MessageView): MessageView {
   return view.reasoning === null ? view : { ...view, reasoning: null };
 }

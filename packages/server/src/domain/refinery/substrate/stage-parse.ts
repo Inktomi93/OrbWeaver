@@ -33,7 +33,9 @@ export function buildStageParse<T>(payloadSchema: z.ZodType<T>): StageParse<T> {
 
 /** Every dotted path present in `input` but absent from `output` — the keys the strip-mode parse removed.
  *  Arrays recurse positionally (`fields.0.junk`); non-object leaves diff by presence only (a VALUE the
- *  schema coerced is not a stripped KEY). */
+ *  schema coerced is not a stripped KEY).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function diffKeyPaths(input: unknown, output: unknown): readonly string[] {
   const stripped: string[] = [];
   walk(input, output, "", stripped);

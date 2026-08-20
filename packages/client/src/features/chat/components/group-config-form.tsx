@@ -52,7 +52,7 @@ const DELAY_MS_MIN = 0;
 const DELAY_MS_MAX = 60_000;
 const DELAY_MS_STEP = 250;
 
-export interface GroupConfigFormProps {
+interface GroupConfigFormProps {
   readonly entityId: string;
   readonly config: GroupConfig;
   /**
@@ -83,6 +83,7 @@ const GroupConfigFormBoundary = createAutosaveEntityForm<GroupConfigFormValues>(
  * the tab open would keep the SAME FormApi and its frozen seed, and one field flip could autosave chat A's
  * group config into chat B. The boundary keys by `entityId` regardless of mount site, so BOTH mount arms
  * (the committed Group tab and the draft arm in `draft-context-tabs.tsx`) are protected.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
   const factorySave = (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));

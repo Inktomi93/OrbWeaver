@@ -16,7 +16,10 @@ interface PickerEntry {
   readonly origin?: string | undefined;
 }
 
-/** The render cap across ALL provider groups together — a large catalog is sliced so the popover never mounts hundreds of rows. */
+/** The render cap across ALL provider groups together — a large catalog is sliced so the popover never mounts hundreds of rows.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const MODEL_PICKER_RENDER_CAP = 50;
 
 const MILLION = 1_000_000;

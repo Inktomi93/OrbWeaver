@@ -135,14 +135,18 @@ export function showsPhaseChip(phase: IngestPhase): boolean {
 
 /** Is this document's ingest still running? The freshness driver for the library's bounded poll (D-3 arm b).
  *  A STALLED document is NOT in flight: it stopped moving, so polling it forever would be a 4-second request
- *  every 4 seconds, permanently, for a job that is never coming back. */
+ *  every 4 seconds, permanently, for a job that is never coming back.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function isIngestInFlight(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): boolean {
   const phase = ingestPhase(doc, now);
   return phase !== "stalled" && IN_FLIGHT_WORD[phase] !== null;
 }
 
 /** How often a documents read re-runs while ANY row is mid-ingest (D-3 arm b). Slow enough to be free at
- *  rest, fast enough that a small document's `Queued → Ready` is seen rather than reported later. */
+ *  rest, fast enough that a small document's `Queued → Ready` is seen rather than reported later.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const INGEST_POLL_MS = 4000;
 
 /** The bounded-poll interval for a `databank.list` read: {@link INGEST_POLL_MS} while some row is still
@@ -206,6 +210,7 @@ function groupThousands(value: number): string {
  *
  * So: both numbers while they differ, one number once they cannot. That is the same shape the health line
  * settled on, and it is why a partially-embedded row now says what a complete one does not have to.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function passageCount(doc: Pick<DocumentView, "chunkCount" | "embeddedCount">): string {
   if (doc.embeddedCount < doc.chunkCount) {

@@ -17,7 +17,10 @@ export const RUNNABLE_WORKLOAD_KINDS: readonly WorkloadKind[] = WORKLOAD_KINDS.f
     kind !== "import-bundle",
 );
 
-/** Owner-only maintenance kinds: built, bulk-capable, not singular (a deployment-wide sweep, no per-user target). */
+/** Owner-only maintenance kinds: built, bulk-capable, not singular (a deployment-wide sweep, no per-user target).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const MAINTENANCE_WORKLOAD_KINDS: readonly WorkloadKind[] = WORKLOAD_KINDS.filter(
   (kind) => WORKLOAD_KIND_MODES[kind].bulk && !WORKLOAD_KIND_MODES[kind].singular && !WORKLOAD_KIND_MODES[kind].stub,
 );

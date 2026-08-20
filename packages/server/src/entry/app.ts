@@ -129,6 +129,7 @@ const trpcJsonOnly: MiddlewareHandler = (c, next) => {
  * ceil of `msBeforeNext`) and `X-RateLimit-Remaining`, so clients back off cleanly instead of hammering.
  * The classifier (`transport/trpc/error-mapping.ts`) preserves the `DomainRateLimitError` as the mapped
  * `TRPCError.cause`, so the numbers are one deref away.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function rateLimitResponseMeta(errors: readonly TRPCError[]): ResponseMeta {
   for (const err of errors) {

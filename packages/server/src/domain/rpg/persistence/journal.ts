@@ -80,7 +80,10 @@ export async function deleteJournalEntry(db: Db, gameId: RpgGameId, id: RpgJourn
   return rows.length > 0;
 }
 
-/** All entries stamped with a variant (test/introspection helper — the CASCADE probe reads this). */
+/** All entries stamped with a variant (test/introspection helper — the CASCADE probe reads this).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function listJournalByVariant(db: Db, variantId: MessageVariantId): Promise<RpgJournalRow[]> {
   return db.select().from(rpgJournal).where(eq(rpgJournal.variantId, variantId));
 }

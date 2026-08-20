@@ -28,7 +28,9 @@ import type { CredentialStorageStatus, CredentialView } from "./views.ts";
 
 /** The endpoint coordinates the injected infra/network ops take — the `/models` fetch AND the custom-endpoint
  *  health probe (infra/network's `FetchOpenAiModelsArgs` shape, declared here so the domain never imports the
- *  infra arg type). */
+ *  infra arg type).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export interface FetchModelsArgs {
   readonly baseUrl: string;
   readonly apiKey: string | null;

@@ -22,7 +22,9 @@ const VERSION_SEP_RE = /[.-]/u;
 const FAST_SUFFIX = "-fast";
 
 /** Transform a daemon/curated Anthropic version id into its OpenRouter slug: strip an 8-digit date suffix,
- *  dot-join a trailing two-segment numeric version, prefix `anthropic/`. Idempotent on an already-prefixed id. */
+ *  dot-join a trailing two-segment numeric version, prefix `anthropic/`. Idempotent on an already-prefixed id.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function toOpenRouterSlug(id: string): string {
   const bare = id.startsWith(ANTHROPIC_PREFIX) ? id.slice(ANTHROPIC_PREFIX.length) : id;
   const dateStripped = bare.replace(DATE_SUFFIX_RE, "");
