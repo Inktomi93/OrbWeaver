@@ -3,6 +3,7 @@
 
 import { describe } from "vitest";
 import {
+  aggregateTokenProvenance,
   cacheHitRate,
   deriveExtra,
   div,
@@ -57,22 +58,25 @@ describe("cacheHitRate is the share of INPUT tokens, or null", () => {
 // against the owner corpus 2026-08-19: 8,713 of one character's variants carry NULL on BOTH token columns
 // while that character has 1,187 real replies — the rollup's 0 is absence, not a measurement.
 describe("recordedTokens / recordedCost decide unrecorded vs zero", () => {
-  test("a total of 0 behind real generations is UNRECORDED", () => {
-    expect(recordedTokens(0, 1187)).toBeNull();
+  test("no provenance samples means UNRECORDED even behind real generations", () => {
+    expect(recordedTokens(0, 0, 0)).toBeNull();
+    expect(aggregateTokenProvenance(0, 0)).toBe("unrecorded");
   });
 
-  test("a total of 0 behind NO generations is a true zero", () => {
-    expect(recordedTokens(0, 0)).toBe(0);
+  test("a measured sample preserves a genuine zero", () => {
+    expect(recordedTokens(0, 1, 0)).toBe(0);
+    expect(aggregateTokenProvenance(1, 0)).toBe("measured");
   });
 
-  test("any measured total passes through", () => {
-    expect(recordedTokens(1_664_309, 11_750)).toBe(1_664_309);
+  test("an estimate passes through but dominates a mixed aggregate's label", () => {
+    expect(recordedTokens(1_664_309, 11_750, 2)).toBe(1_664_309);
+    expect(aggregateTokenProvenance(11_750, 2)).toBe("estimated");
   });
 
-  test("cost is unrecorded only when the usage behind it is — a free local model still costs $0", () => {
-    expect(recordedCost(0, 0, 62)).toBeNull();
-    expect(recordedCost(0, 48_092, 62)).toBe(0);
-    expect(recordedCost(0.037_678_5, 100_772, 3)).toBe(0.037_678_5);
+  test("cost uses its own sample counter — estimated tokens never manufacture dollars", () => {
+    expect(recordedCost(0, 0)).toBeNull();
+    expect(recordedCost(0, 1)).toBe(0);
+    expect(recordedCost(0.037_678_5, 3)).toBe(0.037_678_5);
   });
 });
 
@@ -88,6 +92,7 @@ describe("deriveExtra", () => {
       maxContextTokens: 8000,
       tokensIn: 200,
       tokensOut: 1000,
+      costSamples: 2,
       totalGenTimeMs: 2000,
       activeIdxSum: 8,
       assistantTurns: 8,
@@ -114,6 +119,7 @@ describe("deriveExtra", () => {
       maxContextTokens: null,
       tokensIn: 0,
       tokensOut: 0,
+      costSamples: 0,
       totalGenTimeMs: 900_000,
       activeIdxSum: 0,
       assistantTurns: 1187,

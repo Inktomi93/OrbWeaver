@@ -8,6 +8,7 @@
 // Owner = `runAsUserId` (the host, who funds + owns the turn). `triggeredBy` is the budget axis, not the
 // stats owner — they differ in a hosted by-proxy turn.
 
+import type { TokenProvenance } from "@orb/contracts/chat";
 import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -22,6 +23,7 @@ interface TurnEconomicsInput {
   readonly provider?: string | null | undefined;
   readonly tokensIn?: number | null | undefined;
   readonly tokensOut?: number | null | undefined;
+  readonly tokenProvenance?: TokenProvenance | undefined;
   readonly cacheReadTokens?: number | null | undefined;
   readonly cacheWriteTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
@@ -46,12 +48,37 @@ function has(v: number | null | undefined): v is number {
   return typeof v === "number";
 }
 
+function tokenProvenanceOf(e: Pick<TurnEconomicsInput, "tokensIn" | "tokensOut" | "tokenProvenance">): TokenProvenance {
+  return e.tokenProvenance ?? (has(e.tokensIn) || has(e.tokensOut) ? "measured" : "unrecorded");
+}
+
+function tokenSampleSlice(args: {
+  readonly prefix: "" | "daily" | "model";
+  readonly provenance: TokenProvenance;
+  readonly tokensIn: number | null | undefined;
+  readonly tokensOut: number | null | undefined;
+  readonly sign?: number;
+}): Record<string, number> {
+  const { prefix, provenance, tokensIn, tokensOut, sign = 1 } = args;
+  if (provenance === "unrecorded") {
+    return {};
+  }
+  const suffix = provenance === "measured" ? "MeasuredSamples" : "EstimatedSamples";
+  const field = (axis: "TokensIn" | "TokensOut"): string =>
+    `${prefix}${prefix === "" ? (axis[0]?.toLowerCase() ?? "") : (axis[0] ?? "")}${axis.slice(1)}${suffix}`;
+  return {
+    ...(has(tokensIn) ? { [field("TokensIn")]: sign } : {}),
+    ...(has(tokensOut) ? { [field("TokensOut")]: sign } : {}),
+  };
+}
+
 /** The decoupled model_stats slice (null model ⇒ `{}` — apply skips the model row). */
 function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<string, number> {
   if (model === null) {
     return {};
   }
   const reasoningMs = reasoningMsOf(e.metadata ?? null);
+  const tokenProvenance = tokenProvenanceOf(e);
   return {
     modelGenerations: 1,
     // A gen-time sample is counted only when a gen time is present, symmetric with the delete mirror.
@@ -60,7 +87,9 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
     ...(reasoningMs > 0 ? { modelReasoningMs: reasoningMs } : {}),
     ...(has(e.tokensIn) ? { modelTokensIn: e.tokensIn } : {}),
     ...(has(e.tokensOut) ? { modelTokensOut: e.tokensOut } : {}),
+    ...tokenSampleSlice({ prefix: "model", provenance: tokenProvenance, tokensIn: e.tokensIn, tokensOut: e.tokensOut }),
     ...(has(e.costUsd) ? { modelCostUsd: e.costUsd } : {}),
+    ...(has(e.costUsd) ? { modelCostSamples: 1 } : {}),
     ...(has(e.genTimeMs) ? { modelGenTimeMs: e.genTimeMs } : {}),
     ...(has(e.cacheReadTokens) ? { modelCacheReadTokens: e.cacheReadTokens } : {}),
     ...(has(e.cacheWriteTokens) ? { modelCacheWriteTokens: e.cacheWriteTokens } : {}),
@@ -95,6 +124,7 @@ export function assistantTurnDelta(params: {
   // producer this was structurally always 0 here, which is why the new-slot builder never carried it while
   // the swipe/continue builders (reading the committed row) did — a drift that could not fire until now.
   const reasoningMs = reasoningMsOf(e.metadata ?? null);
+  const tokenProvenance = tokenProvenanceOf(e);
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
@@ -108,6 +138,9 @@ export function assistantTurnDelta(params: {
     ...(hasReasoning ? { reasoningGenerations: 1 } : {}),
     ...(reasoningMs > 0 ? { reasoningMs } : {}),
     ...(has(e.contextWindow) ? { maxContextTokens: e.contextWindow } : {}),
+    ...tokenSampleSlice({ prefix: "", provenance: tokenProvenance, tokensIn: e.tokensIn, tokensOut: e.tokensOut }),
+    ...tokenSampleSlice({ prefix: "daily", provenance: tokenProvenance, tokensIn: e.tokensIn, tokensOut: e.tokensOut }),
+    ...(has(e.costUsd) ? { costSamples: 1 } : {}),
     lastAt: params.now,
     now: params.now,
     ...optional,
@@ -151,6 +184,7 @@ export function compactionCostDelta(params: { readonly ownerId: UserId; readonly
     model: null,
     provider: null,
     costUsd: params.costUsd,
+    costSamples: 1,
     lastAt: params.now,
     now: params.now,
   };
@@ -169,6 +203,7 @@ interface CanonRowInput {
   readonly content: string | null;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance;
   readonly costUsd: number | null;
   readonly cacheReadTokens: number | null;
   readonly cacheWriteTokens: number | null;
@@ -190,6 +225,7 @@ interface SwipeRowInput {
   readonly content: string | null;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance;
   readonly genStartedAt: number | null;
   readonly genFinishedAt: number | null;
   readonly model: string | null;
@@ -257,7 +293,10 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
     tokensOut,
     dailyTokensIn: tokensIn,
     dailyTokensOut: tokensOut,
+    ...tokenSampleSlice({ prefix: "", provenance: row.tokenProvenance, tokensIn: row.tokensIn, tokensOut: row.tokensOut, sign }),
+    ...tokenSampleSlice({ prefix: "daily", provenance: row.tokenProvenance, tokensIn: row.tokensIn, tokensOut: row.tokensOut, sign }),
     costUsd,
+    costSamples: row.costUsd !== null ? sign : 0,
     cacheReadTokens: cacheR,
     cacheWriteTokens: cacheW,
     reasoningMs,
@@ -277,6 +316,8 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
       reasoningGen,
       reasoningMs,
       costUsd,
+      costSamples: row.costUsd !== null ? sign : 0,
+      tokenProvenance: row.tokenProvenance,
       cacheR,
       cacheW,
     }),
@@ -294,6 +335,8 @@ function canonModelSlice(
     readonly reasoningGen: number;
     readonly reasoningMs: number;
     readonly costUsd: number;
+    readonly costSamples: number;
+    readonly tokenProvenance: TokenProvenance;
     readonly cacheR: number;
     readonly cacheW: number;
   },
@@ -305,11 +348,13 @@ function canonModelSlice(
     modelGenerations: v.sign,
     modelTokensIn: v.tokensIn,
     modelTokensOut: v.tokensOut,
+    ...tokenSampleSlice({ prefix: "model", provenance: v.tokenProvenance, tokensIn: v.tokensIn, tokensOut: v.tokensOut, sign: v.sign }),
     modelGenTimeMs: v.gen !== null ? v.gen * v.sign : 0,
     modelGenSamples: v.gen !== null ? v.sign : 0,
     modelReasoningGenerations: v.reasoningGen,
     modelReasoningMs: v.reasoningMs,
     modelCostUsd: v.costUsd,
+    modelCostSamples: v.costSamples,
     modelCacheReadTokens: v.cacheR,
     modelCacheWriteTokens: v.cacheW,
   };
@@ -340,6 +385,7 @@ export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly r
     contentBytes: (row.content?.length ?? 0) * sign,
     tokensIn,
     tokensOut,
+    ...tokenSampleSlice({ prefix: "", provenance: row.tokenProvenance, tokensIn: row.tokensIn, tokensOut: row.tokensOut, sign }),
     reasoningMs,
     genTimeMs: gen !== null ? gen * sign : 0,
     genSamples: gen !== null ? sign : 0,
@@ -350,6 +396,7 @@ export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly r
           modelGenerations: sign,
           modelTokensIn: tokensIn,
           modelTokensOut: tokensOut,
+          ...tokenSampleSlice({ prefix: "model", provenance: row.tokenProvenance, tokensIn: row.tokensIn, tokensOut: row.tokensOut, sign }),
           modelGenTimeMs: gen !== null ? gen * sign : 0,
           modelGenSamples: gen !== null ? sign : 0,
           modelReasoningGenerations: reasoningGen,

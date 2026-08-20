@@ -176,7 +176,7 @@ function LeaderboardBody({
           subtitle={`${formatCompact(row.assistantTurns)} replies · ${formatDurationMs(row.totalGenTimeMs)}`}
           actions={
             <Text voice="gloss" className="whitespace-nowrap font-mono">
-              {formatTokens(row.tokensOut)}
+              {formatTokens(row.tokensOut, row.tokensOutProvenance)}
             </Text>
           }
         />

@@ -47,6 +47,7 @@ import type {
   HandoffOffer,
   MacroFreezeRecord,
   StandaloneVariableDelta,
+  TokenProvenance,
   ToolCallRecord,
   UserMacroDraws,
 } from "@orb/contracts/chat";
@@ -57,6 +58,7 @@ import {
   LIVE_ONLY_CHAT_EVENT_TYPES,
   MESSAGE_KINDS,
   PARTICIPANT_KINDS,
+  TOKEN_PROVENANCES,
   TURN_INITIATORS,
 } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
@@ -377,6 +379,7 @@ export const messageVariants = sqliteTable(
     // ── Economics (all nullable — populated when the generation finishes). ──
     tokensIn: integer("tokens_in"),
     tokensOut: integer("tokens_out"),
+    tokenProvenance: text("token_provenance", { enum: TOKEN_PROVENANCES }).$type<TokenProvenance>().notNull().default("unrecorded"),
     cacheReadTokens: integer("cache_read_tokens"),
     cacheWriteTokens: integer("cache_write_tokens"),
     costUsd: real("cost_usd"),
@@ -437,6 +440,7 @@ export const messageVariants = sqliteTable(
     // The context-boundary self-FK: a message delete must find the variants pointing AT it to apply its
     // rule, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
     index("message_variants_context_boundary_idx").on(t.contextBoundaryMessageId),
+    check("message_variants_token_provenance_check", sql.raw(`token_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
   ],
 );
 

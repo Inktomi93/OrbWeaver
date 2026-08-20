@@ -21,6 +21,9 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createRunChatTurnBridge } from "@orb/server/entry/compose";
+import type { ChatCompletionResult } from "@orb/server/infra/providers/backends/kit";
+import { mapChatCompletionToTurnResult } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -33,6 +36,7 @@ import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeOpenRouterCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -387,13 +391,52 @@ describe("engine stats — a reasoning-bearing assistant turn credits model_stat
 
 describe("engine stats — provider-reported OpenRouter cost reaches model_stats (#291)", () => {
   test("a completed OpenRouter-shaped stream atomically carries its measured cost into the model rollup", async () => {
+    const rawProviderResult: ChatCompletionResult = {
+      id: "gen-openrouter-cost-fence",
+      choices: [{ message: { content: "the provider-shaped reply" }, finishReason: "stop" }],
+      usage: { promptTokens: 10, completionTokens: 20, cost: 0.5 },
+    };
+    const openRouterConnection: ResolvedConnection = {
+      ...CONNECTION,
+      credential: makeOpenRouterCredential(),
+    };
+    const bridge = createRunChatTurnBridge({
+      runChatTurn: () =>
+        Promise.resolve(
+          mapChatCompletionToTurnResult(rawProviderResult, {
+            model: "gpt",
+            startedAt: FROZEN_AT,
+            now: FROZEN_AT + 500,
+            contextWindow: 1000,
+            maxOutputTokens: 100,
+          }),
+        ),
+      getOrSkinTierModels: (() => Promise.resolve([])) as never,
+    });
     const deltas: StatsDelta[] = [];
-    const engine = engineFor(db, deltas, [REPLY]);
+    const ctx = makeChatContext(db, {
+      runChatTurn: bridge,
+      applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
+        deltas.push(delta);
+      },
+    });
+    const engine = createTurnEngine(ctx, {
+      emit: (): Promise<void> => Promise.resolve(),
+      debitBudget: (): Promise<void> => Promise.resolve(),
+      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+      holder: "replica-1",
+      lockTtlMs: 60_000,
+      generateSegments: async () => ({ written: 0, skipped: 0 }),
+      generateDigests: async () => ({ written: 0, skipped: 0 }),
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction: stubRunCompaction,
+    });
 
-    await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));
+    await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId, connection: openRouterConnection }));
 
     const variant = (await db.select().from(messageVariants))[0];
-    expect(variant?.costUsd).toBe(0.5);
+    expect(variant).toMatchObject({ costUsd: 0.5, tokensIn: 10, tokensOut: 20, tokenProvenance: "measured", provider: "openrouter" });
 
     const batch: BatchStmt[] = [];
     for (const delta of deltas) {
@@ -402,7 +445,15 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
     await db.batch(batchMany(batch));
 
     const model = (await db.select().from(modelStats).where(eq(modelStats.ownerId, HOST)))[0];
-    expect(model).toMatchObject({ model: "gpt", provider: "openrouter", generations: 1, costUsd: 0.5 });
+    expect(model).toMatchObject({
+      model: "gpt",
+      provider: "openrouter",
+      generations: 1,
+      costUsd: 0.5,
+      costSamples: 1,
+      tokensInMeasuredSamples: 1,
+      tokensOutMeasuredSamples: 1,
+    });
   });
 });
 

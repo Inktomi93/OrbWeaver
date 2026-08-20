@@ -192,6 +192,7 @@ function CorpusHomeBody(): ReactElement {
 
   const mapIsFocal = state.phase === "analysed";
   const hasStoryThemes = home.sceneThemes.length > 0 || home.arcThemes.length > 0;
+  const paidRoutes = (routing.data ?? []).flatMap((route) => (route.costUsd === null || route.costUsd <= 0 ? [] : [{ ...route, costUsd: route.costUsd }]));
 
   return (
     // NO `size`: the container-query context survives (the split answers to THIS pane's inline size — the
@@ -318,11 +319,11 @@ function CorpusHomeBody(): ReactElement {
 
         {/* SPEND, not rows: a local-model instance records a route per (genre × model) and zero dollars. */}
         {routing.error !== null ? <QueryErrorState label="your model economics" onRetry={routing.refetch} /> : null}
-        {routing.data === undefined || routing.data.every((route) => route.costUsd <= 0) ? null : (
+        {paidRoutes.length === 0 ? null : (
           <Section kicker="Model economics" level={2}>
             <BarList
               items={toBarItems(
-                routing.data,
+                paidRoutes,
                 (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
                 (route) => route.costUsd,
               )}

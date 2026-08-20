@@ -4,6 +4,7 @@
 // accumulator Maps; atomic per-owner replace-write (one db.batch) so a read never sees a half-rebuilt owner.
 // Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
 
+import type { TokenProvenance } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -23,11 +24,18 @@ const MIGRATION_GAP_DAYS = 30; // a message >30d after its chat's creation = mig
 const MIGRATION_GAP_MS = MIGRATION_GAP_DAYS * DAY_MS;
 const UNKNOWN_PROVIDER = "(unknown)";
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.
-const CHAR_COLS = 24;
-const DAILY_COLS = 16;
-const MODEL_COLS = 15;
+const CHAR_COLS = 29;
+const DAILY_COLS = 21;
+const MODEL_COLS = 20;
 
-interface CharAccum {
+interface TokenSampleAccum {
+  tokensInMeasuredSamples: number;
+  tokensInEstimatedSamples: number;
+  tokensOutMeasuredSamples: number;
+  tokensOutEstimatedSamples: number;
+}
+
+interface CharAccum extends TokenSampleAccum {
   userTurns: number;
   assistantTurns: number;
   systemTurns: number;
@@ -42,12 +50,13 @@ interface CharAccum {
   reasoningGenerations: number;
   reasoningMs: number;
   costUsd: number;
+  costSamples: number;
   activeIdxSum: number;
   variantMessages: number;
   contentBytes: number;
   lastMsgAt: number;
 }
-interface ModelAccum {
+interface ModelAccum extends TokenSampleAccum {
   generations: number;
   tokensIn: number;
   tokensOut: number;
@@ -56,10 +65,11 @@ interface ModelAccum {
   reasoningGenerations: number;
   reasoningMs: number;
   costUsd: number;
+  costSamples: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
 }
-interface DayAccum {
+interface DayAccum extends TokenSampleAccum {
   userTurns: number;
   assistantTurns: number;
   systemTurns: number;
@@ -70,9 +80,10 @@ interface DayAccum {
   tokensOut: number;
   genTimeMs: number;
   costUsd: number;
+  costSamples: number;
   approx: boolean;
 }
-interface OwnerAccum {
+interface OwnerAccum extends TokenSampleAccum {
   userTurns: number;
   assistantTurns: number;
   systemTurns: number;
@@ -87,6 +98,7 @@ interface OwnerAccum {
   reasoningGenerations: number;
   reasoningMs: number;
   costUsd: number;
+  costSamples: number;
   activeIdxSum: number;
   variantMessages: number;
   contentBytes: number;
@@ -119,11 +131,16 @@ const freshChar = (): CharAccum => ({
   swipeWords: 0,
   tokensIn: 0,
   tokensOut: 0,
+  tokensInMeasuredSamples: 0,
+  tokensInEstimatedSamples: 0,
+  tokensOutMeasuredSamples: 0,
+  tokensOutEstimatedSamples: 0,
   genTimeMs: 0,
   genSamples: 0,
   reasoningGenerations: 0,
   reasoningMs: 0,
   costUsd: 0,
+  costSamples: 0,
   activeIdxSum: 0,
   variantMessages: 0,
   contentBytes: 0,
@@ -133,11 +150,16 @@ const freshModel = (): ModelAccum => ({
   generations: 0,
   tokensIn: 0,
   tokensOut: 0,
+  tokensInMeasuredSamples: 0,
+  tokensInEstimatedSamples: 0,
+  tokensOutMeasuredSamples: 0,
+  tokensOutEstimatedSamples: 0,
   genTimeMs: 0,
   genSamples: 0,
   reasoningGenerations: 0,
   reasoningMs: 0,
   costUsd: 0,
+  costSamples: 0,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
 });
@@ -150,8 +172,13 @@ const freshDay = (): DayAccum => ({
   assistantWords: 0,
   tokensIn: 0,
   tokensOut: 0,
+  tokensInMeasuredSamples: 0,
+  tokensInEstimatedSamples: 0,
+  tokensOutMeasuredSamples: 0,
+  tokensOutEstimatedSamples: 0,
   genTimeMs: 0,
   costUsd: 0,
+  costSamples: 0,
   approx: false,
 });
 const freshOwner = (): OwnerAccum => ({
@@ -164,11 +191,16 @@ const freshOwner = (): OwnerAccum => ({
   swipeWords: 0,
   tokensIn: 0,
   tokensOut: 0,
+  tokensInMeasuredSamples: 0,
+  tokensInEstimatedSamples: 0,
+  tokensOutMeasuredSamples: 0,
+  tokensOutEstimatedSamples: 0,
   genTimeMs: 0,
   genSamples: 0,
   reasoningGenerations: 0,
   reasoningMs: 0,
   costUsd: 0,
+  costSamples: 0,
   activeIdxSum: 0,
   variantMessages: 0,
   contentBytes: 0,
@@ -191,10 +223,24 @@ function get<V>(map: Map<string, V>, key: string, mk: () => V): V {
 interface GenRow {
   ti: number | null;
   tout: number | null;
+  tokenProvenance: TokenProvenance;
   gs: number | null;
   gf: number | null;
   reasoning: string | null;
   reasoningDur: number | null;
+}
+
+function foldTokenSamples(acc: TokenSampleAccum, r: Pick<GenRow, "ti" | "tout" | "tokenProvenance">): void {
+  if (r.tokenProvenance === "unrecorded") {
+    return;
+  }
+  const kind = r.tokenProvenance === "measured" ? "MeasuredSamples" : "EstimatedSamples";
+  if (r.ti !== null) {
+    acc[`tokensIn${kind}`]++;
+  }
+  if (r.tout !== null) {
+    acc[`tokensOut${kind}`]++;
+  }
 }
 
 /** metadata.reasoning_duration as non-negative rounded ms, or 0 when absent/invalid.
@@ -220,6 +266,7 @@ function foldModelGen(m: ModelAccum, r: GenRow): void {
   m.generations++;
   m.tokensIn += r.ti ?? 0;
   m.tokensOut += r.tout ?? 0;
+  foldTokenSamples(m, r);
   m.reasoningMs += reasoningMsOf(r);
   const d = genDurationMs(r);
   if (d !== null) {
@@ -305,6 +352,7 @@ interface MessageRow {
   content: string | null;
   ti: number | null;
   tout: number | null;
+  tokenProvenance: TokenProvenance;
   gs: number | null;
   gf: number | null;
   model: string | null;
@@ -325,7 +373,9 @@ function foldOwnerMessage(owner: OwnerAccum, day: DayAccum, r: MessageRow): void
   owner.contentBytes += bytes;
   owner.tokensIn += r.ti ?? 0;
   owner.tokensOut += r.tout ?? 0;
+  foldTokenSamples(owner, r);
   owner.costUsd += r.cost ?? 0;
+  owner.costSamples += Number(r.cost !== null);
   owner.cacheReadTokens += r.cacheR ?? 0;
   owner.cacheWriteTokens += r.cacheW ?? 0;
   owner.reasoningMs += reasoningMsOf(r);
@@ -337,7 +387,9 @@ function foldOwnerMessage(owner: OwnerAccum, day: DayAccum, r: MessageRow): void
   }
   day.tokensIn += r.ti ?? 0;
   day.tokensOut += r.tout ?? 0;
+  foldTokenSamples(day, r);
   day.costUsd += r.cost ?? 0;
+  day.costSamples += Number(r.cost !== null);
   const gen = genDurationMs(r);
   if (gen !== null) {
     owner.genTimeMs += gen;
@@ -375,7 +427,9 @@ function foldMessageChar(charMap: Map<string, CharAccum>, r: MessageRow): void {
   c.contentBytes += r.content?.length ?? 0;
   c.tokensIn += r.ti ?? 0;
   c.tokensOut += r.tout ?? 0;
+  foldTokenSamples(c, r);
   c.costUsd += r.cost ?? 0;
+  c.costSamples += r.cost === null ? 0 : 1;
   c.reasoningMs += reasoningMsOf(r);
   const gen = genDurationMs(r);
   if (gen !== null) {
@@ -421,6 +475,7 @@ function foldMessage(r: MessageRow, a: Accums): void {
     }));
     foldModelGen(entry.acc, r);
     entry.acc.costUsd += r.cost ?? 0;
+    entry.acc.costSamples += r.cost === null ? 0 : 1;
     entry.acc.cacheReadTokens += r.cacheR ?? 0;
     entry.acc.cacheWriteTokens += r.cacheW ?? 0;
   }
@@ -434,7 +489,8 @@ async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
     const rows = await db.all<MessageRow>(sql`
       SELECT m.id AS mid, m.character_id AS cid, m.role AS role, m.created_at AS createdAt,
              ch.created_at AS chatCreatedAt, v.content AS content,
-             v.tokens_in AS ti, v.tokens_out AS tout, v.gen_started_at AS gs, v.gen_finished_at AS gf,
+             v.tokens_in AS ti, v.tokens_out AS tout, v.token_provenance AS tokenProvenance,
+             v.gen_started_at AS gs, v.gen_finished_at AS gf,
              v.model AS model, v.provider AS provider, v.reasoning AS reasoning,
              json_extract(v.metadata, '$.reasoning_duration') AS reasoningDur,
              v.cost_usd AS cost, v.cache_read_tokens AS cacheR, v.cache_write_tokens AS cacheW,
@@ -466,6 +522,7 @@ interface SwipeRow {
   content: string | null;
   ti: number | null;
   tout: number | null;
+  tokenProvenance: TokenProvenance;
   gs: number | null;
   gf: number | null;
   model: string | null;
@@ -482,6 +539,7 @@ function foldSwipeChar(charMap: Map<string, CharAccum>, r: SwipeRow): void {
   c.contentBytes += r.content?.length ?? 0;
   c.tokensIn += r.ti ?? 0;
   c.tokensOut += r.tout ?? 0;
+  foldTokenSamples(c, r);
   c.reasoningMs += reasoningMsOf(r);
   const gen = genDurationMs(r);
   if (gen !== null) {
@@ -503,6 +561,7 @@ function foldSwipe(r: SwipeRow, a: Accums): void {
   a.owner.contentBytes += r.content?.length ?? 0;
   a.owner.tokensIn += r.ti ?? 0;
   a.owner.tokensOut += r.tout ?? 0;
+  foldTokenSamples(a.owner, r);
   a.owner.reasoningMs += reasoningMsOf(r);
   day.swipes++;
   if (gen !== null) {
@@ -533,7 +592,8 @@ async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
     // biome-ignore lint/performance/noAwaitInLoops: keyset pagination is inherently sequential.
     const rows = await db.all<SwipeRow>(sql`
       SELECT mv.id AS svid, m.character_id AS cid, m.created_at AS msgCreatedAt, mv.content AS content,
-             mv.tokens_in AS ti, mv.tokens_out AS tout, mv.gen_started_at AS gs, mv.gen_finished_at AS gf,
+             mv.tokens_in AS ti, mv.tokens_out AS tout, mv.token_provenance AS tokenProvenance,
+             mv.gen_started_at AS gs, mv.gen_finished_at AS gf,
              mv.model AS model, mv.provider AS provider, mv.reasoning AS reasoning,
              json_extract(mv.metadata, '$.reasoning_duration') AS reasoningDur
       FROM message_variants mv
@@ -630,7 +690,12 @@ function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: num
       swipeWords: c.swipeWords,
       tokensIn: c.tokensIn,
       tokensOut: c.tokensOut,
+      tokensInMeasuredSamples: c.tokensInMeasuredSamples,
+      tokensInEstimatedSamples: c.tokensInEstimatedSamples,
+      tokensOutMeasuredSamples: c.tokensOutMeasuredSamples,
+      tokensOutEstimatedSamples: c.tokensOutEstimatedSamples,
       costUsd: c.costUsd,
+      costSamples: c.costSamples,
       genTimeMs: c.genTimeMs,
       genSamples: c.genSamples,
       reasoningGenerations: c.reasoningGenerations,
@@ -660,7 +725,12 @@ function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: 
     swipeWords: owner.swipeWords,
     tokensIn: owner.tokensIn,
     tokensOut: owner.tokensOut,
+    tokensInMeasuredSamples: owner.tokensInMeasuredSamples,
+    tokensInEstimatedSamples: owner.tokensInEstimatedSamples,
+    tokensOutMeasuredSamples: owner.tokensOutMeasuredSamples,
+    tokensOutEstimatedSamples: owner.tokensOutEstimatedSamples,
     costUsd: owner.costUsd,
+    costSamples: owner.costSamples,
     genTimeMs: owner.genTimeMs,
     genSamples: owner.genSamples,
     reasoningGenerations: owner.reasoningGenerations,
@@ -695,7 +765,12 @@ function buildDayRows(ownerId: UserId, dayMap: Map<string, DayAccum>, meta: Chat
       assistantWords: d.assistantWords,
       tokensIn: d.tokensIn,
       tokensOut: d.tokensOut,
+      tokensInMeasuredSamples: d.tokensInMeasuredSamples,
+      tokensInEstimatedSamples: d.tokensInEstimatedSamples,
+      tokensOutMeasuredSamples: d.tokensOutMeasuredSamples,
+      tokensOutEstimatedSamples: d.tokensOutEstimatedSamples,
       costUsd: d.costUsd,
+      costSamples: d.costSamples,
       genTimeMs: d.genTimeMs,
       messageDatesApprox: d.approx,
       computedAt: now,
@@ -712,11 +787,16 @@ function buildModelRows(ownerId: UserId, modelMap: Map<string, ModelEntry>, now:
     generations: acc.generations,
     tokensIn: acc.tokensIn,
     tokensOut: acc.tokensOut,
+    tokensInMeasuredSamples: acc.tokensInMeasuredSamples,
+    tokensInEstimatedSamples: acc.tokensInEstimatedSamples,
+    tokensOutMeasuredSamples: acc.tokensOutMeasuredSamples,
+    tokensOutEstimatedSamples: acc.tokensOutEstimatedSamples,
     genTimeMs: acc.genTimeMs,
     genSamples: acc.genSamples,
     reasoningGenerations: acc.reasoningGenerations,
     reasoningMs: acc.reasoningMs,
     costUsd: acc.costUsd,
+    costSamples: acc.costSamples,
     cacheReadTokens: acc.cacheReadTokens,
     cacheWriteTokens: acc.cacheWriteTokens,
     computedAt: now,

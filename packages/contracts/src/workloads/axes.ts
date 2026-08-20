@@ -24,6 +24,7 @@ export const WORKLOAD_KINDS = [
   "assets-gc",
   "assets-fsck",
   "import-st",
+  "import-token-usage-backfill",
   // Distinct from `import-st`: reads ONE staged bundle-zip via the entity-agnostic `runBundleImport`.
   "import-bundle",
   "reconcile-stats",
@@ -87,6 +88,7 @@ export const WORKLOAD_KIND_MODES = {
   "assets-gc": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "assets-fsck": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "import-st": { singular: true, bulk: true, bulkRequiresTarget: true, stub: false },
+  "import-token-usage-backfill": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   // Singular only: a bundle is one user's own upload, never an all-owners sweep or a mint-into-X.
   "import-bundle": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
   "reconcile-stats": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },

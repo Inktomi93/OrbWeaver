@@ -61,7 +61,7 @@ function PersonasBody(): ReactElement {
                   subtitle={`${formatCompact(persona.chatCount)} chats · ${formatCompact(persona.messageCount)} messages${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
                   actions={
                     <Text voice="gloss" className="whitespace-nowrap font-mono">
-                      {formatTokens(persona.tokensOut)}
+                      {formatTokens(persona.tokensOut, persona.tokensOutProvenance)}
                     </Text>
                   }
                 />

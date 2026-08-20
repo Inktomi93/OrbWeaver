@@ -58,6 +58,21 @@ test("token count FALLS BACK to input tokens when there's no output (never fabri
   await expect(inOnly.locator('[data-slot="message-metadata-tokens"]')).toHaveText("64 tok");
 });
 
+test("an estimated token count is visibly approximate", async ({ mount }) => {
+  const estimated = await mount(
+    <MessageMetadataRowStory visibility={{ ...ALL_OFF, showTokenCount: true }} message={{ tokensOut: 128, tokenProvenance: "estimated" }} />,
+  );
+  await expect(estimated.locator('[data-slot="message-metadata-tokens"]')).toHaveText("~128 tok");
+});
+
+test("an unrecorded legacy number stays hidden until provenance is settled", async ({ mount }) => {
+  const unrecorded = await mount(
+    <MessageMetadataRowStory visibility={{ ...ALL_OFF, showTokenCount: true }} message={{ tokensOut: 128, tokenProvenance: "unrecorded" }} />,
+  );
+  await expect(unrecorded.locator('[data-slot="message-metadata-tokens"]')).toHaveCount(0);
+  await expect(unrecorded.locator(ROW)).toHaveCount(0);
+});
+
 test("two datums on: both render with exactly one `·` separator between them", async ({ mount }) => {
   const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showMessageId: true, showTokenCount: true }} />);
   await expect(component.locator('[data-slot="message-metadata-id"]')).toBeVisible();

@@ -15,6 +15,7 @@ import { msToWallClock } from "@orb/kit/time";
 import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#kit/serde/chat";
 import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#kit/serde/chat";
 import type { CollectedChat, GroupChatInputDeps, ImportUnresolvedPinnedPersona } from "../contract/views.ts";
+import { resolveImportedTokenUsage } from "./token-usage.ts";
 
 const JSONL_EXT = /\.jsonl$/i;
 
@@ -24,6 +25,12 @@ function buildVariantColumns(m: ParsedChatMessage): {
   readonly variants: BulkImportVariantInput[];
   readonly selectedIdx: number;
 } {
+  const tokenUsage = (content: string, tokensIn: number | null, tokensOut: number | null): ReturnType<typeof resolveImportedTokenUsage> =>
+    resolveImportedTokenUsage({
+      role: m.role,
+      content,
+      recordedTokenCount: m.role === "assistant" ? tokensOut : tokensIn,
+    });
   if (m.variants.length > 0 && m.activeVariantIdx !== null) {
     const variants = m.variants.map(
       (v): BulkImportVariantInput => ({
@@ -31,8 +38,7 @@ function buildVariantColumns(m: ParsedChatMessage): {
         content: v.content,
         model: v.model,
         provider: v.provider,
-        tokensIn: v.tokensIn,
-        tokensOut: v.tokensOut,
+        ...tokenUsage(v.content, v.tokensIn, v.tokensOut),
         reasoning: v.reasoning,
         ttftMs: null,
         genStartedAt: v.genStarted,
@@ -54,8 +60,7 @@ function buildVariantColumns(m: ParsedChatMessage): {
       content: v.content,
       model: v.model,
       provider: v.provider,
-      tokensIn: v.tokensIn,
-      tokensOut: v.tokensOut,
+      ...tokenUsage(v.content, v.tokensIn, v.tokensOut),
       reasoning: v.reasoning,
       ttftMs: null,
       genStartedAt: v.genStarted,
@@ -69,8 +74,7 @@ function buildVariantColumns(m: ParsedChatMessage): {
     content: m.content,
     model: m.model,
     provider: m.provider,
-    tokensIn: m.tokensIn,
-    tokensOut: m.tokensOut,
+    ...tokenUsage(m.content, m.tokensIn, m.tokensOut),
     reasoning: m.reasoning,
     ttftMs: m.ttftMs,
     genStartedAt: m.genStarted,

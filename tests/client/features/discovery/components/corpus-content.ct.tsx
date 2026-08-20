@@ -134,6 +134,7 @@ const GEMS = [
     avatarHash: null,
     messageCount: 42,
     tokensOut: 1200,
+    tokensOutProvenance: "measured" as const,
     lastActiveAt: FROZEN_AT_MS - TWO_WEEKS_MS,
     costUsd: 0.25,
   },
@@ -339,6 +340,25 @@ test("THE ZERO WALL IS GONE: no coverage strip, no dead-end notes, no cost colum
   await expect(component.getByText("Lifetime totals per character", { exact: false })).toBeVisible();
 });
 
+test("an estimated imported token total keeps its approximation marker", async ({ mount, page }) => {
+  await stub(page, {
+    ...UNANALYSED,
+    "discovery.forgottenGems": GEMS.map((gem) => ({ ...gem, tokensOutProvenance: "estimated" as const })),
+  });
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByText("~1,200 tokens returned · 42 exchanges")).toBeVisible();
+});
+
+test("an unsettled legacy token number renders neither a claimed count nor a comparison bar", async ({ mount, page }) => {
+  await stub(page, {
+    ...UNANALYSED,
+    "discovery.forgottenGems": GEMS.map((gem) => ({ ...gem, tokensOutProvenance: "unrecorded" as const })),
+  });
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByText("tokens not recorded · 42 exchanges")).toBeVisible();
+  await expect(component.locator('[data-slot="track-bar"]')).toHaveCount(0);
+});
+
 test("clickable insight collections expose named lists with real listitem children", async ({ mount, page }) => {
   await stub(page, { ...ANALYSED, "discovery.forgottenGems": GEMS });
   const component = await mount(<CorpusContentStory />);
@@ -383,8 +403,26 @@ test("THE UN-DRAWN TAIL IS GONE: no facet bars, no duplicate theme chart (forens
 
 /** Two routes with real generations and no spend — a local-model instance, exactly. */
 const FREE_ROUTES = [
-  { genre: "fantasy", model: "local/qwen", provider: null, generations: 40, tokensOut: 9000, avgGenTimeMs: 800, costUsd: 0 },
-  { genre: "romance", model: "local/qwen", provider: null, generations: 12, tokensOut: 2000, avgGenTimeMs: 700, costUsd: 0 },
+  {
+    genre: "fantasy",
+    model: "local/qwen",
+    provider: null,
+    generations: 40,
+    tokensOut: 9000,
+    tokensOutProvenance: "measured" as const,
+    avgGenTimeMs: 800,
+    costUsd: 0,
+  },
+  {
+    genre: "romance",
+    model: "local/qwen",
+    provider: null,
+    generations: 12,
+    tokensOut: 2000,
+    tokensOutProvenance: "measured" as const,
+    avgGenTimeMs: 700,
+    costUsd: 0,
+  },
 ];
 
 test("MODEL ECONOMICS IS GUARDED ON SPEND, not on row count (forensics §7)", async ({ mount, page }) => {
@@ -402,13 +440,20 @@ test("MODEL ECONOMICS IS GUARDED ON SPEND, not on row count (forensics §7)", as
 test("…and one PAID route brings it back — the guard reports spend, it does not delete the report", async ({ mount, page }) => {
   await stub(page, {
     ...POPULATED,
-    "discovery.modelRouting": [...FREE_ROUTES, { ...FREE_ROUTES[0], model: "anthropic/claude", costUsd: 0.04 }],
+    "discovery.modelRouting": [
+      ...FREE_ROUTES,
+      { ...FREE_ROUTES[0], model: "anthropic/claude", costUsd: 0.04 },
+      { ...FREE_ROUTES[0], model: "unknown-cost", costUsd: null },
+    ],
   });
   const component = await mount(<CorpusContentStory />);
   await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
-  // The chart itself is a canvas (ECharts), so its NAME is the assertable surface — the dollar figures
-  // inside it are pixels, which is also why the `MONEY_CELL` sweeps above can only speak for real text.
+  // The canvas has a hidden table equivalent; it must contain only the paid route, never a fabricated
+  // zero-dollar row for a route whose cost was absent.
   await expect(component.getByText("Cost by route")).toBeVisible();
+  const table = component.getByRole("table", { name: "Cost by route" });
+  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table.getByRole("cell")).toHaveText(["$0.04"]);
 });
 
 test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {

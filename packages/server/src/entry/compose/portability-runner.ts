@@ -18,6 +18,7 @@ import type { PersonaId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
+import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImportWorkloadDeps } from "#domain/import";
@@ -192,6 +193,8 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const importWorkloads: ImportWorkloadDeps = {
     stagingRoot,
     stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
+    listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
+    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db),
     // W8 / F5 — THE THREE BULK RUNS, EACH UNDER QUIET MODE. Every per-entity import verb announces itself
     // (`character/verbs/create.ts` fires `charactersChanged` per CARD; the persona/preset/tag/theme/regex/
     // world-info import verbs each fire their own), so an ST library fanned hundreds of events and the

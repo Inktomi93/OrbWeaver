@@ -6,6 +6,7 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { TokenProvenance } from "#chat";
 
 /** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`, `momentum`), enforced at the
  *  transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence
@@ -37,7 +38,12 @@ export const statsDeltaSchema = z.object({
   swipeWords: z.number().optional(),
   tokensIn: z.number().optional(),
   tokensOut: z.number().optional(),
+  tokensInMeasuredSamples: z.number().optional(),
+  tokensInEstimatedSamples: z.number().optional(),
+  tokensOutMeasuredSamples: z.number().optional(),
+  tokensOutEstimatedSamples: z.number().optional(),
   costUsd: z.number().optional(),
+  costSamples: z.number().optional(),
   genTimeMs: z.number().optional(),
   genSamples: z.number().optional(),
   reasoningGenerations: z.number().optional(),
@@ -57,15 +63,24 @@ export const statsDeltaSchema = z.object({
 
   dailyTokensIn: z.number().optional(),
   dailyTokensOut: z.number().optional(),
+  dailyTokensInMeasuredSamples: z.number().optional(),
+  dailyTokensInEstimatedSamples: z.number().optional(),
+  dailyTokensOutMeasuredSamples: z.number().optional(),
+  dailyTokensOutEstimatedSamples: z.number().optional(),
 
   modelGenerations: z.number().optional(),
   modelTokensIn: z.number().optional(),
   modelTokensOut: z.number().optional(),
+  modelTokensInMeasuredSamples: z.number().optional(),
+  modelTokensInEstimatedSamples: z.number().optional(),
+  modelTokensOutMeasuredSamples: z.number().optional(),
+  modelTokensOutEstimatedSamples: z.number().optional(),
   modelGenTimeMs: z.number().optional(),
   modelGenSamples: z.number().optional(),
   modelReasoningGenerations: z.number().optional(),
   modelReasoningMs: z.number().optional(),
   modelCostUsd: z.number().optional(),
+  modelCostSamples: z.number().optional(),
   modelCacheReadTokens: z.number().optional(),
   modelCacheWriteTokens: z.number().optional(),
 
@@ -97,14 +112,16 @@ export interface CharacterEconomics {
   readonly characterId: CharacterId;
   /** Assistant generations counted (selected variants of the character's assistant messages). */
   readonly generations: number;
-  readonly tokensIn: number;
+  readonly tokensIn: number | null;
+  readonly tokensInProvenance: TokenProvenance;
   /** Output tokens summed over the selected variants — `null` when NOT ONE of them recorded a count.
    *  ABSENT ACCOUNTING IS NOT ZERO (side-eye corpus re-pass B2): an imported library carries thousands of
    *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 made the corpus
    *  surface print "0 tokens returned" beside "1,187 exchanges" — a contradiction the reader can only
    *  resolve as a bug. A genuine 0 (the provider reported it) still sums to 0 and stays distinguishable. */
   readonly tokensOut: number | null;
-  readonly costUsd: number;
+  readonly tokensOutProvenance: TokenProvenance;
+  readonly costUsd: number | null;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
 }
@@ -116,10 +133,11 @@ export interface CharacterModelEconomics {
   readonly model: string;
   readonly provider: string | null;
   readonly generations: number;
-  readonly tokensOut: number;
+  readonly tokensOut: number | null;
+  readonly tokensOutProvenance: TokenProvenance;
   readonly genTimeMs: number;
   readonly genSamples: number;
-  readonly costUsd: number;
+  readonly costUsd: number | null;
 }
 
 // ── The `reconcile-stats` workload's terminal result (the workloads junk-drawer exit: authored by the

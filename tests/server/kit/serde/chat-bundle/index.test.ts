@@ -51,6 +51,7 @@ function message(over: Partial<PortableChatMessage> = {}): PortableChatMessage {
         provider: "openai",
         tokensIn: 120,
         tokensOut: 42,
+        tokenProvenance: "measured",
         reasoning: null,
         ttftMs: 310,
         genStartedAt: 1_700_000_000_000,

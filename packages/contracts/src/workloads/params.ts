@@ -100,6 +100,7 @@ export interface WorkloadParamsByKind {
   "assets-gc": z.infer<typeof maintenanceWorkloadParams>;
   "assets-fsck": NoWorkloadParams;
   "import-st": z.infer<typeof importStWorkloadParams>;
+  "import-token-usage-backfill": z.infer<typeof maintenanceWorkloadParams>;
   "import-bundle": z.infer<typeof importBundleWorkloadParams>;
   "reconcile-stats": NoWorkloadParams;
   "refresh-model-catalog": NoWorkloadParams;

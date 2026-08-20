@@ -9,6 +9,7 @@
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { estimateTokens } from "@orb/kit/tokens";
 import { parseChatJsonl } from "@orb/server/kit/serde/chat";
 import { describe } from "vitest";
 import type { CollectedChat } from "../../../../../packages/server/src/domain/import/contract/views.ts";
@@ -135,6 +136,28 @@ describe("ST script_injects → orb's injection system", () => {
     const injects = { x: { value: "steer", position: 99, depth: null, scan: false, role: null, filter: null } };
     const input = buildBulkImportChatInput(collected("x.jsonl", { script_injects: injects }), DEPS);
     expect(input.injections?.[0]).toMatchObject({ position: "in_chat", depth: 4, role: "system" });
+  });
+});
+
+describe("imported variant token accounting", () => {
+  test("an inspected ST token_count remains measured on its role-routed axis", () => {
+    const header = JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "May 7, 2025 10:52pm" });
+    const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "May 7, 2025 10:52pm", extra: { token_count: 7 } });
+    const parsed = parseChatJsonl(`${header}\n${body}\n`, { fileName: "exact.jsonl", charDirName: "Aria" });
+    if (parsed === null) {
+      throw new Error("fixture parse failed");
+    }
+    const input = buildBulkImportChatInput({ parsed, importedFrom: "exact.jsonl", importHash: "hash-exact" }, DEPS);
+    expect(input.messages[0]?.variants[0]).toMatchObject({ tokensIn: null, tokensOut: 7, tokenProvenance: "measured" });
+  });
+
+  test("a missing ST token_count estimates the raw imported text through the canonical kit path", () => {
+    const input = buildBulkImportChatInput(collected("estimated.jsonl"), DEPS);
+    expect(input.messages[0]?.variants[0]).toMatchObject({
+      tokensIn: null,
+      tokensOut: estimateTokens("Hello."),
+      tokenProvenance: "estimated",
+    });
   });
 });
 

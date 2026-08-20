@@ -22,6 +22,7 @@ describe("assistantTurnDelta", () => {
         provider: "anthropic",
         tokensIn: 5,
         tokensOut: 9,
+        tokenProvenance: "measured",
       },
       now: NOW,
     });
@@ -63,6 +64,7 @@ describe("assistantTurnDelta", () => {
         content: "hi",
         tokensIn: 5,
         tokensOut: 9,
+        tokenProvenance: "measured",
         costUsd: null,
         cacheReadTokens: null,
         cacheWriteTokens: null,

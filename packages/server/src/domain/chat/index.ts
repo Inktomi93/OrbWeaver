@@ -77,6 +77,10 @@ export { loadSeededChatDressing, loadTurnForClassify, loadTurnOrigin } from "./p
 // The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export { loadPresentRole } from "./persistence/roster.ts";
+export {
+  createCompareAndSetImportedTokenUsage,
+  createListImportedTokenUsageCandidates,
+} from "./persistence/token-usage-backfill.ts";
 // The bundled EXAMPLE-conversation seeder (the `domain/character/seeder` sibling) — entry builds the ONE
 // instance and shares it between boot and the first-authed-request hook.
 export type {
