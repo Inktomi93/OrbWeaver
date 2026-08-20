@@ -106,11 +106,13 @@ export function useShellLayout(): ShellLayout {
   const contextAvailable = activeDef.panels?.context !== "unavailable";
   const listDefault = listOverride ?? activeDef.panelDefaults.list;
   const contextDefault = contextOverride ?? activeDef.panelDefaults.context;
-  // The registry already tells us whether both panes are real and request a dock. At the content-floor
+  // The registry already tells us whether both panes are real and LIST requests a dock. At the content-floor
   // threshold CONTEXT becomes a closed slide-over, not a narrower permanent tax on the reading column.
+  // It deliberately does NOT depend on `contextDefault`: clicking a collapsed CONTEXT must enter this
+  // regime immediately, rather than first persisting `docked` and only then discovering it cannot dock.
   // No section names, preset exception, or second layout registry: this is the active definition's own
   // capability/default contract combined with the same resolver every panel mode uses.
-  const contextAutoOverlay = contextContentConstrained && listAvailable && contextAvailable && listDefault === "docked" && contextDefault === "docked";
+  const contextAutoOverlay = contextContentConstrained && listAvailable && contextAvailable && listDefault === "docked";
   // A panel is in an OVERLAY REGIME (ephemeral open/close via `openOverlayPanel`) whenever the viewport is
   // mobile or shell-narrow: `resolvePanelMode` cannot resolve "docked" in either, so a persisted dock flip
   // there writes a preference nothing can honour. It used to branch on the panel's raw default too, which is
