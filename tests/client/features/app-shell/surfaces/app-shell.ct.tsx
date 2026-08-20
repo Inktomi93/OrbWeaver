@@ -1969,12 +1969,31 @@ function backdropFilterOf(locator: Locator): Promise<string> {
   return locator.evaluate((el) => getComputedStyle(el).backdropFilter);
 }
 
+function filterOf(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => getComputedStyle(el).filter);
+}
+
 test("baseline (flat, no glass, no bg-image): surfaces are opaque, no backdrop-filter", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture />);
   await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => backdropFilterOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe("none");
+});
+
+test("Surface glow has one valid painted carrier without turning Surface into a box", async ({ mount }) => {
+  const glowing = await mount(<ShellCascadeFixture elevation="glow" />);
+  const root = glowing.locator('[data-slot="surface-root"]');
+  await expect(root).toHaveCSS("display", "contents");
+  await expect(root).toHaveCSS("border-top-width", "0px");
+  await expect(root).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(root).toHaveCSS("border-top-left-radius", "0px");
+  await expect.poll(() => filterOf(glowing.getByTestId("surface-carrier")), { intervals: [20, 50, 100] }).not.toBe("none");
+});
+
+test("flat Surface carrier keeps no glow filter", async ({ mount }) => {
+  const flat = await mount(<ShellCascadeFixture elevation="flat" />);
+  await expect.poll(() => filterOf(flat.getByTestId("surface-carrier")), { intervals: [20, 50, 100] }).toBe("none");
 });
 
 test("glass beats elevation: ramp + blur-panels still leaves .shell-panel translucent", async ({ mount }) => {
