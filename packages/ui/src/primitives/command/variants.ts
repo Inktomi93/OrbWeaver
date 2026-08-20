@@ -36,7 +36,9 @@ export const commandVariants = tv({
     input:
       "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground pointer-coarse:h-touch-target",
     list: "relative flex flex-col gap-field overflow-y-auto p-field",
-    empty: "px-row py-block text-center text-body leading-body text-muted-foreground",
+    // Fill a bounded list's content box so a miss reads as an intentional empty surface, not one line
+    // stranded above a giant dead cavity. In an auto-sized list, percentage height resolves to auto.
+    empty: "flex h-full items-center justify-center px-row text-center text-body leading-body text-muted-foreground",
     group: "flex flex-col",
     groupHeading: "px-row py-field text-label leading-label text-muted-foreground",
     item: "orb-skip-offscreen flex min-h-control-sm cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground",
@@ -51,7 +53,7 @@ export const commandVariants = tv({
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
-      compact: { list: "h-48" },
+      compact: { list: "h-48 [&_[cmdk-list-sizer]]:h-full" },
     },
   },
   defaultVariants: { listSize: "content" },
