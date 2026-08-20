@@ -400,10 +400,10 @@ interface StartedGroupChat {
   readonly chat: ChatDetail;
 }
 
-/** Self-seed a committed chat with a KNOWN founding cast. `opening: "none"` seeds NO greeting rows, so the
- *  canon starts empty and every later assertion counts only rows this spec caused (the shared-DB isolation
- *  rule: never `listChats()[0]`, and never inherit a greeting the arbitration would read as a last speaker).
- *  Returns the room detail so the caller keeps the seat ids `setSeatKnobs` needs. */
+/** Self-seed a claimed chat with a KNOWN founding cast. `startChat` deliberately mints a list-hidden husk;
+ *  the same-title row write claims it without adding canon. `opening: "none"` therefore leaves the transcript
+ *  empty while making the room library-visible for UI setup. Returns the room detail so callers keep the seat
+ *  ids `setSeatKnobs` needs. */
 export async function startGroupChat(args: {
   readonly characterIds: readonly string[];
   readonly title: string;
@@ -415,6 +415,7 @@ export async function startGroupChat(args: {
     opening: "none",
     ...(args.groupConfig === undefined ? {} : { groupConfig: args.groupConfig }),
   });
+  await trpcMutation("chat.updateTitle", { chatId: started.chat.id, title: args.title });
   return started.chat;
 }
 

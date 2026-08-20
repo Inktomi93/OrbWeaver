@@ -16,8 +16,8 @@
 // greeting rows, so the canon starts genuinely empty.
 //
 // The group surfaces are roster-size-gated BY CONSTRUCTION (chats-section.tsx): the Cast bar renders only
-// above 1 character (chat-cast-bar.tsx), the Members tab only when the cast justifies it (lib/roster.ts
-// `membersTabJustified`), the group-behavior controls only for a host of a >1-character room. So asserting
+// above 1 character (chat-cast-bar.tsx), while the Members tab remains available to the host even in a
+// solo room and the group-behavior controls only appear for a host of a >1-character room. So asserting
 // their PRESENCE/ABSENCE is a statement about the ROSTER, not about pixels.
 //
 // IA NOTE (panel-redesign consolidation — this spec's pre-consolidation "Group TAB" pins are updated, not
@@ -87,9 +87,7 @@ function seatFor(seats: readonly RosterSeat[], characterId: CharacterId): Roster
   return seats.find((s) => s.characterId === characterId);
 }
 
-test("a solo room converts to a group: the cast bar, the Members tab and the Group-behavior section appear live when a second character joins", async ({
-  page,
-}) => {
+test("a solo room converts to a group: the cast bar and Group-behavior section appear live while Members remains available", async ({ page }) => {
   const cast = await mintCast(2);
   const title = `e2e-group-convert-${Date.now()}`;
   const chat = await startGroupChat({ characterIds: [cast.characterIds[0] ?? ""], title });
@@ -97,10 +95,10 @@ test("a solo room converts to a group: the cast bar, the Members tab and the Gro
     await openChatByTitle(page, title);
     await openDetailPanel(page);
 
-    // SOLO: one character ⇒ no cast bar, no Members tab, and the "This chat" tab carries NO Group-behavior
-    // section (the `showGroup` gate is the same roster predicate the old Group TAB's `when` was).
+    // SOLO: one character ⇒ no cast bar and the "This chat" tab carries NO Group-behavior section. The
+    // Members tab is still available because hosts can manage identity and seat state in solo rooms.
     expect(await castChips(page).count()).toBe(0);
-    await expect(page.getByRole("tab", { name: "Members", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Members", exact: true })).toBeVisible();
     await openContextTab(page, "This chat");
     await expect(page.getByRole("heading", { name: "Group behavior" })).toHaveCount(0);
 

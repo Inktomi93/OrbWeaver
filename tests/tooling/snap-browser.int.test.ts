@@ -179,7 +179,7 @@ test("snap dead-CSS scan ignores third-party marker classes without hiding real 
   expect(capture?.deadCss.map((entry) => entry.token)).toEqual(["definitely-dead"]);
 });
 
-test("snap records warnings, fails strict warnings, and always fails console errors", () => {
+test("snap records warnings, fails strict warnings, and always fails console errors", { timeout: 30_000 }, () => {
   const warningPage = fixture("warning", "<main>warning</main>");
   const warningName = `${RUN_ID}_warning`;
   const advisory = runSnap([

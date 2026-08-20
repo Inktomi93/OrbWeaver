@@ -42,6 +42,8 @@
     "playwright-report/**",
     "test-results/**",
     ".claude/**",
+    ".agents/**",
+    ".codex/**",
     "reference/**",
     "scratch/**",
     "data/**",
