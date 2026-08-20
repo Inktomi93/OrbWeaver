@@ -424,6 +424,21 @@ test("the pending corpus renders a skeleton composition, not a lone sentence (§
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 });
 
+test("below-fold insights do not hold the settled corpus overview hostage (#269)", async ({ mount, page }) => {
+  const heldUnused = trpcHold();
+  await routeTrpc(page, { ...ANALYSED, "discovery.unusedCharacters": heldUnused });
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await heldUnused.requested;
+
+  // The focal map is the settled above-fold affordance. Before the split, this held query suspended the
+  // one outer boundary and only the whole-surface skeleton rendered here.
+  await expect(component.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+  await expect(component.locator('[data-slot="corpus-home-skeleton"]')).toHaveCount(0);
+
+  heldUnused.release([{ characterId: "character_deferred", name: "Deferred insight", avatarHash: null }]);
+  await expect(component.getByRole("list", { name: "Never played characters" })).toBeVisible();
+});
+
 // ── B7 + §5: THE MASTHEAD STACKS BEFORE IT SQUEEZES, AND THE RIGHT COLUMN DOES NOT STOP ──────────────
 // Both are RANGE properties, so both are measured at more than one width. B7: at 430px the h1 wrapped to
 // six one-word lines in a ~130px column because a `flex-wrap` Row cannot wrap around a `min-w-0` child.
