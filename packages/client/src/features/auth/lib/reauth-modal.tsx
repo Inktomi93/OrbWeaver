@@ -12,10 +12,10 @@
 // user cannot reach a control, so no mutation can be issued against a dead cookie. That is a stronger
 // guarantee than a flag nobody checks, and it costs no cross-cutting seam.
 //
-// DISMISSAL IS A VERDICT, NOT A NO-OP. Closing the dialog means "I'm not signing back in", so the unmount
-// reports `dismissed` and the ladder falls through to rung 2 (interactive login). Leaving a user on a
-// frozen shell with a dead session would be the dishonest arm — it is the exact defect this design exists
-// to kill, wearing a nicer hat.
+// DISMISSAL IS A VERDICT, NOT A NO-OP. `ModalHost` reports a semantic dialog close as `dismissed`, so the
+// ladder falls through to rung 2 (interactive login). Component cleanup cannot carry this verdict: React
+// Strict Mode probes cleanup while the dialog is still logically open. Leaving a user on a frozen shell
+// with a dead session would be the dishonest arm — it is the exact defect this design exists to kill.
 
 import { KeyRound } from "@orb/ui/icons";
 import { completeReauth } from "#data";
