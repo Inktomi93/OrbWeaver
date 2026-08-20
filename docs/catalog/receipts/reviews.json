@@ -1141,6 +1141,21 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-19-memory-system-verify.md",
+      "assignedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
+      "verifiedCommit": "af41b36499646bb1cc1c05d8b877cc84ab1bf0ed",
+      "verifiedAt": "2026-08-19",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-19-memory-system-verify.md:1-192 full read; all five modes, the 222-message live/scratch probe, and the 172-test behavioral floor were rechecked",
+        "git:af41b36499646bb1cc1c05d8b877cc84ab1bf0ed contains the exact review blob; follow-up implementation landed separately under #320 and #321"
+      ],
+      "summary": "Completed point-in-time memory-system verification retained as review evidence; findings and follow-up implementation live in GitHub rather than this archived receipt."
     }
   ]
 }
