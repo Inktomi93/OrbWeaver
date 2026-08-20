@@ -30,7 +30,8 @@ test("both daily histograms carry their buckets as text, in the compact number v
   const component = await mount(<AnalyticsTimeTabStory />);
 
   const tokens = component.getByRole("table", { name: "Output tokens per day" });
-  await expect(tokens.getByRole("rowheader").first()).toHaveText("07-01");
+  // The first bucket keeps the year so a multi-year axis has an explicit starting frame.
+  await expect(tokens.getByRole("rowheader").first()).toHaveText("2026-07-01");
   // `formatCompact`, the voice every figure on this section uses — never a raw 1200000.
   await expect(tokens.getByRole("cell").first()).toHaveText("1.2M");
 

@@ -192,10 +192,10 @@ for (const state of PANE_STATES) {
     const gutter = body.right - body.left - (column.right - column.left);
     expect(gutter).toBeLessThanOrEqual(MAX_GUTTER_PX);
     expect(Math.abs(column.centre - composer.centre)).toBeLessThanOrEqual(gutter / 2 + AXIS_TOLERANCE_PX);
-    // The pager rides the reading column's leading edge, not the track's centre: it is a compact chip
-    // sized to its own content (#228 — a full-width plate holding one chevron read as a broken bubble).
-    expect(Math.abs(strip.left - column.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
-    expect(strip.right).toBeLessThanOrEqual(column.right + AXIS_TOLERANCE_PX);
+    // The pager rides the reading column's trailing/actions edge, not the track's centre: it is a compact
+    // chip sized to its own content (#228/#312), aligned under the assistant name-row actions.
+    expect(Math.abs(strip.right - column.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+    expect(strip.left).toBeGreaterThanOrEqual(column.left - AXIS_TOLERANCE_PX);
     expect(strip.right - strip.left).toBeLessThan(column.right - column.left);
     // …and nothing overflows the pane it lives in (the both-open state is still narrower than the
     // TOKEN-STRICT 65ch floor even after #242's squeeze; it must degrade to the pane, never spill out).

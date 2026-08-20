@@ -199,6 +199,22 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
     return cell;
   }
 
+  /** Free one caller-owned slot under cap pressure. Live sockets outrank dark retry state; among dark
+   *  cells, preserve the most recent reconnect opportunity. */
+  function freeSocketSlot(userId: UserId): void {
+    const mine = [...cells.values()].filter((cell) => cell.userId === userId);
+    if (mine.length < SOCKETS_PER_USER) {
+      return;
+    }
+    const oldestDark = mine
+      .filter((cell) => !cell.live)
+      .sort((left, right) => (left.lastSeenAt ?? Number.POSITIVE_INFINITY) - (right.lastSeenAt ?? Number.POSITIVE_INFINITY))[0];
+    if (oldestDark === undefined) {
+      throw new DomainRateLimitError(`Too many open streams (${SOCKETS_PER_USER}). Close a tab and retry.`);
+    }
+    cells.delete(oldestDark.socketId);
+  }
+
   /**
    * Create-or-return the cell, WITHOUT touching its session stamp — the shape `attach` needs. An attach may
    * mint the cell (order-independent creation), and it must never OVERWRITE the stamp `connect` put there:
@@ -212,17 +228,12 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
     if (existing !== undefined) {
       return existing;
     }
-    // The per-user cap counts the caller's cells only (reaping already dropped the expired ones). The 9th
-    // socket is refused rather than evicting a live one — a live socket is a real tab with real rooms.
-    let mine = 0;
-    for (const cell of cells.values()) {
-      if (cell.userId === userId) {
-        mine += 1;
-      }
-    }
-    if (mine >= SOCKETS_PER_USER) {
-      throw new DomainRateLimitError(`Too many open streams (${SOCKETS_PER_USER}). Close a tab and retry.`);
-    }
+    // The per-user cap counts the caller's cells only (reaping already dropped the expired ones). Under
+    // pressure, sacrifice the OLDEST DARK reconnect cell before refusing a genuinely new live tab. Dark
+    // cells are retry affordances, not open streams; counting them as untouchable made eight recently closed
+    // documents lock out the user's only live document for the whole reap window. A LIVE cell is never
+    // evicted — if every slot is live, the new socket is refused.
+    freeSocketSlot(userId);
     const cell: SocketCell = { socketId, userId, sessionId: null, rooms: new Map(), listener: null, live: false, lastSeenAt: now(), connectionSeq: 0 };
     cells.set(socketId, cell);
     return cell;
