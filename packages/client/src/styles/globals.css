@@ -448,6 +448,14 @@ html[data-texture="grain"] [data-slot="card-root"] {
   position: relative;
 }
 
+/* Instrument surfaces deliberately carry no card box (CD1), but elevation is an appearance axis rather
+ * than a card privilege. `Surface` deliberately has `display:contents`, so it cannot paint a filter of
+ * its own. Its first rendered child is the shared painted carrier: this preserves every caller's flex/grid
+ * topology while giving every Surface consumer one inherited ambient lift, with no border, fill, or radius. */
+.shell-grid[data-elevation="glow"] [data-slot="surface-root"] > :first-child {
+  filter: drop-shadow(var(--shadow-overlay));
+}
+
 /* Chat-thread edge-fade: dissolves softly at a scrolled edge via mask-image rather than hard-clipping.
  * Each edge fades ONLY while content actually lies beyond it — data-fade-top/-bottom are toggled by
  * the MessageList primitive (@orb/ui) on scroll/resize, so a short unscrolled thread renders its

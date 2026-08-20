@@ -156,7 +156,11 @@ function PickerBody({
           <Input aria-label="Filter regex scripts" onValueChange={setFilter} placeholder="Filter regex scripts…" value={filter} />
         </Row>
       ) : null}
-      {nothingMatches ? <Text voice="gloss">No scripts match that filter.</Text> : null}
+      {nothingMatches ? (
+        <Text aria-live="polite" role="status" voice="gloss">
+          No scripts match that filter.
+        </Text>
+      ) : null}
       {/* Nothing attached ⇒ NO split: two group headings over one undifferentiated library is noise, and
           the ordered slice would be empty. This is the pre-REGORDER rendering, unchanged. */}
       {library.data.length > 0 && attached.length === 0 ? looseRows : null}

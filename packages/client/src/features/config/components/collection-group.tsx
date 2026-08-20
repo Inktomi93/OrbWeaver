@@ -69,7 +69,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
                 chevron it stands in for the way a re-spelled width would. */}
             <Icon className="invisible" icon={ChevronRight} size="sm" />
             <Icon icon={collection.icon} size="sm" />
-            <Text as="span" voice="kicker" className="truncate">
+            <Text as="span" voice="interactiveKicker" className="truncate">
               {collection.label}
             </Text>
             {/* AND IT SAYS ZERO (same finding). Every other band carries its count, so the one band with
@@ -117,7 +117,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
           >
             <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
             <Icon icon={collection.icon} size="sm" />
-            <Text as="span" voice="kicker" className="truncate">
+            <Text as="span" voice="interactiveKicker" className="truncate">
               {collection.label}
             </Text>
             {count === undefined ? null : (

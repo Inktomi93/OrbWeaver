@@ -26,7 +26,7 @@ import {
   useSectionListIsScreen,
   useSectionRegistry,
 } from "#state";
-import { useIsMobileViewport, useIsShellNarrowViewport } from "./use-is-mobile-viewport.ts";
+import { useIsContextContentConstrained, useIsMobileViewport, useIsShellNarrowViewport } from "./use-is-mobile-viewport.ts";
 
 export interface ShellLayout {
   readonly activeSection: SectionId;
@@ -83,6 +83,7 @@ export function useShellLayout(): ShellLayout {
   const activeSection = useActiveSection();
   const isMobile = useIsMobileViewport();
   const isNarrow = useIsShellNarrowViewport();
+  const contextContentConstrained = useIsContextContentConstrained();
   // Publishes both viewport regimes to #state so feature-tier projections (useListDocked) can branch on
   // them without importing these matchMedia-backed hooks (client-features-no-cross / no-raw-matchmedia).
   useEffect(() => {
@@ -105,13 +106,18 @@ export function useShellLayout(): ShellLayout {
   const contextAvailable = activeDef.panels?.context !== "unavailable";
   const listDefault = listOverride ?? activeDef.panelDefaults.list;
   const contextDefault = contextOverride ?? activeDef.panelDefaults.context;
+  // The registry already tells us whether both panes are real and request a dock. At the content-floor
+  // threshold CONTEXT becomes a closed slide-over, not a narrower permanent tax on the reading column.
+  // No section names, preset exception, or second layout registry: this is the active definition's own
+  // capability/default contract combined with the same resolver every panel mode uses.
+  const contextAutoOverlay = contextContentConstrained && listAvailable && contextAvailable && listDefault === "docked" && contextDefault === "docked";
   // A panel is in an OVERLAY REGIME (ephemeral open/close via `openOverlayPanel`) whenever the viewport is
   // mobile or shell-narrow: `resolvePanelMode` cannot resolve "docked" in either, so a persisted dock flip
   // there writes a preference nothing can honour. It used to branch on the panel's raw default too, which is
   // exactly how the ≤64rem "Show detail panel" toggle went dead (2026-08-01): the `chats` CONTEXT pane
   // defaults `collapsed`, took the WIDE arm, wrote `docked`, and the resolve immediately re-collapsed it —
   // a visible control whose click produced nothing. The wide regime is untouched.
-  const isOverlayRegime = (): boolean => isMobile || isNarrow;
+  const isOverlayRegime = (panel: PanelName): boolean => isMobile || isNarrow || (panel === "context" && contextAutoOverlay);
 
   // The mobile ONE-SHELL rule's input, read through the section's OWN declared seam (`SectionSelection`) —
   // one `useSyncExternalStore` in `#state`, so the hook identity never varies with the active section and
@@ -128,7 +134,7 @@ export function useShellLayout(): ShellLayout {
     ? resolvePanelMode("context", contextDefault, {
         isFocus: focusMode,
         isMobile,
-        isNarrow,
+        isNarrow: isNarrow || contextAutoOverlay,
         openOverlayPanel,
         listIsScreen,
       })
@@ -148,7 +154,7 @@ export function useShellLayout(): ShellLayout {
   const closeRequestFor = (panel: PanelName): "none" | null => (panel === "list" ? "none" : null);
 
   const togglePanel = (panel: PanelName): void => {
-    if (isOverlayRegime()) {
+    if (isOverlayRegime(panel)) {
       // Reads the RESOLVED mode, not the raw request: on mobile the LIST can be showing as the screen with
       // no request at all, and comparing the raw field would make that toggle a dead control.
       const showing = (panel === "list" ? listMode : contextMode) !== "collapsed";
@@ -160,7 +166,7 @@ export function useShellLayout(): ShellLayout {
   };
 
   const collapsePanel = (panel: PanelName): void => {
-    if (isOverlayRegime()) {
+    if (isOverlayRegime(panel)) {
       if (openOverlayPanel === panel) {
         setOpenOverlayPanel(closeRequestFor(panel));
       }
