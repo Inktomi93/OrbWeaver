@@ -70,6 +70,7 @@ import type {
   CastEntry,
   HandoffOffer,
   JoinHistoryVisibility,
+  MemoryRecallSlice,
   MessageKind,
   MessageView,
   ParticipantView,
@@ -106,6 +107,7 @@ import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider.tsx";
 import { CommittedMembersTab } from "../../../../packages/client/src/features/chat/components/committed-members-tab.tsx";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek.tsx";
+import { ComposerAttachmentStrip } from "../../../../packages/client/src/features/chat/components/composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/composer-chat-options.tsx";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row.tsx";
@@ -117,6 +119,7 @@ import { InviteDialog } from "../../../../packages/client/src/features/chat/comp
 import { MacroPicksSection } from "../../../../packages/client/src/features/chat/components/macro-picks-section.tsx";
 import { MemberCardViewer } from "../../../../packages/client/src/features/chat/components/member-card-viewer.tsx";
 import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel.tsx";
+import { MemoryRecallDetail } from "../../../../packages/client/src/features/chat/components/memory-recall-detail.tsx";
 import { MemorySettingsSection } from "../../../../packages/client/src/features/chat/components/memory-settings-section.tsx";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row.tsx";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content.tsx";
@@ -138,6 +141,7 @@ import { SwipeStrip } from "../../../../packages/client/src/features/chat/compon
 import type { ResolvedAttachment } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context.tsx";
+import type { PendingAttachment } from "../../../../packages/client/src/features/chat/hooks/use-composer-attachments.ts";
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
@@ -788,6 +792,43 @@ export function RecallIndicatorStory(): ReactElement {
       <button type="button" data-testid="recall-recalled" onClick={(): void => chatStream.setRecallPhase(RECALL_CHAT_ID, "recalled", 3)}>
         recalled
       </button>
+    </div>
+  );
+}
+
+const RECALL_DETAIL_CHARACTER_ID = castId<CharacterId>("character_ct_recall_detail");
+
+const RECALL_DETAIL_SLICE: MemoryRecallSlice = {
+  mode: "mixC",
+  queryText: "the old observatory",
+  queryEmbedded: true,
+  poolSize: 9,
+  candidateCount: 6,
+  surfaced: 1,
+  ms: 12,
+  note: "one block survived reranking",
+  candidates: [
+    { scopedCharacterId: RECALL_DETAIL_CHARACTER_ID, tier: 0, blockIdx: 4, verdict: "admitted", rank: 0, score: 0.08, relevance: 0.82 },
+    { scopedCharacterId: RECALL_DETAIL_CHARACTER_ID, tier: 0, blockIdx: 5, verdict: "below-floor" },
+    { scopedCharacterId: RECALL_DETAIL_CHARACTER_ID, tier: 1, blockIdx: 2, verdict: "bridge-covered" },
+    { scopedCharacterId: RECALL_DETAIL_CHARACTER_ID, tier: 0, blockIdx: 6, verdict: "mode-excluded" },
+    { scopedCharacterId: RECALL_DETAIL_CHARACTER_ID, tier: 0, blockIdx: 7, verdict: "live-window" },
+    { scopedCharacterId: RECALL_DETAIL_CHARACTER_ID, tier: 0, blockIdx: 8, verdict: "unwitnessed" },
+  ],
+};
+
+/** The pure recall-detail readout over its three meaningful shapes: no recall, a zero-candidate recall,
+ *  and a populated embedding trace carrying every verdict label. */
+export function MemoryRecallDetailStory({ scenario }: { readonly scenario: "none" | "empty" | "detailed" }): ReactElement {
+  let recall: MemoryRecallSlice | null = RECALL_DETAIL_SLICE;
+  if (scenario === "none") {
+    recall = null;
+  } else if (scenario === "empty") {
+    recall = { mode: "off", queryText: null, queryEmbedded: false, poolSize: 0, candidateCount: 0, surfaced: 0, ms: 1, note: "mode off", candidates: [] };
+  }
+  return (
+    <div style={{ width: 420 }}>
+      <MemoryRecallDetail recall={recall} />
     </div>
   );
 }
@@ -2327,6 +2368,24 @@ const CT_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABC
 // element vanishes before the assertion.
 const CT_MP4_DATA_URL =
   "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAANdbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAAXcAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAod0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAAXcAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAF3AAAQAAABAAAAAAH/bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAGABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABqm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAWpzdGJsAAAAvnN0c2QAAAAAAAAAAQAAAK5hdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANGF2Y0MBZAAK/+EAF2dkAAqs2V7ARAAAAwAEAAADAEA8SJZYAQAGaOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAAD0AAAA9AAAAABhzdHRzAAAAAAAAAAEAAAADAAAIAAAAABRzdHNzAAAAAAAAAAEAAAABAAAAKGN0dHMAAAAAAAAAAwAAAAEAABAAAAAAAQAAGAAAAAABAAAIAAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAwAAAAEAAAAgc3RzegAAAAAAAAAAAAAAAwAAAsQAAAAMAAAADAAAABRzdGNvAAAAAAAAAAEAAAONAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY2MC4xNi4xMDAAAAAIZnJlZQAAAuRtZGF0AAACrQYF//+p3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTggc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAPZYiEABD//veBvzLLZD+5AAAACEGaImxDv/7gAAAACAGeQXkO/7eB";
+
+/** The pending composer strip creates its browser-native `File` props inside the story; `File` does not
+ *  survive Playwright's node-to-browser prop serialization. */
+export function ComposerAttachmentStripStory({ empty = false }: { readonly empty?: boolean }): ReactElement {
+  const attachments: readonly PendingAttachment[] = empty
+    ? []
+    : [
+        { file: new File(["image"], "portrait.png", { type: "image/png" }), url: CT_PNG_DATA_URL },
+        { file: new File(["video"], "scene.mp4", { type: "video/mp4" }), url: CT_MP4_DATA_URL },
+      ];
+  const [removed, setRemoved] = useState<number | null>(null);
+  return (
+    <div style={{ width: 420 }}>
+      <ComposerAttachmentStrip attachments={attachments} onRemove={setRemoved} />
+      <output data-testid="removed-index">{removed ?? "none"}</output>
+    </div>
+  );
+}
 
 export interface AttachmentMediaStoryProps {
   /** `true` mounts the context EMPTY (the provider-less / still-loading placeholder path); default provides
