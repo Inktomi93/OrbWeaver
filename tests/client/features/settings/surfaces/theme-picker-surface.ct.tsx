@@ -6,6 +6,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ThemePickerNarrowStory, ThemePickerStory } from "../_ct-stories.tsx";
 
@@ -102,6 +103,7 @@ test("Customize + zero edits + Back mints NOTHING — no row ever existed", asyn
   await component.getByRole("button", { name: "Mocha actions" }).click();
   await page.getByRole("menuitem", { name: "Customize" }).click();
   await expect(component.getByRole("textbox", { name: "Theme name" })).toBeVisible();
+  await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Draft — edit to create");
   await component.getByRole("button", { name: "← Back to themes" }).click();
   // Barrier on the SETTLED list arm before the zero-count read.
   await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
@@ -169,11 +171,36 @@ test("New theme + zero edits + Back mints NOTHING (the same deferred mint, the c
 
   await component.getByRole("button", { name: "New theme" }).click();
   await expect(component.getByRole("textbox", { name: "Theme name" })).toBeVisible();
+  await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Draft — edit to create");
   await component.getByRole("button", { name: "← Back to themes" }).click();
   await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
 
   // ONESHOT-OK: see the sibling test above.
   expect(trpc.count("settings.createTheme")).toBe(0);
+});
+
+test("New theme tells the truth before mint, then the first edit creates once and settles Saved", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.listThemes": () => THEMES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.createTheme": () => OWNED,
+    "settings.updateTheme": () => OWNED,
+  });
+  const component = await mount(<ThemePickerStory />);
+
+  await component.getByRole("button", { name: "New theme" }).click();
+  const status = component.locator('[data-slot="autosave-status"]');
+  await expect(status).toHaveText("Draft — edit to create");
+
+  await beginAutosaveStatusTranscript(page);
+  await component.getByRole("textbox", { name: "Theme name" }).fill("Fresh theme");
+  await expect
+    .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [50, 100, 200] })
+    .toMatchObject({ id: OWNED.id, input: { name: "Fresh theme" } });
+  await expect(status).toHaveText("Saved");
+  expect(await readAutosaveStatusTranscript(page)).toEqual(["Saving…", "Saved"]);
+  // ONESHOT-OK: the awaited update is the first edit's settled save; the serialized mint cannot fire again.
+  expect(trpc.count("settings.createTheme")).toBe(1);
 });
 
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {

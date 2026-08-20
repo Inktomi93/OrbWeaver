@@ -46,4 +46,13 @@ export const commandVariants = tv({
     // mounted (only its text changes) so a screen reader keeps hearing count updates.
     status: "sr-only",
   },
+  variants: {
+    listSize: {
+      content: { list: "" },
+      // A stable compact viewport keeps filtering from moving its containing dialog without reserving
+      // the giant empty cavity the old full-height palette left behind.
+      compact: { list: "h-48" },
+    },
+  },
+  defaultVariants: { listSize: "content" },
 });

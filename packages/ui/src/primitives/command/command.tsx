@@ -11,6 +11,7 @@ import {
 } from "cmdk";
 import type { ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn, formatResultCount } from "#lib";
 import { Icon, Search } from "#primitives/icons";
 import { commandVariants } from "./variants.ts";
@@ -103,7 +104,7 @@ export function CommandInput({ className, expanded, ...rest }: CommandInputProps
     if (input === null) {
       return;
     }
-    const root = input.closest('[cmdk-root]');
+    const root = input.closest("[cmdk-root]");
     if (root === null) {
       return;
     }
@@ -129,13 +130,13 @@ export function CommandInput({ className, expanded, ...rest }: CommandInputProps
   );
 }
 
-export interface CommandListProps extends Omit<ComponentProps<typeof BaseCommandList>, "className"> {
+export interface CommandListProps extends Omit<ComponentProps<typeof BaseCommandList>, "className">, Pick<VariantProps<typeof commandVariants>, "listSize"> {
   className?: string;
 }
 
-/** The scrollable listbox. No height is forced — the caller bounds it via `className`. */
-export function CommandList({ className, ...rest }: CommandListProps): ReactElement {
-  return <BaseCommandList className={cn(slots.list(), className)} data-slot="command-list" {...rest} />;
+/** The scrollable listbox. Content-sized by default; bounded surfaces choose a declared list-size arm. */
+export function CommandList({ className, listSize, ...rest }: CommandListProps): ReactElement {
+  return <BaseCommandList className={cn(commandVariants({ listSize }).list(), className)} data-slot="command-list" {...rest} />;
 }
 
 export interface CommandEmptyProps extends Omit<ComponentProps<typeof BaseCommandEmpty>, "className"> {

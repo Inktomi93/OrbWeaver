@@ -81,7 +81,9 @@ export function ThemeEditor({ theme, mint }: ThemeEditorProps): ReactElement {
 
   return (
     <ThemeForm entityId={theme.id} serverValues={themeFormFromEntity(theme)} save={save}>
-      {(session): ReactElement => <ThemeEditorBody theme={theme} session={session} mintedName={mintedName} />}
+      {(session): ReactElement => (
+        <ThemeEditorBody theme={theme} session={session} mintedName={mintedName} isUnmintedDraft={mint !== undefined && mintedName === null} />
+      )}
     </ThemeForm>
   );
 }
@@ -90,9 +92,10 @@ interface ThemeEditorBodyProps {
   readonly theme: Theme;
   readonly session: AutosaveSession<ThemeFormValues>;
   readonly mintedName: string | null;
+  readonly isUnmintedDraft: boolean;
 }
 
-function ThemeEditorBody({ theme, session, mintedName }: ThemeEditorBodyProps): ReactElement {
+function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeEditorBodyProps): ReactElement {
   const { form, saveState, retrySave } = session;
   // Widen once (the session's `form` is the boundary's surface minus `reset`) — the field bodies below
   // never call it, matching the preset editor's identical widen.
@@ -110,7 +113,7 @@ function ThemeEditorBody({ theme, session, mintedName }: ThemeEditorBodyProps): 
   return (
     <Stack gap="section">
       <Row gap="field" align="center" className="justify-end">
-        <AutosaveStatus state={saveState} onRetry={retrySave} />
+        <AutosaveStatus state={isUnmintedDraft && saveState === "saved" ? "draft" : saveState} onRetry={retrySave} />
       </Row>
       <boundForm.AppField name="name">{(field): ReactElement => <field.TextField label="Theme name" />}</boundForm.AppField>
 
