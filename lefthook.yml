@@ -109,9 +109,8 @@ pre-push:
     # PRINCIPLE (Core-Laws §0.7 — "parity is proven, not assumed").
     #
     # STILL NOT at push, both deliberately:
-    #   • `quality:mutation-gate` — its config carries `"break": null`, so Stryker exits 0 whatever the
-    #     mutation score. It CANNOT fail. Adding it would cost minutes for zero signal; it belongs here
-    #     the day someone calibrates `break` from a measured run (its own config comment says so).
+    #   • `quality:mutation-gate` — calibrated to `break: 50` on 2026-08-14, so it is a real regression
+    #     gate. A current run takes roughly 72 minutes, though; it belongs in `full`, not in every push.
     #   • the full `browser:e2e` — the 2026-07-12 anti-rot ruling: the `@smoke` SUBSET gates every push,
     #     the full suite stays manual (`pnpm e2e`). Changing that is an owner call, not a drift.
     # Anything else claiming a different tier list is folklore — `scripts/verify/registry.ts` is the
