@@ -235,15 +235,17 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
   await expect(listPanel).toHaveAttribute("aria-hidden", "true");
 });
 
-test("CONTEXT follows the active section (§4.2 rule 1): a rail switch swaps the panel body, never leaking the previous section's detail", async ({
-  mount,
-  page,
-}) => {
+test("a collapsed CONTEXT body mounts only when opened, then follows the active section (§4.2 rule 1)", async ({ mount, page }) => {
   await mount(<AppShellStory />);
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const panelText = (): Promise<string> => contextPanel.evaluate((el) => el.textContent ?? "");
 
-  // chats (the default active section) supplies a context slot in the story.
+  // Chats supplies a context slot, but its default panel mode is collapsed: an off-screen body must
+  // cost no mount work until a user opens it.
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(contextPanel.locator(".shell-panel-body")).toBeEmpty();
+  await page.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
   await expect.poll(panelText, { intervals: [20, 50, 100] }).toContain("chats context pane");
 
   // Switch to corpus (no context slot) — the chats panel must be GONE (not merely hidden: the shell

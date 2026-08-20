@@ -20,6 +20,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import type { PanelMode, PanelName } from "#state";
 
 export interface PanelChromeProps {
@@ -37,6 +38,13 @@ export interface PanelChromeProps {
 }
 
 export function PanelChrome({ panel, label, header, mode, onDismiss, children }: PanelChromeProps): ReactElement {
+  // A collapsed panel is translated out of the shell and inert, so its first body mount cannot be seen or
+  // reached. Delay that work until the panel has been visible once; thereafter keep it mounted so closing
+  // still preserves its state and the existing transform animation remains untouched.
+  const [hasBeenVisible, setHasBeenVisible] = useState(mode !== "collapsed");
+  if (mode !== "collapsed" && !hasBeenVisible) {
+    setHasBeenVisible(true);
+  }
   return (
     <aside
       className="shell-panel"
@@ -70,7 +78,7 @@ export function PanelChrome({ panel, label, header, mode, onDismiss, children }:
           header
         )}
       </header>
-      <div className="shell-panel-body">{children}</div>
+      <div className="shell-panel-body">{hasBeenVisible ? children : null}</div>
     </aside>
   );
 }
