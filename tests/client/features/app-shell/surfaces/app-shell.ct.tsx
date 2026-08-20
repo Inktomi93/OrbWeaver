@@ -373,6 +373,17 @@ test("the command palette reserves a compact, stable result viewport while filte
   // 24rem sheet-sized void beneath it.
   expect(after?.height).toBeLessThanOrEqual(192);
   expect(after?.height).toBeCloseTo(before?.height ?? 0, 1);
+
+  await input.fill("zzzzzzzz");
+  const empty = dialog.getByText("No matches.", { exact: true });
+  await expect(empty).toBeVisible();
+  const emptyBox = await empty.boundingBox();
+  const emptyListBox = await list.boundingBox();
+  expect(emptyBox).not.toBeNull();
+  expect(emptyListBox).not.toBeNull();
+  const emptyCenter = (emptyBox?.y ?? 0) + (emptyBox?.height ?? 0) / 2;
+  const listCenter = (emptyListBox?.y ?? 0) + (emptyListBox?.height ?? 0) / 2;
+  expect(emptyCenter).toBeCloseTo(listCenter, 0);
 });
 
 // initialFocus (side-eye 2026-08-16 ARIA rider): Base UI's default initial focus is the popup's first
