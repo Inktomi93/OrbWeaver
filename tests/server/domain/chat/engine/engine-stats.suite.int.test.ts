@@ -385,6 +385,27 @@ describe("engine stats — a reasoning-bearing assistant turn credits model_stat
   });
 });
 
+describe("engine stats — provider-reported OpenRouter cost reaches model_stats (#291)", () => {
+  test("a completed OpenRouter-shaped stream atomically carries its measured cost into the model rollup", async () => {
+    const deltas: StatsDelta[] = [];
+    const engine = engineFor(db, deltas, [REPLY]);
+
+    await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));
+
+    const variant = (await db.select().from(messageVariants))[0];
+    expect(variant?.costUsd).toBe(0.5);
+
+    const batch: BatchStmt[] = [];
+    for (const delta of deltas) {
+      applyStatsDelta(batch, db, delta);
+    }
+    await db.batch(batchMany(batch));
+
+    const model = (await db.select().from(modelStats).where(eq(modelStats.ownerId, HOST)))[0];
+    expect(model).toMatchObject({ model: "gpt", provider: "openrouter", generations: 1, costUsd: 0.5 });
+  });
+});
+
 describe("engine stats — gen-time is populated on the live path (F2)", () => {
   test("a real turn stamps gen bounds → owner/model gen-time > 0", async () => {
     // An ADVANCING clock so the pipeline window (gen_finished − gen_started) is non-zero.
