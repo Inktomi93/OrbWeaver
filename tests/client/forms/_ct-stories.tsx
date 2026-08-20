@@ -7,7 +7,7 @@
 // slot through the REACTIVE `useDraft` hook and serializes it into a testid `<output>` — reactive so an
 // edit re-renders the observed DOM, sibling so a buggy self-re-render loop can't spin.
 
-import type { AutosaveSaveState, AutosaveSession } from "@orb/client/forms";
+import type { AutosaveSession, AutosaveStatusProps } from "@orb/client/forms";
 import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm, hashServerBaseline } from "@orb/client/forms";
 import { createEntityDraftStore } from "@orb/client/state";
 import type { ReactElement } from "react";
@@ -16,11 +16,11 @@ import { z } from "zod";
 
 // ---------------------------------------------------------------------------------------------
 // AutosaveStatusStory — drives the shared AutosaveStatus affordance (north-star §7 / D66 A4) through
-// its three lifecycle states. CT (not headless) because the ERROR-state retry is a real interactive
+// its lifecycle states, plus the caller-known pre-persistence draft arm. CT (not headless) because the ERROR-state retry is a real interactive
 // affordance whose click must fire `onRetry` — a render + click contract that wants a live DOM (§7).
 // The retry counter is the observation channel proving the affordance is a button, not styled text.
 export function AutosaveStatusStory(): ReactElement {
-  const [state, setState] = useState<AutosaveSaveState>("saved");
+  const [state, setState] = useState<AutosaveStatusProps["state"]>("saved");
   const [retries, setRetries] = useState(0);
   return (
     <div>
@@ -31,6 +31,9 @@ export function AutosaveStatusStory(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setState("blocked")}>
         set blocked
+      </button>
+      <button type="button" onClick={(): void => setState("draft")}>
+        set draft
       </button>
       <button type="button" onClick={(): void => setState("error")}>
         set error

@@ -1,4 +1,4 @@
-// The ONE live autosave status affordance (north-star §7 / D66 A4): "Saved / Saving… / Not saved / Save
+// The ONE live autosave status affordance (north-star §7 / D66 A4): "Saved / Saving… / Draft / Not saved / Save
 // failed — Retry", rendered where an editor's Save button used to be.
 //
 // THE `caption` PROP IS GONE (#104 item 2, owner-ruled 2026-08-16). D78 §6 gave `saved` an optional
@@ -24,7 +24,8 @@ import type { ReactElement } from "react";
 import type { AutosaveSaveState } from "./create-autosave-entity-form-model.ts";
 
 export interface AutosaveStatusProps {
-  readonly state: AutosaveSaveState;
+  /** `draft` is the caller-known pre-persistence arm: no row exists yet, so `saved` would be a lie. */
+  readonly state: AutosaveSaveState | "draft";
   /** Re-run the pending save — wire to the factory's `retrySave`. */
   readonly onRetry: () => void;
 }
@@ -57,6 +58,13 @@ export function AutosaveStatus({ state, onRetry }: AutosaveStatusProps): ReactEl
         </Text>
         <Text voice="gloss">Fix the highlighted field to save.</Text>
       </Row>
+    );
+  }
+  if (state === "draft") {
+    return (
+      <Text data-slot="autosave-status" voice="gloss" role="status" aria-live="polite">
+        Draft — edit to create
+      </Text>
     );
   }
   // Saving…/Saved: polite so the transition is announced without interrupting (role="status" carries an

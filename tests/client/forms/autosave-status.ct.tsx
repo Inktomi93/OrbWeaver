@@ -1,6 +1,6 @@
 // AutosaveStatus CT — the shared "Saved / Saving… / Save failed — Retry" affordance (north-star §7 /
 // D66 A4) every autosave editor renders where its Save button used to be. Pins: the three lifecycle
-// states each read out, and the ERROR-state retry is a REAL affordance (a button that fires `onRetry`),
+// states and pre-persistence draft arm each read out, and the ERROR-state retry is a REAL affordance (a button that fires `onRetry`),
 // never styled text. CT (not headless) because the retry is a render + click contract (§7).
 
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -14,6 +14,9 @@ test("reads out each lifecycle state and the error-state Retry fires onRetry", a
 
   await component.getByRole("button", { name: "set saving" }).click();
   await expect(component.getByText("Saving…")).toBeVisible();
+
+  await component.getByRole("button", { name: "set draft" }).click();
+  await expect(component.getByText("Draft — edit to create")).toBeVisible();
 
   // The HELD-write arm (side-eye PROSE-LIMIT P2): the driver gates on `form.state.isValid`, so an invalid
   // form is a write nobody is making — and this line used to keep reading "Saved" over it. It is POLITE

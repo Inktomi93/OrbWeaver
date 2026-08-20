@@ -83,7 +83,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
       {slash.mounts}
       <Command className="rounded-card border shadow-overlay h-full flex flex-col" label="Command palette" onEscape={closeModal}>
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" />
-        <CommandList className="h-48">
+        <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>
 
           <QueryBoundary fallback={null} renderError={(): null => null}>
