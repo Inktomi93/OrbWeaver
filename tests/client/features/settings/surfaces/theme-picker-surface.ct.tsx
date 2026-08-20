@@ -203,6 +203,23 @@ test("New theme tells the truth before mint, then the first edit creates once an
   expect(trpc.count("settings.createTheme")).toBe(1);
 });
 
+test("New theme keeps the complete core form ready while advanced CSS and preview tools stay deferred", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ThemePickerStory />);
+
+  await component.getByRole("button", { name: "New theme" }).click();
+  await expect(component.getByRole("textbox", { name: "Theme name" })).toBeVisible();
+  await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Draft — edit to create");
+  await expect(component.getByText("Background", { exact: true })).toBeVisible();
+  await expect(component.getByText("Your bubble", { exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show advanced theme tools" })).toBeVisible();
+  await expect(component.getByText("Custom CSS", { exact: true })).toBeHidden();
+
+  await component.getByRole("button", { name: "Show advanced theme tools" }).click();
+  await expect(component.getByText("Custom CSS", { exact: true })).toBeVisible();
+  await expect(component.getByText("Preview", { exact: true })).toBeVisible();
+});
+
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "settings.listThemes": () => THEMES,

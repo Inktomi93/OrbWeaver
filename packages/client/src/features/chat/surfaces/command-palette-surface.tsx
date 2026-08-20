@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 
 import type { Trpc } from "#data";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { SlashCommandContribution, SlashCommandGroup } from "#lib";
 import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";
@@ -86,7 +86,10 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
         <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>
 
-          <QueryBoundary fallback={null} renderError={(): null => null}>
+          <QueryBoundary
+            fallback={<RecentThreadsLoading />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="recent threads" onRetry={retry} />}
+          >
             <ThreadsGroup onJump={jumpToChat} />
           </QueryBoundary>
 
@@ -111,6 +114,11 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
       </Command>
     </Stack>
   );
+}
+
+/** A query still in flight must reserve a visible, named group rather than making recents disappear. */
+function RecentThreadsLoading(): ReactElement {
+  return <CommandGroup heading="Recent threads">Loading recent threads…</CommandGroup>;
 }
 
 interface CommandsGroupProps {
