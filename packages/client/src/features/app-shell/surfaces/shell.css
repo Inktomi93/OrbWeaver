@@ -873,6 +873,14 @@
 .shell-notice-band:not(:has([data-slot="toast-root"])) {
   display: none;
 }
+.shell-notice-band [data-slot="toast-viewport"] {
+  /* One normal-flow notice budget: a burst must scroll inside the band rather than tax every section by
+   * the full unbounded stack height. The viewport remains the live region; only its visual reading window
+   * is capped. */
+  max-block-size: min(14rem, 30dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 .shell-content {
   flex: 1 1 auto;

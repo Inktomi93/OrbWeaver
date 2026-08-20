@@ -225,7 +225,7 @@ function TemplateCluster({
         type="button"
       >
         <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
-        <Text as="span" className="truncate" voice="kicker">
+        <Text as="span" className="truncate" voice="interactiveKicker">
           {cluster.label}
         </Text>
         <Text as="span" voice="datum">

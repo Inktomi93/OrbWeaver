@@ -40,5 +40,5 @@ export interface SurfaceProps extends Omit<ComponentProps<"div">, "className"> {
  */
 export function Surface({ tier, as = "div", ...props }: SurfaceProps): ReactElement {
   const Component = SURFACE_ELEMENTS[as];
-  return <Component {...props} className="contents" data-surface-tier={tier} />;
+  return <Component {...props} className="contents" data-surface-tier={tier} data-slot="surface-root" />;
 }
