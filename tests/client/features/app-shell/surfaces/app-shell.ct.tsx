@@ -237,6 +237,7 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
 });
 
 test("a collapsed CONTEXT body mounts only when opened, then follows the active section (§4.2 rule 1)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await mount(<AppShellStory />);
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const panelText = (): Promise<string> => contextPanel.evaluate((el) => el.textContent ?? "");
@@ -246,8 +247,12 @@ test("a collapsed CONTEXT body mounts only when opened, then follows the active 
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(contextPanel.locator(".shell-panel-body")).toBeEmpty();
   await page.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  // At CONTENT's floor, CONTEXT is a transient overlay. This must be true on the FIRST click: deriving
+  // the regime from the just-written context override made the first click persist `docked` then vanish.
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
   await expect.poll(panelText, { intervals: [20, 50, 100] }).toContain("chats context pane");
+  await page.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
 
   // Switch to corpus (no context slot) — the chats panel must be GONE (not merely hidden: the shell
   // reads only sections[activeSection], so the stale body is unmounted) and the honest placeholder in.
