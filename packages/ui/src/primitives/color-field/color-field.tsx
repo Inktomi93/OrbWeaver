@@ -130,6 +130,9 @@ export function ColorField({
   // correctly false, so the error must gate on a non-empty value that fails the clamp.
   const showError = draft.trim() !== "" && !isDraftValid;
   const nativeHex = NATIVE_HEX_RE.test(draft) ? draft : FALLBACK_NATIVE_HEX;
+  // A ColorField's popover is a dialog context. Bound fields supply their existing visible label through
+  // `aria-label`; retain a stable generic name for label-less consumers rather than shipping an unnamed dialog.
+  const popupLabel = ariaLabel === undefined ? "Color picker" : `${ariaLabel} color picker`;
 
   const handleOpenChange = (next: boolean, details: ColorFieldOpenChangeDetails): void => {
     setOpen(next);
@@ -184,7 +187,7 @@ export function ColorField({
           />
         }
       />
-      <PopoverPopup>
+      <PopoverPopup aria-label={popupLabel}>
         <div className={slots.popupBody()} data-slot="color-field-popup-body">
           <input
             aria-label="Pick color"
