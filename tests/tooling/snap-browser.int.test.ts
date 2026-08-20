@@ -180,23 +180,33 @@ test("snap dead-CSS scan ignores third-party marker classes without hiding real 
 });
 
 test("snap records warnings, fails strict warnings, and always fails console errors", () => {
-  const warningPage = fixture("warning", '<main>warning</main><script>console.warn("slow render")</script>');
+  const warningPage = fixture("warning", "<main>warning</main>");
   const warningName = `${RUN_ID}_warning`;
-  const advisory = runSnap(["--file", warningPage, "--no-shot", "--json", "--no-failure-evidence", "--out", warningName]);
+  const advisory = runSnap([
+    "--file",
+    warningPage,
+    "--no-shot",
+    "--eval",
+    'console.warn("slow render")',
+    "--json",
+    "--no-failure-evidence",
+    "--out",
+    warningName,
+  ]);
 
   expect(advisory.status, advisory.stdout + advisory.stderr).toBe(0);
   expect(advisory.stdout).toContain("console-warnings=1");
   expect((manifest(warningName)["console"] as unknown[]).length).toBe(1);
 
-  const strict = runSnap(["--file", warningPage, "--no-shot", "--strict-console", "--out", warningName]);
+  const strict = runSnap(["--file", warningPage, "--no-shot", "--eval", 'console.warn("slow render")', "--strict-console", "--out", warningName]);
   expect(strict.status, strict.stdout + strict.stderr).toBe(1);
   expect(strict.stdout).toContain("console-warnings=1");
   expect(readFileSync(join(REPORT_TRACES, `${warningName}.zip`))).not.toHaveLength(0);
   expect(readFileSync(join(REPORT_TRACES, `${warningName}.har`))).not.toHaveLength(0);
 
-  const errorPage = fixture("error", '<main>error</main><script>console.error("broken render")</script>');
+  const errorPage = fixture("error", "<main>error</main>");
   const errorName = `${RUN_ID}_error`;
-  const error = runSnap(["--file", errorPage, "--no-shot", "--no-failure-evidence", "--out", errorName]);
+  const error = runSnap(["--file", errorPage, "--no-shot", "--eval", 'console.error("broken render")', "--no-failure-evidence", "--out", errorName]);
 
   expect(error.status, error.stdout + error.stderr).toBe(1);
   expect(error.stdout).toContain("console-errors=1");
