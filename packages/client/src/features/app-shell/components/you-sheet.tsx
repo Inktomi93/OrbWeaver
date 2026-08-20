@@ -59,7 +59,7 @@ export function YouSheet(): ReactElement {
     .find((m) => m.trigger.placement === "topbar.trail");
 
   return (
-    <Stack gap="section">
+    <Stack data-slot="you-sheet" gap="section">
       <Stack gap="row" aria-label="Account and settings" role="group">
         {commandModal === undefined ? null : (
           <ListRow

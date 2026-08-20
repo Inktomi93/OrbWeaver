@@ -89,10 +89,37 @@ export function CommandInput({ className, expanded, ...rest }: CommandInputProps
       if (listIdRef.current !== null) {
         el.setAttribute("aria-controls", listIdRef.current);
       }
+    } else {
+      el.removeAttribute("aria-controls");
+    }
+  });
+
+  // cmdk's `selectedItemId` can remain unset when filtering removes its old selection, even though it has
+  // rendered a replacement option with `aria-selected=true` (side-eye #355). Its input consequently omits
+  // `aria-activedescendant`. The selected DOM row is cmdk's own roving-selection truth, so mirror only that
+  // existing relation and observe the vendor's filtered mounts rather than owning keyboard navigation.
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (input === null) {
       return;
     }
-    el.removeAttribute("aria-controls");
-  });
+    const root = input.closest('[cmdk-root]');
+    if (root === null) {
+      return;
+    }
+    const syncActiveDescendant = (): void => {
+      const selected = root.querySelector<HTMLElement>('[cmdk-item][aria-selected="true"]');
+      if (selected?.id === undefined || selected.id === "") {
+        input.removeAttribute("aria-activedescendant");
+      } else {
+        input.setAttribute("aria-activedescendant", selected.id);
+      }
+    };
+    syncActiveDescendant();
+    const observer = new MutationObserver(syncActiveDescendant);
+    observer.observe(root, { attributes: true, attributeFilter: ["aria-selected", "id"], childList: true, subtree: true });
+    return (): void => observer.disconnect();
+  }, []);
 
   return (
     <div className={slots.inputWrapper()} data-slot="command-input-wrapper">

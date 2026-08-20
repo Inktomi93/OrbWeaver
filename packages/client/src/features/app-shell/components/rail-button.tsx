@@ -15,7 +15,7 @@ import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
-import type { MobileCuration } from "#state";
+import type { MobileCuration, ModalSlotId } from "#state";
 
 export interface RailButtonProps {
   readonly label: string;
@@ -38,6 +38,8 @@ export interface RailButtonProps {
    *  (`sheetOverflowChrome`). Rendered inside the button beside the icon, exactly where the desktop bell
    *  puts its own badge. */
   readonly badge?: ReactNode;
+  /** The registry-owned modal this affordance opens, when it is a modal trigger. */
+  readonly modalId?: ModalSlotId;
 }
 
 export function RailButton({
@@ -49,6 +51,7 @@ export function RailButton({
   mobile = "sheet",
   mobileOnly = false,
   badge,
+  modalId,
 }: RailButtonProps): ReactElement {
   return (
     <Tooltip>
@@ -62,6 +65,7 @@ export function RailButton({
             data-active={active ? "" : undefined}
             data-contains-current={containsCurrent ? "" : undefined}
             data-mobile={mobile}
+            data-modal-trigger={modalId}
             data-rail-mobile-only={mobileOnly ? "" : undefined}
             className={`shell-rail-button ${FOCUS_RING_ON_SIDEBAR}`}
             onClick={onClick}

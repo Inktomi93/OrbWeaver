@@ -61,27 +61,47 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
     );
   }
 
-  return <DialogModal body={body} container={container} def={def} onOpenChange={onOpenChange} />;
+  const mobileSheetModalId = registry.list().find((modal) => modal.trigger.placement === "mobile-tab")?.id;
+  return <DialogModal body={body} container={container} def={def} mobileSheetModalId={mobileSheetModalId} onOpenChange={onOpenChange} />;
 }
 
 /**
  * The centered-Dialog presentation, split out so its `finalFocus` capture runs at open time. ModalHost
  * mounts the Dialog already-open (store-driven, no DialogTrigger), so this child's useState initializer
- * captures the element focused at mount and hands it to `finalFocus` so focus returns there on close.
+ * captures the element focused at mount and hands it to `finalFocus` so focus returns there on close. A
+ * You-sheet row is transient by design, so its disconnected capture returns to the visible mobile You tab.
  */
 function DialogModal({
   body,
   container,
   def,
+  mobileSheetModalId,
   onOpenChange,
 }: {
   readonly body: ReactNode;
   readonly container: DialogPopupProps["container"];
   readonly def: ModalDefinition;
+  readonly mobileSheetModalId: ModalSlotId | undefined;
   readonly onOpenChange: (nextOpen: boolean) => void;
 }): ReactElement {
-  const [capturedTrigger] = useState<HTMLElement | null>(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
+  const [focusReturn] = useState(() => {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return { fromYouSheet: trigger?.closest('[data-slot="you-sheet"]') !== null, trigger };
+  });
   const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  const resolveFinalFocus = (): HTMLElement | boolean => {
+    if (focusReturn.trigger?.isConnected === true) {
+      return focusReturn.trigger;
+    }
+    if (!focusReturn.fromYouSheet || mobileSheetModalId === undefined) {
+      return true;
+    }
+    const mobileSheetTrigger = Array.from(document.querySelectorAll<HTMLElement>("[data-modal-trigger]")).find(
+      (element) => element.dataset["modalTrigger"] === mobileSheetModalId && element.getClientRects().length > 0,
+    );
+    return mobileSheetTrigger ?? true;
+  };
 
   // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.
   const isShellModal = def.size === "full" || def.size === "xl";
@@ -97,12 +117,7 @@ function DialogModal({
           programmatic-only stop (`tabIndex={-1}` + `outline-none`: it is not a tab stop and must not paint a
           ring, exactly like the section surfaces' focus targets); Tab from there reaches the first real
           control, Escape still closes, and `finalFocus` still returns to the trigger. */}
-      <DialogPopup
-        {...sizeProp}
-        container={container}
-        finalFocus={(): HTMLElement | boolean => capturedTrigger ?? true}
-        initialFocus={(): HTMLElement | boolean => bodyRef.current ?? true}
-      >
+      <DialogPopup {...sizeProp} container={container} finalFocus={resolveFinalFocus} initialFocus={(): HTMLElement | boolean => bodyRef.current ?? true}>
         <header className="shell-modal-header shrink-0">
           <DialogTitle>{def.title}</DialogTitle>
           <DialogClose
