@@ -18,6 +18,11 @@ const MOBILE_QUERY = "(max-width: 48rem)";
  *  counterpart (see file header). */
 const SHELL_NARROW_QUERY = "(max-width: 64rem)";
 
+/** Below this width, a docked LIST plus the context pane's ruled floor would take CONTENT below its
+ * reading floor. This is a geometry law, not a section/preset exception; `useShellLayout` applies it
+ * only when the active registry definition actually requests both docks. */
+const CONTEXT_CONTENT_PRIMACY_QUERY = "(max-width: 80rem)";
+
 const noop = (): void => undefined;
 
 function subscribeTo(query: string): (onChange: () => void) => () => void {
@@ -44,6 +49,8 @@ const subscribeMobile = subscribeTo(MOBILE_QUERY);
 const getMobileSnapshot = snapshotOf(MOBILE_QUERY);
 const subscribeNarrow = subscribeTo(SHELL_NARROW_QUERY);
 const getNarrowSnapshot = snapshotOf(SHELL_NARROW_QUERY);
+const subscribeContextConstrained = subscribeTo(CONTEXT_CONTENT_PRIMACY_QUERY);
+const getContextConstrainedSnapshot = snapshotOf(CONTEXT_CONTENT_PRIMACY_QUERY);
 
 /** `true` when the viewport is at/below the shell's mobile breakpoint (the bottom-tab-bar layout). */
 export function useIsMobileViewport(): boolean {
@@ -55,4 +62,9 @@ export function useIsMobileViewport(): boolean {
  *  precedence never depends on that overlap). */
 export function useIsShellNarrowViewport(): boolean {
   return useSyncExternalStore(subscribeNarrow, getNarrowSnapshot, () => false);
+}
+
+/** `true` when a pair of docked side panes cannot leave CONTENT its reading floor. */
+export function useIsContextContentConstrained(): boolean {
+  return useSyncExternalStore(subscribeContextConstrained, getContextConstrainedSnapshot, () => false);
 }

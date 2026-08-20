@@ -47,6 +47,9 @@ export const textVariants = tv({
       // A section's NAME — never a datum. The mocks' `.kicker` (9.5px caps, .09em, 650); pair with
       // <Section kicker> for the hairline rule that completes the CD1 "a grouping is not a box" swap.
       kicker: "font-sans text-micro leading-tight tracking-micro font-semibold uppercase text-muted-foreground",
+      // A kicker that is itself the visible label of a control. Interactive copy needs the readable label
+      // step (13px) while retaining the compact, tracked instrument register of the band it belongs to.
+      interactiveKicker: "font-sans text-label leading-label tracking-micro font-semibold uppercase text-muted-foreground",
       // The name of ONE datum (the mocks' `.meter .mline` label half).
       label: "font-sans text-label leading-label tracking-normal font-medium text-foreground",
       // The VALUE — the thing you came to read. mono + tabular so columns of numbers align and digits stop
