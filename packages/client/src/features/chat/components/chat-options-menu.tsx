@@ -157,6 +157,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
     <>
       <RowActionsMenu
         label="Chat options"
+        tooltip="Manage this chat"
         destructive={{
           label: "Delete chat",
           separator: false,

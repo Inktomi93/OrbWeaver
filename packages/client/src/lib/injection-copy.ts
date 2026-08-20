@@ -40,7 +40,7 @@ export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
 
 // The composer guided-icon disabled reasons read as the CLAUSE after the icon's label + em-dash (the title
 // is composed `"<Label> — <reason>"`, so a disabled icon names WHAT it is AND why it's off), e.g.
-// "Swipe — needs a reply to reroll". Lowercase, no trailing period, phrased as the unlock condition.
+// "Try another reply — needs an existing reply". Lowercase, no trailing period, phrased as the unlock condition.
 
 /** Impersonate while a turn is already running — it writes the USER's next (or opening) line, so it is valid
  *  in every phase of a room; the ONLY block is a turn in flight (it re-enables when idle). */
@@ -50,22 +50,22 @@ export const IMPERSONATE_WAIT_FOR_TURN = "wait for the current reply to finish";
  *  IMPERSONATE_WAIT_FOR_TURN names a reply that isn't running (nothing is being generated into the
  *  transcript), so it read as a phantom turn the user couldn't see, find, or stop. This names the real cause
  *  — and the Stop beside the icons is how it ends. */
-export const IMPERSONATE_IN_FLIGHT = "impersonating: drafting your line (Stop keeps what's written)";
+export const IMPERSONATE_IN_FLIGHT = "drafting your line (Stop keeps what's written)";
 
 /** The impersonate Stop's accessible name + hover title (it renders only while the stream is live). */
-export const IMPERSONATE_STOP_LABEL = "Stop impersonating";
+export const IMPERSONATE_STOP_LABEL = "Stop drafting your line";
 
 /** Swipe/Regenerate — needs an assistant reply in the chat to reroll (a user-tail or greeting-less room has
  *  none; Generate reply or Impersonate produces one). */
-export const SWIPE_NEEDS_REPLY = "needs a reply to reroll (try Generate reply or Impersonate first)";
+export const SWIPE_NEEDS_REPLY = "needs an existing reply (try Generate reply or Draft your line first)";
 
 /** The ✨-menu Regenerate row's hover helper — distinguishes it from the top-row Swipe icon: Regenerate is a
  *  PLAIN reroll (ignores any typed steer), Swipe is the steer-aware reroll. Both reroll the tail assistant. */
-export const REGENERATE_PLAIN_HELPER = "Plain reroll of the last reply — ignores your typed steer.";
+export const REGENERATE_PLAIN_HELPER = "Creates another version of the last reply — ignores your typed direction.";
 
 /** Continue — needs an assistant reply to extend (a user-tail or greeting-less room has none; Generate reply
  *  or Impersonate produces one). */
-export const CONTINUE_NEEDS_REPLY = "needs a reply to continue (try Generate reply or Impersonate first)";
+export const CONTINUE_NEEDS_REPLY = "needs an existing reply to continue (try Generate reply or Draft your line first)";
 
 /** The hover cue shown on a guided icon while the composer HAS text — teaches the typed-text-becomes-steer
  *  contract at the point of action (defuses the invisible mode-switch). Per-icon variants read naturally. */
@@ -90,9 +90,9 @@ export const IMPERSONATE_FAILED_LEAD = "Couldn't draft your line.";
 export const GENERATION_FAILED_DETAIL = "The generation didn't complete — check the connection and try again.";
 
 export const STEER_CUE_RESPONSE = "Uses your typed text as direction";
-export const STEER_CUE_SWIPE = "Uses your typed text to steer the reroll";
-export const STEER_CUE_CONTINUE = "Uses your typed text to steer the continuation";
-export const STEER_CUE_IMPERSONATE = "Uses your typed text as impersonation direction";
+export const STEER_CUE_SWIPE = "Uses your typed text as direction for another reply";
+export const STEER_CUE_CONTINUE = "Uses your typed text as direction to continue the reply";
+export const STEER_CUE_IMPERSONATE = "Uses your typed text as drafting direction";
 
 // The honest-refusal pre-send reasons (#54) — when the chat's resolved connection cannot deterministically
 // serve a turn, SEND + the guided fire actions are disabled with the reason surfaced (title + aria-disabled).

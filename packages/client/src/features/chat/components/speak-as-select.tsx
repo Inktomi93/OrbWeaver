@@ -17,6 +17,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Drama, Icon } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
@@ -70,16 +71,23 @@ export function SpeakAsSelect({ chatId }: SpeakAsSelectProps): ReactElement | nu
 
   return (
     <Menu>
-      <MenuTrigger
-        disabled={disabled}
-        aria-label="Speak as a character"
-        data-testid={testId("speakAsSelect")}
-        render={
-          <Button type="button" intent="ghost" size="icon">
-            <Icon icon={Drama} size="sm" />
-          </Button>
-        }
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <MenuTrigger
+              disabled={disabled}
+              aria-label="Speak as a character"
+              data-testid={testId("speakAsSelect")}
+              render={
+                <Button type="button" focusableWhenDisabled={true} intent="ghost" size="icon">
+                  <Icon icon={Drama} size="sm" />
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipPopup side="top">Choose who speaks next</TooltipPopup>
+      </Tooltip>
       <MenuPopup>
         <MenuItem onClick={(): void => fire(null)}>Auto (arbitrate)</MenuItem>
         {cast.map((member) => (
