@@ -117,6 +117,58 @@
       ]
     },
     {
+      "path": "docs/design/composer-action-anatomy.md",
+      "assignedSha256": "fc8c27b371190c1da9c2853f534dbf690b270b983e2523e7cb939e4b7081c07c",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "fc8c27b371190c1da9c2853f534dbf690b270b983e2523e7cb939e4b7081c07c",
+      "verifiedCommit": "0f626a82cc81d6d01580ea084b79463ae7643d47",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/design/composer-action-anatomy.md: full read against the verified implementation and component tests",
+        "git show 0f626a82cc81d6d01580ea084b79463ae7643d47:docs/design/composer-action-anatomy.md: SHA-256 fc8c27b371190c1da9c2853f534dbf690b270b983e2523e7cb939e4b7081c07c",
+        "tests/client/features/chat/components/composer.ct.tsx: 32/32 and the exact seven-file aggregate 83/83 at the verified commit"
+      ],
+      "summary": "Composer action anatomy (#206): current design and proof contract for the responsive composer candidate; code and component tests remain behavior authority.",
+      "claims": [
+        {
+          "claim": "The composer has one wrapping action row and three semantic action groups; the drafting Stop is owned by Your message and the terminal Send/turn-Stop slot is owned by Attach and send.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer.tsx:391"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:130"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:158"
+            }
+          ]
+        },
+        {
+          "claim": "The component test uses a real coarse touch context and proves ownership, the 44px target floor, containment, non-overlap, order, and live drafting-Stop behavior at 390px and 320px.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/chat/components/composer.ct.tsx:246"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/chat/components/composer.ct.tsx:381"
+            },
+            {
+              "kind": "issue",
+              "target": "#206"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/config-ia-the-junk-drawer-problem.md",
       "assignedSha256": "ad6b4f4d21b85a86f705cde02b87668ca1cd8acbc13dbee2b8462298db627cd5",
       "disposition": "current",

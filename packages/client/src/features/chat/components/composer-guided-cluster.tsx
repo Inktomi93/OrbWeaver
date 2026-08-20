@@ -19,10 +19,10 @@
 // `opening:"generate"`; impersonate carried a force-commit. The room exists from the creation click, so both
 // are ordinary turns and the cluster takes a `chatId`, not a phase.
 //
-// THE ONE CONDITIONAL CONTROL (IMP-2): a Stop appears at the cluster's right edge while the impersonate
-// STREAM fills the composer, and only then — there is nothing to stop otherwise, and the row-2 turn Stop
-// aborts a chat TURN, which an impersonation is not. While it runs, every icon's reason names the stream
-// instead of a phantom "wait for the current reply to finish".
+// THE ONE CONDITIONAL CONTROL (IMP-2): while the impersonate STREAM fills the composer, its Stop belongs
+// beside Draft your line inside `Your message` because both govern the same user-draft operation. The
+// terminal turn Stop remains in `Attach and send`: it aborts a chat TURN, which an impersonation is not.
+// While drafting runs, every icon's reason names the stream instead of a phantom current reply.
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
@@ -32,11 +32,11 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { Drama, FastForward, Icon, Play, RotateCcw, Square } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import {
-  CONTINUE_NEEDS_REPLY,
   IMPERSONATE_IN_FLIGHT,
   IMPERSONATE_STOP_LABEL,
   IMPERSONATE_WAIT_FOR_TURN,
@@ -51,7 +51,7 @@ import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import type { ComposerImageControls } from "./composer-utility-menu.tsx";
-import { UtilityMenu } from "./composer-utility-menu.tsx";
+import { ComposerGuidedUtilityMenu } from "./composer-utility-menu.tsx";
 import { RewriteDialog } from "./rewrite-dialog.tsx";
 import { useRewriteModal } from "./use-rewrite-modal.ts";
 
@@ -71,12 +71,18 @@ export interface ComposerGuidedClusterProps {
    *  `sendUnavailableReason`. Engine-agnostic; the reason wins over a phase reason (both are persistent). */
   readonly sendUnavailable: boolean;
   readonly sendUnavailableReason: string | undefined;
+  /** The character speaker picker belongs to Their reply; owning it here keeps semantics and wrapping aligned. */
+  readonly speakerControl: ReactNode;
+  /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
+  readonly sendControl: ReactNode;
 }
+
+const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
 
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const { chatId, value, onChange, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason } = props;
+  const { chatId, value, onChange, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason, speakerControl, sendControl } = props;
   const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
   const utilities = useComposerUtilities(chatId);
   const trimmed = value.trim();
@@ -120,43 +126,50 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   };
 
   return (
-    <Row gap="field" align="center" className="shrink-0" data-slot="composer-guided-cluster">
-      <ClusterUtilityMenu
-        hasText={hasText}
-        trimmed={trimmed}
-        idle={idle}
-        canTargetTail={canTargetTail}
-        guided={guided}
-        utilities={utilities}
-        onChange={onChange}
-        onRewrite={rewrite.open}
-        game={game}
-        image={imageControls}
-      />
-      <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
-      <GuidedIconButton
-        icon={RotateCcw}
-        label={hasText ? "Swipe with this steering" : "Swipe"}
-        steerCue={STEER_CUE_SWIPE}
-        hasText={hasText}
-        disabled={!(canTargetTail && idle)}
-        reason={reasonFor(SWIPE_NEEDS_REPLY)}
-        buttonTestId="composerGuidedSwipe"
-        // Swipe KEEPS the steer (reroll again with the same guidance) — no onChange clear.
-        onFire={(): void => guided.fireSwipe(trimmed)}
-      />
-      <ResponseGuidedButton hasText={hasText} idle={idle} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
-      <GuidedIconButton
-        icon={FastForward}
-        label={hasText ? "Continue with this steering" : "Continue"}
-        steerCue={STEER_CUE_CONTINUE}
-        hasText={hasText}
-        disabled={!(canTargetTail && idle)}
-        reason={reasonFor(CONTINUE_NEEDS_REPLY)}
-        buttonTestId="composerGuidedContinue"
-        onFire={(): void => fireAndClear(guided.fireContinue)}
-      />
-      {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
+    <Row gap="section" align="center" className="min-w-0 flex-1 flex-wrap justify-end" data-slot="composer-guided-cluster">
+      <Row aria-label="Your message" data-slot="composer-you-actions" gap="field" role="group">
+        <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
+        {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
+      </Row>
+      <Row aria-label="Their reply" data-slot="composer-them-actions" gap="field" role="group">
+        <GuidedIconButton
+          icon={RotateCcw}
+          label={hasText ? "Try another reply with this direction" : "Try another reply"}
+          steerCue={STEER_CUE_SWIPE}
+          hasText={hasText}
+          disabled={!(canTargetTail && idle)}
+          reason={reasonFor(SWIPE_NEEDS_REPLY)}
+          buttonTestId="composerGuidedSwipe"
+          onFire={(): void => guided.fireSwipe(trimmed)}
+        />
+        <ResponseGuidedButton hasText={hasText} idle={idle} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
+        <GuidedIconButton
+          icon={FastForward}
+          label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
+          steerCue={STEER_CUE_CONTINUE}
+          hasText={hasText}
+          disabled={!(canTargetTail && idle)}
+          reason={reasonFor(SWIPE_NEEDS_REPLY)}
+          buttonTestId="composerGuidedContinue"
+          onFire={(): void => fireAndClear(guided.fireContinue)}
+        />
+        {speakerControl}
+      </Row>
+      <Row aria-label="Attach and send" data-slot="composer-attach-actions" gap="field" role="group">
+        <ComposerGuidedUtilityMenu
+          hasText={hasText}
+          trimmed={trimmed}
+          idle={idle}
+          canTargetTail={canTargetTail}
+          guided={guided}
+          utilities={utilities}
+          onChange={onChange}
+          onRewrite={rewrite.open}
+          game={game}
+          image={imageControls}
+        />
+        {sendControl}
+      </Row>
       <RewriteDialog
         open={rewrite.isOpen}
         onOpenChange={rewrite.setOpen}
@@ -167,56 +180,6 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         onApply={rewrite.apply}
       />
     </Row>
-  );
-}
-
-/** The ✨ utility-menu wiring for the cluster — keeps the phase-guard conditionals (undo/revert/clear/simple-
- *  send/regenerate/game) out of the parent's cognitive budget. All the "which tail" / "has text" branching
- *  lives here; the parent just hands over the resolved actions bundle. */
-function ClusterUtilityMenu({
-  hasText,
-  trimmed,
-  idle,
-  canTargetTail,
-  guided,
-  utilities,
-  onChange,
-  onRewrite,
-  game,
-  image,
-}: {
-  readonly hasText: boolean;
-  readonly trimmed: string;
-  readonly idle: boolean;
-  readonly canTargetTail: boolean;
-  readonly guided: ReturnType<typeof useGuidedActions>;
-  readonly utilities: ReturnType<typeof useComposerUtilities>;
-  readonly onChange: (text: string) => void;
-  readonly onRewrite: () => void;
-  readonly game: { readonly isGame: boolean; readonly plotAvailable: boolean };
-  readonly image: ComposerImageControls;
-}): ReactElement {
-  const tailId = guided.tailAssistantMessageId;
-  return (
-    <UtilityMenu
-      hasText={hasText}
-      canTargetTail={canTargetTail}
-      canUndoRevert={guided.tailHasContinuation}
-      onRewrite={onRewrite}
-      onRecall={onChange}
-      onUndo={tailId !== null ? (): void => utilities.undoContinue(tailId) : undefined}
-      onRevert={tailId !== null ? (): void => utilities.revertContinue(tailId) : undefined}
-      onClear={hasText ? (): void => onChange("") : undefined}
-      onSimpleSend={hasText ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
-      // Regenerate (owner: "regenerate goes inside magic wand menu") — a PLAIN reroll of the tail assistant, no
-      // steer. The menu row wears a DISTINCT RefreshCw glyph + helper (side-eye P1-A) so it reads apart from the
-      // dual-mode steer-aware ⟳ Swipe icon on the top row (§2.3e dual-home). Disabled-with-reason unless a tail
-      // assistant reply exists.
-      onRegenerate={canTargetTail && idle ? (): void => guided.fireSwipe("") : undefined}
-      // The P5 game steers (owner: "game steers go in the magic wand") — game-only, plotProgression-gated.
-      game={game.isGame ? { plotAvailable: game.plotAvailable, onSteer: guided.fireGameSteer } : undefined}
-      image={image}
-    />
   );
 }
 
@@ -256,21 +219,28 @@ function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
   const { icon, label, steerCue, hasText, disabled, reason, onFire, buttonTestId } = props;
   const title = resolveGuidedTitle({ disabled, hasText, label, steerCue, reason });
   return (
-    <Button
-      type="button"
-      intent={hasText && !disabled ? "primary" : "ghost"}
-      size="icon"
-      disabled={disabled}
-      focusableWhenDisabled={true}
-      title={title}
-      aria-label={label}
-      data-testid={testId(buttonTestId)}
-      onClick={disabled ? undefined : onFire}
-      shape="pill"
-      className="shrink-0"
-    >
-      <Icon icon={icon} size="sm" />
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            intent={hasText && !disabled ? "primary" : "ghost"}
+            size="icon"
+            disabled={disabled}
+            focusableWhenDisabled={true}
+            title={title}
+            aria-label={label}
+            data-testid={testId(buttonTestId)}
+            onClick={disabled ? undefined : onFire}
+            shape="pill"
+            className={ICON_CONTROL_CLASS}
+          >
+            <Icon icon={icon} size="sm" />
+          </Button>
+        }
+      />
+      <TooltipPopup side="top">{title}</TooltipPopup>
+    </Tooltip>
   );
 }
 
@@ -278,8 +248,8 @@ function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
  *  typed-text-becomes-steer contract taught at the action), else the plain label. */
 function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: string; steerCue: string; reason: string }): string {
   if (args.disabled) {
-    // Name WHAT the button is AND why it's off (owner): "Swipe — needs an assistant reply first". The label
-    // stays legible so a disabled icon isn't a mystery glyph with a bare reason.
+    // Name WHAT the button is AND why it's off: "Try another reply — needs an existing reply". The label
+    // stays legible so a disabled icon is not a mystery glyph with a bare reason.
     return `${args.label} — ${args.reason}`;
   }
   return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
@@ -295,26 +265,32 @@ function responseTitle(label: string, hasText: boolean, disabledReason: string |
 }
 
 // ── The live impersonate stream's Stop (IMP-2) ───────────────────────────────────────────────────────────
-/** Rendered ONLY while an impersonate stream is filling the composer — the same idiom as the turn Stop in
- *  composer row 2 (secondary square icon-button, `shape="pill"`), sat at the cluster's right edge directly
- *  above it. Before this, a user watching the composer fill had no way to end the stream: it is a
- *  subscription, so the row-2 turn Stop (which aborts a chat TURN) never applied to it. Stopping KEEPS the
- *  partial fill (a deliberate divergence from ST — see `useGuidedActions.stopImpersonation`). */
+/** Rendered ONLY while an impersonate stream is filling the composer. It belongs in `Your message` beside
+ *  Draft your line because it terminates that draft operation; the terminal Send/turn-Stop slot belongs to
+ *  `Attach and send` and aborts a chat TURN, so it cannot substitute. Stopping KEEPS the partial fill (a
+ *  deliberate divergence from ST — see `useGuidedActions.stopImpersonation`). */
 function ImpersonateStopButton({ onStop }: { readonly onStop: () => void }): ReactElement {
   return (
-    <Button
-      type="button"
-      intent="secondary"
-      size="icon"
-      title={IMPERSONATE_STOP_LABEL}
-      aria-label={IMPERSONATE_STOP_LABEL}
-      data-testid={testId("composerGuidedStopImpersonate")}
-      onClick={onStop}
-      shape="pill"
-      className="shrink-0"
-    >
-      <Icon icon={Square} size="sm" />
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            intent="secondary"
+            size="icon"
+            title={IMPERSONATE_STOP_LABEL}
+            aria-label={IMPERSONATE_STOP_LABEL}
+            data-testid={testId("composerGuidedStopImpersonate")}
+            onClick={onStop}
+            shape="pill"
+            className="shrink-0"
+          >
+            <Icon icon={Square} size="sm" />
+          </Button>
+        }
+      />
+      <TooltipPopup side="top">Stop drafting your line</TooltipPopup>
+    </Tooltip>
   );
 }
 
@@ -340,28 +316,35 @@ function ImpersonateGuidedButton({
   /** The disabled reason (the send cause wins over the phase reason — computed by the parent's `reasonFor`). */
   readonly reason: string;
 }): ReactElement {
-  const title = resolveGuidedTitle({ disabled, hasText, label: "Impersonate", steerCue: STEER_CUE_IMPERSONATE, reason });
-  const name = resolveGuidedName("Impersonate", hasText);
+  const title = resolveGuidedTitle({ disabled, hasText, label: "Draft your line", steerCue: STEER_CUE_IMPERSONATE, reason });
+  const name = resolveGuidedName("Draft your line", hasText);
   return (
     <Menu>
-      <MenuTrigger
-        disabled={disabled}
-        aria-label={name}
-        data-testid={testId("composerGuidedImpersonate")}
-        render={
-          <Button
-            type="button"
-            intent={hasText && !disabled ? "primary" : "ghost"}
-            size="icon"
-            focusableWhenDisabled={true}
-            title={title}
-            shape="pill"
-            className="shrink-0"
-          >
-            <Icon icon={Drama} size="sm" />
-          </Button>
-        }
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <MenuTrigger
+              disabled={disabled}
+              aria-label={name}
+              data-testid={testId("composerGuidedImpersonate")}
+              render={
+                <Button
+                  type="button"
+                  intent={hasText && !disabled ? "primary" : "ghost"}
+                  size="icon"
+                  focusableWhenDisabled={true}
+                  title={title}
+                  shape="pill"
+                  className={ICON_CONTROL_CLASS}
+                >
+                  <Icon icon={Drama} size="sm" />
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipPopup side="top">{title}</TooltipPopup>
+      </Tooltip>
       <MenuPopup>
         {(["first", "second", "third"] as const).map((person) => (
           <MenuItem key={person} onClick={(): void => onPick(person)}>
@@ -397,37 +380,57 @@ function ResponseGuidedButton({
   // Solo: a direct fire (Auto). Multi-room: a submenu picks the speaker (Auto + each member).
   if (cast.length <= 1) {
     return (
-      <Button
-        type="button"
-        intent={hasText ? "primary" : "ghost"}
-        size="icon"
-        disabled={!idle}
-        // An unserveable connection (or a live impersonate stream) disables Response too — keep it hoverable
-        // so the reason shows (Response has no OTHER disabled state, so focusableWhenDisabled only matters here).
-        focusableWhenDisabled={disabledReason !== undefined}
-        title={title}
-        aria-label={name}
-        data-testid={testId("composerGuidedResponse")}
-        onClick={idle ? (): void => onFire(null) : undefined}
-        shape="pill"
-        className="shrink-0"
-      >
-        <Icon icon={Play} size="sm" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              intent={hasText ? "primary" : "ghost"}
+              size="icon"
+              disabled={!idle}
+              focusableWhenDisabled={disabledReason !== undefined}
+              title={title}
+              aria-label={name}
+              data-testid={testId("composerGuidedResponse")}
+              onClick={idle ? (): void => onFire(null) : undefined}
+              shape="pill"
+              className={ICON_CONTROL_CLASS}
+            >
+              <Icon icon={Play} size="sm" />
+            </Button>
+          }
+        />
+        <TooltipPopup side="top">{title}</TooltipPopup>
+      </Tooltip>
     );
   }
   return (
     <Menu>
-      <MenuTrigger
-        disabled={!idle}
-        aria-label={name}
-        data-testid={testId("composerGuidedResponse")}
-        render={
-          <Button type="button" intent={hasText ? "primary" : "ghost"} size="icon" title={title} shape="pill" className="shrink-0">
-            <Icon icon={Play} size="sm" />
-          </Button>
-        }
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <MenuTrigger
+              disabled={!idle}
+              aria-label={name}
+              data-testid={testId("composerGuidedResponse")}
+              render={
+                <Button
+                  type="button"
+                  intent={hasText ? "primary" : "ghost"}
+                  size="icon"
+                  focusableWhenDisabled={disabledReason !== undefined}
+                  title={title}
+                  shape="pill"
+                  className={ICON_CONTROL_CLASS}
+                >
+                  <Icon icon={Play} size="sm" />
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipPopup side="top">{title}</TooltipPopup>
+      </Tooltip>
       <MenuPopup>
         <MenuItem onClick={(): void => onFire(null)}>Auto (arbitrate)</MenuItem>
         {cast.map((member) => (

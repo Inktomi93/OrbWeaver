@@ -2,13 +2,13 @@
 // the real `<Composer>` (the ComposerStory precedent): routeTrpc stubs the network, the cluster fires the
 // real `useGuidedActions` / `useComposerUtilities` mutations. Proves: the four dual-mode icons ALWAYS render
 // (never hidden/swapped); Response fires generate (committed) / startChat (draft), empty AND with the
-// afterAssistant nudge flag on an assistant tail; Swipe KEEPS the steer (no composer clear — the reroll
-// ergonomic) while Response/Continue CONSUME it; Simple send fires chat.commitMessage; Impersonate is
+// afterAssistant nudge flag on an assistant tail; Try another reply KEEPS the steer (no composer clear — the
+// reroll ergonomic) while Generate/Continue CONSUME it; Simple send fires chat.commitMessage; Draft your line is
 // NON-PERSISTING + STREAMING — it rides the `chat.impersonateStream` SUBSCRIPTION (routeImpersonateStream
 // stubs the SSE deltas) and FILLS the composer PROGRESSIVELY as the deltas arrive (draft chat: commit with the
 // DEFAULT opening so the greeting is PRESERVED, then stream into the PROMOTED composer via the new chatId's
-// draft store); the phase matrix disables swipe/continue on a draft with a legible reason (Impersonate +
-// Response stay live).
+// draft store); the phase matrix disables reroll/continue on a draft with a legible reason (Draft your line +
+// Generate reply stay live).
 //
 // The trigger buttons are inline (component-scoped); menu POPUPs render through a Base UI Portal, so
 // menu-item assertions use the PAGE locator (`page.getByRole`), never `component` (the menu.ct.tsx split).
@@ -32,8 +32,8 @@ const RESPONSE = "Generate reply";
 // P3-dualmode: the guided icons' accessible name reflects the active mode — "Guided …" when the composer has text.
 const RESPONSE_GUIDED = "Guided generate reply";
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
-const NEEDS_REPLY = /needs a reply to reroll/iu;
-const PLAIN_REROLL = /plain reroll/iu;
+const NEEDS_REPLY = /needs an existing reply/iu;
+const PLAIN_REROLL = /another version of the last reply/iu;
 const GROUP_LABELS = ["Input", "Reply", "Continuation", "Media"] as const;
 /** A curated DOMAIN message on the typed terminal frame (what the participant gate / an honest refusal reads
  *  like) — it must reach the user verbatim, unlike a raw transport fault. */
@@ -43,11 +43,11 @@ const WAIT_TIMEOUT = /Timeout/u;
 
 test("all four guided icons ALWAYS render on a committed chat (never hidden/swapped)", async ({ mount }) => {
   const component = await mount(<ComposerStory />); // committed, empty composer
-  await expect(component.getByRole("button", { name: "Impersonate" })).toBeVisible();
-  // Wand v2: the ⟳ icon is labeled "Swipe" (Regenerate moved into the ✨ menu as a plain reroll).
-  await expect(component.getByRole("button", { name: "Swipe" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Draft your line" })).toBeVisible();
+  // Wand v2: the ⟳ action is distinct from Regenerate, which moved into the ✨ menu as a plain reroll.
+  await expect(component.getByRole("button", { name: "Try another reply" })).toBeVisible();
   await expect(component.getByRole("button", { name: RESPONSE })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Continue" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Continue the reply" })).toBeVisible();
 });
 
 test("Response on an EMPTY committed composer fires a PLAIN generate (no steer object)", async ({ mount, page }) => {
@@ -77,7 +77,7 @@ test("Response fires chat.generate with the typed steer + afterAssistant on an a
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
 
-test("Swipe KEEPS the steer (reroll again with the same guidance — no composer clear)", async ({ mount, page }) => {
+test("Try another reply KEEPS the steer (reroll again with the same guidance — no composer clear)", async ({ mount, page }) => {
   // The tail is resolved by useGuidedActions' own chat.listMessages read — stub it with an assistant tail so
   // fireSwipe has a target (the prop only feeds the composer's own tailRole).
   const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
@@ -86,7 +86,7 @@ test("Swipe KEEPS the steer (reroll again with the same guidance — no composer
 
   const box = component.getByRole("textbox", { name: "Message" });
   await box.fill("darker tone");
-  const btn = component.getByRole("button", { name: "Swipe with this steering" });
+  const btn = component.getByRole("button", { name: "Try another reply with this direction" });
   await expect(btn).toBeEnabled();
   await btn.click();
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
@@ -94,7 +94,7 @@ test("Swipe KEEPS the steer (reroll again with the same guidance — no composer
   await expect(box).toHaveValue("darker tone");
 });
 
-test("Impersonate on a COMMITTED chat STREAMS into the composer PROGRESSIVELY and persists nothing", async ({ mount, page }) => {
+test("Draft your line on a COMMITTED chat STREAMS into the composer PROGRESSIVELY and persists nothing", async ({ mount, page }) => {
   // The streaming subscription yields deltas; the composer fills delta-by-delta. Two scripted deltas so the
   // CT can assert the value GROWS (partial after delta 1, full after delta 2) — not a one-shot dump.
   const trpc = await routeTrpc(page, {}); // no startChat/mutation traffic on the committed path
@@ -102,7 +102,7 @@ test("Impersonate on a COMMITTED chat STREAMS into the composer PROGRESSIVELY an
   const component = await mount(<ComposerStory />); // committed, empty composer
   const box = component.getByRole("textbox", { name: "Message" });
 
-  await component.getByRole("button", { name: "Impersonate" }).click();
+  await component.getByRole("button", { name: "Draft your line" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
 
   // PROGRESSIVE: the composer shows the accumulation after the FIRST delta, then grows to the full line — the
@@ -140,7 +140,7 @@ test("a COMPLETED impersonate stream is unsubscribed — no zombie reconnect", a
   const sse = await routeImpersonateStreamOnce(page, { deltas: ["I step into the tavern."], end: "return" });
   const component = await mount(<ComposerStory />);
 
-  await component.getByRole("button", { name: "Impersonate" }).click();
+  await component.getByRole("button", { name: "Draft your line" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("I step into the tavern.");
 
@@ -154,7 +154,7 @@ test("a domain ERROR FRAME settles the stream once, toasts the domain message, a
   const box = component.getByRole("textbox", { name: "Message" });
 
   await box.fill("greet the innkeeper");
-  await component.getByRole("button", { name: "Guided impersonate" }).click();
+  await component.getByRole("button", { name: "Guided draft your line" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
 
   // The frame's message is the CURATED domain message — it rides through as the toast detail.
@@ -169,7 +169,7 @@ test("a RETRYABLE server fault is terminal (the dead-engine zombie): one connect
   const sse = await routeImpersonateStreamOnce(page, { end: "server-error", message: "connect ECONNREFUSED 127.0.0.1:8000" });
   const component = await mount(<ComposerStory />); // empty composer — the D57 restore is a no-op here, so the toast is the ONLY surface
 
-  await component.getByRole("button", { name: "Impersonate" }).click();
+  await component.getByRole("button", { name: "Draft your line" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
 
   // A link-level fault carries framework/operator text, never user copy — the generic detail is shown instead.
@@ -196,7 +196,7 @@ test("Stop appears while impersonating, unsubscribes the stream, and KEEPS the p
   const component = await mount(<ComposerStory />);
   const box = component.getByRole("textbox", { name: "Message" });
 
-  await component.getByRole("button", { name: "Impersonate" }).click();
+  await component.getByRole("button", { name: "Draft your line" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
   // Mid-stream: the first delta landed, the second is still pending its staged reconnect.
   await expect(box).toHaveValue(PARTIAL);
@@ -215,7 +215,7 @@ test("Stop appears while impersonating, unsubscribes the stream, and KEEPS the p
   await expect(component.getByTestId("composer-notified")).toBeEmpty();
   // The stream is over: the Stop retires and the cluster comes back to life.
   await expect(stop).toBeHidden();
-  await expect(component.getByRole("button", { name: "Impersonate" })).toBeEnabled();
+  await expect(component.getByRole("button", { name: "Draft your line" })).toBeEnabled();
 });
 
 test("while impersonating, the guided icons name the STREAM as the wait reason (not a phantom reply)", async ({ mount, page }) => {
@@ -223,23 +223,23 @@ test("while impersonating, the guided icons name the STREAM as the wait reason (
   await routeImpersonateStream(page, [PARTIAL, "cloak dripping."], STOP_RETRY_MS);
   const component = await mount(<ComposerStory />);
 
-  await component.getByRole("button", { name: "Impersonate" }).click();
+  await component.getByRole("button", { name: "Draft your line" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue(PARTIAL);
 
-  // Every idled icon reads the real cause — including Swipe, whose own phase reason ("needs a reply to
-  // reroll") is true but not why it is off RIGHT NOW, and Response, which has no phase reason at all.
+  // Every idled icon reads the real cause — including Try another reply, whose own phase reason is true but
+  // not why it is off RIGHT NOW, and Generate reply, which has no phase reason at all.
   // (The drafted line IS composer text, so the icons are in their GUIDED mode — the P3-dualmode names.)
-  await expect(component.getByRole("button", { name: "Swipe with this steering" })).toHaveAttribute(
+  await expect(component.getByRole("button", { name: "Try another reply with this direction" })).toHaveAttribute(
     "title",
-    `Swipe with this steering — ${IMPERSONATE_IN_FLIGHT}`,
+    `Try another reply with this direction — ${IMPERSONATE_IN_FLIGHT}`,
   );
-  await expect(component.getByRole("button", { name: "Continue with this steering" })).toHaveAttribute(
+  await expect(component.getByRole("button", { name: "Continue the reply with this direction" })).toHaveAttribute(
     "title",
-    `Continue with this steering — ${IMPERSONATE_IN_FLIGHT}`,
+    `Continue the reply with this direction — ${IMPERSONATE_IN_FLIGHT}`,
   );
   await expect(component.getByRole("button", { name: RESPONSE_GUIDED })).toHaveAttribute("title", `${RESPONSE} — ${IMPERSONATE_IN_FLIGHT}`);
-  await expect(component.getByRole("button", { name: "Guided impersonate" })).toHaveAttribute("title", `Impersonate — ${IMPERSONATE_IN_FLIGHT}`);
+  await expect(component.getByRole("button", { name: "Guided draft your line" })).toHaveAttribute("title", `Draft your line — ${IMPERSONATE_IN_FLIGHT}`);
 });
 
 test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {
@@ -282,7 +282,7 @@ test("P1-A: an enabled Regenerate carries the plain-reroll helper (distinct from
 test("P2-A: the ✨ menu is grouped with labeled sections (Input · Reply · Continuation · Media)", async ({ mount, page }) => {
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
-  await Promise.all(GROUP_LABELS.map((label) => expect(page.getByRole("group", { name: label })).toBeVisible()));
+  await Promise.all(GROUP_LABELS.map((label) => expect(page.getByRole("group", { name: label, exact: true })).toBeVisible()));
 });
 
 test("Simple send fires chat.commitMessage (post without generating) and clears the composer", async ({ mount, page }) => {
