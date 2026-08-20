@@ -5,8 +5,8 @@
 // repro, restored by omission.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
-import { SessionRecoveryStory } from "./_ct-stories.tsx";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { SessionRecoveryReauthStory, SessionRecoveryStory } from "./_ct-stories.tsx";
 
 const VIEWER = { userId: "usr_ct_owner", handle: "owner", globalRole: "owner" };
 
@@ -28,4 +28,26 @@ test("mounts without suspending or navigating when the identity read is still in
   await mount(<SessionRecoveryStory />);
 
   await expect(page.getByTestId("durable-local-user")).toBeVisible();
+});
+
+test("keeps the mounted recovery host through a terminal sessions.me 401 and opens local re-auth", async ({ mount, page }) => {
+  let alive = true;
+  await page.route("**/api/auth/logout", (route) => {
+    alive = false;
+    return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
+  await page.route("**/api/auth/me", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ authenticated: alive, handle: alive ? VIEWER.handle : null, role: alive ? VIEWER.globalRole : null }),
+    }),
+  );
+  await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mode: "local" }) }));
+  await routeTrpc(page, { "sessions.me": (): unknown => (alive ? VIEWER : trpcError({ code: "UNAUTHORIZED" })) });
+
+  await mount(<SessionRecoveryReauthStory />);
+  await page.getByTestId("ct-revoke-session").click();
+
+  await expect(page.getByTestId("session-recovery-modal")).toHaveText("reauth");
 });
