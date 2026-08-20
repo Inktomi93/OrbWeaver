@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-14
+updated: 2026-08-19
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -33,7 +33,8 @@ updated: 2026-08-14
 9. **GitHub Project 1 owns MUTABLE WORK STATE.** An issue carries status, priority, dependencies,
    disposition, lane, and verification progress; durable law/design/review/evidence stays in the repo and
    links the issue. Before starting, re-derive then claim the issue. `docs/retro-workboard.md` is the
-   session-recovery index; agent operations live in `.Codex/rules/orchestration.md`, and the dated board
+   session-recovery index; agent operations live in `.claude/rules/orchestration.md` (directly imported
+   by root `AGENTS.md` for Codex), and the dated board
    is archived under `docs/history/`. Agent flow + invariants live in the
    [Project README](https://github.com/users/Inktomi93/projects/1); ingress forms live under
    `.github/ISSUE_TEMPLATE/`.
@@ -306,7 +307,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (scripts/codemods/ast.ts — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `scripts/codemods/codemod-kit.ts`. Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
 | task → reading-set router (backend + frontend) | §0.3 above |
 | mutable work state | [GitHub Project 1](https://github.com/users/Inktomi93/projects/1) (status · priority · dependencies · disposition · lane · verification); issue ingress: `../../../.github/ISSUE_TEMPLATE/` |
-| session recovery + agent operations | `docs/retro-workboard.md` (cold-start index) · `.Codex/rules/orchestration.md` (machine-loaded process) · `../history/retro-workboard-2026-08-14.md` (frozen provenance); committed programs live at `../proposed/`, mapped by `../proposed/INDEX.md` and Project 1 |
+| session recovery + agent operations | `docs/retro-workboard.md` (cold-start index) · `.claude/rules/orchestration.md` (machine-loaded source; root `AGENTS.md` imports every Claude Markdown rule for Codex) · `../history/retro-workboard-2026-08-14.md` (frozen provenance); committed programs live at `../proposed/`, mapped by `../proposed/INDEX.md` and Project 1 |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |
 
 ## 8. Archeology (moved to history/)

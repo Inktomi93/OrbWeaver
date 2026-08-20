@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-08-17
+updated: 2026-08-19
 ---
 
 # Orbweaver — Path/Home Registry (D1–D78, D86, D106–D141)
@@ -488,7 +488,7 @@ updated: 2026-08-17
 
 ## D140 (2026-08-14 — PROJECT OWNS WORK STATE; THE WORKBOARD IS A RECOVERY INDEX; AGENT PROCESS HAS ONE MACHINE-LOADED HOME)
 
-- **D140 — mutable state, recovery context, process, and provenance have four distinct homes.** GitHub Project 1 owns Ready/Running/Blocked/Verify/Done and every mutable planning field. `docs/retro-workboard.md` is the short cold-start recovery index: it routes an amnesiac agent to current authority and contains no executable backlog. `.Codex/rules/orchestration.md` is the one machine-loaded home for current delegation and agent-operations policy; §L of `docs/architecture/core/AGENTS.md` remains the one home for worktree-lane discipline. The complete pre-split board is immutable provenance at `docs/history/retro-workboard-2026-08-14.md`. Do not mirror Project status into prose, resume an archived checkbox, or turn the recovery index back into a second board.
+- **D140 — mutable state, recovery context, process, and provenance have four distinct homes.** GitHub Project 1 owns Ready/Running/Blocked/Verify/Done and every mutable planning field. `docs/retro-workboard.md` is the short cold-start recovery index: it routes an amnesiac agent to current authority and contains no executable backlog. `.claude/rules/orchestration.md` is the one machine-loaded source for current delegation and agent-operations policy; Codex reaches every Claude Markdown rule through generated direct imports in root `AGENTS.md`. §L of `docs/architecture/core/AGENTS.md` remains the one home for worktree-lane discipline. The complete pre-split board is immutable provenance at `docs/history/retro-workboard-2026-08-14.md`. Do not mirror Project status into prose, resume an archived checkbox, or turn the recovery index back into a second board.
 
 ## D141 (2026-08-14 — SOURCE COMMENTS STATE PRESENT CONSTRAINTS; VOLATILE COORDINATES, INVENTORY COUNTS, AND COMPARATOR ARCHAEOLOGY ARE FORBIDDEN)
 

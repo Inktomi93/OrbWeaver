@@ -1,7 +1,7 @@
 ---
 kind: runbook
 status: active
-updated: 2026-08-14
+updated: 2026-08-19
 ---
 
 # Orbweaver recovery index
@@ -27,7 +27,7 @@ hold durable law, programs, evidence, and history.
 | - | - |
 | Mutable status, priority, dependencies, lane, review, evidence | [Project 1](https://github.com/users/Inktomi93/projects/1) + its issues |
 | Architecture and standing product rulings | `docs/architecture/core/` and the D-ledger |
-| Agent delegation, worktree, merge, and overnight process | `.Codex/rules/orchestration.md` (`.Codex/rules` is the tracked symlink to Claude's one file) |
+| Agent delegation, worktree, merge, and overnight process | `.claude/rules/orchestration.md` (root `AGENTS.md` imports every Claude Markdown rule for Codex) |
 | Committed future programs | `docs/architecture/proposed/INDEX.md` + one Project sprint issue per program |
 | Re-derived reviews and reports | `docs/reviews/`, routed to a Work, Decision, or Program issue |
 | Documentation inventory and fact-check receipts | `docs/catalog/catalog.json` + `docs/catalog/receipts/` |

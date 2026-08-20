@@ -205,7 +205,7 @@ function gitBlob(args: readonly string[]): Buffer | null {
 function localEvidenceLines(): ReadonlyMap<string, number> {
   const paths = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
     .split("\0")
-    .filter((path) => path !== "" && TEXT_EVIDENCE_EXTENSIONS.has(extname(path)));
+    .filter((path) => path !== "" && TEXT_EVIDENCE_EXTENSIONS.has(extname(path)) && existsSync(join(root, path)));
   return new Map(paths.map((path) => [path, countLines(readFileSync(join(root, path)))] as const));
 }
 
