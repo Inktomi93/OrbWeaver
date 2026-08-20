@@ -135,7 +135,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
             and with the Configuration launcher card carrying a third copy of the same action, side-eye
             measured THREE "New script" affordances on one screen (2026-08-08 P2). The design call the older
             note deferred has now been made: the `+` and the LAUNCHER card live, the zero-slot's button dies. */}
-        <Button aria-label={collection.create.label} intent="ghost" onClick={create} size="glyph-lg" title={collection.create.label} type="button">
+        <Button aria-label={collection.create.label} intent="ghost" onClick={create} size="icon-sm" title={collection.create.label} type="button">
           <Icon icon={Plus} size="sm" />
         </Button>
       </Row>
@@ -181,7 +181,7 @@ function CollectionBulkTrigger({ collection }: CollectionGroupProps): ReactNode 
 function CollectionBulkToggle({ bulk }: { readonly bulk: NonNullable<CollectionContribution["bulkSelect"]> }): ReactElement {
   const mode = bulk.useMode();
   return (
-    <Button aria-label={bulk.label} aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="glyph-lg" title={bulk.label} type="button">
+    <Button aria-label={bulk.label} aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="icon-sm" title={bulk.label} type="button">
       <Icon icon={ListChecks} size="sm" />
     </Button>
   );
@@ -212,9 +212,9 @@ function CollectionImportDoor({ door }: { readonly door: NonNullable<CollectionC
       }}
     >
       {({ open }): ReactElement => (
-        // Glyph-lg preserves the compact dense-row display box while its shared pseudo-element carries the
-        // pointer-conditional touch floor; the full control-md box starved the required 13px band label.
-        <Button aria-label={door.label} intent="ghost" onClick={open} size="glyph-lg" title={door.label} type="button">
+        // Icon-sm is 32px on fine pointers and the real 44px coarse-pointer box. Unlike glyph pseudo-targets,
+        // adjacent trailing verbs therefore own disjoint hit areas without sacrificing the 13px label.
+        <Button aria-label={door.label} intent="ghost" onClick={open} size="icon-sm" title={door.label} type="button">
           <Icon icon={Upload} size="sm" />
         </Button>
       )}
