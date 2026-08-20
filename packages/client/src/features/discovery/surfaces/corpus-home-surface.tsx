@@ -136,8 +136,6 @@ function CorpusHomeBody(): ReactElement {
   // a cache hit rather than a second fetch of the same analytics.
   const { data: families } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions({}));
   const { data: gems } = useSuspenseQuery(trpc.discovery.forgottenGems.queryOptions());
-  const { data: unused } = useSuspenseQuery(trpc.discovery.unusedCharacters.queryOptions());
-  const { data: routing } = useSuspenseQuery(trpc.discovery.modelRouting.queryOptions());
   const [theme, setTheme] = useState<ThemeSelection | null>(null);
   // HAS THE NEAR-DUP PASS EVER FINISHED? (issue #164 item 4.) A zero from a pass that ran is "none found";
   // a zero from a pass that has never run is "not run", and the rail printed the first for both — the owner
@@ -152,7 +150,13 @@ function CorpusHomeBody(): ReactElement {
   // while `topKeywords` was empty and the dossier printed "No keyword profile computed yet." The keyword
   // tables are written only by `compute-cooccurrence`, which is NOT in the understanding pass's chain — so
   // the row needed both halves of its own state: what it produced, and whether it has ever run.
-  const { data: keywords } = useSuspenseQuery(trpc.discovery.topKeywords.queryOptions());
+  // These are below-fold insights. Keeping them non-suspending lets the masthead, focal map, and
+  // readiness rail settle from the four above-fold reads rather than making a 203-row list or routing
+  // table hold the whole CONTENT boundary. `KeywordExplorer` receives this result rather than reading
+  // `topKeywords` again, so one query owns both the rail's state and the below-fold explorer.
+  const keywords = useQuery(trpc.discovery.topKeywords.queryOptions());
+  const unused = useQuery(trpc.discovery.unusedCharacters.queryOptions());
+  const routing = useQuery(trpc.discovery.modelRouting.queryOptions());
 
   const state = deriveCorpusAnalysisState({
     characters: home.coverage.characters,
@@ -160,7 +164,7 @@ function CorpusHomeBody(): ReactElement {
     distilled: catalog.totalDistilled,
     sceneThemes: home.sceneThemes.length,
     arcThemes: home.arcThemes.length,
-    keywords: keywords.length,
+    keywords: keywords.data?.length ?? 0,
     keywordsEverRan: ranSuccessfully("compute-cooccurrence"),
     duplicateCharacters: home.duplicateCounts.characters,
     duplicateChats: home.duplicateCounts.chats,
@@ -285,10 +289,11 @@ function CorpusHomeBody(): ReactElement {
           </Section>
         ) : null}
 
-        <KeywordExplorer />
+        {keywords.error !== null ? <QueryErrorState label="your top keywords" onRetry={keywords.refetch} /> : <KeywordExplorer top={keywords.data} />}
         <StoryThemeDrift />
 
-        {unused.length === 0 ? null : (
+        {unused.error !== null ? <QueryErrorState label="your never-played characters" onRetry={unused.refetch} /> : null}
+        {unused.data === undefined || unused.data.length === 0 ? null : (
           <Section kicker="Never played" level={2}>
             <VirtualList
               aria-label="Never played characters"
@@ -297,7 +302,7 @@ function CorpusHomeBody(): ReactElement {
               fadeEdge={true}
               gapToken="row"
               getItemKey={(character): string => character.characterId}
-              items={unused}
+              items={unused.data}
               renderItem={(character): ReactElement => (
                 <ListRow
                   clickable={true}
@@ -312,11 +317,12 @@ function CorpusHomeBody(): ReactElement {
         )}
 
         {/* SPEND, not rows: a local-model instance records a route per (genre × model) and zero dollars. */}
-        {routing.every((route) => route.costUsd <= 0) ? null : (
+        {routing.error !== null ? <QueryErrorState label="your model economics" onRetry={routing.refetch} /> : null}
+        {routing.data === undefined || routing.data.every((route) => route.costUsd <= 0) ? null : (
           <Section kicker="Model economics" level={2}>
             <BarList
               items={toBarItems(
-                routing,
+                routing.data,
                 (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
                 (route) => route.costUsd,
               )}

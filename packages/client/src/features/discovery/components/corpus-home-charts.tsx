@@ -25,15 +25,18 @@ import { BarList } from "@orb/ui/bar-list";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { toBarItems } from "../lib/corpus-charts.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
 type ThemeLevel = "scene" | "arc";
+type TopKeyword = inferOutput<Trpc["discovery"]["topKeywords"]>[number];
 
 const NO_KEYWORD = "";
 const SKELETON_ROW_COUNT = 3;
@@ -43,12 +46,10 @@ const LEVEL_OPTIONS = [
 ] as const;
 
 /** The keyword explorer — `topKeywords` as a bar-list, and picking one drills its `cooccurringKeywords`. */
-export function KeywordExplorer(): ReactElement | null {
-  const trpc = useTRPC();
-  const { data: top } = useSuspenseQuery(trpc.discovery.topKeywords.queryOptions());
+export function KeywordExplorer({ top }: { readonly top: readonly TopKeyword[] | undefined }): ReactElement | null {
   const [keyword, setKeyword] = useState(NO_KEYWORD);
 
-  if (top.length === 0) {
+  if (top === undefined || top.length === 0) {
     return null;
   }
 
