@@ -32,6 +32,10 @@ const RENDER_TIMEOUT_MS = 20_000;
 // viewport. Anything under these is a collapsed/undocked panel, which is the failure this guards.
 const PANEL_MIN_WIDTH_PX = 200;
 const PANEL_MIN_HEIGHT_PX = 200;
+const HOST_VIEWER_ROW = / — host, you$/u;
+const MEMBER_ROW = / — member$/u;
+const HOST_ROW = / — host$/u;
+const MEMBER_VIEWER_ROW = / — member, you$/u;
 
 interface CreatedCharacter {
   readonly id: CharacterId;
@@ -108,13 +112,15 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
         expect(box?.height ?? 0).toBeGreaterThan(PANEL_MIN_HEIGHT_PX);
       }
 
-      // BOTH views list BOTH humans — a co-participant's presence is not a secret (D122/Chat-Macro §1), and
-      // this is what makes the gesture asymmetry below meaningful rather than "the member sees nothing".
+      // BOTH views list BOTH humans through their IN-ROOM identities — never raw login handles (#162).
+      // Role + viewer state distinguishes the same persona name honestly in each viewer's panel.
+      await expect(hostPanel.getByRole("button", { name: HOST_VIEWER_ROW })).toBeVisible();
+      await expect(hostPanel.getByRole("button", { name: MEMBER_ROW })).toBeVisible();
+      await expect(memberPanel.getByRole("button", { name: HOST_ROW })).toBeVisible();
+      await expect(memberPanel.getByRole("button", { name: MEMBER_VIEWER_ROW })).toBeVisible();
       for (const panel of [hostPanel, memberPanel]) {
         // biome-ignore lint/performance/noAwaitInLoops: two settled panels, read sequentially.
         const text = await panel.innerText();
-        expect(text.toLowerCase()).toContain(LOCAL_OWNER.handle);
-        expect(text.toLowerCase()).toContain(LOCAL_MEMBER.handle);
         expect(text).toContain(CAST_A.name);
         expect(text).toContain(CAST_B.name);
       }

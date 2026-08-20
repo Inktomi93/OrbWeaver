@@ -73,8 +73,9 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     await page.getByRole("button", { name: "Switch theme" }).click();
     const themeDialog = page.getByRole("dialog", { name: "Theme" });
     await expect(themeDialog).toBeVisible({ timeout: 10_000 });
-    // Each theme is a clickable ListRow whose title is the theme name — click "Mocha" (a seed).
-    await themeDialog.getByText(SEED_THEME_NAME, { exact: true }).click();
+    // Each theme is a clickable ListRow whose accessible name is the theme name. Target the row control,
+    // not its nested title text, so Base UI receives the click consistently under the full worker load.
+    await themeDialog.getByRole("button", { name: SEED_THEME_NAME, exact: true }).click();
     // The active theme applies globally — the shell paints a `[data-theme="mocha"]` scope IMMEDIATELY
     // (server truth flows through the getUserSettings query invalidation the mutation drives).
     await expect(page.locator('[data-theme="mocha"]').first()).toBeVisible({ timeout: 10_000 });
@@ -169,9 +170,9 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     const reSettings = page.getByRole("dialog", { name: "Settings" });
     await expect(reSettings).toBeVisible({ timeout: 10_000 });
     await reSettings.getByRole("button", { name: "Appearance" }).click();
-    // The appearance autosave status shows "Synced across your devices." caption when clean; a tripped
-    // breaker would instead surface a Retry button. Assert the healthy caption is present and no Retry.
-    await expect(reSettings.getByText("Synced across your devices.")).toBeVisible({ timeout: 10_000 });
+    // The appearance autosave status shows the owner-ruled honest "Saved" readout when clean; a tripped
+    // breaker would instead surface a Retry button. Assert the healthy status is present and no Retry.
+    await expect(reSettings.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(reSettings.getByRole("button", { name: "Retry" })).toHaveCount(0);
   });
 });
