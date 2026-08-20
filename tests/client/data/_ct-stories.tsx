@@ -25,7 +25,15 @@ import {
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, toNotice } from "@orb/client/lib";
-import { activeDurableLocalUserId, enterCreatedChat, goToLanding, useActiveChatId, useActiveSection, useSelectedRefinerySessionId } from "@orb/client/state";
+import {
+  activeDurableLocalUserId,
+  enterCreatedChat,
+  goToLanding,
+  useActiveChatId,
+  useActiveSection,
+  useOpenModal,
+  useSelectedRefinerySessionId,
+} from "@orb/client/state";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -34,7 +42,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
  *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from
@@ -723,6 +731,43 @@ export function SessionRecoveryStory(): ReactElement {
     <CtDataProviders>
       <SessionRecoveryProbe />
     </CtDataProviders>
+  );
+}
+
+/**
+ * The terminal `sessions.me` failure is the awkward lifecycle edge: QueryCache starts recovery while the
+ * hook observing that same query re-renders. The modal-state read makes the bound host's verdict visible
+ * without mounting the shell's modal renderer — auth's CT owns that rendered-dialog proof.
+ */
+function SessionRecoveryReauthProbe(): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const modal = useOpenModal();
+  useSessionRecovery();
+  useQuery(trpc.sessions.me.queryOptions());
+  return (
+    <div>
+      <output data-testid="session-recovery-modal">{modal ?? "none"}</output>
+      <button
+        type="button"
+        data-testid="ct-revoke-session"
+        onClick={(): void => {
+          void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).then(() =>
+            queryClient.invalidateQueries(trpc.sessions.me.queryFilter()),
+          );
+        }}
+      >
+        revoke session
+      </button>
+    </div>
+  );
+}
+
+export function SessionRecoveryReauthStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <SessionRecoveryReauthProbe />
+    </CtAppDataProviders>
   );
 }
 

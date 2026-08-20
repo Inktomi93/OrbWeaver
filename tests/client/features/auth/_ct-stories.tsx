@@ -9,7 +9,7 @@ import { AccountSurface, LoginShellAnchor } from "@orb/client/features/auth";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
 import type { AuthConfig } from "../../../../packages/client/src/data/auth-config.ts";
@@ -128,8 +128,10 @@ function ReauthLadderProbe(): ReactElement {
 
 export function ReauthLadderStory(): ReactElement {
   return (
-    <CtDataProviders>
-      <ReauthLadderProbe />
-    </CtDataProviders>
+    <StrictMode>
+      <CtDataProviders>
+        <ReauthLadderProbe />
+      </CtDataProviders>
+    </StrictMode>
   );
 }
