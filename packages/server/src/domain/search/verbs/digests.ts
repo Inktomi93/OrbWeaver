@@ -68,7 +68,7 @@ function recencyBoostOrder<T extends { readonly id: string; readonly distance: n
     factor.set(blockKeyStr(k), i / (n - 1));
   });
   const goodness = (row: T): number => relevanceOf(row.distance) + recencyBias * (factor.get(row.id) ?? 0);
-  return [...ranked].sort((a, b) => (goodness(b) !== goodness(a) ? goodness(b) - goodness(a) : a.distance - b.distance));
+  return ranked.toSorted((a, b) => (goodness(b) !== goodness(a) ? goodness(b) - goodness(a) : a.distance - b.distance));
 }
 
 export function createDigests(ctx: SearchContext): SearchService["digests"] {
