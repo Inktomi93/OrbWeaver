@@ -24,13 +24,13 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   expect(projectInstructions).not.toContain("@.codex/rules/");
 
   const roleModels = {
-    executor: "gpt-5.6-terra",
+    executor: "gpt-5.6-sol",
     forge: "gpt-5.6-sol",
-    "mech-executor": "gpt-5.6-luna",
-    "security-executor": "gpt-5.6-terra",
-    "side-eye": "gpt-5.6-terra",
+    "mech-executor": "gpt-5.6-sol",
+    "security-executor": "gpt-5.6-sol",
+    "side-eye": "gpt-5.6-sol",
     stickler: "gpt-5.6-sol",
-    verifier: "gpt-5.6-terra",
+    verifier: "gpt-5.6-sol",
   } as const;
   for (const [role, model] of Object.entries(roleModels)) {
     const manifest = readFileSync(join(ROOT, ".codex", "agents", `${role}.toml`), "utf8");

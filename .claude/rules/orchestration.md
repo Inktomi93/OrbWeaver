@@ -23,9 +23,9 @@ orchestrator dispatches. (Nesting is banned by the harness, not by this text:
 `Agent` from its `tools` list. Removing either restores Claude Code's depth-3 default.)
 
 You are the orchestrator. Keep planning, architecture, ambiguity resolution, and final judgment for
-yourself; delegate volume and execution to role agents. Quality is protected by VERIFICATION, not by
-running the biggest model everywhere — spend main-session tokens on judgment, route the rest to cheaper
-tiers.
+yourself; delegate volume and execution to role agents. Quality is protected by VERIFICATION. For Codex,
+the owner has ruled that every project role uses `gpt-5.6-sol`; role instructions and explicit reasoning
+effort remain the specialization axes.
 
 | Delegate to | When |
 | - | - |
@@ -64,10 +64,10 @@ a11y → `side-eye`; both if the change spans both.
   before playwright; redirect harness output to a log and read the log in a separate command, never
   pipe into tail). Also: `tests/tooling/check-gates.int.test.ts` is NOT concurrency-safe with itself
   (shared `__g_` fixture paths) — never let a lane floor and a drain battery overlap it.
-- **MODEL TIER IS THE BURN LEVER, not lane count** (owner, 2026-08-13). Five lanes cost what five lanes of
-  work cost; five lanes *on Opus* cost multiples. Start at the cheapest role that can plausibly succeed and
-  escalate on failure, never the reverse. Any ad-hoc agent or workflow fan-out **MUST set `model`
-  explicitly** — `model` defaults to `inherit`, which is how five Opus lanes happen by accident.
+- **CODEX PROJECT ROLES USE SOL** (owner, 2026-08-20). Every Codex project-role manifest and ad-hoc
+  Orbweaver dispatch uses `gpt-5.6-sol`; preserve the role's explicit reasoning effort. Claude still uses
+  its own explicit role models. Any ad-hoc agent or workflow fan-out **MUST set `model` explicitly** —
+  `model` defaults to `inherit`, which makes routing unverifiable.
 - **Lane = one AREA, 4-8 items, one brief, ONE commit** — not one ticket. The agent's cold read of the area
   is the expensive part; per-ticket lanes re-pay it every ticket.
 - **Warm legs are mandatory, not preferred.** A second task in a live agent's area gets a `SendMessage`
