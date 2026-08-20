@@ -108,14 +108,41 @@ describe("the caps refuse instead of growing", () => {
     expect(registry.adopt(ALICE, SOCKET, null).rooms.size).toBe(ROOMS_PER_SOCKET);
   });
 
-  test("the 9th socket for one user is refused — and another user is unaffected", () => {
+  test("the 9th LIVE socket for one user is refused — and another user is unaffected", () => {
     const { registry } = fixedClock();
     for (let i = 0; i < SOCKETS_PER_USER; i++) {
-      registry.adopt(ALICE, castId<SocketId>(`socket_${i}`), null);
+      const cell = registry.adopt(ALICE, castId<SocketId>(`socket_${i}`), null);
+      registry.goLive(cell, inertListener());
     }
 
     expect(() => registry.adopt(ALICE, castId<SocketId>("socket_overflow"), null)).toThrow(DomainRateLimitError);
     expect(() => registry.adopt(MALLORY, castId<SocketId>("socket_mallory"), null)).not.toThrow();
+  });
+
+  test("cap pressure evicts the oldest DARK reconnect cell instead of refusing a new live tab", () => {
+    const { registry, advance } = fixedClock();
+    const oldestId = castId<SocketId>("socket_dark_oldest");
+    const oldest = registry.adopt(ALICE, oldestId, null);
+    registry.attach(ALICE, oldestId, USER_ROOM, null);
+    advance(1);
+
+    const newerId = castId<SocketId>("socket_dark_newer");
+    const newer = registry.adopt(ALICE, newerId, null);
+    registry.attach(ALICE, newerId, rpgRoom(1), null);
+    for (let i = 0; i < SOCKETS_PER_USER - 2; i++) {
+      const cell = registry.adopt(ALICE, castId<SocketId>(`socket_live_${i}`), null);
+      registry.goLive(cell, inertListener());
+    }
+
+    expect(() => registry.adopt(ALICE, castId<SocketId>("socket_replacement"), null)).not.toThrow();
+    expect(registry.liveSocketCount(ALICE)).toBe(SOCKETS_PER_USER - 2);
+
+    // Detach reaches a registered cell. The old object retaining its room proves it was the one removed;
+    // the newer dark cell remains reconnectable and receives its detach normally.
+    registry.detach(ALICE, oldestId, USER_ROOM);
+    registry.detach(ALICE, newerId, rpgRoom(1));
+    expect([...oldest.rooms.keys()]).toEqual(["user"]);
+    expect(newer.rooms.size).toBe(0);
   });
 });
 

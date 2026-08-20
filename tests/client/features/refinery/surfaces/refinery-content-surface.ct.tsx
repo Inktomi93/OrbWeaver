@@ -271,10 +271,6 @@ const BIG_LIBRARY = Array.from({ length: BIG_LIBRARY_SIZE }, (_, i) =>
 );
 /** The LAST card in that library — the one a fixed-limit picker can never reach. */
 const DEEPEST_CARD = `Ward ${String(BIG_LIBRARY_SIZE).padStart(3, "0")}`;
-/** The picker's own tail affordance (`CharacterPicker`) — a real footer BUTTON since the 2026-08-19 pass,
- *  never an option inside the listbox. */
-const LOAD_MORE = /^Load more characters$/;
-
 /** The landing's reads: the roster the resume check consults, plus the library the picker lists. The four
  *  session-scoped reads answer for WHICHEVER session gets opened, so the id the surface asked for is the
  *  observable — a fixed-session responder would paint the same pane either way. */
@@ -405,28 +401,21 @@ test("the landing picker exposes the WHOLE library — a card past the first pag
   // forever: cards 101…327 had no affordance that could reach them.
   await expect(page.getByRole("option", { name: DEEPEST_CARD })).toHaveCount(0);
 
-  // The picker's own paging walks to the end. Clicked rather than scrolled because the affordance has to be
-  // KEYBOARD-reachable to count — a scroll-only tail is unreachable for anyone not using a pointer.
-  // Unrolled rather than looped: each press is barriered on the page it landed, so a failure names WHICH
-  // page stopped arriving instead of timing out on the tail.
-  //
-  // A `button`, NOT an `option` (side-eye 2026-08-19): the tail used to be a `forceMount`ed `CommandItem`,
-  // i.e. a row inside `role="listbox"` that a screen reader announced as a selectable character and that a
-  // keyboard user could only reach by arrowing past all 100 rows above it. It is a real footer button below
-  // the list now, one Tab from the search box — and the role in this locator is the pin that keeps it there.
-  const loadMore = page.getByRole("button", { name: LOAD_MORE });
-  await expect(loadMore).toBeVisible();
+  // The picker's keyboard paging walks to the end with no dead "Load more" chrome (#334). `End` moves the
+  // command highlight to the loaded tail, which asks for the next page. Unrolled and barriered so a failure
+  // names WHICH page stopped arriving instead of timing out only on the final card.
+  const picker = page.getByRole("combobox", { name: "Start a refinery session" });
   // The walk STATES ITSELF: how far it has got against the server's own count over the same scope. Without
-  // it "Load more" is a button with no idea how much more, which is what the 3 244px scroll offered.
+  // it navigation has no idea how much more remains, which is what the 3 244px scroll offered.
   await expect(page.getByText(`Showing 100 of ${BIG_LIBRARY_SIZE}`)).toBeVisible();
-  await loadMore.click();
+  await picker.press("End");
   await expect(page.getByRole("option", { name: "Ward 101" })).toBeVisible();
-  await loadMore.click();
+  await picker.press("End");
   await expect(page.getByRole("option", { name: "Ward 201" })).toBeVisible();
-  await loadMore.click();
+  await picker.press("End");
   await expect(page.getByRole("option", { name: DEEPEST_CARD })).toBeVisible();
-  // Exhausted: the tail affordance retires rather than sitting there offering a page that does not exist.
-  await expect(loadMore).toHaveCount(0);
+  // Exhausted: the progress footer retires rather than implying another page exists.
+  await expect(page.getByText(new RegExp(`Showing \\d+ of ${BIG_LIBRARY_SIZE}`, "u"))).toHaveCount(0);
 });
 
 test("the session pane JOINS its reads: the masthead's card name, the roster status, the draft line and one scope chip per selected field", async ({
