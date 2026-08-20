@@ -77,6 +77,7 @@ type SlashKeyAction =
   | { readonly kind: "cycle"; readonly step: 1 | -1 }
   | { readonly kind: "pick" }
   | { readonly kind: "none" };
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function classifySlashKey(event: SlashKeyEvent, hasHighlight: boolean): SlashKeyAction {
   if (event.key === "Tab") {
     return { kind: "complete-first" };
@@ -155,7 +156,9 @@ export function parseSlashDraft(text: string): SlashDraft {
 
 /** The command token the user is CURRENTLY typing (`""` for a bare "/"), or null when the draft is not a
  *  command-in-progress. Drives the composer's completion strip — a separate question from `parseSlashDraft`
- *  because `/roll` is simultaneously a complete command (on send) and a completed token (while typing). */
+ *  because `/roll` is simultaneously a complete command (on send) and a completed token (while typing).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function slashCompletionToken(text: string): string | null {
   const match = SLASH_COMPLETION_RE.exec(text);
   return match === null ? null : (match[1] ?? "").toLowerCase();

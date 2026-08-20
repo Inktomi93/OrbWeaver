@@ -6,6 +6,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import MiniSearch from "minisearch";
 import type { FieldSearchHit, SearchSuggestion } from "../contract/results.ts";
 
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const FIELD_INDEX_TTL_MS = 300_000;
 const FIELD_INDEX_MAX_OWNERS = 32;
 const FUZZY = 0.2;

@@ -35,6 +35,7 @@ export function getCachedVllmWindow(engine: VllmWindowEngine, now: number): numb
 }
 
 // ── gen-specific back-compat wrappers (the fit-ceiling consumer + resolve-role warm) ─────────────────────
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function seedVllmGenWindow(window: number, fetchedAt: number): void {
   seedVllmWindow("gen", window, fetchedAt);
 }

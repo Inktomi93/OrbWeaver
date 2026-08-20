@@ -5,12 +5,18 @@ import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
 /** The producer classes whose content the store verb embeds. `document` (databank-design/05 §1) is the 4th
- *  member — a databank source document's chunks feeding the 5th vector table. */
+ *  member — a databank source document's chunks feeding the 5th vector table.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const SOURCE_KINDS = ["card", "avatar", "chat-block", "document"] as const;
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const TEXT_LENSES = ["card-text", "segment", "digest", "chunk"] as const;
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;
 
 /** The primary vector tables `embeddings` owns — the single registry all callers derive from. `document_chunks`

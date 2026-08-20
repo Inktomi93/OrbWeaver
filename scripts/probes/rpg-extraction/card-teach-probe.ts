@@ -34,10 +34,11 @@
 
 import fs from "node:fs";
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerView } from "@orb/contracts/rpg";
+import { RPG_PROSE_SLOTS } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import { RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params.ts";
-import { RPG_CARD_TEACH, buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
+import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 import { REPO_ROOT } from "../_kit/artifacts.ts";
 
 const KEY = (() => {
@@ -53,6 +54,8 @@ const KEY = (() => {
 const MODEL = "anthropic/claude-sonnet-5";
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const SPEND_CAP = 4.5;
+
+const RPG_CARD_TEACH = RPG_PROSE_SLOTS["rpg.card.askInteractive"].text + RPG_PROSE_SLOTS["rpg.card.example"].text;
 
 const SYSTEM =
   "You are the game master of an immersive interactive story set in a decaying arcology. Narrate the world in vivid second person for the player character, Vex. Voice the present cast in dialogue. Keep replies to 2-3 short paragraphs.";

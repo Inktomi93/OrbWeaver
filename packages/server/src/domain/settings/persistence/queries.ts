@@ -35,7 +35,9 @@ export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSet
 }
 
 /** First-touch seed (idempotent). Write paths call this before the UPDATE so it can't silently no-op a
- *  never-touched user. */
+ *  never-touched user.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): Promise<void> {
   await db
     .insert(userSettings)

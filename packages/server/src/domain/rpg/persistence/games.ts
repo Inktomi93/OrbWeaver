@@ -49,7 +49,10 @@ export async function insertGame(db: Db, values: NewRpgGame): Promise<RpgGameRow
   return parseGameRow(row);
 }
 
-/** The game keyed by its id, parsed, or `undefined`. */
+/** The game keyed by its id, parsed, or `undefined`.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function findGameById(db: Db, id: RpgGameId): Promise<RpgGameRow | undefined> {
   const rows = await db.select().from(rpgGames).where(eq(rpgGames.id, id)).limit(LIMIT_ONE);
   return rows[0] ? parseGameRow(rows[0]) : undefined;

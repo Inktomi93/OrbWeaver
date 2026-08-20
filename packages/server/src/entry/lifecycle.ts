@@ -85,7 +85,7 @@ function connectionCloser(handle: ServerType): ConnectionCloser | null {
 }
 
 /** The minimal logger shape {@link drainHttpServer} needs — real `getLog()` in production, a spy in tests. */
-export interface DrainLog {
+interface DrainLog {
   readonly warn: (fields: Record<string, unknown>, msg: string) => void;
 }
 
@@ -101,7 +101,9 @@ export interface DrainLog {
  *  a client saw a truncated stream.
  *
  *  Exported (not a `createLifecycle` closure) so the forced path is directly testable against a real open
- *  socket, rather than only provable live (`DRAIN-UNBOUNDED`, dogfood-tracking.md). */
+ *  socket, rather than only provable live (`DRAIN-UNBOUNDED`, dogfood-tracking.md).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs: number = SHUTDOWN_DRAIN_MS): Promise<void> {
   const closed = new Promise<void>((resolve) => {
     handle.close(() => {

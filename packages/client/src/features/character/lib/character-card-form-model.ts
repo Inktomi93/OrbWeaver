@@ -98,7 +98,9 @@ export function characterCardFormFromDetail(card: CharacterDetail): CharacterCar
 
 /** The full normalized card payload from the form values (every draft key, wire-normalized). Not the
  *  save payload directly — `characterUpdateDiff` narrows it to only the changed keys, building both
- *  sides (desired + server baseline) through this one normalizer so only genuine edits differ. */
+ *  sides (desired + server baseline) through this one normalizer so only genuine edits differ.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function characterUpdateFromForm(values: CharacterCardFormValues): UpdateCharacterInput {
   return {
     name: values.name,

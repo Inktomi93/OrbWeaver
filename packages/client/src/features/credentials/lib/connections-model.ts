@@ -49,7 +49,10 @@ export interface RoleSlot {
   readonly readOnly: boolean;
 }
 
-/** The per-role slot descriptors, in render order. Keyed on `ROUTING_ROLE_KEYS` so a new role is a `tsc` error until it has a slot. */
+/** The per-role slot descriptors, in render order. Keyed on `ROUTING_ROLE_KEYS` so a new role is a `tsc` error until it has a slot.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const ROLE_SLOTS: Record<RoutingRoleKey, RoleSlot> = {
   chat: {
     role: "chat",
@@ -123,7 +126,10 @@ export interface RoleSelection {
   readonly model?: string | null | undefined;
 }
 
-/** `true` when a role selection is genuinely configured (non-empty source AND model). */
+/** `true` when a role selection is genuinely configured (non-empty source AND model).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function isConfigured(selection: RoleSelection | undefined): boolean {
   return (
     selection !== undefined &&
@@ -280,7 +286,9 @@ export function roleRowDrifted(live: RoutingForm, persisted: RoutingForm, role: 
 }
 
 /** `true` when ANY row drifts — the pane-level "this pane is showing a draft" signal. Iterates the CONTRACT's
- *  role keys (never a re-spelled list): a role the form stops carrying is a `tsc` error here, not a silent gap. */
+ *  role keys (never a re-spelled list): a role the form stops carrying is a `tsc` error here, not a silent gap.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function routingFormDrifted(live: RoutingForm, persisted: RoutingForm): boolean {
   return ROUTING_ROLE_KEYS.some((role) => roleRowDrifted(live, persisted, role));
 }

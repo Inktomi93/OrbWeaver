@@ -47,6 +47,7 @@ export function renderInjection(injection: ChatInjection, resolveContent: (conte
  *
  * `originalRole` names the original role when a caller auto-converted system→user for the wire.
  * `prose` is the room host's overrides for the two note frames; `{}` ⇒ the shipped frames.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function frameInjection(role: MessageRole, content: string, originalRole?: "system", prose: ProseOverrides = {}): string {
   const trimmed = content.trim();

@@ -250,7 +250,9 @@ interface MemoryBuildTrace {
 
 /** A structured memory observability event (core/Knowledge-Cluster.md §3a — "did memory work this turn, and why" is a
  *  first-class, greppable fact). Discriminated on `event`; `note` carries the zero-work / degrade reason
- *  ("no digests" / "no aged-out block" / "summarizer context below floor"). */
+ *  ("no digests" / "no aged-out block" / "summarizer context below floor").
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export type MemoryLogEntry =
   | {
       readonly event: "memory.recall";

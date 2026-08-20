@@ -12,7 +12,10 @@
 
 import type { ExtraStats } from "../contract/views.ts";
 
-/** 0 when the denominator is non-positive (avoids NaN/Infinity from an empty rollup). */
+/** 0 when the denominator is non-positive (avoids NaN/Infinity from an empty rollup).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function div(a: number, b: number): number {
   return b > 0 ? a / b : 0;
 }

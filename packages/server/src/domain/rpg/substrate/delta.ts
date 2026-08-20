@@ -30,16 +30,22 @@ import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../co
 
 /** The diff heading (§2.7) — a VERSIONED PROSE-1 slot (`rpg.delta.changesHeading`, `macros:"none"`) so a copy
  *  revision is a legible `version` bump. This exported const is the DERIVED default (the byte-reference tests
- *  read); `buildDeltaBlock` resolves the slot against `ctx.prose` so a host override lands. */
+ *  read); `buildDeltaBlock` resolves the slot against `ctx.prose` so a host override lands.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const RPG_DELTA_HEADING = PROSE_SLOTS["rpg.delta.changesHeading"].text;
 /** The first-snapshot heading (§2.7 first-snapshot arm) — the born state is labelled as the scene OPENING, not
  *  as "everything just changed" (which would lie about causality on turn 1). A `rpg.delta.sceneOpensHeading`
- *  slot; the const is the derived default. */
+ *  slot; the const is the derived default.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const RPG_SCENE_OPENS_HEADING = PROSE_SLOTS["rpg.delta.sceneOpensHeading"].text;
 
 /** Bind a typed `PlaneDiffRenderer<T>` into the type-erased `RegisteredPlaneDiff` the registry holds — the ONE
  *  place `select`→`render` are threaded, so the slice `T` stays private to the renderer. P1 REGISTERS its
- *  relationship + cast-field renderers by calling this in `PLANE_DIFF_RENDERERS` — no monolith edit, no cast. */
+ *  relationship + cast-field renderers by calling this in `PLANE_DIFF_RENDERERS` — no monolith edit, no cast.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function definePlaneDiff<T>(r: PlaneDiffRenderer<T>): RegisteredPlaneDiff {
   return { plane: r.plane, run: (prev, cur, ctx) => r.render(r.select(prev), r.select(cur), ctx) };
 }
@@ -467,7 +473,9 @@ const plotRenderer: PlaneDiffRenderer<RpgSnapshotState["plot"]> = {
  *  diffs — the relationship renderer emits `Mari: friend → wary`, which is BOTH this block's steering line AND
  *  feature 1's closed-loop signal). Order mirrors the §2.7 table: numeric planes, sets, ambient, cast, quests,
  *  widgets. `journal beats` + `level` are EXCLUDED by construction (no renderer — §2.7: a beat is an append not
- *  a mutation; level is hand-only identity the prose doesn't react to). */
+ *  a mutation; level is hand-only identity the prose doesn't react to).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
   definePlaneDiff(actorTrackersRenderer),
   definePlaneDiff(conditionsRenderer),

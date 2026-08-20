@@ -73,6 +73,7 @@ type UnifiedTargetId = Extract<CorpusSearchTarget, { kind: "unified" }>["id"];
  *
  * Each value sits in that target's measured gap, between its gibberish ceiling and its present-content
  * floor. They are display thresholds only — nothing here reaches the server, the ranking, or a stored value.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export const CORPUS_NEAREST_ONLY_BELOW: Record<UnifiedTargetId, number> = {
   characters: 0.46,

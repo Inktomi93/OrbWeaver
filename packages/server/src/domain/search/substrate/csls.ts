@@ -3,7 +3,10 @@
 // clamp at 0 is demote-only (an anti-hub must never go negative and beat a genuinely closer match), so ties
 // at the clamped floor break on raw distance, never array order.
 
-/** Hub-score stand-in for a row with no hub_score computed yet; keeps it mid-scale, not artificially winning. */
+/** Hub-score stand-in for a row with no hub_score computed yet; keeps it mid-scale, not artificially winning.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const NULL_HUB_FALLBACK = 0.5;
 
 export function cslsAdjust(distance: number, hubScore: number | null): number {
@@ -31,7 +34,10 @@ export function relevanceOf(distance: number): number {
   return Math.min(1, Math.max(0, 1 - distance));
 }
 
-/** Ascending comparator: primary = clamped adjusted score, secondary = raw cosine distance (tie-break). */
+/** Ascending comparator: primary = clamped adjusted score, secondary = raw cosine distance (tie-break).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function compareCsls(a: { readonly dist: number; readonly hub: number | null }, b: { readonly dist: number; readonly hub: number | null }): number {
   const adj = cslsAdjust(a.dist, a.hub) - cslsAdjust(b.dist, b.hub);
   return adj !== 0 ? adj : a.dist - b.dist;

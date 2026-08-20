@@ -97,7 +97,7 @@ export interface WorkloadsWorkerDeps {
 
 /** The outcome of one poll tick — `ran` (a row was dispatched) + `backOff` (poll/queue trouble → wait the
  *  full idle period instead of the busy cadence, so a wedged row burns one warning per period, not a flood). */
-export interface WorkerTickOutcome {
+interface WorkerTickOutcome {
   readonly ran: boolean;
   readonly backOff: boolean;
 }
@@ -107,6 +107,7 @@ export interface WorkerTickOutcome {
  * injected `run`. The testable core — a test mocks `nextRunnable`/`run`/`load` and asserts the claim +
  * dispatch with a deterministic clock. Engine throws are caught + logged (the reaper recovers a wedged row);
  * a row still `queued` after dispatch signals a back-off.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadLane): Promise<WorkerTickOutcome> {
   const { db, contributions, now } = deps.runnerDeps;
@@ -153,7 +154,9 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadL
 }
 
 /** ONE reap step: sweep orphaned in-flight rows. The testable core for the periodic reap tick + the boot
- *  reap. Errors are logged + swallowed (the reaper must never take the loop down). */
+ *  reap. Errors are logged + swallowed (the reaper must never take the loop down).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function reapOnce(deps: WorkloadsWorkerDeps): Promise<number> {
   const { db, contributions, now } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });

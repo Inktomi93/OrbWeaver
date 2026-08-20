@@ -57,7 +57,9 @@ export interface DatabankComposeResult {
  *  the `{chunk, retrieval}` the `DatabankSettings` op contract carries (the user tier's `slotTokenBudget` is a
  *  chat-side concern threaded via ForeignInputs, not this op). Extracted (not inlined) so the composed-real
  *  test invokes the EXACT binding, not a re-implementation of it. Replaced the compose-stub-goes-stale 0-param
- *  arrow that ignored `ownerId` and returned schema defaults. */
+ *  arrow that ignored `ownerId` and returned schema defaults.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function bindGetDatabankSettings(loadUserSettings: SettingsService["loadUserSettings"]): DatabankContext["getDatabankSettings"] {
   return async (ownerId) => {
     const { databank } = await loadUserSettings(ownerId);

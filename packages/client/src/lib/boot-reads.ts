@@ -67,7 +67,10 @@ export function setBootReadPending(key: string, isPending: boolean): void {
   notify();
 }
 
-/** Test seam: forget every registered boot-critical read (a CT/unit run must not inherit another's). */
+/** Test seam: forget every registered boot-critical read (a CT/unit run must not inherit another's).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function __resetBootReads(): void {
   if (pending.size === 0) {
     return;

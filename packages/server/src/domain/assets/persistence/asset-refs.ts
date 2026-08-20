@@ -39,7 +39,9 @@ export const ASSET_REFS: readonly AssetRef[] = [
  *  snake-case keys, not drizzle refs: `image_embeddings` / `image_index_skips` are embeddings-owned tables
  *  this file may not import. `image_index_skips` is the indexer's admission-floor skip-log (#273): a
  *  re-derivable verdict about the bytes, so it must NOT keep a degenerate blob alive (it CASCADEs away when
- *  the asset is reaped — retaining it would make a skipped 1×1 un-GC-able forever). */
+ *  the asset is reaped — retaining it would make a skipped 1×1 un-GC-able forever).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset_id", "image_index_skips.asset_id"];
 
 /** The non-FK live-source: `AssetId`s pinned inside a JSON settings blob. Two sources, both under

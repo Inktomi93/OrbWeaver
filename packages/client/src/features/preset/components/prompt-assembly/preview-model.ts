@@ -25,7 +25,9 @@ function isTemplatedMarker(marker: string): marker is keyof typeof DEFAULT_MARKE
 
 /** Split a string into text + `{{macro}}` tokens — DISPLAY ONLY (no resolution). Delegates to the real kit
  *  parser's escape-aware scan so `\{{char}}` chips as LITERAL text (not a live macro), killing the second
- *  tokenizer that drifted from the engine. Empty runs are dropped so a one-macro string yields one token. */
+ *  tokenizer that drifted from the engine. Empty runs are dropped so a one-macro string yields one token.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function splitMacroTokens(text: string): readonly MacroRun[] {
   return scanMacroRuns(text);
 }

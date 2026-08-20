@@ -119,7 +119,9 @@ function toRowBase(row: WorkloadSelectRow): Omit<WorkloadRowAnyKind, "kind" | "p
  *  deploy-skew row that cannot be spelled at all). A known kind whose params blob fails its schema is NOT
  *  dropped — it surfaces as a POISON row (`params: null, poison: true`) so a broken row is visible and
  *  actionable instead of vanishing from `list`/`get`. The one place the JSON columns are narrowed; the
- *  per-kind validator is the OWNING domain's contribution schema — the queue spells no domain's vocabulary. */
+ *  per-kind validator is the OWNING domain's contribution schema — the queue spells no domain's vocabulary.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function toView(contributions: WorkloadContributions, row: WorkloadSelectRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
     return null;
@@ -266,6 +268,7 @@ export async function markCancelling(db: Db, id: WorkloadId, now: number): Promi
 // ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb
 // (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes.
 // Ends if a door writes a workload row without that check.
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: number): Promise<boolean> {
   const moved = await db
     .update(workloads)

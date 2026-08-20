@@ -39,6 +39,7 @@ export async function persistAgentSdkCatalogSnapshot(db: Db, snapshot: AgentSdkC
   seedAgentSdkModelCache(snapshot.models, snapshot.fetchedAt);
 }
 
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export async function writeAgentSdkCatalogSnapshot(db: Db, snapshot: AgentSdkCatalogSnapshot): Promise<void> {
   // Snapshot is JSON-shaped at runtime; cast bridges interface → index-signature only.
   const value = snapshot as JsonValue;

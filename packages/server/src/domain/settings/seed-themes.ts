@@ -70,7 +70,9 @@ const LIGHT_OVERRIDE: ThemeOverride = {
 };
 
 /** One seeded palette row: its sentinel id, display name, and the duplicate-to-customize override. The
- *  ORDER is the boot upsert order and the id order — the registry the pairing suite sweeps. */
+ *  ORDER is the boot upsert order and the id order — the registry the pairing suite sweeps.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const SEED_THEMES: ReadonlyArray<{ readonly id: ThemeId; readonly name: string; readonly override: ThemeOverride }> = [
   { id: THEME_HEARTH_ID, name: THEME_HEARTH_NAME, override: HEARTH_OVERRIDE },
   { id: THEME_MOCHA_ID, name: THEME_MOCHA_NAME, override: MOCHA_OVERRIDE },

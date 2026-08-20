@@ -100,7 +100,10 @@ function parseSnapshotRow(row: RpgSnapshotRow): RpgSnapshotRow {
   };
 }
 
-/** The snapshot keyed on `variantId` (the UNIQUE swipe key), parsed, or `undefined`. */
+/** The snapshot keyed on `variantId` (the UNIQUE swipe key), parsed, or `undefined`.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function findSnapshotByVariant(db: Db, variantId: MessageVariantId): Promise<RpgSnapshotRow | undefined> {
   const rows = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, variantId)).limit(LIMIT_ONE);
   return rows[0] ? parseSnapshotRow(rows[0]) : undefined;
@@ -429,7 +432,9 @@ export async function resolveTurnSnapshotPair(
 
 /** Insert a snapshot row (a turn flush's forwarded row, or a hand row), returning it parsed. The JSON values
  *  arrive already-typed (from a parsed base or a validated config), so the read-side parse on the returned row
- *  is the corruption belt. */
+ *  is the corruption belt.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function insertSnapshot(db: Db, values: NewRpgSnapshot): Promise<RpgSnapshotRow> {
   const rows = await db.insert(rpgSnapshots).values(values).returning();
   const row = rows[0];

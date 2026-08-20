@@ -66,6 +66,7 @@ const SAFE_PROTOCOLS: readonly string[] = ["http:", "https:", "mailto:"];
 /**
  * Host prefixes an untrusted external image/link may load from. Minimal by design (the load itself
  * is the tracking-pixel/exfil risk): only relative + the app's own origin.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export const UNTRUSTED_ALLOWED_PREFIXES: readonly string[] = ["/", "#"];
 

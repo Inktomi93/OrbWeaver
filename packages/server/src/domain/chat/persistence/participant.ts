@@ -58,7 +58,9 @@ export function classifyParticipant(row: ParticipantRowShape): ParticipantActor 
  *  {@link classifyParticipant} (one home, one enforcement mechanism); kept for callers that want a hard
  *  failure rather than a silent skip (a future DB-integrity job, or a reader that never expects a corrupt
  *  row to reach it at all — see the header note above). Exercised directly by its own int suite (every
- *  XOR-violation arm). */
+ *  XOR-violation arm).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function parseParticipant(row: ParticipantRowShape): ParticipantActor {
   const actor = classifyParticipant(row);
   if (actor === null) {
@@ -74,7 +76,10 @@ export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind;
   }
 }
 
-/** `leftSeq IS NULL` ⇒ present (in every union — WI/roster/arbitration). */
+/** `leftSeq IS NULL` ⇒ present (in every union — WI/roster/arbitration).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function isPresent(p: { readonly leftSeq: number | null }): boolean {
   return p.leftSeq === null;
 }

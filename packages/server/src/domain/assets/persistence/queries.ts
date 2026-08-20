@@ -77,7 +77,10 @@ export async function listImageAssetIdRows(db: Db, ownerId?: UserId | null): Pro
   return rows.map((r) => r.id);
 }
 
-/** The id of the caller's asset with this hash, or undefined when they have none. Owner-scoped. */
+/** The id of the caller's asset with this hash, or undefined when they have none. Owner-scoped.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function assetIdForHash(db: Db, ownerId: UserId, hash: string): Promise<AssetId | undefined> {
   const rows = await db
     .select({ id: assets.id })

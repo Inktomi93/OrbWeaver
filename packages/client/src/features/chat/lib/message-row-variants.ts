@@ -60,7 +60,9 @@ type BubbleLayout = "single" | "trains";
 type HeaderPlacement = "inside" | "outside";
 
 /** Input to a mode's `bubbleDecoration`. The avatar HASH, not a prebuilt URL — each decorator requests
- *  its own correctly-shaped variant (Echo → blobPortraitUrl, Whisper → blobBannerUrl). */
+ *  its own correctly-shaped variant (Echo → blobPortraitUrl, Whisper → blobBannerUrl).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export interface BubbleDecorationArgs {
   readonly kind: RowAttribution["kind"];
   readonly avatarHash: string | null;

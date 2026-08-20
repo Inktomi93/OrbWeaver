@@ -26,7 +26,9 @@ const NEW_KEY_STEM = "new_parameter";
 
 /** Parse one value cell. `undefined` = not JSON yet (which the caller renders as the row's error and
  *  commits as the pending marker). Blank is deliberately NOT healed to `null`: an empty cell is an
- *  unfinished row, and silently sending `null` is a value the author never wrote. */
+ *  unfinished row, and silently sending `null` is a value the author never wrote.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export function parseCustomParameterValue(text: string): { readonly value: unknown } | undefined {
   const trimmed = text.trim();
   if (trimmed.length === 0) {

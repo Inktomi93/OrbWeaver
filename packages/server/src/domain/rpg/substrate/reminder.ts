@@ -76,14 +76,18 @@ import { buildDeltaBlock } from "./delta.ts";
 
 /** The steering LICENSE (§4.7 #2) — a VERSIONED slot (a `version` bump = a legible copy revision, never a
  *  silent drift): the tracked values visibly shape behaviour, dialogue, and scene; acknowledge a change when it
- *  happens; NEVER recite the raw numbers back at the player. */
+ *  happens; NEVER recite the raw numbers back at the player.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const RPG_STEERING_LICENSE = PROSE_SLOTS["rpg.reminder.steeringLicense"].text;
 
 /** The DECEPTION teaching block — a VERSIONED constant (a bump = a legible copy revision;
  *  the marinara-derived tag grammar the tokenizer's `HIDDEN_TAGS` `lie` registrant recognizes). Teaches the
  *  self-closing `<lie …/>` tag: it is HIDDEN from the reader but REMEMBERED by you (it rides the wire verbatim),
  *  so a lie stays consistent across the scene. The attrs (`character type truth reason`) match the reveal
- *  surface's field order. Composed ONLY when `config.features.deception` is on. */
+ *  surface's field order. Composed ONLY when `config.features.deception` is on.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const RPG_DECEPTION_TEACH = PROSE_SLOTS["rpg.reminder.deceptionTeach"].text;
 
 /** The OMNISCIENCE-FILTER teaching block — a VERSIONED constant (the marinara-derived
@@ -91,7 +95,9 @@ export const RPG_DECEPTION_TEACH = PROSE_SLOTS["rpg.reminder.deceptionTeach"].te
  *  something happens the player's character could NOT perceive, record it in a hidden tag and narrate only what
  *  they CAN perceive. The attrs (`event reason`) match the reveal surface. The optional `who` attr (per-player
  *  perception, graft #V7) is tokenized but v1 hides uniformly — the teach does not mention it. Composed ONLY when
- *  `config.features.omniscience` is on. */
+ *  `config.features.omniscience` is on.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const RPG_OFILTER_TEACH = PROSE_SLOTS["rpg.reminder.omniscienceTeach"].text;
 
 // The WORKED EXAMPLE appended to both card-teach variants (spike §4h, F2b — the copy layer of the tokenizer
@@ -109,17 +115,20 @@ const RPG_CARD_TEACH_EXAMPLE = PROSE_SLOTS["rpg.card.example"].text;
 // `immersiveHtmlInteractive` sub-toggle picks the variant — it shapes the ASK, never the render (a card
 // the model emits renders in the same sandbox either way).
 const RPG_CARD_TEACH_ASK = PROSE_SLOTS["rpg.card.askInteractive"].text;
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const RPG_CARD_TEACH = RPG_CARD_TEACH_ASK + RPG_CARD_TEACH_EXAMPLE;
 
 // The CYOA teaching block — a versioned constant (the RPG_STEERING_LICENSE pattern).
 // Teaches the `:::choices` directive fence the tokenizer's `choices` registrant recognizes; the reading
 // surface renders the options as clickable send-affordances (§5.2-5.3). Composed ONLY when
 // `config.features.cyoa` is on; the wand's one-shot "Offer choices" covers the this-turn-only ask.
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const RPG_CYOA_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
 
 // The M3 static-ask variant (`immersiveHtmlInteractive: false`) — the calmer table: still cards, no ask
 // for scripts/animation. The render is identical (toggle-independent); only the invitation narrows.
 const RPG_CARD_TEACH_STATIC_ASK = PROSE_SLOTS["rpg.card.askStatic"].text;
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const RPG_CARD_TEACH_STATIC = RPG_CARD_TEACH_STATIC_ASK + RPG_CARD_TEACH_EXAMPLE;
 
 /** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and

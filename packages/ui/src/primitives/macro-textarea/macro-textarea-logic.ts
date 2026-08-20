@@ -37,7 +37,9 @@ export function detectTrigger(text: string, caret: number): MacroTrigger | null 
 }
 
 /** The caret marker inside an `insertTemplate` — the one spot the author types next. Stripped on insert;
- *  a template without it lands the caret at its end. */
+ *  a template without it lands the caret at its end.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export const MACRO_CARET_MARKER = "$0";
 
 // Three insertion shapes, one seam. An explicit `insertTemplate` wins (BLOCK forms: the whole
