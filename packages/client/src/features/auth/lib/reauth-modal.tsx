@@ -18,6 +18,7 @@
 // to kill, wearing a nicer hat.
 
 import { KeyRound } from "@orb/ui/icons";
+import { completeReauth } from "#data";
 import type { ModalDefinition } from "#state";
 import { ReauthForm } from "../components/reauth-form.tsx";
 
@@ -28,5 +29,8 @@ export const reauthModal: ModalDefinition = {
   // `surface`: opened by `openModal("reauth")` from the recovery ladder's binding, never by a rail/topbar
   // affordance — a "sign in again" button on a live session would be nonsense chrome.
   trigger: { placement: "surface", label: "Sign in again", icon: KeyRound },
+  // `ModalHost` calls this only on a semantic dialog close. Component cleanup is deliberately not used:
+  // React Strict Mode probes cleanup while the dialog remains logically open.
+  onClose: (): void => completeReauth("dismissed"),
   body: (): ReturnType<typeof ReauthForm> => <ReauthForm />,
 };

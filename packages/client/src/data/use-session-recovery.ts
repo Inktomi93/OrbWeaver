@@ -23,7 +23,7 @@
 
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { timeLib } from "#lib";
 import { bindDurableLocalToUser, openModal, selectChat, useActiveChatId } from "#state";
 import { fetchAuthMe } from "./auth-bootstrap.ts";
@@ -55,6 +55,15 @@ export function useSessionRecovery(): void {
   const userId = me?.userId ?? null;
   const handle = me?.handle ?? null;
   const activeChatId = useActiveChatId();
+  // The host is page-lifecycle state, not render-derived state. Keep its identity mounted for the whole
+  // authed route and refresh only the values its callbacks read: a terminal `sessions.me` error re-renders
+  // this hook while QueryCache begins the ladder, and clearing the module host between effect generations
+  // would turn local re-auth into the fail-closed signed-out fallback.
+  const latest = useRef({ activeChatId, handle, queryClient, trpc });
+
+  useEffect(() => {
+    latest.current = { activeChatId, handle, queryClient, trpc };
+  }, [activeChatId, handle, queryClient, trpc]);
 
   useEffect(() => {
     if (userId !== null) {
@@ -74,7 +83,7 @@ export function useSessionRecovery(): void {
   useEffect(() => {
     bindSessionRecovery({
       resumeInPlace: (): void => {
-        const invalidation = createInvalidation({ queryClient, trpc });
+        const invalidation = createInvalidation({ queryClient: latest.current.queryClient, trpc: latest.current.trpc });
         invalidation.invalidateIdentity();
         invalidation.invalidateAllUserRoots();
         // The socket's server-side cells may not have survived the dead session; attach is idempotent.
@@ -83,13 +92,13 @@ export function useSessionRecovery(): void {
       openReauthPrompt: (): void => {
         openModal("reauth");
       },
-      resumeChatId: (): ChatId | null => activeChatId,
-      currentHandle: (): Handle | null => handle,
+      resumeChatId: (): ChatId | null => latest.current.activeChatId,
+      currentHandle: (): Handle | null => latest.current.handle,
     });
     return (): void => {
       bindSessionRecovery(null);
     };
-  }, [activeChatId, handle, queryClient, trpc]);
+  }, []);
 
   useEffect(
     () =>
