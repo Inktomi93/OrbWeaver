@@ -23031,6 +23031,40 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 149,
+      "bytes": 9390,
+      "sha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md",
+        "assignedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
+        "verifiedCommit": "3a3ffccba8013268f3ee5a9153f1dac4c6540b70",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md:1-149 full read on integrated main",
+          "git:3a3ffccba8013268f3ee5a9153f1dac4c6540b70 contains the exact review blob; reviewed commits are integrated as 4a6c54cdf and 6cdeb23df"
+        ],
+        "summary": "Completed point-in-time merge-train review: PanelChrome deferral and amended tooling instruments were mergeable with zero confirmed findings; exact integrated behavioral and static receipts are recorded in the report."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/vendor/base-ui/INDEX.md",
       "lane": "vendor",
       "issue": 10,
