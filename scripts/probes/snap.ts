@@ -902,10 +902,11 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     const s = splitLastEq(raw);
     pushStep(a, { kind: "key", selector: s.head, key: s.tail === "" ? "Enter" : s.tail, page });
   },
-  // A POST-STEP wait (vs the page-load `--wait`): waits for `selector` to ATTACH at
-  // this point in the step sequence — for content that appears AFTER an interaction.
-  // "attached" not "visible": the visibility check false-negatives on full-bleed-
-  // modal / portal content that IS painted — pair with `--shot-of`.
+  // A POST-STEP wait (vs the page-load `--wait`): waits for the selector to become rendered at
+  // this point in the step sequence. Use Playwright's explicit `text=phrase` selector for rendered
+  // text; a bare phrase remains a CSS selector, so matching prose cannot falsely satisfy a missing
+  // control. Text waiters must not accept a pre-existing hidden node: that was the databank "Fetch
+  // and add" timeout class, where an attached placeholder was not yet the stable result a user could read.
   "--wait-for": (a, rest, page) => {
     pushStep(a, { kind: "waitfor", selector: rest.shift() ?? "", page });
   },
@@ -1198,7 +1199,7 @@ Interaction (steps, __orb nav flags AND --eval run in ONE queue in TRUE argv ord
 mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled surface afterwards):
   --click <selector>      --fill <selector=value>  --key <selector=Key> | --key <Key>
                             bare --key Tab walks focus (no re-focus); the selector= form re-anchors
-  --hover <selector>      --wait-for <selector>    --goto <target>
+  --hover <selector>      --wait-for <selector|text=phrase>    --goto <target>
   --open-chat <id|title|latest|current>   --open-character <id>     --context-tab <tab>
     latest = the chat list's top row; current = the room open right now (no list query — the one to
     use after creating a room, since a fresh room is unlisted until the list refetches)
@@ -1621,9 +1622,7 @@ async function runStep(page: Page, step: Step): Promise<void> {
   }
   const loc = page.locator(step.selector).first();
   if (step.kind === "waitfor") {
-    // "attached" (in-DOM) is robust against the full-bleed-modal visibility
-    // false-negative; the settle after handles paint.
-    await loc.waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+    await loc.waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
     return;
   }
   if (step.kind === "jsclick") {
@@ -2461,7 +2460,16 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
         }).join(" ").trim();
         if (text) return text;
       }
-      var text2 = (el.textContent || "").trim().replace(/\\s+/g, " ");
+      // aria-hidden avatar initials/decorative glyphs are rendered text but absent from the
+      // accessible name. Excluding their entire subtree keeps the map's fallback aligned with
+      // the accessibility tree rather than manufacturing names like "DDiana".
+      var textNodes = [];
+      var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      var node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement && !node.parentElement.closest("[aria-hidden='true']")) textNodes.push(node.textContent || "");
+      }
+      var text2 = textNodes.join(" ").trim().replace(/\\s+/g, " ");
       if (text2) return text2;
       var title = el.getAttribute("title");
       if (title && title.trim()) return title.trim();

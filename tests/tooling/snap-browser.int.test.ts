@@ -54,6 +54,10 @@ afterAll(() => {
     "map_executable",
     "map_svg",
     "map_targets",
+    "map_aria_hidden",
+    "wait_for_text",
+    "wait_for_selector_missing",
+    "wait_for_selector_present",
     "deadcss_markers",
     "paint_settle",
   ]) {
@@ -102,6 +106,60 @@ test("snap maps repeated accessible names to distinct executable selectors", () 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ selector: string }> }>)[0];
   expect(capture?.mapResult.map((entry) => entry.selector)).toEqual(['[aria-label="Save"]:visible >> nth=0', '[aria-label="Save"]:visible >> nth=1']);
+});
+
+test("snap maps the browser-computed name, excluding aria-hidden avatar initials", () => {
+  const page = fixture("map-aria-hidden", '<button><span aria-hidden="true">DD</span><span>Diana</span></button>');
+  const name = `${RUN_ID}_map_aria_hidden`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string }> }>)[0];
+  expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Diana" }));
+});
+
+test("--wait-for does not treat matching rendered text as a missing CSS selector", { timeout: 15_000 }, () => {
+  const page = fixture("wait-for-selector-missing", "<p>button</p>");
+  const name = `${RUN_ID}_wait_for_selector_missing`;
+  const result = runSnap(["--file", page, "--no-shot", "--wait-for", "button", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(1);
+  expect(result.stdout).toContain("steps-failed=1");
+});
+
+test("--wait-for accepts a rendered CSS selector", () => {
+  const page = fixture("wait-for-selector-present", "<button>button</button>");
+  const name = `${RUN_ID}_wait_for_selector_present`;
+  const result = runSnap(["--file", page, "--no-shot", "--wait-for", "button", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("steps-failed=0");
+});
+
+test("--wait-for treats an explicit text selector as rendered text", () => {
+  const page = fixture(
+    "wait-for-text",
+    "<button onclick=\"setTimeout(()=>{const result=document.querySelector('#result'); result.textContent='Fetch and add'; result.style.display='block'},800)\">Search</button><p id=\"result\" style=\"display:none\">Fetch and add</p>",
+  );
+  const name = `${RUN_ID}_wait_for_text`;
+  const result = runSnap([
+    "--file",
+    page,
+    "--no-shot",
+    "--click",
+    "text=Search",
+    "--wait-for",
+    "text=Fetch and add",
+    "--expect-text",
+    "#result=Fetch and add",
+    "--json",
+    "--no-failure-evidence",
+    "--out",
+    name,
+  ]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("steps-failed=0");
 });
 
 test("snap omits semantic plumbing that is not an agent target", () => {

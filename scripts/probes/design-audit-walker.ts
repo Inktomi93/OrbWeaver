@@ -932,6 +932,13 @@ export const COLLECT_SAMPLES_JS = `(async () => {
   var INTERACTIVE_ISLAND_SELECTOR = "a,button,input,select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=option],[role=tab],[role=switch],[role=checkbox],[role=radio]";
   function isInteractiveIsland(el) {
     if (el.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
+    // ListRow's root owns the row's visual chrome but delegates the one offered action to its
+    // direct child. Treat that sanctioned wrapper as its interactive island; a generic bordered
+    // wrapper stays judged, so a decorative panel cannot hide behind this exception.
+    if (el.getAttribute("data-slot") === "list-row-root") {
+      var control = el.firstElementChild;
+      if (control !== null && control.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
+    }
     // A wrapper whose whole job is to host one control (the label+control field shell) rides along.
     return el.closest(INTERACTIVE_ISLAND_SELECTOR) !== null;
   }
