@@ -734,6 +734,9 @@ async function main(): Promise<void> {
     // Probe-only mode against an already-running server (e.g. the live fleet's gen engine).
     const model = cli.model ?? SERVED_NAME;
     const results = await runProbes(cli.baseUrl, model, (r) => {
+      // Keep probe-only evidence equivalent to the booted-variant arm: summary.md is readable,
+      // while each result is the lossless machine record used by follow-up comparison tooling.
+      writeFileSync(path.join(outDir, `live.${r.probe}.json`), JSON.stringify(r, null, 2));
       console.log(`  ${r.ok ? "ok " : "ERR"} ${r.probe} (${r.ms}ms)${r.error === undefined ? "" : ` — ${r.error}`}`);
     });
     writeSummary([{ name: "live", results }], outDir, stamp);

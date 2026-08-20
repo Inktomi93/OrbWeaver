@@ -19,6 +19,23 @@ export function WalkerSliderCompositeStory(): ReactElement {
   );
 }
 
+/** The list-row contract uses a bordered row wrapper around the one actionable child. The wrapper is
+ * deliberately a visual affordance for that button, not a second nested panel; a real decorated panel in
+ * the same outer card proves the nested-card lens remains live. */
+export function WalkerListRowCardStory(): ReactElement {
+  const panel = { backgroundColor: "rgb(24, 24, 28)", border: "1px solid rgb(58, 58, 66)", borderRadius: 10, padding: 12 } as const;
+  return (
+    <div data-testid="outer-card" style={{ ...panel, width: 360 }}>
+      <div data-slot="list-row-root" data-testid="list-row-wrapper" style={panel}>
+        <button type="button">Open the sanctioned row</button>
+      </div>
+      <div data-testid="real-nested-card" style={{ ...panel, marginTop: 12 }}>
+        A genuinely decorative card inside another card
+      </div>
+    </div>
+  );
+}
+
 /** The LOCATABILITY stage: two elements carrying the SAME `data-slot` — the shape every shadcn-style
  *  primitive produces (`data-slot` names a component KIND, not an identity, and a real surface renders
  *  dozens of `[data-slot=text]`). A finding that reports only the slot names all of them and locates none. */

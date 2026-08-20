@@ -23,6 +23,7 @@ import {
   WalkerDuplicateDoorStory,
   WalkerDuplicateSlotStory,
   WalkerGradientBackdropStory,
+  WalkerListRowCardStory,
   WalkerNeighbourButtonsStory,
   WalkerPaintLayerStory,
   WalkerScreenReaderOnlyStory,
@@ -85,6 +86,15 @@ test("two genuine neighbours stay sub-targets — the widening is per composite,
   for (const testid of ["neighbour-a", "neighbour-b"]) {
     expect(smallestSide(targets, testid), `${testid} must still measure as a sub-target`).toBeLessThan(FINE_POINTER_FLOOR);
   }
+});
+
+test("a list-row wrapper around its one control is not a nested card, while a real inner panel remains red", async ({ mount, page }) => {
+  await mount(<WalkerListRowCardStory />);
+  const findings = collectFindings(await samplesOf(page));
+  const nested = selectorsFor(findings, "nested-card");
+
+  expect(nested, "the sanctioned list-row wrapper is the button's visual host, not another decorative card").not.toContain("[data-testid=list-row-wrapper]");
+  expect(nested, "a genuinely decorative inner panel must remain the defect control").toContain("[data-testid=real-nested-card]");
 });
 
 /** The walker's whole raw sample set for the mounted stage. */
