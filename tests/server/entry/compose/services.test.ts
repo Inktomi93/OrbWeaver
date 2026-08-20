@@ -398,9 +398,9 @@ describe("default-card seeder wiring (PD-32)", () => {
 // The composition root subscribes the indexer to the in-process domain-event bus and wires its UN-PRINCIPAL
 // canon re-readers (character.loadCardText / assets.loadAssetBytes) into the indexer context. These tests
 // reproduce that exact wiring over a fresh db with a STUB embeddings store (the inference edge is the seam we
-// cut), then assert an emitted event drives the indexer THROUGH the real loaders to a store call. The emit is
-// fire-and-forget + error-isolated (event-bus.ts), so we drain the IO queue deterministically (bounded
-// setImmediate flushes — no wall-clock) before asserting.
+// cut), then assert an emitted event drives the indexer THROUGH the real loaders to a store call. Production
+// emit stays fire-and-forget + error-isolated; this owned test subscriber exposes its exact completion promise
+// so assertions do not race an arbitrary event-loop-turn budget under full-suite load.
 
 function assertNeverEvent(event: never): never {
   throw new Error(`unhandled domain event: ${JSON.stringify(event)}`);
@@ -412,6 +412,7 @@ interface IndexerWiring {
   readonly store: Mock<EmbeddingsService["store"]>;
   readonly cleanup: () => Promise<void>;
   readonly emit: (event: DomainEvent) => void;
+  readonly settled: () => Promise<void>;
 }
 
 /** Reproduce the composition root's indexer wiring: real character/assets services (their UN-PRINCIPAL canon
@@ -435,7 +436,7 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
     embedDim: EMBED_DIM,
     imageEmbedDim: EMBED_DIM,
   });
-  bus.subscribe((event: DomainEvent): Promise<void> => {
+  function dispatch(event: DomainEvent): Promise<void> {
     switch (event.type) {
       case "character.updated":
         return indexer.onCharacterUpdated(event);
@@ -451,8 +452,13 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
       default:
         return assertNeverEvent(event);
     }
+  }
+  let pending: Promise<void> = Promise.resolve();
+  bus.subscribe((event: DomainEvent): Promise<void> => {
+    pending = dispatch(event);
+    return pending;
   });
-  return { character, assets, store, cleanup: assetsH.cleanup, emit: bus.emit };
+  return { character, assets, store, cleanup: assetsH.cleanup, emit: bus.emit, settled: () => pending };
 }
 
 // Max event-loop turns the drain waits before giving up — generous so a real CAS disk read (the asset path:
@@ -482,7 +488,7 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     const expected = await w.character.loadCardText(created.id);
 
     w.emit({ type: "character.updated", characterId: created.id, contentChanged: true });
-    await drain(() => w.store.mock.calls.length > 0);
+    await w.settled();
 
     expect(w.store).toHaveBeenCalledTimes(1);
     const params = w.store.mock.calls[0]?.[0];
@@ -507,7 +513,7 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     // A star toggle: same card content, contentChanged=false → the indexer skips before touching the store,
     // so the embed backend (and its model-load crash window) is never reached on an identity-flag edit.
     w.emit({ type: "character.updated", characterId: created.id, contentChanged: false });
-    await drain(() => w.store.mock.calls.length > 0);
+    await w.settled();
 
     expect(w.store).not.toHaveBeenCalled();
   });
@@ -526,7 +532,7 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     });
 
     w.emit({ type: "asset.created", assetId: stored.assetId });
-    await drain(() => w.store.mock.calls.length >= 2);
+    await w.settled();
 
     expect(w.store).toHaveBeenCalledTimes(2);
     const lenses = w.store.mock.calls.map((c) => c[0]?.lens);
