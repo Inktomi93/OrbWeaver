@@ -9,7 +9,7 @@ import { PortalContainerContext } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@orb/ui/tooltip";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import type { ChromeEntry, ModalSlotId, SectionId } from "#state";
@@ -30,6 +30,7 @@ import { ThemeBackgroundVideoLayer } from "../components/theme-background-video-
 import { useAppearance } from "../hooks/use-appearance.ts";
 import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects.ts";
 import { useChatBackground } from "../hooks/use-chat-background.ts";
+import { useCommandShortcut } from "../hooks/use-command-shortcut.ts";
 import { useListTrackFlip } from "../hooks/use-list-track-flip.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
@@ -95,7 +96,15 @@ function RailSlot({ show, activeSection }: { readonly show: boolean; readonly ac
 /** The ⌘K chip — DESKTOP-SHAPED (side-eye P1's budget): a phone has no ⌘K key, and at 320px this chip plus
  *  its divider was ~60px of a row that had none to give. Nothing is lost: the You sheet carries the same
  *  command modal as a named row (you-sheet.tsx), which is where every other overflow affordance lives. */
-function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId | undefined; readonly show: boolean }): ReactNode {
+function CommandChip({
+  modalId,
+  show,
+  triggerRef,
+}: {
+  readonly modalId: ModalSlotId | undefined;
+  readonly show: boolean;
+  readonly triggerRef: RefObject<HTMLButtonElement | null>;
+}): ReactNode {
   if (!show) {
     return null;
   }
@@ -105,6 +114,7 @@ function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId | undefi
         <TooltipTrigger
           render={
             <Button
+              ref={triggerRef}
               intent="secondary"
               size="sm"
               // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS "⌘K jump", so
@@ -152,7 +162,9 @@ export function AppShell(): ReactElement {
   const commandModalId = useModalRegistry()
     .list()
     .find((m) => m.trigger.placement === "topbar.trail")?.id;
+  const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const layout = useShellLayout();
+  useCommandShortcut(commandTriggerRef, commandModalId, layout.openModalId);
   const appearance = useAppearance();
   // `dataTheme` comes from the hook, NOT from the row here (#231): while the two chained theme reads are
   // in flight it must answer with this device's remembered palette — the one `main.tsx` already stamped
@@ -326,7 +338,7 @@ export function AppShell(): ReactElement {
                     header={activeDef.header?.()}
                     trail={
                       <>
-                        <CommandChip modalId={commandModalId} show={!layout.mobileViewport} />
+                        <CommandChip modalId={commandModalId} show={!layout.mobileViewport} triggerRef={commandTriggerRef} />
                         <TopbarTrailChrome mobile={layout.mobileViewport} />
                       </>
                     }
