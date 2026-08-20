@@ -33,7 +33,8 @@ export const commandVariants = tv({
     // The coarse-pointer arm is the 44px tap floor (side-eye: the picker's input measured 43px on a
     // phone). `control-sm` is NOT pointer-conditional — only `control-lg` is — so the floor is spelled here.
     inputWrapper: "flex h-control-sm items-center gap-row border-b border-border px-row pointer-coarse:h-touch-target",
-    input: "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground",
+    input:
+      "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground pointer-coarse:h-touch-target",
     list: "relative flex flex-col gap-field overflow-y-auto p-field",
     empty: "px-row py-block text-center text-body leading-body text-muted-foreground",
     group: "flex flex-col",

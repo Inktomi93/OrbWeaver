@@ -39,6 +39,17 @@ test("ArrowDown moves the highlight, Enter selects the highlighted item", async 
   await expect(page.getByTestId("selected")).toHaveText("readme.md");
 });
 
+test("ArrowDown exposes the roving selected option from the focused combobox", async ({ mount, page }) => {
+  await mount(<CommandPaletteStory />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.press("ArrowDown");
+  const selected = page.getByRole("option", { name: "readme.md" });
+  await expect(selected).toHaveAttribute("aria-selected", "true");
+  const selectedId = await selected.getAttribute("id");
+  await expect(input).toHaveAttribute("aria-activedescendant", selectedId ?? "");
+});
+
 test("disabled items are skipped by keyboard nav and ignore clicks", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   const input = page.getByRole("combobox");
@@ -112,6 +123,17 @@ test("the root wears the popover token", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   const root = page.locator('[data-slot="command-root"]');
   await expect(root).toHaveCSS("background-color", TOKENS["color.popover"].value);
+});
+
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
+
+  test("the interactive command input itself meets the touch floor", async ({ mount, page }) => {
+    await mount(<CommandPaletteStory />);
+    const box = await page.getByRole("combobox").boundingBox();
+    expect(box).not.toBeNull();
+    expect(box?.height).toBeGreaterThanOrEqual(Number.parseFloat(TOKENS["spacing.touch-target"].value) * 16);
+  });
 });
 
 // ── THE SEARCH BOX HAS A REST→FOCUS DELTA (side-eye 2026-08-19, refinery P2) ─────────────────────────

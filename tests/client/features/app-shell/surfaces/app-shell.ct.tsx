@@ -43,6 +43,7 @@ const MAX_MOBILE_TAB_BUTTONS = 4;
 const LIST_TOGGLE_RE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) (?:detail panel|details)$/u;
 const FOCUS_TOGGLE_RE = /focus mode$/u;
+const JUMP_COMMAND_MENU_RE = /jump.*command menu/iu;
 
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
@@ -284,6 +285,94 @@ test("closing a modal returns focus to the control that opened it (finalFocus)",
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(trigger).toBeFocused();
+});
+
+for (const handoff of [
+  { name: "Theme", trigger: "Switch theme" },
+  { name: "Settings", trigger: "Settings" },
+  { name: "Jump", trigger: "Jump to…" },
+] as const) {
+  test(`MOBILE: You-sheet ${handoff.name} handoff returns focus to the durable You tab`, async ({ mount, page }) => {
+    await page.setViewportSize(MOBILE);
+    const shell = await mount(<AppShellStory />);
+    const you = shell.getByRole("button", { name: "You" });
+    await you.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    await page.getByRole("button", { name: handoff.trigger }).click();
+    await expect(page.getByRole("dialog", { name: handoff.name })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(you).toBeFocused();
+  });
+}
+
+test("filtering the command palette keeps the dialog and search geometry stable", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE }).click();
+  const dialog = page.getByRole("dialog", { name: "Jump to…" });
+  const input = dialog.getByRole("combobox");
+  await expect(input).toBeVisible();
+  const before = {
+    dialog: await dialog.boundingBox(),
+    input: await input.boundingBox(),
+  };
+
+  await input.fill("analytics");
+  await expect(dialog.getByRole("option", { name: "Analytics", exact: true })).toBeVisible();
+  const after = {
+    dialog: await dialog.boundingBox(),
+    input: await input.boundingBox(),
+  };
+
+  expect(before.dialog).not.toBeNull();
+  expect(before.input).not.toBeNull();
+  expect(after.dialog).not.toBeNull();
+  expect(after.input).not.toBeNull();
+  expect(after.dialog?.y).toBeCloseTo(before.dialog?.y ?? 0, 1);
+  expect(after.input?.y).toBeCloseTo(before.input?.y ?? 0, 1);
+});
+
+test("the real command palette keeps roving selection exposed from its focused combobox", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "You" }).click();
+  await page.getByRole("button", { name: "Jump to…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Jump to…" });
+  const input = dialog.getByRole("combobox");
+  await input.click();
+  await input.fill("analytics");
+  await expect(dialog.getByRole("option", { name: "Analytics", exact: true })).toBeVisible();
+  await input.press("ArrowDown");
+
+  const selected = dialog.getByRole("option", { selected: true });
+  await expect(selected).toBeVisible();
+  const selectedId = await selected.getAttribute("id");
+  await expect(input).toHaveAttribute("aria-activedescendant", selectedId ?? "");
+});
+
+test("the command palette reserves a compact, stable result viewport while filtering", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE }).click();
+  const dialog = page.getByRole("dialog", { name: "Jump to…" });
+  const input = dialog.getByRole("combobox");
+  const list = dialog.getByRole("listbox");
+  await expect(input).toBeVisible();
+  const before = await list.boundingBox();
+
+  await input.fill("analytics");
+  await expect(dialog.getByRole("option", { name: "Analytics" })).toBeVisible();
+  const after = await list.boundingBox();
+
+  expect(before).not.toBeNull();
+  expect(after).not.toBeNull();
+  // A 12rem viewport still scrolls the complete command set, while one result does not leave the former
+  // 24rem sheet-sized void beneath it.
+  expect(after?.height).toBeLessThanOrEqual(192);
+  expect(after?.height).toBeCloseTo(before?.height ?? 0, 1);
 });
 
 // initialFocus (side-eye 2026-08-16 ARIA rider): Base UI's default initial focus is the popup's first

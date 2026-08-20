@@ -61,7 +61,8 @@ function RailChromeEntry({
   }
   const active = behavior.kind === "section" && behavior.sectionId === activeSection;
   const onClick = behavior.kind === "section" ? (): void => onSelectSection(behavior.sectionId) : (): void => onOpenModal(behavior.modalId);
-  return <RailButton label={entry.label} icon={entry.icon} active={active} onClick={onClick} mobile={entry.mobile ?? "sheet"} />;
+  const modalIdProp = behavior.kind === "modal" ? { modalId: behavior.modalId } : {};
+  return <RailButton active={active} icon={entry.icon} label={entry.label} mobile={entry.mobile ?? "sheet"} {...modalIdProp} onClick={onClick} />;
 }
 
 /** The BRAND cell as a real affordance (home-section-spec §4.1). The Weave glyph was a decorative
@@ -241,6 +242,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
           label={youModal.trigger.label}
           mobile="tab"
           mobileOnly={true}
+          modalId={youModal.id}
           onClick={(): void => onOpenModal(youModal.id)}
         />
       )}
