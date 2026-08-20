@@ -101,7 +101,9 @@ export const toastVariants = tv({
      * the inset clears it.
      */
     placement: {
-      band: { viewport: "ms-auto" },
+      // The shell band is already its own normal-flow row. `p-section` would spend 24px above and below
+      // every notice burst there (the retired overlay inset tax); only the fallback overlay owns that air.
+      band: { viewport: "ms-auto p-0" },
       overlay: { viewport: "fixed top-(--dimension-chrome-row) right-0 z-(--z-toast)" },
     },
   },

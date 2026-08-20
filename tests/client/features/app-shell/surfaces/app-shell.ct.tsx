@@ -170,6 +170,22 @@ test("a notice reflows the desktop content column too — ONE surface, not a mob
   await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(1);
 });
 
+test("the shell band sheds overlay padding and caps a burst without covering content", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mount(<AppShellNoticeBandStory />);
+  const raise = page.getByTestId("raise-notice");
+  await raise.click();
+  await raise.click();
+  await raise.click();
+  const viewport = page.locator('[data-slot="notice-band"] [data-slot="toast-viewport"]');
+  await expect(viewport).toHaveCSS("padding-top", "0px");
+  await expect(viewport).toHaveCSS("padding-bottom", "0px");
+  await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(3);
+  const band = await settledBox(page.locator('[data-slot="notice-band"]'));
+  expect(band.height).toBeLessThanOrEqual(224);
+  expect(overlaps(await settledBox(page.getByTestId("band-transcript")), band)).toBe(false);
+});
+
 test("with nothing to say the band costs zero pixels — an empty shell is byte-for-byte the old layout", async ({ mount, page }) => {
   await mount(<AppShellNoticeBandStory />);
   // The band element exists (its ref is what the outlet portals into) and renders NOTHING.
