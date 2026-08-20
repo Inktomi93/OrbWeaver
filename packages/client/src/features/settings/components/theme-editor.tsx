@@ -18,6 +18,7 @@
 import type { Theme, ThemeRadius } from "@orb/contracts/theme";
 import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
+import { Button } from "@orb/ui/button";
 import type { CodeEditorDiagnostic, CodeEditorProps } from "@orb/ui/code-editor";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -26,7 +27,7 @@ import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
@@ -97,6 +98,7 @@ interface ThemeEditorBodyProps {
 
 function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeEditorBodyProps): ReactElement {
   const { form, saveState, retrySave } = session;
+  const [advancedToolsVisible, setAdvancedToolsVisible] = useState(false);
   // Widen once (the session's `form` is the boundary's surface minus `reset`) — the field bodies below
   // never call it, matching the preset editor's identical widen.
   const boundForm = form as AppFormInstance<ThemeFormValues>;
@@ -150,18 +152,28 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         </Section>
       </Grid>
 
-      <Section heading="Custom CSS">
-        <boundForm.AppField name="css">
-          {(field): ReactElement => <CssEditorField value={field.state.value} onChange={(next): void => field.handleChange(next)} />}
-        </boundForm.AppField>
-        <ThemeableVarsReference />
-      </Section>
+      {advancedToolsVisible ? (
+        <>
+          <Section heading="Custom CSS">
+            <boundForm.AppField name="css">
+              {(field): ReactElement => <CssEditorField value={field.state.value} onChange={(next): void => field.handleChange(next)} />}
+            </boundForm.AppField>
+            <ThemeableVarsReference />
+          </Section>
 
-      <Section heading="Preview">
-        <boundForm.Subscribe selector={(state): ThemeFormValues => state.values}>
-          {(values): ReactElement => <ThemePreview values={values} />}
-        </boundForm.Subscribe>
-      </Section>
+          <Section heading="Preview">
+            <boundForm.Subscribe selector={(state): ThemeFormValues => state.values}>
+              {(values): ReactElement => <ThemePreview values={values} />}
+            </boundForm.Subscribe>
+          </Section>
+        </>
+      ) : (
+        <Row>
+          <Button intent="secondary" onClick={(): void => setAdvancedToolsVisible(true)}>
+            Show advanced theme tools
+          </Button>
+        </Row>
+      )}
     </Stack>
   );
 }

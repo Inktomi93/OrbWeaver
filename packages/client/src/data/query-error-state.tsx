@@ -25,7 +25,9 @@ export interface QueryErrorStateProps {
 export function QueryErrorState({ label, onRetry }: QueryErrorStateProps): ReactElement {
   return (
     <Stack align="center" gap="row" justify="center" padding="section">
-      <Text tone="muted">Couldn't load {label}.</Text>
+      <Text role="status" tone="muted">
+        Couldn't load {label}.
+      </Text>
       <Button intent="ghost" onClick={onRetry}>
         Retry
       </Button>
