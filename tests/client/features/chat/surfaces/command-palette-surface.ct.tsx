@@ -8,7 +8,7 @@
 // a build with zero registrants degrades to exactly the two navigation groups.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { CommandPaletteSurfaceStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
@@ -18,12 +18,12 @@ const ADVENTURE = makeChatSummary({
   participantNames: ["Aria Nightshade"],
 });
 
-test("renders the Threads / Go to / Create groups with their rows", async ({ mount, page }) => {
+test("renders the Recent threads / Go to / Create groups with their rows", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
 
   const component = await mount(<CommandPaletteSurfaceStory />);
 
-  await expect(component.getByText("Threads")).toBeVisible();
+  await expect(component.getByText("Recent threads", { exact: true })).toBeVisible();
   await expect(component.getByText("A grand adventure")).toBeVisible();
   await expect(component.getByText("Go to")).toBeVisible();
   // The route-supplied go-to sections (CT literal: Chats · Characters · Corpus).
@@ -56,7 +56,28 @@ test("an empty thread list still renders the Go to + Create groups", async ({ mo
 
   await expect(component.getByText("Go to")).toBeVisible();
   await expect(component.getByText("Create")).toBeVisible();
-  await expect(page.getByText("Threads")).toBeHidden();
+  await expect(page.getByText("Recent threads", { exact: true })).toBeHidden();
+});
+
+test("a Recent threads failure stays visible and Retry restores only that group", async ({ mount, page }) => {
+  let attempts = 0;
+  await routeTrpc(page, {
+    "chat.listChats": (): unknown => (attempts++ === 0 ? trpcError({ message: "recent threads unavailable" }) : chatListResponder([ADVENTURE])({})),
+  });
+
+  const component = await mount(<CommandPaletteSurfaceStory />);
+
+  await expect(component.getByText("Couldn't load recent threads.")).toBeVisible();
+  await expect(component.getByRole("status")).toHaveText("Couldn't load recent threads.");
+  await expect(component.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(component.getByText("Go to")).toBeVisible();
+  await expect(component.getByText("Create")).toBeVisible();
+  await expect(page.getByRole("option", { name: "New chat" })).toBeVisible();
+
+  await component.getByRole("button", { name: "Retry" }).click();
+  await expect(component.getByText("Recent threads", { exact: true })).toBeVisible();
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+  await expect(component.getByText("Couldn't load recent threads.")).toBeHidden();
 });
 
 test("a contributed command appears in the palette and RUNS when picked", async ({ mount, page }) => {
@@ -80,7 +101,7 @@ test("with ZERO registrations the palette shows exactly its native groups (no co
 
   const component = await mount(<CommandPaletteSurfaceStory commands="none" />);
 
-  await expect(component.getByText("Threads")).toBeVisible();
+  await expect(component.getByText("Recent threads", { exact: true })).toBeVisible();
   await expect(component.getByText("Go to")).toBeVisible();
   await expect(page.getByText("Create")).toBeHidden();
   await expect(page.getByText("Commands")).toBeHidden();
