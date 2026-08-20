@@ -139,16 +139,15 @@ section was refreshed for Codex 0.148.0-alpha.9 on 2026-08-19.
 
 Orbweaver generates Codex manifests from `.claude/agents/*.md`; never hand-edit a generated TOML. The
 converter carries the shared body over, adds a Codex compatibility preamble, translates skill preloads
-into explicit read instructions, and refuses an unmapped role. Current routing:
+into explicit read instructions, and refuses an unmapped role. Current Codex routing (owner ruling
+2026-08-20: every project agent uses Sol):
 
 | Role class | Codex model |
 | - | - |
-| Mechanical execution | `gpt-5.6-luna` |
-| Everyday execution, verification, UX, security | `gpt-5.6-terra` |
-| Frontier design or analysis (`forge`, `stickler`) | `gpt-5.6-sol` |
+| All project roles (`executor`, `forge`, `mech-executor`, `security-executor`, `side-eye`, `stickler`, `verifier`) | `gpt-5.6-sol` |
 
-Preserve each source role's `effort` as `model_reasoning_effort`. Security stays on Terra rather than
-the frontier tier, matching the role's explicit routing law.
+Preserve each source role's `effort` as `model_reasoning_effort`; role and effort remain the specialization
+axes even though the Codex model is uniform.
 
 ## §8 Shared authoring workflow
 

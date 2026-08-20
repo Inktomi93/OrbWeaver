@@ -17,13 +17,13 @@ const RULE_IMPORTS_PATTERN = /<!-- codex-claude-rules:begin[^\n]*-->[\s\S]*?<!--
 const MAX_ARGV_LENGTH = 3;
 
 const ROLE_MODELS: Readonly<Record<string, string>> = {
-  executor: "gpt-5.6-terra",
+  executor: "gpt-5.6-sol",
   forge: "gpt-5.6-sol",
-  "mech-executor": "gpt-5.6-luna",
-  "security-executor": "gpt-5.6-terra",
-  "side-eye": "gpt-5.6-terra",
+  "mech-executor": "gpt-5.6-sol",
+  "security-executor": "gpt-5.6-sol",
+  "side-eye": "gpt-5.6-sol",
   stickler: "gpt-5.6-sol",
-  verifier: "gpt-5.6-terra",
+  verifier: "gpt-5.6-sol",
 };
 
 interface ClaudeAgent {
