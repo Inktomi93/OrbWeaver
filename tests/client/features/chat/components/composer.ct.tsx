@@ -12,10 +12,13 @@
 // there is no restore logic and no race window (the removed phase-gate). To exercise the clear/keep
 // windows deterministically, `chat.send` is HELD (its listener stays alive) while the signal is driven.
 
+import { IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
+import { routeImpersonateStream } from "../../../../support/ct/route-impersonate-stream.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
 import { COMPOSER_CHAT_ID } from "../fixtures.ts";
@@ -106,15 +109,14 @@ test("#54: an unserveable connection refuses the SEND click — no chat.send fir
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
-test("#54: engine-off idles the guided fire actions with the engine-off reason (Response, Impersonate)", async ({ mount, page }) => {
+test("#54: engine-off idles the guided fire actions with the engine-off reason (Response, Draft your line)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
   const component = await mount(<ComposerStory />);
   // Response is otherwise NEVER disabled — an off engine is its only disabled state; the reason surfaces.
   const response = component.getByRole("button", { name: "Generate reply" });
   await expect(response).toHaveAttribute("aria-disabled", "true");
   await expect(response).toHaveAttribute("title", new RegExp(`— ${ENGINE_OFF_REASON.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
-  // Impersonate (always fires a turn/draft) idles too, with the send cause winning over its phase reason.
-  await expect(component.getByRole("button", { name: "Impersonate" })).toHaveAttribute("aria-disabled", "true");
+  await expect(component.getByRole("button", { name: "Draft your line" })).toHaveAttribute("aria-disabled", "true");
 });
 
 test("#54: an AVAILABLE verdict leaves Send serveable (a typed committed composer sends)", async ({ mount, page }) => {
@@ -135,6 +137,285 @@ test("#54: an AVAILABLE verdict leaves Send serveable (a typed committed compose
 // menu (owner). Generate-image is now a menu ITEM — open the ✨ menu (the composerUtility trigger), then act on
 // the portalled row via the PAGE locator (the menu.ct portal split).
 const UTILITY_TRIGGER = { name: "Message tools" } as const;
+
+function composerCharacter(key: string, name: string): unknown {
+  return {
+    id: `chat_participant_${key}`,
+    kind: "character",
+    userId: null,
+    characterId: `character_${key}`,
+    role: "member",
+    displayName: name,
+    disabled: false,
+    talkativeness: 0.5,
+  };
+}
+
+function groupedComposerChat(): unknown {
+  return {
+    title: "Council",
+    participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
+    viewerIsHost: true,
+  };
+}
+
+const COMPOSER_ACTIONS = [
+  { name: "Chat options", group: "Chat actions" },
+  { name: "Draft your line", group: "Your message" },
+  { name: "Try another reply", group: "Their reply" },
+  { name: "Generate reply", group: "Their reply" },
+  { name: "Continue the reply", group: "Their reply" },
+  { name: "Speak as a character", group: "Their reply" },
+  { name: "Message tools", group: "Attach and send" },
+  { name: "Send message", group: "Attach and send" },
+] as const;
+const LIVE_COMPOSER_ACTIONS = [
+  COMPOSER_ACTIONS[0],
+  { name: "Guided draft your line", group: "Your message" },
+  { name: IMPERSONATE_STOP_LABEL, group: "Your message" },
+  { name: "Try another reply with this direction", group: "Their reply" },
+  { name: "Guided generate reply", group: "Their reply" },
+  { name: "Continue the reply with this direction", group: "Their reply" },
+  COMPOSER_ACTIONS[5],
+  COMPOSER_ACTIONS[6],
+  COMPOSER_ACTIONS[7],
+] as const;
+const REPLY_ACTION_NEEDS_REPLY = /Try another reply — needs an existing reply/iu;
+const PARTIAL_DRAFT = "I step into the tavern, ";
+const STREAM_RETRY_MS = 5000;
+
+interface ControlBox {
+  readonly name: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+interface ActionSpec {
+  readonly name: string;
+  readonly group: string;
+}
+
+async function controlBoxes(component: Locator, actions: readonly ActionSpec[]): Promise<readonly ControlBox[]> {
+  const controls = [
+    ...actions.map(({ name }) => ({ name, locator: component.getByRole("button", { name, exact: true }) })),
+    { name: "Message", locator: component.getByRole("textbox", { name: "Message", exact: true }) },
+  ];
+  return await Promise.all(
+    controls.map(async ({ name, locator }) => {
+      const box = await locator.boundingBox();
+      expect(box, `${name} must have rendered geometry`).not.toBeNull();
+      if (box === null) {
+        throw new Error(`${name} had no rendered geometry`);
+      }
+      return { name, ...box };
+    }),
+  );
+}
+
+function overlaps(a: ControlBox, b: ControlBox): boolean {
+  const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+  const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+  return overlapX > 0.5 && overlapY > 0.5;
+}
+
+function expectRowMajorOrder(boxes: readonly ControlBox[]): void {
+  for (let index = 1; index < boxes.length; index += 1) {
+    const previous = boxes[index - 1];
+    const current = boxes[index];
+    if (previous === undefined || current === undefined) {
+      throw new Error(`Missing control geometry at index ${String(index)}`);
+    }
+    expect(current.y, `${current.name} must not paint above ${previous.name}`).toBeGreaterThanOrEqual(previous.y - 0.5);
+    const followsPrevious = Math.abs(current.y - previous.y) > 0.5 || current.x > previous.x;
+    expect(followsPrevious, `${current.name} must follow ${previous.name} on their shared row`).toBe(true);
+  }
+}
+
+async function expectNearestActionGroups(component: Locator, actions: readonly ActionSpec[]): Promise<void> {
+  const nearestGroups = await Promise.all(
+    actions.map(
+      async ({ name }) =>
+        await component.getByRole("button", { name, exact: true }).evaluate((button) => button.closest('[role="group"]')?.getAttribute("aria-label") ?? null),
+    ),
+  );
+  expect(nearestGroups).toEqual(actions.map(({ group }) => group));
+}
+
+async function expectCoarseComposerLayout(page: Page, component: Locator, actions: readonly ActionSpec[]): Promise<void> {
+  const pointer = await page.evaluate(() => ({
+    coarse: matchMedia("(pointer: coarse)").matches,
+    fine: matchMedia("(pointer: fine)").matches,
+    touchPoints: navigator.maxTouchPoints,
+  }));
+  expect(pointer.coarse, "hasTouch must land the coarse-pointer token arm").toBe(true);
+  expect(pointer.fine, "the fine-pointer override must not apply in the coarse control").toBe(false);
+  expect(pointer.touchPoints, "the browser context must expose touch input").toBeGreaterThan(0);
+
+  const composer = component.locator('[data-slot="composer"]');
+  const composerBox = await composer.boundingBox();
+  expect(composerBox).not.toBeNull();
+  const bounds = composerBox ?? { x: 0, y: 0, width: 0, height: 0 };
+  const boxes = await controlBoxes(component, actions);
+  const viewportWidth = await page.evaluate(() => innerWidth);
+
+  for (const action of boxes.slice(0, actions.length)) {
+    expect(Math.min(action.width, action.height), `${action.name} must meet the coarse 44px target floor`).toBeGreaterThanOrEqual(44);
+  }
+  for (const box of boxes) {
+    expect(box.x, `${box.name} must stay inside the composer left edge`).toBeGreaterThanOrEqual(bounds.x - 0.5);
+    expect(box.x + box.width, `${box.name} must stay inside the composer right edge`).toBeLessThanOrEqual(bounds.x + bounds.width + 0.5);
+    expect(box.y, `${box.name} must stay inside the composer top edge`).toBeGreaterThanOrEqual(bounds.y - 0.5);
+    expect(box.y + box.height, `${box.name} must stay inside the composer bottom edge`).toBeLessThanOrEqual(bounds.y + bounds.height + 0.5);
+    expect(box.x, `${box.name} must stay inside the viewport left edge`).toBeGreaterThanOrEqual(-0.5);
+    expect(box.x + box.width, `${box.name} must stay inside the viewport right edge`).toBeLessThanOrEqual(viewportWidth + 0.5);
+  }
+  for (let left = 0; left < boxes.length; left += 1) {
+    for (let right = left + 1; right < boxes.length; right += 1) {
+      const a = boxes[left];
+      const b = boxes[right];
+      if (a === undefined || b === undefined) {
+        throw new Error(`Missing overlap geometry at indexes ${String(left)} and ${String(right)}`);
+      }
+      expect(overlaps(a, b), `${a.name} must not overlap ${b.name}`).toBe(false);
+    }
+  }
+  expectRowMajorOrder(boxes);
+
+  const overflow = await composer.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
+  expect(overflow.scrollWidth, "the composer must not scroll horizontally").toBeLessThanOrEqual(overflow.clientWidth);
+  const documentOverflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(documentOverflow.scrollWidth, "composer actions must not widen the document").toBeLessThanOrEqual(documentOverflow.clientWidth);
+}
+
+test("#206: all eight icon controls expose plain-language names and tooltips on hover and focus", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": groupedComposerChat,
+    "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
+  });
+  const component = await mount(<ComposerStory />);
+  const expectedTooltips = [
+    { name: "Chat options", tooltip: "Manage this chat" },
+    { name: "Draft your line", tooltip: `Draft your line — ${ENGINE_OFF_REASON}` },
+    { name: "Try another reply", tooltip: `Try another reply — ${ENGINE_OFF_REASON}` },
+    { name: "Generate reply", tooltip: `Generate reply — ${ENGINE_OFF_REASON}` },
+    { name: "Continue the reply", tooltip: `Continue the reply — ${ENGINE_OFF_REASON}` },
+    { name: "Speak as a character", tooltip: "Choose who speaks next" },
+    { name: "Message tools", tooltip: "More message actions" },
+    { name: "Send message", tooltip: ENGINE_OFF_REASON },
+  ] as const;
+  const composer = component.locator('[data-slot="composer"]');
+  await expect(composer.getByRole("button")).toHaveCount(COMPOSER_ACTIONS.length);
+  await expect(component.getByRole("button", { name: "Send message", exact: true })).toHaveAttribute("aria-disabled", "true");
+
+  for (const { name, tooltip } of expectedTooltips) {
+    const control = component.getByRole("button", { name, exact: true });
+    const popup = page.getByRole("tooltip", { name: tooltip, exact: true });
+    // biome-ignore lint/performance/noAwaitInLoops: each tooltip must release shared hover/focus state before the next control.
+    await control.hover();
+    await expect(popup, `${name} must explain itself on hover`).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(popup).toBeHidden();
+    await control.focus();
+    await expect(control, `${name} must accept focus in this reason-bearing state`).toBeFocused();
+    await expect(popup, `${name} must explain itself on focus`).toBeVisible();
+    await control.evaluate((element) => (element as HTMLElement).blur());
+    await expect(popup).toBeHidden();
+  }
+
+  const names = await composer.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
+  expect(names).not.toContain("Impersonate");
+  expect(names).not.toContain("Swipe");
+});
+
+test("#206: each control has one truthful nearest owner, one Send, and desktop order/spacing", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+  const component = await mount(<ComposerStory />);
+
+  await Promise.all(
+    ["Your message", "Their reply", "Attach and send"].map(async (group) => {
+      await expect(component.getByRole("group", { name: group, exact: true })).toHaveCount(1);
+    }),
+  );
+  await expectNearestActionGroups(component, COMPOSER_ACTIONS);
+  await expect(component.getByRole("group", { name: "Reply actions" })).toHaveCount(0);
+  await expect(component.getByRole("group", { name: "Choose the next speaker" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Message tools", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Send message", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: IMPERSONATE_STOP_LABEL, exact: true })).toHaveCount(0);
+
+  const boxes = await controlBoxes(component, COMPOSER_ACTIONS);
+  expectRowMajorOrder(boxes);
+  const yours = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
+  const theirs = await component.getByRole("group", { name: "Their reply", exact: true }).boundingBox();
+  const attach = await component.getByRole("group", { name: "Attach and send", exact: true }).boundingBox();
+  const tryAnother = await component.getByRole("button", { name: "Try another reply", exact: true }).boundingBox();
+  const generate = await component.getByRole("button", { name: "Generate reply", exact: true }).boundingBox();
+  expect(yours).not.toBeNull();
+  expect(theirs).not.toBeNull();
+  expect(attach).not.toBeNull();
+  expect(tryAnother).not.toBeNull();
+  expect(generate).not.toBeNull();
+  const intraGroupGap = (generate?.x ?? 0) - ((tryAnother?.x ?? 0) + (tryAnother?.width ?? 0));
+  const youToThemGap = (theirs?.x ?? 0) - ((yours?.x ?? 0) + (yours?.width ?? 0));
+  const themToAttachGap = (attach?.x ?? 0) - ((theirs?.x ?? 0) + (theirs?.width ?? 0));
+  expect(youToThemGap, "Your message and Their reply must be farther apart than controls within Their reply").toBeGreaterThan(intraGroupGap);
+  expect(themToAttachGap, "Their reply and Attach and send must be farther apart than controls within Their reply").toBeGreaterThan(intraGroupGap);
+});
+
+test("#206: a disabled reply action remains focusable and exposes its reason", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+  const component = await mount(<ComposerStory />);
+  const action = component.getByRole("button", { name: "Try another reply", exact: true });
+  await expect(action).toHaveAttribute("aria-disabled", "true");
+  await expect(action).not.toHaveAttribute("disabled", "");
+  await action.focus();
+  await expect(action).toBeFocused();
+  await expect(page.getByRole("tooltip", { name: REPLY_ACTION_NEEDS_REPLY })).toBeVisible();
+});
+
+test.describe("#206 coarse touch layout", () => {
+  test.use({ hasTouch: true });
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 320, height: 720 },
+  ] as const) {
+    test(`${String(viewport.width)}px contains static actions and the live drafting Stop`, async ({ mount, page }) => {
+      await page.setViewportSize(viewport);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+      const component = await mount(<ComposerStory />);
+      const stop = component.getByRole("button", { name: IMPERSONATE_STOP_LABEL, exact: true });
+      const textbox = component.getByRole("textbox", { name: "Message", exact: true });
+      await expect(component.locator('[data-slot="composer"]')).toBeVisible();
+      await expect(stop).toHaveCount(0);
+      await expectCoarseComposerLayout(page, component, COMPOSER_ACTIONS);
+
+      await routeImpersonateStream(page, [PARTIAL_DRAFT, "cloak dripping."], STREAM_RETRY_MS);
+      await component.getByRole("button", { name: "Draft your line", exact: true }).click();
+      await page.getByRole("menuitem", { name: "1st person", exact: true }).click();
+      await expect(textbox).toHaveValue(PARTIAL_DRAFT);
+      await expect(stop).toHaveCount(1);
+      await expectNearestActionGroups(component, LIVE_COMPOSER_ACTIONS);
+      await expectCoarseComposerLayout(page, component, LIVE_COMPOSER_ACTIONS);
+
+      // The menu click leaves a synthetic pointer parked under the reflowing toolbar; reset it so a tooltip
+      // opened by that stationary pointer cannot intercept the deliberate Stop click.
+      await page.mouse.move(0, 0);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      await stop.click();
+      await expect(stop).toHaveCount(0);
+      await expect(textbox).toHaveValue(PARTIAL_DRAFT);
+      await textbox.fill("");
+      await expectCoarseComposerLayout(page, component, COMPOSER_ACTIONS);
+    });
+  }
+});
 
 test("generate-image is gated on typed text, then fires chat.generateImage (mode free, the text as prompt)", async ({ mount, page }) => {
   let genBody: string | null = null;
@@ -243,10 +524,10 @@ test("P1-C: Attach media is a SINGLE accessible control (input is aria-hidden, o
 test("the guided cluster shows all four icons on an empty committed composer; Response is always live (wand v2)", async ({ mount }) => {
   const component = await mount(<ComposerStory />); // empty composer, committed handle
   // The four dual-mode icons ALWAYS render on the top row. Response is never disabled — an empty committed
-  // composer fires a plain generate reply. The ⟳ icon is now labeled "Swipe" (Regenerate moved to the ✨ menu).
+  // composer fires a plain generate reply. The ⟳ icon offers another reply (Regenerate moved to the ✨ menu).
   await expect(component.getByRole("button", { name: "Generate reply" })).toBeEnabled();
-  await expect(component.getByRole("button", { name: "Impersonate" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Swipe" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Draft your line" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Try another reply" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Continue" })).toBeVisible();
 });
 

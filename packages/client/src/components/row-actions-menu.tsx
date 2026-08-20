@@ -14,6 +14,7 @@ import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
@@ -50,6 +51,8 @@ export interface RowActionsMenuProps {
   readonly triggerSize?: "icon" | "sm";
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
+  /** Optional plain-language hover/focus explanation for an icon-only trigger. */
+  readonly tooltip?: string;
   /** The bottom destructive item + its confirm dialog. Omit for a menu with no destructive action. */
   readonly destructive?: RowDestructiveAction;
 }
@@ -66,6 +69,7 @@ export function RowActionsMenu({
   align = "end",
   triggerSize = "icon",
   reveal = false,
+  tooltip,
   destructive,
 }: RowActionsMenuProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -74,13 +78,30 @@ export function RowActionsMenu({
   return (
     <>
       <Menu>
-        <MenuTrigger
-          render={
-            <Button aria-label={label} intent="ghost" size={triggerSize} {...(reveal ? { className: ROW_REVEAL } : {})}>
-              <Icon icon={icon} size="sm" />
-            </Button>
-          }
-        />
+        {tooltip === undefined ? (
+          <MenuTrigger
+            render={
+              <Button aria-label={label} intent="ghost" size={triggerSize} {...(reveal ? { className: ROW_REVEAL } : {})}>
+                <Icon icon={icon} size="sm" />
+              </Button>
+            }
+          />
+        ) : (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <MenuTrigger
+                  render={
+                    <Button aria-label={label} intent="ghost" size={triggerSize} {...(reveal ? { className: ROW_REVEAL } : {})}>
+                      <Icon icon={icon} size="sm" />
+                    </Button>
+                  }
+                />
+              }
+            />
+            <TooltipPopup side="top">{tooltip}</TooltipPopup>
+          </Tooltip>
+        )}
         <MenuPopup align={align}>
           {children}
           {destructive === undefined ? null : (
