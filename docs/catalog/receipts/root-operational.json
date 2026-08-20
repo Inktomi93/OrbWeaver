@@ -92,13 +92,13 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "8e9d831f026b287c56ab96dbbce0a53e6a1240e3c1d4fc7cee6539999390ad05",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "f0ebeedc914ee85865dcc87fbdcfb92ccca044acf3cc23e4836e4d638348f653",
+      "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
+      "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, and hard stops checked against D139-D140 and Project 1",
+        "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",
         "docs/architecture/proposed/INDEX.md:17-37 maps each unfinished committed program to its Project sprint",
-        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact recovery-index blob"
+        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact recovery-index blob"
       ],
       "claims": [
         {
