@@ -44,6 +44,12 @@ test("opening the editable field always shows the hex text alternative alongside
   await expect(page.getByLabel("Hex")).toBeVisible();
 });
 
+test("the color picker dialog derives a purpose-specific name from the field label", async ({ mount, page }) => {
+  await mount(<ColorField aria-label="Accent" onValueChange={noop} value="#f4a261" />);
+  await page.getByLabel("Accent").click();
+  await expect(page.getByRole("dialog", { name: "Accent color picker" })).toBeVisible();
+});
+
 test("typing a valid hex commits the value to the caller", async ({ mount, page }) => {
   await mount(<ColorFieldHarness />);
   await page.getByLabel("Accent").click();
