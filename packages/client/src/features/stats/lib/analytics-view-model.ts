@@ -11,6 +11,8 @@
 // decision cannot live in `StatFigure`; it lives in the data and dies here, one layer below the tile.
 // A `?? 0` on the way into one of these is the exact defect the seam exists to stop.
 
+import type { TokenProvenance } from "@orb/contracts/chat";
+import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { BarListItem } from "@orb/ui/bar-list";
 import type { HeatmapMatrix } from "@orb/ui/heatmap";
@@ -107,14 +109,20 @@ function trimZero(fixed: string, suffix: string): string {
 
 /** A nullable count — `—` when the metric was never recorded (an ST-imported or agent-sdk rollup carries
  *  no token accounting at all, and a `0 tok` there asserts a measurement that never happened). */
-export function formatCount(n: number | null): string {
-  return n === null ? EM_DASH : formatCompact(n);
+export function formatCount(n: number | null, provenance?: import("@orb/contracts/chat").TokenProvenance): string {
+  if (n === null || provenance === "unrecorded") {
+    return EM_DASH;
+  }
+  return `${provenance === "estimated" ? "~" : ""}${formatCompact(n)}`;
 }
 
 /** A token count WITH its unit, or a bare `—` — the trailing-meta form the dense rows use. The unit rides
  *  inside so an unrecorded row reads `—` and not the nonsense `— tok`. */
-export function formatTokens(n: number | null): string {
-  return n === null ? EM_DASH : `${formatCompact(n)} tok`;
+export function formatTokens(n: number | null, provenance: import("@orb/contracts/chat").TokenProvenance): string {
+  if (n === null || provenance === "unrecorded") {
+    return EM_DASH;
+  }
+  return `${provenance === "estimated" ? "~" : ""}${formatCompact(n)} tok`;
 }
 
 /** A USD figure: `—` unrecorded · `$1.23` · `$0.0037` below a cent. The sub-cent arm exists because a
@@ -132,12 +140,26 @@ export function formatUsd(n: number | null): string {
 
 /** A 0..1 rate as a whole percent: `0.45` → `45%`; `—` when the rate has no measurement behind it, and
  *  `<1%` for a real-but-tiny rate that would otherwise round to the `0%` that reads as "never". */
-export function formatPercent(rate: number | null): string {
-  if (rate === null) {
+export function formatPercent(rate: number | null, provenance?: import("@orb/contracts/chat").TokenProvenance): string {
+  if (rate === null || provenance === "unrecorded") {
     return EM_DASH;
   }
   const whole = Math.round(rate * PERCENT);
-  return whole === 0 && rate > 0 ? "<1%" : `${whole}%`;
+  const value = whole === 0 && rate > 0 ? "<1%" : `${whole}%`;
+  return provenance === "estimated" ? `~${value}` : value;
+}
+
+/** Token-derived throughput with the same provenance spelling as the total it divides. */
+export function formatThroughput(rate: number, provenance: import("@orb/contracts/chat").TokenProvenance): string {
+  if (provenance === "unrecorded") {
+    return EM_DASH;
+  }
+  return `${provenance === "estimated" ? "~" : ""}${rate.toFixed(1)} t/s`;
+}
+
+/** Dominant origin for a series whose chart uses one shared value formatter. */
+export function seriesTokenProvenance(points: readonly { readonly tokensOutProvenance: TokenProvenance }[]): TokenProvenance {
+  return points.reduce<TokenProvenance>((combined, point) => combineTokenProvenance(combined, point.tokensOutProvenance), "unrecorded");
 }
 
 /** A signed integer delta for a momentum bar-end label: `+5` · `-3` · `0`. */
@@ -191,10 +213,17 @@ export function dailyTurnBuckets(points: readonly { readonly day: string; readon
   }));
 }
 
-/** Daily points → an output-token histogram in date order. */
-export function dailyTokenBuckets(points: readonly { readonly day: string; readonly tokensOut: number }[]): HistogramBucket[] {
-  return points.map((point, index) => ({
-    label: formatDayLabel(point.day, points[index - 1]?.day),
+/** Daily points with recorded output usage → an output-token histogram in date order. Unrecorded days are
+ *  omitted: a zero-height bar would turn missing accounting into a measured zero. */
+export function dailyTokenBuckets(
+  points: readonly { readonly day: string; readonly tokensOut: number | null; readonly tokensOutProvenance: TokenProvenance }[],
+): HistogramBucket[] {
+  const recorded = points.filter(
+    (point): point is { readonly day: string; readonly tokensOut: number; readonly tokensOutProvenance: TokenProvenance } =>
+      point.tokensOut !== null && point.tokensOutProvenance !== "unrecorded",
+  );
+  return recorded.map((point, index) => ({
+    label: formatDayLabel(point.day, recorded[index - 1]?.day),
     count: point.tokensOut,
   }));
 }

@@ -35,6 +35,20 @@ export interface BundleImportWorkloadResult {
   readonly failed: number;
 }
 
+/** The auditable terminal census for import's variant token catch-up. Every non-write has a named bucket. */
+export interface ImportTokenUsageBackfillResult {
+  readonly scanned: number;
+  readonly exactRecovered: number;
+  readonly legacyPromoted: number;
+  readonly estimated: number;
+  readonly alreadyMeasured: number;
+  readonly alreadyEstimated: number;
+  readonly compareAndSetSkipped: number;
+  readonly ownersScanned: number;
+  readonly ownersReconciled: number;
+  readonly dryRun: boolean;
+}
+
 /** `deferred:true` distinguishes an inert v2-stub run from a real zero-work pass. */
 export interface DeferredResult {
   readonly deferred: true;
@@ -57,6 +71,7 @@ export interface WorkloadResultByKind {
   "assets-gc": MaintenanceResult;
   "assets-fsck": FsckReport;
   "import-st": MaintenanceResult;
+  "import-token-usage-backfill": ImportTokenUsageBackfillResult;
   "import-bundle": BundleImportWorkloadResult;
   "reconcile-stats": ReconcileStatsWorkloadResult;
   "refresh-model-catalog": CatalogRefreshResult;

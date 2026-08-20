@@ -19,6 +19,22 @@ import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
 const SEQ_MIN = 0;
 
+/** Variant-grain token accounting provenance. This is the one canonical vocabulary shared by provider
+ * turns, imports, canon, rollups, and rendering: a number without this origin is not honest accounting. */
+export const TOKEN_PROVENANCES = ["measured", "estimated", "unrecorded"] as const;
+export type TokenProvenance = (typeof TOKEN_PROVENANCES)[number];
+export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES);
+
+/** Combine accounting origins for a displayed total. One estimate makes the sum approximate; measured
+ *  wins only over absence. Keeping this beside the vocabulary prevents cross-domain rollups from inventing
+ *  different precedence rules. */
+export function combineTokenProvenance(left: TokenProvenance, right: TokenProvenance): TokenProvenance {
+  if (left === "estimated" || right === "estimated") {
+    return "estimated";
+  }
+  return left === "measured" || right === "measured" ? "measured" : "unrecorded";
+}
+
 /** The `listMessages` page CEILING, enforced at the transport trust boundary (the `CHAT_LIST_MAX_LIMIT` /
  *  `character.list` precedent). An unclamped `limit` is an unbounded SQL `.limit()` DoS surface; an over-bound
  *  ask is refused as BAD_REQUEST. The same 100 the domain DoS backstop (`read.ts` `Math.min`, for internal
@@ -191,6 +207,8 @@ export interface MessageView {
   terminalReason: string | null;
   tokensIn: number | null;
   tokensOut: number | null;
+  /** Origin of the selected variant's token columns. `unrecorded` means both columns are absent. */
+  tokenProvenance: TokenProvenance;
   cacheReadTokens: number | null;
   cacheWriteTokens: number | null;
   contextWindow: number | null;

@@ -12,15 +12,21 @@ import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+import { aggregateTokenProvenance, recordedCost, recordedTokens } from "../substrate/rates.ts";
 
 // The raw aggregated row as it comes back from the untyped `sql`` boundary — module-private.
 interface EconomicsRow {
   readonly characterId: CharacterId;
   readonly generations: number;
   readonly tokensIn: number;
+  readonly tokensInMeasuredSamples: number;
+  readonly tokensInEstimatedSamples: number;
   /** NULL when no selected variant of this character recorded a `tokens_out` at all — see the read. */
   readonly tokensOut: number | null;
+  readonly tokensOutMeasuredSamples: number;
+  readonly tokensOutEstimatedSamples: number;
   readonly costUsd: number;
+  readonly costSamples: number;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
 }
@@ -31,9 +37,12 @@ interface ModelEconomicsRow {
   readonly provider: string | null;
   readonly generations: number;
   readonly tokensOut: number;
+  readonly tokensOutMeasuredSamples: number;
+  readonly tokensOutEstimatedSamples: number;
   readonly genTimeMs: number;
   readonly genSamples: number;
   readonly costUsd: number;
+  readonly costSamples: number;
 }
 
 /** Per-character economics — the selected assistant-variant totals, owner-scoped. One row per character
@@ -43,14 +52,20 @@ interface ModelEconomicsRow {
  *  returns NULL, which is the one signal that separates "this library never recorded output tokens" (every
  *  imported turn) from "the model returned nothing" (a real 0). Coalescing it to 0 here is what made the
  *  corpus shelf print "0 tokens returned · 1,187 exchanges". The other sums keep their COALESCE: a missing
- *  cost or cache count on a local-model turn genuinely IS zero. */
+ *  cache count on a local-model turn genuinely IS zero. Cost has its own sample count, because a reported
+ *  zero is measured while an absent dollar field is unrecorded. */
 export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<CharacterEconomics[]> {
   const rows = await db.all<EconomicsRow>(sql`
     SELECT m.character_id AS characterId,
            COUNT(*) AS generations,
            COALESCE(SUM(v.tokens_in), 0) AS tokensIn,
            SUM(v.tokens_out) AS tokensOut,
+           SUM(CASE WHEN v.tokens_in IS NOT NULL AND v.token_provenance = 'measured' THEN 1 ELSE 0 END) AS tokensInMeasuredSamples,
+           SUM(CASE WHEN v.tokens_in IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensInEstimatedSamples,
+           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'measured' THEN 1 ELSE 0 END) AS tokensOutMeasuredSamples,
+           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensOutEstimatedSamples,
            COALESCE(SUM(v.cost_usd), 0) AS costUsd,
+           SUM(CASE WHEN v.cost_usd IS NOT NULL THEN 1 ELSE 0 END) AS costSamples,
            COALESCE(SUM(v.cache_read_tokens), 0) AS cacheReadTokens,
            COALESCE(SUM(v.cache_write_tokens), 0) AS cacheWriteTokens
     FROM messages m
@@ -64,10 +79,12 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     // untyped.
     characterId: castId<CharacterId>(r.characterId),
     generations: Number(r.generations),
-    tokensIn: Number(r.tokensIn),
+    tokensIn: recordedTokens(Number(r.tokensIn), Number(r.tokensInMeasuredSamples), Number(r.tokensInEstimatedSamples)),
+    tokensInProvenance: aggregateTokenProvenance(Number(r.tokensInMeasuredSamples), Number(r.tokensInEstimatedSamples)),
     // `Number(null)` is 0 — the null must survive the mapper or the SQL's whole point is undone one line later.
-    tokensOut: r.tokensOut === null ? null : Number(r.tokensOut),
-    costUsd: Number(r.costUsd),
+    tokensOut: recordedTokens(Number(r.tokensOut ?? 0), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
+    tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
+    costUsd: recordedCost(Number(r.costUsd), Number(r.costSamples)),
     cacheReadTokens: Number(r.cacheReadTokens),
     cacheWriteTokens: Number(r.cacheWriteTokens),
   }));
@@ -83,13 +100,16 @@ export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Prom
            v.provider AS provider,
            COUNT(*) AS generations,
            COALESCE(SUM(v.tokens_out), 0) AS tokensOut,
+           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'measured' THEN 1 ELSE 0 END) AS tokensOutMeasuredSamples,
+           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensOutEstimatedSamples,
            COALESCE(SUM(CASE
              WHEN v.gen_started_at IS NOT NULL AND v.gen_finished_at IS NOT NULL
              THEN v.gen_finished_at - v.gen_started_at END), 0) AS genTimeMs,
            SUM(CASE
              WHEN v.gen_started_at IS NOT NULL AND v.gen_finished_at IS NOT NULL
              THEN 1 ELSE 0 END) AS genSamples,
-           COALESCE(SUM(v.cost_usd), 0) AS costUsd
+           COALESCE(SUM(v.cost_usd), 0) AS costUsd,
+           SUM(CASE WHEN v.cost_usd IS NOT NULL THEN 1 ELSE 0 END) AS costSamples
     FROM messages m
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
@@ -101,9 +121,10 @@ export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Prom
     model: r.model,
     provider: r.provider,
     generations: Number(r.generations),
-    tokensOut: Number(r.tokensOut),
+    tokensOut: recordedTokens(Number(r.tokensOut), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
+    tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
     genTimeMs: Number(r.genTimeMs),
     genSamples: Number(r.genSamples),
-    costUsd: Number(r.costUsd),
+    costUsd: recordedCost(Number(r.costUsd), Number(r.costSamples)),
   }));
 }

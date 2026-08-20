@@ -134,17 +134,21 @@ export type {
   MessageView,
   ReattributeScope,
   StandaloneVariableDelta,
+  TokenProvenance,
   ToolCallRecord,
   UserMacroDraws,
 } from "./messages.ts";
 export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
+  combineTokenProvenance,
   macroFreezeRecordSchema,
   macroFreezeSchema,
   messageSlotSchema,
   reattributeScopeSchema,
   standaloneVariableDeltaSchema,
   standaloneVariableDeltasSchema,
+  TOKEN_PROVENANCES,
+  tokenProvenanceSchema,
   toolCallRecordSchema,
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
@@ -258,6 +262,12 @@ export {
   TALKATIVENESS_DEFAULT,
   talkativenessSchema,
 } from "./roster.ts";
+export type {
+  CompareAndSetImportedTokenUsage,
+  ImportedTokenUsageCandidate,
+  ImportedTokenUsageResolution,
+  ListImportedTokenUsageCandidates,
+} from "./token-usage-backfill.ts";
 // The leak-safe reverse-room read (D18) — one shape + one op type for every library that keeps a chat-scope
 // attachment junction (regex scripts · databank documents · the rpg GM preset).
 export type { ResolveVisibleRoomsOp, VisibleRoomRef } from "./visible-rooms.ts";

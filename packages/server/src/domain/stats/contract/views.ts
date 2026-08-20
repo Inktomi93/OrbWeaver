@@ -7,11 +7,12 @@
 // (`0 tok`, `$0.00`, `Cache hits 100%`). Every field that can be genuinely unmeasured is nullable, and
 // its renderer owes an em dash. Do not "simplify" one back to a non-null number with a `?? 0`.
 
+import type { TokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 
 export interface ExtraStats {
   reasoningMs: number;
-  /** `null` when the generations behind this rollup recorded no usage at all (ST imports / agent-sdk). */
+  /** `null` when no contributing generation reported a dollar cost. */
   costUsd: number | null;
   cacheReadTokens: number;
   cacheWriteTokens: number;
@@ -39,6 +40,8 @@ export interface OwnerStatsView extends ExtraStats {
   /** `null` when no generation behind this rollup recorded usage (see the file header). */
   tokensIn: number | null;
   tokensOut: number | null;
+  tokensInProvenance: TokenProvenance;
+  tokensOutProvenance: TokenProvenance;
   totalGenTimeMs: number;
   avgGenMs: number | null;
   p50GenMs: number | null;
@@ -66,6 +69,7 @@ export interface LeaderboardRow {
   assistantTurns: number;
   swipes: number;
   tokensOut: number | null;
+  tokensOutProvenance: TokenProvenance;
   totalGenTimeMs: number;
   reasoningRate: number;
   firstChatAt: number | null;
@@ -89,8 +93,10 @@ export interface DailyPoint {
   userTurns: number;
   assistantTurns: number;
   swipes: number;
-  tokensIn: number;
-  tokensOut: number;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  tokensInProvenance: TokenProvenance;
+  tokensOutProvenance: TokenProvenance;
   genTimeMs: number;
   messageDatesApprox: boolean;
 }
@@ -103,6 +109,8 @@ export interface ModelStatRow {
   charactersUsedWith: number;
   tokensIn: number | null;
   tokensOut: number | null;
+  tokensInProvenance: TokenProvenance;
+  tokensOutProvenance: TokenProvenance;
   totalGenTimeMs: number;
   avgGenMs: number | null;
   avgTtftMs: number | null;
@@ -128,6 +136,7 @@ export interface PersonaUsageRow {
   chatCount: number;
   messageCount: number;
   tokensOut: number | null;
+  tokensOutProvenance: TokenProvenance;
   lastUsedAt: number | null;
 }
 

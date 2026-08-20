@@ -103,6 +103,7 @@ const FORK_COLUMN_CLASS = {
   provider: "copied",
   tokensIn: "copied",
   tokensOut: "copied",
+  tokenProvenance: "copied",
   cacheReadTokens: "copied",
   cacheWriteTokens: "copied",
   costUsd: "copied",

@@ -46,6 +46,8 @@ describe("readOverview", () => {
       swipes: 1,
       tokensIn: 200,
       tokensOut: 2000,
+      tokensInMeasuredSamples: 1,
+      tokensOutMeasuredSamples: 1,
       genTimeMs: 1000,
       reasoningGenerations: 1,
       cacheReadTokens: 30,
@@ -73,6 +75,28 @@ describe("readOverview", () => {
     expect(o?.cacheHitRate).toBeNull();
     // Word counts are NOT usage — they are computed from the text, so they stay real numbers.
     expect(o?.assistantWords).toBe(0);
+  });
+
+  test("estimated samples stay visible, dominate mixed token totals, and never imply dollar cost", async () => {
+    await seedOwnerStats(db, ownerId, {
+      assistantTurns: 2,
+      tokensIn: 120,
+      tokensOut: 80,
+      tokensInMeasuredSamples: 1,
+      tokensInEstimatedSamples: 1,
+      tokensOutMeasuredSamples: 1,
+      tokensOutEstimatedSamples: 1,
+      costUsd: 0,
+      costSamples: 0,
+    });
+    const o = await readOverview(db, ownerId);
+    expect(o).toMatchObject({
+      tokensIn: 120,
+      tokensOut: 80,
+      tokensInProvenance: "estimated",
+      tokensOutProvenance: "estimated",
+      costUsd: null,
+    });
   });
 });
 

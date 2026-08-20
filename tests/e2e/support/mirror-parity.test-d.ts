@@ -259,6 +259,7 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
       | "stopReason"
       | "terminalReason"
       | "tokensOut"
+      | "tokenProvenance"
       | "cacheReadTokens"
       | "cacheWriteTokens"
       | "contextWindow"

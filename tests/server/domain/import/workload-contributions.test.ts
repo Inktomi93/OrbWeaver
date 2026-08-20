@@ -14,7 +14,7 @@ import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
-import type { UserId } from "@orb/kit/ids";
+import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
 import type { ImportWorkloadDeps } from "../../../../packages/server/src/domain/import/contract/workloads.ts";
@@ -36,6 +36,8 @@ function build(
     runProfileDirImport: vi.fn(async () => ({ scanned: 12, changed: 4, failed: 0 })),
     runBundleImport: vi.fn(async () => ({ imported: 7, skipped: 1, failed: 0 })),
     runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0 })),
+    listTokenUsageCandidates: vi.fn(async () => []),
+    compareAndSetTokenUsage: vi.fn(async () => true),
     reconcileImportStats: vi.fn(async () => undefined),
     emitLibraryChanged: vi.fn(),
     ...overrides,
@@ -81,6 +83,27 @@ const ESCAPE_ERROR = /escapes the staging root/;
 const VALID_TOKEN = "import-tree-550e8400-e29b-41d4-a716-446655440000";
 /** The ownerless-row guard's message — a create-kind cannot mint rows with no target owner. */
 const NO_TARGET_OWNER = /no target owner/;
+
+function tokenCandidate(
+  key: string,
+  overrides: Partial<Awaited<ReturnType<ImportWorkloadDeps["listTokenUsageCandidates"]>>[number]> = {},
+): Awaited<ReturnType<ImportWorkloadDeps["listTokenUsageCandidates"]>>[number] {
+  return {
+    variantId: castId<MessageVariantId>(`variant_${key}`),
+    ownerId: OWNER_ID,
+    role: "assistant",
+    content: "eight raw text tokens should be estimated by the canonical kit",
+    metadata: null,
+    tokensIn: null,
+    tokensOut: null,
+    tokenProvenance: "unrecorded",
+    ...overrides,
+  };
+}
+
+function recordedMetadata(tokenCount: number): Record<string, unknown> {
+  return { ["token_count"]: tokenCount };
+}
 
 describe("import-st — staging containment", () => {
   test.each(ESCAPING_HANDLES)("stagedDir %j throws before any fs mutation (root + sibling survive)", async (stagedDir) => {
@@ -159,7 +182,7 @@ describe("import-bundle — staging containment", () => {
   test.each(ESCAPING_HANDLES)("token %j throws before any fs read or rm (root + sibling survive)", async (token) => {
     const { stagingRoot, victim, victimFile } = await makeStaging();
     const { deps, contributions } = build(stagingRoot);
-    await expect(contributions[1].run(ctx, { token, source: "dir" }, vi.fn(), sig())).rejects.toThrow(ESCAPE_ERROR);
+    await expect(contributions[2].run(ctx, { token, source: "dir" }, vi.fn(), sig())).rejects.toThrow(ESCAPE_ERROR);
     expect(deps.runStagedDirImport).not.toHaveBeenCalled();
     expect(deps.runBundleImport).not.toHaveBeenCalled();
     expect(await exists(stagingRoot)).toBe(true);
@@ -172,7 +195,7 @@ describe("import-bundle — staging containment", () => {
     const stagedPath = join(stagingRoot, VALID_TOKEN);
     await mkdir(stagedPath, { recursive: true });
     const { deps, contributions } = build(stagingRoot);
-    const result = await contributions[1].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig());
+    const result = await contributions[2].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig());
     expect(vi.mocked(deps.runStagedDirImport).mock.calls[0]?.[0]?.stagedPath).toBe(stagedPath);
     expect(result).toEqual({ imported: 3, skipped: 0, failed: 0 });
     expect(await exists(stagedPath)).toBe(false);
@@ -185,7 +208,7 @@ describe("import-bundle — staging containment", () => {
     const stagedPath = join(stagingRoot, "import-bundle-abc.zip");
     await writeFile(stagedPath, "not-a-real-zip");
     const { deps, contributions } = build(stagingRoot);
-    const result = await contributions[1].run(ctx, { token: "import-bundle-abc.zip" }, vi.fn(), sig());
+    const result = await contributions[2].run(ctx, { token: "import-bundle-abc.zip" }, vi.fn(), sig());
     expect(deps.runBundleImport).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ imported: 7, skipped: 1, failed: 0 });
     expect(await exists(stagedPath)).toBe(false);
@@ -194,7 +217,7 @@ describe("import-bundle — staging containment", () => {
   test("an ownerless row is refused (a bundle is scoped to its uploader)", async () => {
     const { stagingRoot } = await makeStaging();
     const { contributions } = build(stagingRoot);
-    await expect(contributions[1].run({ ...ctx, ownerId: null }, { token: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(NO_TARGET_OWNER);
+    await expect(contributions[2].run({ ...ctx, ownerId: null }, { token: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(NO_TARGET_OWNER);
   });
 
   test("a bundle that imported canon fans the owner's library-changed refresh; an empty import does not (#23)", async () => {
@@ -202,7 +225,7 @@ describe("import-bundle — staging containment", () => {
     const stagedPath = join(stagingRoot, VALID_TOKEN);
     await mkdir(stagedPath, { recursive: true });
     const { deps, contributions } = build(stagingRoot);
-    await contributions[1].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig()); // runStagedDirImport ⇒ imported: 3
+    await contributions[2].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig()); // runStagedDirImport ⇒ imported: 3
     expect(deps.emitLibraryChanged).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
 
     const emptyStaged = join(stagingRoot, `${VALID_TOKEN}-empty`);
@@ -210,16 +233,70 @@ describe("import-bundle — staging containment", () => {
     const { deps: emptyDeps, contributions: emptyContributions } = build(stagingRoot, {
       runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0 })),
     });
-    await emptyContributions[1].run(ctx, { token: `${VALID_TOKEN}-empty`, source: "dir" }, vi.fn(), sig());
+    await emptyContributions[2].run(ctx, { token: `${VALID_TOKEN}-empty`, source: "dir" }, vi.fn(), sig());
     expect(emptyDeps.emitLibraryChanged).not.toHaveBeenCalled();
   });
 });
 
+describe("import-token-usage-backfill — provenance settlement", () => {
+  test("recovers exact metadata, estimates missing counts, promotes legacy numerics, audits skips, and reconciles changed owners", async () => {
+    const { stagingRoot } = await makeStaging();
+    const candidates = [
+      tokenCandidate("exact", { metadata: recordedMetadata(0) }),
+      tokenCandidate("estimated", { role: "user" }),
+      tokenCandidate("legacy", { tokensOut: 17 }),
+      tokenCandidate("measured", { tokensOut: 22, tokenProvenance: "measured" }),
+      tokenCandidate("already_estimated", { tokensOut: 13, tokenProvenance: "estimated" }),
+      tokenCandidate("race", { metadata: recordedMetadata(5) }),
+    ];
+    const listTokenUsageCandidates = vi.fn(async () => candidates);
+    const compareAndSetTokenUsage = vi.fn(async ({ candidate }) => candidate.variantId !== castId<MessageVariantId>("variant_race"));
+    const { deps, contributions } = build(stagingRoot, { listTokenUsageCandidates, compareAndSetTokenUsage });
+
+    const result = await contributions[1].run(ctx, { dryRun: false }, vi.fn(), sig());
+
+    expect(result).toEqual({
+      scanned: 6,
+      exactRecovered: 1,
+      legacyPromoted: 1,
+      estimated: 1,
+      alreadyMeasured: 1,
+      alreadyEstimated: 1,
+      compareAndSetSkipped: 1,
+      ownersScanned: 1,
+      ownersReconciled: 1,
+      dryRun: false,
+    });
+    expect(compareAndSetTokenUsage).toHaveBeenCalledTimes(4);
+    expect(compareAndSetTokenUsage).toHaveBeenCalledWith({
+      candidate: candidates[0],
+      resolution: { tokensIn: null, tokensOut: 0, tokenProvenance: "measured" },
+    });
+    expect(compareAndSetTokenUsage).toHaveBeenCalledWith({
+      candidate: candidates[1],
+      resolution: expect.objectContaining({ tokensIn: expect.any(Number), tokensOut: null, tokenProvenance: "estimated" }),
+    });
+    expect(deps.reconcileImportStats).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
+  });
+
+  test("dry-run reports the plan without CAS writes or reconciliation", async () => {
+    const { stagingRoot } = await makeStaging();
+    const candidates = [tokenCandidate("exact_dry", { metadata: recordedMetadata(3) }), tokenCandidate("estimated_dry")];
+    const { deps, contributions } = build(stagingRoot, { listTokenUsageCandidates: vi.fn(async () => candidates) });
+
+    const result = await contributions[1].run(ctx, { dryRun: true }, vi.fn(), sig());
+
+    expect(result).toMatchObject({ scanned: 2, exactRecovered: 1, estimated: 1, ownersReconciled: 0, dryRun: true });
+    expect(deps.compareAndSetTokenUsage).not.toHaveBeenCalled();
+    expect(deps.reconcileImportStats).not.toHaveBeenCalled();
+  });
+});
+
 describe("the contribution set", () => {
-  test("contributes exactly import's two kinds, both sweep-lane + idempotent-restart", async () => {
+  test("contributes exactly import's three kinds, all sweep-lane + idempotent-restart", async () => {
     const { stagingRoot } = await makeStaging();
     const { contributions } = build(stagingRoot);
-    expect(contributions.map((contribution) => contribution.kind)).toEqual(["import-st", "import-bundle"]);
+    expect(contributions.map((contribution) => contribution.kind)).toEqual(["import-st", "import-token-usage-backfill", "import-bundle"]);
     for (const contribution of contributions) {
       expect(contribution.lane).toBe("sweep");
       expect(contribution.resume).toBe("idempotent-restart");

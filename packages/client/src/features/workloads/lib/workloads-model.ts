@@ -45,6 +45,7 @@ export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
   "assets-fsck": "Assets integrity check",
   "import-st": "Import from SillyTavern",
   "import-bundle": "Import backup bundle",
+  "import-token-usage-backfill": "Backfill imported token usage",
   "reconcile-stats": "Reconcile stats",
   "refresh-model-catalog": "Refresh model catalog",
   "reconcile-world-state": "Reconcile world state",
@@ -188,6 +189,7 @@ export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<WorkloadKind, (typeof WORKLOAD
   // `managed` = a server-minted param (route-started, never a picker control).
   "import-st": "dryRun",
   "import-bundle": "managed",
+  "import-token-usage-backfill": "dryRun",
   "reconcile-stats": "none",
   "refresh-model-catalog": "none",
   "reconcile-world-state": "none",

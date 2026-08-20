@@ -102,6 +102,8 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       runProfileDirImport: stub({ scanned: 0, changed: 0, failed: 0 }),
       runBundleImport: stub({ imported: 0, skipped: 0, failed: 0 }),
       runStagedDirImport: stub({ imported: 0, skipped: 0, failed: 0 }),
+      listTokenUsageCandidates: stub([]),
+      compareAndSetTokenUsage: stub(true),
       reconcileImportStats: stub(undefined),
       emitLibraryChanged: () => undefined,
     }),

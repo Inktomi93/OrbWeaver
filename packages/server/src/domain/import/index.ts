@@ -39,7 +39,7 @@ export type {
   ParsedStTheme,
   StThemeParse,
 } from "./contract/views.ts";
-export type { ImportWorkloadDeps } from "./contract/workloads.ts";
+export type { BackfillTokenUsage, ImportTokenUsageBackfillDeps, ImportWorkloadDeps } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";
 export { createImportService } from "./service.ts";
 export { importFileHash, parseCardJson, parseCardPng } from "./substrate/card.ts";
@@ -55,4 +55,5 @@ export {
   stPresetName,
 } from "./substrate/preset.ts";
 export { parseStThemeFile, ST_THEME_DIR, stThemeFromJson, stThemeName } from "./substrate/theme.ts";
+export { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 export { createImportWorkloadContributions } from "./workload-contributions.ts";

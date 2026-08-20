@@ -104,9 +104,18 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     const parsed = parseChatJsonl(jsonl, { fileName: "m.jsonl", charDirName: "Aria" });
     // ST's ONE field is the count of the row's OWN text, so a user's typed tokens are INBOUND. Crediting
     // them to tokensOut put 1,247,278 corpus tokens of typed text into every "model output" rollup.
-    expect(parsed?.messages[0]).toMatchObject({ role: "user", tokensIn: 409, tokensOut: null });
-    expect(parsed?.messages[1]).toMatchObject({ role: "assistant", tokensIn: null, tokensOut: 657 });
-    expect(parsed?.messages[2]).toMatchObject({ role: "system", tokensIn: 3299, tokensOut: null });
+    expect(parsed?.messages[0]).toMatchObject({ role: "user", tokensIn: 409, tokensOut: null, tokenProvenance: "measured" });
+    expect(parsed?.messages[1]).toMatchObject({ role: "assistant", tokensIn: null, tokensOut: 657, tokenProvenance: "measured" });
+    expect(parsed?.messages[2]).toMatchObject({ role: "system", tokensIn: 3299, tokensOut: null, tokenProvenance: "measured" });
+  });
+
+  test("a recorded zero is measured; a missing token_count remains honestly unrecorded", () => {
+    const parsed = parseChatJsonl(
+      [header(), line({ is_user: false, mes: "free", extra: { token_count: 0 } }), line({ is_user: false, mes: "unknown", extra: {} })].join("\n"),
+      { fileName: "m.jsonl", charDirName: "Aria" },
+    );
+    expect(parsed?.messages[0]).toMatchObject({ tokensOut: 0, tokenProvenance: "measured" });
+    expect(parsed?.messages[1]).toMatchObject({ tokensOut: null, tokenProvenance: "unrecorded" });
   });
 
   test("the whole file's wall-clock dates resolve in the declared zone", () => {
@@ -352,6 +361,7 @@ function pmsg(over: Partial<ParsedChatMessage> = {}): ParsedChatMessage {
     provider: "p1",
     tokensIn: null,
     tokensOut: 5,
+    tokenProvenance: "measured",
     reasoning: null,
     genStarted: null,
     genFinished: null,
@@ -366,6 +376,7 @@ function pmsg(over: Partial<ParsedChatMessage> = {}): ParsedChatMessage {
         provider: "p1",
         tokensIn: null,
         tokensOut: 5,
+        tokenProvenance: "measured",
         reasoning: null,
         genStarted: null,
         genFinished: null,
@@ -422,6 +433,13 @@ describe("buildChatJsonl", () => {
     expect(m["swipe_id"]).toBeUndefined();
   });
 
+  test("an estimated count is never laundered into ST's exact token_count field", () => {
+    const row = JSON.parse(buildChatJsonl(pchat([pmsg({ tokenProvenance: "estimated" })])).split("\n")[1] ?? "") as {
+      extra: Record<string, unknown>;
+    };
+    expect(row.extra["token_count"]).toBeUndefined();
+  });
+
   test(">1 variant emits swipes/swipe_id/swipe_info; the branch/note round-trip keys carry", () => {
     const out = buildChatJsonl(
       pchat(
@@ -437,6 +455,7 @@ describe("buildChatJsonl", () => {
                 provider: "p1",
                 tokensIn: null,
                 tokensOut: 4,
+                tokenProvenance: "measured",
                 reasoning: "hmm",
                 genStarted: null,
                 genFinished: null,
@@ -449,6 +468,7 @@ describe("buildChatJsonl", () => {
                 provider: "p2",
                 tokensIn: null,
                 tokensOut: 6,
+                tokenProvenance: "measured",
                 reasoning: null,
                 genStarted: null,
                 genFinished: null,
@@ -580,6 +600,7 @@ describe("build → parse → build identity", () => {
               provider: "p1",
               tokensIn: null,
               tokensOut: 4,
+              tokenProvenance: "measured",
               reasoning: "hmm",
               genStarted: null,
               genFinished: null,
@@ -592,6 +613,7 @@ describe("build → parse → build identity", () => {
               provider: "p2",
               tokensIn: null,
               tokensOut: 6,
+              tokenProvenance: "measured",
               reasoning: null,
               genStarted: null,
               genFinished: null,
