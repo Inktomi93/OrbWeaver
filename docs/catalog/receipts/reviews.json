@@ -714,6 +714,46 @@
       "summary": ""
     },
     {
+      "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
+      "assignedSha256": "cd6b70141bd3c5804a40a8b9907d96bd00992138987e3dcc2f264fa192970960",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "cd6b70141bd3c5804a40a8b9907d96bd00992138987e3dcc2f264fa192970960",
+      "verifiedCommit": "6e7293e41e7efa9293c1d59ed49996528eba289f",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-110 full read against implementation commit 6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "git show --stat 6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "scratch-real-corpus workload and live-source immutability receipts recorded in the reviewed document",
+        "GitHub issues #290 and #291 re-derived on 2026-08-20"
+      ],
+      "summary": "Current verification receipt for #290 and #291: real-corpus scratch counts, idempotency, measured-wins CAS, provider-shaped cost fence, bounded behavioral tests, and final static gates.",
+      "claims": [
+        {
+          "claim": "The receipt verifies the delivered token-provenance and usage-cost settlement; mutable lifecycle remains tracked in issues #290 and #291.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/messages.ts:22"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#290"
+            },
+            {
+              "kind": "issue",
+              "target": "#291"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-03-combined-nightly.md",
       "assignedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
       "disposition": "archive",

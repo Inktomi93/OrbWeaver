@@ -12402,6 +12402,65 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/server-usage-settlement-2026-08-20.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 188,
+      "bytes": 11840,
+      "sha256": "f4a57a60aaa1532801d4c4ebd56cd4d25a81d915a178eba03d191f45cc1e75ad",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/server-usage-settlement-2026-08-20.md",
+        "assignedSha256": "f4a57a60aaa1532801d4c4ebd56cd4d25a81d915a178eba03d191f45cc1e75ad",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "f4a57a60aaa1532801d4c4ebd56cd4d25a81d915a178eba03d191f45cc1e75ad",
+        "verifiedCommit": "6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/design/server-usage-settlement-2026-08-20.md:1-188 full read against implementation commit 6e7293e41e7efa9293c1d59ed49996528eba289f",
+          "packages/contracts/src/chat/messages.ts:22 canonical provenance vocabulary and dominance rule",
+          "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1 import-owned auditable catch-up loop",
+          "GitHub issues #290 and #291 re-derived on 2026-08-20"
+        ],
+        "summary": "Active design of record for variant token provenance, import catch-up, reversible stats rollups, recorded provider cost, and honest client rendering delivered together for #290 and #291.",
+        "claims": [
+          {
+            "claim": "Variant accounting uses the canonical measured, estimated, and unrecorded vocabulary; import catch-up is a separate auditable workload. Mutable lifecycle remains tracked in issues #290 and #291.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/chat/messages.ts:22"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#290"
+              },
+              {
+                "kind": "issue",
+                "target": "#291"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/st-import-completeness-2026-08-15.md",
       "lane": "design",
       "issue": 5,
@@ -22091,6 +22150,65 @@
         "summary": ""
       },
       "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 110,
+      "bytes": 6633,
+      "sha256": "cd6b70141bd3c5804a40a8b9907d96bd00992138987e3dcc2f264fa192970960",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
+        "assignedSha256": "cd6b70141bd3c5804a40a8b9907d96bd00992138987e3dcc2f264fa192970960",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "cd6b70141bd3c5804a40a8b9907d96bd00992138987e3dcc2f264fa192970960",
+        "verifiedCommit": "6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-110 full read against implementation commit 6e7293e41e7efa9293c1d59ed49996528eba289f",
+          "git show --stat 6e7293e41e7efa9293c1d59ed49996528eba289f",
+          "scratch-real-corpus workload and live-source immutability receipts recorded in the reviewed document",
+          "GitHub issues #290 and #291 re-derived on 2026-08-20"
+        ],
+        "summary": "Current verification receipt for #290 and #291: real-corpus scratch counts, idempotency, measured-wins CAS, provider-shaped cost fence, bounded behavioral tests, and final static gates.",
+        "claims": [
+          {
+            "claim": "The receipt verifies the delivered token-provenance and usage-cost settlement; mutable lifecycle remains tracked in issues #290 and #291.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/chat/messages.ts:22"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#290"
+              },
+              {
+                "kind": "issue",
+                "target": "#291"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/side-eye/2026-08-03-combined-nightly.md",
