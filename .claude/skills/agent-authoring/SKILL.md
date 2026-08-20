@@ -1,11 +1,12 @@
 ---
 name: agent-authoring
-description: "The complete reference for writing and optimizing Claude Code subagent definition files (.claude/agents/*.md) — all 17 YAML frontmatter fields with types, defaults and version floors; exactly what a subagent does and does NOT inherit at startup (CLAUDE.md yes, auto memory no, output style no); the scope/precedence rules across user, project and plugin agents; the concurrency and nesting limits and the env vars that govern them; and this repo's own conventions for its nine-role fleet. Use when creating a new agent, auditing or optimizing existing agent files, deciding which fields a role should set, or debugging why an agent behaves differently from the main session."
+description: "Author, convert, audit, or debug Orbweaver subagents for Claude Code and Codex, including Claude Markdown frontmatter, Codex TOML manifests, explicit model and reasoning routing, instruction inheritance, skill preloads, sync validation, and hook or trust interactions. Use before changing agent definitions or the Claude-to-Codex sync machinery."
 ---
 
-# Authoring Claude Code agent files
+# Authoring agents for Claude Code and Codex
 
-Reference verified against the official subagents documentation at Claude Code **2.1.231** (2026-08-13).
+Claude is Orbweaver's role-prose source. The Claude contract below was verified against the official
+subagents documentation at Claude Code **2.1.231** (2026-08-13).
 Field set and defaults change between releases — re-verify against `code.claude.com/docs/en/sub-agents`
 before trusting this on a much newer version, and check `marckrenn/claude-code-changelog`'s
 `system-prompts/` diffs for behavior changes that never get a changelog line.
@@ -123,3 +124,48 @@ and agents that do not know that will improvise instead.
 
 Keep `description` written as delegation triggers. Claude routes on that string, so "use when X, Y, or Z
 is true" outperforms a noun phrase.
+
+## §7 Codex target contract
+
+Codex project agents live at `.codex/agents/*.toml`. Every standalone manifest requires `name`,
+`description`, and `developer_instructions`. Normal config fields such as `model`,
+`model_reasoning_effort`, `sandbox_mode`, `mcp_servers`, and `skills.config` may be set per role.
+Claude-only fields such as `permissionMode`, `tools`, `disallowedTools`, `color`, `memory`, and the YAML
+`skills` list are not Codex TOML fields.
+
+Re-verify material Codex changes against the official
+[subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents). This Codex
+section was refreshed for Codex 0.148.0-alpha.9 on 2026-08-19.
+
+Orbweaver generates Codex manifests from `.claude/agents/*.md`; never hand-edit a generated TOML. The
+converter carries the shared body over, adds a Codex compatibility preamble, translates skill preloads
+into explicit read instructions, and refuses an unmapped role. Current routing:
+
+| Role class | Codex model |
+| - | - |
+| Mechanical execution | `gpt-5.6-luna` |
+| Everyday execution, verification, UX, security | `gpt-5.6-terra` |
+| Frontier design or analysis (`forge`, `stickler`) | `gpt-5.6-sol` |
+
+Preserve each source role's `effort` as `model_reasoning_effort`. Security stays on Terra rather than
+the frontier tier, matching the role's explicit routing law.
+
+## §8 Shared authoring workflow
+
+1. Read `.claude/rules/orchestration.md`, the complete source role, and every skill it preloads.
+2. Edit the Claude source. Change the converter only when the host translation itself changes.
+3. Run `pnpm agents:sync`; inspect the generated TOML and model/effort routing.
+4. Run `pnpm check:agents` and `pnpm exec vitest run tests/tooling/codex-agent-config.int.test.ts`.
+5. Start a fresh Codex session when validating discovery; an existing session can retain its startup
+   agent catalog.
+
+Treat delegation briefs as self-contained in both hosts. Do not assume a subagent inherits the main
+session's memory, output style, prior file reads, or unstated decisions.
+
+Codex project hooks live in `.codex/hooks.json`; `.codex/hooks` points at the Claude-owned
+implementations. A hook change can require the user to re-trust the project in a fresh Codex session.
+Do not bypass that prompt or edit user-global trust state.
+
+Repository skills have the same one-source shape: author them under `.claude/skills`, while
+`.agents/skills` is the tracked Codex discovery symlink. Codex officially scans `.agents/skills` and
+follows symlinked skill folders, so never recreate a second copied skill tree.

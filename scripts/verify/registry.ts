@@ -229,6 +229,14 @@ export const REGISTRY: readonly StageDef[] = [
     // WHOLE-TREE by nature (the one migrations dir) — whole-only, deferred at a scoped tier.
   },
   {
+    name: "structure:agent-config",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:agents"],
+    classify: ownScheme,
+    // Claude role bodies and Codex TOML manifests form one whole-set parity invariant.
+  },
+  {
     name: "structure:full",
     group: "structure",
     tiers: STATIC,

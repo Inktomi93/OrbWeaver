@@ -114,9 +114,6 @@ scratch/
 # how to read one is documented in packages/client/vite.config.ts's header.
 *.cpuprofile
 
-# Codex CLI's own config/scratch dir (its audit copies live here — never ours to lint or track)
-.codex/
-
 # design-sync (staged converter + build output + machine state)
 .ds-sync/
 ds-bundle/

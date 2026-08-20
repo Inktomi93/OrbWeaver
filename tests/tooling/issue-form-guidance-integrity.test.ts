@@ -1,11 +1,10 @@
-import { lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { parseDocument } from "yaml";
 import { expect, test as issueTest } from "../support/fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const FORMS_DIR = join(ROOT, ".github", "ISSUE_TEMPLATE");
-const GUIDANCE_LINK_COUNT = 3;
 
 interface IssueForm {
   readonly filename: string;
@@ -72,13 +71,6 @@ function issueForms(): readonly IssueForm[] {
     });
 }
 
-function expectClaudeGuidanceLink(path: string, target: string): void {
-  expect(lstatSync(path).isSymbolicLink()).toBe(true);
-  const resolved = realpathSync(path);
-  expect(relative(ROOT, resolved).startsWith("..")).toBe(false);
-  expect(resolved).toBe(join(ROOT, target));
-}
-
 issueTest("issue ingress has one work form and one program-or-evidence form", () => {
   const templates = readdirSync(FORMS_DIR)
     .filter((filename) => filename.endsWith(".yml"))
@@ -101,17 +93,5 @@ issueTest("issue ingress has one work form and one program-or-evidence form", ()
   expect(programOrEvidence?.roleOptions).toEqual(["Program", "Evidence"]);
   for (const id of ["evidence", "rederived", "disposition", "done"]) {
     expect(programOrEvidence?.bodyIds).toContain(id);
-  }
-});
-
-issueTest("Codex guidance paths resolve to the one Claude-owned home inside the repository", () => {
-  const paths = [
-    [".Codex/agent-doctrine.md", ".claude/agent-doctrine.md"],
-    [".Codex/rules", ".claude/rules"],
-    [".Codex/agents", ".claude/agents"],
-  ] as const;
-  expect(paths).toHaveLength(GUIDANCE_LINK_COUNT);
-  for (const [path, target] of paths) {
-    expectClaudeGuidanceLink(join(ROOT, path), target);
   }
 });

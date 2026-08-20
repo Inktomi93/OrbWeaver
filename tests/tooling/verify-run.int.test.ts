@@ -133,6 +133,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // drizzle-kit's own journal/snapshot-chain validator (2026-08-02): near-no-op against the single
     // squashed baseline, ARMED for the first post-launch incremental migration (Tier-1-DB.md).
     "structure:drizzle-kit",
+    "structure:agent-config",
     "structure:full",
     "imports:depcruise",
     "deps:knip",
