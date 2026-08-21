@@ -39,12 +39,13 @@ import { useRef, useState } from "react";
 import { CharacterPicker, FaceStrip } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { timeLib, useDebouncedValue, useFocusOnMount } from "#lib";
+import { useDebouncedValue, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRow } from "../components/chat-list-row.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
+import { chatListScopeKey, formatMonthLabel, monthExclusiveUpperBound } from "../lib/chat-list-scope.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
 import { recentFaces } from "../lib/recent-faces.ts";
 
@@ -67,29 +68,7 @@ const SEARCH_DEBOUNCE_MS = 250;
  *  picker reaches the whole character library without enriching another 70 chat summaries. */
 const FACES_SOURCE_LIMIT = 30;
 
-const MONTH_VALUE_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/u;
-const MID_MONTH_DAY = 15;
-const MIDDAY_UTC_HOUR = 12;
 const CLEAR_MONTH_LABEL = "Clear month jump";
-
-function monthExclusiveUpperBound(value: string): number | null {
-  const match = MONTH_VALUE_RE.exec(value);
-  if (match?.groups === undefined) {
-    return null;
-  }
-  const boundary = new Date(0);
-  boundary.setUTCFullYear(Number(match.groups["year"]), Number(match.groups["month"]), 1);
-  return boundary.getTime();
-}
-
-function formatMonthLabel(value: string): string | null {
-  const match = MONTH_VALUE_RE.exec(value);
-  if (match?.groups === undefined) {
-    return null;
-  }
-  // Mid-month noon stays in the selected calendar month in every IANA zone while the display seam localizes it.
-  return timeLib.formatMonthYear(Date.UTC(Number(match.groups["year"]), Number(match.groups["month"]) - 1, MID_MONTH_DAY, MIDDAY_UTC_HOUR));
-}
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -302,7 +281,8 @@ function ChatListBody({
   query,
 }: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
-  const collection = useChatListCollection({ trpc }, { beforeRecencyAt, characterId: characterFilter?.id ?? null, search: query });
+  const scope = { beforeRecencyAt, characterId: characterFilter?.id ?? null, search: query };
+  const collection = useChatListCollection({ trpc }, scope);
 
   if (collection.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -358,7 +338,7 @@ function ChatListBody({
         <ChatRows
           activeChatId={activeChatId}
           items={collection.items}
-          listKey={beforeRecencyAt}
+          listKey={chatListScopeKey(scope)}
           listReady={!collection.isPlaceholderData}
           listProps={collection.listProps}
           monthLabel={monthLabel}
@@ -376,7 +356,9 @@ interface ChatRowsProps {
   readonly activeChatId: ChatId | null;
   readonly items: readonly ChatListItem[];
   readonly listProps: ReturnType<typeof useChatListCollection>["listProps"];
-  readonly listKey: number | null;
+  /** The composed scope identity of every narrowing axis ({@link chatListScopeKey}) — an axis missing from
+   *  it lands a deep-scrolled reader mid-scope. */
+  readonly listKey: string;
   readonly listReady: boolean;
   readonly monthLabel: string | null;
   readonly onSelect: (chatId: ChatId) => void;
