@@ -247,14 +247,17 @@ Every lane, without being told per-brief:
 - **A point measurement never proves a range property.** Layout/balance fixes owe the width matrix
   (both ends + any crossover) and the appearance arms BEFORE the arm is chosen; a single-width
   receipt endorsing a "move X" fix is the shell-game setup the owner has explicitly banned.
-- **CT invocations**: `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts
-  <paths>` from your worktree via `env -C` (never `cd`). playwright-ct runs PRODUCTION React
+- **Scoped test invocations go through the NICED pnpm scripts, never raw npx (2026-08-21 — raw npx
+  bypasses the nice-19 priority that protects the co-hosted homelab):** node suites =
+  `pnpm test:scoped <paths> --maxWorkers=4` · CT = `pnpm ct:scoped <paths> --workers=2` (it carries
+  the cache-clear). Run from your worktree via `env -C` (never `cd`); your worktree's own
+  node_modules + package.json serve the scripts. playwright-ct runs PRODUCTION React
   (StrictMode inert). The CT harness may mount its own copy of global surfaces (Toaster) — assert
   on the instance that carries content, never a bare slot selector.
   **Under multi-lane load add `--workers=2`** (measured 2026-08-21 at load-avg 170: default workers
   = all tests time out at mount() on pure contention, zero signal; `--workers=2` = green in 53s).
-  **The same cap applies to NODE suites: lane `npx vitest run` invocations add `--maxWorkers=4`
-  whenever any sibling lane is live** (measured 2026-08-21: one lane's default 14 forks at ~90% CPU
+  **The same cap applies to NODE suites: lane runs add `--maxWorkers=4`
+  whenever any sibling lane is live (via `pnpm test:scoped` — see the invocation bullet)** (measured 2026-08-21: one lane's default 14 forks at ~90% CPU
   each drove a 24-core box to load-avg 103 and STARVED THE CO-HOSTED HOMELAB — Authentik errored for
   the owner. The box is not ours alone; vitest.config's maxWorkers:14 is the DEDICATED-box number,
   briefs restate the cap). Long mutation/calibration runs are orchestrator-scheduled — a lane never
