@@ -1381,6 +1381,19 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-21-codex-final-merge.md",
+      "assignedSha256": "4529182e30fec43bc8635ad720f015e7d11962f9adf7ea5ad46cd1da3acbcf7a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "4529182e30fec43bc8635ad720f015e7d11962f9adf7ea5ad46cd1da3acbcf7a",
+      "verifiedCommit": "57a4087d2dd949b752bd55e683c9454dd8735549",
+      "verifiedAt": "2026-08-21",
+      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
+      "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
+      "claims": []
     }
   ]
 }
