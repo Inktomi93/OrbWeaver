@@ -57,6 +57,23 @@ config — its report brings the recommended break + non-comparability evidence 
 population. Two private patches now carried (core sandbox + checker path-normalization); NEVER filed
 upstream (owner posture).
 
+RITUAL DELTA (2026-08-21 evening, ~98% context): Stickler CLEARED Codex's final merge `837e73853`
+(verdict: sanctioned shape; 3 LOW findings → #405; report
+`docs/reviews/stickler/2026-08-21-codex-final-merge.md`, receipted). Owner decision batch RULED via
+question tool, all four on recommended arms and closed Done: #397 gate the speak-as picker
+(executable half filed as #406, Ready, P2/Client), #399 keep luxon forever (`{{datetimeformat}}`
+grammar permanent), #401 ratify derive-not-refuse as standing parser policy, #402 accept sweep scope
+as designed (ruling comment committed at the predicate, `7755e932c`). Needs-owner column EMPTY except
+#285 glow (needs rendered evidence, not a ruling). In flight: forge P1 tooling scaffold (agent
+af38fe8da3abc32df, worktree `.claude/worktrees/agent-af38fe8da3abc32df` — _shared promotion underway,
+argv test relocated to tests/tooling/_shared/, deletions-manifest row added; merges after report +
+whole-tree check, then P2 snap pilot in-lane); stryker-v10 calibration (agent a5802b358a89ffddc,
+watching sv10-calib.log for EXIT — its report brings score + recommended `break` as commit 2, then
+orchestrator merges #394; evidence must record upstream-drafts-stay-local posture). Queued Ready:
+#388 #391 #392 #398 #400 #404 #405 #406. Plan of record for the tooling program: P0 doc
+`docs/design/tooling-package.md` (owner-APPROVED) + plan file `~/.claude/plans/jolly-churning-dove.md`
+(P0-P9). Untracked residue (3 side-eye docs + .codex/config.toml) = #400's scope, leave in place.
+
 This page is the cold-start entry point, not a backlog or a second source of status. Mutable work
 lives in [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1); repository documents
 hold durable law, programs, evidence, and history.
