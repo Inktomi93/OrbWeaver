@@ -55,7 +55,10 @@ afterAll(() => {
     "map_svg",
     "map_targets",
     "map_aria_hidden",
+    "map_multi_text_node",
+    "map_include_hidden_boundary",
     "wait_for_text",
+    "wait_for_portal",
     "wait_for_selector_missing",
     "wait_for_selector_present",
     "deadcss_markers",
@@ -118,6 +121,29 @@ test("snap maps the browser-computed name, excluding aria-hidden avatar initials
   expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Diana" }));
 });
 
+test("snap concatenates a multi-text-node accessible name with no separator, matching the real accname algorithm", () => {
+  const page = fixture("map-multi-text-node", "<button>Couldn't load <span>corpus</span>.</button>");
+  const name = `${RUN_ID}_map_multi_text_node`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string }> }>)[0];
+  expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Couldn't load corpus." }));
+});
+
+test("--include-hidden computes a real name for a control nested inside an aria-hidden container, not an empty one (the closest() overreach bug)", () => {
+  const page = fixture("map-include-hidden-boundary", '<div aria-hidden="true"><button id="inner">Ghost</button></div><button id="outer">Visible</button>');
+  const name = `${RUN_ID}_map_include_hidden_boundary`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--include-hidden", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string }> }>)[0];
+  // Old code's unbounded `closest()` from the text node's parent found the div's aria-hidden ABOVE the
+  // button and blanked its name to "" for every descendant, not just the div itself.
+  expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Ghost" }));
+  expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Visible" }));
+});
+
 test("--wait-for does not treat matching rendered text as a missing CSS selector", { timeout: 15_000 }, () => {
   const page = fixture("wait-for-selector-missing", "<p>button</p>");
   const name = `${RUN_ID}_wait_for_selector_missing`;
@@ -157,6 +183,18 @@ test("--wait-for treats an explicit text selector as rendered text", () => {
     "--out",
     name,
   ]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("steps-failed=0");
+});
+
+test("--wait-for's visible check finds a full-bleed portal control nested under a zero-size ancestor", () => {
+  const page = fixture(
+    "wait-for-portal",
+    '<div style="width:0;height:0;overflow:visible"><div style="position:fixed;inset:0"><button id="portal-action">Portal action</button></div></div>',
+  );
+  const name = `${RUN_ID}_wait_for_portal`;
+  const result = runSnap(["--file", page, "--no-shot", "--wait-for", "#portal-action", "--json", "--no-failure-evidence", "--out", name]);
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(result.stdout).toContain("steps-failed=0");

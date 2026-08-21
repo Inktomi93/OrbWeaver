@@ -48,12 +48,11 @@ interface ModelEconomicsRow {
 /** Per-character economics — the selected assistant-variant totals, owner-scoped. One row per character
  *  that has ≥1 assistant generation.
  *
- *  `tokensOut` IS DELIBERATELY NOT COALESCED (side-eye corpus re-pass B2): `SUM` over an all-NULL column
- *  returns NULL, which is the one signal that separates "this library never recorded output tokens" (every
- *  imported turn) from "the model returned nothing" (a real 0). Coalescing it to 0 here is what made the
- *  corpus shelf print "0 tokens returned · 1,187 exchanges". The other sums keep their COALESCE: a missing
- *  cache count on a local-model turn genuinely IS zero. Cost has its own sample count, because a reported
- *  zero is measured while an absent dollar field is unrecorded. */
+ *  `tokensOut`'s never-recorded signal lives in `tokensOutMeasuredSamples`/`tokensOutEstimatedSamples`, not
+ *  in the SQL sum: `recordedTokens` (substrate/rates.ts) returns `null` whenever both sample counters are
+ *  zero, regardless of the coalesced total, so the mapper can safely `?? 0` the sum before calling it. The
+ *  other sums keep their COALESCE: a missing cache count on a local-model turn genuinely IS zero. Cost has
+ *  its own sample count, because a reported zero is measured while an absent dollar field is unrecorded. */
 export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<CharacterEconomics[]> {
   const rows = await db.all<EconomicsRow>(sql`
     SELECT m.character_id AS characterId,
@@ -81,7 +80,7 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     generations: Number(r.generations),
     tokensIn: recordedTokens(Number(r.tokensIn), Number(r.tokensInMeasuredSamples), Number(r.tokensInEstimatedSamples)),
     tokensInProvenance: aggregateTokenProvenance(Number(r.tokensInMeasuredSamples), Number(r.tokensInEstimatedSamples)),
-    // `Number(null)` is 0 — the null must survive the mapper or the SQL's whole point is undone one line later.
+    // The sample counters, not this sum, decide recorded-vs-null (see recordedTokens) — coalescing here is safe.
     tokensOut: recordedTokens(Number(r.tokensOut ?? 0), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
     tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
     costUsd: recordedCost(Number(r.costUsd), Number(r.costSamples)),

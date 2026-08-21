@@ -109,7 +109,7 @@ function trimZero(fixed: string, suffix: string): string {
 
 /** A nullable count — `—` when the metric was never recorded (an ST-imported or agent-sdk rollup carries
  *  no token accounting at all, and a `0 tok` there asserts a measurement that never happened). */
-export function formatCount(n: number | null, provenance?: import("@orb/contracts/chat").TokenProvenance): string {
+export function formatCount(n: number | null, provenance?: TokenProvenance): string {
   if (n === null || provenance === "unrecorded") {
     return EM_DASH;
   }
@@ -118,7 +118,7 @@ export function formatCount(n: number | null, provenance?: import("@orb/contract
 
 /** A token count WITH its unit, or a bare `—` — the trailing-meta form the dense rows use. The unit rides
  *  inside so an unrecorded row reads `—` and not the nonsense `— tok`. */
-export function formatTokens(n: number | null, provenance: import("@orb/contracts/chat").TokenProvenance): string {
+export function formatTokens(n: number | null, provenance: TokenProvenance): string {
   if (n === null || provenance === "unrecorded") {
     return EM_DASH;
   }
@@ -140,7 +140,7 @@ export function formatUsd(n: number | null): string {
 
 /** A 0..1 rate as a whole percent: `0.45` → `45%`; `—` when the rate has no measurement behind it, and
  *  `<1%` for a real-but-tiny rate that would otherwise round to the `0%` that reads as "never". */
-export function formatPercent(rate: number | null, provenance?: import("@orb/contracts/chat").TokenProvenance): string {
+export function formatPercent(rate: number | null, provenance?: TokenProvenance): string {
   if (rate === null || provenance === "unrecorded") {
     return EM_DASH;
   }
@@ -150,7 +150,7 @@ export function formatPercent(rate: number | null, provenance?: import("@orb/con
 }
 
 /** Token-derived throughput with the same provenance spelling as the total it divides. */
-export function formatThroughput(rate: number, provenance: import("@orb/contracts/chat").TokenProvenance): string {
+export function formatThroughput(rate: number, provenance: TokenProvenance): string {
   if (provenance === "unrecorded") {
     return EM_DASH;
   }

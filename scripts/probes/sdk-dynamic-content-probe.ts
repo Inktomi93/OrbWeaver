@@ -365,15 +365,21 @@ function shapeSpotTurn(spot: Spot, turnNo: TurnNo): { built: BuiltTurn; hookText
 interface UsageRow {
   readonly spot: string;
   readonly turn: string;
-  readonly tokensIn: number;
-  readonly tokensOut: number;
+  readonly tokensIn: number | null;
+  readonly tokensOut: number | null;
   readonly cacheRead: number;
   readonly cacheWrite: number;
-  readonly costUsd: number;
+  readonly costUsd: number | null;
   readonly ms: number;
 }
 const usageRows: UsageRow[] = [];
 const verdicts: { spot: string; pass: boolean; detail: string }[] = [];
+
+// A backend that never reports usage is a distinct fact from a turn that reported zero — coalescing
+// both to 0 would launder "we don't know" into "measured, and it's zero."
+function fmtN(v: number | null): string {
+  return v === null ? "—" : String(v);
+}
 
 interface TurnRead {
   readonly turnNo: TurnNo;
@@ -395,11 +401,11 @@ function record(spot: string, turnNo: number, t: TurnResult, disposition: string
   usageRows.push({
     spot,
     turn: `t${turnNo}`,
-    tokensIn: r.usage.tokensIn ?? 0,
-    tokensOut: r.usage.tokensOut ?? 0,
+    tokensIn: r.usage.tokensIn ?? null,
+    tokensOut: r.usage.tokensOut ?? null,
     cacheRead: r.usage.cacheReadTokens,
     cacheWrite: r.usage.cacheWriteTokens,
-    costUsd: r.usage.costUsd ?? 0,
+    costUsd: r.usage.costUsd ?? null,
     ms: t.elapsedMs,
   });
   console.log(`  [${spot}/t${turnNo}] disp=${disposition} reply: ${r.reply.slice(0, VERBOSE ? r.reply.length : SNIPPET)}`);
@@ -534,11 +540,11 @@ function printUsageTable(): void {
   console.table(
     usageRows.map((r) => ({
       spot: `${r.spot}/${r.turn}`,
-      in: r.tokensIn,
-      out: r.tokensOut,
+      in: fmtN(r.tokensIn),
+      out: fmtN(r.tokensOut),
       "cacheRead*": r.cacheRead,
       "cacheWrite*": r.cacheWrite,
-      cost: r.costUsd.toFixed(COST_DECIMALS),
+      cost: r.costUsd === null ? "—" : r.costUsd.toFixed(COST_DECIMALS),
       ms: r.ms,
     })),
   );

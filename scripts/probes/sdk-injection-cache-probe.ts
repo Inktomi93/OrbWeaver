@@ -272,11 +272,11 @@ function predictSeedChanged(chatId: ChatId, a: BuiltTurn, b: BuiltTurn): boolean
 interface Row {
   readonly scenario: string;
   readonly turn: string;
-  readonly tokensIn: number;
-  readonly tokensOut: number;
+  readonly tokensIn: number | null;
+  readonly tokensOut: number | null;
   readonly cacheRead: number;
   readonly cacheWrite: number;
-  readonly costUsd: number;
+  readonly costUsd: number | null;
   /** Wall-clock ms for the turn. A t1→t2 gap approaching the 5-min cache TTL explains an anomalous cold. */
   readonly elapsedMs: number;
   readonly note: string;
@@ -284,16 +284,22 @@ interface Row {
 const rows: Row[] = [];
 const verdicts: { scenario: string; pass: boolean; detail: string }[] = [];
 
+// A backend that never reports usage is a distinct fact from a turn that reported zero — coalescing
+// both to 0 would launder "we don't know" into "measured, and it's zero."
+function fmtN(v: number | null): string {
+  return v === null ? "—" : String(v);
+}
+
 function record(scenario: string, turn: string, t: TurnResult, note = ""): void {
   const r = t.result;
   rows.push({
     scenario,
     turn,
-    tokensIn: r.usage.tokensIn ?? 0,
-    tokensOut: r.usage.tokensOut ?? 0,
+    tokensIn: r.usage.tokensIn ?? null,
+    tokensOut: r.usage.tokensOut ?? null,
     cacheRead: r.usage.cacheReadTokens,
     cacheWrite: r.usage.cacheWriteTokens,
-    costUsd: r.usage.costUsd ?? 0,
+    costUsd: r.usage.costUsd ?? null,
     elapsedMs: t.elapsedMs,
     note,
   });
@@ -940,11 +946,11 @@ function printUsageTable(): void {
   console.table(
     rows.map((r) => ({
       scenario: `${r.scenario}/${r.turn}`,
-      in: r.tokensIn,
-      out: r.tokensOut,
+      in: fmtN(r.tokensIn),
+      out: fmtN(r.tokensOut),
       cacheRead: r.cacheRead,
       cacheWrite: r.cacheWrite,
-      cost: r.costUsd.toFixed(COST_DECIMALS),
+      cost: r.costUsd === null ? "—" : r.costUsd.toFixed(COST_DECIMALS),
       ms: r.elapsedMs,
       note: r.note,
     })),
