@@ -404,6 +404,22 @@ export const REGISTRY: readonly StageDef[] = [
 
   // ── manual-tier rows (never auto-run; `verify --list` prints them with reasons, §3.6) ──
   {
+    name: "tests:scoped",
+    group: "tests",
+    tiers: ["manual"],
+    argv: ["pnpm", "test:scoped"],
+    classify: asViolations,
+    manualReason: "the niced scoped lane-run wrapper (paths + --maxWorkers supplied per call) — an invocation surface, not a verification stage",
+  },
+  {
+    name: "tests:ct-scoped",
+    group: "tests",
+    tiers: ["manual"],
+    argv: ["pnpm", "ct:scoped"],
+    classify: asViolations,
+    manualReason: "the niced scoped CT wrapper (carries the cache-clear; paths + --workers per call) — an invocation surface, not a verification stage",
+  },
+  {
     name: "browser:e2e-live",
     group: "browser",
     tiers: ["manual"],
