@@ -50,10 +50,10 @@ test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guide
   await expect(options).toBeVisible();
 
   const optionsBox = await options.boundingBox();
-  const clusterBox = await component.locator('[data-slot="composer-guided-cluster"]').boundingBox();
+  const guidedBox = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
   expect(optionsBox).not.toBeNull();
-  expect(clusterBox).not.toBeNull();
-  expect(optionsBox?.x ?? 0).toBeLessThan(clusterBox?.x ?? 0);
+  expect(guidedBox).not.toBeNull();
+  expect(optionsBox?.x ?? 0).toBeLessThan(guidedBox?.x ?? 0);
 });
 
 // ── #54 honest-refusal pre-send gate: SEND + the guided fire actions refuse when the connection can't serve ─
@@ -233,6 +233,29 @@ function expectRowMajorOrder(boxes: readonly ControlBox[]): void {
   }
 }
 
+async function expectExplicitCoarseRows(component: Locator, bounds: ControlBox, viewportWidth: number): Promise<void> {
+  const groupBoxes = await Promise.all(
+    ["Chat actions", "Your message", "Their reply", "Attach and send"].map(async (name) => {
+      const box = await component.getByRole("group", { name, exact: true }).boundingBox();
+      expect(box, `${name} must have rendered geometry`).not.toBeNull();
+      return { name, ...(box ?? { x: 0, y: 0, width: 0, height: 0 }) };
+    }),
+  );
+  const [chat, yours, theirs, attach] = groupBoxes;
+  if (chat === undefined || yours === undefined || theirs === undefined || attach === undefined) {
+    throw new Error("Missing composer group geometry");
+  }
+  expect(Math.abs(chat.y - yours.y), "Chat actions and Your message share the first explicit row").toBeLessThanOrEqual(0.5);
+  expect(theirs.y, "Their reply follows the first explicit row").toBeGreaterThan(yours.y + 0.5);
+  const twoRowArm = viewportWidth > 320;
+  const leftAir = theirs.x - bounds.x;
+  const rightAir = bounds.x + bounds.width - (theirs.x + theirs.width);
+  expect(!twoRowArm || Math.abs(theirs.y - attach.y) <= 0.5, "Their reply and Attach and send share the second explicit row").toBe(true);
+  expect(!twoRowArm || theirs.x < attach.x, "Their reply owns the second row's leading edge").toBe(true);
+  expect(twoRowArm || attach.y > theirs.y + 0.5, "Attach and send follows Their reply at the 320px arm").toBe(true);
+  expect(twoRowArm || Math.abs(leftAir - rightAir) <= 1, "Their reply is centered on its owned 320px row").toBe(true);
+}
+
 async function expectNearestActionGroups(component: Locator, actions: readonly ActionSpec[]): Promise<void> {
   const nearestGroups = await Promise.all(
     actions.map(
@@ -260,8 +283,21 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
   const boxes = await controlBoxes(component, actions);
   const viewportWidth = await page.evaluate(() => innerWidth);
 
-  for (const action of boxes.slice(0, actions.length)) {
+  const actionBoxes = boxes.slice(0, actions.length);
+  for (const action of actionBoxes) {
     expect(Math.min(action.width, action.height), `${action.name} must meet the coarse 44px target floor`).toBeGreaterThanOrEqual(44);
+  }
+  const centreOwnership = await Promise.all(
+    actionBoxes.map(async (action) => ({
+      name: action.name,
+      ownsCenter: await component.getByRole("button", { name: action.name, exact: true }).evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        return document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest("button") === button;
+      }),
+    })),
+  );
+  for (const { name, ownsCenter } of centreOwnership) {
+    expect(ownsCenter, `${name} must own its painted centre`).toBe(true);
   }
   for (const box of boxes) {
     expect(box.x, `${box.name} must stay inside the composer left edge`).toBeGreaterThanOrEqual(bounds.x - 0.5);
@@ -290,6 +326,8 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
     scrollWidth: document.documentElement.scrollWidth,
   }));
   expect(documentOverflow.scrollWidth, "composer actions must not widen the document").toBeLessThanOrEqual(documentOverflow.clientWidth);
+
+  await expectExplicitCoarseRows(component, { name: "composer", ...bounds }, viewportWidth);
 }
 
 test("#206: all eight icon controls expose plain-language names and tooltips on hover and focus", async ({ mount, page }) => {
@@ -382,6 +420,7 @@ test.describe("#206 coarse touch layout", () => {
   test.use({ hasTouch: true });
 
   for (const viewport of [
+    { width: 430, height: 932 },
     { width: 390, height: 844 },
     { width: 320, height: 720 },
   ] as const) {
@@ -416,6 +455,51 @@ test.describe("#206 coarse touch layout", () => {
     });
   }
 });
+
+const PAINT_TRANSITIONS = new Set(["all", "color", "background-color", "border-color", "outline-color"]);
+
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  test(`#366 keyboard focus is immediate and paint-transition-free with ${reducedMotion} motion`, async ({ mount, page }) => {
+    await page.emulateMedia({ reducedMotion });
+    await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+    const component = await mount(<ComposerStory />);
+    const textarea = component.getByRole("textbox", { name: "Message", exact: true });
+    await component.getByRole("button", { name: "Send message", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    const focused = await textarea.evaluate((element) => {
+      const carrier = element.closest('[data-slot="composer"]');
+      if (carrier === null) {
+        throw new Error("Composer carrier missing");
+      }
+      const transitions = (node: Element): readonly { readonly property: string; readonly durationMs: number }[] => {
+        const style = getComputedStyle(node);
+        const properties = style.transitionProperty.split(",").map((value) => value.trim());
+        const durations = style.transitionDuration.split(",").map((value) => {
+          const trimmed = value.trim();
+          return trimmed.endsWith("ms") ? Number.parseFloat(trimmed) : Number.parseFloat(trimmed) * 1000;
+        });
+        return properties.map((property, index) => ({ property, durationMs: durations[index % durations.length] ?? 0 }));
+      };
+      return {
+        active: element.ownerDocument.activeElement === element,
+        carrierShadow: getComputedStyle(carrier).boxShadow,
+        carrierTransitions: transitions(carrier),
+        textareaTransitions: transitions(element),
+      };
+    });
+    expect(focused.active).toBe(true);
+    expect(focused.carrierShadow, "the focus-within ring/glow must paint on the keyboard focus frame").not.toBe("none");
+    for (const transition of [...focused.carrierTransitions, ...focused.textareaTransitions]) {
+      const animatesPaint = transition.durationMs > 0 && PAINT_TRANSITIONS.has(transition.property);
+      expect(animatesPaint, `${transition.property} must not animate keyboard-focus paint for ${String(transition.durationMs)}ms`).toBe(false);
+    }
+    const reducedTruth =
+      reducedMotion !== "reduce" ||
+      (JSON.stringify(focused.carrierTransitions) === JSON.stringify([{ property: "none", durationMs: 0 }]) &&
+        JSON.stringify(focused.textareaTransitions) === JSON.stringify([{ property: "none", durationMs: 0 }]));
+    expect(reducedTruth, "the reduced-motion floor removes every transition property").toBe(true);
+  });
+}
 
 test("generate-image is gated on typed text, then fires chat.generateImage (mode free, the text as prompt)", async ({ mount, page }) => {
   let genBody: string | null = null;

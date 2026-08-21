@@ -7,7 +7,6 @@ export const textareaVariants = tv({
     FIELD_CONTROL,
     "field-sizing-content min-h-control-lg py-field",
     "placeholder:text-muted-foreground",
-    "transition-colors duration-(--motion-fast) ease-out-expo",
     "outline-none",
     FOCUS_RING,
     DISABLED_STATE_NATIVE,
