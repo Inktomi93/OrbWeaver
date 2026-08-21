@@ -7,7 +7,7 @@
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
 
 import type { BlurSurface } from "@orb/contracts/settings";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { TOKENS } from "@orb/ui/tokens";
@@ -15,6 +15,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
+import APPEARANCE_PRESET_FILE from "../../../../../scripts/probes/appearance-presets.json" with { type: "json" };
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
@@ -253,7 +254,9 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
 });
 
 test("a collapsed CONTEXT body mounts only when opened, then follows the active section (§4.2 rule 1)", async ({ mount, page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
+  // One pixel below the default-appearance primacy equality (65rem = 1040px): wider widths can dock this
+  // pane honestly, while this width must keep the first click transient.
+  await page.setViewportSize({ width: 1039, height: 800 });
   await mount(<AppShellStory />);
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const panelText = (): Promise<string> => contextPanel.evaluate((el) => el.textContent ?? "");
@@ -1254,6 +1257,143 @@ test("O-19: switching to Presets opens BOTH the list and the context pane docked
   await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
   await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
 });
+
+/** The probe's curated appearance profile is the one source of truth for the Reading arm. Parsing the
+ * patch through the production schema gives this CT the same fallback/default semantics as the app. */
+const READING_APPEARANCE = appearanceSettingsSchema.parse({
+  ...DEFAULT_USER_SETTINGS.appearance,
+  ...APPEARANCE_PRESET_FILE.presets.reading.appearance,
+});
+const APPEARANCE_PROFILE_CROSSOVERS = [
+  { name: "defaults", constrained: 1039, equality: 1040 },
+  { name: "maximal", constrained: 1039, equality: 1040 },
+  { name: "compact", constrained: 1039, equality: 1040 },
+  { name: "reading", constrained: 1299, equality: 1300 },
+  { name: "diagnostics", constrained: 1039, equality: 1040 },
+] as const;
+
+function appearanceForProfile(name: (typeof APPEARANCE_PROFILE_CROSSOVERS)[number]["name"]): typeof READING_APPEARANCE {
+  return appearanceSettingsSchema.parse({
+    ...DEFAULT_USER_SETTINGS.appearance,
+    ...APPEARANCE_PRESET_FILE.presets[name].appearance,
+  });
+}
+
+interface PrimacyViolation {
+  readonly width: number;
+  readonly mode: string | null;
+  readonly list: number;
+  readonly content: number;
+  readonly context: number;
+}
+
+async function readingPrimacyViolationAt(page: Page, width: number): Promise<PrimacyViolation | null> {
+  await page.setViewportSize({ width, height: 900 });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+  const mode = await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode");
+  const [, list = 0, content = 0, context = 0] = await shellTracks(page);
+  const expectedMode = width < 1300 ? "collapsed" : "docked";
+  const primacyFails = mode === "docked" && content + 0.5 < (list + context) / 2;
+
+  const contentTitle = page.locator(".shell-content").getByText("Presets", { exact: true }).first();
+  const commandButton = page.getByRole("button", { name: "⌘K jump — the command menu" });
+  await expect(contentTitle).toBeVisible();
+  await expect.poll(() => contentTitle.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expect.poll(() => commandButton.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  return mode !== expectedMode || primacyFails ? { width, mode, list, content, context } : null;
+}
+
+test("#375 Reading derives the context crossover from the resolved pane geometry", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_shell_reading_primacy",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: READING_APPEARANCE },
+      updatedAt: 0,
+    }),
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const shell = await mount(<AppShellStory />);
+  await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBe(20);
+  await shell.getByRole("button", { name: "Presets" }).click();
+
+  const violations: PrimacyViolation[] = [];
+  for (let width = 1278; width <= 1302; width += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: #375 one browser page must settle each viewport before the next resize to locate the contiguous failure interval.
+    const violation = await readingPrimacyViolationAt(page, width);
+    if (violation !== null) {
+      violations.push(violation);
+    }
+  }
+
+  expect(violations).toEqual([]);
+
+  await page.setViewportSize({ width: 1299, height: 900 });
+  const jumpLabel = page.locator(".shell-topbar-jump-label");
+  await expect(jumpLabel).toBeVisible();
+  await expect.poll(() => jumpLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.setViewportSize({ width: 1300, height: 900 });
+  const topbarTitle = page.locator(".shell-topbar-title:visible");
+  await expect(topbarTitle).toHaveText("Presets");
+  await expect.poll(() => topbarTitle.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
+for (const profile of APPEARANCE_PROFILE_CROSSOVERS) {
+  test(`#375 ${profile.name}: both sides of the derived crossover preserve pane, keyboard, and focus behavior`, async ({ mount, page }) => {
+    const appearance = appearanceForProfile(profile.name);
+    await routeTrpc(page, {
+      "settings.getUserSettings": () => ({
+        userId: `user_ct_shell_primacy_${profile.name}`,
+        schemaVersion: 1,
+        config: { ...DEFAULT_USER_SETTINGS, appearance },
+        updatedAt: 0,
+      }),
+    });
+    await page.setViewportSize({ width: profile.constrained, height: 900 });
+    const shell = await mount(<AppShellStory />);
+    await expect
+      .poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)))
+      .toBeCloseTo(UA_ROOT_PX * appearance.fontScale, 0);
+    await shell.getByRole("button", { name: "Presets" }).click();
+
+    const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+    const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+    const contextToggle = shell.getByRole("button", { name: "Show detail panel" });
+    const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+
+    // The constrained CONTEXT is still a real first-click sheet; Escape remains its keyboard-equivalent
+    // dismiss path rather than persisting a dock that the current geometry cannot honour.
+    await contextToggle.click();
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+    await page.keyboard.press("Escape");
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+
+    // Focus is still the one explicit flag: enter hides LIST, exit restores the registry/default layout
+    // for this constrained regime without promoting CONTEXT to a persisted dock.
+    await focusToggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+    await page.keyboard.press("Enter");
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+
+    await page.setViewportSize({ width: profile.equality, height: 900 });
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+    const [, list = 0, content = 0, context = 0] = await shellTracks(page);
+    expect(content + 0.5).toBeGreaterThanOrEqual((list + context) / 2);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+}
 
 test("resolvePanel: a docked-default panel is docked >64rem, CLOSED (collapsed) by default in 48-64rem, and the unchanged openOverlayPanel regime <48rem", async ({
   mount,
