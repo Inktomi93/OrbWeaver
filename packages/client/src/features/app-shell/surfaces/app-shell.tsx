@@ -31,6 +31,7 @@ import { useAppearance } from "../hooks/use-appearance.ts";
 import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects.ts";
 import { useChatBackground } from "../hooks/use-chat-background.ts";
 import { useCommandShortcut } from "../hooks/use-command-shortcut.ts";
+import { useShellContentPrimacyObserver } from "../hooks/use-is-mobile-viewport.ts";
 import { useListTrackFlip } from "../hooks/use-list-track-flip.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
@@ -163,6 +164,8 @@ export function AppShell(): ReactElement {
     .list()
     .find((m) => m.trigger.placement === "topbar.trail")?.id;
   const commandTriggerRef = useRef<HTMLButtonElement>(null);
+  const primacySentinelRef = useRef<HTMLDivElement>(null);
+  useShellContentPrimacyObserver(primacySentinelRef);
   const layout = useShellLayout();
   useCommandShortcut(commandTriggerRef, commandModalId, layout.openModalId);
   const appearance = useAppearance();
@@ -294,6 +297,10 @@ export function AppShell(): ReactElement {
             style={shellVars}
           >
             <CustomThemeStyle css={theme?.css ?? null} />
+            {/* shell.css owns the prospective both-docked geometry. Its zero-or-deficit inline size is the
+                rendered signal observed by useShellLayout; hidden and out of flow, so it cannot affect the
+                geometry it reports. */}
+            <div ref={primacySentinelRef} className="shell-content-primacy-sentinel" aria-hidden="true" />
             {/* THE SKIP (side-eye 2026-08-16 F9 — filed against home, fixed here because a skip link after
                 the rail skips nothing). The rail plus the topbar is a FIXED ~15-stop preamble in front of
                 every section's first real control: on home the resume hero — the one thing the landing
