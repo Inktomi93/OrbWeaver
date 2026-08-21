@@ -535,6 +535,15 @@ export const chatParticipants = sqliteTable(
     // No duplicate human membership; the re-join `ON CONFLICT(chatId,userId) DO UPDATE` target. userId is
     // nullable, so SQLite's UNIQUE ignores the character rows (multiple null-userId rows coexist).
     uniqueIndex("chat_participants_chat_user_unique").on(t.chatId, t.userId),
+    // ONE present host per chat, as PHYSICS (#390). The host is the chat's single authority + funding
+    // source (D18) and every host-keyed read (roster projection, export scoping, handoff targeting) assumes
+    // exactly one — until this index that was writer discipline only, and a double-host row double-counted
+    // those reads (the #382 reader fix is the belt BELOW this; the index is the one above it, §2.3 — a
+    // prose-only boundary is a wish). PARTIAL by both arms: `role='host'` leaves members unconstrained,
+    // `left_seq is null` leaves the DEPARTED-host history (every prior host of the chat) unconstrained.
+    // Compatible with `acceptHostHandoffSwapStatements` precisely because its statement order is
+    // demote-present-host → promote-nominee: the seat is vacated before it is re-taken, inside one batch.
+    uniqueIndex("chat_participants_chat_host_unique").on(t.chatId).where(sql`role = 'host' and left_seq is null`),
     index("chat_participants_chat_idx").on(t.chatId),
     // The multi-human bridge's junction read (`entry/compose/emit-character-updated.ts`): "every chat where
     // this character is a present seat" filters `characterId` with NO `chatId`, so neither the (chatId,userId)

@@ -939,7 +939,13 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const founder = await seedUser(db, castId<Handle>("f2_founder"));
     const promoted = await seedUser(db, castId<Handle>("f2_promoted"));
     const chatId = await seedRoomWithHistory("f2", founder);
-    // The row a host-handoff leaves on a formerly-clamped member: role `host`, but joinSeq 4 + from-join intact.
+    // The roster a host-handoff leaves, in the writer's own order (demote the founder FIRST — one present
+    // host per chat is a partial UNIQUE index, not writer discipline): the promoted row is role `host` but
+    // keeps joinSeq 4 + from-join intact.
+    await db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, founder)));
     await seedParticipant(db, { chatId, key: "f2_p", userId: promoted, role: "host", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
@@ -2655,16 +2661,18 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     expect((await listMessages({ principal: principal(founder), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
     expect((await listMessages({ principal: principal(successor), chatId })).messages[0]?.reasoning).toBeNull();
 
-    // The handoff: the successor takes the host seat, the founder drops to member (the roster shape a
-    // host-handoff leaves). No re-seeding, no cache to bust — the SAME verbs are called again.
-    await db
-      .update(chatParticipants)
-      .set({ role: "host" })
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, successor)));
+    // The handoff: the founder drops to member, the successor takes the host seat — DEMOTE BEFORE PROMOTE,
+    // the order `acceptHostHandoffSwapStatements` writes, because one present host per chat is a partial
+    // UNIQUE index (the reverse order collides). No re-seeding, no cache to bust — the SAME verbs are
+    // called again.
     await db
       .update(chatParticipants)
       .set({ role: "member" })
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, founder)));
+    await db
+      .update(chatParticipants)
+      .set({ role: "host" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, successor)));
 
     expect((await listMessages({ principal: principal(successor), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
     const demoted = await listMessages({ principal: principal(founder), chatId });
