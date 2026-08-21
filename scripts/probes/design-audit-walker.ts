@@ -868,12 +868,17 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     });
 
     // A DOOR is an offered, NAMED, non-per-datum control. Unnamed controls are the aria-name rule's
-    // finding, not this one, and an off-screen or clipped-stub control is offered to nobody.
+    // finding, not this one, and an off-screen or clipped-stub control is offered to nobody. A generic
+    // tabindex=-1 node is programmatic focus plumbing, not an offered action: keep it in accessibleNames
+    // and tabIndexes above, but do not let inherited descendant text turn nested modal/command wrappers
+    // into duplicate generic doors (issue #370). Explicit roles and every other tabindex remain judged.
     var doorName = doorNameKey(iel.getAttribute("aria-label") || labelledbyText(iel) || (iel.textContent || "") || iel.getAttribute("title") || altTextOf(iel));
-    if (doorName.length > 0 && inVisualViewport(irect) && !hiddenStub) {
+    var resolvedDoorRole = doorRole(iel);
+    var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";
+    if (doorName.length > 0 && inVisualViewport(irect) && !hiddenStub && !programmaticGeneric) {
       actionDoors.push({
         selector: describe(iel),
-        role: doorRole(iel),
+        role: resolvedDoorRole,
         name: doorName,
         path: doorPath(iel),
       });
