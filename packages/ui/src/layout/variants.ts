@@ -225,6 +225,9 @@ export const gridVariants = tv({
       // middle track clears an aimable floor). The step is in `rem`, so it moves with `--font-scale` — the
       // reading arm folds later, which is exactly right for bigger type.
       knob: "grid-cols-1 @lg:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
+      // Four ordered action homes. Wide panes keep one row; a narrow pane moves the two later homes to a
+      // second row, and the smallest step gives the terminal home a third row rather than crushing targets.
+      actionBar: "grid-cols-[auto_auto_1fr_auto] items-center @max-md:grid-cols-[1fr_auto]",
     },
   },
   defaultVariants: { cols: "auto" },

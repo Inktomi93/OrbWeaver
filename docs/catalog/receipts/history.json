@@ -19,6 +19,22 @@
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
     {
+      "path": "docs/history/design/composer-action-anatomy.md",
+      "assignedSha256": "e27103ab2fef772b813b25284888a7421e198302a4cd34a8e0c9e231d1a52236",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "e27103ab2fef772b813b25284888a7421e198302a4cd34a8e0c9e231d1a52236",
+      "verifiedCommit": "8faff2ff3f479e65540954e32af25f62c8561564",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/history/design/composer-action-anatomy.md:1-69 full read as the superseded pre-grid design record",
+        "git show 8faff2ff3f479e65540954e32af25f62c8561564:docs/history/design/composer-action-anatomy.md: SHA-256 e27103ab2fef772b813b25284888a7421e198302a4cd34a8e0c9e231d1a52236",
+        "docs/design/chat-visual-findings-364-366.md: current four-home explicit-grid design"
+      ],
+      "summary": "Archived pre-grid composer design retained as historical evidence; its one-wrapping-row and three-group layout is explicitly superseded and is not current implementation authority."
+    },
+    {
       "path": "docs/history/design/home-section-spec.md",
       "assignedSha256": "ad0016831e14476d781d3eda9ae43050ec849cb8265976490d45c5a16b79a763",
       "disposition": "archive",

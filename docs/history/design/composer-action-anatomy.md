@@ -1,14 +1,14 @@
 ---
-kind: design
-status: active
+kind: history
+status: archived
 updated: 2026-08-20
 ---
 
-# Composer action anatomy (#206)
+# Composer action anatomy (#206) — superseded record
 
-> Issue #206 is active implementation work. This file records the layout ownership and proof contract; the built source and CT remain the behavior's one home.
+> Archived pre-grid design record. [`chat-visual-findings-364-366.md`](../../design/chat-visual-findings-364-366.md) supersedes its wrapping-row and three-group layout; current source and CT remain the behavior's one home.
 
-## Decision
+## Superseded decision
 
 The composer owns one wrapping action row. Its chat-options singleton remains first, followed by one width-owning action cluster containing three atomic semantic groups in this order: `Your message`, `Their reply`, `Attach and send`. `Their reply` also owns the size-gated speaker picker; `Attach and send` owns the utility trigger and the single Send/Stop slot. The textarea follows the action row and remains the only control in the input row.
 
@@ -20,7 +20,7 @@ The cluster remains the state/action orchestrator. Its utility-menu adapter belo
 
 This is capability-independent layout. Pointer sizing stays in the existing generated control tokens: coarse icon controls resolve to 48px and therefore clear the 44px floor; fine pointers retain the desktop scale (`packages/ui/src/styles/theme.css:86-88`, `packages/ui/src/styles/theme.css:183-188`). Feature code adds no pointer media query and never shrinks, hides, or duplicates a control.
 
-## Current defect
+## Resolved candidate defect
 
 The candidate constrains the wrong element. `composer-guided-cluster` has `flex-wrap` but also `shrink-0` (`packages/client/src/features/chat/components/composer-guided-cluster.tsx:126`), while its parent is a non-wrapping `justify-between` row and inserts another wrapper (`packages/client/src/features/chat/components/composer.tsx:393-420`). At a coarse pointer, the token layer enlarges each icon, but the cluster keeps its max-content width; wrapping inside an unconstrained shrink-proof child cannot contain the outer row.
 
