@@ -8,6 +8,10 @@
 // In an overlay regime (mobile OR narrow-desktop auto-overlay) a panel is a transient slide-over, not a
 // persisted dock: the resolve reads the store's `openOverlayPanel` instead of `panelOverrides`, and
 // toggle/collapse write `setOpenOverlayPanel` instead of `setPanelMode`. Wide is untouched.
+//
+// Because CONTEXT's auto-overlay regime is itself gated on the LIST's resolved default, a LIST toggle can
+// move CONTEXT between those two channels — so `carryContextAcrossListFlip` writes the destination channel
+// at that one moment (#383). Without it the toggle silently orphaned whichever channel it left.
 
 import { useEffect } from "react";
 import type { ModalSlotId, PanelMode, PanelName, SectionId } from "#state";
@@ -155,6 +159,37 @@ export function useShellLayout(): ShellLayout {
   // behind it down with it, hence the asymmetry (see `OverlayPanelRequest`).
   const closeRequestFor = (panel: PanelName): "none" | null => (panel === "list" ? "none" : null);
 
+  // CARRY CONTEXT ACROSS THE REGIME FLIP A LIST TOGGLE CAUSES (#383, side-eye 2026-08-21 P2).
+  // `contextAutoOverlay` is gated on the LIST's own resolved default, so hiding/showing the list moves
+  // CONTEXT between two regimes that read DIFFERENT channels — the ephemeral `openOverlayPanel` while it
+  // is an auto-overlay, the persisted override while it is a wide dock. Nothing used to bridge them, so a
+  // list toggle silently orphaned the other channel: an OPEN sheet vanished with no user act (its request
+  // meant nothing to the wide arm) and the stale request resurrected it when the list came back.
+  // The rule is the one this shell already uses for a reveal that must land in either regime
+  // (`revealContextPanel`): write BOTH channels so each self-selects. Here it runs at the ONE moment the
+  // regime changes under a panel the user did not touch, and it carries VISIBILITY — the fact the user
+  // can see — never a hidden pane's stored preference. Focus mode is excluded outright: nothing is
+  // showing, and focus owns no panel writes (the item-20 ruling).
+  const carryContextAcrossListFlip = (nextListMode: PanelMode): void => {
+    const nextAutoOverlay = contextContentConstrained && listAvailable && contextAvailable && nextListMode === "docked";
+    if (focusMode || nextAutoOverlay === contextAutoOverlay) {
+      return;
+    }
+    if (contextMode !== "collapsed") {
+      // On screen now, so on screen after: name it in the channel the NEXT regime reads. The other
+      // channel is released below, so the flip back is decided by that moment's visibility, not by a
+      // request left over from this one.
+      if (nextAutoOverlay) {
+        setOpenOverlayPanel("context");
+        return;
+      }
+      setPanelMode("context", "docked");
+    }
+    if (openOverlayPanel === "context") {
+      setOpenOverlayPanel(null);
+    }
+  };
+
   const togglePanel = (panel: PanelName): void => {
     if (isOverlayRegime(panel)) {
       // Reads the RESOLVED mode, not the raw request: on mobile the LIST can be showing as the screen with
@@ -164,7 +199,11 @@ export function useShellLayout(): ShellLayout {
       return;
     }
     const current = panel === "list" ? listMode : contextMode;
-    setPanelMode(panel, current === "collapsed" ? "docked" : "collapsed");
+    const next: PanelMode = current === "collapsed" ? "docked" : "collapsed";
+    if (panel === "list") {
+      carryContextAcrossListFlip(next);
+    }
+    setPanelMode(panel, next);
   };
 
   const collapsePanel = (panel: PanelName): void => {
@@ -173,6 +212,9 @@ export function useShellLayout(): ShellLayout {
         setOpenOverlayPanel(closeRequestFor(panel));
       }
       return;
+    }
+    if (panel === "list") {
+      carryContextAcrossListFlip("collapsed");
     }
     setPanelMode(panel, "collapsed");
   };
