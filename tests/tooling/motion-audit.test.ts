@@ -55,6 +55,16 @@ function selectEntrance(firstForTrigger: boolean, confirmed = true): Partial<Loa
   };
 }
 
+function appScript(): Loaf["scripts"][number] {
+  return {
+    sourceURL: "http://127.0.0.1:5173/packages/client/src/features/user-admin/app-owned-work.ts",
+    duration: 90,
+    forcedStyleAndLayoutDuration: 30,
+    invoker: "FrameRequestCallback",
+    sourceFunctionName: "runAppWork",
+  };
+}
+
 test("a confirmed first sealed Select entrance receives the measured first-only blocking allowance", () => {
   const motion = motionWith(loaf({ blockingDuration: 181, ...selectEntrance(true) }));
 
@@ -75,6 +85,33 @@ test("the first-only allowance cannot hide app-owned blocking beyond the unchang
   const motion = motionWith(loaf({ blockingDuration: 191, ...selectEntrance(true) }));
 
   expect(loafTotals(motion).budgetedWorstBlocking).toBe(51);
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
+test("a first Select allowance is consumed once and cannot hide a second app-owned block in the same lifetime", () => {
+  const motion = motionWith(
+    loaf({ startTime: 100, duration: 80, blockingDuration: 181, styleAndLayoutStart: 0, ...selectEntrance(true) }),
+    loaf({ startTime: 190, duration: 30, blockingDuration: 130, styleAndLayoutStart: 0, scripts: [appScript()], ...selectEntrance(true) }),
+  );
+
+  expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 130 });
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
+test("recognizable concurrent app style remains red inside a confirmed Select lifetime", () => {
+  const motion = motionWith(
+    loaf({ startTime: 100, duration: 80, styleAndLayoutStart: 150, ...selectEntrance(true) }),
+    loaf({ startTime: 190, duration: 30, blockingDuration: 0, styleAndLayoutStart: 205, scripts: [appScript()], ...selectEntrance(true) }),
+  );
+
+  expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedStyleLayout: 1 });
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
+test("recognizable app attribution vetoes the primary Select allowance itself", () => {
+  const motion = motionWith(loaf({ blockingDuration: 130, styleAndLayoutStart: 0, scripts: [appScript()], ...selectEntrance(true) }));
+
+  expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 0, budgetedWorstBlocking: 130 });
   expect(loafOverBudget(motion)).toBe(true);
 });
 

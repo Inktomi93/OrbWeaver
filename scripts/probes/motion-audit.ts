@@ -96,6 +96,7 @@ const FIRST_SELECT_BLOCKING_ALLOWANCE_MS = 140;
 const CLS_BUDGET = 0.1;
 const DROPPED_FRAME_BUDGET_PCT = 5;
 const PCT = 100;
+const RELATED_REACT_SCRIPT_PATH = /\/node_modules\/(?:\.vite\/deps\/)?react(?:-dom)?(?:[./_-]|$)/u;
 
 /** One pre-trace REACH action, in argv order: a DOM click or a dev-bridge navigation. Never measured —
  *  see the header's reach-vs-measure note. */
@@ -335,6 +336,78 @@ function confirmedSelectEntrance(loaf: LoafRecord): NonNullable<LoafRecord["sele
   return entrance?.confirmedAt === undefined ? undefined : entrance;
 }
 
+type ScriptAttribution = "related" | "unrelated" | "unknown";
+
+/** LoAF script URLs are a veto, not proof of ownership. Dev URLs retain module identity; production
+ * hashed bundles and empty/inline attribution do not, so treating either as app or library would lie. */
+function scriptAttribution(sourceURL: string): ScriptAttribution {
+  if (sourceURL === "" || sourceURL === "(inline)") {
+    return "unknown";
+  }
+  let pathname: string;
+  try {
+    pathname = new URL(sourceURL).pathname;
+  } catch {
+    pathname = sourceURL;
+  }
+  if (pathname.includes("@base-ui") || pathname.includes("@floating-ui") || RELATED_REACT_SCRIPT_PATH.test(pathname)) {
+    return "related";
+  }
+  if (
+    pathname.includes("/packages/") ||
+    pathname.includes("/src/") ||
+    pathname.includes("/scripts/") ||
+    pathname.includes("/tests/") ||
+    pathname.includes("/node_modules/")
+  ) {
+    return "unrelated";
+  }
+  return "unknown";
+}
+
+function hasUnrelatedScriptAttribution(loaf: LoafRecord): boolean {
+  return loaf.scripts.some((script) => scriptAttribution(script.sourceURL) === "unrelated");
+}
+
+function containsConfirmation(loaf: LoafRecord, entrance: NonNullable<LoafRecord["selectEntrance"]>): boolean {
+  const confirmedAt = entrance.confirmedAt;
+  return confirmedAt !== undefined && loaf.startTime <= confirmedAt && loaf.startTime + loaf.duration >= confirmedAt;
+}
+
+/** One first entrance can overlap multiple LoAFs. Choose one primary confirmation frame before applying
+ * attribution vetoes so an app-owned primary cannot move the fixed allowance onto a later frame. */
+function primaryFirstLoafIndexes(loafs: readonly LoafRecord[]): ReadonlySet<number> {
+  const primaryByEntrance = new Map<number, number>();
+  for (const [index, loaf] of loafs.entries()) {
+    const entrance = confirmedSelectEntrance(loaf);
+    if (entrance?.firstForTrigger !== true) {
+      continue;
+    }
+    const priorIndex = primaryByEntrance.get(entrance.id);
+    if (priorIndex === undefined) {
+      primaryByEntrance.set(entrance.id, index);
+      continue;
+    }
+    const priorLoaf = loafs[priorIndex];
+    if (priorLoaf === undefined) {
+      continue;
+    }
+    const priorEntrance = confirmedSelectEntrance(priorLoaf);
+    if (priorEntrance === undefined) {
+      continue;
+    }
+    const candidateContainsConfirmation = containsConfirmation(loaf, entrance);
+    const priorContainsConfirmation = containsConfirmation(priorLoaf, priorEntrance);
+    if (
+      (candidateContainsConfirmation && !priorContainsConfirmation) ||
+      (candidateContainsConfirmation === priorContainsConfirmation && loaf.startTime < priorLoaf.startTime)
+    ) {
+      primaryByEntrance.set(entrance.id, index);
+    }
+  }
+  return new Set(primaryByEntrance.values());
+}
+
 /** Raw/classified/budgeted LoAF inputs. The budget itself is unchanged: confirmed sealed-Select
  * entrance frames may carry their measured positioning style work; only the trigger's first page-
  * lifetime entrance receives the fixed blocking subtraction. Repeats and all unclassified work face
@@ -346,21 +419,23 @@ export function loafTotals(motion: MotionSnapshot | null): {
   budgetedStyleLayout: number;
 } {
   const loafs = motion?.loafs ?? [];
-  const firstEntrances = new Set(
-    loafs
-      .map(confirmedSelectEntrance)
-      .filter((entrance): entrance is NonNullable<typeof entrance> => entrance?.firstForTrigger === true)
-      .map((entrance) => entrance.id),
+  const primaryIndexes = primaryFirstLoafIndexes(loafs);
+  const eligiblePrimaryIndexes = new Set(
+    [...primaryIndexes].filter((index) => {
+      const loaf = loafs[index];
+      return loaf !== undefined && !hasUnrelatedScriptAttribution(loaf);
+    }),
   );
   return {
     rawWorstBlocking: loafs.reduce((worst, loaf) => Math.max(worst, loaf.blockingDuration), 0),
-    classifiedInitializations: firstEntrances.size,
-    budgetedWorstBlocking: loafs.reduce((worst, loaf) => {
-      const entrance = confirmedSelectEntrance(loaf);
-      const allowance = entrance?.firstForTrigger === true ? FIRST_SELECT_BLOCKING_ALLOWANCE_MS : 0;
+    classifiedInitializations: eligiblePrimaryIndexes.size,
+    budgetedWorstBlocking: loafs.reduce((worst, loaf, index) => {
+      const allowance = eligiblePrimaryIndexes.has(index) ? FIRST_SELECT_BLOCKING_ALLOWANCE_MS : 0;
       return Math.max(worst, Math.max(0, loaf.blockingDuration - allowance));
     }, 0),
-    budgetedStyleLayout: loafs.filter((loaf) => loaf.styleAndLayoutStart > 0 && confirmedSelectEntrance(loaf) === undefined).length,
+    budgetedStyleLayout: loafs.filter(
+      (loaf) => loaf.styleAndLayoutStart > 0 && (confirmedSelectEntrance(loaf) === undefined || hasUnrelatedScriptAttribution(loaf)),
+    ).length,
   };
 }
 
@@ -636,10 +711,11 @@ function printReachLine(reach: readonly ReachAction[], reachFailures: number): v
 }
 
 function printLayoutLoaf(loaf: LoafRecord): void {
-  const classification = confirmedSelectEntrance(loaf);
+  const candidate = confirmedSelectEntrance(loaf);
+  const classification = candidate === undefined || hasUnrelatedScriptAttribution(loaf) ? undefined : candidate;
   print(
     classification === undefined
-      ? `  ✗ LoAF @${loaf.startTime}ms  duration ${loaf.duration}ms, blocking ${loaf.blockingDuration}ms, style/layout in-frame`
+      ? `  ✗ LoAF @${loaf.startTime}ms  duration ${loaf.duration}ms, blocking ${loaf.blockingDuration}ms, style/layout in-frame${candidate === undefined ? "" : " (Select candidate vetoed by app/unrelated script attribution)"}`
       : `  · LoAF @${loaf.startTime}ms  duration ${loaf.duration}ms, blocking ${loaf.blockingDuration}ms, style/layout in sealed Select ${classification.firstForTrigger ? "first" : "repeat"} entrance (raw, classified)`,
   );
   for (const script of loaf.scripts) {
