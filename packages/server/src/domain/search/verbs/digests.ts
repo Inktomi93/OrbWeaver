@@ -18,7 +18,7 @@ import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DigestsParams } from "../contract/params.ts";
 import type { DigestSearchHit } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { DigestSearchEvents, SearchService } from "../contract/service.ts";
 import { nearestDigests } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
@@ -71,8 +71,29 @@ function recencyBoostOrder<T extends { readonly id: string; readonly distance: n
   return ranked.toSorted((a, b) => (goodness(b) !== goodness(a) ? goodness(b) - goodness(a) : a.distance - b.distance));
 }
 
+/** mixC's local honest-degrade boundary. `applyRerank` itself stays strict for its other callers; only this
+ * digest-recall path has a usable already-retrieved vector result to preserve. */
+async function rerankOrKeep<T extends { readonly id: string; readonly sourceText: string | null }>(env: {
+  readonly ctx: SearchContext;
+  readonly params: Pick<DigestsParams, "mode" | "rerankTo">;
+  readonly text: string;
+  readonly retrieved: T[];
+  readonly events: DigestSearchEvents | undefined;
+}): Promise<T[]> {
+  const { ctx, params, text, retrieved, events } = env;
+  if (params.mode !== "mixC") {
+    return retrieved;
+  }
+  try {
+    return await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, ctx.roleClients.rerank, params.rerankTo);
+  } catch {
+    events?.onRerankUnavailable();
+    return retrieved;
+  }
+}
+
 export function createDigests(ctx: SearchContext): SearchService["digests"] {
-  return async (params: DigestsParams): Promise<DigestSearchHit[]> => {
+  return async (params: DigestsParams, events?: DigestSearchEvents): Promise<DigestSearchHit[]> => {
     if (params.candidates !== undefined && params.candidates.length === 0) {
       return [];
     }
@@ -131,10 +152,9 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
     const retrieved = rankedForCut.slice(0, params.retrieveK);
     // Instruction-aware rerankers key off the scope <Instruct> prefix; text-only families ignore it (the same
     // shape the corpus digest scan uses — #330 P3).
-    const ordered =
-      params.mode === "mixC"
-        ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, ctx.roleClients.rerank, params.rerankTo)
-        : retrieved;
+    // Retrieval already completed successfully. A failed rerank keeps that exact vector/CSLS order intact
+    // and lets the caller surface the narrower outage through its own user-facing channel.
+    const ordered = await rerankOrKeep({ ctx, params, text, retrieved, events });
 
     // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
     // definition of "how close is this", never a second.

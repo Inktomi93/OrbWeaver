@@ -275,3 +275,36 @@ test("option description: paints in the row, stays off the trigger, and is a des
   await beta.click();
   await expect(trigger).toHaveText("Beta");
 });
+
+test("a glossed desktop popup stops at the reading measure instead of spanning the available viewport", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mount(
+    <div style={{ width: 240 }}>
+      <Select
+        aria-label="Explained modes"
+        items={[
+          {
+            label: "Sharper semantic recall",
+            value: "sharp",
+            description:
+              "Re-sorts related scenes with the rerank model for sharper recall. Costs an extra model call; if reranking is unavailable, vector order is used.",
+          },
+        ]}
+      />
+    </div>,
+  );
+  await page.getByRole("combobox", { name: "Explained modes" }).click();
+  const popup = page.locator('[data-slot="select-popup"]');
+  await expect(popup).toBeVisible();
+
+  const geometry = await popup.evaluate((element) => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--reading-measure)";
+    element.append(probe);
+    const measure = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { measure, width: element.getBoundingClientRect().width };
+  });
+  expect(geometry.measure, "the reading-measure token resolves in the popup's own font context").toBeGreaterThan(0);
+  expect(geometry.width, "the popup itself is capped, not only its option prose").toBeLessThanOrEqual(geometry.measure + 1);
+});

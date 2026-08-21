@@ -26,6 +26,7 @@ import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow } from "../contract/memory.ts";
 import type { GuidedSteer } from "../contract/params.ts";
 import { recallMemory } from "../memory/recall/recall.ts";
+import { createMemoryRecallWarningEpisode } from "../memory/recall/rerank-warning.ts";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "../memory/recall/window.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
 import { resolveHostTierRegexScripts } from "./regex-tier.ts";
@@ -231,12 +232,14 @@ async function gatherMemory(
     return { text: "", trace: null };
   }
   const config = args.foreign.memoryConfig ?? null;
+  const warningEpisode = createMemoryRecallWarningEpisode();
   if (out !== undefined) {
     out.memoryRecall = {
       groupCharacterId: sharedCharId,
       recent: args.recent,
       names: args.names,
       config,
+      warningEpisode,
       ...(args.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: args.liveWindowCutoffSeq } : {}),
     };
   }
@@ -255,6 +258,7 @@ async function gatherMemory(
     ...(config !== null ? { config } : {}),
     recent: args.recent,
     names: args.names,
+    warningEpisode,
   });
 }
 

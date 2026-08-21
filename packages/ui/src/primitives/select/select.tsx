@@ -1,7 +1,7 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { SelectPositionerProps, SelectRootProps } from "@base-ui/react/select";
 import { Select as BaseSelect } from "@base-ui/react/select";
-import type { ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
@@ -11,6 +11,11 @@ import { selectVariants } from "./variants.ts";
 
 // Breathing room between trigger and popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
+
+// Two independent ceilings govern a Select popup: Base UI's live collision width keeps it inside the
+// viewport, while the reading measure keeps explanatory option copy scannable on a wide desktop. CSS
+// `min()` is the one honest intersection; two max-width utilities would tailwind-merge into one winner.
+const POPUP_STYLE: CSSProperties = { maxWidth: "min(var(--available-width), var(--reading-measure))" };
 
 const slots = selectVariants();
 
@@ -251,7 +256,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           side={side}
           sideOffset={sideOffset}
         >
-          <BaseSelect.Popup className={slots.popup()} data-slot="select-popup">
+          <BaseSelect.Popup className={slots.popup()} data-slot="select-popup" style={POPUP_STYLE}>
             {arrow ? <BaseSelect.Arrow className={slots.arrow()} data-slot="select-arrow" /> : null}
             {scrollArrows ? (
               <BaseSelect.ScrollUpArrow className={cn(slots.scrollArrow(), "top-0")} data-slot="select-scroll-up-arrow">

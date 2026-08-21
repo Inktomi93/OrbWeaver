@@ -9,6 +9,7 @@
 import { createAppQueryClient } from "@orb/client/data";
 import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
+import { Select } from "@orb/ui/select";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 // @orb-gate-ignore query-machine-seals(useMutation): test-tier code the gate's `\.test\.tsx?$` scope
 // cannot see — Spine-Testing §7 requires a CT to mount from a NON-test story module, so every
@@ -20,7 +21,7 @@ import { createToastManager, ToastProvider } from "@orb/ui/toast";
 // would silently absolve a future `useInfiniteQuery` on the same line.
 import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 // Deep, not `@orb/client/lib`: agent-bridge is OUT of the barrel too (main.tsx imports it by path — a
 // re-export would drag the dev-only introspection handle into the prod bundle).
 import type { RouteResolution } from "../../../packages/client/src/lib/agent-bridge.ts";
@@ -29,8 +30,11 @@ import { __resetBootReads, setBootReadPending } from "../../../packages/client/s
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
+import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
+import { motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
 import { __resetMotionFlags, installMotionFlaggers } from "../../../packages/client/src/lib/motion-flaggers.ts";
 import { __resetMotionStats, installMotionObservers, markAgentNavigation, motionSnapshot } from "../../../packages/client/src/lib/motion-stats.ts";
+import { blockMainThread } from "../../support/ct/block-main-thread.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
@@ -192,6 +196,60 @@ export function MotionVirtualizedShiftStory(): ReactElement {
   );
 }
 
+/** A real sealed anchored portal for the LoAF first-mount classifier. Both accessors come from the
+ * story's module instance; a page-side import would read a second empty ring. */
+export function MotionAnchoredPortalStory(): ReactElement {
+  const styleTargetRef = useRef<HTMLDivElement>(null);
+  const [blockSelectOpen, setBlockSelectOpen] = useState(false);
+  useEffect(() => {
+    installMotionObservers();
+    const probes = globalThis as typeof globalThis & {
+      __motionRead: typeof motionSnapshot | undefined;
+      __motionReset: typeof __resetMotionStats | undefined;
+    };
+    probes.__motionRead = motionSnapshot;
+    probes.__motionReset = __resetMotionStats;
+    return (): void => {
+      probes.__motionRead = undefined;
+      probes.__motionReset = undefined;
+    };
+  }, []);
+  return (
+    <div style={{ width: 240 }}>
+      <div onPointerDownCapture={blockSelectOpen ? (): void => blockMainThread(120) : undefined}>
+        <Select
+          aria-label="Anchored portal control"
+          items={[
+            { label: "Alpha", value: "alpha" },
+            { label: "Beta", value: "beta", description: "A described option exercises the production popup anatomy." },
+            { label: "Gamma", value: "gamma" },
+          ]}
+        />
+      </div>
+      <button type="button" onClick={(): void => setBlockSelectOpen(true)}>
+        arm Select blocking
+      </button>
+      <button type="button" onClick={(): void => blockMainThread(120)}>
+        plant app blocking
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          const target = styleTargetRef.current;
+          if (target !== null) {
+            target.style.width = "180px";
+            void target.offsetWidth;
+          }
+          blockMainThread(60);
+        }}
+      >
+        plant app style
+      </button>
+      <div ref={styleTargetRef}>style target</div>
+    </div>
+  );
+}
+
 /** The `[space]` flagger stage (motion-flaggers.ts task #39/#40 fix): an `<img>` with no width/height
  *  attributes, no aspect-ratio, and a blocked src — the honest "unreserved replaced-element box" shape
  *  the flagger exists to catch. Rendered on a click (not on mount) so the story controls exactly when
@@ -230,6 +288,7 @@ export function MotionFlaggersSpaceStory(): ReactElement {
 export function MotionFlaggersReducedMotionStory(): ReactElement {
   const [active, setActive] = useState(false);
   useEffect(() => {
+    installMotionObservers();
     installMotionFlaggers();
   }, []);
   return (
@@ -249,6 +308,7 @@ export function MotionFlaggersReducedMotionStory(): ReactElement {
 export function MotionFlaggersCheckpointStory(): ReactElement {
   const [active, setActive] = useState(false);
   useEffect(() => {
+    installMotionObservers();
     installMotionFlaggers();
   }, []);
   return (
@@ -263,6 +323,154 @@ export function MotionFlaggersCheckpointStory(): ReactElement {
       <div data-testid="checkpoint-animation" style={active ? { animation: "orb-ct-checkpoint-motion 2s linear" } : undefined}>
         moving target
       </div>
+    </div>
+  );
+}
+
+/** A long compositor-safe transition whose first frame is deliberately blocked. The `[drop]` flagger
+ * must retain this signal without globally resolving every animation or scheduling its own rAF loop. */
+export function MotionFlaggersDropStory(): ReactElement {
+  const [active, setActive] = useState(false);
+  const targetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    installMotionObservers();
+    installMotionFlaggers();
+    const target = targetRef.current;
+    const onStart = (): void => blockMainThread(80);
+    target?.addEventListener("transitionstart", onStart);
+    return (): void => target?.removeEventListener("transitionstart", onStart);
+  }, []);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setActive(true)}>
+        start blocked animation
+      </button>
+      <div
+        ref={targetRef}
+        data-testid="blocked-animation"
+        style={{ transform: active ? "translateX(20px)" : "translateX(0)", transition: "transform 2s linear" }}
+      >
+        moving target
+      </div>
+    </div>
+  );
+}
+
+/** Motion-audit owns dropped-frame truth through CDP while its trace is active. This stage proves its
+ * narrow pause skips the duplicate in-page CSS/WAAPI lifetime work, then resumes ordinary diagnostics. */
+export function MotionFlaggersAuditPauseStory(): ReactElement {
+  const [active, setActive] = useState(false);
+  const [cdpActive, setCdpActive] = useState(false);
+  const [settled, setSettled] = useState(false);
+  const targetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    installMotionObservers();
+    installMotionFlaggers();
+    void motionFlaggersSettled().then(() => setSettled(true));
+    const target = targetRef.current;
+    const onStart = (): void => blockMainThread(100);
+    target?.addEventListener("transitionstart", onStart);
+    return (): void => {
+      setFrameDropTrackingPaused(false);
+      target?.removeEventListener("transitionstart", onStart);
+    };
+  }, []);
+  return (
+    <div>
+      <div data-testid="audit-pause-flaggers-settled">{settled ? "settled" : "pending"}</div>
+      <button type="button" onClick={(): void => setFrameDropTrackingPaused(true)}>
+        pause audit drop tracking
+      </button>
+      <button type="button" onClick={(): void => setFrameDropTrackingPaused(false)}>
+        resume audit drop tracking
+      </button>
+      <button type="button" onClick={(): void => setActive((value) => !value)}>
+        plant CSS drop
+      </button>
+      <button type="button" onClick={(): void => setCdpActive((value) => !value)}>
+        plant CDP drop
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          targetRef.current?.animate({ opacity: [1, 0.5] }, { duration: 2000 });
+          blockMainThread(100);
+        }}
+      >
+        plant WAAPI drop
+      </button>
+      <div
+        data-testid="audit-pause-animation"
+        ref={targetRef}
+        style={{ transform: active ? "translateX(20px)" : "translateX(0)", transition: "transform 2s linear" }}
+      >
+        moving target
+      </div>
+      <div
+        // biome-ignore lint/suspicious/noUnknownAttribute: React supports transition lifecycle events absent from Biome's DOM allowlist.
+        onTransitionStart={(): void => {
+          // Begin blocking after Chromium has presented the first layout-bound animation frame. A
+          // transform can keep running on the compositor and is not a dropped-frame positive control.
+          requestAnimationFrame(() => requestAnimationFrame(() => blockMainThread(250)));
+        }}
+        style={{ width: cdpActive ? 120 : 100, transition: "width 2s linear" }}
+      >
+        layout-bound moving target
+      </div>
+    </div>
+  );
+}
+
+/** The app's sortable drop settle uses WAAPI, which has no CSS animation lifecycle events. Exercise the
+ * dev-only Element.animate boundary directly: one arm proves finish/cancel retire both effects; the other
+ * keeps an effect live across a blocked frame so `[drop]` must still fire. */
+export function MotionFlaggersWaapiDropStory(): ReactElement {
+  const targetRef = useRef<HTMLDivElement>(null);
+  const [retired, setRetired] = useState(false);
+  useEffect(() => {
+    installMotionObservers();
+    installMotionFlaggers();
+  }, []);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={(): void => {
+          const target = targetRef.current;
+          if (target === null) {
+            return;
+          }
+          const finished = target.animate({ transform: ["translateX(0)", "translateX(20px)"] }, { duration: 2000 });
+          const canceled = target.animate({ opacity: [1, 0.5] }, { duration: 2000 });
+          const finishEvent = new Promise<void>((resolve) => finished.addEventListener("finish", () => resolve(), { once: true }));
+          const cancelEvent = new Promise<void>((resolve) => canceled.addEventListener("cancel", () => resolve(), { once: true }));
+          finished.finish();
+          canceled.cancel();
+          void Promise.all([finishEvent, cancelEvent]).then(() => {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                blockMainThread(80);
+                setRetired(true);
+              });
+            });
+          });
+        }}
+      >
+        retire WAAPI effects
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          targetRef.current?.animate({ transform: ["translateX(0)", "translateX(20px)"] }, { duration: 2000 });
+          blockMainThread(80);
+        }}
+      >
+        start blocked WAAPI
+      </button>
+      <div ref={targetRef} data-testid="waapi-animation">
+        moving target
+      </div>
+      {retired ? <div data-testid="waapi-effects-retired">retired</div> : null}
     </div>
   );
 }
@@ -299,7 +507,7 @@ export function MotionFlaggersExternalDevtoolsStory(): ReactElement {
 /** The `[css]` trailing-edge stage: adds a single dead class ONCE (no second mutation follows), so the
  *  only way the flagger can ever see it is a TRAILING scan scheduled for when the throttle window
  *  clears — a dropping throttle would leave this silent forever. */
-export function MotionFlaggersCssTrailingStory(): ReactElement {
+export function MotionFlaggersCssTrailingStory({ initialMarker = false }: { readonly initialMarker?: boolean } = {}): ReactElement {
   const [deadClassOn, setDeadClassOn] = useState(false);
   useEffect(() => {
     installMotionFlaggers();
@@ -310,9 +518,48 @@ export function MotionFlaggersCssTrailingStory(): ReactElement {
         add dead class
       </button>
       {/* A class no stylesheet defines — the dead-token shape `[css]` exists to catch. */}
+      {initialMarker ? <div className="orb-ct-initial-dead-class-marker">initial census marker</div> : null}
       <div className={deadClassOn ? "orb-ct-dead-class-marker" : undefined}>content</div>
     </div>
   );
+}
+
+/** A mutation subtree larger than one dead-class idle slice. The undefined token is deliberately on the
+ * final descendant, so a test-controlled short deadline must resume the lazy walk across callbacks. */
+const DEAD_CLASS_BATCH_ROWS = Array.from({ length: 96 }, (_, index) => ({ id: `dead-class-batch-${index}`, final: index === 95 }));
+
+export function MotionFlaggersCssBatchStory(): ReactElement {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    installMotionFlaggers();
+  }, []);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setShow(true)}>
+        add batched dead class
+      </button>
+      <div className="orb-ct-initial-dead-class-marker">initial census marker</div>
+      {show ? (
+        <div>
+          {DEAD_CLASS_BATCH_ROWS.map((row) => (
+            <span className={row.final ? "orb-ct-batched-dead-class-marker" : undefined} key={row.id}>
+              {row.id}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The probe checkpoint rail: initial dev-instrument work must expose a real completion promise. */
+export function MotionFlaggersSettleStory(): ReactElement {
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    installMotionFlaggers();
+    void motionFlaggersSettled().then(() => setSettled(true));
+  }, []);
+  return <div data-testid="motion-flaggers-settled">{settled ? "settled" : "pending"}</div>;
 }
 
 /** One deliberately slow click. Event Timing emits a family of DOM entries for it; the tracer should

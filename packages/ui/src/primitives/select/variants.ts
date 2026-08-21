@@ -16,8 +16,9 @@ export const selectVariants = tv({
     value: "min-w-0 truncate text-left",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
-    // Select's popup can GROW past the anchor for a long option, so it takes `min-w-(--anchor-width)`
-    // (autocomplete/combobox lock to the exact `w-(--anchor-width)`).
+    // Select's popup can GROW past the anchor for a long option. Its two max-width ceilings (Base UI's
+    // collision width + the reading measure) intersect in select.tsx's POPUP_STYLE because two competing
+    // max-width utilities would merge to one. (Autocomplete/combobox lock to the exact anchor width.)
     popup: [POPUP_SURFACE, "min-w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     group: "flex flex-col",
     groupLabel: "px-block py-field text-label font-medium leading-label text-muted-foreground select-none",
