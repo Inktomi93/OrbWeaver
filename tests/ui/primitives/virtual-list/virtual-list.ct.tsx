@@ -10,6 +10,7 @@ import {
   InitialOffsetList,
   LanesList,
   OverscanList,
+  ResetScopeLifecycleList,
   ResetScopeList,
   ScrollToIndexList,
   UnboundedList,
@@ -147,9 +148,17 @@ test("a 906-row measured list resets a settled 30-row scope after old-offset cla
   await component.getByTestId("change-scope").click();
   await expect(scroll).toHaveJSProperty("scrollTop", oldOffset);
   await component.getByTestId("settle-scope").click();
-  await page.evaluate(async () => {
-    await document.documentElement.animate([{ opacity: 1 }, { opacity: 1 }], { duration: 3250 }).finished;
-  });
+  await expect(scroll).toHaveAttribute("data-clamp-events", "1");
+  await expect(component.locator('[data-slot="virtual-list-row"]')).not.toHaveCount(0);
+  await expect(component.locator('[data-slot="virtual-list-row"]').first()).toHaveAttribute("aria-setsize", "30");
+  await expect
+    .poll(() =>
+      component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {
+        const boxes = rows.map((row) => row.getBoundingClientRect());
+        return boxes.flatMap((box, index) => boxes.slice(index + 1).filter((other) => box.top < other.bottom && other.top < box.bottom)).length;
+      }),
+    )
+    .toBe(0);
 
   const settled = await component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {
     const scrollElement = rows[0]?.closest<HTMLElement>('[data-slot="virtual-list-scroll"]');
@@ -185,6 +194,150 @@ test("a 906-row measured list resets a settled 30-row scope after old-offset cla
   expect(settled.visibleCount).toBeGreaterThan(1);
   expect(settled.ownsCentre.every(Boolean)).toBe(true);
   await expect(scroll).toHaveAttribute("data-identity-probe", "preserved");
+});
+
+test("rapid settled scope churn lands only the latest reset and cancels older frame work", async ({ mount, page }) => {
+  const component = await mount(<ResetScopeLifecycleList />);
+  const scroll = component.getByRole("list", { name: "Lifecycle reset rows" });
+  await component.getByText("Scope 0 row 0", { exact: true }).hover();
+  await page.mouse.wheel(0, 3000);
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(2000);
+
+  await page.evaluate(() => {
+    const pending = new Map<number, FrameRequestCallback>();
+    let nextId = 1;
+    const harness = {
+      drain(): void {
+        for (let pass = 0; pending.size > 0 && pass < 50; pass += 1) {
+          this.flushAll();
+        }
+      },
+      flushAll(): void {
+        for (const [id, callback] of Array.from(pending)) {
+          pending.delete(id);
+          callback(0);
+        }
+      },
+      flushLatest(): void {
+        const latest = Array.from(pending).at(-1);
+        if (latest !== undefined) {
+          pending.delete(latest[0]);
+          latest[1](0);
+        }
+      },
+    };
+    Object.assign(globalThis, { __resetFrameHarness: harness });
+    globalThis.requestAnimationFrame = (callback): number => {
+      const id = nextId;
+      nextId += 1;
+      pending.set(id, callback);
+      return id;
+    };
+    globalThis.cancelAnimationFrame = (id): void => {
+      pending.delete(id);
+    };
+  });
+  await page.evaluate(() => {
+    (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => void } }).__resetFrameHarness.drain();
+  });
+  await scroll.evaluate((node) => {
+    node.scrollTop = 2500;
+  });
+
+  await component.getByTestId("scope-a").click();
+  await expect(component.getByTestId("active-scope")).toHaveText("1");
+  await scroll.evaluate((node) => {
+    node.scrollTop = 700;
+  });
+  await component.getByTestId("scope-b").click();
+  await expect(component.getByTestId("active-scope")).toHaveText("2");
+  await scroll.evaluate((node) => {
+    node.scrollTop = 600;
+  });
+  await page.evaluate(() => {
+    (globalThis as typeof globalThis & { __resetFrameHarness: { flushLatest: () => void } }).__resetFrameHarness.flushLatest();
+  });
+  await expect(scroll).toHaveJSProperty("scrollTop", 0);
+
+  await scroll.evaluate((node) => {
+    node.scrollTop = 500;
+  });
+  await page.evaluate(() => {
+    (globalThis as typeof globalThis & { __resetFrameHarness: { flushAll: () => void } }).__resetFrameHarness.flushAll();
+  });
+  await expect(scroll).toHaveJSProperty("scrollTop", 500);
+  await expect(component.getByText("Scope 2 row 0", { exact: true })).toHaveCount(0);
+});
+
+test("unmount before the reset frame cancels the stale landing without errors or detached-node writes", async ({ mount, page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const component = await mount(<ResetScopeLifecycleList />);
+  const scroll = component.getByRole("list", { name: "Lifecycle reset rows" });
+  await component.getByText("Scope 0 row 0", { exact: true }).hover();
+  await page.mouse.wheel(0, 3000);
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(2000);
+
+  await page.evaluate(() => {
+    const pending = new Map<number, FrameRequestCallback>();
+    let nextId = 1;
+    const scrollElement = document.querySelector<HTMLElement>('[aria-label="Lifecycle reset rows"]');
+    const nativeScrollTo = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = function scrollTo(optionsOrX?: number | ScrollToOptions, y?: number): void {
+      if (this === scrollElement) {
+        this.dataset["resetWrites"] = String(Number(this.dataset["resetWrites"] ?? "0") + 1);
+      }
+      if (typeof optionsOrX === "number") {
+        (nativeScrollTo as (x: number, y: number) => void).call(this, optionsOrX, y ?? 0);
+      } else {
+        (nativeScrollTo as (options?: ScrollToOptions) => void).call(this, optionsOrX);
+      }
+    };
+    Object.assign(globalThis, {
+      __resetFrameHarness: {
+        drain(): void {
+          for (let pass = 0; pending.size > 0 && pass < 50; pass += 1) {
+            this.flushAll();
+          }
+        },
+        flushAll(): void {
+          for (const [id, callback] of Array.from(pending)) {
+            pending.delete(id);
+            callback(0);
+          }
+        },
+      },
+    });
+    globalThis.requestAnimationFrame = (callback): number => {
+      const id = nextId;
+      nextId += 1;
+      pending.set(id, callback);
+      return id;
+    };
+    globalThis.cancelAnimationFrame = (id): void => {
+      pending.delete(id);
+    };
+  });
+  await page.evaluate(() => {
+    (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => void } }).__resetFrameHarness.drain();
+  });
+  await scroll.evaluate((node) => {
+    node.scrollTop = 2500;
+  });
+
+  await component.getByTestId("scope-a").click();
+  await expect(component.getByTestId("active-scope")).toHaveText("1");
+  await expect(scroll).not.toHaveJSProperty("scrollTop", 0);
+  const detachedScroll = await scroll.elementHandle();
+  expect(detachedScroll).not.toBeNull();
+  await expect(scroll).not.toHaveAttribute("data-reset-writes");
+  await component.unmount();
+  await page.evaluate(() => {
+    (globalThis as typeof globalThis & { __resetFrameHarness: { flushAll: () => void } }).__resetFrameHarness.flushAll();
+  });
+  // ONESHOT-OK: flushAll is synchronous and the detached node cannot receive later browser work.
+  expect(await detachedScroll?.getAttribute("data-reset-writes")).toBeNull();
+  expect(errors).toEqual([]);
 });
 
 test("onEndApproach fires when the rendered window is within endApproachRows of the tail", async ({ mount }) => {
