@@ -76,6 +76,7 @@ const lib = createTimeLib({ now: () => NOW_MS, locale: "en-US", timeZone: "UTC" 
 
 test("display: absolute forms under en-US/UTC", () => {
   expect(lib.formatDate(NOW_MS)).toBe("Jul 3, 2026");
+  expect(lib.formatMonthYear(NOW_MS)).toBe("July 2026");
   expect(lib.formatTime(NOW_MS)).toBe("12:00 PM");
   expect(lib.formatDateTime(NOW_MS)).toBe("Jul 3, 2026, 12:00 PM");
 });

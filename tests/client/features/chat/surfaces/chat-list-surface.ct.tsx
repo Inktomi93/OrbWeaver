@@ -21,6 +21,7 @@ import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.t
 import { ChatListSurfaceStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
+const RAW_MONTH_COPY = /2020-06/u;
 const ARIA_SEAT = makeSeatPortrait("char_aria", "Aria Nightshade", "hash_aria");
 const ADVENTURE = makeChatSummary({
   id: "chat_adventure",
@@ -242,6 +243,84 @@ test.describe("date jump coarse pointer", () => {
     expect(monthBox?.x ?? -1).toBeGreaterThanOrEqual(searchBox?.x ?? 0);
     expect((clearBox?.x ?? 0) + (clearBox?.width ?? 0)).toBeLessThanOrEqual((searchBox?.x ?? 0) + (searchBox?.width ?? 0));
   });
+
+  test("compact month remount gives every virtual row one positioned box and ownership of its own centre", async ({ mount, page }) => {
+    const old = Array.from({ length: 30 }, (_unused, at) => {
+      const recencyAt = Date.UTC(2020, 5, 30) - at;
+      return makeChatSummary({
+        id: `chat_compact_${String(at)}`,
+        title: `Compact old ${String(at).padStart(2, "0")}`,
+        lastMessageAt: recencyAt,
+        updatedAt: recencyAt,
+      });
+    });
+    await routeTrpc(page, { "chat.listChats": datedChatListResponder(old), "character.list": { items: [], nextCursor: null } });
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const component = await mount(<ChatListSurfaceStory width={430} />);
+    await component.evaluate((root) => {
+      root.classList.add("shell-grid");
+      root.setAttribute("data-density", "compact");
+    });
+
+    await component.getByLabel("Jump to month").fill("2020-06");
+    await expect(component.getByText("Compact old 00")).toBeVisible();
+
+    const geometry = await component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {
+      const listBox = rows[0]?.closest('[data-slot="virtual-list"]')?.getBoundingClientRect();
+      return rows.map((row) => {
+        const box = row.getBoundingClientRect();
+        const body = row.querySelector<HTMLElement>('[data-slot="list-row-body"]');
+        const centreY = box.y + box.height / 2;
+        return {
+          index: Number(row.getAttribute("data-index")),
+          top: row.getAttribute("style"),
+          y: box.y,
+          centreIsVisible: listBox !== undefined && centreY >= listBox.top && centreY <= listBox.bottom,
+          ownsCentre: document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('[data-slot="list-row-body"]') === body,
+        };
+      });
+    });
+    expect(geometry.length).toBeGreaterThan(1);
+    expect(geometry.filter((row) => row.top?.includes("top:") !== true)).toEqual([]);
+    expect(new Set(geometry.map((row) => row.y)).size).toBe(geometry.length);
+    expect(geometry.filter((row) => row.centreIsVisible && !row.ownsCentre)).toEqual([]);
+    expect(geometry.find((row) => row.index === 0)?.ownsCentre).toBe(true);
+    await expect(component.getByRole("list", { name: "Chats" })).toHaveJSProperty("scrollTop", 0);
+  });
+});
+
+test("the icon-only month clear exposes pointer copy byte-equal to its accessible name", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.getByLabel("Jump to month").fill("2020-06");
+
+  const clear = component.getByRole("button", { name: "Clear month jump" });
+  await expect(clear).toHaveAttribute("aria-label", "Clear month jump");
+  await expect(clear).toHaveAttribute("title", "Clear month jump");
+});
+
+for (const width of [1280, 720, 430, 390, 320] as const) {
+  test(`@${String(width)}: the month clear aligns to the input control rather than the label-and-field block`, async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+    const component = await mount(<ChatListSurfaceStory width={width} />);
+    const month = component.getByLabel("Jump to month");
+    await month.fill("2020-06");
+    const clear = component.getByRole("button", { name: "Clear month jump" });
+    const [monthBox, clearBox] = await Promise.all([month.boundingBox(), clear.boundingBox()]);
+
+    expect(monthBox).not.toBeNull();
+    expect(clearBox).not.toBeNull();
+    expect(Math.abs((monthBox?.y ?? 0) + (monthBox?.height ?? 0) / 2 - ((clearBox?.y ?? 0) + (clearBox?.height ?? 0) / 2))).toBeLessThanOrEqual(1);
+  });
+}
+
+test("month-scoped empty copy names the localized human month and year", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": datedChatListResponder([]), "character.list": { items: [], nextCursor: null } });
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.getByLabel("Jump to month").fill("2020-06");
+
+  await expect(component.getByText("No chats found by June 2020.")).toBeVisible();
+  await expect(component.getByText(RAW_MONTH_COPY)).toHaveCount(0);
 });
 
 test("a SEARCH that matches nothing says NO MATCHES — never the library-empty copy", async ({ mount, page }) => {

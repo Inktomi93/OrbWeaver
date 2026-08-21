@@ -181,6 +181,7 @@ export function VirtualList<T>({
     >
       <div ref={virtualizer.containerRef} className="relative w-full" data-slot="virtual-list-viewport">
         {virtualItems.map((virtualItem) => (
+          // A remounted row must be positioned before the direct DOM updater can run its first hit-test.
           // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
           <div
             key={virtualItem.key}
@@ -189,6 +190,7 @@ export function VirtualList<T>({
             data-lane={lanes === undefined ? undefined : virtualItem.lane}
             data-slot="virtual-list-row"
             className="absolute inset-x-0"
+            style={{ top: virtualItem.start }}
             role="listitem"
             aria-setsize={items.length}
             aria-posinset={virtualItem.index + 1}

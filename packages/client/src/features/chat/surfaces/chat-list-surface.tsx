@@ -39,7 +39,7 @@ import { useRef, useState } from "react";
 import { CharacterPicker, FaceStrip } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { useDebouncedValue, useFocusOnMount } from "#lib";
+import { timeLib, useDebouncedValue, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRow } from "../components/chat-list-row.tsx";
@@ -68,6 +68,9 @@ const SEARCH_DEBOUNCE_MS = 250;
 const FACES_SOURCE_LIMIT = 30;
 
 const MONTH_VALUE_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/u;
+const MID_MONTH_DAY = 15;
+const MIDDAY_UTC_HOUR = 12;
+const CLEAR_MONTH_LABEL = "Clear month jump";
 
 function monthExclusiveUpperBound(value: string): number | null {
   const match = MONTH_VALUE_RE.exec(value);
@@ -77,6 +80,15 @@ function monthExclusiveUpperBound(value: string): number | null {
   const boundary = new Date(0);
   boundary.setUTCFullYear(Number(match.groups["year"]), Number(match.groups["month"]), 1);
   return boundary.getTime();
+}
+
+function formatMonthLabel(value: string): string | null {
+  const match = MONTH_VALUE_RE.exec(value);
+  if (match?.groups === undefined) {
+    return null;
+  }
+  // Mid-month noon stays in the selected calendar month in every IANA zone while the display seam localizes it.
+  return timeLib.formatMonthYear(Date.UTC(Number(match.groups["year"]), Number(match.groups["month"]) - 1, MID_MONTH_DAY, MIDDAY_UTC_HOUR));
 }
 
 export interface ChatListSurfaceProps {
@@ -90,6 +102,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   const [query, setQuery] = useState("");
   const [month, setMonth] = useState("");
   const beforeRecencyAt = monthExclusiveUpperBound(month);
+  const monthLabel = formatMonthLabel(month);
   const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const clearSearch = (): void => setQuery("");
   const clearMonth = (): void => setMonth("");
@@ -115,22 +128,22 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             weave is the product's word for itself, which is a fine thing for a hero line and the wrong
             thing on a filter field. */}
         <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search chats…" value={query} />
-        <Row align="center" gap="field">
-          <Field className="min-w-0 flex-1" label="Jump to month" orientation="horizontal">
-            <Input onValueChange={setMonth} type="month" value={month} />
-          </Field>
-          {month === "" ? null : (
-            <Button aria-label="Clear month jump" intent="ghost" onClick={clearMonth} size="icon" type="button">
-              <Icon icon={X} size="sm" />
-            </Button>
-          )}
-        </Row>
+        <Field label="Jump to month">
+          <Row align="center" gap="field">
+            <Input className="min-w-0 flex-1" onValueChange={setMonth} type="month" value={month} />
+            {month === "" ? null : (
+              <Button aria-label={CLEAR_MONTH_LABEL} intent="ghost" onClick={clearMonth} size="icon" title={CLEAR_MONTH_LABEL} type="button">
+                <Icon icon={X} size="sm" />
+              </Button>
+            )}
+          </Row>
+        </Field>
         <Stack className="min-h-0 flex-1">
           <ChatListBody
             activeChatId={activeChatId}
             beforeRecencyAt={beforeRecencyAt}
             characterFilter={characterFilter}
-            month={month}
+            monthLabel={monthLabel}
             onClearMonth={clearMonth}
             onClearSearch={clearSearch}
             onDeletedChat={onDeletedChat}
@@ -263,7 +276,7 @@ interface ChatListBodyProps {
   readonly activeChatId: ChatId | null;
   readonly beforeRecencyAt: number | null;
   readonly characterFilter: ChatListCharacterFilter | null;
-  readonly month: string;
+  readonly monthLabel: string | null;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   readonly onNewChat: () => void;
@@ -280,7 +293,7 @@ function ChatListBody({
   activeChatId,
   beforeRecencyAt,
   characterFilter,
-  month,
+  monthLabel,
   onSelect,
   onDeletedChat,
   onNewChat,
@@ -305,7 +318,11 @@ function ChatListBody({
             Clear month
           </Button>
         }
-        description={characterFilter === null ? `No chats found by ${month}.` : `No chats with ${characterFilter.name} found by ${month}.`}
+        description={
+          characterFilter === null
+            ? `No chats found by ${monthLabel ?? "the selected month"}.`
+            : `No chats with ${characterFilter.name} found by ${monthLabel ?? "the selected month"}.`
+        }
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title="No chats by then"
       />
@@ -343,7 +360,7 @@ function ChatListBody({
           items={collection.items}
           listKey={beforeRecencyAt}
           listProps={collection.listProps}
-          month={month}
+          monthLabel={monthLabel}
           onClearSearch={onClearSearch}
           onDeletedChat={onDeletedChat}
           onSelect={onSelect}
@@ -359,7 +376,7 @@ interface ChatRowsProps {
   readonly items: readonly ChatListItem[];
   readonly listProps: ReturnType<typeof useChatListCollection>["listProps"];
   readonly listKey: number | null;
-  readonly month: string;
+  readonly monthLabel: string | null;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   readonly onClearSearch: () => void;
@@ -367,7 +384,7 @@ interface ChatRowsProps {
 }
 
 /** The search-empty → rows ladder. */
-function ChatRows({ activeChatId, items, listKey, listProps, month, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
+function ChatRows({ activeChatId, items, listKey, listProps, monthLabel, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
   const actions = useChatListRowActions();
   if (items.length === 0) {
     // The server searched the whole active scope, not only the pages that happened to be loaded.
@@ -378,7 +395,7 @@ function ChatRows({ activeChatId, items, listKey, listProps, month, onClearSearc
             Clear search
           </Button>
         }
-        description={month === "" ? `No chat matches "${query}".` : `No chat by ${month} matches "${query}".`}
+        description={monthLabel === null ? `No chat matches "${query}".` : `No chat by ${monthLabel} matches "${query}".`}
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title="No matches"
       />
