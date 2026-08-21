@@ -583,15 +583,15 @@
     },
     {
       "path": "docs/design/memory-retrieval-graceful-degrade.md",
-      "assignedSha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
+      "assignedSha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
-      "verifiedCommit": "982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+      "verifiedSha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
+      "verifiedCommit": "b75860a08476cdf9276337b5009d003bd0ab31eb",
       "verifiedAt": "2026-08-21",
       "evidence": [
-        "docs/design/memory-retrieval-graceful-degrade.md:1 full read against implementation commit 982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+        "docs/design/memory-retrieval-graceful-degrade.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
         "packages/server/src/domain/search/verbs/digests.ts:76 local mixC fallback preserves the retrieved result",
         "packages/server/src/domain/chat/engine/engine.ts:1299 emits the typed chat warning",
         "tests/server/domain/search/verbs/digests.int.test.ts:221 verifies the complete retrieved-order fallback",
@@ -599,6 +599,7 @@
         "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54 verifies rendered mode guidance and accessibility",
         "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat sealed Select entrance evidence",
         "tests/client/lib/motion-flaggers.ct.tsx:278 verifies CDP still sees a planted dropped-frame failure while duplicate dev collection is paused",
+        "tests/tooling/motion-audit.test.ts:91 proves the first-open allowance cannot renew onto a second app-owned block",
         "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21"
       ],
       "summary": "Memory retrieval guidance, graceful rerank fallback, responsive picker behavior, and the sealed Select motion-audit calibration are verified together without changing Base UI or product motion.",

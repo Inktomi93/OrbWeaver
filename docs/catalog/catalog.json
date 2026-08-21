@@ -1750,9 +1750,9 @@
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 437,
-      "bytes": 28067,
-      "sha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
+      "lines": 446,
+      "bytes": 28787,
+      "sha256": "d64a5a935cba88273a5a4003f8813fffe8ee58689ed6c7df479c44f22d11ff79",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1765,19 +1765,19 @@
       },
       "receipt": {
         "path": "docs/architecture/core/motion-and-animation-guide.md",
-        "assignedSha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
+        "assignedSha256": "d64a5a935cba88273a5a4003f8813fffe8ee58689ed6c7df479c44f22d11ff79",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
-        "verifiedCommit": "982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+        "verifiedSha256": "d64a5a935cba88273a5a4003f8813fffe8ee58689ed6c7df479c44f22d11ff79",
+        "verifiedCommit": "b75860a08476cdf9276337b5009d003bd0ab31eb",
         "verifiedAt": "2026-08-21",
         "evidence": [
-          "docs/architecture/core/motion-and-animation-guide.md:1 full read against implementation commit 982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+          "docs/architecture/core/motion-and-animation-guide.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
           "packages/client/src/lib/select-entrance-evidence.ts:217 installs the sealed Select entrance observer",
-          "scripts/probes/motion-audit.ts:95 retains a 140ms first-only allowance before the unchanged blocking ceiling",
+          "scripts/probes/motion-audit.ts:379 selects one chronological primary confirmed LoAF per first entrance before the fixed allowance is applied",
           "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat Select entrance evidence",
-          "tests/tooling/motion-audit.test.ts:121 verifies Chrome's nested PipelineReporter payload"
+          "tests/tooling/motion-audit.test.ts:91 proves a second app-owned block in the same lifetime remains red"
         ],
         "claims": [
           {
@@ -1789,7 +1789,7 @@
               },
               {
                 "kind": "code",
-                "target": "scripts/probes/motion-audit.ts:95"
+                "target": "scripts/probes/motion-audit.ts:379"
               },
               {
                 "kind": "test",
@@ -1797,12 +1797,12 @@
               },
               {
                 "kind": "test",
-                "target": "tests/tooling/motion-audit.test.ts:121"
+                "target": "tests/tooling/motion-audit.test.ts:91"
               }
             ]
           }
         ],
-        "summary": "Active motion law reverified against the sealed Select evidence ledger, calibrated LoAF and PipelineReporter verdicts, and browser plus tooling controls."
+        "summary": "Active motion law reverified against the sealed Select evidence ledger, one-shot first-entrance allowance, attribution veto, and browser plus tooling controls."
       },
       "receiptCurrent": true
     },
@@ -11429,9 +11429,9 @@
       "path": "docs/design/memory-retrieval-graceful-degrade.md",
       "lane": "design",
       "issue": 5,
-      "lines": 425,
-      "bytes": 40375,
-      "sha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
+      "lines": 446,
+      "bytes": 42169,
+      "sha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11444,15 +11444,15 @@
       },
       "receipt": {
         "path": "docs/design/memory-retrieval-graceful-degrade.md",
-        "assignedSha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
+        "assignedSha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
-        "verifiedCommit": "982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+        "verifiedSha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
+        "verifiedCommit": "b75860a08476cdf9276337b5009d003bd0ab31eb",
         "verifiedAt": "2026-08-21",
         "evidence": [
-          "docs/design/memory-retrieval-graceful-degrade.md:1 full read against implementation commit 982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+          "docs/design/memory-retrieval-graceful-degrade.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
           "packages/server/src/domain/search/verbs/digests.ts:76 local mixC fallback preserves the retrieved result",
           "packages/server/src/domain/chat/engine/engine.ts:1299 emits the typed chat warning",
           "tests/server/domain/search/verbs/digests.int.test.ts:221 verifies the complete retrieved-order fallback",
@@ -11460,6 +11460,7 @@
           "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54 verifies rendered mode guidance and accessibility",
           "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat sealed Select entrance evidence",
           "tests/client/lib/motion-flaggers.ct.tsx:278 verifies CDP still sees a planted dropped-frame failure while duplicate dev collection is paused",
+          "tests/tooling/motion-audit.test.ts:91 proves the first-open allowance cannot renew onto a second app-owned block",
           "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21"
         ],
         "summary": "Memory retrieval guidance, graceful rerank fallback, responsive picker behavior, and the sealed Select motion-audit calibration are verified together without changing Base UI or product motion.",
