@@ -36,9 +36,21 @@ Owner decision batch OPEN: speaker-picker honest-refusal exemption · serde bund
 (now live via #396) · backfill sweep scope · #374 motion-law carve-out for anchored-popup entrance
 (Codex's handoff: option 1 recommended, receipts in its final report) · #285 glow carrier scope ·
 `{{datetimeformat}}` Intl-vocabulary arm (lean: never) · tooling P0's four questions (launcher shims;
-4 flag-for-delete audit scripts; record.ts at P3; gate-size exemption). Queued Ready: #388 #391 #392
-+ prepared-statements adoption. Pre-push: behavioral battery + `pnpm verify --push` still owed before
-any origin push (needs fresh owner word).
+4 flag-for-delete audit scripts; record.ts at P3; gate-size exemption). Queued Ready: #388 #391 #392 #398 #400. Pre-push: behavioral battery + `pnpm verify --push` still owed
+before any origin push (needs fresh owner word).
+
+DELTA (later 2026-08-21): #390 + #396 merged and Done (host-seat partial unique index — next boot
+regenerates the dev db, owner-accepted; serde now DERIVES provenance instead of refusing — #401's
+refuse-vs-degrade decision effectively evidence-settled, owner nod pending). Static tier PASS on main
+(3cbb9602a). Board reconciled: decisions #397 #399 #401 #402 in Needs owner; #398 #400 Ready; #403
+(Drizzle 1.0) Parked wake=stable. UPSTREAM POSTURE (owner): drafts stay LOCAL text-only, never filed;
+patches stay private pnpm patches. stryker-v10 lane (#394, `wt/agent-a5802b358a89ffddc`): merge main
+in → dry-run → calibration at --concurrency 6; TS7 three-arm experiment running (path-normalization
+mechanism found in typescript-checker's ts-native — conditional LOCAL pnpm patch + native flip ONLY if
+arm A fixes verdict AND speed; calibration must run on the shipping checker config). Codex's FINAL
+merge `837e73853` (its branch 3cbb9602a..837e73853: memory-retrieval teaching #331 + coarse widths
+#371 + Select motion calibration #374/#389, 44 files +3172) is UNDER REVIEW — stickler dispatched;
+its verdict routes fixes before this merge is trusted. Codex residue cleanup = #400.
 
 This page is the cold-start entry point, not a backlog or a second source of status. Mutable work
 lives in [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1); repository documents
