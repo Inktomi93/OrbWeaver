@@ -395,11 +395,11 @@ function record(spot: string, turnNo: number, t: TurnResult, disposition: string
   usageRows.push({
     spot,
     turn: `t${turnNo}`,
-    tokensIn: r.usage.tokensIn,
-    tokensOut: r.usage.tokensOut,
+    tokensIn: r.usage.tokensIn ?? 0,
+    tokensOut: r.usage.tokensOut ?? 0,
     cacheRead: r.usage.cacheReadTokens,
     cacheWrite: r.usage.cacheWriteTokens,
-    costUsd: r.usage.costUsd,
+    costUsd: r.usage.costUsd ?? 0,
     ms: t.elapsedMs,
   });
   console.log(`  [${spot}/t${turnNo}] disp=${disposition} reply: ${r.reply.slice(0, VERBOSE ? r.reply.length : SNIPPET)}`);

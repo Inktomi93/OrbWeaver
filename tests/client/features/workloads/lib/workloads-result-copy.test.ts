@@ -36,6 +36,16 @@ test("each result shape gets its own sentence", () => {
       dryRun: false,
     }),
   ).toBe("10 variants · 2 exact counts recovered · 1 legacy count marked measured · 7 estimated · 1 changed concurrently");
+  expect(
+    workloadResultSummary("import-token-usage-backfill", {
+      scanned: 1,
+      exactRecovered: 1,
+      legacyPromoted: 0,
+      estimated: 0,
+      compareAndSetSkipped: 0,
+      dryRun: false,
+    }),
+  ).toBe("1 variant · 1 exact count recovered");
   expect(workloadResultSummary("databank-ingest", { documents: 3, chunksUpserted: 40, chunksNoop: 2, chunksPruned: 0, reExtracted: 0, failed: [] })).toBe(
     "3 documents · 40 chunks written · 2 chunks unchanged",
   );

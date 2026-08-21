@@ -310,8 +310,8 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
     now: params.now,
     ...canonModelSlice(creditsModel, {
       sign,
-      tokensIn,
-      tokensOut,
+      tokensIn: row.tokensIn,
+      tokensOut: row.tokensOut,
       gen,
       reasoningGen,
       reasoningMs,
@@ -329,8 +329,8 @@ function canonModelSlice(
   creditsModel: boolean,
   v: {
     readonly sign: 1 | -1;
-    readonly tokensIn: number;
-    readonly tokensOut: number;
+    readonly tokensIn: number | null;
+    readonly tokensOut: number | null;
     readonly gen: number | null;
     readonly reasoningGen: number;
     readonly reasoningMs: number;
@@ -346,8 +346,8 @@ function canonModelSlice(
   }
   return {
     modelGenerations: v.sign,
-    modelTokensIn: v.tokensIn,
-    modelTokensOut: v.tokensOut,
+    modelTokensIn: (v.tokensIn ?? 0) * v.sign,
+    modelTokensOut: (v.tokensOut ?? 0) * v.sign,
     ...tokenSampleSlice({ prefix: "model", provenance: v.tokenProvenance, tokensIn: v.tokensIn, tokensOut: v.tokensOut, sign: v.sign }),
     modelGenTimeMs: v.gen !== null ? v.gen * v.sign : 0,
     modelGenSamples: v.gen !== null ? v.sign : 0,

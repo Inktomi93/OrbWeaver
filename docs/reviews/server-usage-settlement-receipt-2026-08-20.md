@@ -27,7 +27,7 @@ scratch-only schema augmentation added the new provenance column and the five sa
 rollup table. The imported-chat census before the workload was:
 
 | Fact | Count |
-| --- | ---: |
+| - | -: |
 | Imported variants scanned through a non-null host | 87,922 |
 | Both token columns NULL | 61,842 |
 | Legacy numeric token rows | 26,080 |
@@ -71,9 +71,11 @@ The scratch database was reconciled again and `PRAGMA integrity_check` returned 
 
 - Red-first: 5 files failed, 11 tests failed and 115 passed across contracts, serde, import mapping, stats
   semantics and client formatting before implementation.
-- Provider fence: `tests/server/domain/chat/engine/engine-stats.suite.int.test.ts` — 5/5 passed. Its #291 arm
+- Provider fence: `tests/server/domain/chat/engine/engine-stats.suite.int.test.ts` — 9/9 passed. Its #291 arm
   starts at provider-shaped `usage.cost`, then asserts measured variant usage/provider and model cost/sample
-  rollup.
+  rollup. The stickler repair added production-mapper → real-engine cases for an absent usage object, one
+  missing token axis, genuine reported zeroes, and recorded tokens without cost; canon and model sample
+  counters preserve every distinction.
 - Backfill: workload unit tests 24/24 and chat persistence integration 2/2 passed; the full DB-backed
   backfill/idempotency test passed 1/1. A final post-structure focused run passed 32/32 across those three
   surfaces plus the engine fence.
@@ -84,10 +86,17 @@ The scratch database was reconciled again and `PRAGMA integrity_check` returned 
 - Client: the final bounded message metadata + corpus + overview + time component run passed 44/44,
   including `~128 tok`, estimated daily-chart values, hidden unrecorded counts/bars, and absent-cost route
   filtering. A preceding `pnpm test:ct -- <paths>` invocation retained the separator and unexpectedly ran
-  the whole CT tree: 3,554 passed and 9 unrelated app-shell/message-row/variant-wire failures. That
-  accidental scope violation is recorded here and is not used as the lane's pass evidence.
+  the whole CT tree: 3,554 passed and 9 failures. Stickler comparison proved six message-row/variant-wire
+  failures were candidate-induced by a fixture that combined numeric tokens with `unrecorded`; the fixture
+  now derives coherent provenance. The exact three-file rerun passes 294 tests and retains only the three
+  app-shell panel-mode failures reproduced on the clean parent. The accidental scope violation is recorded
+  here and is not used as the lane's pass evidence.
 - Final focused settlement run: 100/100 passed across the canonical provenance contract, formatter,
   discovery economics, stats rates, backfill persistence/workload and real-engine provider fence.
+- Stickler repair run: 103/103 passed across ten exact provider, engine, live-vs-rebuild drift, backfill
+  CAS/workload, portable serde, and workload-copy files. Content-only and metadata-only races now lose the
+  CAS; explicit contradictory portable states refuse as malformed while legacy files without a provenance
+  field still derive deterministically; singular audit copy renders `1 exact count recovered`.
 - Database: baseline parity reported 226 live-schema statements vs 226 baseline statements; drizzle-kit
   reported `Everything's fine`.
 

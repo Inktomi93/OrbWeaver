@@ -87,6 +87,11 @@ const FROZEN_AT = 1_750_000_000_000;
 
 /** A fully-valid `MessageView` literal (the client read model — slot ⋈ selected variant). */
 export function makeMessageView(overrides: Partial<MessageView> = {}): MessageView {
+  const tokenProvenance =
+    overrides.tokenProvenance ??
+    ((overrides.tokensIn !== null && overrides.tokensIn !== undefined) || (overrides.tokensOut !== null && overrides.tokensOut !== undefined)
+      ? "measured"
+      : "unrecorded");
   return {
     id: castId<MessageId>("msg_ct_1"),
     toolCalls: [],
@@ -113,7 +118,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     terminalReason: null,
     tokensIn: null,
     tokensOut: null,
-    tokenProvenance: "unrecorded",
+    tokenProvenance,
     cacheReadTokens: null,
     cacheWriteTokens: null,
     contextWindow: null,

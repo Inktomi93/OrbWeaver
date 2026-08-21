@@ -152,7 +152,7 @@ const scoreSweepSummary: WorkloadResultRenderer<"refine-score-sweep"> = (result)
 const tokenUsageBackfillSummary: WorkloadResultRenderer<"import-token-usage-backfill"> = (result) =>
   summarize([
     count(result.scanned, "variant"),
-    tallyIfAny(result.exactRecovered, "exact counts recovered"),
+    countIfAny(result.exactRecovered, "exact count recovered", "exact counts recovered"),
     countIfAny(result.legacyPromoted, "legacy count marked measured", "legacy counts marked measured"),
     tallyIfAny(result.estimated, "estimated"),
     tallyIfAny(result.compareAndSetSkipped, "changed concurrently"),
