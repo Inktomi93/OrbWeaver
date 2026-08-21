@@ -1344,6 +1344,42 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
+      "assignedSha256": "3cd2b963ff96f8e6c2a1f6aa01a8db59028ad7084f027581f9d9eae46202fb15",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "3cd2b963ff96f8e6c2a1f6aa01a8db59028ad7084f027581f9d9eae46202fb15",
+      "verifiedCommit": "439e17a68bbdf64088faeeab2a19e5b280ad17d2",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md:1-79 full read against merged implementation 98244f811dfaea17e4b1ef607793d02152eaca06",
+        "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
+        "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
+        "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings"
+      ],
+      "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
+      "claims": [
+        {
+          "claim": "The action-door census excludes only generic tabindex=-1 focus plumbing while preserving accessibility and tabindex census coverage plus true duplicate-action detection.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#370"
+            },
+            {
+              "kind": "code",
+              "target": "scripts/probes/design-audit-walker.ts:870"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/design-audit-walker.ct.tsx:407"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
