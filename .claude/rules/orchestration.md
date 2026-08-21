@@ -59,6 +59,10 @@ a11y → `side-eye`; both if the change spans both.
   (2026-08-14, second misroute of the era — two live executors, an approval landed on the wrong
   one). Briefs must tell lanes to state their LANE NAME in every back-channel message; the receiving
   side of a misroute bounces it, but the intended lane silently proceeds on defaults.
+  **The SENDING side is symmetric (2026-08-21): with N same-role lanes live, `SendMessage to:
+  "<role>"` is unroutable (the harness refuses or, worse, could hit the wrong lane). The orchestrator
+  keeps a dispatch map (lane name → agentId) at dispatch time and ALWAYS replies by agentId — the
+  role name is never an address.**
 - **Wrapper hygiene reaches briefs now:** the Bash guard classifies UNTRACKED script bodies
   (2026-08-14) — a lane's helper scripts must carry sanctioned spellings inside (CT cache-clear
   before playwright; redirect harness output to a log and read the log in a separate command, never
@@ -171,10 +175,13 @@ linked Project issue — no lane touches `work:item`.
 - **The whole-tree single-pass runs after EVERY merge train, not only at drain** — tonight's corpus train
   left 9 findings that every scoped lane floor structurally missed; the single-pass caught them 30 min
   after merge instead of at the barrier.
-- **Workspace-package merges restart the stack BEFORE the next drive dispatch** — the orchestrator's
-  restart-at-merge-window is what keeps drive lanes off stale prebundles. And **never merge an
-  instrument change (design-audit/snap/gates) while a drive is live without messaging the driving lane**
-  — its before/after deltas silently span two instruments otherwise.
+- **Workspace-package merges self-apply — the ruling survives, its INPUT changed (2026-08-21,
+  db25e3d1d):** vite source-consumes workspace packages (no stale prebundles) and the server
+  auto-respawns via `node --watch` when merged files land, so no manual restart-at-merge-window
+  exists any more. What REMAINS true: the merge-triggered server respawn WIPES in-memory wire/RPG
+  flight recorders — so still never land a merge under a live drive that depends on them, and
+  **never merge an instrument change (design-audit/snap/gates) while a drive is live without
+  messaging the driving lane** — its before/after deltas silently span two instruments otherwise.
 - **A brief or issue body stating a DATA-BINDING claim owes a ledger grep first** (the D58 lesson: the
   orchestrator wrote "chats reference presets via turn settings" into an issue as fact; the ledger
   already ruled the binding impossible and a gate already enforced it). Binding claims are re-derived,
