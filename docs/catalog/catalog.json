@@ -1750,46 +1750,59 @@
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 402,
-      "bytes": 25274,
-      "sha256": "0affa7545d6205e67193f04b5b197c1e028eacef54d4a87a664c3f3c2669dfca",
+      "lines": 437,
+      "bytes": 28067,
+      "sha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-13"
+          "updated": "2026-08-21"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/motion-and-animation-guide.md",
-        "assignedSha256": "0affa7545d6205e67193f04b5b197c1e028eacef54d4a87a664c3f3c2669dfca",
+        "assignedSha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "0affa7545d6205e67193f04b5b197c1e028eacef54d4a87a664c3f3c2669dfca",
-        "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
-        "verifiedAt": "2026-08-19",
+        "verifiedSha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
+        "verifiedCommit": "982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+        "verifiedAt": "2026-08-21",
         "evidence": [
-          "docs/architecture/core/motion-and-animation-guide.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green"
+          "docs/architecture/core/motion-and-animation-guide.md:1 full read against implementation commit 982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+          "packages/client/src/lib/select-entrance-evidence.ts:217 installs the sealed Select entrance observer",
+          "scripts/probes/motion-audit.ts:95 retains a 140ms first-only allowance before the unchanged blocking ceiling",
+          "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat Select entrance evidence",
+          "tests/tooling/motion-audit.test.ts:121 verifies Chrome's nested PipelineReporter payload"
         ],
         "claims": [
           {
-            "claim": "Shared overlay motion.",
+            "claim": "Motion audit classifies only confirmed, time-bounded sealed Select entrance work; first opens receive the fixed blocking allowance, repeats do not, and Chrome dropped-frame input comes from nested PipelineReporter records.",
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/ui/src/lib/overlay-motion.ts:25"
+                "target": "packages/client/src/lib/select-entrance-evidence.ts:217"
+              },
+              {
+                "kind": "code",
+                "target": "scripts/probes/motion-audit.ts:95"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/lib/motion-stats.ct.tsx:243"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/motion-audit.test.ts:121"
               }
             ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Active motion law reverified against the sealed Select evidence ledger, calibrated LoAF and PipelineReporter verdicts, and browser plus tooling controls."
       },
       "receiptCurrent": true
     },
@@ -11416,41 +11429,43 @@
       "path": "docs/design/memory-retrieval-graceful-degrade.md",
       "lane": "design",
       "issue": 5,
-      "lines": 115,
-      "bytes": 13984,
-      "sha256": "03c63536b8c940623996412ca3de93ace0fb3d6950926c7f27f51886cf089a09",
+      "lines": 425,
+      "bytes": 40375,
+      "sha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-20"
+          "updated": "2026-08-21"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/memory-retrieval-graceful-degrade.md",
-        "assignedSha256": "03c63536b8c940623996412ca3de93ace0fb3d6950926c7f27f51886cf089a09",
+        "assignedSha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "03c63536b8c940623996412ca3de93ace0fb3d6950926c7f27f51886cf089a09",
-        "verifiedCommit": "b33cc95bf1a9628811450cedd712310b10a78953",
-        "verifiedAt": "2026-08-20",
+        "verifiedSha256": "2d3c7aaef1f7bdc12e1fced88dcd2acf622cf6020a5a57268bb2c8e716b5aac6",
+        "verifiedCommit": "982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+        "verifiedAt": "2026-08-21",
         "evidence": [
-          "docs/design/memory-retrieval-graceful-degrade.md:1-115 full read against implementation commit b33cc95bf1a9628811450cedd712310b10a78953",
+          "docs/design/memory-retrieval-graceful-degrade.md:1 full read against implementation commit 982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
           "packages/server/src/domain/search/verbs/digests.ts:76 local mixC fallback preserves the retrieved result",
           "packages/server/src/domain/chat/engine/engine.ts:1299 emits the typed chat warning",
           "tests/server/domain/search/verbs/digests.int.test.ts:221 verifies the complete retrieved-order fallback",
           "tests/server/domain/chat/engine/engine.int.test.ts:764 verifies turn-scoped dedupe and a fresh episode",
           "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54 verifies rendered mode guidance and accessibility",
-          "GitHub issues #331 and #332 re-derived on 2026-08-20"
+          "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat sealed Select entrance evidence",
+          "tests/client/lib/motion-flaggers.ct.tsx:278 verifies CDP still sees a planted dropped-frame failure while duplicate dev collection is paused",
+          "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21"
         ],
-        "summary": "Memory retrieval controls teach benefit and cost without exposing stored enum values; mixC rerank failure preserves completed vector recall and surfaces one typed warning per turn episode.",
+        "summary": "Memory retrieval guidance, graceful rerank fallback, responsive picker behavior, and the sealed Select motion-audit calibration are verified together without changing Base UI or product motion.",
         "claims": [
           {
-            "claim": "Memory retrieval modes use human consequence-first labels and exact experimental recency guidance; mixC rerank failure preserves retrieved vector order and reports one turn-scoped typed warning; mutable lifecycle remains in GitHub issues #331 and #332.",
+            "claim": "Memory retrieval modes use human consequence-first labels and exact experimental recency guidance; mixC rerank failure preserves retrieved order with one turn-scoped warning; the sealed Base UI Select keeps its product behavior while motion-audit classifies only its confirmed entrance lifetime.",
             "evidence": [
               {
                 "kind": "code",
@@ -11477,12 +11492,28 @@
                 "target": "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54"
               },
               {
+                "kind": "code",
+                "target": "packages/client/src/lib/select-entrance-evidence.ts:217"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/lib/motion-stats.ct.tsx:243"
+              },
+              {
                 "kind": "issue",
                 "target": "#331"
               },
               {
                 "kind": "issue",
                 "target": "#332"
+              },
+              {
+                "kind": "issue",
+                "target": "#374"
+              },
+              {
+                "kind": "issue",
+                "target": "#389"
               }
             ]
           }

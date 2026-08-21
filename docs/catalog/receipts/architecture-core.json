@@ -940,31 +940,44 @@
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
-      "assignedSha256": "0affa7545d6205e67193f04b5b197c1e028eacef54d4a87a664c3f3c2669dfca",
+      "assignedSha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "0affa7545d6205e67193f04b5b197c1e028eacef54d4a87a664c3f3c2669dfca",
-      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
-      "verifiedAt": "2026-08-19",
+      "verifiedSha256": "251a96809d87f0efdb250b13858806031df550e8d659dc41aa4de548239f4662",
+      "verifiedCommit": "982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+      "verifiedAt": "2026-08-21",
       "evidence": [
-        "docs/architecture/core/motion-and-animation-guide.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green"
+        "docs/architecture/core/motion-and-animation-guide.md:1 full read against implementation commit 982dc5a1177aeb5a936667cf8ae3e8df847c1c27",
+        "packages/client/src/lib/select-entrance-evidence.ts:217 installs the sealed Select entrance observer",
+        "scripts/probes/motion-audit.ts:95 retains a 140ms first-only allowance before the unchanged blocking ceiling",
+        "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat Select entrance evidence",
+        "tests/tooling/motion-audit.test.ts:121 verifies Chrome's nested PipelineReporter payload"
       ],
       "claims": [
         {
-          "claim": "Shared overlay motion.",
+          "claim": "Motion audit classifies only confirmed, time-bounded sealed Select entrance work; first opens receive the fixed blocking allowance, repeats do not, and Chrome dropped-frame input comes from nested PipelineReporter records.",
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/ui/src/lib/overlay-motion.ts:25"
+              "target": "packages/client/src/lib/select-entrance-evidence.ts:217"
+            },
+            {
+              "kind": "code",
+              "target": "scripts/probes/motion-audit.ts:95"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/lib/motion-stats.ct.tsx:243"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/motion-audit.test.ts:121"
             }
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active motion law reverified against the sealed Select evidence ledger, calibrated LoAF and PipelineReporter verdicts, and browser plus tooling controls."
     },
     {
       "path": "docs/architecture/core/ui-package-design.md",
