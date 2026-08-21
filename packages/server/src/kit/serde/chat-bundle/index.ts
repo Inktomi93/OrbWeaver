@@ -207,39 +207,27 @@ export interface PortableChat {
 const nullableIndex = z.number().int().nonnegative().nullish().catch(null);
 const index = z.number().int().nonnegative();
 
-const wireVariantSchema = z
-  .object({
-    idx: z.number().int().nonnegative(),
-    content: z.string(),
-    model: z.string().nullish().catch(null),
-    provider: z.string().nullish().catch(null),
-    tokensIn: z.number().int().nullish().catch(null),
-    tokensOut: z.number().int().nullish().catch(null),
-    tokenProvenance: tokenProvenanceSchema.optional(),
-    reasoning: z.string().nullish().catch(null),
-    ttftMs: z.number().int().nullish().catch(null),
-    genStartedAt: z.number().int().nullish().catch(null),
-    genFinishedAt: z.number().int().nullish().catch(null),
-    // A malformed delta degrades THIS VARIANT's ops to none, never the file. The ops feed a DERIVED cache
-    // (`chats.runtimeVariables`), so losing one turn's ops costs a fold; refusing the file costs the chat.
-    // Same trade the spine's "drop" row policy makes one level up.
-    variableDelta: z.array(varOpSchema).nullish().catch(null),
-    metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
-  })
-  .superRefine((variant, ctx) => {
-    if (variant.tokenProvenance === undefined) {
-      return;
-    }
-    const hasRecordedTokens = typeof variant.tokensIn === "number" || typeof variant.tokensOut === "number";
-    const contradictory = variant.tokenProvenance === "unrecorded" ? hasRecordedTokens : !hasRecordedTokens;
-    if (contradictory) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["tokenProvenance"],
-        message: "token provenance contradicts the recorded token axes",
-      });
-    }
-  });
+const wireVariantSchema = z.object({
+  idx: z.number().int().nonnegative(),
+  content: z.string(),
+  model: z.string().nullish().catch(null),
+  provider: z.string().nullish().catch(null),
+  tokensIn: z.number().int().nullish().catch(null),
+  tokensOut: z.number().int().nullish().catch(null),
+  // NOT refined against the token axes — the contradiction is RESOLVED on read, in `variantFromWire`.
+  // See {@link resolveTokenProvenance} for why a contradictory pair is a live durable row and not a
+  // malformed file.
+  tokenProvenance: tokenProvenanceSchema.optional(),
+  reasoning: z.string().nullish().catch(null),
+  ttftMs: z.number().int().nullish().catch(null),
+  genStartedAt: z.number().int().nullish().catch(null),
+  genFinishedAt: z.number().int().nullish().catch(null),
+  // A malformed delta degrades THIS VARIANT's ops to none, never the file. The ops feed a DERIVED cache
+  // (`chats.runtimeVariables`), so losing one turn's ops costs a fold; refusing the file costs the chat.
+  // Same trade the spine's "drop" row policy makes one level up.
+  variableDelta: z.array(varOpSchema).nullish().catch(null),
+  metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
+});
 
 const wireMessageSchema = z.object({
   role: messageRoleSchema,
@@ -408,6 +396,34 @@ function variantToWire(v: PortableChatVariant): WireChat["messages"][number]["va
   };
 }
 
+/**
+ * The variant's provenance, DERIVED whenever the file's own label disagrees with its token axes.
+ *
+ * WHY THIS IS A RESOLUTION AND NOT A REFUSAL. A contradictory pair — numeric tokens carrying
+ * `'unrecorded'` — is a LIVE DURABLE ROW on this tree, not a corrupt file. The column
+ * `message_variants.token_provenance` is `NOT NULL DEFAULT 'unrecorded'` (`db/schema/chat.ts`), so every
+ * writer that sets the token columns WITHOUT going through `canon-write.ts::variantEconomics` leaves
+ * exactly that shape, and an ST-imported chat SITS in it until the catch-up workload runs — which is
+ * precisely the state `backfill-token-usage.ts::plan()` names `legacyPromoted`. Refusing the FILE for it
+ * made every un-backfilled imported chat unexportable.
+ *
+ * The rule here is the one the whole tree already agrees on, third spelling: absent-or-contradictory
+ * provenance over PRESENT tokens is `measured` (`variantEconomics`'s `??` derive; the backfill's
+ * legacy promotion, which likewise keeps the numbers and only moves the label), and over ABSENT tokens
+ * is `unrecorded`. The output can no longer BE contradictory — it is computed, never trusted.
+ */
+function resolveTokenProvenance(v: {
+  readonly tokenProvenance?: TokenProvenance | undefined;
+  readonly tokensIn?: number | null | undefined;
+  readonly tokensOut?: number | null | undefined;
+}): TokenProvenance {
+  const hasRecordedTokens = typeof v.tokensIn === "number" || typeof v.tokensOut === "number";
+  if (v.tokenProvenance !== undefined && (v.tokenProvenance === "unrecorded") !== hasRecordedTokens) {
+    return v.tokenProvenance;
+  }
+  return hasRecordedTokens ? "measured" : "unrecorded";
+}
+
 function variantFromWire(v: NonNullable<WireChat["messages"][number]["variants"][number]>): PortableChatVariant {
   return {
     idx: v.idx,
@@ -416,7 +432,7 @@ function variantFromWire(v: NonNullable<WireChat["messages"][number]["variants"]
     provider: v.provider ?? null,
     tokensIn: v.tokensIn ?? null,
     tokensOut: v.tokensOut ?? null,
-    tokenProvenance: v.tokenProvenance ?? (typeof v.tokensIn === "number" || typeof v.tokensOut === "number" ? "measured" : "unrecorded"),
+    tokenProvenance: resolveTokenProvenance(v),
     reasoning: v.reasoning ?? null,
     ttftMs: v.ttftMs ?? null,
     genStartedAt: v.genStartedAt ?? null,
