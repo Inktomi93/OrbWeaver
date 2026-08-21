@@ -38,11 +38,14 @@ interface Scenario {
   readonly currentHandle?: Handle | null;
 }
 
-/** A same-process BroadcastChannel so the ladder's posts have somewhere to go (and can be observed). */
+/** A same-process BroadcastChannel so the ladder's posts have somewhere to go (and can be observed), plus
+ *  a `deliver` seam for the other direction — a real channel never echoes to its own poster, so a SIBLING
+ *  tab's verdict can only be simulated by handing the module's own listener an event. */
 class FakeBroadcastChannel {
   static posted: unknown[] = [];
-  addEventListener(): void {
-    /* the ladder subscribes; no sibling posts in these cases */
+  static listeners: ((event: { readonly data: unknown }) => void)[] = [];
+  addEventListener(_type: string, listener: (event: { readonly data: unknown }) => void): void {
+    FakeBroadcastChannel.listeners.push(listener);
   }
   postMessage(data: unknown): void {
     FakeBroadcastChannel.posted.push(data);
@@ -50,11 +53,19 @@ class FakeBroadcastChannel {
   close(): void {
     /* nothing to release */
   }
+
+  /** Post as if ANOTHER TAB sent it — the receiver half of the cross-tab protocol. */
+  static deliver(data: unknown): void {
+    for (const listener of [...FakeBroadcastChannel.listeners]) {
+      listener({ data });
+    }
+  }
 }
 
 async function ladderFor(scenario: Scenario): Promise<{ readonly ladder: Ladder; readonly rec: Recorder }> {
   vi.resetModules();
   FakeBroadcastChannel.posted = [];
+  FakeBroadcastChannel.listeners = [];
   vi.stubGlobal("BroadcastChannel", FakeBroadcastChannel);
   vi.stubGlobal("navigator", undefined); // no Web Locks in node — the same-tab fallback path
   vi.stubGlobal("sessionStorage", undefined);
@@ -167,6 +178,30 @@ describe("rung 0 — probe and resume IN PLACE", () => {
     await vi.waitFor(() => expect(rec.resumes()).toBe(2));
   });
 
+  // §4.2.1's IDENTITY BOUNDARY, at the rung it was never wired to. `authenticated: true` answers "is there
+  // a session", not "is it OURS": on a shared browser (or after the dev latch re-mints identities) the
+  // session this tab's 401 just discovered can belong to somebody else, and resuming keeps the PREVIOUS
+  // human's chats, characters and drafts on screen while every subsequent read and write runs as the new
+  // one. Rung 1 has performed exactly this compare since it was built; rung 0 is the same boundary.
+  test("an authenticated probe as a DIFFERENT handle hard-reloads instead of resuming in place", async () => {
+    const { ladder, rec } = await ladderFor({ me: [{ authenticated: true, handle: SOMEONE_ELSE }], mode: "local", currentHandle: OWNER });
+    ladder.recoverIfStaleSession(UNAUTHORIZED);
+    await vi.waitFor(() => expect(rec.assign).toHaveBeenCalledWith("/"));
+    expect(rec.resumes()).toBe(0);
+    // The verdict still BROADCASTS, carrying the new identity: a sibling tab holding the old one must
+    // reload itself too, rather than render the previous human's cache until its own next edge.
+    expect(FakeBroadcastChannel.posted).toContainEqual({ kind: "session-recovered", handle: SOMEONE_ELSE });
+  });
+
+  // FAIL CLOSED. The belt fires from `query-client.ts`, which is constructed before React mounts, so "no
+  // host bound" is a real state — and one with nothing to compare against. An unprovable identity takes the
+  // hard-reload arm; a resume is only ever offered to a cache this tab can show is its own.
+  test("with NO host bound, an authenticated probe hard-reloads rather than resuming blind", async () => {
+    const { ladder, rec } = await ladderFor({ me: [{ authenticated: true, handle: OWNER }], mode: "local", host: false });
+    ladder.recoverIfStaleSession(UNAUTHORIZED);
+    await vi.waitFor(() => expect(rec.assign).toHaveBeenCalledWith("/"));
+  });
+
   // Unreachable ≠ signed out: the route guard draws the same line, and a hard redirect on a wifi blip is a
   // worse defect than the one being fixed.
   test("an unreachable probe neither resumes nor navigates", async () => {
@@ -256,5 +291,63 @@ describe("rung 2 — signed out, coordinated", () => {
     ladder.recoverIfStaleSession(UNAUTHORIZED);
     ladder.recoverIfStaleSession(UNAUTHORIZED);
     await vi.waitFor(() => expect(rec.assign).toHaveBeenCalledOnce());
+  });
+});
+
+// The FOLLOWER half of the cross-tab protocol: this tab ran no ladder (a sibling held the lock) and learns
+// the verdict from the broadcast alone. The message carries `handle` precisely so the follower can apply the
+// same §4.2.1 boundary the leader did — a sibling that recovered as SOMEBODY ELSE is not this tab's recovery.
+describe("the sibling-tab verdict receiver", () => {
+  test("a sibling's SAME-handle recovery resumes this tab in place", async () => {
+    const { rec } = await ladderFor({ me: [{ authenticated: true, handle: OWNER }], mode: "local", currentHandle: OWNER });
+    FakeBroadcastChannel.deliver({ kind: "session-recovered", handle: OWNER });
+    expect(rec.resumes()).toBe(1);
+    expect(rec.assign).not.toHaveBeenCalled();
+  });
+
+  test("a sibling's DIFFERENT-handle recovery hard-reloads this tab instead of resuming it", async () => {
+    const { rec } = await ladderFor({ me: [{ authenticated: true, handle: OWNER }], mode: "local", currentHandle: OWNER });
+    FakeBroadcastChannel.deliver({ kind: "session-recovered", handle: SOMEONE_ELSE });
+    expect(rec.assign).toHaveBeenCalledWith("/");
+    expect(rec.resumes()).toBe(0);
+  });
+
+  test("a sibling's sign-out still lands this tab on /login (unchanged)", async () => {
+    const { rec } = await ladderFor({ me: [{ authenticated: true, handle: OWNER }], mode: "local", currentHandle: OWNER });
+    FakeBroadcastChannel.deliver({ kind: "signed-out" });
+    expect(rec.assign).toHaveBeenCalledWith("/login");
+  });
+});
+
+// The VISIBILITY PROBE's verdict (§4.4.1), decided here because this is where the identity boundary lives.
+// It is the sensor for the case the ladder alone cannot see: when another identity signs in on this browser
+// the cookie is VALID, so this warm tab never 401s — nothing enters the ladder, and without an identity
+// compare the probe would mark the session fresh and let the tab keep running on the previous human's cache.
+describe("the freshness probe's continuity verdict", () => {
+  test("a live session as the SAME handle is fresh", async () => {
+    const { ladder } = await ladderFor({ me: [{ authenticated: true, handle: OWNER }], mode: "local", currentHandle: OWNER });
+    await expect(ladder.probeSessionContinuity()).resolves.toBe(true);
+  });
+
+  test("a live session as a DIFFERENT handle is NOT fresh — it hands off to the ladder", async () => {
+    const { ladder } = await ladderFor({ me: [{ authenticated: true, handle: SOMEONE_ELSE }], mode: "local", currentHandle: OWNER });
+    await expect(ladder.probeSessionContinuity()).resolves.toBe(false);
+  });
+
+  test("a dead session is NOT fresh", async () => {
+    const { ladder } = await ladderFor({ me: [{ authenticated: false, handle: null }], mode: "local", currentHandle: OWNER });
+    await expect(ladder.probeSessionContinuity()).resolves.toBe(false);
+  });
+
+  // The rejection must PROPAGATE: `startSessionFreshness` reads a thrown probe as "server unreachable" and
+  // does nothing, while `false` is a verdict that enters the ladder. Swallowing it here would sign a user
+  // out of a working app because their wifi blinked.
+  test("an unreachable probe REJECTS rather than reporting a verdict", async () => {
+    const { ladder } = await ladderFor({ me: [{ authenticated: true, handle: OWNER }], mode: "local", currentHandle: OWNER });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    await expect(ladder.probeSessionContinuity()).rejects.toThrow("offline");
   });
 });

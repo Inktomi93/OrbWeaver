@@ -6,6 +6,7 @@
 
 import { bindSessionRecovery, recoverIfUnauthorizedCode } from "@orb/client/data";
 import { AccountSurface, LoginShellAnchor } from "@orb/client/features/auth";
+import { closeModal, openModal, useOpenModal } from "@orb/client/state";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -13,11 +14,13 @@ import { StrictMode, useEffect, useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
 import type { AuthConfig } from "../../../../packages/client/src/data/auth-config.ts";
+// The shell's modal HOST — the seam a story that renders `reauthModal.body()` directly never exercises.
+import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { LoginFirstRunForm } from "../../../../packages/client/src/features/auth/components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form.tsx";
 import { reauthModal } from "../../../../packages/client/src/features/auth/lib/reauth-modal.tsx";
 import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The REAL `AccountSurface` (the modal body the desktop rail-foot Account entry opens via
  *  `openModal("account")`) inside the client data layer — the auth `/config` + `/me` reads are stubbed
@@ -133,5 +136,51 @@ export function ReauthLadderStory(): ReactElement {
         <ReauthLadderProbe />
       </CtDataProviders>
     </StrictMode>
+  );
+}
+
+/** THE DISMISSAL VERDICT, through the REAL `ModalHost` (the story above renders `reauthModal.body()`
+ *  directly and so never touches the host that owns the verdict). The wire under test is
+ *  `Dialog onOpenChange(false)` → `def.onClose()` → `completeReauth("dismissed")` → rung 2.
+ *
+ *  WHY IT NEEDS ITS OWN STORY: if that wire ever breaks, NOTHING renders differently — `runLadder` simply
+ *  awaits `promptReauth()` forever while holding the `orb:session-recovery` Web Lock, so every other tab in
+ *  the browser takes the follower branch and no tab ever recovers. A browser-wide deadlock with no visible
+ *  symptom is exactly the class a rendered assertion cannot catch, so the observable is the rung-2
+ *  navigation itself.
+ *
+ *  The host is wired the way production wires it (`use-session-recovery.ts`): the prompt is `openModal`,
+ *  and the shell store drives the host — no story-local modal state that could pass while the real seam is
+ *  broken. */
+function ReauthDismissalProbe(): ReactElement {
+  useEffect(() => {
+    bindSessionRecovery({
+      resumeInPlace: (): void => undefined,
+      openReauthPrompt: (): void => openModal("reauth"),
+      resumeChatId: (): ChatId | null => null,
+      currentHandle: (): Handle | null => REAUTH_HANDLE,
+    });
+    return (): void => {
+      bindSessionRecovery(null);
+    };
+  }, []);
+  const open = useOpenModal();
+  return (
+    <div style={{ width: 420, padding: 16 }}>
+      <button type="button" data-testid="ct-kill-session" onClick={(): void => void recoverIfUnauthorizedCode("UNAUTHORIZED")}>
+        kill the session
+      </button>
+      <ModalHost onClose={closeModal} openModal={open} />
+    </div>
+  );
+}
+
+export function ReauthDismissalStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <ReauthDismissalProbe />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
   );
 }
