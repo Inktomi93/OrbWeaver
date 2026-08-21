@@ -190,6 +190,34 @@ describe("the readiness rail — a measurement or an honest 'not run', never a b
     expect(stageDatum({ ...themed, keywordsEverRan: true, keywords: 40 }, "keywords")).toBe("40 keywords");
   });
 
+  test("an UN-ANSWERED keyword read is a third state, never the measurement branch (#384)", () => {
+    // The rail row renders while `topKeywords` is still in flight (the #269 deferral took that read off the
+    // suspense boundary), and `data?.length ?? 0` handed it a measured zero. On a warm queue — the pass HAS
+    // succeeded, which is the only state in which "none found" is even reachable — the surface printed a
+    // result for a table it had not read, for one round trip. That is the #164 incident, recreated.
+    const warm: CorpusAnalysisInput = { ...AUDITED, sceneThemes: 16, keywordsEverRan: true };
+    expect(stageDatum({ ...warm, keywords: "pending" }, "keywords")).toBe("checking…");
+    expect(stageDatum({ ...warm, keywords: 0 }, "keywords")).toBe("none found");
+    // …and a pass the queue says never succeeded still outranks the read's own state: that is a fact about
+    // the PASS, true whatever the keyword table holds or whether anyone has looked at it.
+    expect(stageDatum({ ...warm, keywordsEverRan: false, keywords: "pending" }, "keywords")).toBe("not run");
+  });
+
+  test("a keyword read that FAILED says so, rather than borrowing either zero (#384)", () => {
+    // The surface renders its own error + Retry for this read, so the row's job is to state that it has no
+    // reading — not to report the failure twice, and above all not to call it "none found".
+    const warm: CorpusAnalysisInput = { ...AUDITED, keywordsEverRan: true, keywords: "unavailable" };
+    expect(stageDatum(warm, "keywords")).toBe("unavailable");
+    expect(deriveCorpusAnalysisState(warm).stages.find((row) => row.id === "keywords")?.done).toBe(false);
+  });
+
+  test("the un-measured arms never light the dot — the dot means 'this pass produced something'", () => {
+    for (const keywords of ["pending", "unavailable"] as const) {
+      const state = deriveCorpusAnalysisState({ ...AUDITED, keywordsEverRan: true, keywords });
+      expect(state.stages.find((row) => row.id === "keywords")?.done).toBe(false);
+    }
+  });
+
   test("every stage carries a datum and none of them is a bare zero", () => {
     for (const stage of deriveCorpusAnalysisState(AUDITED).stages) {
       expect(stage.datum).not.toBe("0");

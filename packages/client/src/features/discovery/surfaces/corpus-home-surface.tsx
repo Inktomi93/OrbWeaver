@@ -76,7 +76,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
@@ -91,9 +91,13 @@ import { toBarItems } from "../lib/corpus-charts.ts";
 
 type ThemeLevel = "scene" | "arc";
 type ThemeRow = inferOutput<Trpc["discovery"]["home"]>["sceneThemes"][number];
+/** One model route that actually cost money — `costUsd` narrowed to a number by the body's own filter. */
+type PaidRoute = Omit<inferOutput<Trpc["discovery"]["modelRouting"]>[number], "costUsd"> & { readonly costUsd: number };
 
 const MONEY_PRECISION = 2;
 const CORPUS_INSIGHT_ROW_ESTIMATE_PX = 52;
+/** The placeholder row count for a deferred below-fold section — the sibling charts' own number. */
+const CORPUS_INSIGHT_SKELETON_ROWS = 3;
 
 function money(value: number): string {
   return `$${value.toFixed(MONEY_PRECISION)}`;
@@ -164,7 +168,12 @@ function CorpusHomeBody(): ReactElement {
     distilled: catalog.totalDistilled,
     sceneThemes: home.sceneThemes.length,
     arcThemes: home.arcThemes.length,
-    keywords: keywords.data?.length ?? 0,
+    // NOT `data?.length ?? 0` (issue #384). That spelling hands an UN-ANSWERED read to the rail as a
+    // measured zero, and on a warm queue — `workloads.list` a cache hit, which is the designed-for case
+    // two comments up — the row printed "Keywords — none found" for one round trip. That is the #164
+    // incident verbatim, recreated by the (correct, and kept) deferral above: the read no longer suspends
+    // the surface, so the rail renders while it is still in flight and has to say so.
+    keywords: keywords.isPending ? "pending" : (keywords.data?.length ?? "unavailable"),
     keywordsEverRan: ranSuccessfully("compute-cooccurrence"),
     duplicateCharacters: home.duplicateCounts.characters,
     duplicateChats: home.duplicateCounts.chats,
@@ -290,50 +299,117 @@ function CorpusHomeBody(): ReactElement {
           </Section>
         ) : null}
 
-        {keywords.error !== null ? <QueryErrorState label="your top keywords" onRetry={keywords.refetch} /> : <KeywordExplorer top={keywords.data} />}
+        {keywords.error !== null ? (
+          // `refetch` takes an OPTIONS BAG, and `onRetry` is wired to a Button's onClick — passing the method
+          // by reference handed React's MouseEvent in as `RefetchOptions` (side-eye 2026-08-21). Every retry
+          // on this surface goes through a wrapper for that reason.
+          <QueryErrorState label="your top keywords" onRetry={(): void => void keywords.refetch()} />
+        ) : (
+          <KeywordExplorer pending={keywords.isPending} top={keywords.data} />
+        )}
         <StoryThemeDrift />
 
-        {unused.error !== null ? <QueryErrorState label="your never-played characters" onRetry={unused.refetch} /> : null}
-        {unused.data === undefined || unused.data.length === 0 ? null : (
-          <Section kicker="Never played" level={2}>
-            <VirtualList
-              aria-label="Never played characters"
-              className="max-h-96"
-              estimateSize={(): number => CORPUS_INSIGHT_ROW_ESTIMATE_PX}
-              fadeEdge={true}
-              gapToken="row"
-              getItemKey={(character): string => character.characterId}
-              items={unused.data}
-              renderItem={(character): ReactElement => (
-                <ListRow
-                  clickable={true}
-                  leading={<CharacterAvatar hash={character.avatarHash} id={character.characterId} name={character.name} />}
-                  onClick={(): void => selectCorpusCharacter(character.characterId)}
-                  subtitle="Collected but never played"
-                  title={character.name}
-                />
-              )}
-            />
-          </Section>
-        )}
-
-        {/* SPEND, not rows: a local-model instance records a route per (genre × model) and zero dollars. */}
-        {routing.error !== null ? <QueryErrorState label="your model economics" onRetry={routing.refetch} /> : null}
-        {paidRoutes.length === 0 ? null : (
-          <Section kicker="Model economics" level={2}>
-            <BarList
-              items={toBarItems(
-                paidRoutes,
-                (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
-                (route) => route.costUsd,
-              )}
-              label="Cost by route"
-              valueFormatter={money}
-            />
-          </Section>
-        )}
+        <NeverPlayedSection characters={unused.data} failed={unused.error !== null} onRetry={(): void => void unused.refetch()} pending={unused.isPending} />
+        <ModelEconomicsSection
+          failed={routing.error !== null}
+          onRetry={(): void => void routing.refetch()}
+          paidRoutes={paidRoutes}
+          pending={routing.isPending}
+        />
       </Stack>
     </Container>
+  );
+}
+
+// ── THE BELOW-FOLD INSIGHTS ARE COMPONENTS, NOT INLINE ARMS ──────────────────────────────────────────
+// Each of these reads defers (#269), so each has a PENDING arm of its own — and three of those inline in the
+// body put it over the legibility cap. They take the READ'S STATE rather than the query object (the
+// archetypes tab's own precedent): the body keeps ownership of the one query the rail also reads from, and
+// these stay presentation leaves that a story can drive without a data layer.
+
+/** Never-played characters — a deferred read, so it owns a skeleton, an error, and an absence. */
+function NeverPlayedSection({
+  characters,
+  pending,
+  failed,
+  onRetry,
+}: {
+  readonly characters: inferOutput<Trpc["discovery"]["unusedCharacters"]> | undefined;
+  readonly pending: boolean;
+  readonly failed: boolean;
+  readonly onRetry: () => void;
+}): ReactElement | null {
+  if (pending) {
+    // A BELOW-FOLD PENDING SECTION KEEPS ITS PLACE (side-eye 2026-08-21). `null`-while-pending is the sibling
+    // charts' old defect: the settled section pops in under whatever the reader is looking at. The skeleton
+    // is the same `SkeletonRows` shape `corpus-home-charts.tsx` already uses for its two deferred blocks.
+    return <SkeletonRows count={CORPUS_INSIGHT_SKELETON_ROWS} shape="line" />;
+  }
+  if (failed) {
+    return <QueryErrorState label="your never-played characters" onRetry={onRetry} />;
+  }
+  if (characters === undefined || characters.length === 0) {
+    // The rail says what has not run; a section with nothing renders nothing (this file's header).
+    return null;
+  }
+  return (
+    <Section kicker="Never played" level={2}>
+      <VirtualList
+        aria-label="Never played characters"
+        className="max-h-96"
+        estimateSize={(): number => CORPUS_INSIGHT_ROW_ESTIMATE_PX}
+        fadeEdge={true}
+        gapToken="row"
+        getItemKey={(character): string => character.characterId}
+        items={characters}
+        renderItem={(character): ReactElement => (
+          <ListRow
+            clickable={true}
+            leading={<CharacterAvatar hash={character.avatarHash} id={character.characterId} name={character.name} />}
+            onClick={(): void => selectCorpusCharacter(character.characterId)}
+            subtitle="Collected but never played"
+            title={character.name}
+          />
+        )}
+      />
+    </Section>
+  );
+}
+
+/** Model economics — SPEND, not rows: a local-model instance records a route per (genre × model) and zero
+ *  dollars. The paid subset is computed by the body, which is also what the empty arm tests. */
+function ModelEconomicsSection({
+  paidRoutes,
+  pending,
+  failed,
+  onRetry,
+}: {
+  readonly paidRoutes: readonly PaidRoute[];
+  readonly pending: boolean;
+  readonly failed: boolean;
+  readonly onRetry: () => void;
+}): ReactElement | null {
+  if (pending) {
+    return <SkeletonRows count={CORPUS_INSIGHT_SKELETON_ROWS} shape="line" />;
+  }
+  if (failed) {
+    return <QueryErrorState label="your model economics" onRetry={onRetry} />;
+  }
+  if (paidRoutes.length === 0) {
+    return null;
+  }
+  return (
+    <Section kicker="Model economics" level={2}>
+      <BarList
+        items={toBarItems(
+          paidRoutes,
+          (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
+          (route) => route.costUsd,
+        )}
+        label="Cost by route"
+        valueFormatter={money}
+      />
+    </Section>
   );
 }
 

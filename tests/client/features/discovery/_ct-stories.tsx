@@ -2,6 +2,7 @@
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
+import { useTRPC } from "@orb/client/data";
 import {
   CorpusArchetypesTab,
   CorpusCompareTab,
@@ -17,7 +18,8 @@ import {
 import { useActiveChatId, useActiveSection } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ReactElement } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -226,6 +228,42 @@ export function CorpusHomeDefaultPaneStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 868.8125 }}>
         <CorpusHomeSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** Holds the overview back until the workload QUEUE read has settled — the only way to render the surface
+ *  with a WARM queue beside an in-flight analytics read.
+ *
+ *  WHY IT HAS TO EXIST: our tRPC client is `httpBatchLink`, so one tick of reads is ONE HTTP response and a
+ *  `trpcHold` on any member holds the whole batch (route-trpc.ts states this at length). The overview fires
+ *  `workloads.list` and `discovery.topKeywords` in the SAME tick, so holding the keyword read inside a plain
+ *  mount also holds the queue read — and the rail then honestly reads "not run", which is the state that
+ *  CANNOT show the defect. Priming the queue in an earlier tick puts the two in different batches: when the
+ *  surface finally mounts, its own `workloads.list` is a cache hit and the keyword read is the only thing in
+ *  flight. Non-exported: the stories module publishes components to the CT loader (this one rides inside
+ *  {@link CorpusHomeWarmQueueStory}). */
+function WarmQueueGate({ children }: { readonly children: ReactNode }): ReactElement {
+  const trpc = useTRPC();
+  const runs = useQuery(trpc.workloads.list.queryOptions({}));
+  if (runs.data === undefined) {
+    return <div data-testid="ct-queue-cold">warming the queue…</div>;
+  }
+  return <>{children}</>;
+}
+
+/** THE OVERVIEW AT THE OWNER'S DEFAULT PANE WIDTH, MOUNTED ON A WARM QUEUE — the mount that can hold one
+ *  below-fold analytics read while the rail already KNOWS that pass has succeeded. That combination is the
+ *  whole of issue #384: the readiness row fed an un-answered read into the measurement branch and printed a
+ *  result the surface did not have. See {@link WarmQueueGate} for why the priming tick is load-bearing. */
+export function CorpusHomeWarmQueueStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 868.8125 }}>
+        <WarmQueueGate>
+          <CorpusHomeSurface />
+        </WarmQueueGate>
       </div>
     </CtDataProviders>
   );
