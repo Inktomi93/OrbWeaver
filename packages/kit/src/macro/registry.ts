@@ -1,3 +1,12 @@
+// THE ONE SURVIVING luxon IMPORT IN THE REPO, and it is deliberate (2026-08-21). `@orb/kit/time` moved
+// to the platform `Temporal` API; this file did NOT, because `{{datetimeformat::FORMAT}}` (below) hands
+// luxon's FORMAT-TOKEN VOCABULARY to users as a documented contract — `builtin-metadata.ts` ships the
+// phrase "Luxon format string" into the macro browser, and those strings live in user cards/presets and
+// in imported ST corpora, i.e. an unbounded input set we do not own. Temporal has NO token formatter, so
+// a port would either reimplement luxon's tokens (an engine whose fidelity against unbounded user input
+// cannot be proven) or change the vocabulary (a user-data break). Both are owner decisions, not a
+// refactor. Until one is ruled, luxon stays HERE and nowhere else — and the five fixed-format clock
+// macros stay on it too, because a half-port would put two time libraries in one file for no dep saved.
 import { DateTime } from "luxon";
 import type { CelValue } from "#cel";
 import { evalCel, isCelParseError, parseCel } from "#cel";
