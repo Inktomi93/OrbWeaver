@@ -6,8 +6,8 @@
 // The impeccable-adapted checks (origin "impeccable") each get a firing fixture AND a passing/exempt
 // control — a green that cannot fail is not a fence.
 
-import { parseAuditArgs } from "../../scripts/probes/design-audit.ts";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
+import { parseAuditArgs } from "../../scripts/probes/design-audit.ts";
 import type { AccentBorderInput, Backdrop, IconTileInput, RawSamples, TextStyleInput } from "../../scripts/probes/design-audit-checks.ts";
 import {
   checkAccentBorder,

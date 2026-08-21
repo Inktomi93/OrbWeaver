@@ -9,10 +9,10 @@
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
 import { READING_BAND_ALPHA, readingBandSurface, readingPlateAlpha, shadowIngredients } from "@orb/kit/theme-derivation";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
-import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "@orb/tooling/_shared/wcag";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
+import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // ── House oklch → sRGB (0–255). Standard OKLab matrices; channels clamped to gamut (neutral/low-chroma
