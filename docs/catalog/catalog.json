@@ -12936,6 +12936,60 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/tooling-package.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 339,
+      "bytes": 48053,
+      "sha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-21"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/tooling-package.md",
+        "assignedSha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
+        "verifiedCommit": "ac00a1ce6e695303d447db8f2c1f31b7e83d888d",
+        "verifiedAt": "2026-08-21",
+        "evidence": [
+          "docs/design/tooling-package.md:1 (design; active)",
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "authored this change: every path:line receipt in the document was taken by direct read/grep on this tree (branch base 5acb0d523) during the same session"
+        ],
+        "summary": "@orb/tooling program design (P0 of issue #393): the tooling workspace package — five-slot template, _shared plumbing, five new gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 playbook lands at P2.",
+        "claims": [
+          {
+            "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "scripts/ts-workspace.ts:34"
+              },
+              {
+                "kind": "code",
+                "target": "scripts/check/gates/test-presence-client.ts:268"
+              },
+              {
+                "kind": "issue",
+                "target": "#393"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/tracked-field-unification.md",
       "lane": "design",
       "issue": 5,
