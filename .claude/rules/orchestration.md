@@ -253,6 +253,12 @@ Every lane, without being told per-brief:
   on the instance that carries content, never a bare slot selector.
   **Under multi-lane load add `--workers=2`** (measured 2026-08-21 at load-avg 170: default workers
   = all tests time out at mount() on pure contention, zero signal; `--workers=2` = green in 53s).
+  **The same cap applies to NODE suites: lane `npx vitest run` invocations add `--maxWorkers=4`
+  whenever any sibling lane is live** (measured 2026-08-21: one lane's default 14 forks at ~90% CPU
+  each drove a 24-core box to load-avg 103 and STARVED THE CO-HOSTED HOMELAB — Authentik errored for
+  the owner. The box is not ours alone; vitest.config's maxWorkers:14 is the DEDICATED-box number,
+  briefs restate the cap). Long mutation/calibration runs are orchestrator-scheduled — a lane never
+  starts one without an explicit green light naming the concurrency.
   **`route.abort()` defaults to `"failed"`, which makes chromium swap in an ERROR PAGE** — the
   mounted tree disappears and every later assertion passes vacuously (`toBeHidden` on a destroyed
   DOM); `route.abort("aborted")` is the only code that leaves the document standing.
