@@ -15197,13 +15197,13 @@
       },
       "receipt": {
         "path": "docs/retro-workboard.md",
-        "assignedSha256": "d8f6ef306ab2c0d187d6bf0166f2b7fc4a8311d2c313562a12ad9cac8666776d",
+        "assignedSha256": "9f5c2199117a6171e38370b199b5d48dc727a166b9477db5c02dedae6bc3cb35",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "f0ebeedc914ee85865dcc87fbdcfb92ccca044acf3cc23e4836e4d638348f653",
-        "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
-        "verifiedAt": "2026-08-19",
+        "verifiedSha256": "9f5c2199117a6171e38370b199b5d48dc727a166b9477db5c02dedae6bc3cb35",
+        "verifiedCommit": "6b81ca9ba27cc86bb087264d069e992d3d62e120",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",
           "docs/architecture/proposed/INDEX.md:17-37 maps each unfinished committed program to its Project sprint",
@@ -15248,7 +15248,7 @@
         ],
         "summary": "Short operational recovery index: Project lifecycle, durable authority homes, agent-process routing, and hard stops only; no backlog or mirrored status."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
