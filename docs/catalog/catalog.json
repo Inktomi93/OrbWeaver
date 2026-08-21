@@ -22334,6 +22334,77 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 192,
+      "bytes": 11939,
+      "sha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md",
+        "assignedSha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
+        "verifiedCommit": "c28bb87b38b1509a4c4bf16459aef240cf42b0ea",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md:1-192 full read against exact reviewed ref 2895946d810415f85c5bb001d27af60d396660be",
+          "240/240 appearance cells passed across six surfaces and five presets",
+          "production Command controls recorded four clean 4x CPU opens with 2-8ms blocking and zero CLS/errors",
+          "GitHub issues #315 #359 #361 #363 #367 #368 and #369 re-derived on 2026-08-20"
+        ],
+        "summary": "Exact-tree side-eye graduation of the overlay/dialog class after Command focus and Retry repairs plus the Settings Effects measure fix; the separate audit-integrity defect is tracked in #370.",
+        "claims": [
+          {
+            "claim": "The overlay/dialog class graduates on the exact reviewed tree; all seven linked product findings pass their final rendered evidence matrix.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#315"
+              },
+              {
+                "kind": "issue",
+                "target": "#359"
+              },
+              {
+                "kind": "issue",
+                "target": "#361"
+              },
+              {
+                "kind": "issue",
+                "target": "#363"
+              },
+              {
+                "kind": "issue",
+                "target": "#367"
+              },
+              {
+                "kind": "issue",
+                "target": "#368"
+              },
+              {
+                "kind": "issue",
+                "target": "#369"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
       "lane": "reviews",
       "issue": 7,
