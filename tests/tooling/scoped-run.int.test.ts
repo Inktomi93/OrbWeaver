@@ -20,7 +20,7 @@ import { gate as busCoverageGate } from "../../scripts/check/gates/bus-coverage.
 import { gate as noCallerUserIdGate } from "../../scripts/check/gates/no-caller-user-id.ts";
 import { runPass } from "../../scripts/check/pass.ts";
 import { runScopedPass } from "../../scripts/check/scoped.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

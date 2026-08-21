@@ -9,7 +9,7 @@
 import { join } from "node:path";
 import { verifyGateProofs } from "../../scripts/check/conformance.ts";
 import { loadGates } from "../../scripts/check/loader.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 

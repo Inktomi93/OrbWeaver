@@ -46,6 +46,7 @@
   "include": [
     "packages/*/src",
     "scripts",
+    "tooling/src",
     "tests",
     "reset.d.ts",
     "platform.d.ts",

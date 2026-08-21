@@ -19,7 +19,7 @@ import {
   resolveFixtureTarget,
   resolveFixtureUsers,
 } from "../../scripts/probes/_kit/fixture.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 

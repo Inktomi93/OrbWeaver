@@ -7,9 +7,9 @@
 //
 // It also tallies PER-GATE SCAN HEALTH (`GateScan`) from that same walk — the denominator behind every
 // verdict, so a gate that read nothing can no longer render ✓ (`zeroScanGates`).
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { getWorkspace } from "../ts-workspace.ts";
 import type { Finding, GateDescriptor, GateRunCtx, GateScanDeclaration, Scope } from "./contract.ts";
 
 /** A gate's own count of units the shared walk cannot see (`ctx.scan({unit,…})`). Reachable to consumers

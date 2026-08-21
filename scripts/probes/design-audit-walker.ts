@@ -1,5 +1,5 @@
 // The design-audit IN-PAGE FACT WALKER — a raw JS string evaluated in the probe page (see
-// _kit/browser.ts for why a string, not a function). It only GATHERS raw samples
+// _shared/browser.ts for why a string, not a function). It only GATHERS raw samples
 // (computed-style values, geometry, censuses); every severity/threshold verdict lives in
 // design-audit-checks.ts so the decisions stay unit-testable without a browser. The few
 // walker-side predicates (nested-card shape, gradient-text shape, overshoot beziers,
@@ -14,7 +14,7 @@
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md for the full 59-rule
 // triage, the divergences, and the license statement.
 
-// ── In-page fact walker (raw string, not a function reference — see _kit/browser.ts) ──
+// ── In-page fact walker (raw string, not a function reference — see _shared/browser.ts) ──
 export const COLLECT_SAMPLES_JS = `(async () => {
   var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
   var CARD_CLASS_RE = /\\bcard\\b/i;

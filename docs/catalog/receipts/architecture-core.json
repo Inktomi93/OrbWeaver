@@ -142,20 +142,21 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
+      "assignedSha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
-      "verifiedCommit": "a19e64e49dfe35a1514690e21e62f068bccefdfa",
-      "verifiedAt": "2026-08-19",
+      "verifiedSha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
+      "verifiedCommit": "3191f7e42af2f7cc8802d7f7e1ed66abab2b0e04",
+      "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) — orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits",
         "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
-        "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green"
+        "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green",
+        "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)"
       ],
       "claims": [
         {

@@ -1519,17 +1519,17 @@
     },
     {
       "path": "docs/design/tooling-package.md",
-      "assignedSha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
+      "assignedSha256": "6aff1a5d0fc0ee17898a4f706561af66be6c39e1ff4c90cb0c9d6cda4c262c36",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
-      "verifiedCommit": "ac00a1ce6e695303d447db8f2c1f31b7e83d888d",
+      "verifiedSha256": "6aff1a5d0fc0ee17898a4f706561af66be6c39e1ff4c90cb0c9d6cda4c262c36",
+      "verifiedCommit": "3191f7e42af2f7cc8802d7f7e1ed66abab2b0e04",
       "verifiedAt": "2026-08-21",
       "evidence": [
-        "docs/design/tooling-package.md:1 (design; active)",
+        "docs/design/tooling-package.md:1 full read; P1 truth-repairs authored this session (fleet-shared appearance/theme census, exports-map growth rule, armed-empty instruments, the §3.2a findings block) against the same tree the P1 commit landed on",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "authored this change: every path:line receipt in the document was taken by direct read/grep on this tree (branch base 5acb0d523) during the same session"
+        "single-pass clean on the P1 tree with all five gates live (reports/check-structure.json)"
       ],
       "summary": "@orb/tooling program design (P0 of issue #393): the tooling workspace package — five-slot template, _shared plumbing, five new gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 playbook lands at P2.",
       "claims": [
@@ -1538,7 +1538,7 @@
           "evidence": [
             {
               "kind": "code",
-              "target": "scripts/ts-workspace.ts:34"
+              "target": "tooling/src/_shared/ts-workspace.ts:35"
             },
             {
               "kind": "code",

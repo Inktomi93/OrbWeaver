@@ -1,4 +1,4 @@
-// The THEME arm of the probes' settings shim (scripts/probes/_kit/theme.ts). Home per Spine-Testing §2: a
+// The THEME arm of the probes' settings shim (tooling/src/_shared/theme.ts). Home per Spine-Testing §2: a
 // test of a scripts/ tool lives in tests/tooling/.
 //
 // WHY IT EXISTS (#225): `--appearance` could not reach the ACTIVE THEME (a different settings axis —
@@ -16,9 +16,9 @@ import {
   themeConfigPatch,
   themeHelpBlock,
   themeWarning,
-} from "../../scripts/probes/_kit/theme.ts";
-import { parseSnapArgs } from "../../scripts/probes/snap.ts";
-import { expect, test } from "../support/fixtures.ts";
+} from "@orb/tooling/_shared/theme";
+import { parseSnapArgs } from "../../../scripts/probes/snap.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** The live shape of `settings.listThemes` (ThemeView rows, seeds + the caller's own), batched. */
 const LIBRARY = [

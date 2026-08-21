@@ -6,7 +6,7 @@
 // reachable throttled-input number. And the strict CLI: an unknown flag is misuse, because a typo'd step
 // used to be skipped in silence and the run then metered the landing page and reported it clean.
 import { parsePerfArgs } from "../../scripts/probes/perf-meter.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 test("nav flags become steps in TRUE argv order, interleaved with the DOM steps", () => {
   const args = parsePerfArgs(["/", "--open-chat", "latest", "--context-tab", "rpg.game", "--click", "[data-slot=toggle]", "--pause", "400"]);

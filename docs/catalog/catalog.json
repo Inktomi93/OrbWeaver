@@ -420,9 +420,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 348,
-      "bytes": 163299,
-      "sha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
+      "lines": 353,
+      "bytes": 164905,
+      "sha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -435,20 +435,21 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
+        "assignedSha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
-        "verifiedCommit": "a19e64e49dfe35a1514690e21e62f068bccefdfa",
-        "verifiedAt": "2026-08-19",
+        "verifiedSha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
+        "verifiedCommit": "3191f7e42af2f7cc8802d7f7e1ed66abab2b0e04",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
           "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) — orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits",
           "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
-          "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green"
+          "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green",
+          "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)"
         ],
         "claims": [
           {
@@ -13049,9 +13050,9 @@
       "path": "docs/design/tooling-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 339,
-      "bytes": 48053,
-      "sha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
+      "lines": 350,
+      "bytes": 51209,
+      "sha256": "6aff1a5d0fc0ee17898a4f706561af66be6c39e1ff4c90cb0c9d6cda4c262c36",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13064,17 +13065,17 @@
       },
       "receipt": {
         "path": "docs/design/tooling-package.md",
-        "assignedSha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
+        "assignedSha256": "6aff1a5d0fc0ee17898a4f706561af66be6c39e1ff4c90cb0c9d6cda4c262c36",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "d9c0ec4fdf4023305e630f5cadf40a2080a59427e2625de5a9ea873df0310615",
-        "verifiedCommit": "ac00a1ce6e695303d447db8f2c1f31b7e83d888d",
+        "verifiedSha256": "6aff1a5d0fc0ee17898a4f706561af66be6c39e1ff4c90cb0c9d6cda4c262c36",
+        "verifiedCommit": "3191f7e42af2f7cc8802d7f7e1ed66abab2b0e04",
         "verifiedAt": "2026-08-21",
         "evidence": [
-          "docs/design/tooling-package.md:1 (design; active)",
+          "docs/design/tooling-package.md:1 full read; P1 truth-repairs authored this session (fleet-shared appearance/theme census, exports-map growth rule, armed-empty instruments, the §3.2a findings block) against the same tree the P1 commit landed on",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-          "authored this change: every path:line receipt in the document was taken by direct read/grep on this tree (branch base 5acb0d523) during the same session"
+          "single-pass clean on the P1 tree with all five gates live (reports/check-structure.json)"
         ],
         "summary": "@orb/tooling program design (P0 of issue #393): the tooling workspace package — five-slot template, _shared plumbing, five new gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 playbook lands at P2.",
         "claims": [
@@ -13083,7 +13084,7 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "scripts/ts-workspace.ts:34"
+                "target": "tooling/src/_shared/ts-workspace.ts:35"
               },
               {
                 "kind": "code",

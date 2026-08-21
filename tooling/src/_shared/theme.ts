@@ -40,7 +40,10 @@ export type ThemeRequest = string;
 export type ThemeParse = { readonly theme: ThemeRequest } | { readonly error: string };
 
 /** One entry of the app's theme library, as much of `ThemeView` as the shim needs. */
-export type ThemeEntry = { readonly id: string; readonly name: string };
+export interface ThemeEntry {
+  readonly id: string;
+  readonly name: string;
+}
 
 /** The value-taking theme flags — every probe CLI adds these to its required-value scan. */
 export const THEME_VALUE_FLAGS: readonly string[] = ["--theme"];

@@ -13,8 +13,8 @@
 // fails LOUDLY with a stated reason. A nav that did not land means the probe is measuring some OTHER
 // surface, which is worse than not measuring — never silently continue on `ok:false`.
 import { errorMessage } from "@orb/kit/error-message";
+import { parseGotoTarget } from "@orb/tooling/_shared/argv";
 import type { Page } from "@playwright/test";
-import { parseGotoTarget } from "./flags.ts";
 
 /** The nav verbs a probe CLI offers, spelled as they appear on the command line (minus the `--`). */
 export type NavMethod = "goto" | "open-chat" | "open-character" | "context-tab";
@@ -39,7 +39,7 @@ const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto">, string> = {
 };
 
 /** The in-page bridge call for one action. The `--goto` decode happens HERE in Node (parseGotoTarget is
- *  unit-tested in _kit/flags.ts) so the emitted script only ever names one concrete bridge method. */
+ *  unit-tested in _shared/argv.ts) so the emitted script only ever names one concrete bridge method. */
 export function buildNavScript(method: NavMethod, target: string): string {
   const goto = method === "goto" ? parseGotoTarget(target) : null;
   const bridgeMethod = goto === null ? NAV_BRIDGE_METHOD[method as Exclude<NavMethod, "goto">] : goto.method;

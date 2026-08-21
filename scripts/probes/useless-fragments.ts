@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import { Node, SyntaxKind } from "ts-morph";
-import { getWorkspace } from "../ts-workspace.ts";
 
 const REPO_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/u, "");
 const project = getWorkspace({ root: REPO_ROOT, types: false });
