@@ -254,9 +254,7 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
 });
 
 test("a collapsed CONTEXT body mounts only when opened, then follows the active section (§4.2 rule 1)", async ({ mount, page }) => {
-  // One pixel below the default-appearance primacy equality (65rem = 1040px): wider widths can dock this
-  // pane honestly, while this width must keep the first click transient.
-  await page.setViewportSize({ width: 1039, height: 800 });
+  await page.setViewportSize(WIDE);
   await mount(<AppShellStory />);
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const panelText = (): Promise<string> => contextPanel.evaluate((el) => el.textContent ?? "");
@@ -265,6 +263,12 @@ test("a collapsed CONTEXT body mounts only when opened, then follows the active 
   // cost no mount work until a user opens it.
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(contextPanel.locator(".shell-panel-body")).toBeEmpty();
+  // Constrain the CSS-owned prospective tracks without changing a viewport breakpoint or appearance
+  // response. The observer must settle this rendered deficit before the first click.
+  await page.locator(".shell-grid").evaluate((element) => {
+    element.style.setProperty("--dimension-panel-floor", "35rem");
+    element.style.setProperty("--dimension-panel-context-step", "35rem");
+  });
   await page.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
   // At CONTENT's floor, CONTEXT is a transient overlay. This must be true on the FIRST click: deriving
   // the regime from the just-written context override made the first click persist `docked` then vanish.
@@ -1264,15 +1268,9 @@ const READING_APPEARANCE = appearanceSettingsSchema.parse({
   ...DEFAULT_USER_SETTINGS.appearance,
   ...APPEARANCE_PRESET_FILE.presets.reading.appearance,
 });
-const APPEARANCE_PROFILE_CROSSOVERS = [
-  { name: "defaults", constrained: 1039, equality: 1040 },
-  { name: "maximal", constrained: 1039, equality: 1040 },
-  { name: "compact", constrained: 1039, equality: 1040 },
-  { name: "reading", constrained: 1299, equality: 1300 },
-  { name: "diagnostics", constrained: 1039, equality: 1040 },
-] as const;
+const APPEARANCE_PROFILE_NAMES = ["defaults", "maximal", "compact", "reading", "diagnostics"] as const;
 
-function appearanceForProfile(name: (typeof APPEARANCE_PROFILE_CROSSOVERS)[number]["name"]): typeof READING_APPEARANCE {
+function appearanceForProfile(name: (typeof APPEARANCE_PROFILE_NAMES)[number]): typeof READING_APPEARANCE {
   return appearanceSettingsSchema.parse({
     ...DEFAULT_USER_SETTINGS.appearance,
     ...APPEARANCE_PRESET_FILE.presets[name].appearance,
@@ -1282,6 +1280,7 @@ function appearanceForProfile(name: (typeof APPEARANCE_PROFILE_CROSSOVERS)[numbe
 interface PrimacyViolation {
   readonly width: number;
   readonly mode: string | null;
+  readonly deficit: number;
   readonly list: number;
   readonly content: number;
   readonly context: number;
@@ -1295,9 +1294,10 @@ async function readingPrimacyViolationAt(page: Page, width: number): Promise<Pri
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       }),
   );
+  const deficit = await page.locator(".shell-content-primacy-sentinel").evaluate((element) => element.getBoundingClientRect().width);
   const mode = await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode");
   const [, list = 0, content = 0, context = 0] = await shellTracks(page);
-  const expectedMode = width < 1300 ? "collapsed" : "docked";
+  const expectedMode = deficit > 0 ? "collapsed" : "docked";
   const primacyFails = mode === "docked" && content + 0.5 < (list + context) / 2;
 
   const contentTitle = page.locator(".shell-content").getByText("Presets", { exact: true }).first();
@@ -1307,7 +1307,37 @@ async function readingPrimacyViolationAt(page: Page, width: number): Promise<Pri
   await expect.poll(() => commandButton.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
-  return mode !== expectedMode || primacyFails ? { width, mode, list, content, context } : null;
+  return mode !== expectedMode || primacyFails ? { width, mode, deficit, list, content, context } : null;
+}
+
+async function renderedPrimacyCrossover(page: Page): Promise<{ constrained: number; equality: number }> {
+  const deficitAt = async (width: number): Promise<number> => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+    return page.locator(".shell-content-primacy-sentinel").evaluate((element) => element.getBoundingClientRect().width);
+  };
+  const locate = async (lower: number, upper: number): Promise<{ constrained: number; equality: number }> => {
+    if (upper - lower === 1) {
+      return { constrained: lower, equality: upper };
+    }
+    const width = Math.floor((lower + upper) / 2);
+    const deficit = await deficitAt(width);
+    if (deficit > 0) {
+      return locate(width, upper);
+    }
+    return locate(lower, width);
+  };
+
+  const constrained = 1025;
+  const equality = 1800;
+  expect(await deficitAt(constrained)).toBeGreaterThan(0);
+  expect(await deficitAt(equality)).toBe(0);
+  return locate(constrained, equality);
 }
 
 test("#375 Reading derives the context crossover from the resolved pane geometry", async ({ mount, page }) => {
@@ -1335,33 +1365,104 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
 
   expect(violations).toEqual([]);
 
-  await page.setViewportSize({ width: 1299, height: 900 });
+  const crossover = await renderedPrimacyCrossover(page);
+  await page.setViewportSize({ width: crossover.constrained, height: 900 });
   const jumpLabel = page.locator(".shell-topbar-jump-label");
   await expect(jumpLabel).toBeVisible();
   await expect.poll(() => jumpLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-  await page.setViewportSize({ width: 1300, height: 900 });
+  await page.setViewportSize({ width: crossover.equality, height: 900 });
   const topbarTitle = page.locator(".shell-topbar-title:visible");
   await expect(topbarTitle).toHaveText("Presets");
   await expect.poll(() => topbarTitle.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 
-for (const profile of APPEARANCE_PROFILE_CROSSOVERS) {
-  test(`#375 ${profile.name}: both sides of the derived crossover preserve pane, keyboard, and focus behavior`, async ({ mount, page }) => {
-    const appearance = appearanceForProfile(profile.name);
+test("#375 the context regime follows rendered shell geometry and releases its observer", async ({ mount, page }) => {
+  await page.evaluate(() => {
+    document.documentElement.dataset["primacyObserveCount"] = "0";
+    document.documentElement.dataset["primacyDisconnectCount"] = "0";
+    const primacyObservers = new WeakSet<ResizeObserver>();
+    const nativeObserve = ResizeObserver.prototype.observe;
+    const nativeDisconnect = ResizeObserver.prototype.disconnect;
+    ResizeObserver.prototype.observe = function observe(target: Element, options?: ResizeObserverOptions): void {
+      if (target.classList.contains("shell-content-primacy-sentinel")) {
+        primacyObservers.add(this);
+        document.documentElement.dataset["primacyObserveCount"] = String(Number(document.documentElement.dataset["primacyObserveCount"] ?? "0") + 1);
+      }
+      nativeObserve.call(this, target, options);
+    };
+    ResizeObserver.prototype.disconnect = function disconnect(): void {
+      if (primacyObservers.has(this)) {
+        document.documentElement.dataset["primacyDisconnectCount"] = String(Number(document.documentElement.dataset["primacyDisconnectCount"] ?? "0") + 1);
+      }
+      nativeDisconnect.call(this);
+    };
+  });
+  await page.setViewportSize({ width: 1400, height: 900 });
+  const component = await mount(<AppShellStory />);
+  await component.getByRole("button", { name: "Presets" }).click();
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  // Change the geometry CSS actually renders, independently of the appearance response. A media query
+  // synthesized from the response cannot see either change; the shell's rendered signal must.
+  await page.locator(".shell-grid").evaluate((element) => {
+    element.setAttribute("style", `${element.getAttribute("style") ?? ""}; --dimension-panel-floor: 35rem; --dimension-panel-context-step: 35rem`);
+  });
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await page.locator(".shell-grid").evaluate((element) => {
+    element.style.removeProperty("--dimension-panel-floor");
+    element.style.removeProperty("--dimension-panel-context-step");
+  });
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "150%";
+  });
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "100%";
+  });
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.locator("html")).toHaveAttribute("data-primacy-observe-count", "1");
+
+  await page.locator(".shell-content-primacy-sentinel").evaluate((element) => {
+    const renderedBox = element.getBoundingClientRect.bind(element);
+    document.documentElement.dataset["primacyFontReadyReads"] = "0";
+    element.getBoundingClientRect = (): DOMRect => {
+      document.documentElement.dataset["primacyFontReadyReads"] = String(Number(document.documentElement.dataset["primacyFontReadyReads"] ?? "0") + 1);
+      return renderedBox();
+    };
+  });
+  await page.evaluate(() => {
+    document.fonts.dispatchEvent(new Event("loadingdone"));
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-primacy-font-ready-reads", "1");
+
+  await component.unmount();
+  await expect(page.locator("html")).toHaveAttribute("data-primacy-disconnect-count", "1");
+  await page.evaluate(() => {
+    document.fonts.dispatchEvent(new Event("loadingdone"));
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-primacy-font-ready-reads", "1");
+});
+
+for (const profileName of APPEARANCE_PROFILE_NAMES) {
+  test(`#375 ${profileName}: both sides of the rendered crossover preserve pane, keyboard, and focus behavior`, async ({ mount, page }) => {
+    const appearance = appearanceForProfile(profileName);
     await routeTrpc(page, {
       "settings.getUserSettings": () => ({
-        userId: `user_ct_shell_primacy_${profile.name}`,
+        userId: `user_ct_shell_primacy_${profileName}`,
         schemaVersion: 1,
         config: { ...DEFAULT_USER_SETTINGS, appearance },
         updatedAt: 0,
       }),
     });
-    await page.setViewportSize({ width: profile.constrained, height: 900 });
+    await page.setViewportSize({ width: 1400, height: 900 });
     const shell = await mount(<AppShellStory />);
-    await expect
-      .poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)))
-      .toBeCloseTo(UA_ROOT_PX * appearance.fontScale, 0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue("--font-scale"))).not.toBe("");
     await shell.getByRole("button", { name: "Presets" }).click();
+    const crossover = await renderedPrimacyCrossover(page);
+    await page.setViewportSize({ width: crossover.constrained, height: 900 });
 
     const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
     const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
@@ -1387,7 +1488,7 @@ for (const profile of APPEARANCE_PROFILE_CROSSOVERS) {
     await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
 
-    await page.setViewportSize({ width: profile.equality, height: 900 });
+    await page.setViewportSize({ width: crossover.equality, height: 900 });
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
     const [, list = 0, content = 0, context = 0] = await shellTracks(page);
     expect(content + 0.5).toBeGreaterThanOrEqual((list + context) / 2);
