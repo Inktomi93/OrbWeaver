@@ -114,6 +114,7 @@ export function PresetLibraryRow({
       onSelect={(): void => onSelect(preset.id)}
       selected={selected}
       title={preset.name}
+      subtitleStep="label"
       // Item 17: the lock is a property of the NAME (the mock draws it inline-left of "Default"), not an
       // action slot at the row's far end — where it collided with the revealed cluster (item 19). It costs
       // the built-in row's title its shared x with the other rows; that is the mock's own drawing, and it

@@ -9,7 +9,7 @@
 // and seeds from B's row (never A's surviving frozen seed).
 
 import { useInvalidation } from "@orb/client/data";
-import { PresetEditorSurface, PresetLibrarySurface } from "@orb/client/features/preset";
+import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";
 import { __resetPresetSelection, selectPreset, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -114,6 +114,23 @@ export function PresetLibraryDockedStory(): ReactElement {
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
+  );
+}
+
+/** The Presets teaching state at the two real containment arms implicated by #379. */
+export function PresetLibraryWelcomeWideStory(): ReactElement {
+  return (
+    <div style={{ height: 720, width: 720 }}>
+      <PresetLibraryWelcome />
+    </div>
+  );
+}
+
+export function PresetLibraryWelcomeNarrowStory(): ReactElement {
+  return (
+    <div style={{ height: 720, width: 320 }}>
+      <PresetLibraryWelcome />
+    </div>
   );
 }
 
