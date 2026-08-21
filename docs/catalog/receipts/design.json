@@ -1476,12 +1476,12 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "79b0d9001b838284af895ae369c280957d0eaf4d00e19cea746ea11042cf2c02",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "636ea7d7c9cfb7b8f437d92fe9cce95f7e7b6866138f9db98d32767cfd68f542",
+      "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
+      "verifiedAt": "2026-08-21",
       "evidence": [
-        "docs/design/streaming-shape-churn.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
-        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+        "docs/design/streaming-shape-churn.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence; 2026-08-21 delta is the §recipe invocation repoint (node scripts/probes/snap.ts -> the pnpm snap front door, #393 P2)",
+        "git:1c0c8df6ef45e867501bc70bf0811b447071030b contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
       ],
       "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
@@ -1519,19 +1519,19 @@
     },
     {
       "path": "docs/design/tooling-package.md",
-      "assignedSha256": "6aff1a5d0fc0ee17898a4f706561af66be6c39e1ff4c90cb0c9d6cda4c262c36",
+      "assignedSha256": "bfe5d3577b8823e8e382de92100cf3aa68acc8c4914c8e5fdd13330fc0bddf5b",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "6aff1a5d0fc0ee17898a4f706561af66be6c39e1ff4c90cb0c9d6cda4c262c36",
-      "verifiedCommit": "3191f7e42af2f7cc8802d7f7e1ed66abab2b0e04",
+      "verifiedSha256": "bfe5d3577b8823e8e382de92100cf3aa68acc8c4914c8e5fdd13330fc0bddf5b",
+      "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
       "verifiedAt": "2026-08-21",
       "evidence": [
-        "docs/design/tooling-package.md:1 full read; P1 truth-repairs authored this session (fleet-shared appearance/theme census, exports-map growth rule, armed-empty instruments, the §3.2a findings block) against the same tree the P1 commit landed on",
+        "docs/design/tooling-package.md:1 full read; P2 truth-repairs authored this session (nav/pixel-backdrop/ffmpeg/wcag fleet-shared census, run-tool/proc arms D-F2, the snap split shape, the per-phase §3.2 amendment, the two P2-discovered §3.1 rows, §9 playbook) against the same tree the P2 commit landed on",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "single-pass clean on the P1 tree with all five gates live (reports/check-structure.json)"
+        "single-pass clean on the P2 tree with the extended arms live (reports/check-structure.json)"
       ],
-      "summary": "@orb/tooling program design (P0 of issue #393): the tooling workspace package — five-slot template, _shared plumbing, five new gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 playbook lands at P2.",
+      "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the P2-authored coupled-site playbook P3-P6 replay.",
       "claims": [
         {
           "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",

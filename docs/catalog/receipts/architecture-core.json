@@ -142,12 +142,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "f2a2689ba81bb68f39cb6d9643db80656b94b52ff13b0b2ecffc5fb4c3763ce7",
+      "assignedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "f2a2689ba81bb68f39cb6d9643db80656b94b52ff13b0b2ecffc5fb4c3763ce7",
-      "verifiedCommit": "dff7198d7a921c1a0516f87b1607ed9885a400a7",
+      "verifiedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
+      "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
       "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -156,7 +156,8 @@
         "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) — orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits",
         "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
         "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green",
-        "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)"
+        "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)",
+        "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree"
       ],
       "claims": [
         {
