@@ -6,8 +6,8 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { AnalyticsTimeTabStory } from "../_ct-stories.tsx";
 
 const POINTS = [
-  { day: "2026-07-01", assistantTurns: 12, tokensOut: 1_200_000 },
-  { day: "2026-07-02", assistantTurns: 40, tokensOut: 3400 },
+  { day: "2026-07-01", assistantTurns: 12, tokensOut: 1_200_000, tokensOutProvenance: "measured" as const },
+  { day: "2026-07-02", assistantTurns: 40, tokensOut: 3400, tokensOutProvenance: "measured" as const },
 ];
 
 const TEMPORAL = { activeDays: 2, currentStreak: 2, longestStreakDays: 2, busiestDay: null, dayOfWeek: [1, 2, 3, 4, 5, 6, 7] };
@@ -37,6 +37,17 @@ test("both daily histograms carry their buckets as text, in the compact number v
 
   const replies = component.getByRole("table", { name: "Assistant turns per day" });
   await expect(replies.getByRole("cell").last()).toHaveText("40");
+});
+
+test("one estimated day keeps the shared token chart visibly approximate", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.timeseries": () => [{ ...POINTS[0], tokensOutProvenance: "estimated" as const }, POINTS[1]],
+    "stats.temporal": () => TEMPORAL,
+    "stats.activityHeatmap": () => HEATMAP,
+  });
+  const component = await mount(<AnalyticsTimeTabStory />);
+  const tokens = component.getByRole("table", { name: "Output tokens per day" });
+  await expect(tokens.getByRole("cell")).toHaveText(["~1.2M", "~3.4k"]);
 });
 
 test("the 7x24 activity matrix is readable as a real table, not just a coloured canvas (P1e)", async ({ mount, page }) => {

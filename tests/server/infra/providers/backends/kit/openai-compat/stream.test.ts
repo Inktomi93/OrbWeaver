@@ -168,6 +168,21 @@ describe("mapChatCompletionToTurnResult", () => {
     expect(result.usage.cacheCreation5mTokens).toBeNull();
   });
 
+  test("preserves usage recordedness instead of fabricating zeroes", () => {
+    const ctx = { model: "m", startedAt: 0, now: 1, contextWindow: null, maxOutputTokens: null } as const;
+    const bare = mapChatCompletionToTurnResult({ choices: [{ message: { content: "ok" } }] }, ctx);
+    expect(bare.usage).toMatchObject({ tokensIn: null, tokensOut: null, costUsd: null });
+
+    const partial = mapChatCompletionToTurnResult({ choices: [{ message: { content: "ok" } }], usage: { promptTokens: 3 } }, ctx);
+    expect(partial.usage).toMatchObject({ tokensIn: 3, tokensOut: null, costUsd: null });
+
+    const reportedZero = mapChatCompletionToTurnResult(
+      { choices: [{ message: { content: "ok" } }], usage: { promptTokens: 0, completionTokens: 0, cost: 0 } },
+      ctx,
+    );
+    expect(reportedZero.usage).toMatchObject({ tokensIn: 0, tokensOut: 0, costUsd: 0 });
+  });
+
   test("surfaces the view's generation handle as ChatResult.generationId, else omits it (PD-137)", () => {
     const withId = mapChatCompletionToTurnResult({ ...view, id: "gen-xyz" }, { model: "m", startedAt: 0, now: 1, contextWindow: null, maxOutputTokens: null });
     expect(withId.generationId).toBe("gen-xyz");

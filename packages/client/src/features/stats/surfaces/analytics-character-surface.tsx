@@ -15,7 +15,16 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
-import { formatCompact, formatCount, formatDurationMs, formatMs, formatPercent, formatUsd, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
+import {
+  formatCompact,
+  formatCount,
+  formatDurationMs,
+  formatMs,
+  formatPercent,
+  formatThroughput,
+  formatUsd,
+  UNRECORDED_NOTE,
+} from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
   readonly characterId: CharacterId;
@@ -108,18 +117,18 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       <Section heading="Economics">
         <Stack gap="block">
           <Grid cols="cell" gap="block">
-            <StatFigure label="Tokens in" value={formatCount(stats.tokensIn)} />
-            <StatFigure label="Tokens out" value={formatCount(stats.tokensOut)} />
+            <StatFigure label="Tokens in" value={formatCount(stats.tokensIn, stats.tokensInProvenance)} />
+            <StatFigure label="Tokens out" value={formatCount(stats.tokensOut, stats.tokensOutProvenance)} />
             <StatFigure label="Spend" value={formatUsd(stats.costUsd)} />
             {/* Per-character cache accounting does not exist: `character_stats` carries no cache columns
                 at all (the rollup is owner+model grain), so this tile printed a hard-coded 0%. It now
                 reads the em dash the absence has always deserved. */}
-            <StatFigure label="Cache hits (of input)" value={formatPercent(stats.cacheHitRate)} />
+            <StatFigure label="Cache hits (of input)" value={formatPercent(stats.cacheHitRate, stats.tokensInProvenance)} />
             <StatFigure label="Reasoning (of replies)" value={formatPercent(stats.reasoningRate)} />
             {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
                 unrendered rollup column. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
-            <StatFigure label="Throughput" value={`${stats.throughputTps.toFixed(1)} t/s`} />
+            <StatFigure label="Throughput" value={formatThroughput(stats.throughputTps, stats.tokensOutProvenance)} />
           </Grid>
           <Text voice="gloss">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a

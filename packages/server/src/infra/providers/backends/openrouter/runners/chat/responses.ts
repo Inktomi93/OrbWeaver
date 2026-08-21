@@ -314,8 +314,8 @@ function mapResponsesUsage(
   const cd = u?.costDetails;
   return {
     model: ctx.model,
-    tokensIn: u?.inputTokens ?? 0,
-    tokensOut: u?.outputTokens ?? 0,
+    tokensIn: u?.inputTokens ?? null,
+    tokensOut: u?.outputTokens ?? null,
     cacheReadTokens: u?.inputTokensDetails.cachedTokens ?? 0,
     cacheWriteTokens: 0,
     cacheCreation5mTokens: null,
@@ -324,7 +324,7 @@ function mapResponsesUsage(
     contextWindow: ctx.contextWindow,
     maxOutputTokens: ctx.maxOutputTokens,
     webSearchRequests: 0,
-    costUsd: u?.cost ?? 0,
+    costUsd: u?.cost ?? null,
     costDetails:
       cd !== undefined
         ? {

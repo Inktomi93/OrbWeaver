@@ -51,8 +51,12 @@ function gemMagnitudes(gem: ForgottenGem): string {
   // ABSENT ACCOUNTING IS NOT A ZERO (side-eye corpus re-pass B2, owner-observed). This read "0 tokens
   // returned · 1,187 exchanges" for five characters, because the economics op coalesced a missing count to
   // 0 — and an imported library has no token counts at all, so the tile's leading number was a confident
-  // measurement of something never measured. `tokensOut` is nullable to the wire now, and null says so.
-  const tokens = gem.tokensOut === null ? "tokens not recorded" : `${formatCount(gem.tokensOut)} tokens returned`;
+  // measurement of something never measured. `tokensOut` is nullable and its provenance stays on the wire;
+  // null/unrecorded says so, while an imported estimate keeps its `~` instead of laundering into exact copy.
+  const tokens =
+    gem.tokensOut === null || gem.tokensOutProvenance === "unrecorded"
+      ? "tokens not recorded"
+      : `${gem.tokensOutProvenance === "estimated" ? "~" : ""}${formatCount(gem.tokensOut)} tokens returned`;
   return `${tokens} · ${exchanges}`;
 }
 
@@ -75,7 +79,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
   // there is no external maximum a tokens-returned total could be a fraction of. An UNRECORDED gem
   // contributes nothing to the scale and draws no bar: a zero-length bar for "we don't know" would be the
   // same lie the gloss just stopped telling, in a shape that cannot carry the word "unrecorded".
-  const topTokensOut = Math.max(...gems.map((gem) => gem.tokensOut ?? 0), 1);
+  const topTokensOut = Math.max(...gems.map((gem) => (gem.tokensOutProvenance === "unrecorded" ? 0 : (gem.tokensOut ?? 0))), 1);
 
   return (
     <Section kicker="Invested, but quiet" level={2}>
@@ -136,7 +140,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                 </Stack>
               </Row>
             </Button>
-            {gem.tokensOut === null ? null : <TrackBar accent="info" max={topTokensOut} value={gem.tokensOut} />}
+            {gem.tokensOut === null || gem.tokensOutProvenance === "unrecorded" ? null : <TrackBar accent="info" max={topTokensOut} value={gem.tokensOut} />}
           </Stack>
         ))}
       </Grid>

@@ -167,6 +167,7 @@ function forkVariantValues(args: {
     reasoningEffort: variant.reasoningEffort,
     tokensIn: variant.tokensIn,
     tokensOut: variant.tokensOut,
+    tokenProvenance: variant.tokenProvenance,
     cacheReadTokens: variant.cacheReadTokens,
     cacheWriteTokens: variant.cacheWriteTokens,
     costUsd: variant.costUsd,

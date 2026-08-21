@@ -423,6 +423,7 @@ export async function seedMessage(
       readonly provider?: string | null;
       readonly tokensIn?: number;
       readonly tokensOut?: number;
+      readonly tokenProvenance?: import("@orb/contracts/chat").TokenProvenance;
       readonly costUsd?: number;
       readonly genStartedAt?: number;
       readonly genFinishedAt?: number;
@@ -452,6 +453,9 @@ export async function seedMessage(
       provider: overrides.variant.provider ?? null,
       tokensIn: overrides.variant.tokensIn ?? null,
       tokensOut: overrides.variant.tokensOut ?? null,
+      tokenProvenance:
+        overrides.variant.tokenProvenance ??
+        (overrides.variant.tokensIn !== undefined || overrides.variant.tokensOut !== undefined ? "measured" : "unrecorded"),
       costUsd: overrides.variant.costUsd ?? null,
       genStartedAt: overrides.variant.genStartedAt ?? null,
       genFinishedAt: overrides.variant.genFinishedAt ?? null,

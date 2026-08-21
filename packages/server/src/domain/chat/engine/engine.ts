@@ -255,6 +255,7 @@ function generatedRowEconomics(
 ): {
   tokensIn: number | null;
   tokensOut: number | null;
+  tokenProvenance: "measured" | "unrecorded";
   costUsd: number | null;
   cacheReadTokens: number | null;
   cacheWriteTokens: number | null;
@@ -266,9 +267,14 @@ function generatedRowEconomics(
   metadata: Record<string, unknown> | null;
 } {
   const e = result.economics;
+  const tokensIn = e?.tokensIn ?? null;
+  const tokensOut = e?.tokensOut ?? null;
   return {
-    tokensIn: e?.tokensIn ?? null,
-    tokensOut: e?.tokensOut ?? null,
+    tokensIn,
+    tokensOut,
+    // Economics on this path came from the live provider result. A reported zero is still a measured
+    // sample; absence on both axes is the only unrecorded state.
+    tokenProvenance: tokensIn !== null || tokensOut !== null ? "measured" : "unrecorded",
     costUsd: e?.costUsd ?? null,
     cacheReadTokens: e?.cacheReadTokens ?? null,
     cacheWriteTokens: e?.cacheWriteTokens ?? null,
@@ -372,6 +378,7 @@ async function buildTurnStatsDeltas(args: {
           content: old.content,
           tokensIn: old.tokensIn,
           tokensOut: old.tokensOut,
+          tokenProvenance: old.tokenProvenance,
           genStartedAt: old.genStartedAt,
           genFinishedAt: old.genFinishedAt,
           model: old.model,

@@ -8,6 +8,8 @@
 //   • modelRouting  — discovery supplies each character's distilled GENRE (`character_summaries`), the stats
 //     op (`ctx.characterModelEconomics`) supplies which model performed how; grouped to (genre, model).
 
+import type { TokenProvenance } from "@orb/contracts/chat";
+import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "../context.ts";
 import type { ForgottenGem, ModelRoutingRow } from "../contract/results.ts";
@@ -58,7 +60,8 @@ function gemRank(messageCount: number, lastActiveAt: number, newestActiveAt: num
  * `tokensOut`/`costUsd` come from the injected per-character economics op (never a raw `messages` SUM).
  * A character with no economics row keeps its semantic rank and reports `tokensOut: null` — "we have no
  * accounting for this one", which is most of an imported library and is NOT the zero it used to report
- * (side-eye corpus re-pass B2). `costUsd` still defaults to 0: an unrecorded cost genuinely is zero.
+ * (side-eye corpus re-pass B2). Cost follows the same honesty rule: unrecorded is null, never a fabricated
+ * zero-dollar observation.
  */
 async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEFAULT_FORGOTTEN_GEMS_LIMIT): Promise<ForgottenGem[]> {
   const [candidates, economics] = await Promise.all([readForgottenGemCandidates(ctx.db, ownerId), ctx.characterEconomics(ownerId)]);
@@ -72,7 +75,8 @@ async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEF
       messageCount: c.messageCount,
       lastActiveAt: c.lastActiveAt,
       tokensOut: econ === undefined ? null : econ.tokensOut,
-      costUsd: econ?.costUsd ?? 0,
+      tokensOutProvenance: econ?.tokensOutProvenance ?? "unrecorded",
+      costUsd: econ?.costUsd ?? null,
     };
   });
   const newestActiveAt = Math.max(...gems.map((g) => g.lastActiveAt), 0);
@@ -94,10 +98,16 @@ interface RoutingBucket {
   model: string;
   provider: string | null;
   generations: number;
-  tokensOut: number;
+  tokensOut: number | null;
+  tokensOutProvenance: TokenProvenance;
   genTimeMs: number;
   genSamples: number;
-  costUsd: number;
+  costUsd: number | null;
+}
+
+/** Add one recorded nullable total without turning two absent observations into zero. */
+function addRecorded(total: number | null, value: number | null): number | null {
+  return value === null ? total : (total ?? 0) + value;
 }
 
 /**
@@ -129,16 +139,18 @@ async function modelRouting(ctx: DiscoveryContext, ownerId: UserId): Promise<Mod
         provider: e.provider,
         generations: e.generations,
         tokensOut: e.tokensOut,
+        tokensOutProvenance: e.tokensOutProvenance,
         genTimeMs: e.genTimeMs,
         genSamples: e.genSamples,
         costUsd: e.costUsd,
       });
     } else {
       bucket.generations += e.generations;
-      bucket.tokensOut += e.tokensOut;
+      bucket.tokensOut = addRecorded(bucket.tokensOut, e.tokensOut);
+      bucket.tokensOutProvenance = combineTokenProvenance(bucket.tokensOutProvenance, e.tokensOutProvenance);
       bucket.genTimeMs += e.genTimeMs;
       bucket.genSamples += e.genSamples;
-      bucket.costUsd += e.costUsd;
+      bucket.costUsd = addRecorded(bucket.costUsd, e.costUsd);
     }
   }
   return [...buckets.values()]
@@ -149,6 +161,7 @@ async function modelRouting(ctx: DiscoveryContext, ownerId: UserId): Promise<Mod
         provider: b.provider,
         generations: b.generations,
         tokensOut: b.tokensOut,
+        tokensOutProvenance: b.tokensOutProvenance,
         avgGenTimeMs: b.genSamples > 0 ? b.genTimeMs / b.genSamples : null,
         costUsd: b.costUsd,
       }),

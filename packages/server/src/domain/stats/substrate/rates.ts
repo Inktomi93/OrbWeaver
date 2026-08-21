@@ -10,6 +10,7 @@
 // as an em dash, exactly as the latency percentiles already do (they were nullable from the start —
 // this extends that precedent to counts, costs and rates).
 
+import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ExtraStats } from "../contract/views.ts";
 
 /** 0 when the denominator is non-positive (avoids NaN/Infinity from an empty rollup).
@@ -47,19 +48,23 @@ export function cacheHitRate(cacheReadTokens: number, cacheWriteTokens: number, 
   return div(cacheReadTokens, tokensIn);
 }
 
-/** A token total, or `null` when it was never recorded. Token accounting is written per generation and is
- *  optional upstream — an ST-imported history and an agent-sdk turn produce real generations carrying no
- *  usage block at all. A rollup with generations behind it but a token total of exactly 0 therefore did
- *  not measure zero tokens; it measured nothing. With no generations behind it, 0 is the true answer. */
-export function recordedTokens(tokens: number, generations: number): number | null {
-  return generations > 0 && tokens <= 0 ? null : tokens;
+/** Aggregate provenance is reversible from the two sample counters: estimates dominate a mixed total,
+ *  measured wins only when no estimate exists, and no samples remains honestly unrecorded. */
+export function aggregateTokenProvenance(measuredSamples: number, estimatedSamples: number): TokenProvenance {
+  if (estimatedSamples > 0) {
+    return "estimated";
+  }
+  return measuredSamples > 0 ? "measured" : "unrecorded";
 }
 
-/** A USD total, or `null` when the rollup carries no accounting to price. Unlike tokens, a zero cost is
- *  a perfectly ordinary MEASURED value (a local model is free), so the absence test is the TOKEN one:
- *  cost is unrecorded exactly when the generations behind it recorded no usage. */
-export function recordedCost(costUsd: number, tokenTotal: number, generations: number): number | null {
-  return recordedTokens(tokenTotal, generations) === null ? null : costUsd;
+export function recordedTokens(tokens: number, measuredSamples: number, estimatedSamples: number): number | null {
+  return aggregateTokenProvenance(measuredSamples, estimatedSamples) === "unrecorded" ? null : tokens;
+}
+
+/** A USD total, or `null` when no contributing row reported cost. A zero cost with a sample is a perfectly
+ *  ordinary measured value (for example a local model); no sample is absence, not `$0.00`. */
+export function recordedCost(costUsd: number, costSamples: number): number | null {
+  return costSamples > 0 ? costUsd : null;
 }
 
 /** Shared by owner + character views (character_stats has no cache/context columns — caller passes 0/null). */
@@ -73,16 +78,16 @@ export function deriveExtra(r: {
   maxContextTokens: number | null;
   tokensIn: number;
   tokensOut: number;
+  costSamples: number;
   totalGenTimeMs: number;
   activeIdxSum: number;
   assistantTurns: number;
   assistantWords: number;
   swipes: number;
 }): ExtraStats {
-  const generations = r.assistantTurns + r.swipes;
   return {
     reasoningMs: r.reasoningMs,
-    costUsd: recordedCost(r.costUsd, r.tokensIn + r.tokensOut, generations),
+    costUsd: recordedCost(r.costUsd, r.costSamples),
     cacheReadTokens: r.cacheReadTokens,
     cacheWriteTokens: r.cacheWriteTokens,
     forkedChats: r.forkedChats,

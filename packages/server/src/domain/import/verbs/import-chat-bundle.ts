@@ -124,6 +124,7 @@ function toMessageInput(
       provider: v.provider,
       tokensIn: v.tokensIn,
       tokensOut: v.tokensOut,
+      tokenProvenance: v.tokenProvenance,
       reasoning: v.reasoning,
       ttftMs: v.ttftMs,
       genStartedAt: v.genStartedAt,

@@ -9,6 +9,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { UserMacroValues } from "../preset/index.ts";
 import type { CHAT_INJECTION_POSITIONS } from "./assemble.ts";
+import type { TokenProvenance } from "./messages.ts";
 import type { ChatMetadata } from "./metadata.ts";
 import type { MessageKind } from "./participants.ts";
 
@@ -21,6 +22,7 @@ export interface BulkImportVariantInput {
   readonly model: string | null;
   readonly provider: string | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance;
   readonly reasoning: string | null;
   readonly ttftMs: number | null;
   readonly genStartedAt: number | null;

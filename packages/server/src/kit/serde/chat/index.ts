@@ -24,7 +24,7 @@
 //
 // Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
-import type { MessageKind } from "@orb/contracts/chat";
+import type { MessageKind, TokenProvenance } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
@@ -51,6 +51,7 @@ export interface ParsedVariant {
    *  PARSE side only. */
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance;
   readonly reasoning: string | null;
   readonly genStarted: number | null;
   readonly genFinished: number | null;
@@ -111,6 +112,7 @@ export interface ParsedChatMessage {
    *  once. `buildExtra` states which one ST's single field gets, and why. */
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance;
   readonly reasoning: string | null;
   readonly genStarted: number | null;
   readonly genFinished: number | null;
@@ -548,7 +550,7 @@ function extractExtra(extra: unknown): {
   return {
     model: nullIfEmpty(str(e?.model)),
     provider: nullIfEmpty(str(e?.api)),
-    tokenCount: Number.isFinite(tc) && tc > 0 ? tc : null,
+    tokenCount: Number.isSafeInteger(tc) && tc >= 0 ? tc : null,
     reasoning: nullIfEmpty(str(e?.reasoning)),
     ttftMs: Number.isFinite(ttft) && ttft >= 0 ? Math.round(ttft) : null,
   };
@@ -558,11 +560,13 @@ function extractExtra(extra: unknown): {
  *  GENERATED (output), a `user`/`system` line's text was typed/injected and only ever enters a prompt (input).
  *  ST has exactly one field and no axis of its own, so the role is the only signal — and it is a reliable one
  *  (`roleOf` reads ST's own `is_user`/`is_system`). */
-function tokenColumns(tokenCount: number | null, role: MessageRole): { tokensIn: number | null; tokensOut: number | null } {
+function tokenColumns(tokenCount: number | null, role: MessageRole): { tokensIn: number | null; tokensOut: number | null; tokenProvenance: TokenProvenance } {
   if (tokenCount === null) {
-    return { tokensIn: null, tokensOut: null };
+    return { tokensIn: null, tokensOut: null, tokenProvenance: "unrecorded" };
   }
-  return role === "assistant" ? { tokensIn: null, tokensOut: tokenCount } : { tokensIn: tokenCount, tokensOut: null };
+  return role === "assistant"
+    ? { tokensIn: null, tokensOut: tokenCount, tokenProvenance: "measured" }
+    : { tokensIn: tokenCount, tokensOut: null, tokenProvenance: "measured" };
 }
 
 /** Coerce the `agent_author` sidecar → provenance, or null when absent/blank (PD-17). Both fields must be
@@ -910,7 +914,7 @@ function buildExtra(m: ParsedChatMessage): Record<string, unknown> {
     // divides by the generation duration for its `t/s` readout (`formatGenerationTimer`) — a sum would credit
     // the whole prompt to this row's text and inflate that rate by the context size. Same rule, same reason,
     // on the swipe sidecar in `buildSwipeFields`.
-    token_count: m.tokensOut ?? m.tokensIn,
+    ...(m.tokenProvenance === "measured" ? { token_count: m.tokensOut ?? m.tokensIn } : {}),
     // `reasoning` is the ST thinking-trace field; only emitted when present so a no-reasoning turn stays
     // clean and re-imports as null.
     ...(m.reasoning !== null ? { reasoning: m.reasoning } : {}),
@@ -936,7 +940,7 @@ function buildSwipeFields(m: ParsedChatMessage): Record<string, unknown> {
       extra: {
         model: v.model,
         api: v.provider,
-        token_count: v.tokensOut ?? v.tokensIn,
+        ...(v.tokenProvenance === "measured" ? { token_count: v.tokensOut ?? v.tokensIn } : {}),
         ...(v.reasoning !== null ? { reasoning: v.reasoning } : {}),
       },
       gen_started: v.genStarted,

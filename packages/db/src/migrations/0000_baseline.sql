@@ -306,6 +306,7 @@ CREATE TABLE `message_variants` (
 	`reasoning_effort` text,
 	`tokens_in` integer,
 	`tokens_out` integer,
+	`token_provenance` text DEFAULT 'unrecorded' NOT NULL,
 	`cache_read_tokens` integer,
 	`cache_write_tokens` integer,
 	`cost_usd` real,
@@ -332,7 +333,8 @@ CREATE TABLE `message_variants` (
 	`metadata` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`context_boundary_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null
+	FOREIGN KEY (`context_boundary_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "message_variants_token_provenance_check" CHECK(token_provenance in ('measured', 'estimated', 'unrecorded'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `message_variants_message_idx_unique` ON `message_variants` (`message_id`,`idx`);--> statement-breakpoint
@@ -646,6 +648,16 @@ CREATE TABLE `image_embeddings` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `image_embeddings_asset_model_lens_unique` ON `image_embeddings` (`asset_id`,`model`,`lens`);--> statement-breakpoint
+CREATE TABLE `image_index_skips` (
+	`asset_id` text PRIMARY KEY NOT NULL,
+	`reason` text NOT NULL,
+	`width` integer,
+	`height` integer,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "image_index_skips_reason_check" CHECK(reason in ('below-dimension-floor'))
+);
+--> statement-breakpoint
 CREATE TABLE `gallery_items` (
 	`id` text PRIMARY KEY NOT NULL,
 	`asset_id` text NOT NULL,
@@ -1072,7 +1084,12 @@ CREATE TABLE `character_stats` (
 	`swipe_words` integer DEFAULT 0 NOT NULL,
 	`tokens_in` integer DEFAULT 0 NOT NULL,
 	`tokens_out` integer DEFAULT 0 NOT NULL,
+	`tokens_in_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_in_estimated_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_estimated_samples` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
+	`cost_samples` integer DEFAULT 0 NOT NULL,
 	`gen_time_ms` integer DEFAULT 0 NOT NULL,
 	`gen_samples` integer DEFAULT 0 NOT NULL,
 	`reasoning_generations` integer DEFAULT 0 NOT NULL,
@@ -1101,7 +1118,12 @@ CREATE TABLE `daily_stats` (
 	`assistant_words` integer DEFAULT 0 NOT NULL,
 	`tokens_in` integer DEFAULT 0 NOT NULL,
 	`tokens_out` integer DEFAULT 0 NOT NULL,
+	`tokens_in_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_in_estimated_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_estimated_samples` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
+	`cost_samples` integer DEFAULT 0 NOT NULL,
 	`gen_time_ms` integer DEFAULT 0 NOT NULL,
 	`message_dates_approx` integer DEFAULT false NOT NULL,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -1117,11 +1139,16 @@ CREATE TABLE `model_stats` (
 	`generations` integer DEFAULT 0 NOT NULL,
 	`tokens_in` integer DEFAULT 0 NOT NULL,
 	`tokens_out` integer DEFAULT 0 NOT NULL,
+	`tokens_in_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_in_estimated_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_estimated_samples` integer DEFAULT 0 NOT NULL,
 	`gen_time_ms` integer DEFAULT 0 NOT NULL,
 	`gen_samples` integer DEFAULT 0 NOT NULL,
 	`reasoning_generations` integer DEFAULT 0 NOT NULL,
 	`reasoning_ms` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
+	`cost_samples` integer DEFAULT 0 NOT NULL,
 	`cache_read_tokens` integer DEFAULT 0 NOT NULL,
 	`cache_write_tokens` integer DEFAULT 0 NOT NULL,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -1142,7 +1169,12 @@ CREATE TABLE `owner_stats` (
 	`swipe_words` integer DEFAULT 0 NOT NULL,
 	`tokens_in` integer DEFAULT 0 NOT NULL,
 	`tokens_out` integer DEFAULT 0 NOT NULL,
+	`tokens_in_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_in_estimated_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_measured_samples` integer DEFAULT 0 NOT NULL,
+	`tokens_out_estimated_samples` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
+	`cost_samples` integer DEFAULT 0 NOT NULL,
 	`gen_time_ms` integer DEFAULT 0 NOT NULL,
 	`gen_samples` integer DEFAULT 0 NOT NULL,
 	`reasoning_generations` integer DEFAULT 0 NOT NULL,
@@ -1268,7 +1300,7 @@ CREATE TABLE `workload_schedules` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "workload_schedules_kind_check" CHECK(kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')),
+	CONSTRAINT "workload_schedules_kind_check" CHECK(kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')),
 	CONSTRAINT "workload_schedules_mode_check" CHECK(mode in ('singular', 'bulk')),
 	CONSTRAINT "workload_schedules_cadence_check" CHECK(cadence in ('hourly', 'daily', 'weekly', 'monthly'))
 );
@@ -1291,7 +1323,7 @@ CREATE TABLE `workloads` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "workloads_kind_check" CHECK(kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')),
+	CONSTRAINT "workloads_kind_check" CHECK(kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')),
 	CONSTRAINT "workloads_status_check" CHECK(status in ('queued', 'running', 'succeeded', 'failed', 'cancelling', 'cancelled', 'worker_died')),
 	CONSTRAINT "workloads_mode_check" CHECK(mode in ('singular', 'bulk')),
 	CONSTRAINT "workloads_lane_check" CHECK(lane in ('interactive', 'sweep'))
@@ -1365,13 +1397,4 @@ CREATE TABLE `world_entries` (
 	FOREIGN KEY (`world_book_id`) REFERENCES `world_books`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `world_entries_book_idx` ON `world_entries` (`world_book_id`);--> statement-breakpoint
-CREATE TABLE `image_index_skips` (
-	`asset_id` text PRIMARY KEY NOT NULL,
-	`reason` text NOT NULL,
-	`width` integer,
-	`height` integer,
-	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "image_index_skips_reason_check" CHECK(reason in ('below-dimension-floor'))
-);
+CREATE INDEX `world_entries_book_idx` ON `world_entries` (`world_book_id`);

@@ -69,7 +69,9 @@ const AGENT_ASSIST = {
   content: "buddy speaks",
   model: "gpt",
   provider: "openrouter",
-  tokensIn: 7,
+  // Deliberately output-only: the drift gate must prove the live model slice and the canon rebuild
+  // count each nullable axis independently instead of manufacturing an input sample from scalar zero.
+  tokensIn: null,
   tokensOut: 11,
 } as const;
 const USER_TEXT = "hello world";
@@ -133,6 +135,7 @@ function liveDeltas(): StatsDelta[] {
         content: USER_TEXT,
         tokensIn: null,
         tokensOut: null,
+        tokenProvenance: "unrecorded",
         costUsd: null,
         cacheReadTokens: null,
         cacheWriteTokens: null,
@@ -159,6 +162,7 @@ function liveDeltas(): StatsDelta[] {
         content: CHAR_ASSIST.content,
         tokensIn: CHAR_ASSIST.tokensIn,
         tokensOut: CHAR_ASSIST.tokensOut,
+        tokenProvenance: "measured",
         costUsd: CHAR_ASSIST.costUsd,
         cacheReadTokens: CHAR_ASSIST.cacheReadTokens,
         cacheWriteTokens: CHAR_ASSIST.cacheWriteTokens,
@@ -185,6 +189,7 @@ function liveDeltas(): StatsDelta[] {
         content: AGENT_ASSIST.content,
         tokensIn: AGENT_ASSIST.tokensIn,
         tokensOut: AGENT_ASSIST.tokensOut,
+        tokenProvenance: "measured",
         costUsd: null,
         cacheReadTokens: null,
         cacheWriteTokens: null,
@@ -210,6 +215,7 @@ function liveDeltas(): StatsDelta[] {
         content: CHAR_SWIPE.content,
         tokensIn: CHAR_SWIPE.tokensIn,
         tokensOut: CHAR_SWIPE.tokensOut,
+        tokenProvenance: "measured",
         genStartedAt: CHAR_SWIPE.genStartedAt,
         genFinishedAt: CHAR_SWIPE.genFinishedAt,
         model: CHAR_SWIPE.model,
@@ -288,7 +294,7 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // Guard against a false green from two identical EMPTIES (a canon that silently dropped the rows would
     // still `toEqual`): pin the agent's contribution is actually present — the host counts BOTH assistant
     // turns, and no character_stats row was minted for the agent.
-    expect(live.owner).toMatchObject({ assistantTurns: 2, tokensIn: 19, tokensOut: 35 });
+    expect(live.owner).toMatchObject({ assistantTurns: 2, tokensIn: 12, tokensOut: 35 });
     expect(live.chars).toHaveLength(1);
   });
 

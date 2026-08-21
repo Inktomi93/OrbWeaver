@@ -314,6 +314,7 @@ function messageStatements(args: MessageStatementsArgs): {
           // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
           tokensIn: v.tokensIn ?? null,
           tokensOut: v.tokensOut,
+          tokenProvenance: v.tokenProvenance,
           reasoning: v.reasoning,
           ttftMs: v.ttftMs,
           genStartedAt: v.genStartedAt,

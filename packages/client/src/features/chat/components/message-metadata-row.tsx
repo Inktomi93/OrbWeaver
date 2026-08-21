@@ -95,8 +95,9 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
   const tokens = tokenCount(message);
   const items: ReactElement[] = [];
 
-  if (visibility.showTokenCount && tokens !== null) {
-    items.push(<Fragment key="tokens">{metadatum("message-metadata-tokens", `${tokens} tok`)}</Fragment>);
+  if (visibility.showTokenCount && tokens !== null && message.tokenProvenance !== "unrecorded") {
+    const prefix = message.tokenProvenance === "estimated" ? "~" : "";
+    items.push(<Fragment key="tokens">{metadatum("message-metadata-tokens", `${prefix}${tokens} tok`)}</Fragment>);
   }
   if (visibility.showMessageId) {
     items.push(<Fragment key="id">{metadatum("message-metadata-id", message.id)}</Fragment>);

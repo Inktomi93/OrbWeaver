@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "22f10880-84ae-458c-98d3-755d1dbf6c32",
+  "id": "eaa11776-ce7d-444f-ae88-2b5c945d7ee4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1995,6 +1995,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "token_provenance": {
+          "name": "token_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unrecorded'"
+        },
         "cache_read_tokens": {
           "name": "cache_read_tokens",
           "type": "integer",
@@ -2206,7 +2214,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "message_variants_token_provenance_check": {
+          "name": "message_variants_token_provenance_check",
+          "value": "token_provenance in ('measured', 'estimated', 'unrecorded')"
+        }
+      }
     },
     "messages": {
       "name": "messages",
@@ -4172,6 +4185,67 @@
         "image_embeddings_lens_check": {
           "name": "image_embeddings_lens_check",
           "value": "lens in ('image-raw', 'image-captioned')"
+        }
+      }
+    },
+    "image_index_skips": {
+      "name": "image_index_skips",
+      "columns": {
+        "asset_id": {
+          "name": "asset_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "image_index_skips_asset_id_assets_id_fk": {
+          "name": "image_index_skips_asset_id_assets_id_fk",
+          "tableFrom": "image_index_skips",
+          "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "image_index_skips_reason_check": {
+          "name": "image_index_skips_reason_check",
+          "value": "reason in ('below-dimension-floor')"
         }
       }
     },
@@ -6921,9 +6995,49 @@
           "autoincrement": false,
           "default": 0
         },
+        "tokens_in_measured_samples": {
+          "name": "tokens_in_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_in_estimated_samples": {
+          "name": "tokens_in_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_measured_samples": {
+          "name": "tokens_out_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_estimated_samples": {
+          "name": "tokens_out_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "cost_usd": {
           "name": "cost_usd",
           "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "cost_samples": {
+          "name": "cost_samples",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -7134,9 +7248,49 @@
           "autoincrement": false,
           "default": 0
         },
+        "tokens_in_measured_samples": {
+          "name": "tokens_in_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_in_estimated_samples": {
+          "name": "tokens_in_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_measured_samples": {
+          "name": "tokens_out_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_estimated_samples": {
+          "name": "tokens_out_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "cost_usd": {
           "name": "cost_usd",
           "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "cost_samples": {
+          "name": "cost_samples",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -7245,6 +7399,38 @@
           "autoincrement": false,
           "default": 0
         },
+        "tokens_in_measured_samples": {
+          "name": "tokens_in_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_in_estimated_samples": {
+          "name": "tokens_in_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_measured_samples": {
+          "name": "tokens_out_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_estimated_samples": {
+          "name": "tokens_out_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "gen_time_ms": {
           "name": "gen_time_ms",
           "type": "integer",
@@ -7280,6 +7466,14 @@
         "cost_usd": {
           "name": "cost_usd",
           "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "cost_samples": {
+          "name": "cost_samples",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -7430,9 +7624,49 @@
           "autoincrement": false,
           "default": 0
         },
+        "tokens_in_measured_samples": {
+          "name": "tokens_in_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_in_estimated_samples": {
+          "name": "tokens_in_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_measured_samples": {
+          "name": "tokens_out_measured_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tokens_out_estimated_samples": {
+          "name": "tokens_out_estimated_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "cost_usd": {
           "name": "cost_usd",
           "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "cost_samples": {
+          "name": "cost_samples",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -8267,7 +8501,7 @@
       "checkConstraints": {
         "workload_schedules_kind_check": {
           "name": "workload_schedules_kind_check",
-          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
         },
         "workload_schedules_mode_check": {
           "name": "workload_schedules_mode_check",
@@ -8431,7 +8665,7 @@
       "checkConstraints": {
         "workloads_kind_check": {
           "name": "workloads_kind_check",
-          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
         },
         "workloads_status_check": {
           "name": "workloads_status_check",

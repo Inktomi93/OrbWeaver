@@ -26,6 +26,26 @@ test("each result shape gets its own sentence", () => {
   );
   expect(workloadResultSummary("import-bundle", { imported: 42, skipped: 0, failed: 1 })).toBe("42 imported · 1 failed");
   expect(workloadResultSummary("reconcile-stats", { owners: 1, characters: 128 })).toBe("1 owner · 128 characters");
+  expect(
+    workloadResultSummary("import-token-usage-backfill", {
+      scanned: 10,
+      exactRecovered: 2,
+      legacyPromoted: 1,
+      estimated: 7,
+      compareAndSetSkipped: 1,
+      dryRun: false,
+    }),
+  ).toBe("10 variants · 2 exact counts recovered · 1 legacy count marked measured · 7 estimated · 1 changed concurrently");
+  expect(
+    workloadResultSummary("import-token-usage-backfill", {
+      scanned: 1,
+      exactRecovered: 1,
+      legacyPromoted: 0,
+      estimated: 0,
+      compareAndSetSkipped: 0,
+      dryRun: false,
+    }),
+  ).toBe("1 variant · 1 exact count recovered");
   expect(workloadResultSummary("databank-ingest", { documents: 3, chunksUpserted: 40, chunksNoop: 2, chunksPruned: 0, reExtracted: 0, failed: [] })).toBe(
     "3 documents · 40 chunks written · 2 chunks unchanged",
   );

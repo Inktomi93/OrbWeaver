@@ -1,5 +1,14 @@
 import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
-import { macroFreezeRecordSchema, messageSlotSchema, reattributeScopeSchema, toolCallRecordSchema, userMacroDrawsSchema } from "@orb/contracts/chat";
+import {
+  combineTokenProvenance,
+  macroFreezeRecordSchema,
+  messageSlotSchema,
+  reattributeScopeSchema,
+  TOKEN_PROVENANCES,
+  tokenProvenanceSchema,
+  toolCallRecordSchema,
+  userMacroDrawsSchema,
+} from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -11,6 +20,18 @@ const SAMPLE_VARIANT_ID = mintTypeId(ID_PREFIX.messageVariant);
 const SAMPLE_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const SAMPLE_PERSONA_ID = mintTypeId(ID_PREFIX.persona);
 const SAMPLE_USER_ID = castId<UserId>("user-alice");
+
+test("token provenance has exactly one canonical three-member vocabulary", () => {
+  expect(TOKEN_PROVENANCES).toEqual(["measured", "estimated", "unrecorded"]);
+  expect(tokenProvenanceSchema.options).toEqual([...TOKEN_PROVENANCES]);
+  expect(tokenProvenanceSchema.safeParse("inferred").success).toBe(false);
+});
+
+test("token provenance combination makes estimates dominant and absence neutral", () => {
+  expect(combineTokenProvenance("measured", "estimated")).toBe("estimated");
+  expect(combineTokenProvenance("unrecorded", "measured")).toBe("measured");
+  expect(combineTokenProvenance("unrecorded", "unrecorded")).toBe("unrecorded");
+});
 
 // ═══ D26 — the message SLOT carries NO content; content lives on the variant ════
 
@@ -109,6 +130,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
     terminalReason: null,
     tokensIn: 10,
     tokensOut: 20,
+    tokenProvenance: "measured",
     cacheReadTokens: null,
     cacheWriteTokens: null,
     contextWindow: 200_000,
