@@ -1,0 +1,170 @@
+// CT: the composer's four guided CONTROL LEAVES (composer-guided-buttons.tsx) — the presentation half the
+// cluster orchestrates. Driven through the REAL `<Composer>` (the ComposerStory precedent) so the leaves are
+// exercised with the props production actually hands them; routeTrpc stubs the network.
+//
+// Deliberately DISJOINT from composer-guided-cluster.ct.tsx, which owns the ORCHESTRATION (which mutation each
+// icon fires, steer consume/keep, the impersonate stream). This file owns the three things that live INSIDE the
+// leaves and nothing else asserts:
+//   1. RESPONSE'S CAST FORK — `ResponseGuidedButton` renders a DIRECT button at cast ≤ 1 and a SPEAKER MENU at
+//      cast > 1 (Auto + one row per character). The cluster CT never stubs a roster, so it only ever meets the
+//      solo arm; the multi-character room — the fork's whole reason to exist — was unexercised.
+//   2. THE CHARGE ASYMMETRY — `hasText && !disabled` for Swipe/Continue/Impersonate vs bare `hasText` for
+//      Response. So on a room with no assistant tail, typing charges Response and does NOT charge the two
+//      tail-gated icons. `data-cta` (@orb/ui Button's primary marker) is the rendered tell; @orb/ui primitives
+//      drop `data-testid`, so the controls are reached by role+name.
+//   3. NO NATIVE `title` ON A TOOLTIP-WRAPPED TRIGGER (side-eye 2026-08-21, the file header's law). Every
+//      control here is a Base UI TooltipTrigger that ALSO carried the same string as a `title`, so Chrome
+//      stacked its OS tooltip on the rendered popup. The fix is only durable if the ABSENCE is pinned together
+//      with the reason still reaching a DISABLED control by hover (`focusableWhenDisabled` +
+//      `data-disabled:pointer-events-auto` are what keep it reachable).
+//
+// Menu POPUPs render through a Base UI Portal — menu-item assertions use the PAGE locator, never `component`.
+
+import { STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/client/lib";
+import { expect, test } from "@playwright/experimental-ct-react";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ComposerStory } from "../_ct-stories.tsx";
+
+const RESPONSE = "Generate reply";
+const RESPONSE_GUIDED = "Guided generate reply";
+const SWIPE = "Try another reply";
+const CONTINUE = "Continue the reply";
+const IMPERSONATE = "Draft your line";
+const AUTO = "Auto (arbitrate)";
+
+/** A present character seat on the `chat.getChat` roster — what `filterCharacters` feeds the speaker menu. */
+function character(name: string): Record<string, unknown> {
+  return {
+    id: `participant_${name.toLowerCase()}`,
+    kind: "character",
+    role: "member",
+    userId: null,
+    characterId: `character_${name.toLowerCase()}`,
+    displayName: name,
+    avatarHash: null,
+    leftSeq: null,
+  };
+}
+
+/** A human seat — present but never a speaker option (the menu is the CHARACTER cast). */
+const HOST = {
+  id: "participant_host",
+  kind: "human",
+  role: "host",
+  userId: "user_host",
+  characterId: null,
+  displayName: "Nate",
+  avatarHash: null,
+  leftSeq: null,
+};
+
+const GROUP_ROSTER = { participants: [HOST, character("Aria"), character("Bolt")] };
+
+// ── 1. Response's cast fork ───────────────────────────────────────────────────────────────────────────────
+
+test("a MULTI-character room turns Response into a speaker menu: picking a name rides speakerCharacterId", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: RESPONSE }).click();
+  // The human seat is NOT a speaker option — only the character cast is.
+  await expect(page.getByRole("menuitem", { name: "Nate" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: AUTO })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Bolt" }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly 1 call.
+  expect(trpc.lastInput("chat.generate")).toMatchObject({ speakerCharacterId: "character_bolt" });
+});
+
+test("Auto (arbitrate) is a real row: it fires the generate with NO speaker (the server arbitrates)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: RESPONSE }).click();
+  await page.getByRole("menuitem", { name: AUTO }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. `null`/omitted ⇒ arbitration picks the speaker,
+  // so the field must be ABSENT from the wire, not a null placeholder.
+  const input = trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
+  expect(input.speakerCharacterId).toBeUndefined();
+});
+
+test("a SOLO-cast room keeps the DIRECT Response button — one click fires, no speaker menu exists", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.getChat": () => ({ participants: [HOST, character("Aria")] }), "chat.generate": () => ({}) });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: RESPONSE }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  // The fork's other arm: no popup opened, so nothing to pick — the click IS the fire.
+  await expect(page.getByRole("menuitem", { name: AUTO })).toHaveCount(0);
+  const input = trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
+  expect(input.speakerCharacterId).toBeUndefined();
+});
+
+// ── 2. The charge asymmetry ───────────────────────────────────────────────────────────────────────────────
+
+// @orb/ui Button marks its `primary` intent with `data-cta` — the guided icons' CHARGE tell.
+const CHARGE = "data-cta";
+
+test("typing charges only what it can actually steer: Response + Draft charge, the tail-gated icons do not", async ({ mount, page }) => {
+  await routeTrpc(page, {}); // no assistant tail ⇒ Swipe/Continue are phase-disabled
+  const component = await mount(<ComposerStory />);
+
+  // Empty composer: nothing is charged.
+  await Promise.all(
+    [RESPONSE, IMPERSONATE, SWIPE, CONTINUE].map((name) => expect(component.getByRole("button", { name, exact: true })).not.toHaveAttribute(CHARGE)),
+  );
+
+  await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
+
+  // `hasText` alone charges Response; `hasText && !disabled` leaves the two tail-gated icons cold — a charged
+  // icon that cannot fire is the lie this asymmetry exists to prevent.
+  await expect(component.getByRole("button", { name: RESPONSE_GUIDED, exact: true })).toHaveAttribute(CHARGE);
+  await expect(component.getByRole("button", { name: "Guided draft your line", exact: true })).toHaveAttribute(CHARGE);
+  await expect(component.getByRole("button", { name: "Try another reply with this direction", exact: true })).not.toHaveAttribute(CHARGE);
+  await expect(component.getByRole("button", { name: "Continue the reply with this direction", exact: true })).not.toHaveAttribute(CHARGE);
+});
+
+// ── 3. The tooltip is the ONLY carrier ────────────────────────────────────────────────────────────────────
+
+test("no guided control carries a native `title` — the tooltip popup is the sole explanation carrier", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  // Both states matter: an ENABLED trigger (Response/Draft) and a DISABLED one (Swipe/Continue, no tail) — the
+  // disabled pair is exactly where a native title used to be justified as "the only reachable explanation".
+  await Promise.all(
+    [RESPONSE, IMPERSONATE, SWIPE, CONTINUE].map((name) =>
+      expect(component.getByRole("button", { name, exact: true }), `${name} must not stack an OS tooltip`).not.toHaveAttribute("title"),
+    ),
+  );
+});
+
+test("a DISABLED guided icon still explains itself on hover (the reason the native title stood in for)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  const swipe = component.getByRole("button", { name: SWIPE, exact: true });
+  await expect(swipe).toBeDisabled();
+  await swipe.hover();
+  // `data-disabled:pointer-events-auto` is what lets the hover land at all; without it the popup never opens.
+  await expect(page.getByRole("tooltip", { name: `${SWIPE} — ${SWIPE_NEEDS_REPLY}`, exact: true })).toBeVisible();
+  await page.mouse.move(0, 0);
+});
+
+test("an ENABLED guided icon's tooltip teaches the dual mode: the plain label, then the steer cue", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: RESPONSE, exact: true }).hover();
+  await expect(page.getByRole("tooltip", { name: RESPONSE, exact: true })).toBeVisible();
+  await page.mouse.move(0, 0);
+
+  // With text the SAME control promises what the text will do — the typed-text-becomes-steer contract.
+  await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
+  await component.getByRole("button", { name: RESPONSE_GUIDED, exact: true }).hover();
+  await expect(page.getByRole("tooltip", { name: `${RESPONSE} — ${STEER_CUE_RESPONSE}`, exact: true })).toBeVisible();
+});
