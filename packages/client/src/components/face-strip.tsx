@@ -249,10 +249,13 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
           // The selected face tints its caption too (the mock's `.f.on{color:primary}`), not just its avatar
           // ring: a ring alone reads as "the one you last touched", while name-and-portrait together reading
           // accent is a STATE you are in — the same primary this strip's "Filtered: X" chip repeats below
-          // it. That is what separates a face that FILTERS from a face that LAUNCHES. The `gloss` VOICE
-          // (density-pass §2.3) — the caption is the quiet second line under the datum (the face). The
+          // it. That is what separates a face that FILTERS from a face that LAUNCHES. The `label` VOICE
+          // keeps this functional text at the readable label step under the portrait datum. The
           // SELECTED face's accent tint is a state, not a type axis, so it stays a className on the voice.
-          <Text className={`${squeezed ? "max-w-full" : "max-w-avatar-hero"} truncate text-center${selected ? " text-primary" : ""}`} voice="gloss">
+          <Text
+            className={`${squeezed ? "max-w-full" : "max-w-avatar-hero"} truncate text-center ${selected ? "text-primary" : "text-muted-foreground"}`}
+            voice="label"
+          >
             {item.name}
           </Text>
         ) : null}
@@ -282,8 +285,8 @@ function withKicker(show: boolean, kicker: string, row: ReactElement): ReactElem
 const PLACEHOLDER_FACES = 4;
 const PLACEHOLDER_SLOTS = Array.from({ length: PLACEHOLDER_FACES }, (_unused, index) => index);
 /** The caption placeholder is an EMPTY LINE OF THE CAPTION'S OWN TEXT, not a sized bar: a bar's height is a
- *  guess at `gloss`'s line box (measured 13.13px against an `h-3` guess of 12px — a 1.13px residual shift),
- *  while the real `Text` element reserves it exactly, by construction, at any font scale. */
+ *  guess at the semantic voice's line box, while the real `Text` element reserves it exactly at any font
+ *  scale. */
 const CAPTION_PLACEHOLDER = " ";
 
 /**
@@ -311,7 +314,7 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
         <Stack align="center" className={`min-h-control-md min-w-control-md shrink-0${cellWidthClass(caption)}`} gap="tight" key={slot}>
           <Skeleton className="size-avatar-md rounded-control" />
           {caption ? (
-            <Text aria-hidden={true} className="text-transparent" voice="gloss">
+            <Text aria-hidden={true} className="text-transparent" voice="label">
               {CAPTION_PLACEHOLDER}
             </Text>
           ) : null}
@@ -423,9 +426,13 @@ export function FaceStrip({
                         measuring pass the number is provisional; it is never painted (the fold lands in a
                         layout effect, before the browser paints). */}
                     <Row align="center" className="size-avatar-md rounded-control bg-muted" justify="center">
-                      <Text voice="gloss">{`+${fold === null ? items.length : fold.hidden}`}</Text>
+                      <Text className="text-muted-foreground" voice="label">{`+${fold === null ? items.length : fold.hidden}`}</Text>
                     </Row>
-                    {caption ? <Text voice="gloss">More</Text> : null}
+                    {caption ? (
+                      <Text className="text-muted-foreground" voice="label">
+                        More
+                      </Text>
+                    ) : null}
                   </Stack>
                 </Button>
               }

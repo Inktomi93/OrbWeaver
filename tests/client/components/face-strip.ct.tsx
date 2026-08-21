@@ -18,6 +18,7 @@ const SERA = { id: "char_sera", name: "Sera of the Long Winter Court", avatarHas
 const AVATAR_MD_PX = Number.parseFloat(TOKENS["spacing.avatar-md"].value) * 16;
 /** WCAG 2.5.5's target floor — the law's coarse-pointer bar (D62 P1 / touch-target-floor.suite.ct.tsx). */
 const WCAG_FLOOR = 44;
+const OVERFLOW_COUNT_TEXT_RE = /^\+\d+$/u;
 
 test("each face is a named button; the selected one announces aria-current", async ({ mount }) => {
   const component = await mount(<FaceStrip items={[AZARAEL, SERA]} label="Recent characters" onSelect={(): void => undefined} selectedId={AZARAEL.id} />);
@@ -87,6 +88,26 @@ test("a caption takes its NATURAL width; only a long name truncates, and the ful
   expect(long.scrollWidth).toBeGreaterThan(long.width);
   // Nothing is lost: the button still announces the whole name.
   await expect(component.getByRole("button", { name: `Open ${SERA.name}`, exact: true })).toBeVisible();
+});
+
+test("#365 a visible face-filter caption clears the 11px functional-label floor", async ({ mount }) => {
+  const component = await mount(
+    <FaceStrip caption={true} items={[AZARAEL]} label="Filter by character" onSelect={(): void => undefined} selectedId={null} verb="Show chats with" />,
+  );
+  const caption = component.getByText(AZARAEL.name, { exact: true });
+  const fontSize = await caption.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+  expect(fontSize).toBeGreaterThanOrEqual(11);
+  await expect(component.getByRole("button", { name: `Show chats with ${AZARAEL.name}`, exact: true })).toBeVisible();
+});
+
+test("#365 the visible overflow count inside its face-filter button clears the 11px functional-label floor", async ({ mount }) => {
+  const component = await mount(<FaceStripFoldHarness />);
+  const tile = component.getByRole("button", { name: "More — Filter by another character", exact: true });
+  await expect(tile).toBeVisible();
+  const count = tile.getByText(OVERFLOW_COUNT_TEXT_RE);
+  const fontSize = await count.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+  expect(fontSize).toBeGreaterThanOrEqual(11);
+  await expect(tile).toHaveAccessibleName("More — Filter by another character");
 });
 
 // #153 (owner, live 2026-08-18): "weird fucking spacing between portraits that is determined by the
