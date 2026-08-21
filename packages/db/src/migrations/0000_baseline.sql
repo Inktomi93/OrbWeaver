@@ -232,6 +232,7 @@ CREATE TABLE `chat_participants` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_participants_chat_user_unique` ON `chat_participants` (`chat_id`,`user_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `chat_participants_chat_host_unique` ON `chat_participants` (`chat_id`) WHERE role = 'host' and left_seq is null;--> statement-breakpoint
 CREATE INDEX `chat_participants_chat_idx` ON `chat_participants` (`chat_id`);--> statement-breakpoint
 CREATE INDEX `chat_participants_character_idx` ON `chat_participants` (`character_id`);--> statement-breakpoint
 CREATE INDEX `chat_participants_user_idx` ON `chat_participants` (`user_id`);--> statement-breakpoint
