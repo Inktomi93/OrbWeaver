@@ -51,6 +51,13 @@ export interface VirtualListProps<T> {
   /**
    * Whether the rows belong to `resetScrollKey`. Set false while a query shows the previous scope's
    * placeholder rows; the handshake waits, then invalidates measurements and lands index zero when true.
+   *
+   * WARNING — the landing is ONE animation frame and the key advances BEFORE it is scheduled, so it can be
+   * forfeited silently, with no retry: any effect re-run that cancels the pending frame while the key is
+   * already advanced (this flag toggling on a STABLE key) drops the landing, and a hidden document runs no
+   * frame at all (the landing waits for the tab to come back). Safe only for a consumer whose readiness
+   * flips false in the same commit the key changes — a query whose scope axes are ALL in its own key does
+   * that by construction. A consumer that toggles readiness independently of the key owns the risk.
    * @defaultValue true
    */
   readonly resetScrollReady?: boolean;

@@ -1035,6 +1035,86 @@ function evictionPoll(): { intervals: number[]; timeout: number } {
 const HEAD_CHAT = "Chat 000";
 const TAIL_CHAT = "Chat 299";
 
+// ── EVERY NARROWING AXIS RESETS THE SCROLL (#385) ───────────────────────────────────────────────────
+// `useChatListCollection` has THREE scope axes — characterId · search · beforeRecencyAt — all of them part
+// of one `keepPreviousData` infinite query feeding one NEVER-remounted `<VirtualList>`. The date arc wired
+// the reset key to `beforeRecencyAt` alone, so a deep-scrolled reader who then tapped a face (or searched)
+// kept the old offset: the browser clamps it to the shorter scope's height and the reader lands MID-SCOPE,
+// with the top of the new scope silently above them. The proof is the SETTLED landing (`scrollTop` 0 with
+// row index 0 mounted), never a row count — a mid-scope window renders perfectly valid rows.
+const AXIS_LIBRARY_SIZE = 120;
+const AXIS_ARIA_SEAT = makeSeatPortrait("char_aria", "Aria Nightshade", "hash_aria");
+/** The unscoped half of the axis library — gone from the DOM is how a CT sees the placeholder rows leave. */
+const AXIS_UNSCOPED_RE = /^Deep /u;
+const AXIS_SEARCH_TERM = "Aria thread";
+/** Deep enough that the shorter scope's clamped offset is still far from the top. */
+const AXIS_DEEP_SCROLL_PX = 1500;
+
+/** Alternating rows: the odd half carries Aria's seat (and her name in the title), the even half carries
+ *  neither — so ONE library exercises the character axis and the search axis with the same scoped set. */
+function axisLibrary(): readonly ReturnType<typeof makeChatSummary>[] {
+  return Array.from({ length: AXIS_LIBRARY_SIZE }, (_unused, at) => {
+    const recencyAt = Date.UTC(2026, 6, 1) - at;
+    const scoped = at % 2 === 1;
+    return makeChatSummary({
+      id: `chat_axis_${String(at)}`,
+      title: `${scoped ? "Aria thread" : "Deep"} ${String(at).padStart(3, "0")}`,
+      participantNames: scoped ? ["Aria Nightshade"] : [],
+      participantCharacterIds: scoped ? ["char_aria"] : [],
+      participantPortraits: scoped ? [AXIS_ARIA_SEAT] : [],
+      lastMessageAt: recencyAt,
+      updatedAt: recencyAt,
+    });
+  });
+}
+
+for (const axis of ["character", "search"] as const) {
+  test(`#385 the ${axis} axis lands the top of its new scope after a deep scroll, not the old offset`, async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": chatListResponder(axisLibrary()), "character.list": CHARACTERS });
+    const component = await mount(<ChatListSurfaceStory />);
+    await expect(component.getByText("Deep 000", { exact: true })).toBeVisible();
+
+    // The poll IS the scroll loop (the eviction-walk precedent): each attempt wheels one step, which also
+    // lets the tail-fetch guard pull the next page, and reports the live offset.
+    const scroll = component.locator('[data-slot="virtual-list-scroll"]');
+    await component.getByRole("list", { name: "Chats" }).hover();
+    await expect
+      .poll(async () => {
+        await page.mouse.wheel(0, EVICTION_SCROLL_STEP_PX);
+        return scroll.evaluate((node) => node.scrollTop);
+      }, evictionPoll())
+      .toBeGreaterThan(AXIS_DEEP_SCROLL_PX);
+
+    if (axis === "character") {
+      await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
+    } else {
+      await component.getByRole("textbox", { name: "Search chats" }).fill(AXIS_SEARCH_TERM);
+    }
+
+    // SETTLED barrier: the previous scope's placeholder rows are GONE. Every row of the new scope is an
+    // "Aria thread", so an unscoped title in the DOM can only be the old page still showing.
+    await expect(component.getByText(AXIS_UNSCOPED_RE)).toHaveCount(0);
+    await expect(scroll).toHaveJSProperty("scrollTop", 0);
+    await expect(component.locator('[data-slot="virtual-list-row"]').first()).toHaveAttribute("data-index", "0");
+    await expect(component.getByText("Aria thread 001", { exact: true })).toBeVisible();
+  });
+}
+
+// A FENCE, not a defect proof (it passes pre-fix): `monthExclusiveUpperBound` builds the exclusive ceiling
+// by handing `Date` a month index one past the selection, so December is the one selection whose bound
+// crosses a YEAR. Two-sided — the BOUND rolls into January, the printed LABEL must not.
+test("#385 a December jump rolls the exclusive bound into the following January while the label stays December", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+
+  await component.getByLabel("Jump to month").fill("2020-12");
+
+  await expect
+    .poll(() => trpc.inputs("chat.listChats").some((input) => (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt === Date.UTC(2021, 0, 1)))
+    .toBe(true);
+  await expect(component.getByText("No chats found by December 2020.")).toBeVisible();
+});
+
 test("the head page is NEVER evicted — a deep scroll and back still lands on the first chat", async ({ mount, page }) => {
   // Six pages of the collection's fixed 50 — one more than the old five-page window, which is where the head
   // page used to disappear.
