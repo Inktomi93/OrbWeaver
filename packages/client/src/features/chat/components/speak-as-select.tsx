@@ -21,7 +21,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { testId, turnMutationToast } from "#lib";
+import { SPEAK_AS_WAIT_FOR_TURN, testId, turnMutationToast } from "#lib";
 import { useTurnPhase } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
 
@@ -41,6 +41,10 @@ const useSpeakAsGenerate = createEntityMutation<SpeakAsGenerateVars, unknown>({
   // The ONE turn-error mapper — a forced-speaker generate refused for CONTENTION (`locked`) says so.
   errorToast: (error) => turnMutationToast(error, "Couldn't generate that response."),
 });
+
+/** What the control DOES — the lead of its tooltip in both states, so the disabled reading stays an
+ *  explanation of this affordance rather than a bare excuse. */
+const SPEAK_AS_TOOLTIP = "Choose who speaks next";
 
 export interface SpeakAsSelectProps {
   readonly chatId: ChatId;
@@ -64,6 +68,16 @@ export function SpeakAsSelect({ chatId }: SpeakAsSelectProps): ReactElement | nu
 
   const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
   const disabled = turnBusy || generate.isPending;
+  // A DISABLED TRIGGER OWES A REASON, and `focusableWhenDisabled` is the promise that it will give one
+  // (side-eye 2026-08-21). The control stays aria-disabled IN THE TAB ORDER during a turn precisely so a
+  // keyboard reader can land on it and be told why — and it described only what it would do, so landing on
+  // it mid-turn was a dead affordance with a cheerful invitation. Same composition as every other composer
+  // icon ("<what it does> — <the unlock condition>", composer-guided-cluster.tsx's `reasonFor`).
+  //
+  // ONLY the gates this control actually has: a turn in flight, or its own aside still generating. Whether
+  // speak-as should ALSO idle on an unserveable connection (#54, which idles the guided icons) is an open
+  // owner decision, deliberately untouched here — inventing that reason would state a gate that isn't there.
+  const tooltip = disabled ? `${SPEAK_AS_TOOLTIP} — ${SPEAK_AS_WAIT_FOR_TURN}` : SPEAK_AS_TOOLTIP;
 
   const fire = (speakerCharacterId: CharacterId | null): void => {
     generate.mutate({ chatId, speakerCharacterId });
@@ -79,14 +93,21 @@ export function SpeakAsSelect({ chatId }: SpeakAsSelectProps): ReactElement | nu
               aria-label="Speak as a character"
               data-testid={testId("speakAsSelect")}
               render={
-                <Button type="button" focusableWhenDisabled={true} intent="ghost" size="icon">
+                // `data-disabled:pointer-events-auto` IS HALF THE REASON (measured 2026-08-21). A disabled
+                // Button drops pointer events, so the tooltip carrying the disabled cause could not be
+                // reached by hover at all — `elementFromPoint` over the trigger returned its parent div. The
+                // composer's four guided icons carry this exact utility for this exact purpose
+                // (`ICON_CONTROL_CLASS`, composer-guided-buttons.tsx); this one was the odd control out, and
+                // a reason nobody can hover is not a reason. The trigger stays inert to CLICKS (Base UI's
+                // aria-disabled MenuTrigger swallows those); what comes back is hover.
+                <Button type="button" className="data-disabled:pointer-events-auto" focusableWhenDisabled={true} intent="ghost" size="icon">
                   <Icon icon={Drama} size="sm" />
                 </Button>
               }
             />
           }
         />
-        <TooltipPopup side="top">Choose who speaks next</TooltipPopup>
+        <TooltipPopup side="top">{tooltip}</TooltipPopup>
       </Tooltip>
       <MenuPopup>
         <MenuItem onClick={(): void => fire(null)}>Auto (arbitrate)</MenuItem>

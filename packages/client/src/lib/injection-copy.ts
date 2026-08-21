@@ -46,6 +46,13 @@ export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
  *  in every phase of a room; the ONLY block is a turn in flight (it re-enables when idle). */
 export const IMPERSONATE_WAIT_FOR_TURN = "wait for the current reply to finish";
 
+/** Speak-as while a turn is already running — the dropdown SUMMONS a character to generate, so a turn in
+ *  flight (or its own aside still generating) is the only thing that idles it, and it re-enables when the
+ *  room settles. Deliberately a SECOND constant with the same words as `IMPERSONATE_WAIT_FOR_TURN`: two
+ *  controls, two gates, and the speak-as one is free to grow a cause of its own (its send-availability
+ *  question is an open owner decision) without silently re-writing impersonate's copy. */
+export const SPEAK_AS_WAIT_FOR_TURN = "wait for the current reply to finish";
+
 /** IMP-2 — why EVERY guided icon is idled while the impersonate STREAM is filling the composer. The generic
  *  IMPERSONATE_WAIT_FOR_TURN names a reply that isn't running (nothing is being generated into the
  *  transcript), so it read as a phantom turn the user couldn't see, find, or stop. This names the real cause

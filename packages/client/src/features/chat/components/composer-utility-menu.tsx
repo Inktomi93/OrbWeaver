@@ -109,7 +109,13 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
               aria-label="Message tools"
               data-testid={testId("composerUtility")}
               render={
-                <Button type="button" intent="ghost" size="icon" title="Message tools" shape="pill" className="shrink-0">
+                // NO NATIVE `title` HERE (side-eye 2026-08-21): it read "Message tools" while the popup below
+                // reads "More message actions", so Chrome stacked a SECOND tooltip with DIFFERENT copy on the
+                // one control that had two answers. The accessible name stays "Message tools" (the trigger's
+                // aria-label, which every CT and the e2e room helper address it by) and the hover/focus
+                // explanation is the tooltip popup, once. Disabled MENUITEMS inside the popup keep their
+                // `title` — a menuitem cannot be tooltip-wrapped, and that idiom is unaffected.
+                <Button type="button" intent="ghost" size="icon" shape="pill" className="shrink-0">
                   <Icon icon={WandSparkles} size="sm" />
                 </Button>
               }

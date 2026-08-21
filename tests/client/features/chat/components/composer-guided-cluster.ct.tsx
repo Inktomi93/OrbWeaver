@@ -230,17 +230,29 @@ test("while impersonating, the guided icons name the STREAM as the wait reason (
   // Every idled icon reads the real cause — including Try another reply, whose own phase reason is true but
   // not why it is off RIGHT NOW, and Generate reply, which has no phase reason at all.
   // (The drafted line IS composer text, so the icons are in their GUIDED mode — the P3-dualmode names.)
-  await expect(component.getByRole("button", { name: "Try another reply with this direction" })).toHaveAttribute(
-    "title",
-    `Try another reply with this direction — ${IMPERSONATE_IN_FLIGHT}`,
-  );
-  await expect(component.getByRole("button", { name: "Continue the reply with this direction" })).toHaveAttribute(
-    "title",
-    `Continue the reply with this direction — ${IMPERSONATE_IN_FLIGHT}`,
-  );
-  await expect(component.getByRole("button", { name: RESPONSE_GUIDED })).toHaveAttribute("title", `${RESPONSE} — ${IMPERSONATE_IN_FLIGHT}`);
-  await expect(component.getByRole("button", { name: "Guided draft your line" })).toHaveAttribute("title", `Draft your line — ${IMPERSONATE_IN_FLIGHT}`);
+  //
+  // THE CARRIER MOVED, THE CLAIM DID NOT (side-eye 2026-08-21). These four assertions read the native `title`
+  // attribute, which is GONE: each of these controls is a Base UI TooltipTrigger that ALSO carried the same
+  // string as a title, so Chrome stacked its OS tooltip on the rendered popup (two boxes, one unstyled). The
+  // reason is unchanged and still reaches a DISABLED control — `focusableWhenDisabled` +
+  // `data-disabled:pointer-events-auto` are what keep the tooltip reachable by hover AND focus, which is the
+  // very promise the title was standing in for. So the pin is re-pointed at the surviving carrier rather
+  // than dropped: same four controls, same four strings, asserted where a user actually meets them.
+  await expectReason(page, component, "Try another reply with this direction", `Try another reply with this direction — ${IMPERSONATE_IN_FLIGHT}`);
+  await expectReason(page, component, "Continue the reply with this direction", `Continue the reply with this direction — ${IMPERSONATE_IN_FLIGHT}`);
+  await expectReason(page, component, RESPONSE_GUIDED, `${RESPONSE} — ${IMPERSONATE_IN_FLIGHT}`);
+  await expectReason(page, component, "Guided draft your line", `Draft your line — ${IMPERSONATE_IN_FLIGHT}`);
 });
+
+/** An idled guided icon must EXPLAIN itself where the user meets it: the tooltip popup, on hover — which
+ *  reaches these controls only because they carry `data-disabled:pointer-events-auto` (a disabled Button
+ *  otherwise drops pointer events, and the reason becomes unreachable). Releases the shared hover state
+ *  afterwards so the next control starts clean. */
+async function expectReason(page: Page, component: Locator, name: string, reason: string): Promise<void> {
+  await component.getByRole("button", { name, exact: true }).hover();
+  await expect(page.getByRole("tooltip", { name: reason, exact: true }), `${name} must name its real disabled cause`).toBeVisible();
+  await page.mouse.move(0, 0);
+}
 
 test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {
   // Regenerate moved into the ✨ menu (owner). It's a plain reroll — chat.swipe with NO guided object.

@@ -31,7 +31,13 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { CorpusHomeDefaultPaneStory, CorpusHomeNarrowPaneStory, CorpusHomeThreePaneStory, CorpusHomeWidePaneStory } from "../_ct-stories.tsx";
+import {
+  CorpusHomeDefaultPaneStory,
+  CorpusHomeNarrowPaneStory,
+  CorpusHomeThreePaneStory,
+  CorpusHomeWarmQueueStory,
+  CorpusHomeWidePaneStory,
+} from "../_ct-stories.tsx";
 
 const FAMILIES = [
   {
@@ -437,6 +443,56 @@ test("below-fold insights do not hold the settled corpus overview hostage (#269)
 
   heldUnused.release([{ characterId: "character_deferred", name: "Deferred insight", avatarHash: null }]);
   await expect(component.getByRole("list", { name: "Never played characters" })).toBeVisible();
+});
+
+// ── #384: THE RAIL NEVER STATES A MEASUREMENT IT HAS NOT TAKEN ───────────────────────────────────────
+// The deferral above (#269) is what makes this reachable: `topKeywords` stopped suspending the surface, so
+// the rail now renders while that read is still in flight. Its keyword row fed `keywords.data?.length ?? 0`
+// into the measurement branch, and on a WARM queue — the designed-for case, `workloads.list` a cache hit —
+// that printed "Keywords — none found" for one round trip before flipping to the real count. That is the
+// exact incident the row exists to prevent (corpus-analysis-state.ts, the #164 owner reading): a zero from a
+// pass that has not answered is not a result, and the owner reasonably read one as a defect.
+//
+// THE MOUNT IS THE PROOF'S HALF. A hold suspends its whole BATCH (route-trpc.ts), and the overview fires the
+// queue read and the keyword read in one tick — so a plain mount holding `topKeywords` also holds
+// `workloads.list`, the rail falls back to its conservative "not run", and the defect is unreachable.
+// `CorpusHomeWarmQueueStory` primes the queue one tick earlier, which is what puts them in separate batches.
+/** A queue that has FINISHED the keyword pass — the state in which an empty keyword table is a real result. */
+const WARM_KEYWORD_QUEUE: TrpcRoutes = {
+  ...ANALYSED,
+  "workloads.list": [
+    {
+      id: "workload_keywords",
+      kind: "compute-cooccurrence",
+      status: "succeeded",
+      ownerId: "user_me",
+      mode: "singular",
+      createdAt: 10,
+      params: {},
+      progress: null,
+      error: null,
+      result: null,
+    },
+  ],
+};
+
+test("the readiness rail states no keyword measurement while the keyword read is in flight (#384)", async ({ mount, page }) => {
+  const heldKeywords = trpcHold();
+  await routeTrpc(page, { ...WARM_KEYWORD_QUEUE, "discovery.topKeywords": heldKeywords });
+  const component = await mount(<CorpusHomeWarmQueueStory />);
+  await heldKeywords.requested;
+  // SETTLED barrier: the focal island, which only the settled above-fold arm produces — the held read is
+  // below the fold and must not hold it (that is #269, and this test would be measuring the skeleton).
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  const keywords = component.locator('[data-slot="readiness-stage"]').filter({ hasText: "Keywords" });
+  await expect(keywords).toHaveCount(1);
+  await expect(keywords, "an un-answered read is not a measurement — 'none found' is a claim about a table we have not read").not.toContainText("none found");
+  await expect(keywords, "…and the row says which of the three states it is actually in").toContainText("checking…");
+
+  // …and it states the real result the moment the read lands: the deferral stays, only the honesty is added.
+  heldKeywords.release([]);
+  await expect(keywords).toContainText("none found");
 });
 
 // ── B7 + §5: THE MASTHEAD STACKS BEFORE IT SQUEEZES, AND THE RIGHT COLUMN DOES NOT STOP ──────────────

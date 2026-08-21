@@ -115,7 +115,12 @@ test("#54: engine-off idles the guided fire actions with the engine-off reason (
   // Response is otherwise NEVER disabled — an off engine is its only disabled state; the reason surfaces.
   const response = component.getByRole("button", { name: "Generate reply" });
   await expect(response).toHaveAttribute("aria-disabled", "true");
-  await expect(response).toHaveAttribute("title", new RegExp(`— ${ENGINE_OFF_REASON.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
+  // THE REASON'S CARRIER IS THE TOOLTIP, not a native `title` (side-eye 2026-08-21 — the guided icons are
+  // TooltipTriggers, and carrying both stacked Chrome's OS tooltip on the rendered popup). The claim is
+  // unchanged: the idled control names the engine-off cause, and it does so on FOCUS, which is what
+  // `focusableWhenDisabled` keeps it in the tab order for. #206 below pins the same pairing for all eight.
+  await response.focus();
+  await expect(page.getByRole("tooltip", { name: `Generate reply — ${ENGINE_OFF_REASON}`, exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Draft your line" })).toHaveAttribute("aria-disabled", "true");
 });
 

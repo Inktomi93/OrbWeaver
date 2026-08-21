@@ -1,5 +1,15 @@
 // The composer's four guided controls. They are presentation leaves: orchestration, room state, and the
 // explicit responsive action-home grid remain in `composer-guided-cluster.tsx`.
+//
+// NO NATIVE `title` ON A TOOLTIP-WRAPPED TRIGGER (side-eye 2026-08-21). Every control here is a Base UI
+// TooltipTrigger, and each ALSO carried the same string as a `title` — so Chrome stacked its own OS tooltip
+// on top of the rendered popup after the hover delay, two boxes, one of them unstyled and unpositioned. The
+// popup is the surface that explains these controls, and it reaches a DISABLED one on purpose:
+// `focusableWhenDisabled` keeps the trigger in the tab order and `data-disabled:pointer-events-auto` keeps
+// hover alive, which is precisely what a native title was standing in for. `row-actions-menu.tsx` is the
+// house pattern (tooltip, no title); a disabled MENUITEM is the genuine exception (it cannot be wrapped in a
+// tooltip, so it keeps `title` — see composer-utility-menu.tsx).
+// The reason string is unchanged and still composed "<Label> — <reason>"; only its carrier is now singular.
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
@@ -39,7 +49,6 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
             size="icon"
             disabled={disabled}
             focusableWhenDisabled={true}
-            title={title}
             aria-label={label}
             data-testid={testId(buttonTestId)}
             onClick={disabled ? undefined : onFire}
@@ -79,7 +88,6 @@ export function ImpersonateStopButton({ onStop }: { readonly onStop: () => void 
             type="button"
             intent="secondary"
             size="icon"
-            title={IMPERSONATE_STOP_LABEL}
             aria-label={IMPERSONATE_STOP_LABEL}
             data-testid={testId("composerGuidedStopImpersonate")}
             onClick={onStop}
@@ -129,7 +137,6 @@ export function ImpersonateGuidedButton({
                   intent={hasText && !disabled ? "primary" : "ghost"}
                   size="icon"
                   focusableWhenDisabled={true}
-                  title={title}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}
                 >
@@ -179,7 +186,6 @@ export function ResponseGuidedButton({
               size="icon"
               disabled={!idle}
               focusableWhenDisabled={disabledReason !== undefined}
-              title={title}
               aria-label={name}
               data-testid={testId("composerGuidedResponse")}
               onClick={idle ? (): void => onFire(null) : undefined}
@@ -209,7 +215,6 @@ export function ResponseGuidedButton({
                   intent={hasText ? "primary" : "ghost"}
                   size="icon"
                   focusableWhenDisabled={disabledReason !== undefined}
-                  title={title}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}
                 >
