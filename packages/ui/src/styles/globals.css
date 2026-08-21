@@ -92,6 +92,12 @@
   background: radial-gradient(closest-side at 50% 50%, oklch(from var(--color-primary) l c h / 0.14), transparent);
 }
 
+/* A teaching surface may promote its opening statement one ratified step without retuning every shared
+ * EmptyState consumer. The root is its own inline-size container, so the narrow arm stays contained. */
+[data-slot="empty-state-title"][data-title-step="focal"] {
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+}
 /* Gradient border ring on accent surfaces (CTA / selected media cell): a ::after overlay (dual
  * background-clip: transparent padding-box fill + gradient border-box) so it composes over the
  * element's own fill instead of clobbering it. Chrome/CTA/cells only, never message prose.

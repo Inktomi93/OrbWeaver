@@ -23,4 +23,11 @@ export const emptyStateVariants = tv({
     description: "max-w-cq-sm text-body text-muted-foreground leading-body @max-sm:text-label @max-sm:leading-label",
     action: "pt-row @max-sm:pt-field",
   },
+  variants: {
+    titleStep: {
+      default: {},
+      focal: { title: "font-semibold" },
+    },
+  },
+  defaultVariants: { titleStep: "default" },
 });
