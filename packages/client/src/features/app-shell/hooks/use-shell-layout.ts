@@ -26,6 +26,7 @@ import {
   useSectionListIsScreen,
   useSectionRegistry,
 } from "#state";
+import { useAppearance } from "./use-appearance.ts";
 import { useIsContextContentConstrained, useIsMobileViewport, useIsShellNarrowViewport } from "./use-is-mobile-viewport.ts";
 
 export interface ShellLayout {
@@ -83,7 +84,8 @@ export function useShellLayout(): ShellLayout {
   const activeSection = useActiveSection();
   const isMobile = useIsMobileViewport();
   const isNarrow = useIsShellNarrowViewport();
-  const contextContentConstrained = useIsContextContentConstrained();
+  const { fontScale } = useAppearance();
+  const contextContentConstrained = useIsContextContentConstrained(fontScale);
   // Publishes both viewport regimes to #state so feature-tier projections (useListDocked) can branch on
   // them without importing these matchMedia-backed hooks (client-features-no-cross / no-raw-matchmedia).
   useEffect(() => {
