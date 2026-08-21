@@ -471,6 +471,7 @@ export const chatRouter = t.router({
           includeArchived: z.boolean().optional(),
           characterId: brandedId<CharacterId>().optional(),
           search: z.string().optional(),
+          beforeRecencyAt: z.number().int().optional(),
           // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask
           // is a BAD_REQUEST naming the bound, never an unbounded library fetch (`CHAT_LIST_MAX_LIMIT`).
           limit: z.number().int().min(1).max(CHAT_LIST_MAX_LIMIT).optional(),
@@ -484,6 +485,7 @@ export const chatRouter = t.router({
         ...(input?.includeArchived !== undefined ? { includeArchived: input.includeArchived } : {}),
         ...(input?.characterId !== undefined ? { characterId: input.characterId } : {}),
         ...(input?.search !== undefined ? { search: input.search } : {}),
+        ...(input?.beforeRecencyAt !== undefined ? { beforeRecencyAt: input.beforeRecencyAt } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
         ...(input?.cursor !== undefined && input.cursor !== null ? { cursor: input.cursor } : {}),
       }),

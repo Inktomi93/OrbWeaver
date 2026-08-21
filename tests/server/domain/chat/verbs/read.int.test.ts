@@ -356,12 +356,12 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
 describe("read — listChats PAGING, projection + search (the 872-chat class)", () => {
   /** N rooms hosted by `me`, all stamped the SAME `updatedAt` — the shape a bulk import writes, and the one
    *  an `updated_at`-only keyset silently skips or repeats rows across. */
-  async function seedSameStampRooms(me: UserId, count: number, stamp: number): Promise<readonly ChatId[]> {
+  async function seedSameStampRooms(me: UserId, count: number, stamp: number, prefix = "page"): Promise<readonly ChatId[]> {
     const ids: ChatId[] = [];
     for (let i = 0; i < count; i += 1) {
       // biome-ignore lint/performance/noAwaitInLoops: these rows share one `updatedAt` on purpose, so INSERT ORDER is all that separates them — parallelising would randomise the very keyset under test.
-      const chatId = await seedChat(db, `page${i}`, { title: `Room ${i}`, updatedAt: stamp });
-      await seedParticipant(db, { chatId, key: `page${i}_h`, userId: me, role: "host" });
+      const chatId = await seedChat(db, `${prefix}${i}`, { title: `Room ${i}`, updatedAt: stamp });
+      await seedParticipant(db, { chatId, key: `${prefix}${i}_h`, userId: me, role: "host" });
       ids.push(chatId);
     }
     return ids;
@@ -388,6 +388,43 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     expect(walked.length).toBe(seeded.length);
     expect(new Set(walked).size).toBe(seeded.length);
     expect([...walked].sort()).toEqual([...seeded].sort());
+  });
+
+  test("`beforeRecencyAt` is exclusive and keeps every tied row below the boundary reachable exactly once", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const below = await seedSameStampRooms(me, 3, 9000, "below");
+    const atBoundary = await seedSameStampRooms(me, 1, 10_000, "boundary");
+    const above = await seedSameStampRooms(me, 1, 11_000, "above");
+    const displayedBelow = await seedChat(db, "displayed_below", { updatedAt: 12_000 });
+    await seedParticipant(db, { chatId: displayedBelow, key: "displayed_below_h", userId: me, role: "host" });
+    await seedMessage(db, displayedBelow, 1, { createdAt: 8000 });
+    const displayedAbove = await seedChat(db, "displayed_above", { updatedAt: 8000 });
+    await seedParticipant(db, { chatId: displayedAbove, key: "displayed_above_h", userId: me, role: "host" });
+    await seedMessage(db, displayedAbove, 1, { createdAt: 12_000 });
+    const expected = [...below, displayedBelow];
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const walked: ChatId[] = [];
+    let cursor: ChatListCursor | undefined;
+    do {
+      // biome-ignore lint/performance/noAwaitInLoops: page N+1's cursor is page N's answer; the tied seam is the subject.
+      const page = await listChats({
+        principal: principal(me),
+        beforeRecencyAt: 10_000,
+        limit: 2,
+        ...(cursor === undefined ? {} : { cursor }),
+      });
+      walked.push(...page.items.map((chat) => chat.id));
+      expect(page.totalCount).toBe(expected.length);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor !== undefined);
+
+    expect(walked).toHaveLength(expected.length);
+    expect(new Set(walked).size).toBe(expected.length);
+    expect([...walked].sort()).toEqual([...expected].sort());
+    expect(walked).not.toContain(atBoundary[0]);
+    expect(walked).not.toContain(above[0]);
+    expect(walked).not.toContain(displayedAbove);
   });
 
   test("`nextCursor` is null on a SHORT page — a full final page hands back one more, and it returns nothing", async () => {
@@ -444,6 +481,36 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     expect(page.totalCount).toBe(5);
     // Someone else's room is not in my census; my archived one joins it only when I ask for archived.
     expect((await listChats({ principal: principal(me), limit: 1, includeArchived: true })).totalCount).toBe(6);
+  });
+
+  test("the date lens composes with D18 membership, archive, character projection, search, and the census", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const other = await seedUser(db, castId<Handle>("other"));
+    const her = await seedCharacter(db, me, "Azarael");
+
+    const included = await seedChat(db, "dated_included", { archived: true, title: "Needle beneath", updatedAt: 8000 });
+    await seedParticipant(db, { chatId: included, key: "di_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: included, key: "di_c", characterId: her });
+
+    const tooNew = await seedChat(db, "dated_new", { archived: true, title: "Needle recent", updatedAt: 12_000 });
+    await seedParticipant(db, { chatId: tooNew, key: "dn_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: tooNew, key: "dn_c", characterId: her });
+
+    const wrongSearch = await seedChat(db, "dated_search", { archived: true, title: "Other words", updatedAt: 7000 });
+    await seedParticipant(db, { chatId: wrongSearch, key: "ds_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: wrongSearch, key: "ds_c", characterId: her });
+
+    const foreign = await seedChat(db, "dated_foreign", { archived: true, title: "Needle foreign", updatedAt: 6000 });
+    await seedParticipant(db, { chatId: foreign, key: "df_h", userId: other, role: "host" });
+    await seedParticipant(db, { chatId: foreign, key: "df_c", characterId: her });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const params = { principal: principal(me), beforeRecencyAt: 10_000, characterId: her, search: " NEEDLE ", limit: 50 } as const;
+
+    expect((await listChats(params)).items).toEqual([]);
+    const page = await listChats({ ...params, includeArchived: true });
+    expect(page.items.map((chat) => chat.id)).toEqual([included]);
+    expect(page.totalCount).toBe(1);
   });
 
   test("`characterId` PROJECTS server-side — present AND departed seats, and it scopes the census too", async () => {

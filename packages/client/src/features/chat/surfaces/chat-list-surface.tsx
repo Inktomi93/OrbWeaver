@@ -12,7 +12,7 @@
 //   • SEARCH is a SERVER param too (owner ruling 2026-08-09), not a client pass over the loaded pages: a
 //     client filter over a keyset list can only ever search what it has fetched, so "no matches" would have
 //     been a claim the surface had no standing to make. It carries the 2026-08-01 semantics whole — title OR
-//     a character seat's name OR the newest message's body — over the ENTIRE library. The value is
+//     a character seat's name OR the newest message's body — over the active server scope. The value is
 //     DEBOUNCED, not just deferred: deferring picks a render, and every distinct string here is a round trip.
 //
 // Portraits (F7/D3) resolve HERE, not in the row: one non-blocking `character.list` read builds a
@@ -26,6 +26,7 @@ import { castId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
+import { Field } from "@orb/ui/field";
 import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
@@ -66,6 +67,18 @@ const SEARCH_DEBOUNCE_MS = 250;
  *  picker reaches the whole character library without enriching another 70 chat summaries. */
 const FACES_SOURCE_LIMIT = 30;
 
+const MONTH_VALUE_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/u;
+
+function monthExclusiveUpperBound(value: string): number | null {
+  const match = MONTH_VALUE_RE.exec(value);
+  if (match?.groups === undefined) {
+    return null;
+  }
+  const boundary = new Date(0);
+  boundary.setUTCFullYear(Number(match.groups["year"]), Number(match.groups["month"]), 1);
+  return boundary.getTime();
+}
+
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
   readonly onNewChat: () => void;
@@ -75,8 +88,11 @@ export interface ChatListSurfaceProps {
 export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatListSurfaceProps): ReactElement {
   const activeChatId = useActiveChatId();
   const [query, setQuery] = useState("");
+  const [month, setMonth] = useState("");
+  const beforeRecencyAt = monthExclusiveUpperBound(month);
   const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const clearSearch = (): void => setQuery("");
+  const clearMonth = (): void => setMonth("");
   const characterFilter = useChatListCharacterFilter();
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -99,10 +115,23 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             weave is the product's word for itself, which is a fine thing for a hero line and the wrong
             thing on a filter field. */}
         <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search chats…" value={query} />
+        <Row align="center" gap="field">
+          <Field className="min-w-0 flex-1" label="Jump to month" orientation="horizontal">
+            <Input onValueChange={setMonth} type="month" value={month} />
+          </Field>
+          {month === "" ? null : (
+            <Button aria-label="Clear month jump" intent="ghost" onClick={clearMonth} size="icon" type="button">
+              <Icon icon={X} size="sm" />
+            </Button>
+          )}
+        </Row>
         <Stack className="min-h-0 flex-1">
           <ChatListBody
             activeChatId={activeChatId}
+            beforeRecencyAt={beforeRecencyAt}
             characterFilter={characterFilter}
+            month={month}
+            onClearMonth={clearMonth}
             onClearSearch={clearSearch}
             onDeletedChat={onDeletedChat}
             onNewChat={onNewChat}
@@ -232,10 +261,13 @@ function FilterChip({ filter }: { readonly filter: ChatListCharacterFilter }): R
 
 interface ChatListBodyProps {
   readonly activeChatId: ChatId | null;
+  readonly beforeRecencyAt: number | null;
   readonly characterFilter: ChatListCharacterFilter | null;
+  readonly month: string;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   readonly onNewChat: () => void;
+  readonly onClearMonth: () => void;
   readonly onClearSearch: () => void;
   readonly query: string;
 }
@@ -244,9 +276,20 @@ interface ChatListBodyProps {
  *  so the pending / error / empty ladder is rendered here rather than by a `QueryBoundary` above — the
  *  character-library precedent, and the reason the faces strip and the search field stay put across every
  *  body state instead of being torn down by a suspense fallback. */
-function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, onNewChat, onClearSearch, query }: ChatListBodyProps): ReactElement {
+function ChatListBody({
+  activeChatId,
+  beforeRecencyAt,
+  characterFilter,
+  month,
+  onSelect,
+  onDeletedChat,
+  onNewChat,
+  onClearMonth,
+  onClearSearch,
+  query,
+}: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
-  const collection = useChatListCollection({ trpc }, { characterId: characterFilter?.id ?? null, search: query });
+  const collection = useChatListCollection({ trpc }, { beforeRecencyAt, characterId: characterFilter?.id ?? null, search: query });
 
   if (collection.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -254,10 +297,22 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
   if (collection.error !== null) {
     return <QueryErrorState label="your chats" onRetry={collection.refetch} />;
   }
-  // `isEmpty` alone would swallow the SEARCH-empty case: with the predicate on the server, a query that
-  // matches nothing comes back as a genuinely empty page, and the library-empty copy ("No chats yet — pick a
-  // character to start your first conversation") is then a flat lie over a library full of chats. Measured on
-  // a live drive against the real seed data, which is the only place the two states are distinguishable.
+  if (collection.isEmpty && query === "" && beforeRecencyAt !== null) {
+    return (
+      <EmptyState
+        action={
+          <Button intent="secondary" onClick={onClearMonth} size="sm">
+            Clear month
+          </Button>
+        }
+        description={characterFilter === null ? `No chats found by ${month}.` : `No chats with ${characterFilter.name} found by ${month}.`}
+        icon={<Icon icon={MessagesSquare} size="lg" />}
+        title="No chats by then"
+      />
+    );
+  }
+  // `isEmpty` alone would swallow the SEARCH-empty case: a server predicate that matches nothing is a real
+  // empty page, not proof that the underlying library itself is empty.
   if (collection.isEmpty && query === "") {
     return (
       <EmptyState
@@ -286,7 +341,9 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
         <ChatRows
           activeChatId={activeChatId}
           items={collection.items}
+          listKey={beforeRecencyAt}
           listProps={collection.listProps}
+          month={month}
           onClearSearch={onClearSearch}
           onDeletedChat={onDeletedChat}
           onSelect={onSelect}
@@ -301,6 +358,8 @@ interface ChatRowsProps {
   readonly activeChatId: ChatId | null;
   readonly items: readonly ChatListItem[];
   readonly listProps: ReturnType<typeof useChatListCollection>["listProps"];
+  readonly listKey: number | null;
+  readonly month: string;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   readonly onClearSearch: () => void;
@@ -308,12 +367,10 @@ interface ChatRowsProps {
 }
 
 /** The search-empty → rows ladder. */
-function ChatRows({ activeChatId, items, listProps, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
+function ChatRows({ activeChatId, items, listKey, listProps, month, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
   const actions = useChatListRowActions();
   if (items.length === 0) {
-    // An HONEST claim now that the predicate is the server's: the whole library was searched, not the pages
-    // that happened to be loaded — so "no chat matches" is a statement this surface has standing to make, and
-    // the next step is clearing the search rather than fetching more.
+    // The server searched the whole active scope, not only the pages that happened to be loaded.
     return (
       <EmptyState
         action={
@@ -321,7 +378,7 @@ function ChatRows({ activeChatId, items, listProps, onClearSearch, onDeletedChat
             Clear search
           </Button>
         }
-        description={`No chat matches "${query}".`}
+        description={month === "" ? `No chat matches "${query}".` : `No chat by ${month} matches "${query}".`}
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title="No matches"
       />
@@ -353,6 +410,7 @@ function ChatRows({ activeChatId, items, listProps, onClearSearch, onDeletedChat
         gapToken="tight"
         getItemKey={(item): string => item.id}
         items={items}
+        key={listKey ?? "latest"}
         onEndApproach={listProps.onEndApproach}
         renderItem={renderRow}
       />

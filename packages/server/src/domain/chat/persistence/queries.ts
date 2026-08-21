@@ -237,6 +237,7 @@ interface MemberChatFilter {
   readonly characterId?: CharacterId | undefined;
   /** Already trimmed + lowercased by the verb; `undefined` = the unsearched list. */
   readonly search?: string | undefined;
+  readonly beforeRecencyAt?: number | undefined;
 }
 
 /** The caller's own canon READ FLOOR, in SQL, off the participant row this list already joins — the same
@@ -345,6 +346,7 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
     // real chat, unstarted is the absence of one.
     isNotNull(chats.startedAt),
     opts.includeArchived === true ? undefined : eq(chats.archived, false),
+    opts.beforeRecencyAt === undefined ? undefined : lt(chatRecencySql(db), opts.beforeRecencyAt),
     characterId === undefined
       ? undefined
       : exists(
