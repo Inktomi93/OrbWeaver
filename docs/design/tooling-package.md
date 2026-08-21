@@ -56,12 +56,12 @@ The constitution bans `_shared` drawers in `packages/` (Core-0 §1 principle 3);
 | `argv.ts` | `scripts/probes/_kit/flags.ts` | flag parsing idioms (`splitFirstEq`/`splitLastEq`/`parseViewport`/`splitPageSuffix`/`parseGotoTarget`) |
 | `appearance.ts` | `scripts/probes/_kit/appearance.ts` + `appearance-presets.json` (beside it) | the settings shim + the curated preset library — P1 truth-repair: FLEET-shared, not snap-specific (imported by snap, design-audit, motion-audit, perf-meter — census in the P1 report), so it joins the floor with its data file |
 | `theme.ts` | `scripts/probes/_kit/theme.ts` | the theme arm of the settings shim — same fleet-shared census |
-| `nav.ts` | `scripts/probes/_kit/nav.ts` | the app-nav verbs (`--goto`/`--open-chat`/…) — P2 truth-repair: FLEET-shared, not snap-specific (importers: `tooling/src/snap/ops/drive.ts` + `contract/types.ts`, `scripts/probes/design-audit.ts`, `motion-audit.ts`, `perf-meter.ts`) |
-| `pixel-backdrop.ts` | `scripts/probes/_kit/pixel-backdrop.ts` | framebuffer backdrop sampling — P2 truth-repair: cross-tool (importers: `tooling/src/snap/ops/contrast.ts`, `scripts/probes/design-audit.ts`) |
-| `ffmpeg.ts` | `scripts/probes/_kit/ffmpeg.ts` | the ffmpeg shell door — P2 truth-repair: cross-zone (importers: `tooling/src/snap/ops/diff.ts`, `scripts/probes/record.ts`), so it does NOT ride record's promotion decision after all |
-| `wcag.ts` | extracted from `design-audit-checks.ts:94-147` | the WCAG contrast kernel (`relativeLuminance`/`contrastRatio`/`isLargeText` + the ratio floors) — one math home (importers: `tooling/src/snap/ops/contrast.ts`, `scripts/probes/design-audit-checks.ts`, `tests/ui/content/theme-scope/palette-contrast.suite.test.ts`) |
+| `nav.ts` | `scripts/probes/_kit/nav.ts` | the app-nav verbs (`--goto`/`--open-chat`/…) — P2 truth-repair: FLEET-shared, not snap-specific (importers after P3: snap ops/drive + contract/types, ui-audit ops/{parse,drive}, motion-audit ops/{parse,drive}, cpu-profile ops/{parse,drive}) |
+| `pixel-backdrop.ts` | `scripts/probes/_kit/pixel-backdrop.ts` | framebuffer backdrop sampling — P2 truth-repair: cross-tool (importers after P3: snap ops/contrast, ui-audit ops/pixels) |
+| `ffmpeg.ts` | `scripts/probes/_kit/ffmpeg.ts` | the ffmpeg shell door — P2 truth-repair: cross-zone (importers after P3: snap ops/diff, screen-record ops/run), so it did NOT ride record's promotion decision after all |
+| `wcag.ts` | extracted from `design-audit-checks.ts:94-147` | the WCAG contrast kernel (`relativeLuminance`/`contrastRatio`/`isLargeText` + the ratio floors) — one math home (importers after P3: snap ops/contrast, ui-audit lib/checks-color + lib/checks-decor, tests/ui palette-contrast suite) |
 | `run-tool.ts` | new (orchestrator scope-add 2026-08-21) | `runTool`/`UsageError` — the exit-honesty runner every cli.ts enters through: crash ≠ verdict (uncaught/unhandled → hard `EXIT.toolError` with sync stderr), pipe-drain (verdicts set `process.exitCode`, never `process.exit`), never-downgrade (clean→any, violations→toolError only), `UsageError` → `EXIT.misuse`. Enforcers: §4.4 arms D + E |
-| `proc.ts` | new | the ONE `node:child_process` door — `spawnNiced`/`runNicedSync`/`execNicedSync` all ride `nice -n 19` (owner-endorsed 2026-08-21; the box co-hosts the homelab), consumed by tool-fixtures' `runCli` from birth; `spawnFullPrioritySync` is the loud un-niced exception, legal only for a census'd `FULL_PRIORITY_CALLERS` row (§4.4 arms F/F2) |
+| `proc.ts` | new | the ONE `node:child_process` door — `spawnNiced`/`runNicedSync`/`execNicedSync` all ride `nice -n 19` (owner-endorsed 2026-08-21; the box co-hosts the homelab), consumed by tool-fixtures' `runCli` from birth; `spawnNicedChild` (P3) is the detached long-lived door (own process group + `killGroup` — the trace:fire ephemeral-server shape); `spawnFullPrioritySync` is the loud un-niced exception, legal only for a census'd `FULL_PRIORITY_CALLERS` row (§4.4 arms F/F2) |
 | `log.ts` | new | `warn` — the stderr channel; stdout is reserved for payload (RESULT lines) |
 | `exit-contract.ts` | new (codifies the live convention) | `EXIT = { clean: 0, violations: 1, toolError: 2, misuse: 3 } as const` — the house exit contract (AGENTS.md §4; already spoken by work-item, verify, snap: `tests/tooling/work-item-cli.test.ts:11-12`) |
 | `instruments.ts` | new | the `INSTRUMENT_TOOLS` registry (§4.5) — armed-empty at P1 |
@@ -90,10 +90,10 @@ The 27 `#!/usr/bin/env tsx` shebangs across `scripts/` (tsx was shed 2026-08-03;
 | tooling/src/ | from | pnpm scripts repointed | note |
 | - | - | - | - |
 | `snap/` | `scripts/probes/snap.ts` (4,513 ln) + `_kit/{fixture,snap-stage}.ts` + `scenarios/orb-app.json` | `snap` | P2 pilot, LANDED: 27 files, all ≤450 — `cli.ts` + `index.ts` + `contract/{types,plan,fixture,stage}.ts` + `lib/{eval-text,out-names,budgets,stage-plan}.ts` + `ops/` (flags, parse, drive, evidence, contrast, map, shot, dead-css, capture, report, noise, verdict, session, manifest, diff, watch, guards, run, scenario, matrix, contexts, fixture, stage, stage-status + `scenarios/orb-app.json`). `snap-stage.ts` split by nature: pure derivation → `lib/stage-plan.ts`, shapes → `contract/stage.ts`, I/O → `ops/{stage,stage-status}.ts`. (Truth-repairs: appearance/theme + the preset JSON fleet-shared at P1; nav/pixel-backdrop/ffmpeg/wcag fleet-shared at P2 — §2.4) |
-| `ui-audit/` | `design-audit.ts` (603) + `design-audit-walker.ts` (1,495) + `design-audit-checks.ts` (1,610) | `design-audit` | renamed; carries the one REAL `@orb/ui` import (`design-audit-checks.ts:16` `TOKENS`) |
-| `motion-audit/` | `motion-audit.ts` (557) | `motion-audit` | |
-| `cpu-profile/` | `perf-meter.ts` (693) | `perf-meter` | renamed |
-| `render-trace/` | `trace-render.ts` (255) + `trace-tail.ts` (111) + `probe-fire.ts` | `trace:render` `trace:tail` `trace:fire` | merged: one tool, three ops (probe-fire folded in — it is the trace family's fire op and has a live alias; deviation from the plan's two-file list, stated) |
+| `ui-audit/` | `design-audit.ts` (602) + `design-audit-walker.ts` (1,495) + `design-audit-checks.ts` (1,557) | `design-audit` | P3 LANDED: renamed; the checks monolith split by rule family into `lib/checks-{color,media,a11y,structure,typography,decor,ornament,quality}.ts` + `lib/{severity,ramp,collect}.ts` + `contract/{findings,samples,types}.ts`; the 1,477-line in-page walker IIFE SEGMENTED under the size cap (`ops/walker/*.ts`, concatenated in order by `ops/walker.ts` — byte-equality proven at the split, 26/26 walker CT green after). Carries the one REAL `@orb/ui` import (`lib/ramp.ts` `TOKENS` — the dep joined at P3) |
+| `motion-audit/` | `motion-audit.ts` (866 at the move; the doc's 557 predates #389/#109 growth) | `motion-audit` | P3 LANDED: `lib/{budgets,verdicts,frames}.ts` + `ops/{parse,drive,trace,report,run}.ts`; the function-form `__orb` evaluates converted to raw strings (§9.1-6) |
+| `cpu-profile/` | `perf-meter.ts` (693) | `perf-meter` | P3 LANDED: renamed; `ops/{parse,meter,drive,report,run}.ts` (meter = the in-page collector string) |
+| `render-trace/` | `trace-render.ts` (255) + `trace-tail.ts` (111) + `probe-fire.ts` (246) | `trace:render` `trace:tail` `trace:fire` | P3 LANDED: one tool, three ops behind one dispatcher (`cli.ts render\|tail\|fire`); fire's child rides `spawnNicedChild` and spawns `node` (the tsx spawn was launcher rot), its stale FLAG(wiring) headers truth-repaired (`initTracing()` IS wired — entry/lifecycle.ts:169); tail/sse resolve a promise instead of calling process.exit (arm D holds fleet-wide) |
 | `ast/` | `codemods/ast.ts` (6,241) | `ast` + `check:respell/swallowed/typeonly/columns/regkeys/chains` | keeps its brand; the six `check:*` lens aliases repoint too (`package.json:54-59`) |
 | `codemod/` | `codemod-kit.ts` (3,385) + `codemod.ts` + `migrate-macro-blocks.ts` + `export-rot-cleanup.ts` | `codemod` | migrations become ops |
 | `verify/` | `scripts/check/**` (247 files incl. gates/ + GATE-AUTHORING.md) + `scripts/verify/**` (9 files) | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` | one system; moved LAST (P6); the largest coupled surface (§3.3) |
@@ -103,7 +103,7 @@ The 27 `#!/usr/bin/env tsx` shebangs across `scripts/` (tsx was shed 2026-08-03;
 | `seed/` | `seed/seed-demo.ts` (443) + `dev/seed-chat.ts` + `dev/multi-user-seed.ts` | `seed:demo` | |
 | `stack/` | `dev/{stack.sh,dev.sh,stack-prod.ts,engines.sh,engines.ts,engines-ctl.ts}` + `dev/_kit/{stack-mode,spawn-lock}.ts` + `pino-pretty.json` + `*.jinja` | `stack` `engines*` | bash rides along at tool root (§4.1 exemption row); no tsconfig involvement for `.sh` |
 | `model-ab/` | `dev/model-ab.ts` (769) + `model-ab.variants.json` | (none today) | |
-| `wire-tap/` | `probes/sse-tap.ts` (modernized) + two net-new ops | `sse-tap` (→ `cli.ts sse`) | the server-wire incident toolkit (orchestrator input 2026-08-21): `ops/sse.ts` = sse-tap with the tsx shebang + `--experimental-eventsource` self-re-exec (lines 39-42) DROPPED — `EventSource` is a stable global on node 26, verified at the move; `ops/captures.ts` = a reader for the `/api/_debug/wire` captures; `ops/trpc.ts` = the uncookied dev tRPC harvest — both currently orchestrator-memory-only curl recipes, promoted to durable ops. Incident instrument, idle-by-design (§4.5) |
+| `wire-tap/` | `probes/sse-tap.ts` (modernized) + two net-new ops | `sse-tap` (→ `cli.ts sse`) | the server-wire incident toolkit (orchestrator input 2026-08-21): `ops/sse.ts` = sse-tap with the tsx shebang + `--experimental-eventsource` self-re-exec (lines 39-42) DROPPED — `EventSource` is a stable global on node 26, verified at the move; `ops/captures.ts` = a reader for the `/api/_debug/wire` captures+outcomes rings; `ops/trpc.ts` = the uncookied dev tRPC harvest — both promoted from orchestrator-memory-only curl recipes. Incident instrument, idle-by-design (§4.5). P3 TRUTH-REPAIR (measured node v26.5.0): `EventSource` is NOT a stable global — still behind `--experimental-eventsource` — so the re-exec died but the FLAG lives in the `pnpm sse-tap` script VALUE, and the sse op fail-louds without it |
 
 Root-shim survivors (neither research nor tooling — launcher shims, named in the `scripts/` README at P9): `scripts/ts7.cjs` (the TS7 wrapper — `package.json:45-47`, `registry.ts:101`, and every brief's `types:graph` spelling depend on the path; a `.cjs` launcher, not a tool) and `scripts/worktree-bootstrap.sh` (`package.json:14`). Owner-visible default: they stay put.
 
@@ -125,7 +125,7 @@ Evidence line for the dates: transcript archaeology 2026-08-21, retention-bounde
 
 **(d) FLAG-FOR-DELETE, pending owner ruling (zero invocations in any visible window; git preserves them):** `find-react-element-casts.ts`, `find-shitty-casts.ts` (one-shot-lens class), `scripts/lens/kit-candidates.ts` + `scripts/audit/build-repository-audit-manifest.mjs` (same class; `lens:kit-candidates` alias dies with it if ruled delete).
 
-**Promotion-or-research decision (plan §roster):** `record.ts` (last ran 2026-08-16) — promoted as `screen-record/` ONLY if it gains a test at its move; else it stays, keeping `_kit/ffmpeg.ts` beside it.
+**Promotion-or-research decision (plan §roster) — EXECUTED at P3:** `record.ts` PROMOTED as `screen-record/` (it gained the parse pins at the move — the promotion condition) and brought to the strict-CLI misuse posture (it was the fleet's last lenient parser; stated refinement). `_kit/ffmpeg.ts` had already gone fleet-shared at P2 (§2.4).
 
 **Operator one-offs, stay:** `sandbox.sh`, `vllm-setup.sh`, `oracle-steady-clone.sh`, `multi-user-fixture.sh`, `probe:history-system-rows` (`history-system-rows.ts`).
 
@@ -384,3 +384,46 @@ Filled at P2 close. Every numbered step was paid for at least once during the sn
 - **Hit, as designed (§3 predicted them):** pnpm script repoint · tests path-literals (killed forward by `runCli` — the relocated snap tests now name the TOOL) · monotonic manifest · exports-map growth (`"./*"` joined at P2 per §2.2) · knip tool entries · biome path-named rows (`useAwaitThenable` → `ops/contrast.ts`; a scoped `useNamingConvention` off for `ops/stage.ts` env keys) · the instrument registry member joining in the same commit (§4.5).
 - **Missed by the design, amended at P2:** the per-phase §3.2 replay (§3.2 amendment) · the `.ct.tsx`/client-program blind spot (§3.1 row) · repo-wide comment/prose cites (§3.1 row) · the DOM-less evaluate class (9.1-6) · exit-contract convergence as a shared-value change (9.1-7).
 - **Verified not-coupled at P2:** SERIAL_INT (no snap rows existed; new tests are scratch-planted parallel-safe per §5.4) · tool-guard (script names unchanged) · stryker configs (§3.3).
+
+### 9.2a The P3 replay ledger (five tools + the promotion — what the checklist caught, what it gained)
+
+The §9.1 checklist was replayed verbatim over ui-audit · motion-audit · cpu-profile · render-trace ·
+wire-tap · screen-record. New classes and idioms it minted:
+
+- **The trailing-comment slicer class (9.1-3 gains an arm):** a top-level `const X = 44; // comment`
+  defeats an ends-with-`;` block-boundary test and silently swallows the NEXT declaration into the
+  wrong routed file (P3: `TapTargetInput` rode into checks-a11y). The nothing-dropped line fence does
+  NOT catch mis-ROUTING — after any mechanical slice, grep the lib files for `export type|interface`
+  (contract-only vocabulary) as the routing fence.
+- **A segmented in-page IIFE is the size-cap arm for walker-class strings:** one function scope,
+  segment files concatenated IN ORDER (`ui-audit/ops/walker.ts`), byte-equality of the composition
+  asserted at the split, and the walker CT re-run as the behavioral twin (26/26). Function hoisting
+  makes segment boundaries free; never route a cycle or a reorder through the segments.
+- **The `.ct.tsx` class bit AGAIN, cross-package this time:** `tests/client/lib/{motion-flaggers,motion-stats}.ct.tsx`
+  imported the deleted motion-audit monolith — visible ONLY to per-package client tsc. The §3.1 row's
+  sweep + client program run caught it in-lane this time; both suites re-run green (21/21).
+- **A premise-kill at the move is a truth-repair, not a blocker (wire-tap):** the doc's "EventSource is
+  a stable node-26 global" claim died on measurement (v26.5.0: undefined; the flag still works). The
+  ruling survived with its input changed — the re-exec deleted as specced, the FLAG moved into the
+  `pnpm sse-tap` script VALUE, and the op fail-louds without it (a pinned proof case).
+- **`satisfies <ServerShape>` on proof fixtures is a live drift fence:** the render-trace proof's trace
+  fixture failed tsc on the REAL `SerializedSpan` (missing `events`/`requestId`) — exactly the
+  desync-fails-tsc mechanism the type-only import promises.
+- **Stack-free cli proofs — two idioms now standard:** a `file://` base over a scratch fixture page that
+  declares `data-app-ready` on itself (skipping the 10s readiness ceiling), and a planted `__orb`
+  bridge defining the instrument's INPUT CONTRACT (motion-audit's breaching snapshot) — mustFlag
+  discipline at the cli tier with zero dev-stack dependency. wire-tap's proof speaks @trpc's own SSE
+  grammar (connected/ping/return + `id:`-carrying message events) from a loopback `node:http` server.
+- **A twin asserts the PLANTED CLASS's absence, not sterility:** ui-audit's clean twin still trips the
+  P2 font census (a bare fixture's default face is off the ramp) — the twin pins `p1=0` + no
+  `contrast` + exit 0, never "no findings" (which would make the proof lie the day any P2/P3 rule
+  grows).
+- **process.exit stayed single-homed without exceptions:** tail/sse/fire re-shaped as promise-resolving
+  ops (SIGINT resolves; fire's `process.on("exit")` SIGKILL belt survives) — arm D needed no new
+  allowlist row at P3.
+
+### 9.3 Post-merge ledger (orchestrator steps at every phase merge — P2 barrier receipts)
+
+- **Cross-lane §4.8 collisions are EXPECTED while sibling lanes are live:** a sibling's `tests/tooling` test written before the tool-fixtures door existed imports `support/fixtures` and reds at the barrier. The fix is mechanical rerouting to `support/tool-fixtures`; budget one per live sibling lane per merge.
+- **Three-way merges BREAK organizeImports sort in files both sides touched** (7 files across `scripts/probes`, `tests`, `tooling/src/snap` at the P2 merge). The orchestrator runs a scoped `biome check` over the merge-touched file set post-merge and lands the `--write` fixes as a style commit.
+- **A merged sibling's tooling-adjacent dep may need its own knip row** (`@typescript/native`, a stryker-internal consumer, minted post-merge at the P2 barrier) — the phase lane cannot see a sibling's dep surface; the row is the orchestrator's.

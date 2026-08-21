@@ -1,0 +1,196 @@
+// Accent borders (side-tab / border-accent-on-rounded) + chromatic glow shadows (dark-glow,
+// sanctioned axes exempt). Pure. Provenance: lib/collect.ts header.
+
+import type { Rgb } from "@orb/tooling/_shared/wcag";
+import { relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
+import type { Finding } from "../contract/findings.ts";
+import type { AccentBorderInput, GlowShadowInput } from "../contract/samples.ts";
+import { REM_PX } from "./ramp.ts";
+
+const ACCENT_BORDER_MIN_CHROMA = 25;
+
+const ACCENT_BORDER_MIN_ALPHA = 0.5;
+
+const ACCENT_BORDER_MIN_PX = 2;
+
+const ACCENT_DOMINANCE_FACTOR = 2;
+
+const HAIRLINE_MAX_PX = 1;
+
+const SIDE_TAB_BARE_MIN_PX = 3;
+
+const HORIZONTAL_BAND_MAX_PX = 12;
+
+const BORDER_SIDES = ["top", "right", "bottom", "left"] as const;
+
+type BorderSide = (typeof BORDER_SIDES)[number];
+
+/** One side's verdict: every accent-border rule it violates (a single edge can be two tells at once —
+ *  a chromatic side band AND a border fighting the corner radius). */
+function classifyAccentSide(input: AccentBorderInput, side: BorderSide): readonly string[] {
+  const w = input.widths[side];
+  const color = input.colors[side];
+  if (w < ACCENT_BORDER_MIN_PX || color === null || (color.a ?? 1) < ACCENT_BORDER_MIN_ALPHA || rgbChroma(color) < ACCENT_BORDER_MIN_CHROMA) {
+    return [];
+  }
+  const maxOther = Math.max(...BORDER_SIDES.filter((s) => s !== side).map((s) => input.widths[s]));
+  // Dominant-edge gate: the accent side is ≥2px AND the other sides are hairline or half it.
+  if (!(maxOther <= HAIRLINE_MAX_PX || w >= maxOther * ACCENT_DOMINANCE_FACTOR)) {
+    return [];
+  }
+  return side === "left" || side === "right" ? classifyVerticalEdge(input, w) : classifyHorizontalEdge(input, w);
+}
+
+/** A left/right accent edge. A RADIUS MAKES IT BOTH TELLS (issue #188): the rule as born returned
+ *  "side-tab" alone here, so the live home resume card — a 3px accent edge on a 10px-radius panel, the
+ *  textbook shape of BOTH §6 bans — could never report `border-accent-on-rounded`, which was reachable
+ *  from a top/bottom edge only. A border fighting a rounded corner does not care which corner it hits. */
+function classifyVerticalEdge(input: AccentBorderInput, w: number): readonly string[] {
+  if (input.badgeLike) {
+    return [];
+  }
+  if (input.radius > 0) {
+    return ["border-accent-on-rounded", "side-tab"];
+  }
+  return w >= SIDE_TAB_BARE_MIN_PX ? ["side-tab"] : [];
+}
+
+/** A top/bottom accent edge: rounded ⇒ the corner-fighting tell; otherwise a bare 3–12px chromatic band,
+ *  with tab underlines exempt (an active-tab indicator is the affordance, not a decoration). */
+function classifyHorizontalEdge(input: AccentBorderInput, w: number): readonly string[] {
+  if (input.radius > 0) {
+    return ["border-accent-on-rounded"];
+  }
+  if (!input.tabContext && w >= SIDE_TAB_BARE_MIN_PX && w <= HORIZONTAL_BAND_MAX_PX) {
+    return ["side-tab"];
+  }
+  return [];
+}
+
+export function checkAccentBorder(input: AccentBorderInput): Finding[] {
+  // A live status/alert region wears a colored single-edge border as a severity accent.
+  if (input.statusContext) {
+    return [];
+  }
+  const findings: Finding[] = [];
+  const seenRules = new Set<string>();
+  for (const side of BORDER_SIDES) {
+    for (const rule of classifyAccentSide(input, side)) {
+      if (seenRules.has(rule)) {
+        continue;
+      }
+      seenRules.add(rule);
+      findings.push({
+        rule,
+        severity: "P3",
+        selector: input.selector,
+        value: `border-${side}: ${input.widths[side]}px${input.radius > 0 ? ` + radius ${input.radius}px` : ""}`,
+        message:
+          rule === "side-tab"
+            ? "a thick chromatic accent border on one edge of a card is the most recognizable generated-UI tell — use a subtler accent or remove it"
+            : "a thick accent border fighting rounded corners — remove the border or the radius; they contradict each other",
+        origin: "impeccable",
+      });
+    }
+  }
+  return findings;
+}
+
+const GLOW_MIN_CHROMA = 30;
+
+const GLOW_MIN_BLUR_PX = 4;
+
+const GLOW_MIN_ALPHA = 0.05;
+
+const GLOW_BLUR_INDEX = 2; // shadow lengths: offset-x, offset-y, blur, [spread]
+const DARK_BACKDROP_MAX_LUM = 0.1;
+
+const RGBA_MIN_CHANNELS = 3;
+
+const SHADOW_LAYER_SPLIT_RE = /,(?![^(]*\))/;
+
+const SHADOW_COLOR_RE = /rgba?\([^)]*\)/i;
+
+const SHADOW_LENGTH_RE = /(-?\d*\.?\d+)(px|rem|em)?/g;
+
+const NUMBER_TOKEN_RE = /[\d.]+/g;
+
+export function parseRgbTokens(colorFn: string): Rgb | null {
+  const nums = colorFn.match(NUMBER_TOKEN_RE);
+  if (nums === null || nums.length < RGBA_MIN_CHANNELS) {
+    return null;
+  }
+  return {
+    r: Number(nums[0]),
+    g: Number(nums[1]),
+    b: Number(nums[2]),
+    a: nums.length > RGBA_MIN_CHANNELS ? Number(nums[RGBA_MIN_CHANNELS]) : 1,
+  };
+}
+
+function parseShadowLayer(layer: string): { color: Rgb; lengths: number[] } | null {
+  const colorMatch = SHADOW_COLOR_RE.exec(layer);
+  if (colorMatch === null) {
+    return null;
+  }
+  const color = parseRgbTokens(colorMatch[0]);
+  if (color === null) {
+    return null;
+  }
+  const stripped = `${layer.slice(0, colorMatch.index)} ${layer.slice(colorMatch.index + colorMatch[0].length)}`;
+  const lengths: number[] = [];
+  SHADOW_LENGTH_RE.lastIndex = 0;
+  let m = SHADOW_LENGTH_RE.exec(stripped);
+  while (m !== null) {
+    let v = Number.parseFloat(m[1] as string);
+    if (m[2] === "rem" || m[2] === "em") {
+      v *= REM_PX;
+    }
+    lengths.push(v);
+    m = SHADOW_LENGTH_RE.exec(stripped);
+  }
+  return { color, lengths };
+}
+
+/** A chromatic blurred layer's glow classification: "halo" (zero-offset), "dark-bg", or null. */
+function classifyGlowLayer(layer: string, onDark: boolean): "halo" | "dark-bg" | null {
+  const parsed = parseShadowLayer(layer);
+  if (parsed === null || rgbChroma(parsed.color) < GLOW_MIN_CHROMA || (parsed.color.a ?? 1) <= GLOW_MIN_ALPHA) {
+    return null;
+  }
+  const blur = parsed.lengths[GLOW_BLUR_INDEX];
+  if (blur === undefined || blur <= GLOW_MIN_BLUR_PX) {
+    return null;
+  }
+  if (parsed.lengths[0] === 0 && parsed.lengths[1] === 0) {
+    return "halo";
+  }
+  return onDark ? "dark-bg" : null;
+}
+
+function scanShadowValue(value: string, prop: string, onDark: boolean, selector: string): Finding | null {
+  if (value === "") {
+    return null;
+  }
+  for (const layer of value.split(SHADOW_LAYER_SPLIT_RE)) {
+    const verdict = classifyGlowLayer(layer, onDark);
+    if (verdict === null) {
+      continue;
+    }
+    return {
+      rule: "glow-shadow",
+      severity: "P3",
+      selector,
+      value: `${prop}: ${verdict === "halo" ? "zero-offset chromatic halo" : "chromatic blur on dark backdrop"}`,
+      message:
+        "a colored glow shadow on the element itself — the sanctioned accent glow (--shadow-glow) rides a ::before layer on selected/active carriers only; anything else is the generated-UI glow tell",
+      origin: "impeccable",
+    };
+  }
+  return null;
+}
+
+export function checkGlowShadow(input: GlowShadowInput): Finding | null {
+  const onDark = input.backdropColor !== null && relativeLuminance(input.backdropColor) < DARK_BACKDROP_MAX_LUM;
+  return scanShadowValue(input.boxShadow, "box-shadow", onDark, input.selector) ?? scanShadowValue(input.textShadow, "text-shadow", onDark, input.selector);
+}

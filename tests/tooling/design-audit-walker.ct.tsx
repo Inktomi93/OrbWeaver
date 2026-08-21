@@ -1,4 +1,4 @@
-// The hit-area arithmetic of the design-audit in-page fact walker (scripts/probes/design-audit-walker.ts).
+// The hit-area arithmetic of the design-audit in-page fact walker (tooling/src/ui-audit/ops/walker.ts).
 // The walker is a raw JS STRING evaluated in the probe page, so a real browser is the only tier that can
 // prove it: `elementFromPoint`, layout geometry and pointer-conditional `::after` touch targets do not
 // exist in jsdom, and a stubbed DOM would be a lying proof.
@@ -12,9 +12,8 @@
 // buttons must still measure as sub-targets.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { Finding, RawSamples } from "../../scripts/probes/design-audit-checks.ts";
-import { collectFindings } from "../../scripts/probes/design-audit-checks.ts";
-import { COLLECT_SAMPLES_JS } from "../../scripts/probes/design-audit-walker.ts";
+import type { Finding, RawSamples } from "../../tooling/src/ui-audit/index.ts";
+import { COLLECT_SAMPLES_JS, collectFindings } from "../../tooling/src/ui-audit/index.ts";
 import {
   WalkerAccentBorderStory,
   WalkerAriaHiddenVisualStory,

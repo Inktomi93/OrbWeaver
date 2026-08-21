@@ -282,7 +282,7 @@ Coupled implementation sites are fixed before construction:
    trigger intent, mount confirmation, transition completion, trace marks, and reset/page-lifetime state.
 2. `packages/client/src/lib/motion-stats.ts` attaches confirmed overlapping entrance evidence to every
    relevant LoAF rather than consuming one first-mount record.
-3. `scripts/probes/motion-audit.ts` owns the 140ms first-only allowance, Select-entrance style verdict,
+3. `tooling/src/motion-audit` owns the 140ms first-only allowance, Select-entrance style verdict,
    paired User Timing/PipelineReporter trace classification, and raw/classified/budgeted reporting.
 4. `tests/client/lib/motion-stats.ct.tsx` plants first + repeat entrance tails, a no-mount trigger, an
    after-lifetime style frame, and a non-Select portal control.
@@ -350,7 +350,7 @@ Production sites:
 6. Shared popup containment: `packages/ui/src/primitives/select/variants.ts`; glossed Select popups retain natural growth but cap at Base UI's collision-boundary width.
 7. \#374 evidence and verdict: `packages/client/src/lib/motion-stats.ts` owns lifecycle classification,
    with its cap-required browser-anatomy helper in `packages/client/src/lib/select-entrance-evidence.ts`;
-   `scripts/probes/motion-audit.ts` owns the calibrated budget input and measured-click checkpoint;
+   `tooling/src/motion-audit` owns the calibrated budget input and measured-click checkpoint;
    `tests/tooling/motion-audit.test.ts` plants classifier controls; the client motion-stats CT proves a
    real sealed Select receives first and repeat evidence while app blocking on a repeat remains red. The Select seal and
    all feature call sites remain unchanged. `packages/client/src/lib/motion-flaggers.ts` replaces the
@@ -358,7 +358,7 @@ Production sites:
    its cap-required `motion-dead-class-flagger.ts` helper owns `[css]`'s initial census plus cooperative
    mutation-subtree scans while the parent retains the finding/ring vocabulary; `tests/client/lib/motion-flaggers.ct.tsx`
    plants the retained drop, checkpoint, reduced-motion, trailing-edge, and incremental-scan controls.
-8. \#389 Chrome-trace repair: `scripts/probes/motion-audit.ts` reads only `PipelineReporter` begin
+8. \#389 Chrome-trace repair: `tooling/src/motion-audit` reads only `PipelineReporter` begin
    events carrying the real nested `args.frame_reporter` payload; its paired empty-argument end events
    are excluded. `tests/tooling/motion-audit.test.ts` pins the nested schema and a dropped report, while
    the browser CDP plant proves the repaired parser can still fail a real dropped-frame window.

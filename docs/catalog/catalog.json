@@ -597,8 +597,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 246374,
-      "sha256": "80273fa659ccfb3786218df2bfd40120c652a17d9153dc935c579106d482f863",
+      "bytes": 246429,
+      "sha256": "90bf4d38f4b7f827f980de9947d87cedc4ac538ca207eb33781a0ee6d68a0b44",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -615,9 +615,9 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "80273fa659ccfb3786218df2bfd40120c652a17d9153dc935c579106d482f863",
-        "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
-        "verifiedAt": "2026-08-19",
+        "verifiedSha256": "90bf4d38f4b7f827f980de9947d87cedc4ac538ca207eb33781a0ee6d68a0b44",
+        "verifiedCommit": "bac364265989dddcefb0c9dbe0165cb7440d100c",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
           "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
@@ -627,7 +627,8 @@
           "D143 minted (vllm errs-open posture + customParameters amendment, #197)",
           "D143 rider: VLLM_TURNS measured cell (#200/#201, 56a979d44)",
           "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)",
-          "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)"
+          "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)",
+          "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed"
         ],
         "claims": [
           {
@@ -1791,7 +1792,7 @@
               },
               {
                 "kind": "code",
-                "target": "scripts/probes/motion-audit.ts:379"
+                "target": "tooling/src/motion-audit/lib/verdicts.ts:133"
               },
               {
                 "kind": "test",
@@ -1799,7 +1800,7 @@
               },
               {
                 "kind": "test",
-                "target": "tests/tooling/motion-audit.test.ts:91"
+                "target": "tests/tooling/motion-audit/index.test.ts:91"
               }
             ]
           }
@@ -11518,8 +11519,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 446,
-      "bytes": 42169,
-      "sha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
+      "bytes": 42151,
+      "sha256": "8d1f789bf9daf040338f22559041a464ae8d33621e25a56b0c15054bccc9f9d4",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11532,12 +11533,12 @@
       },
       "receipt": {
         "path": "docs/design/memory-retrieval-graceful-degrade.md",
-        "assignedSha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
+        "assignedSha256": "8d1f789bf9daf040338f22559041a464ae8d33621e25a56b0c15054bccc9f9d4",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0014e6d719d7c4624e8aed77c5d4d7360018240cfd8041583c332002ae6a2a41",
-        "verifiedCommit": "b75860a08476cdf9276337b5009d003bd0ab31eb",
+        "verifiedSha256": "8d1f789bf9daf040338f22559041a464ae8d33621e25a56b0c15054bccc9f9d4",
+        "verifiedCommit": "bac364265989dddcefb0c9dbe0165cb7440d100c",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/design/memory-retrieval-graceful-degrade.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
@@ -11549,7 +11550,8 @@
           "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat sealed Select entrance evidence",
           "tests/client/lib/motion-flaggers.ct.tsx:278 verifies CDP still sees a planted dropped-frame failure while duplicate dev collection is paused",
           "tests/tooling/motion-audit.test.ts:91 proves the first-open allowance cannot renew onto a second app-owned block",
-          "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21"
+          "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21",
+          "delta re-verify 2026-08-21 (P3 #393): the three motion-audit tool cites repointed scripts/probes/motion-audit.ts -> tooling/src/motion-audit (the tool moved; its verdict surface and ownership claims are unchanged)"
         ],
         "summary": "Memory retrieval guidance, graceful rerank fallback, responsive picker behavior, and the sealed Select motion-audit calibration are verified together without changing Base UI or product motion.",
         "claims": [
@@ -13051,9 +13053,9 @@
       "path": "docs/design/tooling-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 386,
-      "bytes": 62460,
-      "sha256": "bfe5d3577b8823e8e382de92100cf3aa68acc8c4914c8e5fdd13330fc0bddf5b",
+      "lines": 429,
+      "bytes": 67907,
+      "sha256": "75729153794f31382ee485daaa76224b596c5d7b4e515f6031295acf496101a7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13066,19 +13068,19 @@
       },
       "receipt": {
         "path": "docs/design/tooling-package.md",
-        "assignedSha256": "bfe5d3577b8823e8e382de92100cf3aa68acc8c4914c8e5fdd13330fc0bddf5b",
+        "assignedSha256": "75729153794f31382ee485daaa76224b596c5d7b4e515f6031295acf496101a7",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "bfe5d3577b8823e8e382de92100cf3aa68acc8c4914c8e5fdd13330fc0bddf5b",
-        "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
+        "verifiedSha256": "75729153794f31382ee485daaa76224b596c5d7b4e515f6031295acf496101a7",
+        "verifiedCommit": "bac364265989dddcefb0c9dbe0165cb7440d100c",
         "verifiedAt": "2026-08-21",
         "evidence": [
-          "docs/design/tooling-package.md:1 full read; P2 truth-repairs authored this session (nav/pixel-backdrop/ffmpeg/wcag fleet-shared census, run-tool/proc arms D-F2, the snap split shape, the per-phase §3.2 amendment, the two P2-discovered §3.1 rows, §9 playbook) against the same tree the P2 commit landed on",
+          "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-          "single-pass clean on the P2 tree with the extended arms live (reports/check-structure.json)"
+          "single-pass clean on the P3 tree with all six INSTRUMENT_TOOLS members proof-carrying (reports/check-structure.json)"
         ],
-        "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the P2-authored coupled-site playbook P3-P6 replay.",
+        "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
         "claims": [
           {
             "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",
@@ -23927,7 +23929,7 @@
               },
               {
                 "kind": "code",
-                "target": "scripts/probes/design-audit-walker.ts:870"
+                "target": "tooling/src/ui-audit/ops/walker/census-interactive.ts:187"
               },
               {
                 "kind": "test",
