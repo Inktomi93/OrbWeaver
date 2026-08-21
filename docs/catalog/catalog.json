@@ -421,8 +421,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 353,
-      "bytes": 164905,
-      "sha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
+      "bytes": 164911,
+      "sha256": "f2a2689ba81bb68f39cb6d9643db80656b94b52ff13b0b2ecffc5fb4c3763ce7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -435,12 +435,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
+        "assignedSha256": "f2a2689ba81bb68f39cb6d9643db80656b94b52ff13b0b2ecffc5fb4c3763ce7",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "443b79312cfa0ac03d89c59422de313ccd644d8bed5b63328a619f2bb175df11",
-        "verifiedCommit": "3191f7e42af2f7cc8802d7f7e1ed66abab2b0e04",
+        "verifiedSha256": "f2a2689ba81bb68f39cb6d9643db80656b94b52ff13b0b2ecffc5fb4c3763ce7",
+        "verifiedCommit": "dff7198d7a921c1a0516f87b1607ed9885a400a7",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
