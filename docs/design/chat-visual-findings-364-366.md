@@ -10,9 +10,11 @@ updated: 2026-08-20
 
 ### Composer action grid
 
-Keep the four existing named groups and their DOM order: Chat actions, Your message, Their reply, Attach and send (`packages/client/src/features/chat/components/composer-guided-cluster.tsx:143`). Replace both wrapping flex rows with one explicit `actionBar` layout-kit grid. Its wide tracks are `auto auto 1fr auto`. Below the `md` container step it becomes `1fr auto`: Chat actions and Your message own row one, while Their reply and Attach and send own row two. At the `xs` step Their reply spans and centers on row two, and Attach and send owns row three (`packages/ui/src/layout/variants.ts:228`, `packages/client/src/features/chat/components/composer-guided-cluster.tsx:145`).
+The composer owns one explicit `actionBar` layout-kit grid with four semantic groups in DOM order: Chat actions, Your message, Their reply, Attach and send (`packages/client/src/features/chat/components/composer-guided-cluster.tsx`). Its wide tracks are `auto auto 1fr auto`. Below the `md` container step it becomes `1fr auto`: Chat actions and Your message own row one, while Their reply and Attach and send own row two. At the `xs` step Their reply spans and centers on row two, and Attach and send owns row three (`packages/ui/src/layout/variants.ts`).
 
 The narrow arrangement fits the live Your-message pair plus Attach-and-send pair at 320px coarse-pointer geometry while the four-control reply group owns its separate centered row. The conditional impersonation Stop remains a child of the Your message group, so its visual and accessible ownership cannot diverge. The composer action grid is container-driven; viewport size and pointer class remain test inputs, not feature layout selectors.
+
+`composer-guided-cluster.tsx` owns orchestration, room-derived state, the four semantic homes, and the responsive grid. `composer-guided-buttons.tsx` owns the four presentation leaves exported to that cluster: `GuidedIconButton`, `ImpersonateGuidedButton`, `ImpersonateStopButton`, and `ResponseGuidedButton`. The leaf split keeps state and layout single-homed in the cluster while the controls remain independently legible; no barrel or public package export is added.
 
 ### Face-filter captions
 
@@ -34,7 +36,8 @@ Remove `transition-colors` from the composer carrier and shared Textarea skin (`
 
 | Shape | Production homes | Behavioral proof |
 | - | - | - |
-| composer grid tracks | `packages/ui/src/layout/variants.ts`; `packages/client/src/features/chat/components/composer.tsx`; `packages/client/src/features/chat/components/composer-guided-cluster.tsx` | `tests/client/features/chat/components/composer.ct.tsx`; `tests/ui/layout/grid.ct.tsx` |
+| composer grid tracks and semantic groups | `packages/ui/src/layout/variants.ts`; `packages/client/src/features/chat/components/composer.tsx`; `packages/client/src/features/chat/components/composer-guided-cluster.tsx` | `tests/client/features/chat/components/composer.ct.tsx`; `tests/ui/layout/grid.ct.tsx` |
+| guided control leaf split | `packages/client/src/features/chat/components/composer-guided-cluster.tsx`; `packages/client/src/features/chat/components/composer-guided-buttons.tsx` | `tests/client/features/chat/components/composer.ct.tsx` |
 | face caption voice | `packages/client/src/components/face-strip.tsx`; consumer posture `packages/client/src/features/chat/surfaces/chat-list-surface.tsx` | `tests/client/components/face-strip.ct.tsx`; `tests/client/features/chat/surfaces/chat-list-surface.ct.tsx` |
 | focus paint | `packages/client/src/features/chat/components/composer.tsx`; `packages/ui/src/primitives/textarea/variants.ts` | `tests/client/features/chat/components/composer.ct.tsx`; `tests/ui/primitives/textarea/textarea.ct.tsx` |
 
