@@ -26,6 +26,7 @@ import {
   WalkerListRowCardStory,
   WalkerNeighbourButtonsStory,
   WalkerPaintLayerStory,
+  WalkerProgrammaticFocusDoorStory,
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
   WalkerTranslucentTintStory,
@@ -400,4 +401,38 @@ test("per-datum repeats and same-role-different-name controls are not duplicate 
     '"open"',
   );
   expect(values.join(" "), "a button whose name differs is a different door — the key is (role, NAME), never role alone").not.toContain('"import a card"');
+});
+
+// ── Programmatic focus wrappers are census nodes, not action doors (issue #370) ───────────────────
+// Modal/command primitives use generic tabindex=-1 wrappers as imperative focus targets. They remain
+// relevant to the focus and accessibility censuses, but inherited descendant text does not turn them into
+// user actions. The paired native buttons keep the duplicate detector's real bite in the same mounted tree.
+test("nested generic tabindex=-1 focus wrappers stay censused without becoming duplicate action doors", async ({ mount, page }) => {
+  await mount(<WalkerProgrammaticFocusDoorStory />);
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
+
+  const focusSelectors = ["[data-testid=focus-wrapper-outer]", "[data-testid=focus-wrapper-inner]"];
+  expect(
+    samples.accessibleNames.filter((sample) => focusSelectors.includes(sample.selector)).map((sample) => sample.selector),
+    "programmatic focus wrappers remain in the accessibility census",
+  ).toEqual(focusSelectors);
+  expect(
+    samples.tabIndexes.filter((sample) => focusSelectors.includes(sample.selector)),
+    "programmatic focus wrappers remain in the tabindex census",
+  ).toEqual(focusSelectors.map((selector) => ({ selector, tabIndex: -1 })));
+  expect(
+    findings.filter((finding) => finding.rule === "duplicate-action-door" && finding.value.includes('generic "programmatic focus target"')),
+    "generic tabindex=-1 wrappers expose no user action and must not become duplicate doors",
+  ).toEqual([]);
+});
+
+test("two real same-role same-name buttons still produce exactly one duplicate-action-door finding", async ({ mount, page }) => {
+  await mount(<WalkerProgrammaticFocusDoorStory />);
+  const findings = collectFindings(await samplesOf(page));
+  const duplicates = findings.filter((finding) => finding.rule === "duplicate-action-door" && finding.value === '2x button "duplicate action"');
+
+  expect(duplicates.length, "the programmatic-wrapper exclusion must not weaken true duplicate detection").toBe(1);
+  expect(duplicates[0]?.message).toContain("[data-testid=duplicate-action-primary]");
+  expect(duplicates[0]?.message).toContain("[data-testid=duplicate-action-secondary]");
 });
