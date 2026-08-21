@@ -246,6 +246,11 @@ Every lane, without being told per-brief:
   <paths>` from your worktree via `env -C` (never `cd`). playwright-ct runs PRODUCTION React
   (StrictMode inert). The CT harness may mount its own copy of global surfaces (Toaster) — assert
   on the instance that carries content, never a bare slot selector.
+  **Under multi-lane load add `--workers=2`** (measured 2026-08-21 at load-avg 170: default workers
+  = all tests time out at mount() on pure contention, zero signal; `--workers=2` = green in 53s).
+  **`route.abort()` defaults to `"failed"`, which makes chromium swap in an ERROR PAGE** — the
+  mounted tree disappears and every later assertion passes vacuously (`toBeHidden` on a destroyed
+  DOM); `route.abort("aborted")` is the only code that leaves the document standing.
 - **Probes**: `cp f f.bak; …; mv f.bak f` or `git show HEAD:<path>` — NEVER `git stash`/`checkout`/
   `restore`. Red-first receipts run new pins against the UNMODIFIED source before any fix.
 - **@orb/ui primitives drop `data-testid`** (slot-only seal); ECharts `BarList` is a canvas —
