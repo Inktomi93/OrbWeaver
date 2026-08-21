@@ -32,10 +32,15 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
   `reports/check-structure.json`; `pnpm test` → `reports/test-report.json` + `reports/ct-flaky.json`.
   Invoke the SCRIPTS, not bare runners (a bare `npx vitest run` skips the json reporter and loses the
   artifact); a `| tail`/`| grep` filter on live output eats the failure list you needed.
-- **NEVER run `biome check --write`, `biome format`, or any format-all / fix-all.** Its INFO-level
-  autofixes have changed behavior and crashed the server (the `/u` unicode-regex wave took down boot).
-  Fix only ERROR-level diagnostics. `useUnicodeRegex` is deliberately deleted from biome.json — do not
-  re-add `u` flags to ASCII-matching regexes.
+- **NEVER run tree-wide `biome check --write`, `biome format`, or any format-all / fix-all.** Its
+  INFO-level autofixes have changed behavior and crashed the server (the `/u` unicode-regex wave took
+  down boot). Fix only ERROR-level diagnostics. `useUnicodeRegex` is deliberately deleted from
+  biome.json — do not re-add `u` flags to ASCII-matching regexes. CARVE-OUT (2026-08-21, paid once —
+  a lane hand-rolled an import sorter to obey this line's letter): `biome check --write` SCOPED to
+  files you yourself touched is legal and is the sanctioned form for mechanical fixes biome owns
+  (organize-imports, formatting) — the tool-guard stamps exactly this form. Condition: read the
+  WHOLE resulting diff before committing (INFO-level autofixes have changed behavior here before);
+  never widen the invocation past your own touched set.
 - **`biome-ignore` must be the comment IMMEDIATELY above the flagged line.** If you also need an
   `eslint-disable-next-line`, put the eslint comment ABOVE the biome-ignore(s) so the biome-ignore stays
   flush with the code. Suppress a rule only when it is a genuine false-positive, with a cited reason —
