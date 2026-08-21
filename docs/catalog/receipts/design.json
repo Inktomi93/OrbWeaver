@@ -83,23 +83,24 @@
     },
     {
       "path": "docs/design/chat-date-navigation-207.md",
-      "assignedSha256": "6ccdce55eede642909ea1aa584b77a7763bdc20abcb28bd5df8aded96d94c745",
+      "assignedSha256": "0038e3c676cf1ebaf2568fc4cbc4726c2d90d7aaf6120d578c6c822148e6489d",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "6ccdce55eede642909ea1aa584b77a7763bdc20abcb28bd5df8aded96d94c745",
-      "verifiedCommit": "42ab04f2c6b28a5dcd438b622f63dda6f269dd2b",
-      "verifiedAt": "2026-08-20",
+      "verifiedSha256": "0038e3c676cf1ebaf2568fc4cbc4726c2d90d7aaf6120d578c6c822148e6489d",
+      "verifiedCommit": "4cc29f609a1ece0daf95693d0c9c20af9e469180",
+      "verifiedAt": "2026-08-21",
       "evidence": [
-        "docs/design/chat-date-navigation-207.md:1-56 (design; full read at 42ab04f2c6b28a5dcd438b622f63dda6f269dd2b; implementation parent 1ceef14a0b40b2a027016a191bf4ca6eecce4f24)",
+        "docs/design/chat-date-navigation-207.md:1-63 (design; full read at 4cc29f609a1ece0daf95693d0c9c20af9e469180 — the truth-repair commit; the pre-repair prose described a keyed-REMOUNT the shipped code rejects)",
         "packages/server/src/domain/chat/persistence/queries.ts:349 (exclusive displayed-recency scope)",
-        "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:92 (month boundary) and :413 (virtual-list reset)",
-        "focused behavioral verification: server chat read/router 189/189; chat-list component 37/37"
+        "packages/client/src/features/chat/lib/chat-list-scope.ts:15 (month boundary) and :43 (the composed scope identity of all three narrowing axes)",
+        "packages/ui/src/primitives/virtual-list/virtual-list.tsx:50 (the resetScrollKey/resetScrollReady in-place reset seam — no remount)",
+        "focused behavioral verification: chat-list component CT 54/54; virtual-list + input CT 28/28; chat lib unit 232/232"
       ],
-      "summary": "Chat date navigation (#207): current design of record for the exclusive displayed-recency month lens, preserving D18 membership projection, deterministic keyset paging, and the existing virtualized collection.",
+      "summary": "Chat date navigation (#207): current design of record for the exclusive displayed-recency month lens, preserving D18 membership projection, deterministic keyset paging, and the existing virtualized collection. Truth-repaired 2026-08-21 (#385): the scroll reset is an in-place resetScrollKey/resetScrollReady handshake over ALL THREE narrowing axes, never a keyed remount.",
       "claims": [
         {
-          "claim": "The chat list accepts one exclusive displayed-recency upper bound, applies it inside the shared member scope, and resets the existing virtualizer when the month-derived bound changes. Mutable lifecycle remains in GitHub issue #207.",
+          "claim": "The chat list accepts one exclusive displayed-recency upper bound, applies it inside the shared member scope, and resets the existing virtualizer IN PLACE — no remount — when any narrowing axis (character, search, month bound) changes. Mutable lifecycle remains in GitHub issues #207 and #385.",
           "evidence": [
             {
               "kind": "code",
@@ -111,7 +112,11 @@
             },
             {
               "kind": "code",
-              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:413"
+              "target": "packages/client/src/features/chat/lib/chat-list-scope.ts:43"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:341"
             },
             {
               "kind": "issue",
