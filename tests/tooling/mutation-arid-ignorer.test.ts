@@ -19,7 +19,7 @@
 
 import { describe } from "vitest";
 import { shouldIgnoreArid } from "../../scripts/mutation/arid-ignorer.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 /** Mirrors the (unexported, by no-inline-types) `AridNode` in the plugin — the babel subset it reads. */
 interface Node {
