@@ -76,6 +76,11 @@ a11y → `side-eye`; both if the change spans both.
   is the expensive part; per-ticket lanes re-pay it every ticket.
 - **Warm legs are mandatory, not preferred.** A second task in a live agent's area gets a `SendMessage`
   leg, never a fresh spawn. Only spawn fresh when the agent is dead or the area is genuinely different.
+  **Warm leg to an ALREADY-MERGED isolated lane (2026-08-21): its git fence is pinned to its OWN
+  worktree — it structurally cannot create or operate a second worktree, so never prescribe one.**
+  The correct mechanism: the lane proves containment (`git rev-list --left-right --count main...HEAD`
+  → its side 0), fast-forwards its branch to main's tip, and lands the follow-up as new commits on
+  top — a re-delivery-free merge for the orchestrator.
 - Dispatch independent subagents in parallel / in the background and keep working — don't block on one
   agent while other dispatchable work waits.
 - After two failed attempts at a tier, escalate one tier or take over — don't retry the same tier a third
