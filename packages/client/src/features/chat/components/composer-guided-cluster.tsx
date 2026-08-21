@@ -27,29 +27,16 @@
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import type { LucideIcon } from "@orb/ui/icons";
-import { Drama, FastForward, Icon, Play, RotateCcw, Square } from "@orb/ui/icons";
+import { FastForward, RotateCcw } from "@orb/ui/icons";
 import { Container, Grid, Row } from "@orb/ui/layout";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useGatedQuery, useTRPC } from "#data";
-import {
-  IMPERSONATE_IN_FLIGHT,
-  IMPERSONATE_STOP_LABEL,
-  IMPERSONATE_WAIT_FOR_TURN,
-  STEER_CUE_CONTINUE,
-  STEER_CUE_IMPERSONATE,
-  STEER_CUE_RESPONSE,
-  STEER_CUE_SWIPE,
-  SWIPE_NEEDS_REPLY,
-  testId,
-} from "#lib";
+import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import { filterCharacters } from "../lib/roster.ts";
+import { GuidedIconButton, ImpersonateGuidedButton, ImpersonateStopButton, ResponseGuidedButton } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-utility-menu.tsx";
 import { ComposerGuidedUtilityMenu } from "./composer-utility-menu.tsx";
 import { RewriteDialog } from "./rewrite-dialog.tsx";
@@ -78,8 +65,6 @@ export interface ComposerGuidedClusterProps {
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
   readonly sendControl: ReactNode;
 }
-
-const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
 
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
@@ -242,247 +227,4 @@ function useGameSteer(chatId: ChatId): { readonly isGame: boolean; readonly plot
   const isGame = isRpgEngaged(chatQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   return { isGame, plotAvailable: isGame && gameQuery.data?.publicConfig.plotProgression === true };
-}
-
-// ── One dual-mode guided icon ───────────────────────────────────────────────────────────────────────────
-interface GuidedIconButtonProps {
-  readonly icon: LucideIcon;
-  readonly label: string;
-  readonly steerCue: string;
-  readonly hasText: boolean;
-  readonly disabled: boolean;
-  readonly reason: string;
-  readonly buttonTestId: "composerGuidedSwipe" | "composerGuidedContinue";
-  readonly onFire: () => void;
-}
-
-/** A dual-mode guided icon: charges (primary) when the composer has text, teaches the steer contract on
- *  hover, and renders aria-disabled with a legible reason when phase-unavailable (never hidden/swapped). */
-function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
-  const { icon, label, steerCue, hasText, disabled, reason, onFire, buttonTestId } = props;
-  const title = resolveGuidedTitle({ disabled, hasText, label, steerCue, reason });
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            intent={hasText && !disabled ? "primary" : "ghost"}
-            size="icon"
-            disabled={disabled}
-            focusableWhenDisabled={true}
-            title={title}
-            aria-label={label}
-            data-testid={testId(buttonTestId)}
-            onClick={disabled ? undefined : onFire}
-            shape="pill"
-            className={ICON_CONTROL_CLASS}
-          >
-            <Icon icon={icon} size="sm" />
-          </Button>
-        }
-      />
-      <TooltipPopup side="top">{title}</TooltipPopup>
-    </Tooltip>
-  );
-}
-
-/** The dual-mode title: the disabled reason, else the label PLUS the steer cue when text is present (the
- *  typed-text-becomes-steer contract taught at the action), else the plain label. */
-function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: string; steerCue: string; reason: string }): string {
-  if (args.disabled) {
-    // Name WHAT the button is AND why it's off: "Try another reply — needs an existing reply". The label
-    // stays legible so a disabled icon is not a mystery glyph with a bare reason.
-    return `${args.label} — ${args.reason}`;
-  }
-  return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
-}
-
-/** Response's title: a persistent off-cause wins (#54 refusal / the IMP-2 live impersonate stream — Response
- *  has no phase-disabled state of its own), else the steer cue when the composer has text, else the label. */
-function responseTitle(label: string, hasText: boolean, disabledReason: string | undefined): string {
-  if (disabledReason !== undefined) {
-    return `${label} — ${disabledReason}`;
-  }
-  return hasText ? `${label} — ${STEER_CUE_RESPONSE}` : label;
-}
-
-// ── The live impersonate stream's Stop (IMP-2) ───────────────────────────────────────────────────────────
-/** Rendered ONLY while an impersonate stream is filling the composer. It belongs in `Your message` beside
- *  Draft your line because it terminates that draft operation; the terminal Send/turn-Stop slot belongs to
- *  `Attach and send` and aborts a chat TURN, so it cannot substitute. Stopping KEEPS the partial fill (a
- *  deliberate divergence from ST — see `useGuidedActions.stopImpersonation`). */
-function ImpersonateStopButton({ onStop }: { readonly onStop: () => void }): ReactElement {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            intent="secondary"
-            size="icon"
-            title={IMPERSONATE_STOP_LABEL}
-            aria-label={IMPERSONATE_STOP_LABEL}
-            data-testid={testId("composerGuidedStopImpersonate")}
-            onClick={onStop}
-            shape="pill"
-            className="shrink-0"
-          >
-            <Icon icon={Square} size="sm" />
-          </Button>
-        }
-      />
-      <TooltipPopup side="top">Stop drafting your line</TooltipPopup>
-    </Tooltip>
-  );
-}
-
-/** The dual-mode ACCESSIBLE NAME (side-eye P3-dualmode): when the composer has text the icon is in its guided
- *  mode, so its announced name says so ("Impersonate" → "Guided impersonate") — the mode-switch a sighted user
- *  reads off the icon's charge state is now spoken too. Empty composer keeps the plain action name. */
-function resolveGuidedName(base: string, hasText: boolean): string {
-  return hasText ? `Guided ${base.toLowerCase()}` : base;
-}
-
-const PERSON_LABEL: Record<GuidedImpersonatePerson, string> = { first: "1st person", second: "2nd person", third: "3rd person" };
-
-// ── Impersonate (hover/click → perspective picker) ──────────────────────────────────────────────────────
-function ImpersonateGuidedButton({
-  disabled,
-  hasText,
-  onPick,
-  reason,
-}: {
-  readonly disabled: boolean;
-  readonly hasText: boolean;
-  readonly onPick: (person: GuidedImpersonatePerson) => void;
-  /** The disabled reason (the send cause wins over the phase reason — computed by the parent's `reasonFor`). */
-  readonly reason: string;
-}): ReactElement {
-  const title = resolveGuidedTitle({ disabled, hasText, label: "Draft your line", steerCue: STEER_CUE_IMPERSONATE, reason });
-  const name = resolveGuidedName("Draft your line", hasText);
-  return (
-    <Menu>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <MenuTrigger
-              disabled={disabled}
-              aria-label={name}
-              data-testid={testId("composerGuidedImpersonate")}
-              render={
-                <Button
-                  type="button"
-                  intent={hasText && !disabled ? "primary" : "ghost"}
-                  size="icon"
-                  focusableWhenDisabled={true}
-                  title={title}
-                  shape="pill"
-                  className={ICON_CONTROL_CLASS}
-                >
-                  <Icon icon={Drama} size="sm" />
-                </Button>
-              }
-            />
-          }
-        />
-        <TooltipPopup side="top">{title}</TooltipPopup>
-      </Tooltip>
-      <MenuPopup>
-        {(["first", "second", "third"] as const).map((person) => (
-          <MenuItem key={person} onClick={(): void => onPick(person)}>
-            {PERSON_LABEL[person]}
-          </MenuItem>
-        ))}
-      </MenuPopup>
-    </Menu>
-  );
-}
-
-// ── Response (never disabled; multi-room speaker submenu) ────────────────────────────────────────────────
-function ResponseGuidedButton({
-  hasText,
-  idle,
-  cast,
-  onFire,
-  disabledReason,
-}: {
-  readonly hasText: boolean;
-  readonly idle: boolean;
-  readonly cast: ReturnType<typeof filterCharacters>;
-  readonly onFire: (speakerCharacterId: CharacterId | null) => void;
-  /** The PERSISTENT off-cause when there is one: the honest-refusal reason (#54) or the live impersonate
-   *  stream (IMP-2). Response is never phase-disabled, so this is its ONLY disabled reason; it surfaces on
-   *  `title` + focusableWhenDisabled. */
-  readonly disabledReason: string | undefined;
-}): ReactElement {
-  const label = "Generate reply";
-  const title = responseTitle(label, hasText, disabledReason);
-  // The dual-mode accessible name (P3-dualmode): guided when the composer has text, plain when empty.
-  const name = resolveGuidedName(label, hasText);
-  // Solo: a direct fire (Auto). Multi-room: a submenu picks the speaker (Auto + each member).
-  if (cast.length <= 1) {
-    return (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              type="button"
-              intent={hasText ? "primary" : "ghost"}
-              size="icon"
-              disabled={!idle}
-              focusableWhenDisabled={disabledReason !== undefined}
-              title={title}
-              aria-label={name}
-              data-testid={testId("composerGuidedResponse")}
-              onClick={idle ? (): void => onFire(null) : undefined}
-              shape="pill"
-              className={ICON_CONTROL_CLASS}
-            >
-              <Icon icon={Play} size="sm" />
-            </Button>
-          }
-        />
-        <TooltipPopup side="top">{title}</TooltipPopup>
-      </Tooltip>
-    );
-  }
-  return (
-    <Menu>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <MenuTrigger
-              disabled={!idle}
-              aria-label={name}
-              data-testid={testId("composerGuidedResponse")}
-              render={
-                <Button
-                  type="button"
-                  intent={hasText ? "primary" : "ghost"}
-                  size="icon"
-                  focusableWhenDisabled={disabledReason !== undefined}
-                  title={title}
-                  shape="pill"
-                  className={ICON_CONTROL_CLASS}
-                >
-                  <Icon icon={Play} size="sm" />
-                </Button>
-              }
-            />
-          }
-        />
-        <TooltipPopup side="top">{title}</TooltipPopup>
-      </Tooltip>
-      <MenuPopup>
-        <MenuItem onClick={(): void => onFire(null)}>Auto (arbitrate)</MenuItem>
-        {cast.map((member) => (
-          <MenuItem key={member.characterId} onClick={(): void => onFire(member.characterId)}>
-            <Icon icon={Drama} size="sm" />
-            {member.displayName}
-          </MenuItem>
-        ))}
-      </MenuPopup>
-    </Menu>
-  );
 }

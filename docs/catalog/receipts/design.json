@@ -117,6 +117,75 @@
       ]
     },
     {
+      "path": "docs/design/chat-visual-findings-364-366.md",
+      "assignedSha256": "f3d5588690dc7fc900891e4d2b264551a0017adfecfc16bacd2a22d7b86bd9c4",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "f3d5588690dc7fc900891e4d2b264551a0017adfecfc16bacd2a22d7b86bd9c4",
+      "verifiedCommit": "cfc421fca6bb415a8a98a6a81f6a311e9ef43990",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/design/chat-visual-findings-364-366.md:1-64 full read against implementation commit cfc421fca6bb415a8a98a6a81f6a311e9ef43990",
+        "fresh Playwright CT: 54 passed across composer, face strip, and actionBar grid",
+        "private rendered matrix: 80/80 appearance arms plus Light, none, focus, context, and coarse-width controls"
+      ],
+      "summary": "Issues #364-#366 design and as-built receipt: explicit composer action tracks, semantic functional face labels, and immediate paint-transition-free keyboard focus, with scoped CT and private rendered evidence.",
+      "claims": [
+        {
+          "claim": "The four existing composer action homes retain semantic ownership while moving onto explicit responsive grid rows, including impersonation Stop under Your message.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:128"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/chat/components/composer.ct.tsx:283"
+            },
+            {
+              "kind": "issue",
+              "target": "#364"
+            }
+          ]
+        },
+        {
+          "claim": "Visible face-filter captions and overflow labels use the semantic functional-label voice while Buttons retain their full accessible names.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/components/face-strip.tsx:255"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/components/face-strip.ct.tsx:93"
+            },
+            {
+              "kind": "issue",
+              "target": "#365"
+            }
+          ]
+        },
+        {
+          "claim": "Keyboard focus preserves the immediate composer ring and glow without a non-zero paint transition in full or reduced motion.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer.tsx:383"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/chat/components/composer.ct.tsx:461"
+            },
+            {
+              "kind": "issue",
+              "target": "#366"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/composer-action-anatomy.md",
       "assignedSha256": "fc8c27b371190c1da9c2853f534dbf690b270b983e2523e7cb939e4b7081c07c",
       "disposition": "current",
