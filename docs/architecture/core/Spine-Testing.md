@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-18
+updated: 2026-08-21
 ---
 
 # Orbweaver — Spine: Testing (one centralized tree, suffix-selected lanes, Playwright for browser)
@@ -197,7 +197,24 @@ Coverage proves a line *ran*; a **surviving mutant** is a line a test covered bu
 - `pnpm test:mutation` (`stryker.config.json`) — exploratory, `break:null`; broaden scope via `--mutate`.
 - `pnpm test:mutation:gate` (`stryker.gate.config.json`) — the ratchet, pinned to the highest-stakes pure modules (prompt assembly + credential resolution); fails the build below `thresholds.break`. `break` stays `null` until a measured score calibrates it, then ratchets UP as a backslide floor.
 
-Both run the node lanes via the `vitest` runner (`vitest.stryker.config.ts`) + the `typescript` checker.
+Both run the node lanes via the `vitest` runner (`vitest.stryker.config.ts`) + the `typescript` checker. The
+CLASSIC checker, deliberately — `typescriptChecker.experimentalNativePreview` (TS7) was trialed 2026-08-21
+and REFUSED: 2.8× slower, and it reports TS7027/TS6133 as blocking, which disqualifies Stryker's whole
+`if (cond)` → `if (false)` mutant class as `CompileError` and silently shrinks the scored population.
+
+**An ARID mutant is not a test failure.** `scripts/mutation/arid-ignorer.ts` (a `PluginKind.Ignore` plugin,
+wired through `ignorers: ["arid"]` in BOTH configs) drops string-literal mutants whose only destination is an
+observability sink — trace recorders, trace-collection appends, trace assignments, trace-carrying payload
+objects, logger calls. Those can only ever survive: the "fix" would be a test pinning a debug label
+byte-for-byte, i.e. the tautology this doc bans. The predicate is STRUCTURAL — there is no in-source
+annotation an author can add to silence their own mutant — and it is bite-proved in BOTH directions by
+`tests/tooling/mutation-arid-ignorer.test.ts`. Adding or removing it CHANGES THE DENOMINATOR, so it is part
+of the gate's calibration, never a cosmetic.
+
+**The gate's `mutate` list is frozen to its calibrated set; new candidates enter the EXPLORATORY config as
+sentinels** (`stryker.config.json` — currently the runtime-string-key and shipped-inversion classes: chat
+stats-delta, stats rebuild-from-canon, chat canon-write, chat memory recall). Promoting a sentinel into the
+gate requires a fresh calibration run, because `break` is bound to the measured set.
 
 ## Esoterica (load-bearing)
 

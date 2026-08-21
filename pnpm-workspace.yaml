@@ -45,8 +45,8 @@ catalog:
   # @types/node tracks the RUNTIME (Node 26).
   "@types/node": ^26.1.1
   # --- test ---
-  vitest: ^4.1.10
-  "@vitest/coverage-v8": ^4.1.10
+  vitest: ^4.1.11
+  "@vitest/coverage-v8": ^4.1.11
   "@playwright/test": ^1.61.1
   "@playwright/experimental-ct-react": ^1.61.1
   # --- quality / mutation tooling ---
@@ -56,18 +56,33 @@ catalog:
   jscpd: ^5.0.12
   # stryker: mutation testing (run via `pnpm test:mutation` / `pnpm test:mutation:gate` = a plain
   # `stryker run <config>` from the repo root — no wrapper, no --inPlace: Stryker copies into .stryker-tmp/,
-  # the working tree is never touched, reports land in reports/ natively). PINNED EXACT to 9.6.1 (no caret) —
-  # patches/@stryker-mutator__core@9.6.1.patch rewires the sandbox's workspace symlinks (stock StrykerJS
+  # the working tree is never touched, reports land in reports/ natively). PINNED EXACT to 10.0.0 (no caret) —
+  # patches/@stryker-mutator__core@10.0.0.patch rewires the sandbox's workspace symlinks (stock StrykerJS
   # never rewires pnpm's WORKSPACE symlinks, so every @orb/* import escapes the sandbox → "No tests were
-  # executed" / silent zero coverage) and is BYTE-SPECIFIC to 9.6.1's dist/src/sandbox/sandbox.js; a caret
-  # bump to 9.7.x would silently invalidate the patch (install fails to apply / sandbox escape returns). The
+  # executed" / silent zero coverage) and is BYTE-SPECIFIC to 10.0.0's dist/src/sandbox/sandbox.js; a caret
+  # bump to 10.1.x would silently invalidate the patch (install fails to apply / sandbox escape returns). The
   # patch APPLIES AUTOMATICALLY on `pnpm install` (patchedDependencies below) — a fresh clone just works.
-  # Keep all three in lockstep at 9.6.1. To bump: re-derive the patch (`pnpm patch @stryker-mutator/core@<new>`,
-  # re-apply the symlink rewire, `pnpm patch-commit`), then move all three pins together. Deep reference (root
-  # cause at file:line, the exact diff, the A/B/C/D validation matrix): reports/tooling/STRYKER-SANDBOX-ALTERNATIVES.md.
-  "@stryker-mutator/core": 9.6.1
-  "@stryker-mutator/vitest-runner": 9.6.1
-  "@stryker-mutator/typescript-checker": 9.6.1
+  # THE PATCH KEY IS VERSION-KEYED: `patchedDependencies` names the EXACT version, so a bump that forgets to
+  # re-derive silently stops patching and the sandbox escape returns as a clean-looking run over UNMUTATED
+  # code. The MANDATORY proof after any bump is a planted control: mutate one kit file and confirm mutants
+  # ACTIVATE AND DIE (non-zero killed) — a bare green proves nothing. (2026-08-21, the 9.6.1 → 10.0.0 bump:
+  # v10's sandbox.js differs from 9.6.1 only in the --inPlace dispose() path; all three hunks re-applied with
+  # line offsets, fileUtils exports unchanged. Node floor 22+; the box runs 26.5. Control receipt: 47 mutants
+  # over packages/kit/src/macro/engine.ts — 17 killed / 1 timeout / 7 survived / 2 no-coverage / 20 compile-
+  # error, score 66.67 total. Killed > 0 through an `@orb/kit/*` import IS the proof the sandbox rewire is
+  # live; the pre-patch failure mode is "No tests were executed" / every mutant surviving.)
+  # Keep all four in lockstep at 10.0.0 (core + vitest-runner + typescript-checker + api — the api package is
+  # a DIRECT dep because scripts/mutation/arid-ignorer.ts imports its plugin surface). To bump: re-derive the
+  # patch (`pnpm patch @stryker-mutator/core@<new>`,
+  # re-apply the symlink rewire, `pnpm patch-commit`), then move all three pins together, then RE-RUN THE
+  # PLANTED CONTROL. Deep reference (root cause at file:line, the exact diff, the A/B/C/D validation matrix):
+  # reports/tooling/STRYKER-SANDBOX-ALTERNATIVES.md.
+  "@stryker-mutator/core": 10.0.0
+  "@stryker-mutator/vitest-runner": 10.0.0
+  "@stryker-mutator/typescript-checker": 10.0.0
+  # api: the PLUGIN surface (declareValuePlugin / PluginKind / Ignorer). A direct dep only because we ship
+  # our own ignore-plugin (scripts/mutation/arid-ignorer.ts); core/runner/checker pull it transitively.
+  "@stryker-mutator/api": 10.0.0
   # --- kit (isomorphic libs allowed by the kit-purity ruling) ---
   zod: ^4.4.3
   typeid-js: ^1.2.0
@@ -380,4 +395,4 @@ minimumReleaseAgeExclude:
   - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.206"
   - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.206"
 patchedDependencies:
-  '@stryker-mutator/core@9.6.1': patches/@stryker-mutator__core@9.6.1.patch
+  '@stryker-mutator/core@10.0.0': patches/@stryker-mutator__core@10.0.0.patch

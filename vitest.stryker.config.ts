@@ -29,8 +29,11 @@ const TOOLING_GLOB = "tests/tooling/**";
 // — they prove nothing about assemble.ts / resolve.ts mutation coverage. (2026-07-12, V4 calibration.)
 const FRESHNESS_GLOBS = ["tests/ui/tokens/**"];
 // WORKER-THREAD-INCOMPATIBLE TESTS. Context: the Stryker vitest-runner HARDCODES `pool: 'threads'` in its
-// `createVitest` overrides (@stryker-mutator/vitest-runner/dist/src/vitest-test-runner.js:36-49 — a CLI
-// override, so no config file can win it back), while vitest.config.ts:15 pins `pool: 'forks'` precisely
+// `createVitest` overrides (@stryker-mutator/vitest-runner `#getVitestPoolConfig` — a CLI override, so no
+// config file can win it back). RE-VERIFIED on the 10.0.0 bump (2026-08-21): still forced, only the
+// SPELLING moved — for vitest >= 4.1 it is now `{ pool: 'threads', maxWorkers: 1 }` where 9.x emitted
+// `poolOptions.threads.maxThreads/minThreads`. Serial-inside-the-worker is unchanged, so everything below
+// still holds. Meanwhile vitest.config.ts:15 pins `pool: 'forks'` precisely
 // because forks give the process isolation some of our code needs. A measured sweep of the mutation lanes
 // under that pool (2026-08-14, `--pool=threads --bail=0`: 1,253 files / 10,091 tests) found 87 casualties in
 // TWO classes, and Stryker's `bail:1` reports only ONE per run — which is why this was never diagnosed:

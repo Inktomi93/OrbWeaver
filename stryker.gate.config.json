@@ -6,8 +6,11 @@
   "vitest": {
     "configFile": "vitest.stryker.config.ts"
   },
-  "_plugins_comment": "Explicit plugin paths \u2014 pnpm's strict layout breaks Stryker auto-discovery.",
-  "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
+  "_plugins_comment": "Explicit plugin paths \u2014 pnpm's strict layout breaks Stryker auto-discovery. The third entry is OURS (a relative path Stryker resolves via pathToFileURL + import(); node 26 strips the types).",
+  "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker", "./scripts/mutation/arid-ignorer.ts"],
+  "_ignorers_comment": "The ARID ignorer (scripts/mutation/arid-ignorer.ts) drops string-literal mutants whose only destination is an observability sink. It BELONGS in the gate specifically: those mutants can only ever survive (no honest test kills a debug label), so leaving them in pins a permanent fixed block under the score and hides every real movement the ratchet exists to catch. It MUST be present whenever `break` is compared against a measured run \u2014 adding or removing it changes the denominator, so it is part of the calibration, not a cosmetic.",
+  "ignorers": ["arid"],
+  "_checkers_comment": "CLASSIC checker, deliberately \u2014 see stryker.config.json's `_checkers_comment` for the measured 2026-08-21 refusal of `typescriptChecker.experimentalNativePreview` (2.8x slower AND it disqualifies the whole ConditionalExpression mutant class as CompileError via TS7027).",
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
   "_reporters_comment": "`progress` is NOT optional here, unlike in the exploratory config where it was already present. The mutant phase over 1,115 mutants emits NOTHING without it: a 2026-08-14 calibration run sat 56+ minutes past a successful dry run with zero output, indistinguishable from a wedge, and there was no way to tell a slow run from a hung one. A gate whose expensive phase is a black box cannot be operated.",
@@ -51,7 +54,7 @@
     "FINAL-*.md"
   ],
   "_coverage_comment": "coverageAnalysis NOT set \u2014 the vitest-runner ignores it and always uses perTest.",
-  "_dryruntimeout_comment": "Stryker's DEFAULT dryRunTimeoutMinutes is 5, and the initial run blew through it at exactly 5:02 (05:14:40 -> 05:19:42, `Initial test run timed out!`) \u2014 the third of three invisible blockers that kept this gate from EVER producing a score. The dry run executes the whole unit+integration+contract set to collect perTest coverage, and the runner pins `maxThreads:1`/`maxConcurrency:1` (vitest-test-runner.js:36-49), so ~1,300 files that take 7.3 min of wall time across 14 parallel forks run ONE AT A TIME here. This is the documented knob for exactly that; keep it comfortably above the measured dry-run duration recorded in the thresholds comment.",
+  "_dryruntimeout_comment": "Stryker's DEFAULT dryRunTimeoutMinutes is 5, and the initial run blew through it at exactly 5:02 (05:14:40 -> 05:19:42, `Initial test run timed out!`) \u2014 the third of three invisible blockers that kept this gate from EVER producing a score. The dry run collects perTest coverage with the runner pinned to one worker (`#getVitestPoolConfig`: `pool:'threads'` + `maxWorkers:1` on vitest >= 4.1), so files that take 7.3 min of wall time across 14 parallel forks run ONE AT A TIME here. 45 stays as the ceiling. NOTE (v10, 2026-08-21): the runner gained `vitest.related`, DEFAULT TRUE \u2014 the dry run is now narrowed to vitest `--related` of the mutate targets rather than the whole unit+integration+contract set, which is why the historical ~23min dry figure no longer applies. The RISK that buys: if related-mode fails to reach a covering test for a mutate target (it walks vitest's module graph), that file's mutants report NoCoverage and the score deflates for a TOOLING reason. Check per-file coverage in the report before trusting a score movement; `vitest: { related: false }` restores the whole-set dry run.",
   "dryRunTimeoutMinutes": 45,
   "ignoreStatic": true,
   "_concurrency_comment": "24-core / 125GB box; default is n-1 (=23). 16 \u2192 ~8 checker + ~8 runner processes with headroom. Bump toward 20 for a dedicated run.",

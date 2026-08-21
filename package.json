@@ -103,6 +103,7 @@
     "@orb/ui": "workspace:*",
     "@playwright/experimental-ct-react": "catalog:",
     "@playwright/test": "catalog:",
+    "@stryker-mutator/api": "catalog:",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/typescript-checker": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
