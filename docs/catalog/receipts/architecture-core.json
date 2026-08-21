@@ -246,9 +246,9 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "80273fa659ccfb3786218df2bfd40120c652a17d9153dc935c579106d482f863",
-      "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
-      "verifiedAt": "2026-08-19",
+      "verifiedSha256": "90bf4d38f4b7f827f980de9947d87cedc4ac538ca207eb33781a0ee6d68a0b44",
+      "verifiedCommit": "bac364265989dddcefb0c9dbe0165cb7440d100c",
+      "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
         "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
@@ -258,7 +258,8 @@
         "D143 minted (vllm errs-open posture + customParameters amendment, #197)",
         "D143 rider: VLLM_TURNS measured cell (#200/#201, 56a979d44)",
         "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)",
-        "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)"
+        "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)",
+        "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed"
       ],
       "claims": [
         {
@@ -966,7 +967,7 @@
             },
             {
               "kind": "code",
-              "target": "scripts/probes/motion-audit.ts:379"
+              "target": "tooling/src/motion-audit/lib/verdicts.ts:133"
             },
             {
               "kind": "test",
@@ -974,7 +975,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/tooling/motion-audit.test.ts:91"
+              "target": "tests/tooling/motion-audit/index.test.ts:91"
             }
           ]
         }
