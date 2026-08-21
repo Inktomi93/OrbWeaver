@@ -159,62 +159,68 @@ test("a memoryDefaults override shows 'Overridden' and Reset clears the whole me
   await expect.poll(() => lastPartial(trpc)?.["memoryDefaults"], { intervals: [20, 50, 100] }).toBeNull();
 });
 
+const COARSE_VIEWPORT_WIDTHS = [430, 390, 320] as const;
+
 test.describe("coarse pointer containment", () => {
   test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
 
-  test("the narrow picker and its glossed popup stay inside the viewport with a touch-size trigger", async ({ mount, page }) => {
-    await stub(page);
-    await mount(<MemoryTuningSectionNarrowStory />);
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse-only geometry arm must be active").toBe(true);
+  for (const width of COARSE_VIEWPORT_WIDTHS) {
+    test(`the narrow picker and its glossed popup stay inside a ${width}px viewport with a touch-size trigger`, async ({ mount, page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await stub(page);
+      await mount(<MemoryTuningSectionNarrowStory />);
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse-only geometry arm must be active").toBe(true);
 
-    const combo = page.getByRole("combobox", { name: "Retrieval mode" });
-    const triggerBox = await combo.boundingBox();
-    expect(triggerBox?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await combo.click();
+      const combo = page.getByRole("combobox", { name: "Retrieval mode" });
+      const triggerBox = await combo.boundingBox();
+      expect(triggerBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await combo.click();
 
-    const popup = page.locator('[data-slot="select-popup"]');
-    await expect(popup).toBeVisible();
-    const bounds = await popup.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return { left: rect.left, right: rect.right, viewport: window.innerWidth, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
+      const popup = page.locator('[data-slot="select-popup"]');
+      await expect(popup).toBeVisible();
+      const bounds = await popup.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, viewport: window.innerWidth, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
+      });
+      expect(bounds.left).toBeGreaterThanOrEqual(0);
+      expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
+      expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.clientWidth);
     });
-    expect(bounds.left).toBeGreaterThanOrEqual(0);
-    expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
-    expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.clientWidth);
-  });
 
-  test("the mode and keyword hint buttons plus keyword switch are real, separate touch-size controls", async ({ mount, page }) => {
-    await stub(page);
-    await mount(<MemoryTuningSectionNarrowStory />);
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse-only geometry arm must be active").toBe(true);
+    test(`the mode and keyword hint buttons plus keyword switch are separate touch-size controls at ${width}px`, async ({ mount, page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await stub(page);
+      await mount(<MemoryTuningSectionNarrowStory />);
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse-only geometry arm must be active").toBe(true);
 
-    const controls = [
-      page.getByRole("button", { name: "More info about Retrieval mode" }),
-      page.getByRole("button", { name: "More info about Keyword match" }),
-      page.getByRole("switch", { name: "Keyword match" }),
-    ];
-    const boxes = await Promise.all(
-      controls.map(async (control) => {
-        await expect(control).toBeVisible();
-        const box = await control.boundingBox();
-        expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-        expect(
-          await control.evaluate((element) => {
-            const rect = element.getBoundingClientRect();
-            const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-            return hit === element || (hit !== null && element.contains(hit));
-          }),
-          "the centre of each visible box belongs to that control",
-        ).toBe(true);
-        return box;
-      }),
-    );
-    const overlaps = boxes.flatMap((a, left) =>
-      boxes
-        .slice(left + 1)
-        .filter((b) => a !== null && b !== null && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y),
-    );
-    expect(overlaps, "coarse targets do not overlap each other").toEqual([]);
-  });
+      const controls = [
+        page.getByRole("button", { name: "More info about Retrieval mode" }),
+        page.getByRole("button", { name: "More info about Keyword match" }),
+        page.getByRole("switch", { name: "Keyword match" }),
+      ];
+      const boxes = await Promise.all(
+        controls.map(async (control) => {
+          await expect(control).toBeVisible();
+          const box = await control.boundingBox();
+          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+          expect(
+            await control.evaluate((element) => {
+              const rect = element.getBoundingClientRect();
+              const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+              return hit === element || (hit !== null && element.contains(hit));
+            }),
+            "the centre of each visible box belongs to that control",
+          ).toBe(true);
+          return box;
+        }),
+      );
+      const overlaps = boxes.flatMap((a, left) =>
+        boxes
+          .slice(left + 1)
+          .filter((b) => a !== null && b !== null && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y),
+      );
+      expect(overlaps, "coarse targets do not overlap each other").toEqual([]);
+    });
+  }
 });
