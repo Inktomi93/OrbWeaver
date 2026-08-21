@@ -66,7 +66,7 @@ const NUMERIC_KNOBS = [
   {
     key: "retrieveK",
     label: "Search candidates",
-    hint: "Semantic matches kept after the first search. More candidates give reranking more choices but add search and prompt work.",
+    hint: "Matches kept after vector search. Higher values give Sharper semantic recall more choices but make reranking compare more memories; when reranking succeeds, Reranked memories still caps what reaches the prompt. If reranking is unavailable—or Semantic recall is selected—more candidates can use more prompt space. Embedding and vector-search work stay the same.",
     step: 1,
   },
   {
