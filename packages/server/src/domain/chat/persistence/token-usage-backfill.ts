@@ -36,6 +36,10 @@ export function createListImportedTokenUsageCandidates(db: Db): ListImportedToke
       .where(and(eq(hostSeat.chatId, chats.id), eq(hostSeat.role, "host"), eq(hostSeat.kind, "human"), isNotNull(hostSeat.userId), isNull(hostSeat.leftSeq)))
       .orderBy(asc(hostSeat.joinSeq), asc(hostSeat.id))
       .limit(1);
+    // Scope is CHAT-was-imported, deliberately (#402, owner-ruled 2026-08-21 accept-as-designed): live
+    // turns continued in an imported chat are swept too, so an unrecorded live variant can gain an
+    // ESTIMATED tokensOut (tokensIn stays null). The figures are honest and labeled `estimated`; a
+    // variant-era narrowing was priced and rejected as unneeded complexity.
     const predicates: SQL[] = [isNotNull(chats.importedFrom)];
     if (hostUserId !== null) {
       predicates.push(eq(chatParticipants.userId, hostUserId));
