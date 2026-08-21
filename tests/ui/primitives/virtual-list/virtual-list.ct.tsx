@@ -4,6 +4,7 @@ import {
   BoundedList,
   CustomRangeExtractorList,
   DerivedItemsList,
+  DynamicLayoutList,
   EndApproachList,
   FadeEdgeList,
   InitialOffsetList,
@@ -149,4 +150,49 @@ test("onEndApproach does NOT fire when the window is farther from the tail than 
 test("aria-label passes through to the role=list scroll container", async ({ mount }) => {
   const component = await mount(<AriaLabelList itemCount={20} ariaLabel="Fixture rows" />);
   await expect(component.getByRole("list", { name: "Fixture rows" })).toBeVisible();
+});
+
+test("dynamic height, stable-key reorder, scrollport resize, and deep scroll retain unique visible ownership", async ({ mount, page }) => {
+  const component = await mount(<DynamicLayoutList />);
+  const scroll = component.locator('[data-slot="virtual-list-scroll"]');
+
+  const expectOwnedGeometry = async (): Promise<void> => {
+    const geometry = await component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {
+      const scrollBox = rows[0]?.closest('[data-slot="virtual-list-scroll"]')?.getBoundingClientRect();
+      const viewportBox = rows[0]?.closest('[data-slot="virtual-list-viewport"]')?.getBoundingClientRect();
+      return rows.map((row) => {
+        const box = row.getBoundingClientRect();
+        const centreY = box.y + box.height / 2;
+        return {
+          index: Number(row.getAttribute("data-index")),
+          y: box.y,
+          viewportHasHeight: (viewportBox?.height ?? 0) > 0,
+          centreIsVisible: scrollBox !== undefined && centreY >= scrollBox.top && centreY <= scrollBox.bottom,
+          ownsCentre: document.elementFromPoint(box.x + box.width / 2, centreY)?.closest('[data-slot="virtual-list-row"]') === row,
+        };
+      });
+    });
+    expect(geometry.length).toBeGreaterThan(1);
+    expect(geometry.every((row) => row.viewportHasHeight)).toBe(true);
+    expect(new Set(geometry.map((row) => row.y)).size).toBe(geometry.length);
+    const visible = geometry.filter((row) => row.centreIsVisible);
+    expect(visible.length).toBeGreaterThan(1);
+    expect(visible.filter((row) => !row.ownsCentre)).toEqual([]);
+  };
+
+  await expect(component.getByText("Item 0", { exact: true })).toBeVisible();
+  await expect(expectOwnedGeometry).toPass();
+  await component.getByTestId("toggle-height").click();
+  await expect.poll(() => component.getByText("Item 0", { exact: true }).evaluate((node) => node.getBoundingClientRect().height)).toBe(96);
+  await expect(expectOwnedGeometry).toPass();
+  await component.getByTestId("reorder").click();
+  await expect(component.getByText("Item 79", { exact: true })).toBeVisible();
+  await expect(expectOwnedGeometry).toPass();
+  await component.getByTestId("resize").click();
+  await expect.poll(() => scroll.evaluate((node) => node.clientHeight)).toBe(280);
+  await expect(expectOwnedGeometry).toPass();
+  await component.getByText("Item 79", { exact: true }).hover();
+  await page.mouse.wheel(0, 1200);
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  await expect(expectOwnedGeometry).toPass();
 });

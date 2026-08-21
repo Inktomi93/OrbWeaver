@@ -44,7 +44,7 @@ export function ChatListHeader(): ReactElement {
         action={
           // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
           <Row align="center" gap="field">
-            <Button aria-label="Import a chat transcript" intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
+            <Button aria-label="Import a chat transcript" intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
               <Icon icon={Upload} size="sm" />
             </Button>
             <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
