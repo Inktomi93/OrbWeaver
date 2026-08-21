@@ -60,11 +60,17 @@
 //
 // "THEMES" ON THIS SURFACE IS ALWAYS "STORY THEMES" — the discovery domain's distillation output. It shares
 // a word with the app's colour themes and the owner has been caught by that once; the spelling is law here.
+//
+// ── WHAT IS COMPOSED HERE VS OWNED NEXT DOOR (the `component-size` split, 2026-08-21) ─────────────────
+// This file is the OVERVIEW'S COMPOSITION: the four suspended reads, the derived analysis state, the
+// masthead, the focal/rail grid, and the deferred below-fold blocks. Blocks that own a closed interaction
+// live in `../components/`, and the story-theme rows + their detail card went there
+// (`corpus-theme-section.tsx`) because the selection state they share is read by nothing else here — a
+// surface holding a child's state beside seven unrelated reads is exactly how this file passed the cap.
 
 import { modelDisplayName } from "@orb/kit/model-name";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles, Users } from "@orb/ui/icons";
 import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
@@ -74,7 +80,6 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -85,12 +90,11 @@ import { CorpusGemTiles } from "../components/corpus-gem-tiles.tsx";
 import { KeywordExplorer, StoryThemeDrift } from "../components/corpus-home-charts.tsx";
 import { CorpusHomeSkeleton } from "../components/corpus-home-skeleton.tsx";
 import { CorpusReadinessRail } from "../components/corpus-readiness-rail.tsx";
+import { CorpusThemeSection } from "../components/corpus-theme-section.tsx";
 import { CorpusUnderstandingInvitation } from "../components/corpus-understanding-invitation.tsx";
 import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 
-type ThemeLevel = "scene" | "arc";
-type ThemeRow = inferOutput<Trpc["discovery"]["home"]>["sceneThemes"][number];
 /** One model route that actually cost money — `costUsd` narrowed to a number by the body's own filter. */
 type PaidRoute = Omit<inferOutput<Trpc["discovery"]["modelRouting"]>[number], "costUsd"> & { readonly costUsd: number };
 
@@ -101,11 +105,6 @@ const CORPUS_INSIGHT_SKELETON_ROWS = 3;
 
 function money(value: number): string {
   return `$${value.toFixed(MONEY_PRECISION)}`;
-}
-
-interface ThemeSelection {
-  readonly clusterIdx: number;
-  readonly level: ThemeLevel;
 }
 
 // SECTION ARRIVAL BELONGS TO THE OMNIBOX, AND THIS SURFACE STOPPED COMPETING FOR IT (side-eye corpus
@@ -140,7 +139,6 @@ function CorpusHomeBody(): ReactElement {
   // a cache hit rather than a second fetch of the same analytics.
   const { data: families } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions({}));
   const { data: gems } = useSuspenseQuery(trpc.discovery.forgottenGems.queryOptions());
-  const [theme, setTheme] = useState<ThemeSelection | null>(null);
   // HAS THE NEAR-DUP PASS EVER FINISHED? (issue #164 item 4.) A zero from a pass that ran is "none found";
   // a zero from a pass that has never run is "not run", and the rail printed the first for both — the owner
   // reasonably read "none found" on a 327-card ST library as a defect, when the pass simply had not run yet.
@@ -200,7 +198,6 @@ function CorpusHomeBody(): ReactElement {
   }
 
   const mapIsFocal = state.phase === "analysed";
-  const hasStoryThemes = home.sceneThemes.length > 0 || home.arcThemes.length > 0;
   const paidRoutes = (routing.data ?? []).flatMap((route) => (route.costUsd === null || route.costUsd <= 0 ? [] : [{ ...route, costUsd: route.costUsd }]));
 
   return (
@@ -291,13 +288,7 @@ function CorpusHomeBody(): ReactElement {
 
         <CorpusGemTiles gems={gems} />
 
-        {hasStoryThemes ? (
-          <Section kicker="Story themes" level={2}>
-            <ThemeGroup label="Scenes" onSelect={setTheme} selected={theme} themes={home.sceneThemes} />
-            <ThemeGroup label="Arcs" onSelect={setTheme} selected={theme} themes={home.arcThemes} />
-            {theme === null ? null : <ThemeDetailCard onDismiss={(): void => setTheme(null)} selection={theme} />}
-          </Section>
-        ) : null}
+        <CorpusThemeSection arcThemes={home.arcThemes} sceneThemes={home.sceneThemes} />
 
         {keywords.error !== null ? (
           // `refetch` takes an OPTIONS BAG, and `onRetry` is wired to a Button's onClick — passing the method
@@ -410,99 +401,5 @@ function ModelEconomicsSection({
         valueFormatter={money}
       />
     </Section>
-  );
-}
-
-function ThemeGroup({
-  label,
-  themes,
-  selected,
-  onSelect,
-}: {
-  readonly label: string;
-  readonly themes: readonly ThemeRow[];
-  readonly selected: ThemeSelection | null;
-  readonly onSelect: (selection: ThemeSelection) => void;
-}): ReactElement | null {
-  if (themes.length === 0) {
-    // The rail says which passes have not run; a per-group note here would say it a third time.
-    return null;
-  }
-  return (
-    <Stack gap="field">
-      <Text voice="kicker">{label}</Text>
-      <Stack aria-label={`${label} story themes`} gap="row" role="list">
-        {themes.map((row) => (
-          <Row key={row.id} role="listitem">
-            <ListRow
-              clickable={true}
-              onClick={(): void => onSelect({ clusterIdx: row.clusterIdx, level: row.level })}
-              selected={selected !== null && selected.clusterIdx === row.clusterIdx && selected.level === row.level}
-              subtitle={`${row.size} digests`}
-              title={row.name ?? "Unnamed theme"}
-            />
-          </Row>
-        ))}
-      </Stack>
-    </Stack>
-  );
-}
-
-function ThemeDetailCard({ selection, onDismiss }: { readonly selection: ThemeSelection; readonly onDismiss: () => void }): ReactElement {
-  return (
-    <Card>
-      <QueryBoundary
-        fallback={<Text voice="gloss">Loading theme…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="the theme" onRetry={retry} />}
-      >
-        <ThemeDetailBody onDismiss={onDismiss} selection={selection} />
-      </QueryBoundary>
-    </Card>
-  );
-}
-
-function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSelection; readonly onDismiss: () => void }): ReactElement {
-  const trpc = useTRPC();
-  const { data: detail } = useSuspenseQuery(
-    trpc.discovery.themeDetail.queryOptions({
-      clusterIdx: selection.clusterIdx,
-      level: selection.level,
-    }),
-  );
-  if (detail === null) {
-    return (
-      <Row align="center" justify="between">
-        <Text>This story theme is no longer available.</Text>
-        <Button intent="ghost" onClick={onDismiss} size="sm">
-          Close
-        </Button>
-      </Row>
-    );
-  }
-  return (
-    <Stack gap="block">
-      <Row align="center" justify="between">
-        <Text as="span" voice="label">
-          {detail.name ?? "Unnamed theme"}
-        </Text>
-        <Button intent="ghost" onClick={onDismiss} size="sm">
-          Close
-        </Button>
-      </Row>
-      <Text voice="gloss">
-        {detail.size} digests · {detail.level}
-      </Text>
-      <Stack gap="row" role="list">
-        {detail.members.map((member) => (
-          <ListRow
-            clickable={true}
-            key={member.characterId}
-            onClick={(): void => selectCorpusCharacter(member.characterId)}
-            subtitle={`${member.count} digests in this story theme`}
-            title={member.name}
-          />
-        ))}
-      </Stack>
-    </Stack>
   );
 }
