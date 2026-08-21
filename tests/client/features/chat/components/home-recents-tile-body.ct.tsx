@@ -163,7 +163,7 @@ test("#102-F8/F14 an also-open room title outranks its own gloss, and the rooms 
 // ── RED-FIRST (rail sweep P2-5): the focal carries NO accent border on any edge ─────────────────────
 // The island shipped with a `--color-speaker` border-inline-start at `--immersive-stripe-width` (3px) over
 // the card radius, which is `side-tab` AND `border-accent-on-rounded` — two ABSOLUTE impeccable rules
-// (`scripts/probes/design-audit-checks.ts` `classifyAccentSide`). This asserts the RENDERED border box:
+// (`tooling/src/ui-audit/lib/checks-decor.ts` `classifyAccentSide`). This asserts the RENDERED border box:
 // every edge is either hairline or achromatic, so no re-spelling of the stripe can pass it. The focal is
 // carried by the sanctioned pair instead — the elevated island's own shadow plus the rationed
 // `--shadow-glow` on the ::before layer (a chromatic glow on the element's OWN box-shadow is the

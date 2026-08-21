@@ -40,7 +40,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { loafOverBudget, loafTotals } from "../../../scripts/probes/motion-audit.ts";
+import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 
 /** The score the flagger prints — `shift 0.1234`. Hoisted: a regex literal inside a test body is a

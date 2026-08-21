@@ -1,0 +1,197 @@
+// Argv parse for ui-audit — the strict-CLI posture (an unknown flag is a hard EXIT.misuse, never an
+// ignored line, because a typo'd flag silently scans the wrong surface and reports it clean).
+import {
+  APPEARANCE_VALUE_FLAGS,
+  appearanceHelpBlock,
+  applyAppearanceFlag,
+  FULL_MOTION_PATCH,
+  loadAppearancePreset,
+  mergeAppearancePatches,
+  parseAppearancePatch,
+} from "@orb/tooling/_shared/appearance";
+import type { Viewport } from "@orb/tooling/_shared/argv";
+import { parseViewport } from "@orb/tooling/_shared/argv";
+import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
+import type { NavMethod } from "@orb/tooling/_shared/nav";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import type { Severity } from "../contract/findings.ts";
+import type { Args } from "../contract/types.ts";
+import { isValidSeverity } from "../lib/severity.ts";
+
+const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
+const DEFAULT_WAIT_MS = 500;
+const DEFAULT_FAIL_ON: Severity = "P1";
+// Same descriptor snap's --mobile uses — full touch + mobile UA + DPR3 + pointer:coarse, not a narrow
+// viewport. The tap-target rule reads `(pointer: coarse)` in-page, so this flag is what makes the 44px
+// floor apply at all.
+const MOBILE_DEVICE = "iPhone 14 Pro Max";
+
+type FlagHandler = (args: Args, rest: string[]) => void;
+
+function pushNav(args: Args, method: NavMethod, rest: string[]): void {
+  args.actions.push({ kind: "nav", method, target: rest.shift() ?? "" });
+}
+
+const FLAG_HANDLERS: Record<string, FlagHandler> = {
+  "--click": (a, rest) => {
+    a.actions.push({ kind: "click", selector: rest.shift() ?? "" });
+  },
+  "--goto": (a, rest) => {
+    pushNav(a, "goto", rest);
+  },
+  "--open-chat": (a, rest) => {
+    pushNav(a, "open-chat", rest);
+  },
+  "--open-character": (a, rest) => {
+    pushNav(a, "open-character", rest);
+  },
+  "--context-tab": (a, rest) => {
+    pushNav(a, "context-tab", rest);
+  },
+  "--wait": (a, rest) => {
+    a.waitMs = Number(rest.shift() ?? String(DEFAULT_WAIT_MS));
+  },
+  "--out": (a, rest) => {
+    a.out = rest.shift() ?? null;
+  },
+  "--base": (a, rest) => {
+    a.base = rest.shift() ?? DEFAULT_BASE;
+  },
+  "--viewport": (a, rest) => {
+    const raw = rest.shift() ?? "";
+    const parsed = parseViewport(raw);
+    if (parsed === null) {
+      a.errors.push(`--viewport expects positive WxH, got ${JSON.stringify(raw)}`);
+      return;
+    }
+    a.viewport = parsed;
+    a.device = null;
+  },
+  "--mobile": (a) => {
+    a.device = MOBILE_DEVICE;
+  },
+  "--desktop": (a) => {
+    a.viewport = DEFAULT_VIEWPORT;
+    a.device = null;
+  },
+  "--appearance": (a, rest) => {
+    applyAppearanceFlag(a, parseAppearancePatch(rest.shift() ?? ""));
+  },
+  "--appearance-preset": (a, rest) => {
+    applyAppearanceFlag(a, loadAppearancePreset(rest.shift() ?? ""));
+  },
+  "--full-motion": (a) => {
+    a.appearance = mergeAppearancePatches(a.appearance, FULL_MOTION_PATCH);
+  },
+  "--theme": (a, rest) => {
+    applyThemeFlag(a, parseThemeFlag(rest.shift() ?? ""));
+  },
+  "--fail-on": (a, rest) => {
+    const raw = (rest.shift() ?? "").toUpperCase();
+    if (isValidSeverity(raw)) {
+      a.failOn = raw;
+    } else {
+      a.errors.push(`--fail-on expects P0|P1|P2|P3, got ${JSON.stringify(raw)}`);
+    }
+  },
+};
+
+const REQUIRED_VALUE_FLAGS = new Set([
+  "--click",
+  "--goto",
+  "--open-chat",
+  "--open-character",
+  "--context-tab",
+  "--wait",
+  "--out",
+  "--base",
+  "--viewport",
+  "--fail-on",
+  ...APPEARANCE_VALUE_FLAGS,
+  ...THEME_VALUE_FLAGS,
+]);
+
+export const DESIGN_AUDIT_HELP = `design-audit — the deterministic UI defect scan
+
+Usage:
+  pnpm design-audit [route] [flags]
+
+Surface (ONE argv-ordered queue — write the chain the way it should happen):
+  --click <selector>        --goto <section|settings:cat|modal:slot>
+  --open-chat <id|title|latest|current>   --open-character <id|name>
+  --context-tab <tab>       --wait <ms>   settle after the last action (default ${DEFAULT_WAIT_MS})
+
+Environment:
+  --viewport <WxH>          default 1280x800
+  --mobile                  iPhone 14 Pro Max — touch + pointer:coarse (the 44px tap floor)
+  --desktop                 explicit 1280x800
+
+${appearanceHelpBlock()}
+
+${themeHelpBlock()}
+
+Verdict:
+  --fail-on <P0|P1|P2|P3>   exit 1 at this severity or worse (default ${DEFAULT_FAIL_ON})
+  --out <name|path>         reports/design-audit/<name>.json — or, path-shaped (absolute / ./ ../),
+                            that exact file
+
+Exit: 0 clean · 1 findings or nav error · 3 CLI misuse.`;
+
+/** Argv is scanned for misuse BEFORE anything runs. An unknown flag used to print
+ *  `UNKNOWN FLAG --goto (ignored)` and exit 0 — so a typo'd audit scanned home, reported clean, and the
+ *  caller believed it had scanned the surface they named. Mirrors snap's strict-CLI posture. */
+function scanArgv(argv: readonly string[]): string[] {
+  const errors: string[] = [];
+  let routeCount = 0;
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index] as string;
+    if (FLAG_HANDLERS[token] === undefined) {
+      if (token.startsWith("-")) {
+        errors.push(`unknown flag ${token}`);
+      } else {
+        routeCount += 1;
+      }
+      continue;
+    }
+    if (!REQUIRED_VALUE_FLAGS.has(token)) {
+      continue;
+    }
+    const value = argv[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      errors.push(`${token} requires a value`);
+      continue;
+    }
+    index += 1;
+  }
+  if (routeCount > 1) {
+    errors.push(`expected at most one route, got ${routeCount}`);
+  }
+  return errors;
+}
+
+export function parseAuditArgs(argv: string[]): Args {
+  const args: Args = {
+    route: "/",
+    base: DEFAULT_BASE,
+    actions: [],
+    waitMs: DEFAULT_WAIT_MS,
+    out: null,
+    viewport: DEFAULT_VIEWPORT,
+    device: null,
+    failOn: DEFAULT_FAIL_ON,
+    appearance: null,
+    theme: null,
+    errors: scanArgv(argv),
+  };
+  const rest = [...argv];
+  while (rest.length > 0) {
+    const tok = rest.shift() as string;
+    const handler = FLAG_HANDLERS[tok];
+    if (handler !== undefined) {
+      handler(args, rest);
+    } else if (!tok.startsWith("-")) {
+      args.route = tok;
+    }
+  }
+  return args;
+}
