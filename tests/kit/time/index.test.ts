@@ -1,4 +1,4 @@
-import { createTimeLib, epochToMs, humanizeDuration, isoToMs, secondsToMs } from "@orb/kit/time";
+import { createTimeLib, epochToMs, humanizeDuration, isoToMs, msToWallClock, secondsToMs, wallClockToMs } from "@orb/kit/time";
 import { expect, test } from "../../support/fixtures.ts";
 
 const SEC = 1000;
@@ -61,6 +61,122 @@ test("isoToMs reads a naive (no-offset) ISO string as UTC, not local", () => {
 
 test("isoToMs returns null for an unparseable string", () => {
   expect(isoToMs("not-a-date")).toBeNull();
+});
+
+// ── The Temporal port's parse surface (2026-08-21, luxon → platform `Temporal`) ───────────────────
+// Every pin below was measured against the luxon implementation it replaced (a 70-input differential
+// corpus, 63 byte-identical). These are the ones worth freezing: the arms that MUST keep working, and
+// the five forms that deliberately narrowed to null.
+
+test("isoToMs lets the string's OWN designator decide the instant, not the caller", () => {
+  expect(isoToMs("2026-07-03T12:00:00+05:00")).toBe(1_783_062_000_000); // 07:00Z
+  expect(isoToMs("2026-07-03T12:00:00-06:30")).toBe(1_783_103_400_000); // 18:30Z
+  // An `[IANA/Zone]` annotation is honored the same way — a naive-looking string that carries a zone
+  // is NOT a UTC reading (luxon read the annotation too; a Temporal `PlainDateTime` alone would not).
+  expect(isoToMs("2026-07-03T12:00:00[America/Denver]")).toBe(1_783_101_600_000); // 18:00Z, MDT
+  expect(isoToMs("2026-07-03T12:00:00-06:00[America/Denver]")).toBe(1_783_101_600_000);
+});
+
+test("isoToMs reads a date-only and a second-less ISO string as UTC midnight / that minute", () => {
+  expect(isoToMs("2026-07-03")).toBe(1_783_036_800_000);
+  expect(isoToMs("2026-07-03T12:00")).toBe(1_783_080_000_000);
+  expect(isoToMs("2026-07-03T12:00:00.250Z")).toBe(1_783_080_000_250);
+});
+
+test("isoToMs rejects an impossible calendar date rather than constraining it into range", () => {
+  // Temporal's DEFAULT is `overflow:"constrain"` — 30 February would silently become the 28th. The
+  // parser pins `reject`, so an impossible date stays null exactly as it was.
+  expect(isoToMs("2026-02-30T00:00:00")).toBeNull();
+  expect(isoToMs("2026-13-01T00:00:00")).toBeNull();
+});
+
+test("isoToMs narrows to the ISO forms Temporal parses — the five luxon extras read null", () => {
+  // DELIBERATE and fail-closed (the port's stated deltas). The sole consumer feeds it ST timestamps
+  // containing `T`, which are plain date-times; re-widening any of these is a decision, not a fix.
+  expect(isoToMs("2026")).toBeNull(); // reduced precision: year
+  expect(isoToMs("2026-07")).toBeNull(); // reduced precision: year-month
+  expect(isoToMs("2026-W27-5")).toBeNull(); // ISO week date
+  expect(isoToMs("2026-185")).toBeNull(); // ISO ordinal date
+  expect(isoToMs("2026-07-03T24:00:00Z")).toBeNull(); // end-of-day designator
+  // A space separator is not ISO. Temporal accepts it as an extension; this contract does not.
+  expect(isoToMs("2026-07-03 12:00:00")).toBeNull();
+});
+
+// ── wallClockToMs — the zone-resolving half (the ST-import fidelity path) ─────────────────────────
+
+test("wallClockToMs resolves a zone-less reading at the zone's REAL offset for that instant", () => {
+  const noon = { year: 2020, month: 6, day: 24, hour: 12, minute: 0, second: 0 };
+  expect(wallClockToMs(noon, "America/Denver")).toBe(1_593_021_600_000); // 18:00Z — MDT, -06:00
+  expect(wallClockToMs({ ...noon, month: 1 }, "America/Denver")).toBe(1_579_892_400_000); // 19:00Z — MST, -07:00
+  // A half-hour DST zone: the offset a single fixed number cannot express.
+  expect(wallClockToMs({ year: 2026, month: 1, day: 1, hour: 0, minute: 0, second: 0 }, "Australia/Lord_Howe")).toBe(1_767_186_000_000);
+});
+
+test("wallClockToMs shifts a spring-forward GAP reading forward and takes the EARLIER fall-back arm", () => {
+  // 2026-03-08 02:30 America/Denver does not exist — the clock jumps 02:00 → 03:00. The reading
+  // resolves at the offset AFTER the transition (03:30 MDT = 09:30Z), which is what luxon did.
+  const gap = wallClockToMs({ year: 2026, month: 3, day: 8, hour: 2, minute: 30, second: 0 }, "America/Denver");
+  expect(gap).toBe(1_772_962_200_000);
+  expect(gap).toBe(wallClockToMs({ year: 2026, month: 3, day: 8, hour: 3, minute: 30, second: 0 }, "-06:00"));
+
+  // 2026-11-01 01:30 America/Denver happens TWICE. The earlier (still-MDT, -06:00) arm wins.
+  const ambiguous = wallClockToMs({ year: 2026, month: 11, day: 1, hour: 1, minute: 30, second: 0 }, "America/Denver");
+  expect(ambiguous).toBe(1_793_518_200_000); // 07:30Z
+  expect(ambiguous).toBe(wallClockToMs({ year: 2026, month: 11, day: 1, hour: 1, minute: 30, second: 0 }, "-06:00"));
+  expect(ambiguous).not.toBe(wallClockToMs({ year: 2026, month: 11, day: 1, hour: 1, minute: 30, second: 0 }, "-07:00"));
+});
+
+test("wallClockToMs keeps ISO end-of-day (24:00:00) reading as the next day's midnight", () => {
+  // The one overflow luxon accepted, and only with a zero minute/second. Reachable from the ST
+  // filename pattern's `(\d{1,2})h` capture, so the normalization is load-bearing, not decorative.
+  expect(wallClockToMs({ year: 2026, month: 12, day: 31, hour: 24, minute: 0, second: 0 }, "UTC")).toBe(1_798_761_600_000); // 2027-01-01T00:00Z
+  expect(wallClockToMs({ year: 2026, month: 1, day: 1, hour: 24, minute: 30, second: 0 }, "UTC")).toBeNull();
+  expect(wallClockToMs({ year: 2026, month: 1, day: 1, hour: 24, minute: 0, second: 30 }, "UTC")).toBeNull();
+});
+
+test("wallClockToMs returns null for impossible parts, non-integer parts and an unknown zone", () => {
+  const jan1 = { year: 2026, month: 1, day: 1, hour: 0, minute: 0, second: 0 };
+  expect(wallClockToMs({ ...jan1, month: 2, day: 29 }, "UTC")).toBeNull(); // 2026 is not a leap year
+  expect(wallClockToMs({ ...jan1, year: 2024, month: 2, day: 29 }, "UTC")).toBe(1_709_164_800_000); // 2024 is
+  expect(wallClockToMs({ ...jan1, month: 13 }, "UTC")).toBeNull();
+  expect(wallClockToMs({ ...jan1, day: 32 }, "UTC")).toBeNull();
+  expect(wallClockToMs({ ...jan1, minute: 60 }, "UTC")).toBeNull();
+  // luxon THREW on these two; the documented contract was always "null when the parts are invalid".
+  expect(wallClockToMs({ ...jan1, year: Number.NaN }, "UTC")).toBeNull();
+  expect(wallClockToMs({ ...jan1, day: 1.5 }, "UTC")).toBeNull();
+  expect(wallClockToMs(jan1, "Not/AZone")).toBeNull();
+  expect(wallClockToMs(jan1, "")).toBeNull();
+});
+
+// ── msToWallClock — the exact inverse (an interchange emitting a zone-less local timestamp) ───────
+
+test("msToWallClock is the inverse of wallClockToMs across a DST transition", () => {
+  for (const parts of [
+    { year: 2020, month: 6, day: 24, hour: 12, minute: 0, second: 0 },
+    { year: 2020, month: 1, day: 24, hour: 12, minute: 0, second: 0 },
+    { year: 2026, month: 3, day: 8, hour: 3, minute: 30, second: 0 }, // just past the gap
+    { year: 2026, month: 11, day: 1, hour: 3, minute: 30, second: 0 }, // past the fall-back repeat
+  ]) {
+    const ms = wallClockToMs(parts, "America/Denver");
+    expect(ms).not.toBeNull();
+    expect(msToWallClock(ms ?? 0, "America/Denver")).toStrictEqual(parts);
+  }
+});
+
+test("msToWallClock truncates a sub-ms fraction toward zero and rejects a non-finite instant", () => {
+  const epoch = { year: 1970, month: 1, day: 1, hour: 0, minute: 0, second: 0 };
+  expect(msToWallClock(1.5, "UTC")).toStrictEqual(epoch);
+  expect(msToWallClock(-1.5, "UTC")).toStrictEqual({ year: 1969, month: 12, day: 31, hour: 23, minute: 59, second: 59 });
+  expect(msToWallClock(Number.NaN, "UTC")).toBeNull();
+  expect(msToWallClock(Number.POSITIVE_INFINITY, "UTC")).toBeNull();
+  expect(msToWallClock(0, "Not/AZone")).toBeNull();
+});
+
+test("msToWallClock spans the full representable instant range and stops at its edge", () => {
+  const maxMs = 8.64e15;
+  expect(msToWallClock(maxMs, "UTC")).toStrictEqual({ year: 275_760, month: 9, day: 13, hour: 0, minute: 0, second: 0 });
+  expect(msToWallClock(-maxMs, "UTC")).toStrictEqual({ year: -271_821, month: 4, day: 20, hour: 0, minute: 0, second: 0 });
+  expect(msToWallClock(maxMs + 1, "UTC")).toBeNull();
 });
 
 // ── The DISPLAY half — deterministic under pinned locale/timeZone/now (the injectable config
