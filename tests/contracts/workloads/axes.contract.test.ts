@@ -19,7 +19,7 @@ import { expect, test } from "../../support/fixtures.ts";
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the pinned 19-member kind axis (the parameterized `index` reindex, the assets GC/fsck maintenance kinds, the workload-backed import-bundle, the databank kinds, the refinery library score sweep + the reconcile-world-state stub)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 20-member kind axis (including import token settlement)", () => {
   expect(WORKLOAD_KINDS).toEqual([
     "index",
     "distill-characters",
@@ -33,6 +33,7 @@ test("WORKLOAD_KINDS is exactly the pinned 19-member kind axis (the parameterize
     "assets-gc",
     "assets-fsck",
     "import-st",
+    "import-token-usage-backfill",
     "import-bundle",
     "reconcile-stats",
     "refresh-model-catalog",
@@ -112,6 +113,7 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "assets-gc": true,
   "assets-fsck": true,
   "import-st": true,
+  "import-token-usage-backfill": true,
   "import-bundle": true,
   "reconcile-stats": true,
   "refresh-model-catalog": true,
@@ -219,6 +221,7 @@ test("WORKLOAD_KIND_MODES classifies every kind to its expected mode policy", ()
     "assets-gc": bulkOnlyBuilt,
     "assets-fsck": bulkOnlyBuilt,
     "import-st": createBoth,
+    "import-token-usage-backfill": sweepBoth,
     "import-bundle": singularOnlyBuilt,
     "reconcile-stats": sweepBoth,
     "refresh-model-catalog": bulkOnlyBuilt,

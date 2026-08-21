@@ -1,5 +1,6 @@
 // domain/discovery/contract/results — the verb output shapes for discovery's read/compute surface.
 
+import type { TokenProvenance } from "@orb/contracts/chat";
 import type { BrowseCursor, DuplicateRelation } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId } from "@orb/kit/ids";
 import type { ThemeLevel } from "./params.ts";
@@ -345,10 +346,13 @@ export interface ForgottenGem {
   readonly messageCount: number;
   readonly lastActiveAt: number;
   /** `null` = NO output-token accounting exists for this character — either stats has no row for it at all,
-   *  or every recorded generation carried a null count (an imported library). NOT the same fact as a zero,
+   *  or every contributing generation remains unrecorded. NOT the same fact as a zero,
    *  and the shelf renders the two differently (side-eye corpus re-pass B2). */
   readonly tokensOut: number | null;
-  readonly costUsd: number;
+  /** Origin of `tokensOut`; estimates remain approximate across the stats → discovery seam. */
+  readonly tokensOutProvenance: TokenProvenance;
+  /** `null` = no selected variant reported a dollar cost. */
+  readonly costUsd: number | null;
 }
 
 /** One (genre, model) routing row — which model was used for the owner's distilled genre and how it performed. */
@@ -357,9 +361,12 @@ export interface ModelRoutingRow {
   readonly model: string;
   readonly provider: string | null;
   readonly generations: number;
-  readonly tokensOut: number;
+  readonly tokensOut: number | null;
+  /** Dominant provenance across the character/model rows aggregated into this route. */
+  readonly tokensOutProvenance: TokenProvenance;
   readonly avgGenTimeMs: number | null;
-  readonly costUsd: number;
+  /** `null` = no generation in this route reported a dollar cost. */
+  readonly costUsd: number | null;
 }
 
 // ── composed views (content-only server verbs — home + themeDetail) ─────────────────────────────────────

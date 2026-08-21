@@ -40,8 +40,8 @@
 //
 // Round-trip drift guard: buildChatBundleFile(parseChatBundleFile(buildChatBundleFile(c))) === build(c).
 
-import type { MessageKind } from "@orb/contracts/chat";
-import { CHAT_INJECTION_POSITIONS, messageKindSchema, messageRoleSchema, varOpSchema } from "@orb/contracts/chat";
+import type { MessageKind, TokenProvenance } from "@orb/contracts/chat";
+import { CHAT_INJECTION_POSITIONS, messageKindSchema, messageRoleSchema, tokenProvenanceSchema, varOpSchema } from "@orb/contracts/chat";
 import type { PortableParse } from "@orb/contracts/portability";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import type { RpgGameConfig, RpgRecordedToolCall, RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
@@ -79,6 +79,7 @@ export interface PortableChatVariant {
   readonly provider: string | null;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance;
   readonly reasoning: string | null;
   readonly ttftMs: number | null;
   readonly genStartedAt: number | null;
@@ -206,23 +207,39 @@ export interface PortableChat {
 const nullableIndex = z.number().int().nonnegative().nullish().catch(null);
 const index = z.number().int().nonnegative();
 
-const wireVariantSchema = z.object({
-  idx: z.number().int().nonnegative(),
-  content: z.string(),
-  model: z.string().nullish().catch(null),
-  provider: z.string().nullish().catch(null),
-  tokensIn: z.number().int().nullish().catch(null),
-  tokensOut: z.number().int().nullish().catch(null),
-  reasoning: z.string().nullish().catch(null),
-  ttftMs: z.number().int().nullish().catch(null),
-  genStartedAt: z.number().int().nullish().catch(null),
-  genFinishedAt: z.number().int().nullish().catch(null),
-  // A malformed delta degrades THIS VARIANT's ops to none, never the file. The ops feed a DERIVED cache
-  // (`chats.runtimeVariables`), so losing one turn's ops costs a fold; refusing the file costs the chat.
-  // Same trade the spine's "drop" row policy makes one level up.
-  variableDelta: z.array(varOpSchema).nullish().catch(null),
-  metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
-});
+const wireVariantSchema = z
+  .object({
+    idx: z.number().int().nonnegative(),
+    content: z.string(),
+    model: z.string().nullish().catch(null),
+    provider: z.string().nullish().catch(null),
+    tokensIn: z.number().int().nullish().catch(null),
+    tokensOut: z.number().int().nullish().catch(null),
+    tokenProvenance: tokenProvenanceSchema.optional(),
+    reasoning: z.string().nullish().catch(null),
+    ttftMs: z.number().int().nullish().catch(null),
+    genStartedAt: z.number().int().nullish().catch(null),
+    genFinishedAt: z.number().int().nullish().catch(null),
+    // A malformed delta degrades THIS VARIANT's ops to none, never the file. The ops feed a DERIVED cache
+    // (`chats.runtimeVariables`), so losing one turn's ops costs a fold; refusing the file costs the chat.
+    // Same trade the spine's "drop" row policy makes one level up.
+    variableDelta: z.array(varOpSchema).nullish().catch(null),
+    metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
+  })
+  .superRefine((variant, ctx) => {
+    if (variant.tokenProvenance === undefined) {
+      return;
+    }
+    const hasRecordedTokens = typeof variant.tokensIn === "number" || typeof variant.tokensOut === "number";
+    const contradictory = variant.tokenProvenance === "unrecorded" ? hasRecordedTokens : !hasRecordedTokens;
+    if (contradictory) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["tokenProvenance"],
+        message: "token provenance contradicts the recorded token axes",
+      });
+    }
+  });
 
 const wireMessageSchema = z.object({
   role: messageRoleSchema,
@@ -381,6 +398,7 @@ function variantToWire(v: PortableChatVariant): WireChat["messages"][number]["va
     provider: v.provider,
     tokensIn: v.tokensIn,
     tokensOut: v.tokensOut,
+    tokenProvenance: v.tokenProvenance,
     reasoning: v.reasoning,
     ttftMs: v.ttftMs,
     genStartedAt: v.genStartedAt,
@@ -398,6 +416,7 @@ function variantFromWire(v: NonNullable<WireChat["messages"][number]["variants"]
     provider: v.provider ?? null,
     tokensIn: v.tokensIn ?? null,
     tokensOut: v.tokensOut ?? null,
+    tokenProvenance: v.tokenProvenance ?? (typeof v.tokensIn === "number" || typeof v.tokensOut === "number" ? "measured" : "unrecorded"),
     reasoning: v.reasoning ?? null,
     ttftMs: v.ttftMs ?? null,
     genStartedAt: v.genStartedAt ?? null,

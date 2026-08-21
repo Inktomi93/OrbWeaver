@@ -51,6 +51,7 @@ function message(over: Partial<PortableChatMessage> = {}): PortableChatMessage {
         provider: "openai",
         tokensIn: 120,
         tokensOut: 42,
+        tokenProvenance: "measured",
         reasoning: null,
         ttftMs: 310,
         genStartedAt: 1_700_000_000_000,
@@ -161,6 +162,39 @@ describe("kit/serde/chat-bundle", () => {
     const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as Record<string, unknown>;
     wire["schemaVersion"] = CHAT_BUNDLE_SCHEMA_VERSION + 1;
     expect(refusalOf(parseChatBundleFile(ENC.encode(JSON.stringify(wire))))).toBe("newer-version");
+  });
+
+  test("explicit token provenance must agree with the recorded token axes", () => {
+    const withContradiction = (tokenProvenance: "measured" | "unrecorded", tokensOut: number | null): Uint8Array => {
+      const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
+        messages: { variants: Record<string, unknown>[] }[];
+      };
+      const variant = wire.messages[0]?.variants[0];
+      if (variant === undefined) {
+        throw new Error("chat fixture has no variant");
+      }
+      variant["tokensIn"] = null;
+      variant["tokensOut"] = tokensOut;
+      variant["tokenProvenance"] = tokenProvenance;
+      return ENC.encode(JSON.stringify(wire));
+    };
+
+    expect(refusalOf(parseChatBundleFile(withContradiction("unrecorded", 17)))).toBe("malformed");
+    expect(refusalOf(parseChatBundleFile(withContradiction("measured", null)))).toBe("malformed");
+
+    const legacy = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
+      messages: { variants: Record<string, unknown>[] }[];
+    };
+    const legacyVariant = legacy.messages[0]?.variants[0];
+    if (legacyVariant === undefined) {
+      throw new Error("chat fixture has no variant");
+    }
+    legacyVariant["tokenProvenance"] = undefined;
+    expect(must(parseChatBundleFile(ENC.encode(JSON.stringify(legacy)))).messages[0]?.variants[0]?.tokenProvenance).toBe("measured");
+
+    legacyVariant["tokensIn"] = undefined;
+    legacyVariant["tokensOut"] = undefined;
+    expect(must(parseChatBundleFile(ENC.encode(JSON.stringify(legacy)))).messages[0]?.variants[0]?.tokenProvenance).toBe("unrecorded");
   });
 
   test("a rpg reference pointing past the end of the transcript is PRUNED at parse, per the plane's own db arm", () => {

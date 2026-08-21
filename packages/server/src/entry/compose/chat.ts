@@ -561,6 +561,7 @@ export function createRunChatTurnBridge(deps: {
             content: result.reply,
             reasoning: result.reasoning || null,
             model: req.connection.model,
+            provider: req.connection.credential.source,
             tokensIn: result.usage.tokensIn,
             tokensOut: result.usage.tokensOut,
             cacheReadTokens: result.usage.cacheReadTokens,

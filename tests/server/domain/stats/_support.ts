@@ -3,6 +3,7 @@
 // fixed epoch-ms timestamps (no ambient clock). Seeds both the rollup tables (for the read verbs) and the
 // canon slot/variant graph (D26 — for the on-read scans + reconcile). Inserts route through @orb/db tables.
 
+import type { TokenProvenance } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characterStats, characters, chatParticipants, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -103,6 +104,8 @@ interface VariantSeed {
   provider?: string | null;
   tokensIn?: number | null;
   tokensOut?: number | null;
+  /** Omitted numeric fixtures model live provider usage and therefore default to measured. */
+  tokenProvenance?: TokenProvenance;
   ttftMs?: number | null;
   genStartedAt?: number | null;
   genFinishedAt?: number | null;
@@ -125,6 +128,10 @@ interface MessageSeed {
   variants: VariantSeed[];
 }
 
+function fixtureTokenProvenance(v: VariantSeed): TokenProvenance {
+  return v.tokenProvenance ?? (v.tokensIn !== undefined || v.tokensOut !== undefined ? "measured" : "unrecorded");
+}
+
 function variantRow(messageId: MessageId, n: number, idx: number, v: VariantSeed): typeof messageVariants.$inferInsert {
   const metadata =
     v.reasoningDuration === undefined
@@ -140,6 +147,7 @@ function variantRow(messageId: MessageId, n: number, idx: number, v: VariantSeed
     provider: v.provider ?? null,
     tokensIn: v.tokensIn ?? null,
     tokensOut: v.tokensOut ?? null,
+    tokenProvenance: fixtureTokenProvenance(v),
     ttftMs: v.ttftMs ?? null,
     genStartedAt: v.genStartedAt ?? null,
     genFinishedAt: v.genFinishedAt ?? null,

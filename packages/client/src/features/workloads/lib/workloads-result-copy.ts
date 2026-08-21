@@ -148,6 +148,17 @@ const ingestSummary: WorkloadResultRenderer<"databank-ingest"> = (result) =>
 const scoreSweepSummary: WorkloadResultRenderer<"refine-score-sweep"> = (result) =>
   summarize([count(result.scanned, "card"), tally(result.scored, "scored"), tallyIfAny(result.skipped, "skipped"), tallyIfAny(result.failed, "failed")]);
 
+/** Imported token settlement: distinguish exact recovery from honest estimates and CAS skips. */
+const tokenUsageBackfillSummary: WorkloadResultRenderer<"import-token-usage-backfill"> = (result) =>
+  summarize([
+    count(result.scanned, "variant"),
+    countIfAny(result.exactRecovered, "exact count recovered", "exact counts recovered"),
+    countIfAny(result.legacyPromoted, "legacy count marked measured", "legacy counts marked measured"),
+    tallyIfAny(result.estimated, "estimated"),
+    tallyIfAny(result.compareAndSetSkipped, "changed concurrently"),
+    result.dryRun ? "dry run — nothing written" : null,
+  ]);
+
 /** An inert v2 stub: `deferred:true` is not "zero work done", it is "this pass does not exist yet". */
 const deferredSummary: WorkloadResultRenderer<"reconcile-world-state"> = () => "Nothing to do — this pass isn't implemented yet.";
 
@@ -174,6 +185,7 @@ const WORKLOAD_RESULT_RENDERERS: { readonly [K in WorkloadKind]: ((result: Workl
   "assets-fsck": fsckSummary,
   "import-st": maintenanceSummary,
   "import-bundle": bundleImportSummary,
+  "import-token-usage-backfill": tokenUsageBackfillSummary,
   "reconcile-stats": reconcileStatsSummary,
   "refresh-model-catalog": catalogRefreshSummary,
   "reconcile-world-state": deferredSummary,

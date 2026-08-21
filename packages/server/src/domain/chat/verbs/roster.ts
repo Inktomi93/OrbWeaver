@@ -487,6 +487,7 @@ async function seedJoinGreeting(
         content: text,
         tokensIn: null,
         tokensOut: null,
+        tokenProvenance: "unrecorded",
         costUsd: null,
         cacheReadTokens: null,
         cacheWriteTokens: null,

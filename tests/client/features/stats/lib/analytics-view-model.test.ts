@@ -21,10 +21,12 @@ import {
   formatPeak,
   formatPercent,
   formatSignedDelta,
+  formatThroughput,
   formatTokens,
   formatUsd,
   momentumBarItems,
   personaBarItems,
+  seriesTokenProvenance,
   WEEKDAY_LABELS,
   weekdayBarItems,
 } from "../../../../../packages/client/src/features/stats/lib/analytics-view-model.ts";
@@ -93,10 +95,12 @@ describe("the nullable formatter family renders unrecorded as an em dash", () =>
     expect(formatCount(null)).toBe("—");
     expect(formatCount(0)).toBe("0");
     expect(formatCount(1200)).toBe("1.2k");
+    expect(formatCount(1200, "estimated")).toBe("~1.2k");
   });
   test("formatTokens carries its unit INSIDE, so an absent figure is not `— tok`", () => {
-    expect(formatTokens(null)).toBe("—");
-    expect(formatTokens(1200)).toBe("1.2k tok");
+    expect(formatTokens(null, "unrecorded")).toBe("—");
+    expect(formatTokens(1200, "measured")).toBe("1.2k tok");
+    expect(formatTokens(1200, "estimated")).toBe("~1.2k tok");
   });
   test("formatUsd: unrecorded is a dash, a measured zero is $0.00", () => {
     expect(formatUsd(null)).toBe("—");
@@ -117,6 +121,17 @@ describe("the nullable formatter family renders unrecorded as an em dash", () =>
     expect(formatPercent(0.001)).toBe("<1%");
     // The live cache figure that used to render "100%": 32,217 read of 1,664,309 input tokens.
     expect(formatPercent(0.019_36)).toBe("2%");
+    expect(formatPercent(0.019_36, "estimated")).toBe("~2%");
+    expect(formatPercent(0.019_36, "unrecorded")).toBe("—");
+  });
+  test("formatThroughput carries estimated and unrecorded token provenance", () => {
+    expect(formatThroughput(12.54, "measured")).toBe("12.5 t/s");
+    expect(formatThroughput(12.54, "estimated")).toBe("~12.5 t/s");
+    expect(formatThroughput(0, "unrecorded")).toBe("—");
+  });
+  test("seriesTokenProvenance keeps a mixed chart approximate", () => {
+    expect(seriesTokenProvenance([{ tokensOutProvenance: "measured" }, { tokensOutProvenance: "estimated" }])).toBe("estimated");
+    expect(seriesTokenProvenance([{ tokensOutProvenance: "unrecorded" }, { tokensOutProvenance: "measured" }])).toBe("measured");
   });
 });
 
@@ -249,10 +264,18 @@ describe("chart-family row adapters", () => {
   });
   test("the bucket builders pass the PREVIOUS day through, so a year crossing is marked mid-series", () => {
     const buckets = dailyTokenBuckets([
-      { day: "2026-12-30", tokensOut: 1 },
-      { day: "2026-12-31", tokensOut: 2 },
-      { day: "2027-01-01", tokensOut: 3 },
+      { day: "2026-12-30", tokensOut: 1, tokensOutProvenance: "measured" },
+      { day: "2026-12-31", tokensOut: 2, tokensOutProvenance: "estimated" },
+      { day: "2027-01-01", tokensOut: 3, tokensOutProvenance: "measured" },
     ]);
     expect(buckets.map((b) => b.label)).toEqual(["2026-12-30", "12-31", "2027-01-01"]);
+  });
+  test("dailyTokenBuckets omits unrecorded days instead of manufacturing zero-token bars", () => {
+    expect(
+      dailyTokenBuckets([
+        { day: "2026-12-30", tokensOut: 99, tokensOutProvenance: "unrecorded" },
+        { day: "2027-01-01", tokensOut: 0, tokensOutProvenance: "measured" },
+      ]),
+    ).toEqual([{ label: "2027-01-01", count: 0 }]);
   });
 });

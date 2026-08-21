@@ -145,8 +145,8 @@ function mapUsage(view: ChatCompletionResult, ctx: MapTurnContext): ChatUsage {
   const cd = u?.costDetails;
   return {
     model: ctx.model,
-    tokensIn: u?.promptTokens ?? 0,
-    tokensOut: u?.completionTokens ?? 0,
+    tokensIn: u?.promptTokens ?? null,
+    tokensOut: u?.completionTokens ?? null,
     cacheReadTokens: u?.promptTokensDetails?.cachedTokens ?? 0,
     cacheWriteTokens: u?.promptTokensDetails?.cacheWriteTokens ?? 0,
     cacheCreation5mTokens: null,
@@ -155,7 +155,7 @@ function mapUsage(view: ChatCompletionResult, ctx: MapTurnContext): ChatUsage {
     contextWindow: ctx.contextWindow,
     maxOutputTokens: ctx.maxOutputTokens,
     webSearchRequests: 0,
-    costUsd: u?.cost ?? 0,
+    costUsd: u?.cost ?? null,
     costDetails:
       cd !== null && cd !== undefined
         ? {

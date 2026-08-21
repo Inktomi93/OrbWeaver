@@ -53,6 +53,7 @@ const MESSAGE: MessageView = {
   terminalReason: null,
   tokensIn: null,
   tokensOut: null,
+  tokenProvenance: "unrecorded",
   cacheReadTokens: null,
   cacheWriteTokens: null,
   contextWindow: null,

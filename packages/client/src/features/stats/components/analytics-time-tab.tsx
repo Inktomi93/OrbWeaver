@@ -18,7 +18,16 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
-import { activityHeatmapMatrix, dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, weekdayBarItems } from "../lib/analytics-view-model.ts";
+import {
+  activityHeatmapMatrix,
+  dailyTokenBuckets,
+  dailyTurnBuckets,
+  formatCompact,
+  formatCount,
+  formatPeak,
+  seriesTokenProvenance,
+  weekdayBarItems,
+} from "../lib/analytics-view-model.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 import { RhythmFigures } from "./rhythm-figures.tsx";
 
@@ -39,6 +48,7 @@ function TimeBody(): ReactElement {
   const { data: temporal } = useSuspenseQuery(trpc.stats.temporal.queryOptions());
   const { data: heatmap } = useSuspenseQuery(trpc.stats.activityHeatmap.queryOptions());
   const peak = formatPeak(heatmap.peak);
+  const tokensOutProvenance = seriesTokenProvenance(points);
 
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsTimeTab")}>
@@ -51,7 +61,11 @@ function TimeBody(): ReactElement {
       </Section>
 
       <Section heading="Daily tokens">
-        <Histogram buckets={dailyTokenBuckets(points)} countFormatter={formatCompact} label="Output tokens per day" />
+        <Histogram
+          buckets={dailyTokenBuckets(points)}
+          countFormatter={(count): string => formatCount(count, tokensOutProvenance)}
+          label="Output tokens per day"
+        />
       </Section>
 
       <RhythmFigures temporal={temporal} />

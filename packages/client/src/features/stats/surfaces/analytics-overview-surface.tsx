@@ -29,6 +29,7 @@ import {
   formatMs,
   formatPercent,
   formatSignedDelta,
+  formatThroughput,
   formatUsd,
   momentumBarItems,
   UNRECORDED_NOTE,
@@ -128,18 +129,18 @@ function OverviewBody(): ReactElement {
       <Section heading="Economics">
         <Stack gap="block">
           <Grid cols="cell" gap="block">
-            <StatFigure label="Tokens in" value={formatCount(overview.tokensIn)} />
-            <StatFigure label="Tokens out" value={formatCount(overview.tokensOut)} />
+            <StatFigure label="Tokens in" value={formatCount(overview.tokensIn, overview.tokensInProvenance)} />
+            <StatFigure label="Tokens out" value={formatCount(overview.tokensOut, overview.tokensOutProvenance)} />
             <StatFigure label="Avg gen" value={formatMs(overview.avgGenMs)} />
             <StatFigure label="p50 gen" value={formatMs(overview.p50GenMs)} />
             <StatFigure label="p90 gen" value={formatMs(overview.p90GenMs)} />
             <StatFigure label="Avg TTFT" value={formatMs(overview.avgTtftMs)} />
-            <StatFigure label="Throughput" value={`${overview.throughputTps.toFixed(1)} t/s`} />
+            <StatFigure label="Throughput" value={formatThroughput(overview.throughputTps, overview.tokensOutProvenance)} />
             {/* THE DENOMINATOR IS IN THE LABEL (P1a/P3d). "Cache hits" alone read 100% on every backend
                 that reports cache READS but not cache WRITES — the old ratio's denominator was the two
                 cache columns, so it could only ever be 1 or 0. Against input tokens it answers the
                 question the tile asks, and it says which question that is. */}
-            <StatFigure label="Cache hits (of input)" value={formatPercent(overview.cacheHitRate)} />
+            <StatFigure label="Cache hits (of input)" value={formatPercent(overview.cacheHitRate, overview.tokensInProvenance)} />
             <StatFigure label="Reasoning (of replies)" value={formatPercent(overview.reasoningRate)} />
             {/* The reasoning WINDOW beside the reasoning RATE (#184): the rollups have carried `reasoningMs`
                 on three tables and three views with no reader at all, so the number a user's thinking models

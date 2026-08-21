@@ -5,7 +5,23 @@
 // assets), so they are composed once at `entry/` and handed in. `reconcileImportStats` is the SAME op the
 // portability descriptors take — one slice, built once, shared by both consumers.
 
+import type { CompareAndSetImportedTokenUsage, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
+import type { ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
+
+export interface ImportTokenUsageBackfillDeps {
+  readonly listTokenUsageCandidates: ListImportedTokenUsageCandidates;
+  readonly compareAndSetTokenUsage: CompareAndSetImportedTokenUsage;
+  readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
+}
+
+/** The import-owned catch-up verb after its cross-domain persistence dependencies are composed. */
+export type BackfillTokenUsage = (args: {
+  readonly ownerId: UserId | null;
+  readonly dryRun: boolean;
+  readonly report: ReportProgress;
+  readonly signal: AbortSignal;
+}) => Promise<ImportTokenUsageBackfillResult>;
 
 /** A bulk import's pass counts (rows examined / rows written). */
 interface ImportPassCounts {
@@ -24,7 +40,7 @@ interface BundleImportCounts {
   readonly failed: number;
 }
 
-export interface ImportWorkloadDeps {
+export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** The staging root the HTTP upload routes wrote under — every staged handle resolves strictly inside it. */
   readonly stagingRoot: string;
   /** The ST profile directory `import-st` reads when the row carries no `stagedDir` override. */

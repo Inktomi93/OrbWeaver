@@ -1148,6 +1148,46 @@
       "summary": "RPG-LITE REWIND/SWIPE — \"state stuck\" — diagnosis + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
+      "path": "docs/design/server-usage-settlement-2026-08-20.md",
+      "assignedSha256": "f4a57a60aaa1532801d4c4ebd56cd4d25a81d915a178eba03d191f45cc1e75ad",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "f4a57a60aaa1532801d4c4ebd56cd4d25a81d915a178eba03d191f45cc1e75ad",
+      "verifiedCommit": "6e7293e41e7efa9293c1d59ed49996528eba289f",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/design/server-usage-settlement-2026-08-20.md:1-188 full read against implementation commit 6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "packages/contracts/src/chat/messages.ts:22 canonical provenance vocabulary and dominance rule",
+        "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1 import-owned auditable catch-up loop",
+        "GitHub issues #290 and #291 re-derived on 2026-08-20"
+      ],
+      "summary": "Active design of record for variant token provenance, import catch-up, reversible stats rollups, recorded provider cost, and honest client rendering delivered together for #290 and #291.",
+      "claims": [
+        {
+          "claim": "Variant accounting uses the canonical measured, estimated, and unrecorded vocabulary; import catch-up is a separate auditable workload. Mutable lifecycle remains tracked in issues #290 and #291.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/messages.ts:22"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#290"
+            },
+            {
+              "kind": "issue",
+              "target": "#291"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/st-import-completeness-2026-08-15.md",
       "assignedSha256": "1ce52bfb82b3c88d93c4e300c8ef934c2d6f9176ab07a16223c6a7d164a74bac",
       "disposition": "current",

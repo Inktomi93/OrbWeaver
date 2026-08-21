@@ -25,7 +25,7 @@ import type {
   TemporalStats,
   WrappedSummary,
 } from "../contract/views.ts";
-import { cacheHitRate, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
+import { aggregateTokenProvenance, cacheHitRate, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
 import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 
 // The ceiling is the shared `STATS_LIST_MAX_LIMIT` (`@orb/contracts/stats` — the transport `.max()`
@@ -57,8 +57,10 @@ export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsV
     userWords: row.userWords,
     assistantWords: row.assistantWords,
     swipeWords: row.swipeWords,
-    tokensIn: recordedTokens(row.tokensIn, row.assistantTurns + row.swipes),
-    tokensOut: recordedTokens(row.tokensOut, row.assistantTurns + row.swipes),
+    tokensIn: recordedTokens(row.tokensIn, row.tokensInMeasuredSamples, row.tokensInEstimatedSamples),
+    tokensOut: recordedTokens(row.tokensOut, row.tokensOutMeasuredSamples, row.tokensOutEstimatedSamples),
+    tokensInProvenance: aggregateTokenProvenance(row.tokensInMeasuredSamples, row.tokensInEstimatedSamples),
+    tokensOutProvenance: aggregateTokenProvenance(row.tokensOutMeasuredSamples, row.tokensOutEstimatedSamples),
     totalGenTimeMs: row.genTimeMs,
     ...latency,
     reasoningRate: reasoningRate(row.reasoningGenerations, row.assistantTurns + row.swipes),
@@ -97,8 +99,10 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
     userWords: c.userWords,
     assistantWords: c.assistantWords,
     swipeWords: c.swipeWords,
-    tokensIn: recordedTokens(c.tokensIn, c.assistantTurns + c.swipes),
-    tokensOut: recordedTokens(c.tokensOut, c.assistantTurns + c.swipes),
+    tokensIn: recordedTokens(c.tokensIn, c.tokensInMeasuredSamples, c.tokensInEstimatedSamples),
+    tokensOut: recordedTokens(c.tokensOut, c.tokensOutMeasuredSamples, c.tokensOutEstimatedSamples),
+    tokensInProvenance: aggregateTokenProvenance(c.tokensInMeasuredSamples, c.tokensInEstimatedSamples),
+    tokensOutProvenance: aggregateTokenProvenance(c.tokensOutMeasuredSamples, c.tokensOutEstimatedSamples),
     totalGenTimeMs: c.genTimeMs,
     ...latency,
     reasoningRate: reasoningRate(c.reasoningGenerations, c.assistantTurns + c.swipes),
@@ -110,6 +114,7 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
     ...deriveExtra({
       reasoningMs: c.reasoningMs,
       costUsd: c.costUsd,
+      costSamples: c.costSamples,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
       forkedChats: c.forkedChats,
@@ -173,7 +178,8 @@ export async function readLeaderboard(db: Db, ownerId: UserId, opts: Leaderboard
       userTurns: cs.userTurns,
       assistantTurns: cs.assistantTurns,
       swipes: cs.swipes,
-      tokensOut: recordedTokens(cs.tokensOut, cs.assistantTurns + cs.swipes),
+      tokensOut: recordedTokens(cs.tokensOut, cs.tokensOutMeasuredSamples, cs.tokensOutEstimatedSamples),
+      tokensOutProvenance: aggregateTokenProvenance(cs.tokensOutMeasuredSamples, cs.tokensOutEstimatedSamples),
       totalGenTimeMs: cs.genTimeMs,
       reasoningRate: reasoningRate(cs.reasoningGenerations, cs.assistantTurns + cs.swipes),
       firstChatAt: cs.firstChatAt,
@@ -201,8 +207,10 @@ export async function readTimeseries(db: Db, ownerId: UserId, opts: TimeseriesOp
     userTurns: r.userTurns,
     assistantTurns: r.assistantTurns,
     swipes: r.swipes,
-    tokensIn: r.tokensIn,
-    tokensOut: r.tokensOut,
+    tokensIn: recordedTokens(r.tokensIn, r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
+    tokensOut: recordedTokens(r.tokensOut, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
+    tokensInProvenance: aggregateTokenProvenance(r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
+    tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
     genTimeMs: r.genTimeMs,
     messageDatesApprox: r.messageDatesApprox,
   }));
@@ -245,8 +253,10 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
       provider: r.provider,
       generations: r.generations,
       charactersUsedWith: reach[key] ?? 0,
-      tokensIn: recordedTokens(r.tokensIn, r.generations),
-      tokensOut: recordedTokens(r.tokensOut, r.generations),
+      tokensIn: recordedTokens(r.tokensIn, r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
+      tokensOut: recordedTokens(r.tokensOut, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
+      tokensInProvenance: aggregateTokenProvenance(r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
+      tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
       totalGenTimeMs: r.genTimeMs,
       avgGenMs: latency.avgGenMs,
       avgTtftMs: latency.avgTtftMs,
@@ -254,7 +264,7 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
       p90TtftMs: latency.p90TtftMs,
       reasoningRate: reasoningRate(r.reasoningGenerations, r.generations),
       throughputTps: throughputTps(r.tokensOut, r.genTimeMs),
-      costUsd: recordedCost(r.costUsd, r.tokensIn + r.tokensOut, r.generations),
+      costUsd: recordedCost(r.costUsd, r.costSamples),
       reasoningMs: r.reasoningMs,
       cacheHitRate: cacheHitRate(r.cacheReadTokens, r.cacheWriteTokens, r.tokensIn),
     };
@@ -289,6 +299,8 @@ export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsa
     chatCount: number;
     messageCount: number;
     tokensOut: number;
+    tokensOutMeasuredSamples: number;
+    tokensOutEstimatedSamples: number;
     lastUsedAt: number | null;
   }>(sql`
     WITH persona_chats AS (
@@ -306,6 +318,8 @@ export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsa
            COUNT(DISTINCT pc.chat_id) AS chatCount,
            COUNT(m.id) AS messageCount,
            COALESCE(SUM(v.tokens_out), 0) AS tokensOut,
+           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'measured' THEN 1 ELSE 0 END) AS tokensOutMeasuredSamples,
+           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensOutEstimatedSamples,
            MAX(pc.updated_at) AS lastUsedAt
     FROM personas p
     LEFT JOIN persona_chats pc ON pc.persona_id = p.id
@@ -322,7 +336,8 @@ export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsa
     name: r.name,
     chatCount: Number(r.chatCount),
     messageCount: Number(r.messageCount),
-    tokensOut: recordedTokens(Number(r.tokensOut), Number(r.messageCount)),
+    tokensOut: recordedTokens(Number(r.tokensOut), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
+    tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
     lastUsedAt: r.lastUsedAt ?? null,
   }));
 }

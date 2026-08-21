@@ -127,6 +127,7 @@ const messageViewSelection = {
   terminalReason: messageVariants.terminalReason,
   tokensIn: messageVariants.tokensIn,
   tokensOut: messageVariants.tokensOut,
+  tokenProvenance: messageVariants.tokenProvenance,
   cacheReadTokens: messageVariants.cacheReadTokens,
   cacheWriteTokens: messageVariants.cacheWriteTokens,
   contextWindow: messageVariants.contextWindow,
@@ -680,6 +681,7 @@ interface CanonStatRow {
   content: string;
   tokensIn: number | null;
   tokensOut: number | null;
+  tokenProvenance: import("@orb/contracts/chat").TokenProvenance;
   costUsd: number | null;
   cacheReadTokens: number | null;
   cacheWriteTokens: number | null;
@@ -702,6 +704,7 @@ interface SwipeStatRow {
   content: string;
   tokensIn: number | null;
   tokensOut: number | null;
+  tokenProvenance: import("@orb/contracts/chat").TokenProvenance;
   genStartedAt: number | null;
   genFinishedAt: number | null;
   model: string | null;
@@ -718,6 +721,7 @@ const canonStatSelection = {
   content: messageVariants.content,
   tokensIn: messageVariants.tokensIn,
   tokensOut: messageVariants.tokensOut,
+  tokenProvenance: messageVariants.tokenProvenance,
   costUsd: messageVariants.costUsd,
   cacheReadTokens: messageVariants.cacheReadTokens,
   cacheWriteTokens: messageVariants.cacheWriteTokens,
@@ -758,6 +762,7 @@ export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: read
       content: messageVariants.content,
       tokensIn: messageVariants.tokensIn,
       tokensOut: messageVariants.tokensOut,
+      tokenProvenance: messageVariants.tokenProvenance,
       genStartedAt: messageVariants.genStartedAt,
       genFinishedAt: messageVariants.genFinishedAt,
       model: messageVariants.model,

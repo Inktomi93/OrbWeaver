@@ -93,9 +93,26 @@ describe("forgottenGems", () => {
 
     const gems = await svcFor(db).forgottenGems(owner);
     expect(gems.map((g) => g.characterId)).toEqual([invested, light]);
-    expect(gems[0]).toMatchObject({ messageCount: 2, tokensOut: 70 });
+    expect(gems[0]).toMatchObject({ messageCount: 2, tokensOut: 70, tokensOutProvenance: "measured" });
     expect(gems[0]?.costUsd).toBeCloseTo(0.07);
     expect(gems[1]).toMatchObject({ characterId: light, messageCount: 1, tokensOut: 5 });
+  });
+
+  test("preserves estimated output provenance for the client label", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_estimated");
+    const chat = await seedChat(db, "chat_estimated");
+    const character = await seedCharacter(db, { id: "character_estimated", ownerId: owner, name: "Estimated" });
+    await seedMessage(db, {
+      id: "m_estimated",
+      chatId: chat,
+      seq: 1,
+      createdAt: 1000,
+      characterId: character,
+      variant: { tokensOut: 12, tokenProvenance: "estimated" },
+    });
+
+    expect((await svcFor(db).forgottenGems(owner))[0]).toMatchObject({ tokensOut: 12, tokensOutProvenance: "estimated" });
   });
 
   test("honors the limit", async () => {
@@ -165,8 +182,9 @@ describe("modelRouting", () => {
         provider: null,
         generations: 2,
         tokensOut: 150,
+        tokensOutProvenance: "measured",
         avgGenTimeMs: 400,
-        costUsd: 0,
+        costUsd: null,
       },
       {
         genre: "romance",
@@ -174,8 +192,9 @@ describe("modelRouting", () => {
         provider: null,
         generations: 1,
         tokensOut: 20,
+        tokensOutProvenance: "measured",
         avgGenTimeMs: null,
-        costUsd: 0,
+        costUsd: null,
       },
     ]);
   });

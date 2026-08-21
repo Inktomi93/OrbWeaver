@@ -2436,6 +2436,7 @@ export function MessageMetadataRowStory({
     model: "qwen3-vl",
     tokensOut: 128,
     tokensIn: 64,
+    tokenProvenance: "measured",
     genStartedAt: FROZEN_META_AT,
     genFinishedAt: FROZEN_META_AT + 3400,
     generationId: null,

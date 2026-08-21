@@ -10,12 +10,13 @@
 
 import { readFile, rm } from "node:fs/promises";
 import { resolve, sep } from "node:path";
-import type { BundleImportWorkloadResult, MaintenanceResult, ReportProgress } from "@orb/contracts/workloads";
-import { importBundleWorkloadParams, importStWorkloadParams } from "@orb/contracts/workloads";
+import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress } from "@orb/contracts/workloads";
+import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
+import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 
 /** Post-settle side effects of an import-st run: surface the skip count + report path to the workload
  *  progress, then reconcile owner stats on a real run that wrote canon. Extracted to keep the run body under
@@ -44,7 +45,11 @@ async function settleImportRun(args: {
   }
 }
 
-type ImportContributions = readonly [WorkloadContribution<"import-st">, WorkloadContribution<"import-bundle">];
+type ImportContributions = readonly [
+  WorkloadContribution<"import-st">,
+  WorkloadContribution<"import-token-usage-backfill">,
+  WorkloadContribution<"import-bundle">,
+];
 
 /**
  * Resolve a server-minted staging handle to an absolute path that is a PROPER STRICT DESCENDANT of
@@ -79,6 +84,7 @@ async function rmContained(stagingRoot: string, target: string): Promise<void> {
 }
 
 export function createImportWorkloadContributions(deps: ImportWorkloadDeps): ImportContributions {
+  const backfillTokenUsage = createBackfillTokenUsage(deps);
   return [
     {
       kind: "import-st",
@@ -123,6 +129,17 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           failed: result.failed,
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
         };
+      },
+    },
+    {
+      kind: "import-token-usage-backfill",
+      params: maintenanceWorkloadParams,
+      lane: "sweep",
+      resume: "idempotent-restart",
+      run: async (ctx, params, report, signal): Promise<ImportTokenUsageBackfillResult> => {
+        const dryRun = params.dryRun ?? false;
+        report({ message: dryRun ? "token usage catch-up (dry run)" : "backfilling imported token usage" });
+        return await backfillTokenUsage({ ownerId: ctx.ownerId, dryRun, report, signal });
       },
     },
     {

@@ -9,7 +9,7 @@
 // CASCADE on chat delete (all ten dependents vanish).
 
 import type { OpeningPolicy, ToolCallRecord } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, MESSAGE_KINDS, PARTICIPANT_KINDS } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, MESSAGE_KINDS, PARTICIPANT_KINDS, TOKEN_PROVENANCES } from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
@@ -44,7 +44,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { seedPersona } from "../../support/factories/persona.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -91,6 +91,23 @@ test("chats insert→select round-trips (defaults; NO ownerId — D18)", async (
   // Timestamps are epoch-ms NUMBERS (never Date) — born at insert.
   expect(row?.createdAt).toBeTypeOf("number");
   expect(row?.updatedAt).toBeTypeOf("number");
+});
+
+test("message variant token provenance defaults honestly and rejects values outside the canonical axis", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_token_provenance" });
+  const { variantId } = await seedMessageWithVariant(db, {
+    chatId,
+    rawMsg: "msg_token_provenance",
+    rawVar: "mv_token_provenance",
+    content: "hello",
+    seq: 0,
+  });
+  const row = (await db.select().from(messageVariants).where(eq(messageVariants.id, variantId)))[0];
+  expect(row?.tokenProvenance).toBe("unrecorded");
+  await expect(db.run(sql`update message_variants set token_provenance = 'inferred' where id = ${variantId}`)).rejects.toSatisfy(
+    (error: unknown) => isConstraintViolation(error)?.kind === "check",
+  );
 });
 
 test("chats.metadata JSON round-trips through the @orb/db/kit read seam", async () => {
@@ -682,6 +699,7 @@ test("chat_invites status CHECK rejects an out-of-enum value", async () => {
 test("test-mirror: every chat enum column derives its canonical tuple", () => {
   expect([...messages.role.enumValues]).toEqual([...MESSAGE_ROLES]);
   expect([...messages.kind.enumValues]).toEqual([...MESSAGE_KINDS]);
+  expect([...messageVariants.tokenProvenance.enumValues]).toEqual([...TOKEN_PROVENANCES]);
   expect([...chatInjections.role.enumValues]).toEqual([...MESSAGE_ROLES]);
   expect([...chatParticipants.kind.enumValues]).toEqual([...PARTICIPANT_KINDS]);
   expect([...chatParticipants.role.enumValues]).toEqual([...PARTICIPANT_ROLES]);

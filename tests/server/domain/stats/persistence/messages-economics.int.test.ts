@@ -69,8 +69,8 @@ describe("readCharacterEconomics", () => {
     // The generations are REAL — this is a character with history, which is exactly why a zero read as a bug.
     expect(rows[0]?.generations).toBe(2);
     expect(rows[0]?.tokensOut, "no variant recorded a count, so there is no total to report").toBeNull();
-    // …and the sums that genuinely ARE zero when unrecorded keep saying zero.
-    expect(rows[0]?.costUsd).toBe(0);
+    // Token presence cannot manufacture a dollar observation.
+    expect(rows[0]?.costUsd).toBeNull();
   });
 
   test("a genuine zero still reads as zero — the null is 'never recorded', not 'nothing came back'", async () => {

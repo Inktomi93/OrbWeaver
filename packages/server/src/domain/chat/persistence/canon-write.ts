@@ -11,7 +11,16 @@
 // No `loadCanonHistory`-style read here: a fresh insert's `MessageView` is fully known from the stamped
 // inputs, so {@link buildCommittedMessageView} reconstructs it instead of a round-trip.
 
-import type { AssembledPrompt, MacroFreezeRecord, MessageKind, MessageView, ToolCallRecord, TurnInitiator, UserMacroDraws } from "@orb/contracts/chat";
+import type {
+  AssembledPrompt,
+  MacroFreezeRecord,
+  MessageKind,
+  MessageView,
+  TokenProvenance,
+  ToolCallRecord,
+  TurnInitiator,
+  UserMacroDraws,
+} from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -32,6 +41,8 @@ interface CanonVariantInput {
   readonly provider?: string | null | undefined;
   readonly tokensIn?: number | null | undefined;
   readonly tokensOut?: number | null | undefined;
+  /** Explicit for imports; provider usage defaults to measured whenever either token column is present. */
+  readonly tokenProvenance?: TokenProvenance | undefined;
   readonly cacheReadTokens?: number | null | undefined;
   readonly cacheWriteTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
@@ -117,6 +128,7 @@ interface VariantEconomics {
   readonly provider: string | null;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance;
   readonly cacheReadTokens: number | null;
   readonly cacheWriteTokens: number | null;
   readonly costUsd: number | null;
@@ -138,13 +150,16 @@ interface VariantEconomics {
 /** Normalize a {@link CanonVariantInput}'s economics to the read-seam null contract. */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat one-field-per-column `?? null` normalize — every operator is one independent coalesce, zero nesting/branching; splitting it would scatter the one-home economics shape (same posture as `canonMessageDelta` above).
 function variantEconomics(v: CanonVariantInput): VariantEconomics {
+  const tokensIn = v.tokensIn ?? null;
+  const tokensOut = v.tokensOut ?? null;
   return {
     content: v.content,
     reasoning: v.reasoning ?? null,
     model: v.model ?? null,
     provider: v.provider ?? null,
-    tokensIn: v.tokensIn ?? null,
-    tokensOut: v.tokensOut ?? null,
+    tokensIn,
+    tokensOut,
+    tokenProvenance: v.tokenProvenance ?? (tokensIn !== null || tokensOut !== null ? "measured" : "unrecorded"),
     cacheReadTokens: v.cacheReadTokens ?? null,
     cacheWriteTokens: v.cacheWriteTokens ?? null,
     costUsd: v.costUsd ?? null,
