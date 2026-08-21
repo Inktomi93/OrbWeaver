@@ -8,9 +8,37 @@ import { AnalyticsModelsTabStory } from "../_ct-stories.tsx";
 const LATENCY = { avgTtftMs: 300, p90TtftMs: 900, avgGenMs: 1200, p90GenMs: 2400 };
 
 const MODELS = [
-  { model: "anthropic/claude-sonnet-4", provider: "openrouter", generations: 1200, tokensOut: 340_000, costUsd: 1.25, charactersUsedWith: 7 },
-  { model: "meta-llama/llama-3.3-70b", provider: "local", generations: 80, tokensOut: 12_000, costUsd: 0, charactersUsedWith: 2 },
+  {
+    model: "anthropic/claude-sonnet-4",
+    provider: "openrouter",
+    generations: 1200,
+    tokensOut: 340_000,
+    tokensOutProvenance: "measured" as const,
+    costUsd: 1.25,
+    charactersUsedWith: 7,
+  },
+  {
+    model: "meta-llama/llama-3.3-70b",
+    provider: "local",
+    generations: 80,
+    tokensOut: 12_000,
+    tokensOutProvenance: "measured" as const,
+    costUsd: 0,
+    charactersUsedWith: 2,
+  },
 ];
+
+// An ST-imported library row: no token accounting was ever written, so the row must speak `—`, never
+// a measured-looking number derived from a coalesced-to-null total.
+const UNRECORDED_MODEL = {
+  model: "openai/gpt-4-legacy-import",
+  provider: null,
+  generations: 40,
+  tokensOut: null,
+  tokensOutProvenance: "unrecorded" as const,
+  costUsd: null,
+  charactersUsedWith: 1,
+};
 
 async function mountModels(page: Parameters<typeof routeTrpc>[0]): Promise<void> {
   await routeTrpc(page, {
@@ -42,4 +70,19 @@ test("the generations chart carries its series as text, in the tab's own number 
   await expect(table.getByRole("rowheader").first()).toHaveText("anthropic/claude-sonnet-4");
   // `formatCompact`, the same voice as the figures above it — not a raw 1200.
   await expect(table.getByRole("cell").first()).toHaveText("1.2k");
+});
+
+// Guards against the mock reverting to a wire shape without `tokensOutProvenance`: without it the row
+// renders as-if-measured for every model, including one whose tokens were never recorded at all.
+test("a model with unrecorded token accounting reads a dash, never a coalesced-to-zero number", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.byModel": () => [...MODELS, UNRECORDED_MODEL],
+    "stats.latency": () => LATENCY,
+  });
+  const component = await mount(<AnalyticsModelsTabStory />);
+
+  const list = component.getByRole("list", { name: "Models" });
+  const unrecordedRow = list.getByRole("listitem").last();
+  await expect(unrecordedRow).toContainText("—");
+  await expect(unrecordedRow).not.toContainText("0 tok");
 });

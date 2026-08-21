@@ -1,17 +1,18 @@
 ---
 kind: review
 status: active
-updated: 2026-08-20
+updated: 2026-08-21
 ---
 
 # Design-audit action-door census repair — #370
 
 ## Verdict
 
-**CONFIRMED.** The design-audit walker no longer treats unroled generic
-`tabindex="-1"` focus-management wrappers as user-facing action doors. Those nodes remain in the
-accessibility-name and tabindex censuses, while explicit roles, native controls, and generic nodes with
-other tabindex values remain eligible for duplicate-action-door findings.
+**CONFIRMED.** The design-audit walker no longer treats generic `tabindex="-1"` focus-management
+wrappers as user-facing action doors — whether the generic role is implicit OR an explicit
+`role="generic"` attribute, since `doorRole` does not distinguish the two. Those nodes remain in the
+accessibility-name and tabindex censuses, while explicit ACTIONABLE roles, native controls, and generic
+nodes with other tabindex values remain eligible for duplicate-action-door findings.
 
 Reviewed candidate: `d5fb08149fc74af95e7966af5e924521d32184b2`, based on
 `fff16964e366197e67363741c7a3340ab9ad560d` and merged to local `main` as

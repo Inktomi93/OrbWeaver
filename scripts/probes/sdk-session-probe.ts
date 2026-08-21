@@ -110,7 +110,7 @@ interface Measure {
   readonly ttftMs: number | null;
   readonly cacheRead: number;
   readonly cacheWrite: number;
-  readonly costUsd: number;
+  readonly costUsd: number | null;
 }
 const rows: Measure[] = [];
 function push(path: Measure["path"], turn: number, wallMs: number, r: ChatResult): void {
@@ -121,7 +121,7 @@ function push(path: Measure["path"], turn: number, wallMs: number, r: ChatResult
     ttftMs: r.ttftMs,
     cacheRead: r.usage.cacheReadTokens,
     cacheWrite: r.usage.cacheWriteTokens,
-    costUsd: r.usage.costUsd ?? 0,
+    costUsd: r.usage.costUsd ?? null,
   });
   if (VERBOSE) {
     console.log(`\n[${path}/t${turn}] ${wallMs}ms reply: ${r.reply.slice(0, SNIPPET)}`);
@@ -343,7 +343,7 @@ function report(): void {
       ttftMs: r.ttftMs ?? "—",
       cacheRead: r.cacheRead,
       cacheWrite: r.cacheWrite,
-      cost: r.costUsd.toFixed(COST_DECIMALS),
+      cost: r.costUsd === null ? "—" : r.costUsd.toFixed(COST_DECIMALS),
     })),
   );
 
