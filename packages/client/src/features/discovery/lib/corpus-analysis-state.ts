@@ -64,6 +64,22 @@ export interface CorpusAnalysisState {
   readonly stages: readonly CorpusReadinessStage[];
 }
 
+/**
+ * A pass's count AS THE SURFACE KNOWS IT — a number, or why there is no number yet.
+ *
+ * The rail's contract is that a zero is a state a reader can ACT on (issue #164), and that only holds while
+ * every zero it prints is a zero somebody measured. A read that has not answered has measured nothing, so it
+ * cannot be spelled `0`; a read that FAILED has measured nothing either, and it says a different thing
+ * because the surface is already offering that one a retry. Reads that suspend the whole surface never reach
+ * here — this exists for the below-fold reads the #269 deferral made non-suspending, which now render the
+ * rail while they are still in flight.
+ *
+ * MODULE-PRIVATE, and it has to be: an EXPORTED type alias outside a type home is `no-inline-types` RED
+ * (the exported interfaces beside it survive because that gate chases exported INTERFACES only inside a
+ * server domain). Nothing needs to name it — callers spell the literals and the field type checks them.
+ */
+type CorpusPassCount = number | "pending" | "unavailable";
+
 /** Exactly the fields the four suspended discovery reads contribute — no query shapes leak in here. */
 export interface CorpusAnalysisInput {
   readonly characters: number;
@@ -73,8 +89,10 @@ export interface CorpusAnalysisInput {
   readonly sceneThemes: number;
   readonly arcThemes: number;
   /** Keyword profiles are their OWN pass (`compute-cooccurrence`), which is NOT in the understanding-pass
-   *  chain — so it needs its own datum and its own ran/not-run, exactly like the near-dup row. */
-  readonly keywords: number;
+   *  chain — so it needs its own datum and its own ran/not-run, exactly like the near-dup row. It is also
+   *  the one count on this rail that arrives from a NON-suspending read, which is why it is a
+   *  {@link CorpusPassCount} rather than a plain number. */
+  readonly keywords: CorpusPassCount;
   readonly keywordsEverRan: boolean;
   readonly duplicateCharacters: number;
   readonly duplicateChats: number;
@@ -140,6 +158,35 @@ function passDatum(everRan: boolean, found: number, foundLabel: string): string 
     return "not run";
   }
   return found === 0 ? "none found" : foundLabel;
+}
+
+/**
+ * The keyword row, which has TWO more states than its neighbours because its count arrives from a read that
+ * does not suspend the surface (issue #384).
+ *
+ * THE DEFECT THIS EXISTS FOR, and it is the #164 incident recreated by a correct performance fix. The #269
+ * deferral moved `topKeywords` off the suspense boundary — right, and it stays — so the rail now renders
+ * while that read is in flight. The count then arrived as `data?.length ?? 0`, which is a MEASUREMENT branch,
+ * and a library whose keyword pass had genuinely succeeded read "Keywords — none found" for one round trip
+ * before flipping to the real number. That is the sentence the owner read as a defect on a 327-card library,
+ * and it was fabricated from a table nobody had looked at yet.
+ *
+ * The un-run arm still outranks everything: a queue that says the pass never succeeded is a fact about the
+ * pass, not about the read, and it is true whatever the keyword table happens to hold.
+ */
+function keywordsDatum(everRan: boolean, count: CorpusPassCount): string {
+  if (!everRan) {
+    return "not run";
+  }
+  if (count === "pending") {
+    return "checking…";
+  }
+  if (count === "unavailable") {
+    // The surface renders its own error + Retry for this read; the row states that it has no reading rather
+    // than reporting the failure a second time (the rail says what has not run, never what broke).
+    return "unavailable";
+  }
+  return passDatum(everRan, count, plural(count, "keyword"));
 }
 
 function sum(values: readonly number[]): number {
@@ -277,8 +324,8 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     {
       id: "keywords",
       label: "Keywords",
-      datum: passDatum(input.keywordsEverRan, input.keywords, plural(input.keywords, "keyword")),
-      done: input.keywords > 0,
+      datum: keywordsDatum(input.keywordsEverRan, input.keywords),
+      done: typeof input.keywords === "number" && input.keywords > 0,
     },
     {
       id: "duplicates",

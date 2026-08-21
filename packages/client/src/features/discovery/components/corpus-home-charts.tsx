@@ -45,10 +45,19 @@ const LEVEL_OPTIONS = [
   { value: "arc", label: "Arcs" },
 ] as const;
 
-/** The keyword explorer — `topKeywords` as a bar-list, and picking one drills its `cooccurringKeywords`. */
-export function KeywordExplorer({ top }: { readonly top: readonly TopKeyword[] | undefined }): ReactElement | null {
+/** The keyword explorer — `topKeywords` as a bar-list, and picking one drills its `cooccurringKeywords`.
+ *  The read itself lives on the overview (one query owns both this block and the readiness rail's keyword
+ *  row, #269), so its PENDING state arrives as a prop rather than off a query of its own. */
+export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKeyword[] | undefined; readonly pending: boolean }): ReactElement | null {
   const [keyword, setKeyword] = useState(NO_KEYWORD);
 
+  if (pending) {
+    // PENDING IS NOT ABSENCE (side-eye 2026-08-21). This returned `null` while the deferred read was in
+    // flight and then materialised under the reader's scroll position — while its two siblings in this very
+    // file already held their place with SkeletonRows. The `null` return below IS still the design (a block
+    // with no data renders nothing, the rail says why); it just isn't the answer to "not yet".
+    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
+  }
   if (top === undefined || top.length === 0) {
     return null;
   }
@@ -84,7 +93,9 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
   }
   if (cooccurring.error !== null) {
-    return <QueryErrorState label="the cooccurrences" onRetry={cooccurring.refetch} />;
+    // Wrapped, never passed by reference: `onRetry` rides a Button's onClick, so a bare `refetch` receives
+    // React's MouseEvent as its options bag (side-eye 2026-08-21).
+    return <QueryErrorState label="the cooccurrences" onRetry={(): void => void cooccurring.refetch()} />;
   }
   if (cooccurring.data.length === 0) {
     // The ONE surviving note in this file, and it earns its place: the user PICKED this keyword, so an
@@ -123,7 +134,7 @@ function StoryThemeDriftBody({
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
   }
   if (drift.error !== null) {
-    return <QueryErrorState label="story-theme drift" onRetry={drift.refetch} />;
+    return <QueryErrorState label="story-theme drift" onRetry={(): void => void drift.refetch()} />;
   }
   if (drift.data.length === 0) {
     return null;
