@@ -100,6 +100,8 @@ export interface TimeLib {
   readonly formatTime: (epochMs: number) => string;
   /** `Jul 3, 2026` — list/detail date form. */
   readonly formatDate: (epochMs: number) => string;
+  /** `July 2026` — calendar-month scope form. */
+  readonly formatMonthYear: (epochMs: number) => string;
   /** `Jul 3, 2026, 14:07` — audit/detail form. */
   readonly formatDateTime: (epochMs: number) => string;
   /** `3m ago` / `in 2h`; past ~7 days falls back to `formatDate` (relative loses meaning). */
@@ -196,6 +198,11 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
     month: "short",
     day: "numeric",
   });
+  const monthYear = new Intl.DateTimeFormat(locale, {
+    ...tz,
+    year: "numeric",
+    month: "long",
+  });
   const dateTime = new Intl.DateTimeFormat(locale, {
     ...tz,
     year: "numeric",
@@ -212,6 +219,7 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
     now,
     formatTime: (epochMs): string => time.format(epochMs),
     formatDate,
+    formatMonthYear: (epochMs): string => monthYear.format(epochMs),
     formatDateTime: (epochMs): string => dateTime.format(epochMs),
     formatRelative: (epochMs): string => {
       const deltaMs = epochMs - now();
