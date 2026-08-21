@@ -1393,7 +1393,25 @@
       "verifiedAt": "2026-08-21",
       "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
-      "claims": []
+      "claims": [
+        {
+          "claim": "The Select motion allowance in Codex's final merge is Select-only and structurally consumed-once, product motion is unchanged, and the three confirmed LOW findings are tracked as issue #405.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#405"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/select-entrance-evidence.ts:34"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/engine/engine.ts:1273"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
