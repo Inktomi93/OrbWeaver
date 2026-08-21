@@ -23,7 +23,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 // Gate names are kebab-case; `bus-onData-no-store-write` is the ONE documented camelCase name
@@ -67,7 +67,7 @@ function fx(rel: string, content: string): void {
 }
 
 function cleanFixtures(): void {
-  execFileSync("find", ["packages", "tests", "scripts", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"], {
+  execFileSync("find", ["packages", "tests", "scripts", "tooling", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"], {
     cwd: ROOT,
   });
   // A fixture written into a real-named dir that doesn't exist (e.g. `${D}/hub/__g_asw1.ts` after the hub
@@ -197,6 +197,20 @@ function writeFixtures(): void {
   // anti-drift assertion below; its bite is proven by gate-conformance (its mustFlag).
   // test-layout: a test with no source mirror.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
+  // ── @orb/tooling (docs/design/tooling-package.md §4) ──
+  // tooling-slot-template: a tool dir with neither front door and a stray root file.
+  fx("tooling/src/__g_badtool/stray.ts", "export const x = 1;\n");
+  // tooling-front-door: a cross-tool deep import into a sibling's ops/ (the front-door law).
+  fx("tooling/src/__g_tb/ops/y.ts", "export const y = 1;\n");
+  fx("tooling/src/__g_ta/x.ts", `import "../__g_tb/ops/y.ts";\n`);
+  // tooling-size: one line over the 450 default cap.
+  fx("tooling/src/__g_big/ops/big.ts", "export const x = 1;\n".repeat(451));
+  // tooling-shared-plumbing: a second ts-morph Project construction outside _shared/ts-workspace.ts.
+  fx("tooling/src/__g_plumb/ops/p.ts", "declare const Project: new (o: object) => unknown;\nexport const p = new Project({});\n");
+  // tooling-instrument-proof: a reasoned marker in an UNREGISTERED tool's tree (the real registry is
+  // armed-empty at P1) — the stale-vocabulary arm. This suite file itself is FLAT under tests/tooling,
+  // which the gate's tool-dir derivation skips, so the literal below is inert here.
+  fx("tests/tooling/__g_rogue/x.test.ts", "// @instrument-proof: plants a fake defect and asserts the instrument reds\nexport const t = 1;\n");
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).
   // The banned call is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the ambient-clock call.

@@ -1,10 +1,25 @@
-// Probe output lands under `<repo>/reports/<kind>/`, which is root-anchor gitignored.
+// Tool output lands under `<repo>/reports/<kind>/` (root-anchor gitignored) + the RESULT-line
+// convention: report lines to stdout via `print`; the LAST line is a stable `RESULT <tool> key=value …`
+// machine line (`tail -1` / `grep ^RESULT`). Exit codes are the CALLER's (_shared/exit-contract.ts).
 import { mkdir } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import process from "node:process";
 
-// _kit lives at scripts/probes/_kit/ — three levels up is the repo root.
+// _shared lives at tooling/src/_shared/ — three levels up is the repo root.
 export const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..");
+
+export function print(s: string): void {
+  process.stdout.write(`${s}\n`);
+}
+
+export type ResultPair = readonly [key: string, value: string | number];
+
+/** Print the blank separator + the final `RESULT <tool> k=v …` machine line (pairs in order). */
+export function printResult(tool: string, pairs: readonly ResultPair[]): void {
+  const kv = pairs.map(([k, v]) => `${k}=${v}`).join(" ");
+  print("");
+  print(`RESULT ${tool} ${kv}`);
+}
 
 /** Resolve (and create) `reports/<kind>/` from the repo root. */
 export async function artifactDir(kind: string): Promise<string> {

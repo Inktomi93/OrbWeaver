@@ -11,7 +11,7 @@
 // so there is exactly one.
 import { join } from "node:path";
 import { compareSchemaBaseline } from "../../scripts/verify/db-baseline-parity.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 

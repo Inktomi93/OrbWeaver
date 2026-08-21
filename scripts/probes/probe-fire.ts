@@ -32,8 +32,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
-import { REPO_ROOT } from "./_kit/artifacts.ts";
-import { print, printResult } from "./_kit/result.ts";
+import { print, printResult, REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 import type { RequestTrace } from "./trace-render.ts";
 import { renderTrace } from "./trace-render.ts";
 

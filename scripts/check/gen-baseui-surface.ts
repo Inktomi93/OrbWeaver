@@ -15,7 +15,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { getWorkspace } from "../ts-workspace.ts";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Disposition, InstalledPart, ManifestComponent, ManifestPart, SurfaceManifest } from "./baseui-read.ts";
 import { BASE_UI_MANIFEST_REL, blindParts, readInstalledSurface, readManifest, renderedPartsByComponent, truncatedParts } from "./baseui-read.ts";
 

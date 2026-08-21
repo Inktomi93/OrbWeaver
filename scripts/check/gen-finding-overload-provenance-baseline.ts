@@ -7,7 +7,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { getWorkspace } from "../ts-workspace.ts";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import { unmarkedSites } from "./gates/finding-overload-provenance.ts";
 
 const GATES_DIR = "scripts/check/gates/";

@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 interface DcRule {
   readonly name: string;
@@ -46,7 +46,7 @@ function fx(rel: string, content: string): void {
 }
 
 function cleanFixtures(): void {
-  execFileSync("find", ["packages", "-name", "__dc*", "-prune", "-exec", "rm", "-rf", "{}", "+"], {
+  execFileSync("find", ["packages", "tooling", "-name", "__dc*", "-prune", "-exec", "rm", "-rf", "{}", "+"], {
     cwd: ROOT,
   });
 }
@@ -207,6 +207,16 @@ function writeAllFixtures(): void {
   fx("packages/client/src/compose/__dc_t.ts", VAL);
   fx("packages/client/src/features/__dc_cfeat/compose-door.ts", `import "../../compose/__dc_t.ts";\n`);
 
+  // ── @orb/tooling (the tool fleet ABOVE the cake — tooling-package.md §4.6) ──
+  fx("tooling/src/__dc_tb/ops/y.ts", VAL);
+  fx("tooling/src/__dc_ta/x.ts", `import "../__dc_tb/ops/y.ts";\n`);
+  // packages-no-tooling: the one-way glass — a cake package deep-relative-escaping into tooling.
+  fx("packages/kit/src/__dc/toolingup.ts", `import "../../../../tooling/src/__dc_tb/ops/y.ts";\n`);
+  // tooling-cli-via-index: a cli reaching its own internals instead of ./index.ts.
+  fx("tooling/src/__dc_ta/cli.ts", `import "./x.ts";\n`);
+  // tooling-shared-floor: the plumbing floor reaching UP into a tool.
+  fx("tooling/src/_shared/__dc_up.ts", `import "../__dc_ta/x.ts";\n`);
+
   // client-components-tier (G5): components/ never imports UP into features/routes/main.tsx.
   fx("packages/client/src/components/__dc_t/i.ts", VAL);
   fx("packages/client/src/components/__dc_up.ts", `import "../features/__dc_cfeat/index.ts";\n`);
@@ -231,7 +241,7 @@ function runCruise(): Violation[] {
     // in beforeAll. Same root cause as check-gates.int.test.ts's phantom-`Lockfile` flake.
     stdout = execFileSync(
       "pnpm",
-      ["--config.verify-deps-before-run=false", "exec", "depcruise", "packages", "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
+      ["--config.verify-deps-before-run=false", "exec", "depcruise", "packages", "tooling", "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
       {
         cwd: ROOT,
         encoding: "utf8",

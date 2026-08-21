@@ -40,7 +40,7 @@ import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import type { AppearancePatch } from "./_kit/appearance.ts";
+import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
   appearanceHelpBlock,
@@ -49,17 +49,16 @@ import {
   loadAppearancePreset,
   mergeAppearancePatches,
   parseAppearancePatch,
-} from "./_kit/appearance.ts";
-import { artifactFile } from "./_kit/artifacts.ts";
-import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
-import type { Viewport } from "./_kit/flags.ts";
-import { parseViewport, splitLastEq } from "./_kit/flags.ts";
+} from "@orb/tooling/_shared/appearance";
+import type { Viewport } from "@orb/tooling/_shared/argv";
+import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
+import type { ResultPair } from "@orb/tooling/_shared/artifacts";
+import { artifactFile, print, printResult } from "@orb/tooling/_shared/artifacts";
+import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
+import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import type { NavMethod } from "./_kit/nav.ts";
 import { NAV_FLAG_METHOD, NAV_FLAGS, runNav } from "./_kit/nav.ts";
-import type { ResultPair } from "./_kit/result.ts";
-import { print, printResult } from "./_kit/result.ts";
-import type { ThemeRequest } from "./_kit/theme.ts";
-import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_SETTLE_MS = 2000;
@@ -105,12 +104,12 @@ type Args = {
   cycles: number;
   cpuProfile: boolean;
   steps: Step[];
-  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_kit/appearance.ts). The
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts). The
    *  browser-level `reducedMotion:false` below is only the OS media query; an INP/LoAF number taken while
    *  the app's own reduce-motion setting is on describes a surface with its transitions removed. */
   appearance: AppearancePatch | null;
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
-   *  `settings.getUserSettings` response (never written — _kit/theme.ts). null = the account's own theme. */
+   *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
@@ -162,7 +161,7 @@ function parseStepFlag(flag: string, rest: string[], steps: Step[]): boolean {
     return true;
   }
   if (flag === "--fill") {
-    // LAST `=` split — selectors contain `=`, values rarely do (_kit/flags.ts).
+    // LAST `=` split — selectors contain `=`, values rarely do (_shared/argv.ts).
     const { head, tail } = splitLastEq(rest.shift() ?? "");
     steps.push({ kind: "fill", selector: head, value: tail });
     return true;
@@ -326,7 +325,7 @@ export function parsePerfArgs(argv: string[]): Args {
   return args;
 }
 
-// In-page collector. Raw string, not a function — see _kit/browser.ts.
+// In-page collector. Raw string, not a function — see _shared/browser.ts.
 const METER_INIT_JS = `(() => {
   const m = (window.__perfMeter = {
     longTasks: [],   // {t, dur}
@@ -640,7 +639,7 @@ async function main(): Promise<number> {
   await session.browser.close();
 
   const reports = buildReports(data);
-  // `--out` names a base under reports/perf-meter/ — or, path-shaped, the exact file (_kit/artifacts.ts).
+  // `--out` names a base under reports/perf-meter/ — or, path-shaped, the exact file (_shared/artifacts.ts).
   const outPath = await artifactFile("perf-meter", opts.out, ".json");
   await writeFile(outPath, JSON.stringify({ args: opts, reports, raw: data, pageErrors }, null, 2));
 

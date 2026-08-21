@@ -6,7 +6,7 @@
 // surface smooth / responsive" could not reach any surface behind a room. Four probes, one spelling: a
 // probe that arrives differently is a probe measuring something else.
 import { buildNavScript, NAV_FLAG_METHOD, NAV_FLAGS } from "../../scripts/probes/_kit/nav.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 test("each verb calls its own bridge method with the raw target", () => {
   expect(buildNavScript("open-chat", "latest")).toContain('nav.openChat("latest")');

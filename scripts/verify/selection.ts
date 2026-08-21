@@ -12,7 +12,7 @@ import process from "node:process";
 const TS_RE = /\.(?:ts|tsx|mts|cts)$/u;
 // Mirrors the lint:eslint script's path list in package.json.
 const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests\/ui|tests\/client)\/.*\.tsx?$/u;
-const DEPCRUISE_RE = /^packages\/.*\.(?:ts|tsx|js|jsx|mts|cts)$/u;
+const DEPCRUISE_RE = /^(?:packages|tooling)\/.*\.(?:ts|tsx|js|jsx|mts|cts)$/u;
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
 // A changed ui/client src file → its test-layout mirror (packages/<pkg>/src/<path>.<ext> ↔ tests/<pkg>/
 // <path>). Group 1 = pkg (ui|client), group 2 = the sub-path (sans extension). The suffix-swap is the
@@ -72,6 +72,7 @@ const PACKAGE_TSCONFIGS: readonly string[] = [
   "packages/contracts/tsconfig.json",
   "packages/db/tsconfig.json",
   "packages/server/tsconfig.json",
+  "tooling/tsconfig.json",
   UI_TSCONFIG,
   CLIENT_TSCONFIG,
 ];
@@ -118,6 +119,11 @@ export function staticPrograms(rel: string): readonly string[] {
   //     a graph-only route lets the graph's @types/node mask per-package errors — a FALSE GREEN).
   if (ROOT_AMBIENT_DTS.has(rel)) {
     return [GRAPH, ...PACKAGE_TSCONFIGS];
+  }
+  // 3c. @orb/tooling src → its own package program AND the DOM-less graph (tsconfig.json includes
+  //     `tooling/src` as roots — the same two-program shape as a node package's src, rule 1).
+  if (rel.startsWith("tooling/src/")) {
+    return ["tooling/tsconfig.json", GRAPH];
   }
   // 4. the node graph roots (a .tsx here is claimed by rule 3 above — today none reach this arm).
   return isGraphOnlyTree(rel) ? [GRAPH] : [];
@@ -475,7 +481,8 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[]): 
  *  eslint/tsc take the package prefix as a folder arg). */
 function resolvePackage(name: string): Selection {
   const dir = packageDir(name);
-  const prefix = `packages/${dir}/`;
+  // @orb/tooling is a ROOT-tree workspace package (docs/design/tooling-package.md §2.1), not packages/*.
+  const prefix = dir === "tooling" ? "tooling/" : `packages/${dir}/`;
   // A package selection's "paths" is the prefix itself — biome/eslint accept a directory arg, tsc uses the
   // owning tsconfig, depcruise takes the prefix. The concrete file enumeration is left to each tool.
   const paths: readonly string[] = [prefix];
@@ -486,7 +493,7 @@ function resolvePackage(name: string): Selection {
     eslintPaths: ESLINT_RE.test(`${prefix}x.ts`) ? [prefix] : [],
     depcruisePaths: [prefix],
     docsPaths: [],
-    tsconfigs: [`packages/${dir}/tsconfig.json`],
+    tsconfigs: [dir === "tooling" ? "tooling/tsconfig.json" : `packages/${dir}/tsconfig.json`],
     // A NODE package's src ARE graph roots → --package runs types:graph (the DOM-less lens catches what the
     // package's own dom-tsconfig can't — the TS2584 class). Browser packages (ui/client) are graph-EXCLUDED,
     // so graph honestly defers. This keeps --package consistent with --changed on the same package's files.
@@ -509,7 +516,7 @@ function resolveScope(glob: string): Selection {
     label: `scope ${glob}`,
     paths,
     eslintPaths: ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
-    depcruisePaths: prefix.startsWith("packages/") ? [prefix] : [],
+    depcruisePaths: prefix.startsWith("packages/") || prefix.startsWith("tooling") ? [prefix] : [],
     docsPaths: prefix.startsWith("docs/architecture") ? [prefix] : [],
     // A folder scope: use the conservative fallback (undefined overlay) — a packages/*/src scope then also
     // runs the graph, the honest floor for a whole-folder run.

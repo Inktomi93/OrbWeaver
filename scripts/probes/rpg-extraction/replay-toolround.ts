@@ -1,7 +1,7 @@
 // Replay the REAL captured cheap tool-round body against OR, non-streaming, to see whether the model
 // emits assistant message.content ALONGSIDE tool_calls (the message production currently discards).
 import { readFileSync } from "node:fs";
-import { REPO_ROOT } from "../_kit/artifacts.ts";
+import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 
 type ReqBody = Record<string, unknown>;
 interface RawToolCall {

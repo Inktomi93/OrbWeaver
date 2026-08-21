@@ -17,7 +17,7 @@
 // supervisor is never exec'd. `.int.test.ts` because it shells out; it writes nothing to the tree.
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const STACK_SH = fileURLToPath(new URL("../../scripts/dev/stack.sh", import.meta.url));
 

@@ -8,7 +8,7 @@ import type { Browser, BrowserContext, ConsoleMessage, Page } from "@playwright/
 import { chromium, devices } from "@playwright/test";
 import type { AppearancePatch } from "./appearance.ts";
 import { installSettingsShim } from "./appearance.ts";
-import type { Viewport } from "./flags.ts";
+import type { Viewport } from "./argv.ts";
 import type { ThemeRequest } from "./theme.ts";
 
 // biome-ignore lint/style/noProcessEnv: SNAP_BASE_URL is a probe-harness knob (where the running dev stack answers; `localhost`, not 127.0.0.1 — vite v8 binds [::1] only) — ambient tooling env, not app config.
@@ -29,9 +29,12 @@ export async function settle(page: Page, ms: number): Promise<void> {
   await page.waitForTimeout(ms);
 }
 
-export type LocalStorageSeed = { readonly key: string; readonly value: string };
+export interface LocalStorageSeed {
+  readonly key: string;
+  readonly value: string;
+}
 
-export type ProbeLaunchOptions = {
+export interface ProbeLaunchOptions {
   /** false = headed (`--vnc`, when you DO want to look). */
   readonly headless: boolean;
   readonly viewport: Viewport;
@@ -78,27 +81,27 @@ export type ProbeLaunchOptions = {
   readonly trace?: boolean;
   /** Prefix for per-context full HAR files. The caller removes green-run files after context close. */
   readonly harPathPrefix?: string;
-};
+}
 
-export type CapturedRequest = {
+export interface CapturedRequest {
   method: string;
   url: string;
   status: number | null;
   failed: string | null;
   /** Playwright resourceType (document/xhr/fetch/image/…) — annotates failures. */
   type: string;
-};
+}
 
-export type CapturedConsole = {
+export interface CapturedConsole {
   readonly type: string;
   readonly text: string;
   readonly location: { readonly url: string; readonly line: number; readonly column: number } | null;
   readonly line: string;
-};
+}
 
 /** One isolated browser context's captured state + pages — `--contexts N` opens N of these (own cookies/
  *  localStorage each); the single-context default path is `contexts[0]`. */
-export type ProbeContext = {
+export interface ProbeContext {
   readonly context: BrowserContext;
   readonly pages: readonly Page[];
   readonly consoleLines: string[];
@@ -106,9 +109,9 @@ export type ProbeContext = {
   readonly pageErrors: string[];
   readonly requests: Map<string, CapturedRequest>;
   readonly harPath: string | null;
-};
+}
 
-export type ProbeSession = {
+export interface ProbeSession {
   readonly browser: Browser;
   readonly context: BrowserContext;
   /** The first (default) page — the single-page path uses only this. Byte-identical to the old API. */
@@ -127,15 +130,15 @@ export type ProbeSession = {
   /** Every context opened (`contexts[0]` mirrors the flat `context`/`page`/`pages` fields above — the
    *  single-context default is byte-identical). `--contexts N` populates N of these. */
   readonly contexts: readonly ProbeContext[];
-};
+}
 
-type PageCapture = {
+interface PageCapture {
   readonly media: { colorScheme?: "light" | "dark"; reducedMotion?: "reduce" };
   readonly consoleLines: string[];
   readonly consoleMessages: CapturedConsole[];
   readonly pageErrors: string[];
   readonly requests: Map<string, CapturedRequest>;
-};
+}
 
 /** Wire console/pageerror/request capture + media emulation onto one page — shared by every context so
  *  `--pages` (tabs within a context) and `--contexts` (isolated contexts) both get identical capture. */
@@ -186,13 +189,13 @@ function wirePage(page: Page, capture: PageCapture): Promise<void> {
   return apply();
 }
 
-type BuildContextArgs = {
+interface BuildContextArgs {
   readonly browser: Browser;
   readonly opts: ProbeLaunchOptions;
   readonly deviceDescriptor: (typeof devices)[string] | null;
   readonly sessionCookie: string | null;
   readonly contextIndex: number;
-};
+}
 
 async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly context: BrowserContext; readonly harPath: string | null }> {
   const { browser, opts, deviceDescriptor, contextIndex } = args;

@@ -334,7 +334,7 @@ this README are tracked):
 A gitignore is not enough on its own — two instruments glob the filesystem directly and each needs
 its own fence for the runtime. Both are in place and are the ONLY quarantine this rig still owes:
 
-- `scripts/ts-workspace.ts` — `searchGlobs` sweeps `scripts/**/*.ts`; a negated glob keeps the
+- `tooling/src/_shared/ts-workspace.ts` — `searchGlobs` sweeps `scripts/**/*.ts`; a negated glob keeps the
   runtime's ~4,300 `.ts` files out of the ts-morph search project.
 - `tsconfig.json` — its `exclude` names the runtime, because a specified `exclude` replaces tsc's
   default `node_modules` skip and ST ships four root `.d.ts` files (one declares browser globals).

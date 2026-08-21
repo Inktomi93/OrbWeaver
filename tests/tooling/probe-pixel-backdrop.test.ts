@@ -9,7 +9,7 @@
 // The ring is the load-bearing choice: glyphs live in the box INTERIOR, so an interior-inclusive average
 // would measure the text it is trying to measure text AGAINST.
 import { clampBoxToImage, ringBackdropOfRegion } from "../../scripts/probes/_kit/pixel-backdrop.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const CHANNELS = 4;
 

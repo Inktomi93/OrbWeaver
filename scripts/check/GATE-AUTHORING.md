@@ -29,7 +29,8 @@ updated: 2026-08-17
 
 `scripts/check/contract.ts` is the whole interface. A gate never walks anything itself: it declares the
 SyntaxKinds it wants and the runner (`pass.ts`) feeds it from ONE shared walk over the shared workspace
-(`scripts/ts-workspace.ts` `harnessGlobs` — `packages/*/src`, `tests/`, and `scripts/check/gates/`).
+(`tooling/src/_shared/ts-workspace.ts` `harnessGlobs` — `packages/*/src`, `tests/`, `scripts/check/gates/`,
+and `tooling/src/` since the @orb/tooling P1 widening, docs/design/tooling-package.md §3.2).
 
 | Field | Required | Meaning / trap |
 | - | - | - |

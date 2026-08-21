@@ -42,10 +42,15 @@ function srcExistsFor(loc: SrcLoc): boolean {
 function violationFor(root: string, rel: string, name: string): Violation | undefined {
   const segs = rel.split("/");
   const pkg = segs[0];
-  // Non-mirror trees: support/ (fixtures), e2e/ (full-stack Playwright), tooling/ (tests of our root
-  // configs + scripts/ gates — they have no packages/<pkg>/src module to mirror).
-  if (pkg === "support" || pkg === "e2e" || pkg === "tooling") {
+  // Non-mirror trees: support/ (fixtures), e2e/ (full-stack Playwright). tooling/ is CONDITIONAL since
+  // the @orb/tooling tree exists (docs/design/tooling-package.md §4.7): tests/tooling/<dir>/ MIRRORS
+  // tooling/src/<dir>/ when that src dir exists; flat files + dirs with no src twin stay exempt (they
+  // test root configs, the guard, and research-zone scripts).
+  if (pkg === "support" || pkg === "e2e") {
     return;
+  }
+  if (pkg === "tooling") {
+    return toolingViolationFor(root, rel, segs, name);
   }
   const kind = KINDS.find((k) => name.endsWith(k));
   if (kind === undefined) {
@@ -94,6 +99,36 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
   };
 }
 
+/** The tooling mirror arm (§4.7): tests/tooling/<dir>/<path>.<kind> ↔ tooling/src/<dir>/<path>.ts
+ *  (file or dir-index), suite kinds exempt — but ONLY for dirs that exist under tooling/src/. */
+function toolingViolationFor(root: string, rel: string, segs: readonly string[], name: string): Violation | undefined {
+  // tooling/<dir>/<file> — anything shorter is a flat tests/tooling file (the exempt non-mirror tier).
+  const MIRROR_MIN_SEGS = 3;
+  const toolDir = segs[1];
+  if (toolDir === undefined || segs.length < MIRROR_MIN_SEGS) {
+    return;
+  }
+  if (!existsSync(join(root, "tooling", "src", toolDir))) {
+    return; // no src twin — a root-config / research-zone test dir
+  }
+  const kind = KINDS.find((k) => name.endsWith(k));
+  if (kind === undefined || kind === ".parity.test.ts" || kind.startsWith(".suite.")) {
+    return;
+  }
+  const base = name.slice(0, -kind.length);
+  const sub = segs.slice(1, -1).join("/");
+  const file = join(root, "tooling", "src", sub, `${base}.ts`);
+  const dirIndex = join(root, "tooling", "src", sub, base, "index.ts");
+  if (existsSync(file) || existsSync(dirIndex)) {
+    return;
+  }
+  return {
+    file: `tests/${rel}`,
+    line: 0,
+    message: `mirror miss — no source for tooling/src/${sub}/${base}.ts (a tooling test prefix-swaps to its tool's module — docs/design/tooling-package.md §4.7)`,
+  };
+}
+
 /** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
 function scanTestLayout(root: string): Violation[] {
   const violations: Violation[] = [];
@@ -134,6 +169,14 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "mirror miss" },
       why: "a test with no packages/server/src/domain/orphan.ts source — a mirror miss (§5)",
     },
+    {
+      files: {
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tests/tooling/snapx/ghost.test.ts": "export const x = 1;\n",
+      },
+      expect: { messageIncludes: "tooling/src/snapx/ghost.ts" },
+      why: "a tooling test whose tool dir exists but whose module does not — the §4.7 tooling mirror bites",
+    },
   ],
   mustPass: [
     {
@@ -148,6 +191,17 @@ export const gate: GateDescriptor = {
         "tests/server/security/containment.suite.int.test.ts": "export const x = 1;\n",
       },
       why: "a cross-cutting .suite.int.test.ts under a valid pkg with NO single-source mirror — the property-suite exemption, passes",
+    },
+    {
+      files: {
+        "tooling/src/snapx/cli.ts": "export {};\n",
+        "tests/tooling/snapx/cli.test.ts": "export const x = 1;\n",
+      },
+      why: "a tooling test that prefix-swaps to a real tooling/src module — the §4.7 mirror hit, passes",
+    },
+    {
+      files: { "tests/tooling/flat-config.test.ts": "export const x = 1;\n" },
+      why: "a FLAT tests/tooling file (root-config / research-zone subject) — the exempt non-mirror tier, passes",
     },
   ],
 };

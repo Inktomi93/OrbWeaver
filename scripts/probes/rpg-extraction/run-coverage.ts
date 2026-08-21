@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { REPO_ROOT } from "../_kit/artifacts.ts";
+import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 
 // ---- internal running-state model (the harness's own tracked-state shape, not a wire type) ----
 interface Hp {

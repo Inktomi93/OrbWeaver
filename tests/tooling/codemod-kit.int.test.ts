@@ -24,7 +24,7 @@ import process from "node:process";
 import { describe, vi } from "vitest";
 import type { CodemodContext, CodemodResult, Plan, RunCodemodOptions } from "../../scripts/codemods/codemod-kit.ts";
 import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol, runCodemod } from "../../scripts/codemods/codemod-kit.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const TSCONFIG = JSON.stringify({
   compilerOptions: { target: "es2022", module: "esnext", moduleResolution: "bundler", strict: true, noEmit: true },

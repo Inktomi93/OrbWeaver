@@ -1,0 +1,19 @@
+{
+  "name": "@orb/tooling",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "exports": {
+    "./_shared/*": "./src/_shared/*.ts"
+  },
+  "imports": {
+    "#*": "./src/*/index.ts"
+  },
+  "dependencies": {
+    "@playwright/test": "catalog:",
+    "ts-morph": "catalog:"
+  }
+}

@@ -15,7 +15,7 @@ import { asViolations, eslintScheme, ownScheme, REGISTRY, stagesForTier } from "
 import type { StageResult } from "../../scripts/verify/run.ts";
 import { aggregateExit, captureProcess, failReason, parse } from "../../scripts/verify/run.ts";
 import { resolveSelection } from "../../scripts/verify/selection.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 import { withTree } from "./_support.ts";
 
 /** A parse result that IS a misuse error (what main() maps to exit 3). */

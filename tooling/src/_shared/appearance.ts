@@ -33,6 +33,7 @@
 // it here alongside the interception (snap's `--ls` seeds run through the same context).
 import { readFileSync } from "node:fs";
 import type { BrowserContext, Route } from "@playwright/test";
+import { warn } from "./log.ts";
 import type { ThemeEntry, ThemeRequest } from "./theme.ts";
 import { LIST_THEMES_PROCEDURE, readThemeList, resolveTheme, themeConfigPatch, themeWarning } from "./theme.ts";
 
@@ -60,9 +61,11 @@ export const FULL_MOTION_PATCH: AppearancePatch = { reducedMotion: false };
 /** THE curated appearance points (`--appearance-preset <name>`), committed beside the probes so a sweep
  *  names a profile instead of pasting JSON. One home: new coverage is a new PROFILE there, never a new flag.
  *  Read eagerly at parse time so an unknown/broken profile is CLI misuse (exit 2), not a mid-run surprise. */
-const PRESETS_PATH = new URL("../appearance-presets.json", import.meta.url);
+const PRESETS_PATH = new URL("./appearance-presets.json", import.meta.url);
 
-type PresetFile = { readonly presets?: Record<string, { readonly why?: string; readonly appearance?: unknown }> };
+interface PresetFile {
+  readonly presets?: Record<string, { readonly why?: string; readonly appearance?: unknown }>;
+}
 
 /** Null when the committed file is missing or unparseable — the caller turns that into an ARG ERROR naming
  *  the path, never a silent "no such preset" that blames the caller for a broken file. */
@@ -83,7 +86,7 @@ export function appearancePresetNames(): readonly string[] {
 export function loadAppearancePreset(name: string): AppearanceParse {
   const file = readPresetFile();
   if (file === null) {
-    return { error: "--appearance-preset could not read scripts/probes/appearance-presets.json (missing or invalid JSON)" };
+    return { error: "--appearance-preset could not read tooling/src/_shared/appearance-presets.json (missing or invalid JSON)" };
   }
   const presets = file.presets ?? {};
   const entry = presets[name];
@@ -91,7 +94,7 @@ export function loadAppearancePreset(name: string): AppearanceParse {
     return { error: `--appearance-preset "${name}" is not a profile — valid: ${Object.keys(presets).join(", ")}` };
   }
   if (!isPlainObject(entry.appearance)) {
-    return { error: `--appearance-preset "${name}" has no appearance object in scripts/probes/appearance-presets.json` };
+    return { error: `--appearance-preset "${name}" has no appearance object in tooling/src/_shared/appearance-presets.json` };
   }
   return { patch: entry.appearance };
 }
@@ -107,7 +110,7 @@ axis from --reduced-motion, which emulates the OS media query; they compose):
   --full-motion                 render with the app's reduce-motion setting OFF
   --appearance '<json>'         deep-merge any appearance keys, e.g. '{"density":"compact"}'
   --appearance-preset <name>    curated profile: ${appearancePresetNames().join(" | ")}
-                                (scripts/probes/appearance-presets.json is the ONE home for these —
+                                (tooling/src/_shared/appearance-presets.json is the ONE home for these —
                                 new coverage is a new profile there, never a new flag; --appearance
                                 composes OVER a preset). No flag = the account's real state.`;
 }
@@ -259,7 +262,7 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
   const resolveOnce = async (route: Route, context: BrowserContext): Promise<{ readonly id: string | null } | null> => {
     const url = themeListUrl(route.request().url());
     if (url === null) {
-      console.warn(themeWarning(`could not derive an API origin from ${route.request().url()}`));
+      warn(themeWarning(`could not derive an API origin from ${route.request().url()}`));
       return null;
     }
     let entries: readonly ThemeEntry[] | null = null;
@@ -267,16 +270,16 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
       const response = await context.request.get(url);
       entries = response.ok() ? readThemeList((await response.json()) as unknown) : null;
       if (entries === null) {
-        console.warn(themeWarning(`${LIST_THEMES_PROCEDURE} answered ${response.status()} with no theme list`));
+        warn(themeWarning(`${LIST_THEMES_PROCEDURE} answered ${response.status()} with no theme list`));
         return null;
       }
     } catch (e) {
-      console.warn(themeWarning(`${LIST_THEMES_PROCEDURE} could not be read (${e instanceof Error ? e.message : String(e)})`));
+      warn(themeWarning(`${LIST_THEMES_PROCEDURE} could not be read (${e instanceof Error ? e.message : String(e)})`));
       return null;
     }
     const resolution = resolveTheme(entries, request);
     if ("error" in resolution) {
-      console.warn(themeWarning(resolution.error));
+      warn(themeWarning(resolution.error));
       return null;
     }
     return { id: resolution.id };
@@ -290,10 +293,10 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
 /** What a run pretends about the user's settings: the appearance keys and/or the ACTIVE THEME. Both null =
  *  no interception at all (the default probe run drives the REAL account state, itself a valid arm — it is
  *  the owner's actual experience). */
-export type SettingsShim = {
+export interface SettingsShim {
   readonly appearance: AppearancePatch | null;
   readonly theme: ThemeRequest | null;
-};
+}
 
 /**
  * Install the shim on a browser CONTEXT (before its first navigation, so the app's very first settings read

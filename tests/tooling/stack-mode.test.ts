@@ -38,7 +38,7 @@ import {
   serializeProdRecord,
   spawnerForPort,
 } from "../../scripts/dev/_kit/stack-mode.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 // Hoisted: the rule against per-call regex literals applies to test bodies too.
 const DRAIN_MS_RE = /const SHUTDOWN_DRAIN_MS = ([\d_]+);/u;

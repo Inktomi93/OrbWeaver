@@ -9,12 +9,12 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { getWorkspace, searchGlobs } from "@orb/tooling/_shared/ts-workspace";
 import type { BindingElement, ExportDeclaration, ImportDeclaration, JsxAttribute, Project, SourceFile, Type, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../knip.ts";
 import type { SchemaTable } from "../check/schema-read.ts";
 import { schemaTables } from "../check/schema-read.ts";
-import { getWorkspace, searchGlobs } from "../ts-workspace.ts";
 import { CodemodError } from "./codemod-kit.ts";
 
 const REPO_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/u, "");
@@ -513,7 +513,7 @@ function emit(hits: Hit[], flags: Flags, label: string): void {
   );
 }
 
-// One workspace project per invocation, via the ONE sanctioned bootstrap (scripts/ts-workspace.ts).
+// One workspace project per invocation, via the ONE sanctioned bootstrap (tooling/src/_shared/ts-workspace.ts).
 // types:true = root-tsconfig resolution options + full-workspace globs (the refs verb needs the
 // language service to follow @orb/* exports and #aliases); types:false = the fast pure-AST arm.
 // `wide` loads the TYPED arm's file set (searchGlobs — tests+fixtures+scripts) WITHOUT the type graph:

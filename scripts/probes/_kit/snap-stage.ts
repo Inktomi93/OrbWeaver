@@ -67,7 +67,7 @@ import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import { errorMessage } from "@orb/kit/error-message";
-import { print } from "./result.ts";
+import { print } from "@orb/tooling/_shared/artifacts";
 
 const DEBUG_TOKEN_BYTES = 16;
 

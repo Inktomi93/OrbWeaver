@@ -1800,6 +1800,9 @@
     },
     "tests/client/features/refinery/components/stage-stepper.ct.tsx": {
       "why": "the STAGE STEPPER was deleted with the refinery workbench rebuild (program #102, the owner-picked mockup variant C): all three stages render on one canvas, so a stage SWITCHER has nothing to switch. Its only non-navigational coverage was the RUNNING affordance — the indeterminate hairline whose reduced-motion contract is that the travelling segment is REMOVED, not parked — and that affordance moved with the surface into the lane band, where the identical pair of assertions (plus the no-call-in-flight/no-hairline arm and its positive control) lives verbatim in tests/client/features/refinery/components/lane-run-control.ct.tsx. The narrow-container no-clip test retargets to the same file's rail-width geometry test; the tint/aria-current cell test died with the cell it measured. Un-deletes only if a stage switcher is ever re-introduced."
+    },
+    "tests/tooling/snap-flags.test.ts": {
+      "why": "relocated to tests/tooling/_shared/argv.test.ts with its subject (scripts/probes/_kit/flags.ts -> tooling/src/_shared/argv.ts, the @orb/tooling P1 _shared promotion, #393). Every pin moved verbatim; nothing was dropped. Un-deletes only if the argv idioms ever move back out of _shared."
     }
   }
 }
