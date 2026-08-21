@@ -197,10 +197,20 @@ Coverage proves a line *ran*; a **surviving mutant** is a line a test covered bu
 - `pnpm test:mutation` (`stryker.config.json`) — exploratory, `break:null`; broaden scope via `--mutate`.
 - `pnpm test:mutation:gate` (`stryker.gate.config.json`) — the ratchet, pinned to the highest-stakes pure modules (prompt assembly + credential resolution); fails the build below `thresholds.break`. `break` stays `null` until a measured score calibrates it, then ratchets UP as a backslide floor.
 
-Both run the node lanes via the `vitest` runner (`vitest.stryker.config.ts`) + the `typescript` checker. The
-CLASSIC checker, deliberately — `typescriptChecker.experimentalNativePreview` (TS7) was trialed 2026-08-21
-and REFUSED: 2.8× slower, and it reports TS7027/TS6133 as blocking, which disqualifies Stryker's whole
-`if (cond)` → `if (false)` mutant class as `CompileError` and silently shrinks the scored population.
+Both run the node lanes via the `vitest` runner (`vitest.stryker.config.ts`) + the `typescript` checker, on
+the **native TypeScript 7 preview** (`typescriptChecker.experimentalNativePreview`) over a **patched**
+`@stryker-mutator/typescript-checker`.
+
+**The checker is part of the calibration, not a performance knob.** It decides which mutants are
+`CompileError`, i.e. which mutants are in the DENOMINATOR — so a `break` calibrated under one checker and
+enforced under another is a mis-calibration. The patch exists because the stock preview is silently wrong
+here: it registers the *sanitized* tsconfig (the `allowUnreachableCode`/`noUnusedLocals`/`noUnusedParameters`
+overrides mutation testing requires — mutants violate all three by construction) under the raw
+`tsconfigFile` string while the compiler opens the *resolved* path, so the lookup misses and it falls back
+to the strict on-disk config. Unpatched, the whole `if (cond)` → `if (false)` mutant class is disqualified
+via TS7027 and leaves the score. Measured on one file, 47 mutants: stock native 57.89 in 9m41s; patched
+native **66.67 in 2m50s**; classic **66.67 in 3m17s** — same verdict, slightly faster. Full four-arm
+receipts live in `stryker.config.json`'s `_checkers_comment`.
 
 **An ARID mutant is not a test failure.** `scripts/mutation/arid-ignorer.ts` (a `PluginKind.Ignore` plugin,
 wired through `ignorers: ["arid"]` in BOTH configs) drops string-literal mutants whose only destination is an

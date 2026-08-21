@@ -1,0 +1,13 @@
+diff --git a/dist/src/ts-native/native-typescript-compiler.js b/dist/src/ts-native/native-typescript-compiler.js
+index 3caca8ec758fe8d42a262691397e8ba3d18b40a4..f205269222b852347f35a5d388b9eaa2adaafbdb 100644
+--- a/dist/src/ts-native/native-typescript-compiler.js
++++ b/dist/src/ts-native/native-typescript-compiler.js
+@@ -43,7 +43,7 @@ export class NativeTypescriptCompiler {
+         this.log.debug('Started the native TypeScript compiler on project "%s"', this.tsconfigFile);
+         return this.checkSnapshot();
+     }
+-    async #adjustTSConfigFile(fileName = this.options.tsconfigFile) {
++    async #adjustTSConfigFile(fileName = this.tsconfigFile) {
+         const parsedConfig = ts.parseConfigFileTextToJson(toPosixFileName(fileName), await fs.promises.readFile(fileName, 'utf-8'));
+         if (parsedConfig.error) {
+             return; // let the ts compiler deal with this error
