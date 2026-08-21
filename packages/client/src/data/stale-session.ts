@@ -9,9 +9,9 @@
 //   • RUNG 0 — PROBE. `GET /api/auth/me` first, ALWAYS. Under `single-user`/`forward-header` the origin
 //     fallback re-admits every request by design, so the 401 that triggered this was a blip or a race and a
 //     reload would have been pure waste; another tab may also have already recovered. On `authenticated`
-//     the tab RESUMES IN PLACE: invalidate identity + every user root, force the socket's rooms to
-//     re-announce, and carry on with the cache intact. This rung converts the majority of yesterday's
-//     state-destroying reloads into invisible recoveries.
+//     AS THE SAME HANDLE the tab RESUMES IN PLACE: invalidate identity + every user root, force the
+//     socket's rooms to re-announce, and carry on with the cache intact. This rung converts the majority of
+//     yesterday's state-destroying reloads into invisible recoveries.
 //   • RUNG 1 — RE-AUTH IN PLACE (owner fork F2/F3). `local`: an auth-owned modal over the frozen shell —
 //     the query cache is PRESERVED, so a successful sign-in as the same handle resumes exactly where the
 //     user was. `oidc`: a full-page bounce to the IdP with a one-shot resume snapshot written first.
@@ -21,6 +21,15 @@
 // SINGLE-FLIGHT IS CROSS-TAB (§4.3). The old latch was per-tab module state, so a 401 burst across four
 // tabs was four recoveries. The ladder runs inside a Web Lock: one tab leads, the others take no action and
 // settle on its broadcast verdict.
+//
+// EVERY RESUME CROSSES THE IDENTITY BOUNDARY FIRST (§4.2.1). `authenticated: true` answers "is there a live
+// session", NEVER "is it ours" — the cookie is per-BROWSER, so a session that comes back can belong to a
+// different human (a shared browser; a re-minted dev identity). Resuming there leaves the previous human's
+// chats, characters and drafts rendered while every later read and write runs as the new one. So all FOUR
+// resume paths — rung 0, a rung-1 re-auth, the freshness probe's verdict, and a sibling tab's broadcast —
+// run the same compare through {@link identityBoundaryCrossed}, and a crossing takes the hard-reload arm.
+// The compare FAILS CLOSED: an unbound host (the belt lives in `query-client.ts`, constructed before React
+// mounts) can prove nothing, so it reloads rather than resuming a cache it cannot show is this identity's.
 //
 // THE HOST IS INJECTED because this module is `data/` and the modal is a FEATURE. `app-root` (the sanctioned
 // composition route) binds it. An UNBOUND host is not a failure mode — it means the app shell is not
@@ -35,6 +44,10 @@ import { writeSessionResume } from "./session-resume.ts";
 
 const LOGIN_PATH = "/login";
 const OIDC_LOGIN_PATH = "/api/auth/oidc/login";
+/** The identity-boundary reset target. A whole-document load of the app itself — the session is VALID, it
+ *  is just somebody else's, so `/login` would bounce straight back. A module constant, like every other
+ *  target here: no navigation in this file is ever built from a fetched or broadcast value. */
+const APP_ROOT_PATH = "/";
 
 /** What the ladder needs from the mounted app shell. Bound by `routes/app-root.tsx`. */
 export interface SessionRecoveryHost {
@@ -93,11 +106,43 @@ function signOut(): void {
   navigateTo(LOGIN_PATH);
 }
 
+/** §4.2.1's IDENTITY BOUNDARY — is the session that just answered a DIFFERENT identity than the one this
+ *  tab's warm cache and durable-local blobs belong to? Every resume path asks this before resuming.
+ *
+ *  FAIL CLOSED, by the `?.`: with no host bound there is nothing to compare against, so the comparison is
+ *  against `undefined` and every handle crosses — the ambiguous case takes the hard-reload arm. A bound host
+ *  that has not resolved its viewer yet reports `null`, which matches only the equally identity-less
+ *  absent-principal answer (`/api/auth/me` serves `principal?.handle ?? null`, so a live principal always
+ *  names one). */
+function identityBoundaryCrossed(handle: Handle | null): boolean {
+  return handle !== host?.currentHandle();
+}
+
 /** Rung 0's success arm, shared with a rung-1 local re-auth: nothing navigates, nothing is dropped. */
 function resume(handle: Handle | null): void {
   markSessionFresh();
   host?.resumeInPlace();
   postSessionMessage({ kind: "session-recovered", handle });
+}
+
+/** The other side of the boundary: a session came back as SOMEBODY ELSE. Broadcast the new identity first
+ *  — a sibling tab still holding the old one must reload itself too, and after this call this document is
+ *  on its way out — then take the only leak-free reset there is, a whole-document load. */
+function resetOntoNewIdentity(handle: Handle | null): void {
+  postSessionMessage({ kind: "session-recovered", handle });
+  navigateTo(APP_ROOT_PATH);
+}
+
+/** The freshness probe's verdict (§4.4.1), decided HERE because this is where the identity boundary lives.
+ *  `true` means "still alive AND still ours" — the only state in which a warm tab may keep rendering.
+ *
+ *  This sensor exists for the case no other one can see: when a different identity signs in on this browser
+ *  the cookie is VALID, so this tab never 401s and nothing ever enters the ladder. A REJECTION propagates
+ *  untouched — `startSessionFreshness` reads a thrown probe as "server unreachable" and does nothing, which
+ *  is not the same verdict as `false`. */
+export async function probeSessionContinuity(): Promise<boolean> {
+  const me = await fetchAuthMe();
+  return me.authenticated && !identityBoundaryCrossed(me.handle);
 }
 
 /** Rung 1, `local`: hand off to the modal and hold the recovery lock until it reports back. */
@@ -129,6 +174,12 @@ async function runLadder(): Promise<void> {
     return;
   }
   if (me.authenticated) {
+    // A live session is not automatically OUR session (see the header) — the same §4.2.1 boundary rung 1
+    // has always enforced, at the rung that discovers the identity first.
+    if (identityBoundaryCrossed(me.handle)) {
+      resetOntoNewIdentity(me.handle);
+      return;
+    }
     resume(me.handle);
     return;
   }
@@ -144,8 +195,8 @@ async function runLadder(): Promise<void> {
       // §4.2.1's identity boundary: a DIFFERENT handle just signed in on this browser, so every warm cache
       // entry and every durable-local blob belongs to somebody else. A full document load is the only
       // leak-free reset — the same reasoning the account modal's sign-out already runs on.
-      if (reauthed.handle !== host?.currentHandle()) {
-        navigateTo("/");
+      if (identityBoundaryCrossed(reauthed.handle)) {
+        resetOntoNewIdentity(reauthed.handle);
         return;
       }
       resume(reauthed.handle);
@@ -203,6 +254,13 @@ export function bindSessionRecovery(next: SessionRecoveryHost | null): void {
     }
     if (message.kind === "session-recovered") {
       // A sibling re-authenticated on the SHARED cookie — this tab's reads are stale, not its session.
+      // Which is true only while the recovered identity is still THIS tab's: the message names the handle
+      // precisely so a follower applies the same §4.2.1 boundary the leader did (the shape-validated
+      // `handle` is compared, never used to build the target — that is the module constant above).
+      if (identityBoundaryCrossed(message.handle)) {
+        navigateTo(APP_ROOT_PATH);
+        return;
+      }
       markSessionFresh();
       next.resumeInPlace();
     }
