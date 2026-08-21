@@ -18,6 +18,8 @@ const RESOLVED = { memoryDefaults: {}, memorySummarizer: {} };
 
 const UPDATE_PROC = "settings.updateAppSettings";
 const RAW_MODE_LABEL = /\b(?:mixA|mixB|mixC|tiered)\b/u;
+const SEARCH_CANDIDATES_GUIDANCE =
+  "Matches kept after vector search. Higher values give Sharper semantic recall more choices but make reranking compare more memories; when reranking succeeds, Reranked memories still caps what reaches the prompt. If reranking is unavailable—or Semantic recall is selected—more candidates can use more prompt space. Embedding and vector-search work stay the same.";
 
 function stub(page: Page, overrides: Record<string, unknown> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -79,6 +81,14 @@ test("the recency control states its experimental order-only behavior and zero d
   const copy = "Experimental: changes only candidate order before the recall limit. 0 leaves semantic ordering unchanged.";
   await expect(page.getByText(copy)).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Recency bias" })).toHaveValue("0");
+});
+
+test("search candidates states the mode-dependent rerank and prompt costs without claiming extra vector-search work", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<MemoryTuningSectionStory />);
+
+  await page.getByRole("button", { name: "More info about Search candidates" }).hover();
+  await expect(page.getByText(SEARCH_CANDIDATES_GUIDANCE)).toBeVisible();
 });
 
 test("the mode picker is fully keyboard-selectable and writes the underlying enum", async ({ mount, page }) => {
