@@ -1,6 +1,6 @@
 // Story module for the tooling-tier CTs (Spine-Testing §7 — a CT mounts ONLY from a non-test module).
 // These stages exist for design-audit-walker.ct.tsx, which runs the REAL in-page fact walker
-// (scripts/probes/design-audit-walker.ts) over them: the walker is a raw JS string evaluated in a page,
+// (tooling/src/ui-audit/ops/walker.ts) over them: the walker is a raw JS string evaluated in a page,
 // so a browser is the only tier that can prove its hit-area arithmetic at all.
 // Imports go through the SAME `@orb/ui/*` aliases the CT providers use — a relative path into
 // packages/ui would resolve a second module instance and mount blank.

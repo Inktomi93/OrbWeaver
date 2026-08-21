@@ -471,7 +471,7 @@
       }
     },
     {
-      "includes": ["tooling/src/snap/ops/stage.ts"],
+      "includes": ["tooling/src/snap/ops/stage.ts", "tooling/src/render-trace/ops/fire.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -709,7 +709,7 @@
         "tests/server/infra/image/index.int.test.ts",
         "tests/server/infra/providers/backends/local-light/image-embed.int.test.ts",
         "tooling/src/snap/ops/contrast.ts",
-        "scripts/probes/design-audit.ts"
+        "tooling/src/ui-audit/ops/pixels.ts"
       ],
       "linter": {
         "rules": {

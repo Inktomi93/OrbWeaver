@@ -15,7 +15,10 @@
   },
   "dependencies": {
     "@orb/kit": "workspace:*",
+    "@orb/server": "workspace:*",
+    "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
+    "@trpc/client": "catalog:",
     "sharp": "catalog:",
     "ts-morph": "catalog:"
   }

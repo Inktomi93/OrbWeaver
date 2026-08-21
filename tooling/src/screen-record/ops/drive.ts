@@ -1,0 +1,76 @@
+// Step dispatch onto the recording tape: the click MARKER (a fixed corner square that cycles color
+// at the EXACT dispatch of every --click/--jsclick) is what makes click->motion latency countable
+// on the rendered strip (1 tile = 120ms).
+import { errorMessage } from "@orb/kit/error-message";
+import { print } from "@orb/tooling/_shared/artifacts";
+import { settle } from "@orb/tooling/_shared/browser";
+import type { Step, StepRun } from "../contract/types.ts";
+
+const DEFAULT_STEP_SETTLE_MS = 600;
+const STEP_TIMEOUT_MS = 5000;
+
+// Marker palette — high-contrast cycle so consecutive clicks are tellable apart.
+const MARKER_COLORS = ["#ff2020", "#20ff20", "#20d0ff", "#ff20ff", "#ffd020", "#ffffff"];
+
+// The click marker: a fixed corner square, installed pre-navigation so it exists from first
+// paint. Raw string (not a function) — see _shared/browser.ts.
+export const MARKER_INIT_JS = `(() => {
+  const el = document.createElement("div");
+  el.id = "__probe-marker";
+  el.style.cssText =
+    "position:fixed;top:0;left:0;width:28px;height:28px;z-index:2147483647;background:#404040;pointer-events:none";
+  document.addEventListener("DOMContentLoaded", () => document.body.appendChild(el));
+})();`;
+
+/** Dispatch ONE non-pause step (throws on locator/timeout failure — counted by the caller). */
+async function dispatchStep(run: StepRun, step: Exclude<Step, { kind: "pause" }>): Promise<void> {
+  const { page } = run.session;
+  const loc = page.locator(step.selector).first();
+  if (step.kind === "jsclick") {
+    await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
+  } else {
+    await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
+  }
+  if (step.kind === "click" || step.kind === "jsclick") {
+    // Flip the marker in the same task as the dispatch — the video frame where the
+    // corner changes IS the click frame.
+    const color = MARKER_COLORS[run.clickIndex % MARKER_COLORS.length] as string;
+    run.clickIndex += 1;
+    await page.evaluate(`(() => { const m = document.getElementById("__probe-marker"); if (m) m.style.background = ${JSON.stringify(color)}; })()`);
+    run.clickTimes.push({ t: Date.now() - run.t0, label: `${step.kind} ${step.selector}` });
+    if (step.kind === "jsclick") {
+      await loc.evaluate("(el) => el.click()");
+    } else {
+      await loc.click({ timeout: STEP_TIMEOUT_MS });
+    }
+  } else if (step.kind === "hover") {
+    await loc.hover();
+  } else if (step.kind === "wheel") {
+    await loc.hover();
+    await page.mouse.wheel(0, step.dy);
+  } else if (step.kind === "fill") {
+    await loc.fill(step.value);
+  }
+}
+
+export async function runSteps(run: StepRun, steps: readonly Step[]): Promise<number> {
+  let failures = 0;
+  for (const step of steps) {
+    if (step.kind === "pause") {
+      // biome-ignore lint/performance/noAwaitInLoops: steps execute sequentially BY DESIGN — this is a scripted interaction tape, not parallel work.
+      await settle(run.session.page, step.ms);
+      continue;
+    }
+    const label = `${step.kind} ${step.selector}${step.kind === "wheel" ? `=${step.dy}` : ""}`;
+    run.stepTimeline.push({ t: Date.now() - run.t0, label });
+    try {
+      await dispatchStep(run, step);
+      // Small default settle so back-to-back steps don't merge on tape.
+      await settle(run.session.page, DEFAULT_STEP_SETTLE_MS);
+    } catch (e) {
+      failures += 1;
+      print(`STEP FAILED  ${label}: ${errorMessage(e)}`);
+    }
+  }
+  return failures;
+}
