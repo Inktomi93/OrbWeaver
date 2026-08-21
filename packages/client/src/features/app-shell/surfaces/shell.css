@@ -900,6 +900,15 @@
   max-block-size: min(14rem, 30dvh);
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* …AND THE CAP IS OPERABLE, which is not free (side-eye 2026-08-21 P3). The primitive's viewport opens
+   * `pointer-events-none` so an EMPTY OVERLAY stack never eats clicks on whatever it floats over — but
+   * this placement is not an overlay: the band is a flow row that is `display: none` while it holds no
+   * notice, so there is nothing to click through to and nothing to protect. Left at the default, only the
+   * notice CARDS (which re-enable it for themselves) took the wheel; the gaps between them handed it to
+   * the reading surface underneath, and the notices the cap clips were reachable or not depending on which
+   * pixel the pointer happened to be over. MEASURED: wheeling in a 8px inter-card gap left `scrollTop` at
+   * 0 with 229px of notice below the fold. */
+  pointer-events: auto;
 }
 
 .shell-content {
