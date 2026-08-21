@@ -187,6 +187,39 @@ test("the shell band sheds overlay padding and caps a burst without covering con
   expect(overlaps(await settledBox(page.getByTestId("band-transcript")), band)).toBe(false);
 });
 
+// A CAP THAT CLIPS MUST ALSO SCROLL (side-eye 2026-08-21 P3). The test above cannot see the difference:
+// three SHORT notices fit inside `max-block-size: min(14rem, 30dvh)`, so `band.height <= 224` holds
+// whether the cap bites or not. Driven by TALL notices the cap genuinely bites — and then the notices
+// past the window are only readable if the capped viewport is operable, which for a pointer user means
+// the wheel. The viewport's own class list opens with `pointer-events-none` (the primitive's default, so
+// an EMPTY overlay stack never eats clicks on the controls it floats over), and in the band that default
+// hands the wheel to the transcript underneath instead of to the scroller that is clipping the notice.
+test("a capped burst is READABLE: the band's own scroller takes the wheel, not the transcript beneath it", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mount(<AppShellNoticeBandStory />);
+  const raise = page.getByTestId("raise-tall-notice");
+  await raise.click();
+  await raise.click();
+  await raise.click();
+  const viewport = page.locator('[data-slot="notice-band"] [data-slot="toast-viewport"]');
+  await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(3);
+  // The cap BITES — without this the wheel assertion below would be vacuous (nothing to scroll).
+  await expect.poll(() => viewport.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+  const before = await settledBox(page.getByTestId("band-transcript"));
+
+  // Aim at the GAP BETWEEN two notices, not at a card. A toast root re-enables pointer events for
+  // itself, so a wheel over one already reaches the scroller; the gaps are the pixels the region's own
+  // `pointer-events-none` gives away, and a reader aiming at the stack rather than at one card lands
+  // there. Every pixel of the capped window belongs to the scroller or the cap is only sometimes real.
+  const firstNotice = await settledBox(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]').first());
+  const box = await settledBox(viewport);
+  await page.mouse.move(box.x + box.width / 2, firstNotice.y + firstNotice.height + 4);
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => viewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  // …and the reading surface underneath did not move instead (the wheel was not handed through).
+  expect((await settledBox(page.getByTestId("band-transcript"))).y).toBe(before.y);
+});
+
 test("with nothing to say the band costs zero pixels — an empty shell is byte-for-byte the old layout", async ({ mount, page }) => {
   await mount(<AppShellNoticeBandStory />);
   // The band element exists (its ref is what the outlet portals into) and renders NOTHING.
@@ -1295,9 +1328,21 @@ async function readingPrimacyViolationAt(page: Page, width: number): Promise<Pri
       }),
   );
   const deficit = await page.locator(".shell-content-primacy-sentinel").evaluate((element) => element.getBoundingClientRect().width);
-  const mode = await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode");
-  const [, list = 0, content = 0, context = 0] = await shellTracks(page);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const expectedMode = deficit > 0 ? "collapsed" : "docked";
+  // BARRIER ON THE SETTLED MODE, never a one-shot read after two rAFs. The sentinel is rendered CSS and
+  // is correct the moment layout settles, but the mode is three hops downstream of it (ResizeObserver →
+  // useSyncExternalStore publish → React commit) — an unbarriered `getAttribute` reads whatever that
+  // chain happens to have reached, which is a stopwatch race that passes alone and flakes under load.
+  // The poll is bounded and its failure is REPORTED, not thrown: this helper's whole value is the
+  // contiguous failing interval it collects across a width sweep, which a hard assertion would truncate
+  // at the first bad width.
+  await expect
+    .poll(() => contextPanel.getAttribute("data-panel-mode"), { intervals: [20, 50, 100], timeout: 750 })
+    .toBe(expectedMode)
+    .catch(() => undefined);
+  const mode = await contextPanel.getAttribute("data-panel-mode");
+  const [, list = 0, content = 0, context = 0] = await shellTracks(page);
   const primacyFails = mode === "docked" && content + 0.5 < (list + context) / 2;
 
   const contentTitle = page.locator(".shell-content").getByText("Presets", { exact: true }).first();
@@ -1496,6 +1541,42 @@ for (const profileName of APPEARANCE_PROFILE_NAMES) {
   });
 }
 
+// #375's SECTION-SHAPE GAP: every crossover test above drives PRESETS, whose CONTEXT pane defaults DOCKED
+// (the O-19 ruling). FIVE of the eight sections are the other shape — list docked, context COLLAPSED
+// (chats, characters, config, corpus, databank) — and they meet the same rendered crossover differently:
+// the pane is CLOSED on both sides of it, so what moves is what the toggle PRODUCES. Constrained, the
+// click is a transient sheet the geometry can honour; past the crossover the same click is the persisted
+// dock, and it must not violate the primacy the crossover is defined by. A suite that only ever drove the
+// docked-default shape pinned the auto-dock and left the other 5/8 of the app unpinned.
+test("#375 a context-default-COLLAPSED section meets the crossover with a different toggle result", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const contextToggle = shell.getByRole("button", { name: CONTEXT_TOGGLE_RE });
+  const crossover = await renderedPrimacyCrossover(page);
+
+  // CONSTRAINED side: chats' own defaults — the list docked beside a closed detail pane — and the toggle
+  // opens the transient sheet, dismissible from the keyboard.
+  await page.setViewportSize({ width: crossover.constrained, height: 900 });
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await contextToggle.click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await page.keyboard.press("Escape");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+
+  // EQUALITY side: nothing auto-docks (that is the docked-default section's arm, not this one) — the pane
+  // the user closed stays closed, and NOW the toggle earns a real dock.
+  await page.setViewportSize({ width: crossover.equality, height: 900 });
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await contextToggle.click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  const [, list = 0, content = 0, context = 0] = await shellTracks(page);
+  expect(content + 0.5).toBeGreaterThanOrEqual((list + context) / 2);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
 test("resolvePanel: a docked-default panel is docked >64rem, CLOSED (collapsed) by default in 48-64rem, and the unchanged openOverlayPanel regime <48rem", async ({
   mount,
   page,
@@ -1516,6 +1597,108 @@ test("resolvePanel: a docked-default panel is docked >64rem, CLOSED (collapsed) 
   // the panel is a collapsed sheet by default, unaffected by the auto-overlay derivation. (A section that
   // DOES declare a list resolves `docked` here since the ONE-SHELL rule; that arm is pinned at the foot.)
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+});
+
+// ── #383: A LIST TOGGLE MUST NOT ORPHAN AN OPEN CONTEXT SHEET ────────────────────────────────────────
+// Hand-traced by side-eye 2026-08-21 and confirmed on this tree. At a content-constrained desktop the
+// CONTEXT pane is an AUTO-OVERLAY, and its open/closed truth lives in `openOverlayPanel`; docked-wide
+// CONTEXT reads the OTHER channel (the persisted `panelOverrides`). The regime itself is gated on the
+// LIST's persisted override (`useShellLayout`'s `contextAutoOverlay`), so hiding the list MOVED CONTEXT
+// between the two channels: the open sheet and its scrim collapsed with no user act, the now-meaningless
+// request survived, and re-showing the list resurrected the sheet unbidden. It affects the five sections
+// shaped list-docked + context-collapsed (chats, characters, config, corpus, databank).
+//
+// The pin is the trace itself — open the sheet, hide the list, show it again — asserted in BOTH width
+// regimes, because a fix that merely CLEARED the orphaned request would still vanish the sheet, and one
+// that dropped the LIST from the regime gate would change the unconstrained arm. A single width would
+// prove neither: the constrained arm is where the defect lives, the unconstrained arm is what must not
+// move.
+
+/** Force the CONTENT-primacy deficit that puts CONTEXT in its auto-overlay regime, WITHOUT touching a
+ *  viewport breakpoint or the appearance response: constrain the CSS-owned prospective tracks and wait
+ *  for the shell's own sentinel to render the deficit the observer publishes. Returns once the rendered
+ *  geometry says "constrained" — the settled state, never a bare rAF pair. */
+async function forceConstrainedGeometry(page: Page): Promise<void> {
+  await page.locator(".shell-grid").evaluate((element) => {
+    element.style.setProperty("--dimension-panel-floor", "35rem");
+    element.style.setProperty("--dimension-panel-context-step", "35rem");
+  });
+  await expect.poll(() => page.locator(".shell-content-primacy-sentinel").evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(0);
+}
+
+test("#383 an OPEN context sheet survives hiding and re-showing the LIST (the constrained regime)", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const listToggle = shell.getByRole("button", { name: LIST_TOGGLE_RE });
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await forceConstrainedGeometry(page);
+
+  // The user opens the detail pane: at CONTENT's floor it is a slide-over with a scrim behind it.
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await expect(page.locator(".shell-scrim")).toHaveAttribute("data-visible", "true");
+
+  // HIDE THE LIST. Nothing about that act was addressed to CONTEXT, so CONTEXT must still be on screen.
+  // Its PRESENTATION changes — the freed width is exactly what the auto-overlay existed to protect, so it
+  // lands as a dock — but it does not disappear. (Pre-fix: "collapsed", the silent vanish.)
+  await listToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toContainText("chats context pane");
+
+  // SHOW IT AGAIN. Both panes are back in the both-docked regime, so CONTEXT is a sheet again — still the
+  // one the user opened, never re-opened for them. Continuous, in both directions.
+  await listToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+});
+
+test("#383 a CLOSED context sheet is not resurrected by a LIST toggle (the other half of the orphan)", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const contextToggle = shell.getByRole("button", { name: CONTEXT_TOGGLE_RE });
+  const listToggle = shell.getByRole("button", { name: LIST_TOGGLE_RE });
+  await forceConstrainedGeometry(page);
+
+  // Open it, then close it — the user's own dismissal.
+  await contextToggle.click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await contextToggle.click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+
+  // A pane the user closed stays closed across the same round-trip that carries an OPEN one.
+  await listToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await listToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+});
+
+test("#383 UNCONSTRAINED, the same three clicks stay a plain wide dock (the arm that must not move)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1800, height: 900 });
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const listToggle = shell.getByRole("button", { name: LIST_TOGGLE_RE });
+  // The control's premise, measured rather than assumed: at this width the shell renders NO primacy
+  // deficit, so there is no auto-overlay regime for a list toggle to move CONTEXT in or out of.
+  await expect.poll(() => page.locator(".shell-content-primacy-sentinel").evaluate((element) => element.getBoundingClientRect().width)).toBe(0);
+
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  await listToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  await listToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  // …and no slide-over was invented on the way: nothing floats, so nothing is scrimmed.
+  await expect(page.locator(".shell-scrim")).toHaveAttribute("data-visible", "false");
 });
 
 test("resolvePanel: an explicit collapsed/overlay override passes through identically across all three regimes", async ({ mount, page }) => {

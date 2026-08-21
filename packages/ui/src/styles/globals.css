@@ -93,7 +93,15 @@
 }
 
 /* A teaching surface may promote its opening statement one ratified step without retuning every shared
- * EmptyState consumer. The root is its own inline-size container, so the narrow arm stays contained. */
+ * EmptyState consumer.
+ *
+ * IT IS UNLAYERED, AND THAT IS WHAT IT MEANS (side-eye 2026-08-21 P4 — this comment used to claim the
+ * opposite). The slot's own class list carries the container step-down (`@max-sm:text-body`, its
+ * variants.ts), but an unlayered rule beats every Tailwind utility regardless of specificity or container
+ * — the `tiers.css` list-row precedent — so a `focal` title holds the DISPLAY step at EVERY width,
+ * including inside a ~307px LIST pane. That is the arm: `focal` is the surface's one focal statement, and
+ * a statement that shrinks with its column is not one. A caller who wants the container response asks for
+ * the default step instead. Pinned by computed value in empty-state.ct.tsx, never by reading this file. */
 [data-slot="empty-state-title"][data-title-step="focal"] {
   font-size: var(--text-display);
   line-height: var(--leading-display);

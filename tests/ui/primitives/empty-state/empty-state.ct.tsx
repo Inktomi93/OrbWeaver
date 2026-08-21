@@ -37,6 +37,20 @@ test("the voice scales to the SURFACE: one step down inside a LIST-pane-width co
   await expect(component.locator(TITLE)).toHaveCSS("font-size", expected);
 });
 
+// …AND `focal` OPTS OUT OF THAT RESPONSE, deliberately (side-eye 2026-08-21 P4). The step ships as a
+// `data-title-step` attribute an UNLAYERED rule reads (globals.css), which beats the slot's own
+// `@max-sm:text-body` utility regardless of container — so the surface's one focal statement holds the
+// display step even in a LIST-pane-width column. The comment on that rule claimed the container still won;
+// this is the computed-value pin that keeps the two from disagreeing again in either direction.
+test("`focal` holds the DISPLAY step even in a LIST-pane-width container (the unlayered opt-out)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 307, height: 720 });
+  const component = await mount(<EmptyState description="Weave your first one." title="No characters yet" titleStep="focal" />);
+  const display = `${Number.parseFloat(TOKENS["text.display"].value) * REM}px`;
+  const narrowDefault = `${Number.parseFloat(TOKENS["text.body"].value) * REM}px`;
+  expect(display).not.toBe(narrowDefault);
+  await expect(component.locator(TITLE)).toHaveCSS("font-size", display);
+});
+
 // GAP-2 FENCE (2026-08-08 follow-up gap-audit): the whole CLASS of "a re-parent silently narrows a
 // component whose rendered width nothing asserts." EmptyState's root is a `@container` (contain:
 // inline-size), so a flex parent with `align-items: center` gives the box `align-self: center` and its

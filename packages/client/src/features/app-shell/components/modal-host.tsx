@@ -107,7 +107,11 @@ function DialogModal({
 }): ReactElement {
   const [focusReturn] = useState(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    return { fromYouSheet: trigger?.closest('[data-slot="you-sheet"]') !== null, trigger };
+    // `trigger?.closest(…) !== null` was INVERTED: with no capturable trigger the optional chain yields
+    // `undefined`, which is `!== null`, so "nobody had focus" classified as "opened from the You sheet"
+    // and `resolveFinalFocus` went hunting for a mobile sheet tab to hand focus to. Ask the two questions
+    // the flag actually means.
+    return { fromYouSheet: trigger !== null && trigger.closest('[data-slot="you-sheet"]') !== null, trigger };
   });
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
