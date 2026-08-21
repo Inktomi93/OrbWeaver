@@ -359,6 +359,7 @@ function ChatListBody({
           activeChatId={activeChatId}
           items={collection.items}
           listKey={beforeRecencyAt}
+          listReady={!collection.isPlaceholderData}
           listProps={collection.listProps}
           monthLabel={monthLabel}
           onClearSearch={onClearSearch}
@@ -376,6 +377,7 @@ interface ChatRowsProps {
   readonly items: readonly ChatListItem[];
   readonly listProps: ReturnType<typeof useChatListCollection>["listProps"];
   readonly listKey: number | null;
+  readonly listReady: boolean;
   readonly monthLabel: string | null;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
@@ -384,7 +386,18 @@ interface ChatRowsProps {
 }
 
 /** The search-empty → rows ladder. */
-function ChatRows({ activeChatId, items, listKey, listProps, monthLabel, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
+function ChatRows({
+  activeChatId,
+  items,
+  listKey,
+  listProps,
+  listReady,
+  monthLabel,
+  onClearSearch,
+  onDeletedChat,
+  onSelect,
+  query,
+}: ChatRowsProps): ReactElement {
   const actions = useChatListRowActions();
   if (items.length === 0) {
     // The server searched the whole active scope, not only the pages that happened to be loaded.
@@ -430,6 +443,7 @@ function ChatRows({ activeChatId, items, listKey, listProps, monthLabel, onClear
         onEndApproach={listProps.onEndApproach}
         renderItem={renderRow}
         resetScrollKey={listKey}
+        resetScrollReady={listReady}
       />
     </Stack>
   );
