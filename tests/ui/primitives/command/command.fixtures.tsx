@@ -3,7 +3,7 @@
 // DerivedItemsStory proves the real consumer pattern — a parent that re-renders and passes a
 // freshly-mapped array of CommandItems (the R7 "collection-prop" acceptance shape, adapted to
 // cmdk's children-based API: items keyed + valued by id, not inferred from textContent).
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandStatus } from "@orb/ui/command";
+import { Command, CommandAuxiliaryButton, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandStatus } from "@orb/ui/command";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
@@ -39,6 +39,27 @@ export function CommandPaletteStory(): ReactElement {
       </Command>
       <p data-testid="selected">{selected}</p>
       <p data-testid="escapes">{escapes}</p>
+    </div>
+  );
+}
+
+/** A non-option button sharing a cmdk list with a selected command row. */
+export function AuxiliaryControlStory(): ReactElement {
+  const [activated, setActivated] = useState(false);
+  const [selected, setSelected] = useState("");
+  return (
+    <div>
+      <Command label="Command palette">
+        <CommandInput aria-label="Search" />
+        <CommandList>
+          <CommandItem onSelect={setSelected} value="home">
+            Home
+          </CommandItem>
+          <CommandAuxiliaryButton onClick={(): void => setActivated(true)}>Retry</CommandAuxiliaryButton>
+        </CommandList>
+      </Command>
+      <p data-testid="auxiliary-activated">{activated ? "true" : "false"}</p>
+      <p data-testid="auxiliary-selected">{selected}</p>
     </div>
   );
 }

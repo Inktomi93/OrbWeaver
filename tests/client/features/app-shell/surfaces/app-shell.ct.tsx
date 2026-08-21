@@ -516,6 +516,39 @@ for (const handoff of [
   });
 }
 
+test("MOBILE: an ordinary You-sheet close still returns focus to its durable trigger", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  const you = shell.getByRole("button", { name: "You" });
+  await you.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(you).toBeFocused();
+});
+
+test("MOBILE: You-sheet Jump handoff keeps Search focused through Drawer cleanup and accepts immediate typing", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  const you = shell.getByRole("button", { name: "You" });
+  await you.click();
+  await page.getByRole("button", { name: "Jump to…" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Jump to…" });
+  const input = dialog.getByRole("combobox");
+  await expect(input).toBeFocused();
+  await page.keyboard.type("r");
+  await expect(input).toHaveValue("r");
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))));
+  await expect(input).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(you).toBeFocused();
+});
+
 test("filtering the command palette keeps the dialog and search geometry stable", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
   const shell = await mount(<AppShellStory />);

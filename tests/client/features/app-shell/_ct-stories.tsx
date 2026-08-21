@@ -779,10 +779,10 @@ export function AppearanceReadingSectionStory(): ReactElement {
 }
 
 /** The Effects appearance section. */
-export function AppearanceEffectsSectionStory(): ReactElement {
+export function AppearanceEffectsSectionStory({ width = 720 }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ width: 720, padding: 16 }}>
+      <div style={{ width, padding: 16 }}>
         <AppearanceEffectsSection sectionId="appearance-effects" />
       </div>
     </CtDataProviders>
