@@ -362,7 +362,7 @@
           ]
         }
       ],
-      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation \u2014 R1-R5 costed options for the owner pick.",
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
       "evidence": [
         "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
         "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
@@ -378,7 +378,7 @@
       "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
       "verifiedAt": "2026-08-18",
       "evidence": [
-        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 \u2014 the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
         "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
       ],
       "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
@@ -431,7 +431,7 @@
       "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
       "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session \u2014 lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
         "pnpm check:docs (2026-08-19: green)"
       ],
       "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
@@ -1219,10 +1219,10 @@
         "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
         "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
       ],
-      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 \u2014 awaiting detailed-mockup sign-off (#159), nothing builds before it.",
+      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 — awaiting detailed-mockup sign-off (#159), nothing builds before it.",
       "claims": [
         {
-          "claim": "Owner picked Observatory V1; detailed mockups gate any build \u2014 mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
+          "claim": "Owner picked Observatory V1; detailed mockups gate any build — mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
           "evidence": [
             {
               "kind": "issue",
@@ -1249,7 +1249,7 @@
         "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
         "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
       ],
-      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) \u2014 all resolved at merge.",
+      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
       "claims": [
         {
           "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
@@ -1359,7 +1359,7 @@
         "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
         "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
         "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
-        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) \u2014 re-attested post-merge 0cecddf97"
+        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97"
       ],
       "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
       "claims": [
@@ -1412,6 +1412,52 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
+      "assignedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+        "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
+        "#363 confirmed live on the board at recovery"
+      ],
+      "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
+      "assignedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "full read 1-77 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+        "receipts are Codex's gitignored snap artifacts; not re-verified here"
+      ],
+      "summary": "Codex's command-palette canonical graduation: palette passes all visual/state/semantic/geometry rows (160 matrix rows); HOLD is #363 only; earlier compact no-results P2 retracted post-#355."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
+      "assignedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "full read 1-88 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+        "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
+      ],
+      "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
     }
   ]
 }

@@ -22799,6 +22799,75 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 77,
+      "bytes": 7016,
+      "sha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-21"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
+        "assignedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+        "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+        "verifiedAt": "2026-08-21",
+        "evidence": [
+          "full read 1-77 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+          "receipts are Codex's gitignored snap artifacts; not re-verified here"
+        ],
+        "summary": "Codex's command-palette canonical graduation: palette passes all visual/state/semantic/geometry rows (160 matrix rows); HOLD is #363 only; earlier compact no-results P2 retracted post-#355."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 181,
+      "bytes": 12669,
+      "sha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-21"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
+        "assignedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+        "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+        "verifiedAt": "2026-08-21",
+        "evidence": [
+          "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+          "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
+          "#363 confirmed live on the board at recovery"
+        ],
+        "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md",
       "lane": "reviews",
       "issue": 7,
@@ -22866,6 +22935,40 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 88,
+      "bytes": 8274,
+      "sha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-21"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
+        "assignedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+        "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+        "verifiedAt": "2026-08-21",
+        "evidence": [
+          "full read 1-88 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+          "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
+        ],
+        "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
       },
       "receiptCurrent": true
     },
