@@ -121,6 +121,23 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
     expect(listChats.mock.calls[0]?.[0]).not.toHaveProperty("limit");
   });
 
+  test("the displayed-recency bound is validated and forwarded verbatim", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    await caller(ctx).chat.listChats({ beforeRecencyAt: 1_593_561_600_000 });
+
+    expect(listChats).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), beforeRecencyAt: 1_593_561_600_000 });
+  });
+
+  test("a fractional displayed-recency bound is a BAD_REQUEST; the verb never runs", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    await expect(caller(ctx).chat.listChats({ beforeRecencyAt: 1.5 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(listChats).not.toHaveBeenCalled();
+  });
+
   // The input is deliberately NON-strict, and that tolerance is LOAD-BEARING: tRPC's `infiniteQueryOptions`
   // sends its own `direction` field alongside our page params (observed on the wire — `{"limit":30,
   // "direction":"forward"}`), so a `.strict()` here would 400 the live chat-library pager. The COROLLARY is

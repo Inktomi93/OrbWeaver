@@ -101,6 +101,7 @@ import { ChatCastBar } from "../../../../packages/client/src/features/chat/compo
 import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section.tsx";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
+import { ChatListHeader } from "../../../../packages/client/src/features/chat/components/chat-list-header.tsx";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu.tsx";
 import { ChatRecallIndicator } from "../../../../packages/client/src/features/chat/components/chat-recall-indicator.tsx";
 import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header.tsx";
@@ -1235,6 +1236,19 @@ export function ChatListSurfaceStory({ activeChatId = null, width = 320 }: ChatL
   return (
     <CtDataProviders>
       <ChatListInner activeChatId={activeChatId} width={width} />
+    </CtDataProviders>
+  );
+}
+
+/** The chat list's production header band at an explicit pane width. */
+export function ChatListHeaderStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <header className="shell-panel-header" style={{ width }}>
+          <ChatListHeader />
+        </header>
+      </div>
     </CtDataProviders>
   );
 }

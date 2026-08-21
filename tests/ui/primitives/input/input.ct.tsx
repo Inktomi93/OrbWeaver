@@ -10,6 +10,30 @@ import { expect, test } from "@playwright/experimental-ct-react";
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
 
+test("full motion: focus is immediate and never transitions paint-only outline color", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const input = await mount(<Input aria-label="Motion-safe input" />);
+  await input.focus();
+  const focus = await input.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { boxShadow: style.boxShadow, transitionProperty: style.transitionProperty };
+  });
+  expect(focus.boxShadow).not.toBe("none");
+  expect(focus.transitionProperty).not.toContain("outline-color");
+});
+
+test("reduced motion: focus is immediate and the global floor removes transitions", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const input = await mount(<Input aria-label="Motion-safe input" />);
+  await input.focus();
+  const focus = await input.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { boxShadow: style.boxShadow, transitionProperty: style.transitionProperty };
+  });
+  expect(focus.boxShadow).not.toBe("none");
+  expect(focus.transitionProperty).toBe("none");
+});
+
 test("wears the bg-input token", async ({ mount }) => {
   const input = await mount(<Input />);
   await expect(input).toHaveCSS("background-color", TOKENS["color.input"].value);

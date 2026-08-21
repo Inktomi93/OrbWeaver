@@ -7,15 +7,16 @@
 // a per-chat participant resolve — an 872-chat import turned one pane mount into ~880 queries and ~872
 // rendered rows. The read is now a keyset page and the rows ride `<VirtualList>`.
 //
-// BOTH narrowing axes resolve SERVER-side, and both are part of the query INPUT — so they are part of the
-// key, and changing either resets the pages rather than filtering a stale set:
+// ALL narrowing axes resolve SERVER-side, and each is part of the query INPUT — so changing one resets the
+// pages rather than filtering a stale set:
 //   • `characterId` — the D18 projection ("chats with her"). It used to be a client `.filter()` over the
 //     whole library (`lib/chats-with-character.ts`, deleted), the exact pull-everything-to-show-three shape
 //     the paging exists to kill. `null` is the unprojected library.
 //   • `search` — the chat search box (owner ruling 2026-08-09). Client-side filtering over a KEYSET list can
 //     only ever search what it has fetched, so the predicate moved to the server whole: title OR character
-//     seat name OR the newest message's body (`filter-chats.ts`, deleted). Pass the DEBOUNCED value —
+//     seat name OR the newest message's body over the active server scope (`filter-chats.ts`, deleted). Pass the DEBOUNCED value —
 //     every distinct string here is a round trip. `""` is the unsearched list.
+//   • `beforeRecencyAt` — an exclusive ceiling over the row's displayed recency. `null` is the latest page.
 
 import type { CharacterId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -43,12 +44,13 @@ type ChatListItem = ChatListPage["items"][number];
 // it: this read is forward-only by construction (one keyset order, `initialCursor: null`), so a callback
 // whose whole job was to say "there is no previous page" is a decoration once nothing evicts one.
 export const useChatListCollection = createCollectionSurface({
-  query: (trpc: Trpc, params: { readonly characterId: CharacterId | null; readonly search: string }) =>
+  query: (trpc: Trpc, params: { readonly characterId: CharacterId | null; readonly search: string; readonly beforeRecencyAt?: number | null }) =>
     trpc.chat.listChats.infiniteQueryOptions(
       {
         limit: CHAT_LIST_PAGE_SIZE,
         ...(params.characterId === null ? {} : { characterId: params.characterId }),
         ...(params.search === "" ? {} : { search: params.search }),
+        ...(params.beforeRecencyAt === null || params.beforeRecencyAt === undefined ? {} : { beforeRecencyAt: params.beforeRecencyAt }),
       },
       {
         initialCursor: null,

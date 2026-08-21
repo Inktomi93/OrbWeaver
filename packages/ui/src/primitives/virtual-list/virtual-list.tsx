@@ -44,6 +44,16 @@ export interface VirtualListProps<T> {
    * would fight them. Distinct from `scrollToIndex`, which is an ongoing imperative pin, not a restore.
    */
   readonly initialScrollOffset?: number;
+  /**
+   * Resets the live scroll offset to the top when this settled scope identity changes, without remounting.
+   */
+  readonly resetScrollKey?: string | number | null;
+  /**
+   * Whether the rows belong to `resetScrollKey`. Set false while a query shows the previous scope's
+   * placeholder rows; the handshake waits, then invalidates measurements and lands index zero when true.
+   * @defaultValue true
+   */
+  readonly resetScrollReady?: boolean;
   /** Fires when the rendered window's last index comes within `endApproachRows` of the tail. */
   readonly onEndApproach?: () => void;
   /** Tail-proximity threshold in rows for `onEndApproach`. @defaultValue 8 */
@@ -87,6 +97,8 @@ export function VirtualList<T>({
   renderItem,
   scrollToIndex,
   initialScrollOffset,
+  resetScrollKey,
+  resetScrollReady = true,
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
   className,
@@ -94,6 +106,7 @@ export function VirtualList<T>({
   fadeEdge = false,
 }: VirtualListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const previousResetScrollKey = useRef(resetScrollKey);
 
   const itemAt = (index: number): T => {
     const item = items.at(index);
@@ -124,6 +137,18 @@ export function VirtualList<T>({
     useFlushSync: false,
   });
 
+  // TanStack's default resize anchor reads its cached scroll offset. A programmatic landing updates the
+  // DOM before the scroll event refreshes that cache, so rows measured in that seam can be misclassified
+  // as above the viewport and push the list away from the requested target. Preserve the default policy,
+  // but ask the owned scroll node for the live offset.
+  useLayoutEffect((): (() => void) => {
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance): boolean =>
+      item.start < (scrollRef.current?.scrollTop ?? 0) && (!instance.itemSizeCache.has(item.key) || instance.scrollDirection !== "backward");
+    return (): void => {
+      virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
+    };
+  }, [virtualizer]);
+
   // The unbounded-window tripwire — thrown, not warned.
   useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "VirtualList"), []);
 
@@ -152,6 +177,23 @@ export function VirtualList<T>({
     }
     el.toggleAttribute("data-more", totalSize - el.scrollTop - el.clientHeight > EDGE_EPSILON_PX);
   }, [fadeEdge, totalSize]);
+
+  // Reset a changed scope in place: remounting can expose fresh rows before the direct position owner runs.
+  useLayoutEffect(() => {
+    if (!resetScrollReady || Object.is(previousResetScrollKey.current, resetScrollKey)) {
+      return;
+    }
+    previousResetScrollKey.current = resetScrollKey;
+    virtualizer.measure();
+    const targetWindow = scrollRef.current?.ownerDocument.defaultView;
+    if (targetWindow === null || targetWindow === undefined) {
+      return;
+    }
+    // `measure()` schedules the new scope's virtual geometry. Land only after React commits that shorter
+    // viewport and the browser clamps the old large-list offset; an immediate write loses that race.
+    const frame = targetWindow.requestAnimationFrame(() => virtualizer.scrollToIndex(0, { align: "start" }));
+    return (): void => targetWindow.cancelAnimationFrame(frame);
+  }, [resetScrollKey, resetScrollReady, virtualizer, virtualizer.measure, virtualizer.scrollToIndex]);
 
   // Fires only when the value changes, not on every render. align: "end" is the pin-to-bottom shape.
   useLayoutEffect(() => {

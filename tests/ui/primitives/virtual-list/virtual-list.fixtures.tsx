@@ -2,7 +2,7 @@
 // props (getItemKey/estimateSize/renderItem) live HERE; the tests pass only numbers/strings.
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
-import { Component, useState } from "react";
+import { Component, useRef, useState } from "react";
 
 interface FixtureItem {
   readonly id: string;
@@ -272,6 +272,106 @@ export function InitialOffsetList({ itemCount, offsetPx }: { readonly itemCount:
   );
 }
 
+/** Scope-reset stress: both scopes have dynamic measured heights and disjoint stable keys. */
+function scopeRowHeight(index: number): number {
+  const remainder = index % 3;
+  if (remainder === 0) {
+    return 64;
+  }
+  if (remainder === 1) {
+    return 48;
+  }
+  return 40;
+}
+
+export function ResetScopeList(): ReactElement {
+  const [scopeChanged, setScopeChanged] = useState(false);
+  const [itemsSettled, setItemsSettled] = useState(false);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const items = Array.from({ length: itemsSettled ? 30 : 906 }, (_, index) => ({
+    id: `${itemsSettled ? "after" : "before"}-${String(index)}`,
+    label: `${itemsSettled ? "After" : "Before"} ${String(index)}`,
+  }));
+  return (
+    <div ref={hostRef}>
+      <button data-testid="change-scope" onClick={(): void => setScopeChanged(true)} type="button">
+        scope
+      </button>
+      <button
+        data-testid="settle-scope"
+        onClick={(): void => {
+          const scrollElement = hostRef.current?.querySelector<HTMLElement>('[data-slot="virtual-list-scroll"]');
+          const targetWindow = scrollElement?.ownerDocument.defaultView;
+          targetWindow?.requestAnimationFrame(() => {
+            if (scrollElement !== null && scrollElement !== undefined) {
+              // Model the browser's old-offset clamp after the shorter scope commits but before the
+              // virtualizer's deferred landing. The rejected immediate landing loses this ordering.
+              scrollElement.scrollTop = 1000;
+              scrollElement.dataset["clampEvents"] = String(Number(scrollElement.dataset["clampEvents"] ?? "0") + 1);
+            }
+          });
+          setItemsSettled(true);
+        }}
+        type="button"
+      >
+        settle
+      </button>
+      <div style={{ height: 240 }}>
+        <VirtualList
+          aria-label="Reset rows"
+          className="h-full"
+          estimateSize={(): number => 40}
+          gapToken="tight"
+          getItemKey={(item): string => item.id}
+          items={items}
+          renderItem={(item, index): ReactElement => (
+            <button style={{ height: scopeRowHeight(index) }} type="button">
+              {item.label}
+            </button>
+          )}
+          resetScrollKey={scopeChanged ? 1 : 0}
+          resetScrollReady={itemsSettled === scopeChanged}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Reset lifecycle fixture: separate settled scope changes let CT hold and reorder animation frames. */
+export function ResetScopeLifecycleList(): ReactElement {
+  const [scope, setScope] = useState(0);
+  const items = Array.from({ length: 120 }, (_, index) => ({
+    id: `scope-${String(scope)}-${String(index)}`,
+    label: `Scope ${String(scope)} row ${String(index)}`,
+  }));
+  return (
+    <div>
+      <button data-testid="scope-a" onClick={(): void => setScope(1)} type="button">
+        scope A
+      </button>
+      <button data-testid="scope-b" onClick={(): void => setScope(2)} type="button">
+        scope B
+      </button>
+      <div data-testid="active-scope">{scope}</div>
+      <div style={{ height: 240 }}>
+        <VirtualList
+          aria-label="Lifecycle reset rows"
+          className="h-full"
+          estimateSize={(): number => 40}
+          getItemKey={(item): string => item.id}
+          items={items}
+          renderItem={(item): ReactElement => (
+            <button style={{ height: 40 }} type="button">
+              {item.label}
+            </button>
+          )}
+          resetScrollKey={scope}
+        />
+      </div>
+    </div>
+  );
+}
+
 /** `aria-label` passthrough onto the `role="list"` scroll container. */
 export function AriaLabelList({ itemCount, ariaLabel }: { readonly itemCount: number; readonly ariaLabel: string }): ReactElement {
   const items = makeItems(itemCount);
@@ -285,6 +385,41 @@ export function AriaLabelList({ itemCount, ariaLabel }: { readonly itemCount: nu
         renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
         className="h-full"
       />
+    </div>
+  );
+}
+
+/** Shared-consumer stress harness: measured height, stable-key reorder, scrollport resize, then deep scroll. */
+export function DynamicLayoutList(): ReactElement {
+  const [tall, setTall] = useState(false);
+  const [reversed, setReversed] = useState(false);
+  const [listHeight, setListHeight] = useState(200);
+  const items = reversed ? makeItems(80).reverse() : makeItems(80);
+  return (
+    <div>
+      <button type="button" data-testid="toggle-height" onClick={(): void => setTall((value) => !value)}>
+        height
+      </button>
+      <button type="button" data-testid="reorder" onClick={(): void => setReversed((value) => !value)}>
+        reorder
+      </button>
+      <button type="button" data-testid="resize" onClick={(): void => setListHeight((value) => (value === 200 ? 280 : 200))}>
+        resize
+      </button>
+      <div style={{ height: listHeight }}>
+        <VirtualList
+          aria-label="Dynamic rows"
+          className="h-full"
+          estimateSize={(): number => 40}
+          getItemKey={(item): string => item.id}
+          items={items}
+          renderItem={(item): ReactElement => (
+            <button style={{ height: tall && item.id === "fixture-0" ? 96 : 40 }} type="button">
+              {item.label}
+            </button>
+          )}
+        />
+      </div>
     </div>
   );
 }
