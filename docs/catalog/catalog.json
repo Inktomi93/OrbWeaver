@@ -10556,10 +10556,10 @@
         "authority": "design",
         "fullRead": true,
         "verifiedSha256": "6ccdce55eede642909ea1aa584b77a7763bdc20abcb28bd5df8aded96d94c745",
-        "verifiedCommit": "d10c92825a445534f5555ce431733908689f8a17",
+        "verifiedCommit": "42ab04f2c6b28a5dcd438b622f63dda6f269dd2b",
         "verifiedAt": "2026-08-20",
         "evidence": [
-          "docs/design/chat-date-navigation-207.md:1-56 (design; full read at d10c92825a445534f5555ce431733908689f8a17; implementation parent 2e5eb24e5c1a9e162ee2b5eb608337067e553e30)",
+          "docs/design/chat-date-navigation-207.md:1-56 (design; full read at 42ab04f2c6b28a5dcd438b622f63dda6f269dd2b; implementation parent 1ceef14a0b40b2a027016a191bf4ca6eecce4f24)",
           "packages/server/src/domain/chat/persistence/queries.ts:349 (exclusive displayed-recency scope)",
           "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:92 (month boundary) and :413 (virtual-list reset)",
           "focused behavioral verification: server chat read/router 189/189; chat-list component 37/37"
