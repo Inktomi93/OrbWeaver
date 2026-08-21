@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "eaa11776-ce7d-444f-ae88-2b5c945d7ee4",
+  "id": "babb3525-bc20-4b9b-9511-d2facafb0f6c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1450,6 +1450,12 @@
           "name": "chat_participants_chat_user_unique",
           "columns": ["chat_id", "user_id"],
           "isUnique": true
+        },
+        "chat_participants_chat_host_unique": {
+          "name": "chat_participants_chat_host_unique",
+          "columns": ["chat_id"],
+          "isUnique": true,
+          "where": "role = 'host' and left_seq is null"
         },
         "chat_participants_chat_idx": {
           "name": "chat_participants_chat_idx",

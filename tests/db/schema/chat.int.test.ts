@@ -634,6 +634,94 @@ test("(chatId,userId) is UNIQUE for humans; character rows (null userId) coexist
   expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toHaveLength(3);
 });
 
+// ── chat_participants: the ONE-PRESENT-HOST partial UNIQUE (chat_participants_chat_host_unique) ──────
+// The host is the chat's ONE authority + funding source (D18). Before this index the rule was writer
+// discipline only, and a double-host row double-counted every host-keyed read (#382 fixed the READER;
+// this is the belt above it). The index is PARTIAL — `role='host' AND left_seq IS NULL` — so departed
+// hosts (the handoff history) and any number of members stay unconstrained.
+
+test("a chat admits only ONE present host — a second present host row is refused", async () => {
+  const db = await freshDb();
+  const first = await seedUser(db, { id: "user_host_one" });
+  const second = await seedUser(db, { id: "user_host_two" });
+  const chatId = await seedChat(db, { id: "chat_one_host" });
+
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>("chat_participant_host_one"),
+    chatId,
+    kind: "human",
+    userId: first,
+    role: "host",
+    joinSeq: 0,
+  });
+
+  let caught: unknown;
+  try {
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_host_two"),
+      chatId,
+      kind: "human",
+      userId: second,
+      role: "host",
+      joinSeq: 1,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("unique");
+  // The defect this pins: without the index BOTH rows land and every host-keyed read sees two.
+  expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toHaveLength(1);
+});
+
+test("the one-host index is PARTIAL: a DEPARTED host, members, and other chats' hosts are unconstrained", async () => {
+  const db = await freshDb();
+  const outgoing = await seedUser(db, { id: "user_host_outgoing" });
+  const incoming = await seedUser(db, { id: "user_host_incoming" });
+  const bystander = await seedUser(db, { id: "user_host_bystander" });
+  const chatId = await seedChat(db, { id: "chat_host_partial" });
+  const otherChatId = await seedChat(db, { id: "chat_host_partial_other" });
+
+  // A host who LEFT (leftSeq stamped) is out of the index — the incoming host coexists with the record.
+  await db.insert(chatParticipants).values([
+    { id: castId<ChatParticipantId>("chat_participant_host_left"), chatId, kind: "human", userId: outgoing, role: "host", joinSeq: 0, leftSeq: 5 },
+    { id: castId<ChatParticipantId>("chat_participant_host_live"), chatId, kind: "human", userId: incoming, role: "host", joinSeq: 6 },
+    // Members are never constrained, however many.
+    { id: castId<ChatParticipantId>("chat_participant_host_member"), chatId, kind: "human", userId: bystander, role: "member", joinSeq: 6 },
+    // A different chat keeps its own present host.
+    { id: castId<ChatParticipantId>("chat_participant_host_other"), chatId: otherChatId, kind: "human", userId: outgoing, role: "host", joinSeq: 0 },
+  ]);
+
+  expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toHaveLength(3);
+  expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, otherChatId))).toHaveLength(1);
+});
+
+test("the demote→promote handoff order survives the one-host index (the statement order is load-bearing)", async () => {
+  const db = await freshDb();
+  const outgoing = await seedUser(db, { id: "user_handoff_out" });
+  const nominee = await seedUser(db, { id: "user_handoff_in" });
+  const chatId = await seedChat(db, { id: "chat_handoff_swap" });
+  await db.insert(chatParticipants).values([
+    { id: castId<ChatParticipantId>("chat_participant_handoff_out"), chatId, kind: "human", userId: outgoing, role: "host", joinSeq: 0 },
+    { id: castId<ChatParticipantId>("chat_participant_handoff_in"), chatId, kind: "human", userId: nominee, role: "member", joinSeq: 1 },
+  ]);
+
+  // The `acceptHostHandoffSwapStatements` shape: demote the present host FIRST, then promote the nominee.
+  // Reversed, the promote would collide with the still-present outgoing host — which is exactly the
+  // invariant the index now enforces, so the pin asserts BOTH directions.
+  await db.batch([
+    db.update(chatParticipants).set({ role: "member" }).where(sql`chat_id = ${chatId} and role = 'host' and left_seq is null`),
+    db.update(chatParticipants).set({ role: "host" }).where(sql`chat_id = ${chatId} and user_id = ${nominee} and left_seq is null`),
+  ]);
+
+  const hosts = (await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).filter((r) => r.role === "host");
+  expect(hosts.map((r) => r.userId)).toEqual([nominee]);
+
+  // The reverse order (promote before demote) is what the index refuses.
+  await expect(
+    db.run(sql`update chat_participants set role = 'host' where chat_id = ${chatId} and user_id = ${outgoing} and left_seq is null`),
+  ).rejects.toSatisfy((error: unknown) => isConstraintViolation(error)?.kind === "unique");
+});
+
 // ── fork lineage (D27) ───────────────────────────────────────────────────────
 
 test("a fork's parentChatId SET NULL on parent delete (the fork outlives its parent)", async () => {

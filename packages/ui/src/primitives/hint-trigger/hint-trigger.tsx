@@ -14,8 +14,9 @@ export interface HintTriggerProps {
   readonly subject?: ReactNode;
   /** Applied to the trigger button — each caller supplies its own `hintTrigger()` variant slot. */
   readonly className: string;
-  /** `"inline"` costs no vertical space (field.tsx's original rationale — a full control-size box
-   *  made a hinted label row taller than an unhinted sibling); `"icon"` is a full control-size box.
+  /** `"inline"` costs no vertical space at a fine pointer (field.tsx's original rationale — a full
+   *  control-size box made a hinted label row taller than an unhinted sibling); coarse pointers promote
+   *  the real button box to the touch floor. `"icon"` is a full control-size box.
    *  @defaultValue "inline" */
   readonly size?: "inline" | "icon";
 }

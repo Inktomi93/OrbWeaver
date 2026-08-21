@@ -164,8 +164,16 @@ describe("kit/serde/chat-bundle", () => {
     expect(refusalOf(parseChatBundleFile(ENC.encode(JSON.stringify(wire))))).toBe("newer-version");
   });
 
-  test("explicit token provenance must agree with the recorded token axes", () => {
-    const withContradiction = (tokenProvenance: "measured" | "unrecorded", tokensOut: number | null): Uint8Array => {
+  // POLICY (moved 2026-08-21, #396): a provenance label that contradicts the token axes DEGRADES THIS
+  // VARIANT to the derived label — it does not refuse the file. Refusing was unshippable: the
+  // contradictory pair is a live durable row (`message_variants.token_provenance` is NOT NULL DEFAULT
+  // 'unrecorded', so any writer that sets the token columns outside `canon-write::variantEconomics`
+  // produces it, and an ST-imported chat SITS in it until the catch-up workload promotes it), so the
+  // refusal made every un-backfilled imported chat unexportable — 5 of the 6 `export-chat-bundle.int`
+  // fidelity pins went red on it. Same trade as the `variableDelta` row two fields up: degrade the
+  // variant, never the chat.
+  test("a token provenance that contradicts the recorded axes is RE-DERIVED, never a refusal", () => {
+    const withProvenance = (tokenProvenance: "measured" | "unrecorded", tokensOut: number | null): Uint8Array => {
       const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
         messages: { variants: Record<string, unknown>[] }[];
       };
@@ -179,8 +187,17 @@ describe("kit/serde/chat-bundle", () => {
       return ENC.encode(JSON.stringify(wire));
     };
 
-    expect(refusalOf(parseChatBundleFile(withContradiction("unrecorded", 17)))).toBe("malformed");
-    expect(refusalOf(parseChatBundleFile(withContradiction("measured", null)))).toBe("malformed");
+    // 'unrecorded' over REAL numbers is the legacy-import shape — promoted to `measured` with the numbers
+    // untouched, exactly as `import/verbs/backfill-token-usage::plan()`'s `legacyPromoted` arm does it.
+    const promoted = must(parseChatBundleFile(withProvenance("unrecorded", 17))).messages[0]?.variants[0];
+    expect(promoted).toMatchObject({ tokensIn: null, tokensOut: 17, tokenProvenance: "measured" });
+    // …and a label with NOTHING behind it drops to `unrecorded` rather than asserting a measurement.
+    const demoted = must(parseChatBundleFile(withProvenance("measured", null))).messages[0]?.variants[0];
+    expect(demoted).toMatchObject({ tokensIn: null, tokensOut: null, tokenProvenance: "unrecorded" });
+    // The non-vacuity control: an AGREEING label is passed through verbatim, so the two resolutions above
+    // are the contradiction path and not a reader that ignores `tokenProvenance` altogether.
+    const agreeing = must(parseChatBundleFile(withProvenance("measured", 17))).messages[0]?.variants[0];
+    expect(agreeing).toMatchObject({ tokensOut: 17, tokenProvenance: "measured" });
 
     const legacy = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as {
       messages: { variants: Record<string, unknown>[] }[];

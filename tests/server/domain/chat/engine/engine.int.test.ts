@@ -27,6 +27,7 @@ import type { TurnPrep, TurnRequest, TurnStreamChunk } from "../../../../../pack
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
+import { createMemoryRecallWarningEpisode } from "../../../../../packages/server/src/domain/chat/memory/recall/rerank-warning.ts";
 import type { WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
@@ -704,7 +705,13 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     };
     const h = harness(db, { recallMemory: recordRecall });
 
-    const memoryRecall: MemoryRecallInputs = { groupCharacterId: aria, recent: [], names: new Map<CharacterId, string>(), config: { mode: "mixA" } };
+    const memoryRecall: MemoryRecallInputs = {
+      groupCharacterId: aria,
+      recent: [],
+      names: new Map<CharacterId, string>(),
+      config: { mode: "mixA" },
+      warningEpisode: createMemoryRecallWarningEpisode(),
+    };
     const scopedShape = (charId: typeof aria, name: string): TurnPrep["shape"] => ({
       output: "per-speaker",
       cardScope: "scoped",
@@ -735,7 +742,13 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       return Promise.resolve(fakeRecallResult("scoped"));
     };
     const h = harness(db, { recallMemory: recordRecall });
-    const memoryRecall: MemoryRecallInputs = { groupCharacterId: aria, recent: [], names: new Map<CharacterId, string>(), config: { mode: "mixA" } };
+    const memoryRecall: MemoryRecallInputs = {
+      groupCharacterId: aria,
+      recent: [],
+      names: new Map<CharacterId, string>(),
+      config: { mode: "mixA" },
+      warningEpisode: createMemoryRecallWarningEpisode(),
+    };
 
     // A per-speaker MERGED turn (cardScope !== "scoped") must NOT re-run recall — the round-level memory stands.
     await h.engine.runTurn(
@@ -746,6 +759,53 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       }),
     );
     expect(recallCalls).toBe(0);
+  });
+
+  test("rerank-unavailable warns once across round-level + speaker recalls, then a fresh turn episode can warn again", async () => {
+    const chatId = await seedChat(db, "rerankwarn");
+    await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, HOST, "aria");
+    const bram = await seedCharacter(db, HOST, "bram");
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 1, leftSeq: null });
+
+    const speakerRecall = vi.fn<Parameters<typeof createTurnEngine>[1]["recallMemory"]>((_ctx, args) => {
+      args.warningEpisode?.reportRerankUnavailable();
+      return Promise.resolve(fakeRecallResult(`memory-for-${args.scope.scopedCharacterId}`));
+    });
+    const h = harness(db, { recallMemory: speakerRecall });
+    const scopedShape = (charId: typeof aria, name: string): TurnPrep["shape"] => ({
+      output: "per-speaker",
+      cardScope: "scoped",
+      scopedTargetId: charId,
+      speakerName: name,
+      speakerRef: { kind: "character", characterId: charId },
+    });
+
+    const firstEpisode = createMemoryRecallWarningEpisode();
+    firstEpisode.reportRerankUnavailable(); // the round-level gather degraded before either speaker recall
+    const shared: MemoryRecallInputs = {
+      groupCharacterId: aria,
+      recent: [],
+      names: new Map<CharacterId, string>(),
+      config: { mode: "mixC" },
+      warningEpisode: firstEpisode,
+    };
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bram, shape: scopedShape(bram, "bram"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
+
+    expect(h.events.filter((event) => event.type === "warning")).toEqual([{ type: "warning", chatId, code: "memory_rerank_unavailable" }]);
+    expect(speakerRecall).toHaveBeenCalledTimes(2); // both speaker failures happened; dedupe did not skip work
+
+    const nextEpisode = createMemoryRecallWarningEpisode();
+    const nextTurn: MemoryRecallInputs = { ...shared, warningEpisode: nextEpisode };
+    await h.engine.runTurn(
+      prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryConfig: { mode: "off" }, memoryRecall: nextTurn }),
+    );
+    expect(h.events.filter((event) => event.type === "warning")).toEqual([
+      { type: "warning", chatId, code: "memory_rerank_unavailable" },
+      { type: "warning", chatId, code: "memory_rerank_unavailable" },
+    ]);
   });
 
   test("the memory build succeeding never emits warning(memory_build_failed)", async () => {

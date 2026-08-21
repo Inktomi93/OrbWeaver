@@ -45,6 +45,13 @@ test("context_trimmed_no_summary → the no-wall belt fired (oldest messages dro
   expect(warningNotice("context_trimmed_no_summary").description).toContain("oldest messages were dropped");
 });
 
+test("memory_rerank_unavailable → vector recall continued for this turn", () => {
+  const notice = warningNotice("memory_rerank_unavailable");
+  expect(notice.title).toContain("Memory reranking");
+  expect(notice.description).toContain("vector recall");
+  expect(notice.description).toContain("this turn");
+});
+
 // ── P1-3: the copy speaks the UI's OWN connection vocabulary ─────────────────────────────────────────
 
 test("custom_parameters_ignored names the real connection labels, never 'direct' or 'BYOK'", () => {

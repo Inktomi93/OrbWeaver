@@ -34,7 +34,7 @@
 
     // `esnext.disposable` mirrors tsconfig.base.json's lib (node-26 adoption program §1.1) — this array
     // OVERRIDES the base's, so the entry must be repeated here or DOM-coupled tests lose `using` typing.
-    "lib": ["es2025", "esnext.disposable", "dom", "dom.iterable"],
+    "lib": ["es2025", "esnext.disposable", "esnext.temporal", "dom", "dom.iterable"],
     "jsx": "react-jsx",
     "types": ["node"],
     // The escapees import their subjects (and sibling harnesses) with explicit `.ts` extensions (tsx-run

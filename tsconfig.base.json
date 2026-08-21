@@ -47,7 +47,14 @@
     // (packages/{ui,client}/tsconfig.json) and tsconfig.tests-dom.json compose their OWN lib arrays and
     // carry the same entry beside their dom entries. The V8 14.6 surfaces TS ships in NO lib yet
     // (Map.getOrInsert, Error.isError, Iterator.concat) come from the root platform.d.ts instead.
-    "lib": ["es2025", "esnext.disposable"],
+    // `esnext.temporal` (2026-08-21): `@orb/kit/time` runs on the platform `Temporal` API. Node 26 and
+    // chromium ≥144 both ship it enabled by default, but no `es*` lib declares it — TS 6.0.3 and ts7
+    // 7.0.2 BOTH carry `lib.esnext.temporal.d.ts`, so the lib entry is the whole type story and
+    // `platform.d.ts` needs no block. Probe-verified with a planted negative control: drop this entry and
+    // a `Temporal.Instant` reference reds `TS2304: Cannot find name 'Temporal'`. The two browser programs
+    // (packages/{ui,client}/tsconfig.json) and tsconfig.tests-dom.json compose their OWN lib arrays and
+    // carry the same entry — cross-package types resolve to SOURCE, so every program that sees kit needs it.
+    "lib": ["es2025", "esnext.disposable", "esnext.temporal"],
     // NODENEXT on the node side (tsx-shedding stage 4, 2026-08-03). This is the ENFORCEMENT half of the
     // migration: under `bundler` the checker still ACCEPTS an extensionless relative import, so a missed
     // extension typechecks GREEN and then crashes at boot under node's type-stripping (which does no
