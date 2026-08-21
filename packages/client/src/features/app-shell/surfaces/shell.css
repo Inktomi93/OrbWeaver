@@ -177,14 +177,34 @@
   /* The list pane's share of that deficit. The context pane takes the rest and hits its step floor first,
    * so this is what decides how much of the recovery survives at a narrower desktop. */
   --pane-squeeze-list-share: 0.7;
+  --both-docked-list-track: max(var(--dimension-panel-floor), calc(var(--panel-w) - var(--pane-deficit) * var(--pane-squeeze-list-share)));
+  --both-docked-context-track: max(
+    var(--dimension-panel-context-step),
+    calc(var(--panel-context-w) - var(--pane-deficit) * (1 - var(--pane-squeeze-list-share)))
+  );
+  /* The prospective BOTH-docked deficit against CONTENT primacy: CONTENT must be at least half the sum
+   * of the two panes. This is the sole crossover owner. The sentinel below renders the positive remainder
+   * so JS can observe real CSS resolution (root font, clamp/token changes, viewport) without duplicating
+   * any of it. `100%` is the shell's actual containing block, not a guessed UA pixel conversion. */
+  --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%));
   --list-track-docked: var(--panel-w);
   --context-track-docked: var(--panel-context-w);
 }
 .shell-grid[data-context-mode="docked"] {
-  --list-track-docked: max(var(--dimension-panel-floor), calc(var(--panel-w) - var(--pane-deficit) * var(--pane-squeeze-list-share)));
+  --list-track-docked: var(--both-docked-list-track);
 }
 .shell-grid[data-list-mode="docked"] {
-  --context-track-docked: max(var(--dimension-panel-context-step), calc(var(--panel-context-w) - var(--pane-deficit) * (1 - var(--pane-squeeze-list-share))));
+  --context-track-docked: var(--both-docked-context-track);
+}
+
+.shell-content-primacy-sentinel {
+  position: absolute;
+  inset: 0 auto auto 0;
+  inline-size: var(--content-primacy-deficit);
+  block-size: 1px;
+  visibility: hidden;
+  pointer-events: none;
+  contain: strict;
 }
 
 /* ── THE PANEL PUSH IS A FLIP, NOT A TRACK ANIMATION (guide §3.7 — compositor-only is a CORRECTNESS

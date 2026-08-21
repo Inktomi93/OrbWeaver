@@ -33,6 +33,7 @@ export function PresetLibraryWelcome(): ReactElement {
     <EmptyState
       icon={<Icon icon={SlidersHorizontal} size="lg" />}
       title="Tune how the model generates"
+      titleStep="focal"
       description="Pick a preset to edit its sampling, reasoning, output and prompt structure, or create a new one. A preset shapes generation; it doesn't pick the model (that's Connections). If the list isn't on screen, Show list panel in the top bar brings it back."
     />
   );

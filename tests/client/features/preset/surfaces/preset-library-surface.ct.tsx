@@ -26,7 +26,7 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
-import { PresetLibraryDockedStory, PresetLibrarySurfaceStory } from "./_ct-stories.tsx";
+import { PresetLibraryDockedStory, PresetLibrarySurfaceStory, PresetLibraryWelcomeNarrowStory, PresetLibraryWelcomeWideStory } from "./_ct-stories.tsx";
 
 const BUILT_IN = "preset_00000000000000000000000000";
 const EDITED_ONE = "preset_ct_edited0001";
@@ -53,6 +53,37 @@ const TITLE = '[data-slot="list-row-title"]';
 const LEADING = '[data-slot="list-row-leading"]';
 const ACTIONS = '[data-slot="list-row-actions"]';
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
+
+test("#378 interactive preset subtitles use the readable label step without losing their description", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibraryDockedStory />);
+  const row = component.locator(LIST_ROW_ROOT, { hasText: "Built-in default" }).first();
+  const subtitle = row.locator('[data-slot="list-row-subtitle"]');
+  await expect(subtitle).toBeVisible();
+  await expect.poll(() => subtitle.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(11);
+  await expect(subtitle).toHaveCSS("white-space", "nowrap");
+  const subtitleId = await subtitle.getAttribute("id");
+  expect(subtitleId).not.toBeNull();
+  await expect(row.locator('[data-slot="list-row-body"]')).toHaveAttribute("aria-describedby", subtitleId ?? "missing-subtitle-id");
+});
+
+async function focalHierarchyRatio(component: import("@playwright/test").Locator): Promise<number> {
+  const title = component.locator('[data-slot="empty-state-title"]');
+  const description = component.locator('[data-slot="empty-state-description"]');
+  const titleSize = await title.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  const descriptionSize = await description.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  await expect(title).toBeVisible();
+  await expect(description).toBeVisible();
+  return titleSize / descriptionSize;
+}
+
+test("#379 Presets teaching hierarchy has a focal title in the wide arm", async ({ mount }) => {
+  expect(await focalHierarchyRatio(await mount(<PresetLibraryWelcomeWideStory />))).toBeGreaterThanOrEqual(1.5);
+});
+
+test("#379 Presets teaching hierarchy has a focal title in the narrow arm", async ({ mount }) => {
+  expect(await focalHierarchyRatio(await mount(<PresetLibraryWelcomeNarrowStory />))).toBeGreaterThanOrEqual(1.5);
+});
 
 // Action names carry the row's own edit stamp after the name (side-eye P3a): nine forks share the name
 // "Default (edited)", so `Actions for Default (edited)` was nine identical accessible names. These matchers
