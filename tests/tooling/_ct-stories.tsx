@@ -369,3 +369,29 @@ export function WalkerDuplicateDoorStory(): ReactElement {
     </div>
   );
 }
+
+/** The PROGRAMMATIC-FOCUS stage (issue #370). The nested generic wrappers are focus-management
+ *  containers, not user actions: both carry tabindex=-1 and inherit the same descendant text. The two
+ *  native buttons are the positive control — genuinely distinct homes for one named action must remain
+ *  detectable when the wrappers leave only the action-door census. */
+export function WalkerProgrammaticFocusDoorStory(): ReactElement {
+  return (
+    <div style={{ backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)", padding: 24, width: 520 }}>
+      <div data-testid="focus-wrapper-outer" tabIndex={-1}>
+        <div data-testid="focus-wrapper-inner" tabIndex={-1}>
+          Programmatic focus target
+        </div>
+      </div>
+      <section data-slot="primary-actions" style={{ marginTop: 16 }}>
+        <button data-testid="duplicate-action-primary" type="button">
+          Duplicate action
+        </button>
+      </section>
+      <footer data-slot="secondary-actions" style={{ marginTop: 16 }}>
+        <button data-testid="duplicate-action-secondary" type="button">
+          Duplicate action
+        </button>
+      </footer>
+    </div>
+  );
+}
