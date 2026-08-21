@@ -226,6 +226,20 @@ is recalibrated to 140ms: the clean-host maximum was 181ms, or 131ms above the u
 rounded to one stable 10ms rail. Repeats receive zero blocking allowance; their measured 27–42ms work
 must continue to satisfy the ordinary 50ms budget.
 
+A cold verifier found that the first implementation subtracted that 140ms from **every** LoAF carrying
+the same first-entrance evidence. That made the allowance renewable: a primary Select initialization
+frame plus a second 130ms app frame inside the same lifetime incorrectly passed. The repaired boundary
+consumes the allowance once per first entrance, on its chronologically primary confirmed LoAF only.
+Every later/concurrent LoAF receives zero subtraction and keeps the ordinary 50ms blocking verdict.
+
+LoAF script attribution is a veto, never positive proof. When Chrome supplies a development URL that
+identifies app source or an unrelated dependency, that LoAF receives neither the blocking allowance nor
+the Select style/layout classification. Recognizable Base UI, Floating UI, React, and React DOM runtime
+URLs are compatible with the measured library lifecycle. Empty attribution and production hashed bundle
+URLs are explicitly unknown rather than falsely labeled library-owned; they gain no extra allowance
+beyond the one primary-frame rule. This is intentionally conservative where the browser provides
+identity and honest where production bundling erases it.
+
 CDP uses the same causal lifetime, not a second heuristic. The dev observer emits uniquely paired User
 Timing start/confirmed/end marks; `motion-audit` includes `blink.user_timing` and pairs real
 `PipelineReporter` begin/end records by trace id. Only frames whose trace interval overlaps a paired,
@@ -234,6 +248,12 @@ Raw counts remain printed. Unpaired starts, other portal kinds, frames before/af
 the rest of the 2.5s window remain ordinary. Real Chrome controls prove User Timing and
 `PipelineReporter` share the trace timestamp clock; paired `PipelineReporter` end events still carry
 empty args and are not standalone frames (#389).
+
+The trace exception remains exactly the measured two-`PRESENTED_PARTIAL`-frame handoff encoded by the
+existing end mark; this repair does not add a frame or widen the window. Chrome cannot causally separate
+unrelated work that lands in the identical browser frame. The owner accepts that bounded risk for those
+two measured frames; the classifier does not claim perfect attribution. App work in a separate frame,
+before/after the marked range, or in a LoAF with recognizable unrelated script attribution remains red.
 
 The first calibrated batch then killed the original **pointer-start + 300ms** cap without changing the
 architecture. On a clean first open, confirmation arrived 170ms after pointer intent because the Base UI
@@ -267,8 +287,9 @@ Coupled implementation sites are fixed before construction:
 4. `tests/client/lib/motion-stats.ct.tsx` plants first + repeat entrance tails, a no-mount trigger, an
    after-lifetime style frame, and a non-Select portal control.
 5. `tests/tooling/motion-audit.test.ts` plants first/repeat blocking boundaries, unconfirmed/non-Select/
-   outside-lifetime style failures, paired Select dropped frames, and ordinary dropped frames before and
-   after the classified interval. The real CDP browser plant remains the #389 end-to-end control.
+   outside-lifetime style failures, a primary Select frame plus a second 130ms app block, concurrent
+   app-owned style work, paired Select dropped frames, and ordinary dropped frames before and after the
+   classified interval. The real CDP browser plant remains the #389 end-to-end control.
 6. The production proof harness mirrors the same observer/trace grammar because production deliberately
    omits the dev bridge; it is receipt machinery, not shipped product code.
 
@@ -290,14 +311,14 @@ Coupled implementation sites are fixed before construction:
    shifts initialization cost earlier without removing it.
 10. **Keep raw enum labels and add a paragraph.** Rejected because the popup occludes field-level teaching at the moment of choice. The existing option-description rail was built for this exact interaction.
 11. **Virtualize or defer inactive Admin sections as the #374 fix.** Rejected as insufficient: the
-   isolated Select fixture and the one-section Admin control remain over budget. It is a separate
-   Settings-startup optimization, not the first-open repair.
+    isolated Select fixture and the one-section Admin control remain over budget. It is a separate
+    Settings-startup optimization, not the first-open repair.
 12. **Patch supported Select/Floating UI configuration.** Rejected after measured fixed-position,
-   anchor-tracking, collision, modal, direction, containment, animation, and static-position controls
-   all remained red.
+    anchor-tracking, collision, modal, direction, containment, animation, and static-position controls
+    all remained red.
 13. **Replace Base UI with Radix or repurpose Menu/Combobox.** Rejected because the Radix and Menu
-   production controls are also red, Radix has no matching multiple-select contract, and Menu/Combobox
-   change the listbox/button semantics required by a fixed-value Select.
+    production controls are also red, Radix has no matching multiple-select contract, and Menu/Combobox
+    change the listbox/button semantics required by a fixed-value Select.
 14. **Spread work across frames or pre-mount.** Rejected because it moves or slices the same cost and
     violates #374's exact measurement contract.
 15. **Replace Base UI Select with a custom lifecycle.** Rejected by owner ruling on 2026-08-21. It
@@ -327,7 +348,7 @@ Production sites:
 4. Typed warning and client rendering: `packages/contracts/src/chat/bus.ts`, `features/chat/lib/warning-notice.ts`.
 5. Admin teaching: `features/user-admin/components/memory-tuning-section.tsx`; its existing CT story gains a narrow/coarse arm.
 6. Shared popup containment: `packages/ui/src/primitives/select/variants.ts`; glossed Select popups retain natural growth but cap at Base UI's collision-boundary width.
-7. #374 evidence and verdict: `packages/client/src/lib/motion-stats.ts` owns lifecycle classification,
+7. \#374 evidence and verdict: `packages/client/src/lib/motion-stats.ts` owns lifecycle classification,
    with its cap-required browser-anatomy helper in `packages/client/src/lib/select-entrance-evidence.ts`;
    `scripts/probes/motion-audit.ts` owns the calibrated budget input and measured-click checkpoint;
    `tests/tooling/motion-audit.test.ts` plants classifier controls; the client motion-stats CT proves a
@@ -337,7 +358,7 @@ Production sites:
    its cap-required `motion-dead-class-flagger.ts` helper owns `[css]`'s initial census plus cooperative
    mutation-subtree scans while the parent retains the finding/ring vocabulary; `tests/client/lib/motion-flaggers.ct.tsx`
    plants the retained drop, checkpoint, reduced-motion, trailing-edge, and incremental-scan controls.
-8. #389 Chrome-trace repair: `scripts/probes/motion-audit.ts` reads only `PipelineReporter` begin
+8. \#389 Chrome-trace repair: `scripts/probes/motion-audit.ts` reads only `PipelineReporter` begin
    events carrying the real nested `args.frame_reporter` payload; its paired empty-argument end events
    are excluded. `tests/tooling/motion-audit.test.ts` pins the nested schema and a dropped report, while
    the browser CDP plant proves the repaired parser can still fail a real dropped-frame window.
@@ -386,7 +407,7 @@ No DB schema/event discriminator changes are required: `warning` is already a du
    raise `[drop]`. A real CDP trace over the paused CSS plant must still contain enough dropped
    `PipelineReporter` frames to fail the unchanged probe budget. Tooling tests separately retain the
    ordinary style, app-blocking, repeat/non-portal, CLS, and dirty-animation red arms.
-9. #389 is red-first against a real trace-shaped fixture: the former top-level `args.state` parser
+9. \#389 is red-first against a real trace-shaped fixture: the former top-level `args.state` parser
    reports zero dropped frames for nested Chrome data, while the repair counts only begin records with
    `args.frame_reporter`. The paired empty `args` record is the negative control against double-counting.
 
@@ -394,7 +415,7 @@ No DB schema/event discriminator changes are required: `warning` is already a du
 
 The #331/#332/#371 work has no unresolved owner fork. Option A and the server-side per-turn/outage interpretation are explicit in #332's owner comment and the dispatch brief. The mode labels explain behavior without changing persona prose, prompt defaults, origin pushes, or the experimental recency formula.
 
-#374's fork is resolved by the owner's superseding 2026-08-21 ruling: keep Base UI and its entrance
+\#374's fork is resolved by the owner's superseding 2026-08-21 ruling: keep Base UI and its entrance
 motion, but calibrate the audit for the clean-host-proven normal sealed Select entrance on both first and
 repeat opens. The accepted arm is Select-specific and bounded by trigger intent, related mount, and real
 transition lifetime. Only first opens receive the measured fixed blocking allowance; repeat and residual

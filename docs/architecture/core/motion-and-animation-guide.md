@@ -316,9 +316,13 @@ opening-key action at `[data-slot="select-trigger"]`. It confirms only when that
 post-confirmation hard cap. The cap is
 post-confirmation because the first render can itself consume much of the pre-confirmation interval;
 it is not a free grace window. `motion-stats.ts` attaches that same confirmed range to
-each overlapping LoAF. A first page-lifetime entrance may subtract 140ms before the unchanged 50ms
-blocking ceiling; repeats receive no blocking allowance. Style/layout is classified only on overlapping
-confirmed entrance frames. Reports retain raw, classified, and budgeted totals.
+each overlapping LoAF. A first page-lifetime entrance may subtract 140ms from exactly one primary
+confirmation LoAF before the unchanged 50ms blocking ceiling; the allowance is consumed once and every
+later/concurrent frame plus every repeat receives zero subtraction. Recognizable app or unrelated-module
+script attribution vetoes both the allowance and style/layout classification for that LoAF. Empty
+attribution and production hashed bundles are unknown, not positive library attribution. Style/layout is
+otherwise classified only on overlapping confirmed entrance frames. Reports retain raw, classified, and
+budgeted totals.
 
 The same helper emits paired User Timing start/confirmed/end marks. `motion-audit` pairs those with real
 CDP `PipelineReporter` begin/end intervals and excludes only overlapping frames from its budgeted dropped
@@ -327,6 +331,11 @@ work outside the entrance, residual blocking, CLS, and dirty animations remain o
 probe resolves Playwright actionability geometry before its checkpoint and sends a native mouse click
 after crossing a frame boundary, so its own layout reads are not mistaken for product work. Do not
 replace this with `keepMounted`, pre-mounting, a call-site marker, or a broader portal exemption.
+
+The end mark remains the measured two-PRESENTED\_PARTIAL-frame handoff; do not widen its frame count or
+window. Chrome cannot causally separate unrelated work inside the identical browser frame, so those two
+frames are a bounded owner-accepted risk, not a claim of perfect attribution. Separate frames and
+recognizably app-attributed LoAF work remain ordinary red inputs.
 
 During that measured CDP window only, `motion-audit` asks the dev bridge to suspend the duplicate
 in-page `[drop]` lifetime collector. The pause returns before CSS-event, WAAPI-target, map, and report
