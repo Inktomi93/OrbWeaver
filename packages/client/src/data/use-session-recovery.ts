@@ -11,7 +11,9 @@
 //      the ladder never reads a stale chat id or a stale handle;
 //   3. the RESUME payload — invalidate identity + every user root and force the socket's rooms to
 //      re-announce. That is what makes rung 0 a recovery instead of a reload;
-//   4. the visibility PROBE (§4.4.1) — the sensor for a session that dies while nothing is being read.
+//   4. the visibility PROBE (§4.4.1) — the sensor for a session that dies, OR silently becomes another
+//      human's, while nothing is being read (a swapped identity keeps answering 200, so it is the only
+//      sensor that can see one).
 //
 // Everything here is an EFFECT on purpose: these are subscriptions to browser/document lifecycle, not
 // derived render state, and none of them writes a shared selection store (`no-effect-on-shared-selection`
@@ -26,12 +28,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { timeLib } from "#lib";
 import { bindDurableLocalToUser, openModal, selectChat, useActiveChatId } from "#state";
-import { fetchAuthMe } from "./auth-bootstrap.ts";
 import { roomRegistry } from "./bus/room-registry.ts";
 import { createInvalidation } from "./invalidation.ts";
 import { startSessionFreshness } from "./session-freshness.ts";
 import { takeSessionResume } from "./session-resume.ts";
-import { beginSessionRecovery, bindSessionRecovery } from "./stale-session.ts";
+import { beginSessionRecovery, bindSessionRecovery, probeSessionContinuity } from "./stale-session.ts";
 import { useTRPC } from "./trpc.ts";
 
 /** Subscribe to the visibility edge on the real document, or nothing off-browser. */
@@ -105,7 +106,9 @@ export function useSessionRecovery(): void {
       startSessionFreshness({
         now: timeLib.now,
         isVisible: (): boolean => (globalThis as { document?: Document }).document?.visibilityState === "visible",
-        probe: async (): Promise<boolean> => (await fetchAuthMe()).authenticated,
+        // ALIVE **AND STILL OURS** — the compare lives with the rest of the identity boundary, in the
+        // ladder (§4.2.1). A session that comes back as a different human is not freshness.
+        probe: probeSessionContinuity,
         // The probe's verdict enters the SAME ladder every other sensor does — one recovery path, always.
         onDead: beginSessionRecovery,
         subscribe: subscribeVisibility,

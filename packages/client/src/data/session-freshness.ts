@@ -15,6 +15,12 @@
 // probe do double duty: past the floor a slide is due anyway, so the probe both detects death AND refreshes
 // the cookie's Max-Age. A hidden tab probes nothing, and a tab flipped twice inside the floor probes once.
 //
+// IT IS A CONTINUITY CHECK, NOT A LIVENESS ONE. "Still signed in" is not the question — "still signed in AS
+// US" is (§4.2.1). The cookie is per-BROWSER, so another human signing in on this box leaves this warm tab
+// with a perfectly VALID session that is somebody else's: it never 401s, so no other sensor can see it, and
+// a liveness-only probe would keep marking it fresh forever. The verdict therefore comes from
+// `probeSessionContinuity` (the ladder owns the compare — one home for the boundary).
+//
 // A THROWN probe is NOT a dead session. `/api/auth/me` failing to resolve means the server is unreachable
 // (the route guard makes the same distinction) — treating that as "signed out" would sign a user out of a
 // working app because their wifi blinked. Unreachable is ignored; only a RESOLVED `authenticated: false` is
@@ -45,9 +51,14 @@ export interface SessionFreshnessDeps {
   readonly now: () => number;
   /** Is this tab visible RIGHT NOW? A hidden tab never probes. */
   readonly isVisible: () => boolean;
-  /** The live session check — resolves `authenticated`. A REJECTION means unreachable, not signed out. */
+  /** The live session check — resolves TRUE only when the session is alive AND still belongs to the
+   *  identity this tab is bound to (`probeSessionContinuity`; the compare is the ladder's, §4.2.1). A
+   *  session that comes back as a DIFFERENT human is not freshness — it is the state this sensor exists to
+   *  catch, because that cookie is valid and this tab will never 401 into the ladder on its own. A
+   *  REJECTION means unreachable, not signed out. */
   readonly probe: () => Promise<boolean>;
-  /** The session is confirmed DEAD — hand off to the recovery ladder. */
+  /** The session is confirmed GONE — dead, or no longer this identity's. Hand off to the recovery ladder,
+   *  which owns which rung that lands on. */
   readonly onDead: () => void;
   /** Subscribe to the visibility edge; returns the unsubscribe. */
   readonly subscribe: (listener: () => void) => () => void;
