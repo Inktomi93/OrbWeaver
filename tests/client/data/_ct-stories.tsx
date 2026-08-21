@@ -5,9 +5,11 @@
 // exports. This file is the template every client feature agent copies.
 
 import {
+  __resetSessionFreshness,
   createCollectionSurface,
   createEntityMutation,
   QueryBoundary,
+  sessionFreshnessAgeMs,
   useCarriedAppearanceCast,
   useColorQuotedSpeech,
   useDisplayScripts,
@@ -24,7 +26,7 @@ import {
   useUploadAsset,
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
-import { bindNotify, renderMessageForDisplay, toNotice } from "@orb/client/lib";
+import { bindNotify, renderMessageForDisplay, timeLib, toNotice } from "@orb/client/lib";
 import {
   activeDurableLocalUserId,
   enterCreatedChat,
@@ -768,6 +770,51 @@ export function SessionRecoveryReauthStory(): ReactElement {
     <CtAppDataProviders>
       <SessionRecoveryReauthProbe />
     </CtAppDataProviders>
+  );
+}
+
+/**
+ * THE NO-401 IDENTITY SWAP (§4.4.1 × §4.2.1) — the one attack path no other sensor can reach. When another
+ * human signs in on this browser, the shared `__Host-orb_session` cookie becomes THEIRS while this warm tab
+ * keeps rendering the previous human's cache: every request now succeeds, so nothing 401s, so neither belt
+ * ever fires. The visibility probe's identity compare is the only thing left that can notice.
+ *
+ * The story renders the probe's own clock so the CT can prove the INSTRUMENT before trusting its verdict: a
+ * confirmed probe resets the age to ~0 ("fresh"), so the control case shows the edge really fired. The
+ * `wake` button is the browser's tab-focus edge, with the clock pushed past the 5-minute floor first.
+ */
+function SessionSwapProbe(): ReactElement {
+  const trpc = useTRPC();
+  const { data: me } = useQuery(trpc.sessions.me.queryOptions());
+  useSessionRecovery();
+  const [freshness, setFreshness] = useState("pending");
+  useEffect((): (() => void) => {
+    const timer = setInterval((): void => setFreshness(sessionFreshnessAgeMs() < 60_000 ? "fresh" : "stale"), 50);
+    return (): void => clearInterval(timer);
+  }, []);
+  return (
+    <div>
+      <output data-testid="viewer-handle">{me?.handle ?? "pending"}</output>
+      <output data-testid="freshness">{freshness}</output>
+      <button
+        type="button"
+        data-testid="ct-wake-tab"
+        onClick={(): void => {
+          __resetSessionFreshness(timeLib.now() - 600_000);
+          document.dispatchEvent(new Event("visibilitychange"));
+        }}
+      >
+        wake the tab
+      </button>
+    </div>
+  );
+}
+
+export function SessionSwapStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SessionSwapProbe />
+    </CtDataProviders>
   );
 }
 

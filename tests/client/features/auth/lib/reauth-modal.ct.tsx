@@ -9,7 +9,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { ReauthLadderStory } from "../_ct-stories.tsx";
+import { ReauthDismissalStory, ReauthLadderStory } from "../_ct-stories.tsx";
 
 /** `/api/auth/me` answers DEAD until the login POST lands, then ALIVE — the real sequence the ladder walks. */
 async function stubLocalAuth(page: Page): Promise<() => number> {
@@ -64,6 +64,42 @@ test("a dead LOCAL session opens the re-auth prompt and resumes IN PLACE — no 
   // simultaneously "recovery ran" and "nothing navigated".
   await expect(page.getByTestId("ct-resumes")).toHaveText("1");
   expect(logins()).toBe(1);
+});
+
+// THE DISMISSAL WIRE, through the shell's real ModalHost — the one seam the story above bypasses by
+// rendering the modal BODY directly. `reauthModal.onClose` had zero coverage: nothing anywhere asserted
+// that a semantic dialog close reaches `completeReauth("dismissed")`.
+//
+// Its failure mode is SILENT and browser-wide. `runLadder` awaits `promptReauth()` while holding the
+// `orb:session-recovery` Web Lock; if the verdict never arrives (a ModalHost refactor dropping
+// `def.onClose?.()`), the await never settles, the lock is never released, and every OTHER tab's ladder
+// takes the follower branch forever — no tab recovers, and nothing renders differently anywhere. So the
+// observable here is the rung-2 NAVIGATION, which only happens once the dismissal verdict lands.
+test("dismissing the prompt through ModalHost lands the rung-2 verdict (the Web-Lock deadlock tripwire)", async ({ mount, page }) => {
+  await stubLocalAuth(page);
+  // The rung-2 navigation is ABORTED rather than followed, so the request itself is the assertion and the
+  // mounted tree survives it. `"aborted"` (net::ERR_ABORTED) specifically: the default `"failed"` makes
+  // chromium swap in an error page, and every later assertion would then pass vacuously on a torn-down
+  // tree. Matched by exact pathname, not a glob — `**/login` would also swallow `/api/auth/login`.
+  let loginNavigations = 0;
+  await page.route(
+    (url) => url.pathname === "/login",
+    (route) => {
+      loginNavigations += 1;
+      return route.abort("aborted");
+    },
+  );
+
+  await mount(<ReauthDismissalStory />);
+  await page.getByTestId("ct-kill-session").click();
+  await expect(page.getByTestId("reauth-surface")).toBeVisible();
+  // Nothing has been decided yet — the ladder is parked on the prompt, holding the lock.
+  expect(loginNavigations).toBe(0);
+
+  await page.keyboard.press("Escape");
+
+  await expect.poll(() => loginNavigations).toBe(1);
+  await expect(page.getByTestId("reauth-surface")).toBeHidden();
 });
 
 test("the prompt is a real credential form seeded from the deployment's default handle", async ({ mount, page }) => {
