@@ -26,6 +26,8 @@ import type { BusEventRecord } from "./bus-devlog.ts";
 import { busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
+import { setFrameDropTrackingPaused } from "./motion-animation-state.ts";
+import { motionFlaggersSettled } from "./motion-dead-class-flagger.ts";
 import type { MotionFlagRecord } from "./motion-flaggers.ts";
 import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
 import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
@@ -279,6 +281,10 @@ interface OrbDebugHandle {
   readonly resetFlags: () => void;
   /** Clear checkpoint-scoped flags, motion, and render evidence without disturbing app/query state. */
   readonly resetEvidence: () => void;
+  /** Wait for the one initial full dev-instrument census before opening a measured interaction window. */
+  readonly motionFlaggersSettled: () => Promise<void>;
+  /** Suspend only duplicate in-page [drop] tracking while motion-audit's CDP trace owns that verdict. */
+  readonly setMotionAuditDropTrackingPaused: (paused: boolean) => void;
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
   readonly snap: () => Record<string, unknown>;
   /** Dev-only SPA-navigation actions (see OrbNavHandle) — reach any surface without a click chain. */
@@ -403,6 +409,8 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     flags: motionFlags,
     resetFlags: __resetMotionFlags,
     resetEvidence,
+    motionFlaggersSettled,
+    setMotionAuditDropTrackingPaused: setFrameDropTrackingPaused,
     snap,
     nav,
     seed,
@@ -410,7 +418,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     durableLocalUserId,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

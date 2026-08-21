@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-21
 ---
 
 # Motion & Animation Guide
@@ -300,6 +300,41 @@ View-transitions on rail-section + chat nav (`withViewTransition` +
 `document.startViewTransition`, gated on `prefers-reduced-motion` once in
 `packages/client/src/lib/view-transition.ts`; router `defaultViewTransition: true`) — native
 browser API, not a hand-rolled crossfade.
+
+#### 4.1.1 Sealed Select entrance audit input (#374)
+
+The 50ms blocking ceiling and unconditional style/layout rule still govern ordinary LoAFs. Clean-host
+4x controls showed that Base UI Select's normal anchored entrance/positioning work spans first and
+natural repeat opens; Base UI Menu and Radix Select showed the same headless-library shape, while a
+minimal one-state React portal was clean. The calibrated input is deliberately narrower than that
+cross-library cause: only this repo's sealed Select entrance qualifies.
+
+`packages/client/src/lib/select-entrance-evidence.ts` starts provisionally on a trusted pointer or
+opening-key action at `[data-slot="select-trigger"]`. It confirms only when that trigger's ARIA-related
+`[data-slot="select-positioner"]` mounts or reactivates, and ends after the two measured
+"PRESENTED\_PARTIAL" cleanup frames following the popup's real opacity/scale transition, with a 300ms
+post-confirmation hard cap. The cap is
+post-confirmation because the first render can itself consume much of the pre-confirmation interval;
+it is not a free grace window. `motion-stats.ts` attaches that same confirmed range to
+each overlapping LoAF. A first page-lifetime entrance may subtract 140ms before the unchanged 50ms
+blocking ceiling; repeats receive no blocking allowance. Style/layout is classified only on overlapping
+confirmed entrance frames. Reports retain raw, classified, and budgeted totals.
+
+The same helper emits paired User Timing start/confirmed/end marks. `motion-audit` pairs those with real
+CDP `PipelineReporter` begin/end intervals and excludes only overlapping frames from its budgeted dropped
+numerator and denominator; raw counts stay visible. Missing marks, unpaired frames, non-Select portals,
+work outside the entrance, residual blocking, CLS, and dirty animations remain ordinary inputs. The
+probe resolves Playwright actionability geometry before its checkpoint and sends a native mouse click
+after crossing a frame boundary, so its own layout reads are not mistaken for product work. Do not
+replace this with `keepMounted`, pre-mounting, a call-site marker, or a broader portal exemption.
+
+During that measured CDP window only, `motion-audit` asks the dev bridge to suspend the duplicate
+in-page `[drop]` lifetime collector. The pause returns before CSS-event, WAAPI-target, map, and report
+work, and is always released in `finally`; ordinary dev `[drop]`, `[anim]`, LoAF/CLS, `[css]`, and
+`[space]` remain unchanged. CDP `PipelineReporter` is the dropped-frame owner inside the audit window.
+Its report is nested under `args.frame_reporter`; paired trace end events have empty `args` and are not
+frames (#389). Parser controls must use that real Chrome payload shape and retain a planted dropped-frame
+red outside the Select entrance.
 
 ### 4.2 The motion inventory (what's built, where; item numbers are stable)
 
