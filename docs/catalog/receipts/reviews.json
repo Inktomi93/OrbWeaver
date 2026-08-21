@@ -715,21 +715,21 @@
     },
     {
       "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
-      "assignedSha256": "cd6b70141bd3c5804a40a8b9907d96bd00992138987e3dcc2f264fa192970960",
+      "assignedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "cd6b70141bd3c5804a40a8b9907d96bd00992138987e3dcc2f264fa192970960",
-      "verifiedCommit": "6e7293e41e7efa9293c1d59ed49996528eba289f",
+      "verifiedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
+      "verifiedCommit": "746d686e0d76efc1772edf3199243a559311d71c",
       "verifiedAt": "2026-08-20",
       "evidence": [
-        "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-110 full read against implementation commit 6e7293e41e7efa9293c1d59ed49996528eba289f",
-        "git show --stat 6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-119 full read against repair commit 746d686e0d76efc1772edf3199243a559311d71c",
+        "git show --stat 746d686e0d76efc1772edf3199243a559311d71c",
         "stacked catalog commit 768af7dc0b8a2f72d0c0acdf8f846ea89b80027b passed the complete static pre-commit verifier",
         "scratch-real-corpus workload and live-source immutability receipts recorded in the reviewed document",
         "GitHub issues #290 and #291 re-derived on 2026-08-20"
       ],
-      "summary": "Current verification receipt for #290 and #291: real-corpus scratch counts, idempotency, measured-wins CAS, provider-shaped cost fence, bounded behavioral tests, and final static gates.",
+      "summary": "Current verification receipt for #290 and #291: real-corpus scratch counts, idempotency, measured-wins CAS, nullable provider usage, live/rebuild parity, portable-state validation, bounded behavioral tests, and final static gates.",
       "claims": [
         {
           "claim": "The receipt verifies the delivered token-provenance and usage-cost settlement; mutable lifecycle remains tracked in issues #290 and #291.",
