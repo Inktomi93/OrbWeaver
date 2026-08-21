@@ -15292,9 +15292,9 @@
       "path": "docs/retro-workboard.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 96,
-      "bytes": 6793,
-      "sha256": "ca44786c4bd34caa093baf82debdb96af67a4a653c12718c542feb89f7eb38a0",
+      "lines": 113,
+      "bytes": 8326,
+      "sha256": "b00ceab6f44e7c2132668b2dd3b2a7ae9fe846b54d83235ea3b15a5df67b0400",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -15307,12 +15307,12 @@
       },
       "receipt": {
         "path": "docs/retro-workboard.md",
-        "assignedSha256": "ca44786c4bd34caa093baf82debdb96af67a4a653c12718c542feb89f7eb38a0",
+        "assignedSha256": "b00ceab6f44e7c2132668b2dd3b2a7ae9fe846b54d83235ea3b15a5df67b0400",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "ca44786c4bd34caa093baf82debdb96af67a4a653c12718c542feb89f7eb38a0",
-        "verifiedCommit": "27cd89a1d2d866b665e7676f24c2e6451ceb4a16",
+        "verifiedSha256": "b00ceab6f44e7c2132668b2dd3b2a7ae9fe846b54d83235ea3b15a5df67b0400",
+        "verifiedCommit": "ee1efa0cee4e1b1331c4dcc5f018300dab2c31df",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",
