@@ -10,16 +10,21 @@ import { expect, test } from "@playwright/experimental-ct-react";
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
 
-test("full motion: focus is immediate and never transitions paint-only outline color", async ({ mount, page }) => {
+// The contract is that the ring is IMMEDIATE at FULL motion — the reduced-motion arm below proves nothing
+// about it, because the global floor kills every transition there anyway. Asserted as the resolved
+// DURATION: `transitionProperty` cannot carry this fence, because with no transition utility on the seal it
+// computes to the CSS initial value `all`, and `"all"` fails any "does not contain <property>" check by
+// construction — a green that survives re-adding a `transition-colors duration-(--motion-fast)`.
+test("full motion: focus is immediate — the seal transitions nothing, so the ring cannot lag the keystroke", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const input = await mount(<Input aria-label="Motion-safe input" />);
   await input.focus();
   const focus = await input.evaluate((element) => {
     const style = getComputedStyle(element);
-    return { boxShadow: style.boxShadow, transitionProperty: style.transitionProperty };
+    return { boxShadow: style.boxShadow, transitionDuration: style.transitionDuration };
   });
   expect(focus.boxShadow).not.toBe("none");
-  expect(focus.transitionProperty).not.toContain("outline-color");
+  expect(focus.transitionDuration).toBe("0s");
 });
 
 test("reduced motion: focus is immediate and the global floor removes transitions", async ({ mount, page }) => {

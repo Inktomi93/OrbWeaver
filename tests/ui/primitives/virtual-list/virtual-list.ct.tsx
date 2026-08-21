@@ -213,10 +213,13 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
     const pending = new Map<number, FrameRequestCallback>();
     let nextId = 1;
     const harness = {
-      drain(): void {
+      /** Returns the RESIDUE — a nonzero result means the cap was hit and frames are still queued, which a
+       *  caller must fail on rather than proceed from a half-drained state. */
+      drain(): number {
         for (let pass = 0; pending.size > 0 && pass < 50; pass += 1) {
           this.flushAll();
         }
+        return pending.size;
       },
       flushAll(): void {
         for (const [id, callback] of Array.from(pending)) {
@@ -224,11 +227,19 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
           callback(0);
         }
       },
-      flushLatest(): void {
-        const latest = Array.from(pending).at(-1);
-        if (latest !== undefined) {
-          pending.delete(latest[0]);
-          latest[1](0);
+      /** The ids queued RIGHT NOW. Captured at the moment the landing is scheduled, so the flush below
+       *  NAMES that frame: "the newest pending frame is the reset" is false the instant a later scroll
+       *  write enqueues virtual-core's own reconcile after it. */
+      pendingIds(): number[] {
+        return Array.from(pending.keys());
+      },
+      flushIds(ids: readonly number[]): void {
+        for (const id of ids) {
+          const callback = pending.get(id);
+          if (callback !== undefined) {
+            pending.delete(id);
+            callback(0);
+          }
         }
       },
     };
@@ -243,9 +254,8 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
       pending.delete(id);
     };
   });
-  await page.evaluate(() => {
-    (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => void } }).__resetFrameHarness.drain();
-  });
+  const drained = await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain());
+  expect(drained).toBe(0);
   await scroll.evaluate((node) => {
     node.scrollTop = 2500;
   });
@@ -257,12 +267,18 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
   });
   await component.getByTestId("scope-b").click();
   await expect(component.getByTestId("active-scope")).toHaveText("2");
+  const landing = await page.evaluate(() =>
+    (globalThis as typeof globalThis & { __resetFrameHarness: { pendingIds: () => number[] } }).__resetFrameHarness.pendingIds(),
+  );
+  expect(landing.length).toBeGreaterThan(0);
   await scroll.evaluate((node) => {
     node.scrollTop = 600;
   });
-  await page.evaluate(() => {
-    (globalThis as typeof globalThis & { __resetFrameHarness: { flushLatest: () => void } }).__resetFrameHarness.flushLatest();
-  });
+  await page.evaluate(
+    (ids: readonly number[]) =>
+      (globalThis as typeof globalThis & { __resetFrameHarness: { flushIds: (frames: readonly number[]) => void } }).__resetFrameHarness.flushIds(ids),
+    landing,
+  );
   await expect(scroll).toHaveJSProperty("scrollTop", 0);
 
   await scroll.evaluate((node) => {
@@ -301,10 +317,12 @@ test("unmount before the reset frame cancels the stale landing without errors or
     };
     Object.assign(globalThis, {
       __resetFrameHarness: {
-        drain(): void {
+        /** Returns the RESIDUE — see the sibling harness above; a nonzero result is a half-drained state. */
+        drain(): number {
           for (let pass = 0; pending.size > 0 && pass < 50; pass += 1) {
             this.flushAll();
           }
+          return pending.size;
         },
         flushAll(): void {
           for (const [id, callback] of Array.from(pending)) {
@@ -324,9 +342,8 @@ test("unmount before the reset frame cancels the stale landing without errors or
       pending.delete(id);
     };
   });
-  await page.evaluate(() => {
-    (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => void } }).__resetFrameHarness.drain();
-  });
+  const drained = await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain());
+  expect(drained).toBe(0);
   await scroll.evaluate((node) => {
     node.scrollTop = 2500;
   });
