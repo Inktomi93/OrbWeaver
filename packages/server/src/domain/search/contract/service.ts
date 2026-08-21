@@ -47,6 +47,12 @@ import type {
  *  it, so when host-only widens to membership-gated ONE file changes and search is untouched. */
 export type ResolveActiveDocumentIdsOp = (scope: { readonly chatId: ChatId } | { readonly ownerId: UserId }) => Promise<readonly DocumentId[]>;
 
+/** Optional per-call observations for digest retrieval. The search remains useful when the mixC reranker is
+ * unavailable, but its owner must surface that honest degrade on the chat warning bus. */
+export interface DigestSearchEvents {
+  readonly onRerankUnavailable: () => void;
+}
+
 /** DI bundle the search verbs close over. Read-only (ReadOnlyDb — a write call is a tsc error). */
 export interface SearchContext {
   readonly db: ReadOnlyDb;
@@ -62,7 +68,7 @@ export interface SearchService {
   readonly knn: (params: KnnParams) => Promise<SearchHit[]>;
   readonly findCharacters: (params: FindCharactersParams) => Promise<CharacterCardHit[]>;
   /** Returns ranked hits each carrying its BlockKey — the compose root maps these into ChatContext. */
-  readonly digests: (params: DigestsParams) => Promise<DigestSearchHit[]>;
+  readonly digests: (params: DigestsParams, events?: DigestSearchEvents | undefined) => Promise<DigestSearchHit[]>;
   readonly segments: (params: SegmentsParams) => Promise<SegmentSearchHit[]>;
   readonly corpus: (params: CorpusParams) => Promise<CorpusHit[]>;
   /** Ranks on raw cosine distance — hub_score is deliberately not applied on this cross-modal path. */

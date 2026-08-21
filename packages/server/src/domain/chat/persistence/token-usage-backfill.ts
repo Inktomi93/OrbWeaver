@@ -18,13 +18,18 @@ const hostSeat = alias(chatParticipants, "host_seat");
 
 export function createListImportedTokenUsageCandidates(db: Db): ListImportedTokenUsageCandidates {
   return async ({ hostUserId, afterVariantId, limit }): Promise<readonly ImportedTokenUsageCandidate[]> => {
-    // ONE CANDIDATE PER VARIANT. `chat_participants` carries no uniqueness over (chatId, role='host') — the
-    // one-host rule is writer discipline (D18), not physics — so a plain `role='host'` join emits one row
-    // PER present human host, and a room that ever holds two double-counts every variant in it: `scanned`,
-    // `ownersScanned` and `compareAndSetSkipped` all inflate (the CAS itself is idempotent, so only the
-    // audit numbers lie) and the loser host is never reconciled. The seat this resolves to is the
-    // EARLIEST-JOINED present human host — the founding/funding seat every writer mints and the one a
-    // handoff hands to — so the census is deterministic whatever the roster holds.
+    // ONE CANDIDATE PER VARIANT. A plain `role='host'` join emits one row PER matching host seat, and a
+    // room that ever yields two double-counts every variant in it: `scanned`, `ownersScanned` and
+    // `compareAndSetSkipped` all inflate (the CAS itself is idempotent, so only the audit numbers lie) and
+    // the loser host is never reconciled. Two things now make that impossible, and BOTH are load-bearing:
+    // (1) `chat_participants_chat_host_unique` — a partial UNIQUE over (chatId) WHERE role='host' AND
+    // left_seq IS NULL (#390) — caps the PRESENT host seats at one (this was writer discipline only until
+    // that index landed; D18); (2) this resolver's own `leftSeq IS NULL` + limit-1 — a DEPARTED host KEEPS
+    // role='host' and is deliberately outside that index, so without the presence filter every prior host
+    // of the room would re-enter the join. The `ORDER BY joinSeq, id` picks the EARLIEST-JOINED present
+    // human host: the founding/funding seat every writer mints and the one a handoff hands to. It is now a
+    // tiebreak over a state the index forbids — kept as the deterministic belt below the physics, never as
+    // its substitute.
     const canonicalHostSeat = db
       .select({ id: hostSeat.id })
       .from(hostSeat)

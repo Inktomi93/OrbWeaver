@@ -98,10 +98,21 @@ export interface MemoryRecallInputs {
   readonly names: ReadonlyMap<CharacterId, string>;
   /** The resolved memory config the round-level recall used (so the per-speaker re-run matches its tuning). */
   readonly config: MemoryConfig | null;
+  /** Turn-scoped rerank-degrade state shared by the round recall and every per-speaker recall. It owns the
+   * one-warning boundary: many failed reranks in one turn collapse to one notice, while the next turn gets a
+   * fresh episode and may report a continuing outage again. */
+  readonly warningEpisode: MemoryRecallWarningEpisode;
   /** The live-window cutoff seq (the PREVIOUS turn's canon fit boundary) — the per-speaker re-run applies the
    *  SAME live-window trim the round-level recall did, so a scoped speaker never re-injects a still-verbatim
    *  scene either. Absent ⇒ no prior boundary stamp ⇒ no trim. */
   readonly liveWindowCutoffSeq?: number | undefined;
+}
+
+/** The narrow stateful seam between recall and the engine-owned chat bus. Search reports the outage; the
+ * engine takes it after `turnStarted`, exactly once for this turn. */
+export interface MemoryRecallWarningEpisode {
+  readonly reportRerankUnavailable: () => void;
+  readonly takeRerankUnavailable: () => boolean;
 }
 
 /** A complete, aged-out block of canon (the `blockSize`-message digest/segment unit). `blockIdx` is the

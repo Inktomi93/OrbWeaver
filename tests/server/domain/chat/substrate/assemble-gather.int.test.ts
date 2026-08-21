@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import type { MemoryRecallInputs } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
 import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather.ts";
 import type { DatabankGatherParams } from "../../../../../packages/server/src/domain/databank/contract/params.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -251,6 +252,31 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
     expect(search.calls).toHaveLength(1);
     expect(search.calls.at(0)?.scope.chat).toBe(chatId);
     expect(search.calls.at(0)?.scopedCharacterId).toBe(GROUP_CHAR);
+  });
+
+  test("the round recall and staged speaker recalls share one rerank-warning episode", async () => {
+    const { host, chatId, aria } = await seedRoom("recall_warning_episode");
+    await seedCharacter(db, host, "group");
+    await seedDigest(db, { chatId: castId(chatId), scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      findSyntheticGroupCharacter: () => Promise.resolve({ characterId: GROUP_CHAR }),
+      searchDigests: (_query, onRerankUnavailable) => {
+        onRerankUnavailable?.();
+        return Promise.resolve([]);
+      },
+    });
+    const sink: { memoryRecall?: MemoryRecallInputs | null } = {};
+
+    await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
+      foreignOf({ memoryConfig: { mode: "mixC" } }),
+      sink,
+    );
+
+    expect(sink.memoryRecall?.warningEpisode.takeRerankUnavailable()).toBe(true);
+    expect(sink.memoryRecall?.warningEpisode.takeRerankUnavailable()).toBe(false);
   });
 
   // #330 P2 (RED-FIRST): recall runs PRE-persist, so the committed rows are the PREVIOUS turn's tail — the

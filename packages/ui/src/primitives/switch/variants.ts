@@ -1,8 +1,9 @@
 import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
-// The visible track rides pointer-independent display tokens, so the desktop switch stays generous
-// rather than collapsing toward a near-square toggle. The ≥44px touch floor is met separately by the
-// TOUCH_TARGET_PSEUDO hit area, so the visible track never has to carry the hit floor.
+// The fine-pointer track rides pointer-independent display tokens, so the desktop switch stays generous
+// rather than collapsing toward a near-square toggle. At a coarse pointer the root itself grows to the
+// ≥44px touch floor; the thumb stays on its display token so its travel remains legible. The pseudo stays
+// as the unknown-pointer fallback, but coarse target geometry no longer depends on invisible overflow.
 //
 // `tone` rations the accent (north-star §5 rule 0.5, PP1's Badge `tone` precedent; owner-sanctioned
 // 2026-07-16): `accent` (default) is the byte-identical ember-on-checked skin — the ONE sanctioned
@@ -14,7 +15,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 export const switchVariants = tv({
   slots: {
     root: [
-      "relative inline-flex h-switch-thumb w-switch-track shrink-0 cursor-pointer items-center rounded-full border border-border bg-input p-0",
+      "relative inline-flex h-switch-thumb w-switch-track shrink-0 cursor-pointer items-center rounded-full border border-border bg-input p-0 pointer-coarse:h-touch-target",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
@@ -25,7 +26,7 @@ export const switchVariants = tv({
       TOUCH_TARGET_PSEUDO,
     ],
     thumb: [
-      "group relative flex aspect-square h-full items-center justify-center rounded-full bg-foreground",
+      "group relative flex aspect-square h-switch-thumb items-center justify-center rounded-full bg-foreground",
       "transition-transform duration-(--motion-fast) ease-out-expo",
       "data-checked:translate-x-[calc(var(--spacing-switch-track)-var(--spacing-switch-thumb))]",
     ],

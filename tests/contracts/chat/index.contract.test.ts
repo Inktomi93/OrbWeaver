@@ -1,5 +1,5 @@
 import type { CastEntry, ChatBusEvent, ChatDeltaEvent } from "@orb/contracts/chat";
-import { buildCastNameContext, CHAT_BUS_EVENT_TYPES, isChatBusEventType, LIVE_ONLY_CHAT_EVENT_TYPES } from "@orb/contracts/chat";
+import { buildCastNameContext, CHAT_BUS_EVENT_TYPES, CHAT_WARNING_CODES, isChatBusEventType, LIVE_ONLY_CHAT_EVENT_TYPES } from "@orb/contracts/chat";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
@@ -58,6 +58,12 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   // 23 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the pre-arbitration `turnAccepted`,
   // the entity→room bridge's `roomEntityChanged`, the #313 `memoryRecall`) + 6 WI variants.
   expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(29);
+});
+
+test("memory rerank degradation is a typed durable warning code", () => {
+  expect(CHAT_WARNING_CODES).toContain("memory_rerank_unavailable");
+  const warning: ChatBusEvent = { type: "warning", chatId: SAMPLE_CHAT_ID, code: "memory_rerank_unavailable" };
+  expect(warning).toEqual({ type: "warning", chatId: SAMPLE_CHAT_ID, code: "memory_rerank_unavailable" });
 });
 
 // THE LIVE-ONLY LANE (entity→room bridge §3.4). The two subsets must PARTITION the union: a member that is
