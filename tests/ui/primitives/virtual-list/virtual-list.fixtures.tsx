@@ -272,6 +272,42 @@ export function InitialOffsetList({ itemCount, offsetPx }: { readonly itemCount:
   );
 }
 
+/** Scope-reset stress: both scopes have dynamic measured heights and disjoint stable keys. */
+export function ResetScopeList(): ReactElement {
+  const [scopeChanged, setScopeChanged] = useState(false);
+  const [itemsSettled, setItemsSettled] = useState(false);
+  const items = Array.from({ length: 200 }, (_, index) => ({
+    id: `${itemsSettled ? "after" : "before"}-${String(index)}`,
+    label: `${itemsSettled ? "After" : "Before"} ${String(index)}`,
+  }));
+  return (
+    <div>
+      <button data-testid="change-scope" onClick={(): void => setScopeChanged(true)} type="button">
+        scope
+      </button>
+      <button data-testid="settle-scope" onClick={(): void => setItemsSettled(true)} type="button">
+        settle
+      </button>
+      <div style={{ height: 240 }}>
+        <VirtualList
+          aria-label="Reset rows"
+          className="h-full"
+          estimateSize={(): number => 40}
+          getItemKey={(item): string => item.id}
+          items={items}
+          renderItem={(item, index): ReactElement => (
+            <button style={{ height: index % 3 === 0 ? 64 : 40 }} type="button">
+              {item.label}
+            </button>
+          )}
+          resetScrollKey={scopeChanged ? 1 : 0}
+          resetScrollReady={itemsSettled === scopeChanged}
+        />
+      </div>
+    </div>
+  );
+}
+
 /** `aria-label` passthrough onto the `role="list"` scroll container. */
 export function AriaLabelList({ itemCount, ariaLabel }: { readonly itemCount: number; readonly ariaLabel: string }): ReactElement {
   const items = makeItems(itemCount);

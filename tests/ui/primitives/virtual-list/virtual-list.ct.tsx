@@ -10,6 +10,7 @@ import {
   InitialOffsetList,
   LanesList,
   OverscanList,
+  ResetScopeList,
   ScrollToIndexList,
   UnboundedList,
 } from "./virtual-list.fixtures.tsx";
@@ -132,6 +133,28 @@ test("initialScrollOffset mounts the list already scrolled to that offset", asyn
   await expect(component.getByText("Item 100", { exact: true })).toBeVisible();
   await expect(component.getByText("Item 0", { exact: true })).toHaveCount(0);
   await expect.poll(() => component.locator('[data-slot="virtual-list-scroll"]').evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(4000);
+});
+
+test("a deep measured list resets a new scope to its first row without remounting or losing hit ownership", async ({ mount, page }) => {
+  const component = await mount(<ResetScopeList />);
+  const scroll = component.getByRole("list", { name: "Reset rows" });
+  await scroll.evaluate((node) => node.setAttribute("data-identity-probe", "preserved"));
+  await component.getByText("Before 0", { exact: true }).hover();
+  await page.mouse.wheel(0, 5000);
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(3000);
+
+  await component.getByTestId("change-scope").click();
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(3000);
+  await component.getByTestId("settle-scope").click();
+  await expect(component.getByText("After 0", { exact: true })).toBeVisible();
+  await expect(scroll).toHaveJSProperty("scrollTop", 0);
+  await expect(scroll).toHaveAttribute("data-identity-probe", "preserved");
+  const first = component.locator('[data-slot="virtual-list-row"][data-index="0"]');
+  const owned = await first.evaluate((row) => {
+    const box = row.getBoundingClientRect();
+    return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('[data-slot="virtual-list-row"]') === row;
+  });
+  expect(owned).toBe(true);
 });
 
 test("onEndApproach fires when the rendered window is within endApproachRows of the tail", async ({ mount }) => {

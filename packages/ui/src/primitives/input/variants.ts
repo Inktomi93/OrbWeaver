@@ -4,7 +4,6 @@ import { DISABLED_STATE, DISABLED_STATE_NATIVE, FIELD_CONTROL, FIELD_CONTROL_BOX
 export const inputVariants = tv({
   base: [
     "placeholder:text-muted-foreground",
-    "transition-colors duration-(--motion-fast) ease-out-expo",
     "outline-none",
     FOCUS_RING,
     DISABLED_STATE_NATIVE,

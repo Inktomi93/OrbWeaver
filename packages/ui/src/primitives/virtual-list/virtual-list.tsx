@@ -44,8 +44,16 @@ export interface VirtualListProps<T> {
    * would fight them. Distinct from `scrollToIndex`, which is an ongoing imperative pin, not a restore.
    */
   readonly initialScrollOffset?: number;
-  /** Resets the live scroll offset to the top when this scope identity changes, without remounting. */
+  /**
+   * Resets the live scroll offset to the top when this settled scope identity changes, without remounting.
+   */
   readonly resetScrollKey?: string | number | null;
+  /**
+   * Whether the rows belong to `resetScrollKey`. Set false while a query shows the previous scope's
+   * placeholder rows; the handshake waits, then invalidates measurements and lands index zero when true.
+   * @defaultValue true
+   */
+  readonly resetScrollReady?: boolean;
   /** Fires when the rendered window's last index comes within `endApproachRows` of the tail. */
   readonly onEndApproach?: () => void;
   /** Tail-proximity threshold in rows for `onEndApproach`. @defaultValue 8 */
@@ -90,6 +98,7 @@ export function VirtualList<T>({
   scrollToIndex,
   initialScrollOffset,
   resetScrollKey,
+  resetScrollReady = true,
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
   className,
@@ -159,12 +168,13 @@ export function VirtualList<T>({
 
   // Reset a changed scope in place: remounting can expose fresh rows before the direct position owner runs.
   useLayoutEffect(() => {
-    if (Object.is(previousResetScrollKey.current, resetScrollKey)) {
+    if (!resetScrollReady || Object.is(previousResetScrollKey.current, resetScrollKey)) {
       return;
     }
     previousResetScrollKey.current = resetScrollKey;
-    virtualizer.scrollToOffset(0, { align: "start" });
-  }, [resetScrollKey, virtualizer, virtualizer.scrollToOffset]);
+    virtualizer.measure();
+    virtualizer.scrollToIndex(0, { align: "start" });
+  }, [resetScrollKey, resetScrollReady, virtualizer, virtualizer.measure, virtualizer.scrollToIndex]);
 
   // Fires only when the value changes, not on every render. align: "end" is the pin-to-bottom shape.
   useLayoutEffect(() => {
