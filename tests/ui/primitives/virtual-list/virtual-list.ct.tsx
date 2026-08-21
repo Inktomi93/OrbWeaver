@@ -135,26 +135,56 @@ test("initialScrollOffset mounts the list already scrolled to that offset", asyn
   await expect.poll(() => component.locator('[data-slot="virtual-list-scroll"]').evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(4000);
 });
 
-test("a deep measured list resets a new scope to its first row without remounting or losing hit ownership", async ({ mount, page }) => {
+test("a 906-row measured list resets a settled 30-row scope after old-offset clamping without remounting or losing ownership", async ({ mount, page }) => {
   const component = await mount(<ResetScopeList />);
   const scroll = component.getByRole("list", { name: "Reset rows" });
   await scroll.evaluate((node) => node.setAttribute("data-identity-probe", "preserved"));
   await component.getByText("Before 0", { exact: true }).hover();
-  await page.mouse.wheel(0, 5000);
-  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(3000);
+  await page.mouse.wheel(0, 50_000);
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(30_000);
+  const oldOffset = await scroll.evaluate((node) => node.scrollTop);
 
   await component.getByTestId("change-scope").click();
-  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(3000);
+  await expect(scroll).toHaveJSProperty("scrollTop", oldOffset);
   await component.getByTestId("settle-scope").click();
-  await expect(component.getByText("After 0", { exact: true })).toBeVisible();
-  await expect(scroll).toHaveJSProperty("scrollTop", 0);
-  await expect(scroll).toHaveAttribute("data-identity-probe", "preserved");
-  const first = component.locator('[data-slot="virtual-list-row"][data-index="0"]');
-  const owned = await first.evaluate((row) => {
-    const box = row.getBoundingClientRect();
-    return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('[data-slot="virtual-list-row"]') === row;
+  await page.evaluate(async () => {
+    await document.documentElement.animate([{ opacity: 1 }, { opacity: 1 }], { duration: 3250 }).finished;
   });
-  expect(owned).toBe(true);
+
+  const settled = await component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {
+    const scrollElement = rows[0]?.closest<HTMLElement>('[data-slot="virtual-list-scroll"]');
+    const scrollBox = scrollElement?.getBoundingClientRect();
+    const boxes = rows.map((row) => row.getBoundingClientRect());
+    const visibleRows = rows.filter((_row, index) => {
+      const box = boxes[index];
+      const centreY = box === undefined ? -1 : box.y + box.height / 2;
+      return scrollBox !== undefined && centreY >= scrollBox.top && centreY < scrollBox.bottom;
+    });
+    return {
+      firstIndex: Number(rows[0]?.getAttribute("data-index")),
+      overlaps: boxes.flatMap((box, index) =>
+        boxes
+          .slice(index + 1)
+          .filter((other) => box.top < other.bottom && other.top < box.bottom)
+          .map(() => index),
+      ),
+      ownsCentre: visibleRows.map((row) => {
+        const box = row.getBoundingClientRect();
+        return box === undefined || document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('[data-slot="virtual-list-row"]') === row;
+      }),
+      scrollTop: scrollElement?.scrollTop ?? -1,
+      uniqueTops: new Set(boxes.map((box) => box.top)).size,
+      visibleCount: visibleRows.length,
+    };
+  });
+  expect(oldOffset).toBeGreaterThan(30_000);
+  expect(settled.scrollTop).toBe(0);
+  expect(settled.firstIndex).toBe(0);
+  expect(settled.uniqueTops).toBeGreaterThan(1);
+  expect(settled.overlaps).toEqual([]);
+  expect(settled.visibleCount).toBeGreaterThan(1);
+  expect(settled.ownsCentre.every(Boolean)).toBe(true);
+  await expect(scroll).toHaveAttribute("data-identity-probe", "preserved");
 });
 
 test("onEndApproach fires when the rendered window is within endApproachRows of the tail", async ({ mount }) => {

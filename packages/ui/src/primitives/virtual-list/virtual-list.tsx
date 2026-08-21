@@ -173,7 +173,14 @@ export function VirtualList<T>({
     }
     previousResetScrollKey.current = resetScrollKey;
     virtualizer.measure();
-    virtualizer.scrollToIndex(0, { align: "start" });
+    const targetWindow = scrollRef.current?.ownerDocument.defaultView;
+    if (targetWindow === null || targetWindow === undefined) {
+      return;
+    }
+    // `measure()` schedules the new scope's virtual geometry. Land only after React commits that shorter
+    // viewport and the browser clamps the old large-list offset; an immediate write loses that race.
+    const frame = targetWindow.requestAnimationFrame(() => virtualizer.scrollToIndex(0, { align: "start" }));
+    return (): void => targetWindow.cancelAnimationFrame(frame);
   }, [resetScrollKey, resetScrollReady, virtualizer, virtualizer.measure, virtualizer.scrollToIndex]);
 
   // Fires only when the value changes, not on every render. align: "end" is the pin-to-bottom shape.

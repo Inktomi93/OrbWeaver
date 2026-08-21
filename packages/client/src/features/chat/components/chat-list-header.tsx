@@ -22,6 +22,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -32,6 +33,7 @@ import { ChatImportDialog } from "./chat-import-dialog.tsx";
 
 /** The band wants the CENSUS, not the rows — the smallest page the server will serve still carries it. */
 const COUNT_ONLY_PAGE = 1;
+const IMPORT_CHAT_LABEL = "Import a chat transcript";
 
 export function ChatListHeader(): ReactElement {
   const trpc = useTRPC();
@@ -44,9 +46,16 @@ export function ChatListHeader(): ReactElement {
         action={
           // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
           <Row align="center" gap="field">
-            <Button aria-label="Import a chat transcript" intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
-              <Icon icon={Upload} size="sm" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button aria-label={IMPORT_CHAT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
+                    <Icon icon={Upload} size="sm" />
+                  </Button>
+                }
+              />
+              <TooltipPopup side="bottom">{IMPORT_CHAT_LABEL}</TooltipPopup>
+            </Tooltip>
             <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
               <Icon icon={Plus} size="sm" />
               New

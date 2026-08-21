@@ -341,6 +341,23 @@ test("#372 keeps the accessible import control compact at a fine pointer", async
   expect(box?.height).toBe(32);
 });
 
+for (const trigger of ["hover", "focus"] as const) {
+  test(`#377 ${trigger}: transcript import exposes tooltip copy byte-equal to its accessible name`, async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+    const component = await mount(<ChatListHeaderStory width={430} />);
+    const button = component.getByRole("button", { name: "Import a chat transcript" });
+
+    if (trigger === "hover") {
+      await button.hover();
+    } else {
+      await button.focus();
+    }
+
+    await expect(page.getByRole("tooltip")).toHaveText("Import a chat transcript");
+    await expect(button).toHaveAccessibleName("Import a chat transcript");
+  });
+}
+
 test("the icon-only month clear exposes pointer copy byte-equal to its accessible name", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
