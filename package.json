@@ -119,6 +119,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "catalog:",
     "dependency-cruiser": "catalog:",
     "drizzle-kit": "catalog:",

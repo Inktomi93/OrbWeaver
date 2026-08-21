@@ -83,6 +83,20 @@ catalog:
   # api: the PLUGIN surface (declareValuePlugin / PluginKind / Ignorer). A direct dep only because we ship
   # our own ignore-plugin (scripts/mutation/arid-ignorer.ts); core/runner/checker pull it transitively.
   "@stryker-mutator/api": 10.0.0
+  # SECOND PATCH, same version-keying hazard as the sandbox one:
+  # patches/@stryker-mutator__typescript-checker@10.0.0.patch is a ONE-LINE fix to the TypeScript 7 native
+  # checker preview. `ts-native/native-typescript-compiler.js` registered the SANITIZED tsconfig (the
+  # allowUnreachableCode/noUnusedLocals/noUnusedParameters overrides that mutation testing REQUIRES —
+  # stryker-js#391) under the RAW `options.tsconfigFile` string, while the compiler opens the RESOLVED
+  # absolute path; the lookup missed and the compiler fell back to the on-disk STRICT tsconfig. Effect: the
+  # entire `if (cond)` -> `if (false)` mutant class was disqualified as CompileError (TS7027) and left the
+  # score's denominator, and the repeated disk fallback made the run 3x slower. The patch defaults the
+  # parameter to the resolved name. Fixed, the native checker matches the classic verdict exactly at
+  # classic-or-better speed (measurements in stryker.config.json's `_checkers_comment`). The native checker
+  # also needs the `@typescript/native` -> npm:typescript@7 alias in the ROOT devDependencies (its loader
+  # imports `@typescript/native/unstable/sync`; the alias its own error message recommends is never read).
+  # The two patches + the four pins + that alias move TOGETHER on any bump, and the planted control below
+  # is what proves the sandbox half still works afterwards.
   # --- kit (isomorphic libs allowed by the kit-purity ruling) ---
   zod: ^4.4.3
   typeid-js: ^1.2.0
@@ -396,3 +410,4 @@ minimumReleaseAgeExclude:
   - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.206"
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': patches/@stryker-mutator__core@10.0.0.patch
+  '@stryker-mutator/typescript-checker@10.0.0': patches/@stryker-mutator__typescript-checker@10.0.0.patch
