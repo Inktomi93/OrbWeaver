@@ -5,10 +5,11 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { afterAll } from "vitest";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
-const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-const SNAP_CLI = fileURLToPath(new URL("../../scripts/probes/snap.ts", import.meta.url));
+// 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
+const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
+const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", import.meta.url));
 const TEMP = mkdtempSync(join(tmpdir(), "orb-snap-browser-"));
 const RUN_ID = `snap_browser_${process.pid}`;
 const REPORT_SNAPS = join(ROOT, "reports", "snaps");

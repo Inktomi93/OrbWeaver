@@ -1,7 +1,10 @@
-// The ONE subprocess home: every tooling spawn rides `nice -n 19` (owner-endorsed 2026-08-21 — the box
-// co-hosts the homelab; an un-niced tool fleet has starved it). `nice` execs the command in-process, so
-// the child pid IS the command and timeout kills land on it directly.
-import { spawn } from "node:child_process";
+// The ONE subprocess home (gate: tooling-shared-plumbing arm F): every tooling spawn rides `nice -n 19`
+// (owner-endorsed 2026-08-21 — the box co-hosts the homelab; an un-niced fleet starved it, and a direct
+// child_process import silently bypasses the floor). `nice` execs the command in-process, so the child
+// pid IS the command and timeout kills land on it directly. Three seams: spawnNiced (async, collected,
+// timeout — the runCli shape), runNicedSync (sync, collect or stdio passthrough — the imperative-orchestration
+// shape), execNicedSync (sync, THROWS on non-zero, returns stdout — the git-helper shape).
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import process from "node:process";
 
 export interface SpawnNicedOptions {
@@ -20,6 +23,58 @@ export interface SpawnNicedResult {
 }
 
 const DEFAULT_TIMEOUT_MS = 120_000;
+
+export interface RunNicedSyncOptions {
+  readonly cwd?: string;
+  readonly env?: NodeJS.ProcessEnv;
+  /** "collect" (default) captures utf8 stdout/stderr; "inherit" streams to the operator's terminal
+   *  (the stack-boot / rsync shape); "ignore" discards. */
+  readonly stdio?: "collect" | "inherit" | "ignore";
+}
+
+export interface RunNicedSyncResult {
+  readonly status: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/** Sync spawn under `nice -n 19` — never throws on a non-zero status (the caller judges). */
+export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
+  const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
+  const res = spawnSync("nice", ["-n", "19", cmd, ...args], {
+    ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+    ...(opts.env === undefined ? {} : { env: opts.env }),
+    ...(stdio === undefined ? { encoding: "utf8" as const } : { stdio }),
+  });
+  return { status: res.status, stdout: typeof res.stdout === "string" ? res.stdout : "", stderr: typeof res.stderr === "string" ? res.stderr : "" };
+}
+
+/** Sync exec under `nice -n 19` — THROWS on a non-zero status (execFileSync semantics), returns stdout.
+ *  The git-helper shape: an unknown ref/failed command is an exception, not a verdict. */
+export function execNicedSync(cmd: string, args: readonly string[], opts: { readonly cwd?: string } = {}): string {
+  return execFileSync("nice", ["-n", "19", cmd, ...args], {
+    encoding: "utf8",
+    ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+  });
+}
+
+/** The ONE full-priority door — NO nice wrapper, loudly named so its callers ARE the exception census
+ *  (gate: tooling-shared-plumbing's FULL_PRIORITY_CALLERS allowlist). Reserved for a process a USER
+ *  interactively waits on whose children serve requests (the snap stage's stack boot: a -19 staged app
+ *  times out navigations under load, skewing the very receipts the stage exists to take). Everything
+ *  else rides the niced doors above. */
+export function spawnFullPrioritySync(
+  cmd: string,
+  args: readonly string[],
+  opts: { readonly cwd?: string; readonly env?: NodeJS.ProcessEnv; readonly stdio?: "inherit" | "ignore" } = {},
+): { readonly status: number | null } {
+  const res = spawnSync(cmd, [...args], {
+    ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+    ...(opts.env === undefined ? {} : { env: opts.env }),
+    stdio: opts.stdio ?? "inherit",
+  });
+  return { status: res.status };
+}
 
 /** Spawn `cmd args…` under `nice -n 19`, collect utf8 output, resolve on exit (never rejects on a
  *  non-zero code — the CALLER judges codes against the exit contract). */

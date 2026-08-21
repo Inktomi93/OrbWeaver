@@ -47,7 +47,7 @@ export interface StackSpawner {
 }
 
 /** Every stack-shaped spawner in this repo, with its ports. Sources: scripts/dev/stack.sh (dev),
- *  scripts/probes/_kit/snap-stage.ts (snap stage offsets), scripts/dev/multi-user-fixture.sh,
+ *  tooling/src/snap/ops/stage.ts (snap stage offsets), scripts/dev/multi-user-fixture.sh,
  *  tests/e2e/support/modes.ts (the three auth-mode projects + the fixture provider), playwright-ct.config.ts.
  *  PROD deliberately shares the dev SERVER port: they are two ways to serve the same app on this box and
  *  must never run at once — `classifyInstance` turns that into a loud refusal instead of a race. */

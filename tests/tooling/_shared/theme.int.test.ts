@@ -15,10 +15,11 @@ import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll } from "vitest";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
-const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-const SNAP_CLI = fileURLToPath(new URL("../../scripts/probes/snap.ts", import.meta.url));
+// 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
+const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
+const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", import.meta.url));
 const RUN_TIMEOUT_MS = 60_000;
 
 /** The stub account: Hearth selected, exactly the shape `config.theme` has on the wire. */
@@ -150,9 +151,9 @@ test("an unknown theme WARNS with the real list and renders the ACCOUNT'S theme 
   expect(bogus.stdout).toContain(`\\"selected\\":\\"${HEARTH_ID}\\"`);
 });
 
-test("an empty --theme value is refused before a browser boots (exit-2 posture)", async () => {
+test("an empty --theme value is refused before a browser boots (misuse posture)", async () => {
   const misuse = await runSnap(["--theme"]);
 
-  expect(misuse.status).toBe(2);
+  expect(misuse.status).toBe(3);
   expect(misuse.stdout).toContain("--theme");
 });

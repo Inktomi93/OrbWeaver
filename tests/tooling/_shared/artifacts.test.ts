@@ -8,7 +8,7 @@
 import { isAbsolute, join } from "node:path";
 import process from "node:process";
 import { artifactFilePath, artifactKey, isOutPath, routeSlug } from "@orb/tooling/_shared/artifacts";
-import { variantOut } from "../../../scripts/probes/snap.ts";
+import { variantOut } from "../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const SNAPS = "/repo/reports/snaps";

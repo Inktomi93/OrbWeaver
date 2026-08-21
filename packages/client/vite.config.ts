@@ -7,7 +7,7 @@ import { defineConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 
 // Dev-server port + API-proxy target are env-overridable so `snap --isolated` can boot a SECOND, fully
-// isolated dev stack at a frozen HEAD worktree on OFFSET ports (scripts/probes/_kit/snap-stage.ts) without
+// isolated dev stack at a frozen HEAD worktree on OFFSET ports (tooling/src/snap/ops/stage.ts) without
 // fighting the primary dev stack's HMR/crash-loops. Unset = the canonical dev origin, byte-for-byte
 // unchanged; the stage exports VITE_PORT + VITE_API_TARGET pointed at ITS own backend. The presence of the
 // `VITE_API_TARGET` env read below is ALSO the snap-stage version tripwire — a stage ref that predates this

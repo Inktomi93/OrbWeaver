@@ -4,7 +4,7 @@
 //
 // WHY IT EXISTS: `snap --contexts N` is the ordinary tool for two-human pixels, but it targets the
 // multi-user FIXTURE stack, which reuses the SHARED dev ports 8788/5173 verbatim
-// (scripts/probes/_kit/fixture.ts: `FIXTURE_SERVER_PORT = 8788`, and its header — "it must be running
+// (tooling/src/snap/ops/fixture.ts: `FIXTURE_SERVER_PORT = 8788`, and its header — "it must be running
 // INSTEAD of the shared stack, never alongside it"). So `--contexts` is unusable whenever the operator's
 // dev stack is up, and using it means stopping their box. The `local` Playwright project already boots a
 // genuinely isolated multi-human stack (own ports, own DB, `E2E_HARNESS=on`, seeded owner+member), so the

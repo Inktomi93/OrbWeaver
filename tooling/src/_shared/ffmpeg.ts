@@ -1,13 +1,14 @@
 // ffmpeg resolution for the probes that post-process pixels. Not guaranteed on PATH —
 // consumers MUST handle null (skip ≠ fail: exit 0, SKIPPED result line).
 // Playwright's bundled ffmpeg is NOT a fallback: screencast-only build, no ssim/blend filters.
-import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { runNicedSync } from "./proc.ts";
 
 let cached: string | null | undefined;
 
 function runnable(bin: string): boolean {
-  return spawnSync(bin, ["-version"], { stdio: "ignore" }).status === 0;
+  // A missing binary surfaces as nice's 127 — still ≠ 0, same verdict as the old direct spawn.
+  return runNicedSync(bin, ["-version"], { stdio: "ignore" }).status === 0;
 }
 
 /**

@@ -1,4 +1,4 @@
-// The shared perimeter-ring pixel sampler (scripts/probes/_kit/pixel-backdrop.ts). Home per
+// The shared perimeter-ring pixel sampler (tooling/src/_shared/pixel-backdrop.ts). Home per
 // Spine-Testing §2: a test of a scripts/ tool lives in tests/tooling/.
 //
 // WHY IT IS SHARED (issue #218): both browser instruments resolve a backdrop from the DOM and both go
@@ -8,8 +8,8 @@
 //
 // The ring is the load-bearing choice: glyphs live in the box INTERIOR, so an interior-inclusive average
 // would measure the text it is trying to measure text AGAINST.
-import { clampBoxToImage, ringBackdropOfRegion } from "../../scripts/probes/_kit/pixel-backdrop.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { clampBoxToImage, ringBackdropOfRegion } from "@orb/tooling/_shared/pixel-backdrop";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CHANNELS = 4;
 

@@ -16,7 +16,7 @@
     "stack": "bash scripts/dev/stack.sh",
     "seed:demo": "node scripts/seed/seed-demo.ts",
     "design-audit": "node scripts/probes/design-audit.ts",
-    "snap": "node scripts/probes/snap.ts",
+    "snap": "node tooling/src/snap/cli.ts",
     "ast": "node --max-old-space-size=8192 scripts/codemods/ast.ts",
     "codemod": "node scripts/codemods/codemod.ts",
     "knip": "knip --cache",

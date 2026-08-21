@@ -41,7 +41,7 @@ import type { ResultPair } from "@orb/tooling/_shared/artifacts";
 import { artifactDir, print, printResult } from "@orb/tooling/_shared/artifacts";
 import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
-import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
+import { resolveFfmpeg } from "@orb/tooling/_shared/ffmpeg";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_SETTLE_MS = 1500;
