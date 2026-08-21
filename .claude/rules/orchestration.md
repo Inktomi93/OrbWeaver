@@ -167,11 +167,14 @@ linked Project issue — no lane touches `work:item`.
 - **Same-file parallel lanes are FINE when hunk regions are pre-declared through main.** Both lanes state
   their regions, NEITHER relocates hunks to dodge the merge (relocation is what breaks 3-way), and the
   orchestrator resolves by union. The failure mode is silent relocation, not the shared file.
-- **The THREE-program typecheck truth table** (two briefs shipped wrong floors before this was pinned):
-  `types:graph` (ts7 -p tsconfig.json) EXCLUDES packages/{ui,client}/src (bundler-mode) but sees tests/ +
-  scripts/; per-package `pnpm typecheck` sees ui/client src but is blind to tests/scripts; `tests-dom`
-  sees CT tsx. A floor claims coverage it verified — when uncertain, PLANT a control error (a lane
-  verified its instrument with a planted TS2322 tonight; that is the standard, not paranoia).
+- **The THREE-program typecheck truth table** (two briefs shipped wrong floors before this was pinned;
+  CORRECTED 2026-08-21 by planted control): `types:graph` (ts7 -p tsconfig.json) EXCLUDES
+  packages/{ui,client}/src (bundler-mode) but sees tests/ + scripts/ — and excludes
+  `tests/{ui,client}/**/*.tsx` by directory; per-package `pnpm typecheck` sees ui/client src AND is the
+  ONLY program that owns `tests/**/*.ct.tsx` (a planted TS2322 in a .ct.tsx was caught by per-package
+  alone); `tests-dom` does NOT see CT tsx — its include is an explicit list of non-CT DOM-coupled
+  escapees. A floor claims coverage it verified — when uncertain, PLANT a control error; that is the
+  standard, not paranoia.
 - **The whole-tree single-pass runs after EVERY merge train, not only at drain** — tonight's corpus train
   left 9 findings that every scoped lane floor structurally missed; the single-pass caught them 30 min
   after merge instead of at the barrier.
