@@ -273,10 +273,21 @@ export function InitialOffsetList({ itemCount, offsetPx }: { readonly itemCount:
 }
 
 /** Scope-reset stress: both scopes have dynamic measured heights and disjoint stable keys. */
+function scopeRowHeight(index: number): number {
+  const remainder = index % 3;
+  if (remainder === 0) {
+    return 64;
+  }
+  if (remainder === 1) {
+    return 48;
+  }
+  return 40;
+}
+
 export function ResetScopeList(): ReactElement {
   const [scopeChanged, setScopeChanged] = useState(false);
   const [itemsSettled, setItemsSettled] = useState(false);
-  const items = Array.from({ length: 200 }, (_, index) => ({
+  const items = Array.from({ length: itemsSettled ? 30 : 906 }, (_, index) => ({
     id: `${itemsSettled ? "after" : "before"}-${String(index)}`,
     label: `${itemsSettled ? "After" : "Before"} ${String(index)}`,
   }));
@@ -296,7 +307,7 @@ export function ResetScopeList(): ReactElement {
           getItemKey={(item): string => item.id}
           items={items}
           renderItem={(item, index): ReactElement => (
-            <button style={{ height: index % 3 === 0 ? 64 : 40 }} type="button">
+            <button style={{ height: scopeRowHeight(index) }} type="button">
               {item.label}
             </button>
           )}
