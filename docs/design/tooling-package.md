@@ -141,7 +141,7 @@ The plan's seed list, re-derived and extended on the tree. Legend: P<n> = the ph
 | root `package.json` depcruise scripts | `:70-74` — five scripts cruise `packages` only | P1: `depcruise packages tooling --config …` (all five) so the tooling stanzas can fire at all |
 | `tsconfig.json` (graph) | include `"scripts"`,`"tests"` `:46-60`; excludes st-goldens `:141` | P1: include gains `"tooling"`; scripts include SURVIVES (research zone still typechecked) |
 | `tooling/tsconfig.json` | new | P1 (§2.3); swept by `pnpm -r exec` typecheck automatically |
-| `vitest.config.ts` SERIAL_INT | `:39-76` — 5 tooling rows: check-gates.int `:41`, gate-ignore-grammar.int `:44`, dependency-cruiser.int `:45`, gate-conformance.int `:48`, ast-observability.int `:52` | P2-P6: rows follow their files as tests migrate into mirror dirs (§4.7) |
+| `vitest.config.ts` SERIAL\_INT | `:39-76` — 5 tooling rows: check-gates.int `:41`, gate-ignore-grammar.int `:44`, dependency-cruiser.int `:45`, gate-conformance.int `:48`, ast-observability.int `:52` | P2-P6: rows follow their files as tests migrate into mirror dirs (§4.7) |
 | `stryker.config.json` / `stryker.gate.config.json` | ignorePatterns st-goldens rows `:52-55` / `:47-50`; mutate globs are packages-only | NO change: st-goldens stays; `tooling/` must NOT be added to ignorePatterns (the sandbox needs the tree, and the workspace-symlink patch discovers workspace packages generically — `patches/@stryker-mutator__core@9.6.1.patch`, `linkNodeModulesEntries` re-points by realpath, no package list). P1 done-bar smoke-proves it |
 | `.dependency-cruiser.cjs` | rules `:64-619`; options.exclude `__g_` `:655` | P1: the three tooling stanzas (§4.6); `__g_`/`__dc_` excludes are path-generic, no edit |
 | `lefthook.yml` | commands are `pnpm check`/`pnpm verify --push` only; one prose cite of `scripts/verify/registry.ts` `:116` | P6: fix the prose cite; commands unchanged |
@@ -201,7 +201,7 @@ All five gates follow GATE-AUTHORING in full: descriptor + ≥1 `mustFlag`/`must
 ### 4.3 `tooling-size`
 
 - incremental-safe, `visitFile` line count, comments-INTENDED posture note (counts comment lines, like `component-size`). scanRoot: `tooling/src/`.
-- REDs: any file >450 lines (the `component-size` default, `component-size.ts:13`); any `cli.ts` >200. Declared carve with its own mustPass row: `tooling/src/verify/gates/**` is cap-EXEMPT after P6 (gate files are contract-headed single-purpose modules already capped socially at ~900 — `open-json-column-key-parity.ts` is 883 — and splitting a gate is worse than a long one; the exemption is a scanRoot clause, reviewed under the §3 complex-predicate rule, and its `why` names the largest-gate receipt).
+- REDs: any file >450 lines (the `component-size` default, `component-size.ts:13`); any `cli.ts` >200. Declared carve with its own mustPass row: `tooling/src/verify/gates/**` is cap-EXEMPT after P6 (gate files are contract-headed single-purpose modules already capped socially at \~900 — `open-json-column-key-parity.ts` is 883 — and splitting a gate is worse than a long one; the exemption is a scanRoot clause, reviewed under the §3 complex-predicate rule, and its `why` names the largest-gate receipt).
 - This is the gate that decomposes snap (P2: 4,513 → ops/), ast (P4: 6,241), codemod-kit (P4: 3,385), work-item/catalog/design-audit (P3/P5). It exists BEFORE they move, so a monolith cannot land un-split — the born-compliant mechanism is ordering, not a ratchet.
 - mustFlag: a 451-line planted file; a 201-line `cli.ts`. mustPass: a 450-line file; a gates-dir file over cap.
 - Fixture: `__g_` plantable.
@@ -288,7 +288,7 @@ The serializer's `test()` predicate admits only strings carrying one of those at
 ### 5.4 `.test-d.ts` + serial routing
 
 - Every promoted tool's `contract/` ships `tests/tooling/<tool>/contract/index.test-d.ts` at its move (the `types` vitest project already globs `tests/**/*.test-d.ts`, `vitest.config.ts:195` — zero config).
-- SERIAL_INT rows follow their files at each move (§3.1); NEW tool tests default to `plantedTree`-in-scratch (parallel-safe) and earn a SERIAL_INT row only under the config's own admission rules (`vitest.config.ts:26-38`). The standing hazard stays: `check-gates.int` is not concurrency-safe with itself.
+- SERIAL\_INT rows follow their files at each move (§3.1); NEW tool tests default to `plantedTree`-in-scratch (parallel-safe) and earn a SERIAL\_INT row only under the config's own admission rules (`vitest.config.ts:26-38`). The standing hazard stays: `check-gates.int` is not concurrency-safe with itself.
 
 ## 6. Phases and done-bars
 
@@ -304,7 +304,7 @@ One forge lane, one commit per phase; the orchestrator merges + runs the whole-t
 | P5 | workboard · doc-catalog · agent-sync · seed · stack · model-ab | `registry.ts:308` argv edit; `pnpm work:item --help`, `pnpm check:docs`, `pnpm check:doc-catalog`, `pnpm agents:sync --check`, a stack start-fg smoke — each run once, cold |
 | P6 | verify/check + the whole gate corpus + GATE-AUTHORING.md | the §9 playbook plus GATE-AUTHORING §9's rename sweep over the corpus (old basenames AND `\/`-escaped spellings); `finding-overload-provenance.baseline.json` keys hand-edited; lefthook prose cite; `pnpm check` + `pnpm verify --list` byte-compared against pre-move output; every `UNFIXTURABLE_GATES` + `DORMANT_GATES` row re-verified |
 | P7 | one-definition merges + down-migrations: dead-CSS tokenizer → `kit` (receipts §2.8); accname engine → ui lib beside its list-row authority; ONE LoAF observer feeding both channels; trpc/bus devlog merge (lowest priority) | each merge is a shared-value change: run BOTH consumers' suites + the repo-wide literal grep; kit additions pass `kit-purity` (isomorphic proof) |
-| P8 | instrument-proof CT suite for the client sensors: planted stutter ([drop] + its re-arm), planted dead class ([css]), planted long task ([frame]), planted unreserved box ([space]), planted CLS | every proof REDs on its planted regression (red-first receipts); CT files named by path in the report |
+| P8 | instrument-proof CT suite for the client sensors: planted stutter (\[drop] + its re-arm), planted dead class (\[css]), planted long task (\[frame]), planted unreserved box (\[space]), planted CLS | every proof REDs on its planted regression (red-first receipts); CT files named by path in the report |
 | P9 | law docs: Core-0 tooling-tree section · constitution §7 index rows · `scripts/` README declaring the research zone (incl. §2.7's classification + the (d) flag-for-delete list for the owner) · the ruled `useless-fragments.ts` delete · doc-cite sweep | `pnpm check:docs` + `check:doc-catalog` green; `dangling-refs` green; the §2.7(d) owner ruling requested via the orchestrator |
 
 ## 7. Considered-rejected (recorded so nobody relitigates)
