@@ -1,10 +1,44 @@
 ---
 kind: runbook
 status: active
-updated: 2026-08-19
+updated: 2026-08-21
 ---
 
 # Orbweaver recovery index
+
+## Current-state snapshot — 2026-08-21 midday (supersedes any earlier snapshot block)
+
+Codex subscription ENDED (not renewing); Claude is the sole agent system. The 2026-08-21 fix train
+(board #382-#387, all Done) merged and its drain `pnpm check` is GREEN on main; the behavioral
+battery run was aborted for load and is OWED. Since then merged: #390 host-seat unique index
+pending-merge check, #393 P0 design doc (`docs/design/tooling-package.md` — the tooling-package
+program, owner review of its four open questions PENDING), #395 kit/time on Temporal (luxon residual
+= `{{datetimeformat}}` vocabulary, documented in macro/registry.ts header).
+
+In flight (lanes resume via SendMessage; worktrees under `.claude/worktrees/`): stryker-v10 #394
+(items 1-5 committed `6ac24b8aa` on `wt/agent-a5802b358a89ffddc`; gate calibration at
+`--concurrency 6` + recommended `break` land as a 2nd commit, then orchestrator merges; a TS7
+option-sanitization experiment is queued post-calibration), fix-usage-server warm leg on #396
+(export-chat-bundle 5-test red on main — serde provenance superRefine refusing exported bundles;
+receipt `reports/export-bundle-red-check.log`), host-index #390 (reported green: index + baseline
+regen + 2 stale two-host fixtures fixed; final report/merge pending), tooling-package forge (#393,
+idle awaiting owner P0 review; P1 = scaffold + gates + test infra continues in-lane).
+
+Standing rulings this day (also in `.claude/rules/orchestration.md` + session-anchor memory): dev DB
+is EXPENDABLE (wipes = ST-import exercises, no backup ceremony); heavy entrypoints run `nice -n 19`
+(package.json, `32691051c`); lanes use `pnpm test:scoped <paths> --maxWorkers=4` / `pnpm ct:scoped
+<paths> --workers=2` (`aac3b20bd`); calibrations are orchestrator-scheduled; the dev stack SELF-HEALS
+(vite prebundle law was stale — `db25e3d1d`); typecheck truth table corrected (`503f0d2c7` — only
+per-package sees `.ct.tsx`; also `@base-ui` ambients make `types:graph` blind to global-type
+questions).
+
+Owner decision batch OPEN: speaker-picker honest-refusal exemption · serde bundle refuse-vs-degrade
+(now live via #396) · backfill sweep scope · #374 motion-law carve-out for anchored-popup entrance
+(Codex's handoff: option 1 recommended, receipts in its final report) · #285 glow carrier scope ·
+`{{datetimeformat}}` Intl-vocabulary arm (lean: never) · tooling P0's four questions (launcher shims;
+4 flag-for-delete audit scripts; record.ts at P3; gate-size exemption). Queued Ready: #388 #391 #392
++ prepared-statements adoption. Pre-push: behavioral battery + `pnpm verify --push` still owed before
+any origin push (needs fresh owner word).
 
 This page is the cold-start entry point, not a backlog or a second source of status. Mutable work
 lives in [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1); repository documents

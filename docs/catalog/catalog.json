@@ -15182,16 +15182,16 @@
       "path": "docs/retro-workboard.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 45,
-      "bytes": 2473,
-      "sha256": "f0ebeedc914ee85865dcc87fbdcfb92ccca044acf3cc23e4836e4d638348f653",
+      "lines": 79,
+      "bytes": 5140,
+      "sha256": "9f5c2199117a6171e38370b199b5d48dc727a166b9477db5c02dedae6bc3cb35",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "runbook",
           "status": "active",
-          "updated": "2026-08-19"
+          "updated": "2026-08-21"
         },
         "errors": []
       },
@@ -15248,7 +15248,7 @@
         ],
         "summary": "Short operational recovery index: Project lifecycle, durable authority homes, agent-process routing, and hard stops only; no backlog or mirrored status."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
