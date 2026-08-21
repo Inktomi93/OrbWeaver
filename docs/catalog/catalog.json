@@ -23184,6 +23184,65 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-20-server-usage-settlement-repair.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 194,
+      "bytes": 10698,
+      "sha256": "f982d2a8fa37ad783b99b64a135992dcc0714f3add531f871891b3c701920b1e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-20-server-usage-settlement-repair.md",
+        "assignedSha256": "f982d2a8fa37ad783b99b64a135992dcc0714f3add531f871891b3c701920b1e",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "f982d2a8fa37ad783b99b64a135992dcc0714f3add531f871891b3c701920b1e",
+        "verifiedCommit": "e3e4225b83b79fc0c9109ec7c33376e748d3bb1e",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-20-server-usage-settlement-repair.md:1-194 full read against review commit e3e4225b83b79fc0c9109ec7c33376e748d3bb1e",
+          "candidate 05734864dd5a7b8c661c1c42fd14b020f52f2845 replayed cleanly on main 2895946d810415f85c5bb001d27af60d396660be",
+          "103 focused settlement tests passed; exact three-file CT matched current main at 304 passed with the same three baseline failures",
+          "GitHub issues #290 and #291 re-derived on 2026-08-20"
+        ],
+        "summary": "Fresh-context verification of the repaired server usage settlement: all six prior HOLD findings are resolved with zero new findings; #291 still requires an external-key live OpenRouter receipt.",
+        "claims": [
+          {
+            "claim": "The repaired settlement preserves optional provider usage, live/rebuild sample parity, compare-and-set safety, portable provenance validity, truthful CT provenance, and singular audit copy.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#290"
+              },
+              {
+                "kind": "issue",
+                "target": "#291"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/domain/chat/engine/engine-stats.suite.int.test.ts:451"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/domain/stats/write/drift-gate.suite.int.test.ts:275"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/vendor/base-ui/INDEX.md",
       "lane": "vendor",
       "issue": 10,
