@@ -18,7 +18,7 @@
 // search/filtering/keyboard nav — do not reimplement.
 
 import type { ChatId } from "@orb/kit/ids";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
+import { Command, CommandAuxiliaryButton, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -93,7 +93,17 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
 
           <QueryBoundary
             fallback={<RecentThreadsLoading />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="recent threads" onRetry={retry} />}
+            renderError={(_error, retry): ReactElement => (
+              <QueryErrorState
+                label="recent threads"
+                onRetry={retry}
+                renderRetry={(onRetry): ReactElement => (
+                  <CommandAuxiliaryButton intent="ghost" onClick={onRetry}>
+                    Retry
+                  </CommandAuxiliaryButton>
+                )}
+              />
+            )}
           >
             <ThreadsGroup onJump={jumpToChat} />
           </QueryBoundary>

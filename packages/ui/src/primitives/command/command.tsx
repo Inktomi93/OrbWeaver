@@ -9,10 +9,12 @@ import {
   CommandSeparator as BaseCommandSeparator,
   useCommandState,
 } from "cmdk";
-import type { ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, formatResultCount } from "#lib";
+import type { ButtonProps } from "#primitives/button";
+import { Button } from "#primitives/button";
 import { Icon, Search } from "#primitives/icons";
 import { commandVariants } from "./variants.ts";
 
@@ -36,7 +38,7 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
  * future omni-bar composes `<Dialog><Command>…</Command></Dialog>` instead.
  */
 export function Command({ className, onEscape, onKeyDown, ...rest }: CommandProps): ReactElement {
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     onKeyDown?.(event);
     if (event.key === "Escape") {
       onEscape?.();
@@ -137,6 +139,24 @@ export interface CommandListProps extends Omit<ComponentProps<typeof BaseCommand
 /** The scrollable listbox. Content-sized by default; bounded surfaces choose a declared list-size arm. */
 export function CommandList({ className, listSize, ...rest }: CommandListProps): ReactElement {
   return <BaseCommandList className={cn(commandVariants({ listSize }).list(), className)} data-slot="command-list" {...rest} />;
+}
+
+export interface CommandAuxiliaryButtonProps extends ButtonProps {}
+
+/**
+ * A non-option action mounted inside a Command root. The focused button owns Enter through its native
+ * keyboard contract; cmdk must not translate that same key into activation of its roving selected item.
+ * Space already stays native because cmdk does not consume it, and Escape keeps bubbling so the containing
+ * command surface/dialog can close normally.
+ */
+export function CommandAuxiliaryButton({ onKeyDown, ...props }: CommandAuxiliaryButtonProps): ReactElement {
+  const handleKeyDown: NonNullable<ButtonProps["onKeyDown"]> = (event): void => {
+    onKeyDown?.(event);
+    if (event.key === "Enter") {
+      event.stopPropagation();
+    }
+  };
+  return <Button onKeyDown={handleKeyDown} {...props} />;
 }
 
 export interface CommandEmptyProps extends Omit<ComponentProps<typeof BaseCommandEmpty>, "className"> {
