@@ -44,6 +44,8 @@ export interface VirtualListProps<T> {
    * would fight them. Distinct from `scrollToIndex`, which is an ongoing imperative pin, not a restore.
    */
   readonly initialScrollOffset?: number;
+  /** Resets the live scroll offset to the top when this scope identity changes, without remounting. */
+  readonly resetScrollKey?: string | number | null;
   /** Fires when the rendered window's last index comes within `endApproachRows` of the tail. */
   readonly onEndApproach?: () => void;
   /** Tail-proximity threshold in rows for `onEndApproach`. @defaultValue 8 */
@@ -87,6 +89,7 @@ export function VirtualList<T>({
   renderItem,
   scrollToIndex,
   initialScrollOffset,
+  resetScrollKey,
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
   className,
@@ -94,6 +97,7 @@ export function VirtualList<T>({
   fadeEdge = false,
 }: VirtualListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const previousResetScrollKey = useRef(resetScrollKey);
 
   const itemAt = (index: number): T => {
     const item = items.at(index);
@@ -153,6 +157,15 @@ export function VirtualList<T>({
     el.toggleAttribute("data-more", totalSize - el.scrollTop - el.clientHeight > EDGE_EPSILON_PX);
   }, [fadeEdge, totalSize]);
 
+  // Reset a changed scope in place: remounting can expose fresh rows before the direct position owner runs.
+  useLayoutEffect(() => {
+    if (Object.is(previousResetScrollKey.current, resetScrollKey)) {
+      return;
+    }
+    previousResetScrollKey.current = resetScrollKey;
+    virtualizer.scrollToOffset(0, { align: "start" });
+  }, [resetScrollKey, virtualizer, virtualizer.scrollToOffset]);
+
   // Fires only when the value changes, not on every render. align: "end" is the pin-to-bottom shape.
   useLayoutEffect(() => {
     if (scrollToIndex === undefined) {
@@ -181,7 +194,6 @@ export function VirtualList<T>({
     >
       <div ref={virtualizer.containerRef} className="relative w-full" data-slot="virtual-list-viewport">
         {virtualItems.map((virtualItem) => (
-          // A remounted row must be positioned before the direct DOM updater can run its first hit-test.
           // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
           <div
             key={virtualItem.key}
@@ -190,7 +202,6 @@ export function VirtualList<T>({
             data-lane={lanes === undefined ? undefined : virtualItem.lane}
             data-slot="virtual-list-row"
             className="absolute inset-x-0"
-            style={{ top: virtualItem.start }}
             role="listitem"
             aria-setsize={items.length}
             aria-posinset={virtualItem.index + 1}

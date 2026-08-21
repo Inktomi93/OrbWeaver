@@ -288,3 +288,38 @@ export function AriaLabelList({ itemCount, ariaLabel }: { readonly itemCount: nu
     </div>
   );
 }
+
+/** Shared-consumer stress harness: measured height, stable-key reorder, scrollport resize, then deep scroll. */
+export function DynamicLayoutList(): ReactElement {
+  const [tall, setTall] = useState(false);
+  const [reversed, setReversed] = useState(false);
+  const [listHeight, setListHeight] = useState(200);
+  const items = reversed ? makeItems(80).reverse() : makeItems(80);
+  return (
+    <div>
+      <button type="button" data-testid="toggle-height" onClick={(): void => setTall((value) => !value)}>
+        height
+      </button>
+      <button type="button" data-testid="reorder" onClick={(): void => setReversed((value) => !value)}>
+        reorder
+      </button>
+      <button type="button" data-testid="resize" onClick={(): void => setListHeight((value) => (value === 200 ? 280 : 200))}>
+        resize
+      </button>
+      <div style={{ height: listHeight }}>
+        <VirtualList
+          aria-label="Dynamic rows"
+          className="h-full"
+          estimateSize={(): number => 40}
+          getItemKey={(item): string => item.id}
+          items={items}
+          renderItem={(item): ReactElement => (
+            <button style={{ height: tall && item.id === "fixture-0" ? 96 : 40 }} type="button">
+              {item.label}
+            </button>
+          )}
+        />
+      </div>
+    </div>
+  );
+}

@@ -427,9 +427,9 @@ function ChatRows({ activeChatId, items, listKey, listProps, monthLabel, onClear
         gapToken="tight"
         getItemKey={(item): string => item.id}
         items={items}
-        key={listKey ?? "latest"}
         onEndApproach={listProps.onEndApproach}
         renderItem={renderRow}
+        resetScrollKey={listKey}
       />
     </Stack>
   );

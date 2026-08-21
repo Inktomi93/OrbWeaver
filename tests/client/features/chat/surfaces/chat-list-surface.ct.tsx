@@ -18,7 +18,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
-import { ChatListSurfaceStory } from "../_ct-stories.tsx";
+import { ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
 const RAW_MONTH_COPY = /2020-06/u;
@@ -244,7 +244,7 @@ test.describe("date jump coarse pointer", () => {
     expect((clearBox?.x ?? 0) + (clearBox?.width ?? 0)).toBeLessThanOrEqual((searchBox?.x ?? 0) + (searchBox?.width ?? 0));
   });
 
-  test("compact month remount gives every virtual row one positioned box and ownership of its own centre", async ({ mount, page }) => {
+  test("compact month scope change gives every virtual row one positioned box and ownership of its own centre", async ({ mount, page }) => {
     const old = Array.from({ length: 30 }, (_unused, at) => {
       const recencyAt = Date.UTC(2020, 5, 30) - at;
       return makeChatSummary({
@@ -261,32 +261,84 @@ test.describe("date jump coarse pointer", () => {
       root.classList.add("shell-grid");
       root.setAttribute("data-density", "compact");
     });
+    const scroll = component.locator('[data-slot="virtual-list-scroll"]');
+    await scroll.evaluate((node) => node.setAttribute("data-remount-probe", "preserved"));
 
     await component.getByLabel("Jump to month").fill("2020-06");
     await expect(component.getByText("Compact old 00")).toBeVisible();
+    await expect(scroll).toHaveAttribute("data-remount-probe", "preserved");
 
-    const geometry = await component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {
-      const listBox = rows[0]?.closest('[data-slot="virtual-list"]')?.getBoundingClientRect();
-      return rows.map((row) => {
-        const box = row.getBoundingClientRect();
-        const body = row.querySelector<HTMLElement>('[data-slot="list-row-body"]');
-        const centreY = box.y + box.height / 2;
-        return {
-          index: Number(row.getAttribute("data-index")),
-          top: row.getAttribute("style"),
-          y: box.y,
-          centreIsVisible: listBox !== undefined && centreY >= listBox.top && centreY <= listBox.bottom,
-          ownsCentre: document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('[data-slot="list-row-body"]') === body,
-        };
+    const expectOwnedGeometry = async (): Promise<void> => {
+      const geometry = await component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {
+        const scrollBox = rows[0]?.closest('[data-slot="virtual-list-scroll"]')?.getBoundingClientRect();
+        const viewportBox = rows[0]?.closest('[data-slot="virtual-list-viewport"]')?.getBoundingClientRect();
+        return rows.map((row) => {
+          const box = row.getBoundingClientRect();
+          const body = row.querySelector<HTMLElement>('[data-slot="list-row-body"]');
+          const centreY = box.y + box.height / 2;
+          return {
+            index: Number(row.getAttribute("data-index")),
+            top: row.getAttribute("style"),
+            y: box.y,
+            scrollBoxExists: scrollBox !== undefined,
+            viewportHasHeight: (viewportBox?.height ?? 0) > 0,
+            centreIsVisible: scrollBox !== undefined && centreY >= scrollBox.top && centreY <= scrollBox.bottom,
+            ownsCentre: document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('[data-slot="list-row-body"]') === body,
+          };
+        });
       });
-    });
-    expect(geometry.length).toBeGreaterThan(1);
-    expect(geometry.filter((row) => row.top?.includes("top:") !== true)).toEqual([]);
-    expect(new Set(geometry.map((row) => row.y)).size).toBe(geometry.length);
-    expect(geometry.filter((row) => row.centreIsVisible && !row.ownsCentre)).toEqual([]);
-    expect(geometry.find((row) => row.index === 0)?.ownsCentre).toBe(true);
-    await expect(component.getByRole("list", { name: "Chats" })).toHaveJSProperty("scrollTop", 0);
+      expect(geometry.length).toBeGreaterThan(1);
+      expect(geometry.every((row) => row.scrollBoxExists && row.viewportHasHeight)).toBe(true);
+      expect(geometry.filter((row) => row.top?.includes("top:") !== true)).toEqual([]);
+      expect(new Set(geometry.map((row) => row.y)).size).toBe(geometry.length);
+      const visibleGeometry = geometry.filter((row) => row.centreIsVisible);
+      expect(visibleGeometry.length).toBeGreaterThan(1);
+      expect(visibleGeometry.filter((row) => !row.ownsCentre)).toEqual([]);
+      expect(geometry.find((row) => row.index === 0)?.ownsCentre).toBe(true);
+    };
+    await expect(expectOwnedGeometry).toPass();
+    await expect(scroll).toHaveJSProperty("scrollTop", 0);
+
+    const firstRow = component.locator('[data-slot="virtual-list-row"][data-index="0"]');
+    const firstBox = await firstRow.boundingBox();
+    expect(firstBox).not.toBeNull();
+    await page.mouse.click((firstBox?.x ?? 0) + (firstBox?.width ?? 0) / 2, (firstBox?.y ?? 0) + (firstBox?.height ?? 0) / 2);
+    await expect(component.getByTestId("selected")).toHaveText("chat_compact_0");
   });
+});
+
+test.describe("#372 coarse chat-list header target", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of [430, 390, 320] as const) {
+    test(`@${String(width)}: transcript import is a contained 44px coarse target`, async ({ mount, page }) => {
+      await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<ChatListHeaderStory width={width} />);
+      const header = component.locator(".shell-panel-header");
+      const button = component.getByRole("button", { name: "Import a chat transcript" });
+      const [headerBox, buttonBox] = await Promise.all([header.boundingBox(), button.boundingBox()]);
+
+      expect(headerBox).not.toBeNull();
+      expect(buttonBox).not.toBeNull();
+      expect(buttonBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(buttonBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(buttonBox?.x ?? -1).toBeGreaterThanOrEqual(headerBox?.x ?? 0);
+      expect((buttonBox?.x ?? 0) + (buttonBox?.width ?? 0)).toBeLessThanOrEqual((headerBox?.x ?? 0) + (headerBox?.width ?? 0));
+    });
+  }
+});
+
+test("#372 keeps the accessible import control compact at a fine pointer", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+  await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+  const component = await mount(<ChatListHeaderStory width={320} />);
+  const button = component.getByRole("button", { name: "Import a chat transcript" });
+  const box = await button.boundingBox();
+
+  expect(box).not.toBeNull();
+  expect(box?.width).toBe(32);
+  expect(box?.height).toBe(32);
 });
 
 test("the icon-only month clear exposes pointer copy byte-equal to its accessible name", async ({ mount, page }) => {
