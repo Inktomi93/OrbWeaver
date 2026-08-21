@@ -1,11 +1,17 @@
-import { DateTime } from "luxon";
-
 // THE canonical time representation across the stack: a UTC instant as integer epoch MILLISECONDS.
 // Every stored timestamp (`*_at`, `*Date`, gen timing) is epoch-ms; the client renders it in the
 // viewer's timezone via `Intl.DateTimeFormat`. All provider + import boundaries normalize to
-// epoch-ms HERE — Luxon parses everything as UTC — so no seconds-vs-ms or local-vs-UTC drift can
+// epoch-ms HERE — a zone-less reading resolves as UTC — so no seconds-vs-ms or local-vs-UTC drift can
 // leak downstream. Providers mix units: OpenRouter `created` and the Agent SDK rate-limit
 // `resetsAt` are epoch SECONDS; our own timestamps are ms; imported corpora are a zoo of formats.
+//
+// The zone/calendar math is the PLATFORM `Temporal` API (node ≥26 ships it enabled by default; the
+// browser arm is chromium ≥144 — probe-verified in the CT chromium 149 before this port landed). It
+// replaced luxon here 2026-08-21; the port is pinned by a differential corpus (63 of 70 inputs
+// byte-identical, every DST/calendar edge among them) whose deliberate deltas are stated on the two
+// parsers below. luxon SURVIVES in `macro/registry.ts` alone, where `{{datetimeformat::FORMAT}}`
+// exposes luxon's format-token vocabulary to users as a documented contract — that is a user-data
+// spec, not an implementation detail, and Temporal has no token formatter to preserve it with.
 
 // Values ≥ this are already milliseconds; smaller positive values are epoch seconds. (1e12 ms =
 // 2001; no real chat timestamp is before that, and 1e12 s would be year 33658 — unambiguous.)
@@ -31,11 +37,47 @@ export function secondsToMs(seconds: number | null | undefined): number | undefi
   return Math.round(seconds * MS_PER_SECOND);
 }
 
-/** Parse an ISO-8601 string → epoch ms. A naive (no-offset) ISO string is read as UTC (Luxon's
- *  zone:"utc"), NOT the host's local zone — that determinism is the whole point. null if invalid. */
+/** An `[IANA/Zone]`-annotated or offset/`Z`-designated string names an EXACT instant — the string's own
+ *  zone decides it, never the caller's. `null` when it carries neither (the zone-less arm below). */
+function exactInstantMs(value: string): number | null {
+  try {
+    return Temporal.ZonedDateTime.from(value).epochMilliseconds;
+  } catch {
+    // No `[IANA/Zone]` annotation — fall through to the designator arm.
+  }
+  try {
+    return Temporal.Instant.from(value).epochMilliseconds;
+  } catch {
+    return null;
+  }
+}
+
+/** A zone-less ISO reading resolved as UTC. `overflow:"reject"` so an impossible date (`2026-02-30`)
+ *  is `null` rather than silently CONSTRAINED to the month's last day — Temporal's default. */
+function naiveIsoMs(value: string): number | null {
+  try {
+    return Temporal.PlainDateTime.from(value, { overflow: "reject" }).toZonedDateTime("UTC").epochMilliseconds;
+  } catch {
+    return null;
+  }
+}
+
+/** Parse an ISO-8601 string → epoch ms. A naive (no-offset) ISO string is read as UTC, NOT the host's
+ *  local zone — that determinism is the whole point. null if invalid.
+ *
+ *  The parsed set is what `Temporal` parses: a calendar date, a date-time, either with an offset/`Z`
+ *  designator or an `[IANA/Zone]` annotation or neither. The luxon parser this replaced ALSO accepted
+ *  five forms that now read `null` — reduced precision (`2026`, `2026-07`), ISO week (`2026-W27-5`),
+ *  ISO ordinal (`2026-185`) and end-of-day (`…T24:00:00`). Deliberate and fail-closed: the sole
+ *  consumer (`server/kit/serde/chat` parseStDate) feeds it ST timestamps containing `T`, which are
+ *  plain date-times, and every one of the five is pinned in the suite so a re-widening is a decision.
+ *  A SPACE separator (`2026-07-03 12:00:00`) stays rejected — Temporal accepts it as an extension,
+ *  luxon did not, and this function's contract is ISO. */
 export function isoToMs(value: string): number | null {
-  const dt = DateTime.fromISO(value, { zone: "utc" });
-  return dt.isValid ? dt.toMillis() : null;
+  if (value.includes(" ")) {
+    return null;
+  }
+  return exactInstantMs(value) ?? naiveIsoMs(value);
 }
 
 // ─── WALL-CLOCK instants (a foreign corpus's zone-less local timestamps) ───────────────────────────
@@ -58,15 +100,36 @@ export function hostTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
+/** ISO-8601's end-of-day reading: `24:00:00` names the NEXT day's midnight, and ONLY with a zero
+ *  minute/second (any other 24h reading is invalid). Temporal rejects the spelling outright, so the
+ *  normalization below keeps it parsing exactly as it did. */
+const END_OF_DAY_HOUR = 24;
+
 /** A zone-less wall-clock reading (1-based `month`) resolved in `zone` → epoch ms; null when the parts
  *  or the zone name are invalid. DST-aware per instant (a corpus spanning a transition gets each arm's
- *  real offset, which a single fixed offset cannot express). */
+ *  real offset, which a single fixed offset cannot express) — a spring-forward GAP reading shifts
+ *  forward and a fall-back AMBIGUOUS one takes the earlier offset, both pinned in the suite.
+ *
+ *  `zone` must be an IANA name or a numeric `±HH:MM` offset; the luxon parser this replaced also took
+ *  the non-IANA `UTC+2` spelling, which now reads null (no producer emits it — every live caller passes
+ *  {@link hostTimeZone} or the serde's `"UTC"` default). Non-integer / non-finite parts read null too,
+ *  which is what this contract always PROMISED — luxon THREW on them. */
 export function wallClockToMs(
   parts: { readonly year: number; readonly month: number; readonly day: number; readonly hour: number; readonly minute: number; readonly second: number },
   zone: string,
 ): number | null {
-  const dt = DateTime.fromObject(parts, { zone });
-  return dt.isValid ? dt.toMillis() : null;
+  if (!Object.values(parts).every((part) => Number.isInteger(part))) {
+    return null;
+  }
+  const endOfDay = parts.hour === END_OF_DAY_HOUR && parts.minute === 0 && parts.second === 0;
+  try {
+    // `overflow:"reject"` — an impossible reading (month 13, 30 February) is null, never CONSTRAINED to
+    // a nearby valid one, which is Temporal's default and would silently land a wrong instant.
+    const plain = Temporal.PlainDateTime.from(endOfDay ? { ...parts, hour: 0 } : parts, { overflow: "reject" });
+    return (endOfDay ? plain.add({ days: 1 }) : plain).toZonedDateTime(zone).epochMilliseconds;
+  } catch {
+    return null;
+  }
 }
 
 /** Format an epoch-ms instant as its wall-clock reading in `zone` (1-based `month`) — the inverse of
@@ -76,8 +139,17 @@ export function msToWallClock(
   ms: number,
   zone: string,
 ): { readonly year: number; readonly month: number; readonly day: number; readonly hour: number; readonly minute: number; readonly second: number } | null {
-  const dt = DateTime.fromMillis(ms, { zone });
-  return dt.isValid ? { year: dt.year, month: dt.month, day: dt.day, hour: dt.hour, minute: dt.minute, second: dt.second } : null;
+  if (!Number.isFinite(ms)) {
+    return null;
+  }
+  try {
+    // Truncate toward zero before the instant: `Temporal` takes integer ms only, and truncation is
+    // exactly what `Date`/luxon did with a sub-ms fraction, so a fractional input lands the same clock.
+    const zoned = Temporal.Instant.fromEpochMilliseconds(Math.trunc(ms)).toZonedDateTimeISO(zone);
+    return { year: zoned.year, month: zoned.month, day: zoned.day, hour: zoned.hour, minute: zoned.minute, second: zoned.second };
+  } catch {
+    return null;
+  }
 }
 
 // ─── The DISPLAY half (the client edge) ────────────────────────────────────────────────────────────
