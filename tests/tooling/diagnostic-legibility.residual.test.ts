@@ -7,7 +7,7 @@
 // `.residual.test.ts` (NOT `.int.test.ts`) so the Phase-2 deletion sweep of `tests/tooling/<name>.int.test.ts`
 // does not take it; the vitest `unit` lane's `tests/**/*.test.ts` glob still collects it.
 import { hasPointer } from "../../scripts/check/gates/diagnostic-legibility.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 test("hasPointer accepts doc / code-dir / @orb / concrete-file, rejects bare prose", () => {
   expect(hasPointer("see Spine-Testing.md §5")).toBe(true);

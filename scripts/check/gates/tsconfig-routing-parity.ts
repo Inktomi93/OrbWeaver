@@ -28,6 +28,7 @@ const CANDIDATE_TSCONFIGS: readonly string[] = [
   "packages/db/tsconfig.json",
   "packages/kit/tsconfig.json",
   "packages/contracts/tsconfig.json",
+  "tooling/tsconfig.json",
 ];
 
 const TS_SRC_RE = /\.(?:ts|tsx|mts|cts)$/u;

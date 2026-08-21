@@ -201,7 +201,7 @@
  *   pnpm snap / --appearance '{"density":"compact","elevation":"glow"}'
  *                                          # deep-merge ANY appearance keys over the REAL
  *                                          # settings.getUserSettings response (page.route response shim,
- *                                          # _kit/appearance.ts). The db is NEVER touched: nothing durable
+ *                                          # _shared/appearance.ts). The db is NEVER touched: nothing durable
  *                                          # changes, the next run with no flag sees the account again.
  *                                          # Unknown keys pass through (the server schema owns the
  *                                          # vocabulary); unparseable JSON / a non-object is ARG ERROR
@@ -218,7 +218,7 @@
  *   pnpm snap / --theme Light              # render as if the Light seed theme were selected: the shim
  *                                          # patches config.theme.selectedThemeId over the SAME settings
  *                                          # response, the app then fetches the REAL theme row itself
- *                                          # (_kit/theme.ts). Seeds: Hearth | Mocha | Light; your own
+ *                                          # (_shared/theme.ts). Seeds: Hearth | Mocha | Light; your own
  *                                          # themes work too, by name or id; `--theme none` = no selection.
  *                                          # The name is resolved against settings.listThemes, so a typo
  *                                          # WARNS with the real list instead of silently rendering yours.
@@ -414,9 +414,7 @@ import { basename, extname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import type { Locator, Page } from "@playwright/test";
-import sharp from "sharp";
-import type { AppearancePatch } from "./_kit/appearance.ts";
+import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
   appearanceHelpBlock,
@@ -425,23 +423,24 @@ import {
   loadAppearancePreset,
   mergeAppearancePatches,
   parseAppearancePatch,
-} from "./_kit/appearance.ts";
-import { artifactDir, artifactFile, artifactFilePath, artifactKey, routeSlug } from "./_kit/artifacts.ts";
-import type { CapturedConsole, CapturedRequest, LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "./_kit/browser.ts";
-import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
+} from "@orb/tooling/_shared/appearance";
+import type { Viewport } from "@orb/tooling/_shared/argv";
+import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "@orb/tooling/_shared/argv";
+import type { ResultPair } from "@orb/tooling/_shared/artifacts";
+import { artifactDir, artifactFile, artifactFilePath, artifactKey, print, printResult, routeSlug } from "@orb/tooling/_shared/artifacts";
+import type { CapturedConsole, CapturedRequest, LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "@orb/tooling/_shared/browser";
+import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
+import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import type { Locator, Page } from "@playwright/test";
+import sharp from "sharp";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
 import type { FixtureTarget } from "./_kit/fixture.ts";
 import { defaultFixtureUsers, fixtureRefusalLine, fixtureStatus, loginFixtureUser, resolveFixtureTarget, resolveFixtureUsers } from "./_kit/fixture.ts";
-import type { Viewport } from "./_kit/flags.ts";
-import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
 import type { NavMethod } from "./_kit/nav.ts";
 import { buildNavScript } from "./_kit/nav.ts";
 import { ringBackdrop } from "./_kit/pixel-backdrop.ts";
-import type { ResultPair } from "./_kit/result.ts";
-import { print, printResult } from "./_kit/result.ts";
 import { ensureStage, stageStatus, teardownStage } from "./_kit/snap-stage.ts";
-import type { ThemeRequest } from "./_kit/theme.ts";
-import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 import type { Rgb } from "./design-audit-checks.ts";
 import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "./design-audit-checks.ts";
 
@@ -502,7 +501,7 @@ const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 // --wide: layout sanity at a real monitor width (neo's default 1280 disguised a
 // dialog max-width bug for a whole morning).
 const WIDE_VIEWPORT: Viewport = { width: 1920, height: 1080 };
-// --mobile: a Playwright device descriptor name (registry lookup in _kit/browser.ts). Real touch +
+// --mobile: a Playwright device descriptor name (registry lookup in _shared/browser.ts). Real touch +
 // pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab
 // rail both render — a bare narrow viewport misses them. `scale:"css"` in SHOT_BASE keeps the DPR3 shot
 // at 1 image px / CSS px (not 3×), so the PNG cost stays sane.
@@ -526,7 +525,7 @@ const PROBE_MODE_KEY = "orb:probe-mode";
 const DEBUG_TOKEN_KEY = "orb:debug-token";
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
-// this kills mid-run flicker during steps too). Raw string — see _kit/browser.ts header.
+// this kills mid-run flicker during steps too). Raw string — see _shared/browser.ts header.
 const PROBE_CSS_SCRIPT = `document.addEventListener("DOMContentLoaded", () => {
   const style = document.createElement("style");
   style.textContent = "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}";
@@ -657,7 +656,7 @@ export type Args = {
   /** --watch tick interval (ms). Default 1000. */
   watchEveryMs: number;
   /** Output basename override (reports/snaps/<out>.png), or — when path-shaped (absolute / `./` / `../`) —
-   *  the exact file to write. Defaults to the route slug. Resolution lives in _kit/artifacts.ts. */
+   *  the exact file to write. Defaults to the route slug. Resolution lives in _shared/artifacts.ts. */
   out: string | null;
   viewport: Viewport;
   /** localStorage seeds applied BEFORE navigation (`--ls key=value`, repeatable). */
@@ -696,12 +695,12 @@ export type Args = {
    *  from `appearance` below (the app's own setting); they diverge and they compose. */
   reducedMotion: boolean;
   /** `--appearance '<json>'` / `--appearance-preset <name>` / `--full-motion`: the deep-merge patch shimmed
-   *  over the REAL `settings.getUserSettings` response for this run (never written — _kit/appearance.ts).
+   *  over the REAL `settings.getUserSettings` response for this run (never written — _shared/appearance.ts).
    *  Accumulated in argv order, later keys winning. null = drive the account's real state (the default, and
    *  a valid arm — it is the owner's actual experience). */
   appearance: AppearancePatch | null;
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
-   *  `settings.getUserSettings` response (never written — _kit/theme.ts). Last spelling wins. null = the
+   *  `settings.getUserSettings` response (never written — _shared/theme.ts). Last spelling wins. null = the
    *  account's own theme. A carried-theme chat room overrides it on purpose (D44 §12). */
   theme: ThemeRequest | null;
   /** Settle on networkidle (bounded) instead of a fixed timeout before capture. */
@@ -774,7 +773,7 @@ function pushEval(args: Args, action: PagedExpr): void {
   args.actions.push({ type: "eval", action });
 }
 // A `@<idx>` suffix on a flag (`--click@1`, `--eval@0`, `--aria@2`) selects a --pages tab — parsed by
-// splitPageSuffix (_kit/flags.ts, unit-tested there).
+// splitPageSuffix (_shared/argv.ts, unit-tested there).
 
 // Optional inline selector: consume the next token ONLY if it's not a flag (--…) and not a
 // route (/…). Selectors start with [ . # or a tag name. Shared by --aria/--text/--map's
@@ -4190,7 +4189,7 @@ async function snapMatrix(opts: Args): Promise<number> {
 type FixtureUser = { readonly handle: string; readonly password: string };
 
 // Log in EACH user via the real form door (POST /api/auth/login) BEFORE any browser context opens — the
-// session cookie is then seeded into its matching context (buildContext in _kit/browser.ts), so the very
+// session cookie is then seeded into its matching context (buildContext in _shared/browser.ts), so the very
 // first navigation is already authenticated as that user, no in-page login-form drive needed. Returns
 // null (having already printed the failing line) on the first login that doesn't mint a cookie.
 async function loginAllFixtureUsers(users: readonly FixtureUser[], target: FixtureTarget): Promise<(string | null)[] | null> {

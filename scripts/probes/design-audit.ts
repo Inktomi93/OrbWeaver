@@ -43,7 +43,7 @@
  *   pnpm design-audit / --out home                     # reports/design-audit/home.json
  *   pnpm design-audit / --out /tmp/lane/home.json      # a PATH-SHAPED --out (absolute, or ./ ../) is the
  *                                                       # exact file to write, not a name to file under
- *                                                       # reports/ (_kit/artifacts.ts owns that contract)
+ *                                                       # reports/ (_shared/artifacts.ts owns that contract)
  *   pnpm design-audit / --viewport 1920x1080           # default 1280x800
  *   pnpm design-audit / --mobile                       # iPhone 14 Pro Max: 430x932, DPR3, TOUCH +
  *                                                       # pointer:coarse. THE TAP-TARGET FLOOR IS
@@ -69,9 +69,7 @@ import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import type { Page } from "@playwright/test";
-import sharp from "sharp";
-import type { AppearancePatch } from "./_kit/appearance.ts";
+import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
   appearanceHelpBlock,
@@ -80,17 +78,18 @@ import {
   loadAppearancePreset,
   mergeAppearancePatches,
   parseAppearancePatch,
-} from "./_kit/appearance.ts";
-import { artifactFile, routeSlug } from "./_kit/artifacts.ts";
-import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
-import type { Viewport } from "./_kit/flags.ts";
-import { parseViewport } from "./_kit/flags.ts";
+} from "@orb/tooling/_shared/appearance";
+import type { Viewport } from "@orb/tooling/_shared/argv";
+import { parseViewport } from "@orb/tooling/_shared/argv";
+import { artifactFile, print, printResult, routeSlug } from "@orb/tooling/_shared/artifacts";
+import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
+import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import type { Page } from "@playwright/test";
+import sharp from "sharp";
 import type { NavMethod } from "./_kit/nav.ts";
 import { runNav } from "./_kit/nav.ts";
 import { clampBoxToImage, ringBackdropOfRegion } from "./_kit/pixel-backdrop.ts";
-import { print, printResult } from "./_kit/result.ts";
-import type { ThemeRequest } from "./_kit/theme.ts";
-import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 import type { ContrastInput, Finding, RawSamples, Severity } from "./design-audit-checks.ts";
 import { checkScriptErrors, collectFindings, isAtOrAboveSeverity, isValidSeverity } from "./design-audit-checks.ts";
 import { COLLECT_SAMPLES_JS } from "./design-audit-walker.ts";
@@ -121,12 +120,12 @@ type Args = {
   /** A Playwright device descriptor name (--mobile), or null for the raw desktop viewport. */
   device: string | null;
   failOn: Severity;
-  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_kit/appearance.ts) — a
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts) — a
    *  scan of the owner's account only ever judges HIS appearance choices; the shipped defaults, the
    *  compact/reading arms and every ornament he has off are unreachable without it. Never written. */
   appearance: AppearancePatch | null;
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
-   *  `settings.getUserSettings` response (never written — _kit/theme.ts). null = the account's own theme. */
+   *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
@@ -511,7 +510,7 @@ async function main(): Promise<number> {
   }
   const url = buildUrl(opts.base, opts.route);
   // `--out` names an artifact BASE under reports/design-audit/ — or, when it is path-shaped, the exact
-  // file to write (_kit/artifacts.ts owns that contract for every probe).
+  // file to write (_shared/artifacts.ts owns that contract for every probe).
   const outPath = await artifactFile("design-audit", opts.out ?? routeSlug(opts.route), ".json");
 
   const session = await launchProbeSession({
@@ -532,7 +531,7 @@ async function main(): Promise<number> {
   await session.browser.close();
 
   // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
-  // session's pageerror capture is wired from nav start (_kit/browser.ts wirePage).
+  // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage).
   const findings = pixels.samples === null ? [] : collectFindings(pixels.samples);
   findings.push(...checkScriptErrors(session.pageErrors));
   const counts = countBySeverity(findings);

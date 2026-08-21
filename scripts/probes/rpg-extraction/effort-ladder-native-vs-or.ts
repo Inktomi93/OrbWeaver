@@ -18,7 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
-import { REPO_ROOT } from "../_kit/artifacts.ts";
+import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 
 // Raw OpenRouter chat-completions wire (snake_case; the OR arm hits the HTTP endpoint directly).
 interface OrResp {

@@ -15,22 +15,23 @@
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
 import { Project } from "ts-morph";
 
-export type WorkspaceOptions = {
+export interface WorkspaceOptions {
   readonly root: string;
   /** false (default) = pure-AST harness project; true = tsconfig-loaded full type graph (codemod arm). */
   readonly types?: boolean;
   /** Override the file set. Default: harnessGlobs (types:false — the gate harness's PINNED scope,
    *  never widen it) / searchGlobs (types:true). Search tools pass searchGlobs explicitly. */
   readonly globs?: readonly string[];
-};
+}
 
 /** The source globs the gate harness loads: the historical `getProject` packages+tests fileset PLUS the
  *  gate corpus itself (`scripts/check/gates/**`, the diagnostic-legibility §2.2 fold-in — that gate now
- *  reads the gate files from the SHARED project via `scanRoot`, instead of its own third `new Project`).
- *  The whole-project scanners (commented-code, no-caller-user-id, no-inline-union-redecl,
- *  pd-citation-integrity) pin their `scanRoot` to packages+tests so this addition does NOT change THEIR
- *  findings (TSMORPH-SINGLE-PASS-AUDIT.md §2.2 caveat — the one intended-delta-carrier is isolated to the
- *  gate whose scanRoot opts IN to the gate corpus). */
+ *  reads the gate files from the SHARED project via `scanRoot`, instead of its own third `new Project`)
+ *  PLUS `tooling/src/**` (the @orb/tooling first-class tree — docs/design/tooling-package.md §3.2: the
+ *  widening ran the before/after scanned-count diff; every catch-all gate's delta got an explicit
+ *  fence-or-embrace decision in the P1 commit). The whole-project scanners (commented-code,
+ *  no-caller-user-id, pd-citation-integrity) pin their `scanRoot` to packages+tests so this addition
+ *  does NOT change THEIR findings. */
 export function harnessGlobs(root: string): readonly string[] {
   return [
     `${root}/packages/*/src/**/*.ts`,
@@ -38,6 +39,7 @@ export function harnessGlobs(root: string): readonly string[] {
     `${root}/tests/**/*.ts`,
     `${root}/tests/**/*.tsx`,
     `${root}/scripts/check/gates/**/*.ts`,
+    `${root}/tooling/src/**/*.ts`,
   ];
 }
 

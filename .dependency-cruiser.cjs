@@ -567,6 +567,40 @@ module.exports = {
     // (scripts/check/gates/) which matches the named table symbols at the ImportSpecifier level — the
     // same mechanism vector-scope-derived/no-direct-users-read use for barrel-resolved table seals.
 
+    // ════════════════════ @orb/tooling — the tool fleet ABOVE the cake (docs/design/tooling-package.md §4.6) ════════════════════
+    {
+      name: "packages-no-tooling",
+      comment:
+        "One-way glass: nothing in packages/** may import @orb/tooling — tools sit ABOVE the cake (may import any app package; never the reverse). Primary enforcement is resolver physics (no package declares the dep); this is the deep-relative-escape backstop, the ui-cake posture. (tooling-package.md §1/§4.6.)",
+      severity: "error",
+      from: { path: "^packages/" },
+      to: { path: "^tooling/" },
+    },
+    {
+      name: "tooling-internal-direction",
+      comment:
+        "Cross-tool imports enter through the sibling's index.ts — never its ops/lib/contract internals. NO type-only exemption (the domain-sibling-front-door precedent: the front-door law is a SHAPE rule). The ts-morph twin (tooling-front-door) is the lane-speed arm; this is the whole-graph resolved-edge backstop. (tooling-package.md §4.2/§4.6.)",
+      severity: "error",
+      from: { path: "^tooling/src/([^/]+)/" },
+      to: { path: "^tooling/src/([^/]+)/(ops|lib|contract)/", pathNot: "^tooling/src/$1/" },
+    },
+    {
+      name: "tooling-cli-via-index",
+      comment:
+        "A tool's cli.ts consumes its OWN tool only through ./index.ts (argv parse + dispatch fronts the programmatic API; a cli reaching into ops/lib couples the argv surface to internals). _shared imports stay legal (a different top dir, not matched here). (tooling-package.md §4.2/§4.6.)",
+      severity: "error",
+      from: { path: "^tooling/src/([^/]+)/cli\\.ts$" },
+      to: { path: "^tooling/src/$1/", pathNot: "^tooling/src/$1/index\\.ts$" },
+    },
+    {
+      name: "tooling-shared-floor",
+      comment:
+        "_shared/ is @orb/tooling's floor — read DOWN-into by every tool, reaching UP to none (the foundation-reaches-up-to-nothing mirror). (tooling-package.md §2.4/§4.6.)",
+      severity: "error",
+      from: { path: "^tooling/src/_shared/" },
+      to: { path: "^tooling/src/", pathNot: "^tooling/src/_shared/" },
+    },
+
     // ════════════════════════════ Hygiene ═══════════════════════════════════════════════════════
     {
       name: "not-to-test",
@@ -611,9 +645,9 @@ module.exports = {
       // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority.",
+        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — tooling-package.md §4.5); knip covers it via the tooling workspace entry.",
       severity: "warn",
-      from: { orphan: true, pathNot: ["\\.d\\.ts$", "(^|/)index\\.ts$"] },
+      from: { orphan: true, pathNot: ["\\.d\\.ts$", "(^|/)index\\.ts$", "^tooling/src/_shared/instruments\\.ts$"] },
       to: {},
     },
   ],

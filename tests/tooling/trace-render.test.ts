@@ -7,7 +7,7 @@
 import process from "node:process";
 import type { RequestTrace, SerializedSpan } from "../../scripts/probes/trace-render.ts";
 import { renderTrace } from "../../scripts/probes/trace-render.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ANSI_ESCAPE = "\x1b[";
 

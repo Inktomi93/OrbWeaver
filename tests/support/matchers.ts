@@ -4,12 +4,16 @@
 // test imports `test`/`expect` from — gate: test-fixture-imports), so any test using the composed `test`
 // has them live.
 //
-// Two matchers today (3 slots free):
+// Three matchers today (2 slots free):
 //   • toThrowTRPCError(code) — closes the silent-pass class where `.rejects.toThrow()` (no arg) accepts
 //     ANY rejection (an FK violation, a null deref) and an auth-gate test passes despite the wrong error.
 //   • toThrowProviderError(kind) — the typed provider-failure surface (`ProviderError`, infra/providers'
 //     one error class across all seven roles — orbweaver's ChatError descendant). Pins the class AND its
 //     stable `kind` discriminant, replacing message-regex assertions that rot on rewording.
+//   • toExitWith(code) — the tooling exit contract (0 clean · 1 violations · 2 tool-broke · 3 misuse,
+//     @orb/tooling/_shared/exit-contract) over a runCli result: names BOTH codes by contract name and
+//     prints stdout/stderr tails on mismatch — a bare `expect(res.code).toBe(0)` failure prints `1 ≠ 0`
+//     and nothing else, which is why the class exists (docs/design/tooling-package.md §5.2).
 //
 // CROSS-REALM NOTE: `@trpc/server` is NOT a root dependency (only `packages/server` declares it), so this
 // file cannot `instanceof TRPCError`. It duck-types `e.name === "TRPCError" && typeof e.code === "string"`
@@ -71,7 +75,35 @@ function toPromise(received: Promise<unknown> | (() => unknown)): Promise<unknow
   return typeof received === "function" ? Promise.resolve().then(received) : received;
 }
 
+/** The runCli outcome shape (structural — the one home is `SpawnNicedResult`,
+ *  `@orb/tooling/_shared/proc`; duck-typed here so this module stays runtime-light). */
+interface CliResultLike {
+  readonly code: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+const TAIL_MAX = 400;
+
+function tail(label: string, s: string): string {
+  const t = s.length > TAIL_MAX ? `…${s.slice(-TAIL_MAX)}` : s;
+  return t.trim() === "" ? "" : `\n${label}: ${t}`;
+}
+
 expect.extend({
+  async toExitWith(received: CliResultLike, code: number): Promise<MatcherResult> {
+    // Dynamic on purpose (the runtime-light law) — module-cached after the first use.
+    const { describeExit } = await import("@orb/tooling/_shared/exit-contract");
+    const pass = received.code === code;
+    return {
+      pass,
+      message: (): string =>
+        pass
+          ? `expected the CLI NOT to exit ${describeExit(code)}, but it did`
+          : `expected exit ${describeExit(code)}, got ${received.code === null ? "null (killed/timeout)" : describeExit(received.code)}${tail("stdout", received.stdout)}${tail("stderr", received.stderr)}`,
+    };
+  },
+
   async toThrowTRPCError(received: Promise<unknown> | (() => unknown), code: TrpcErrorCode): Promise<MatcherResult> {
     let resolved: unknown;
     try {
@@ -152,5 +184,12 @@ declare module "vitest" {
      * `await expect(executor.runChatTurn(req)).toThrowProviderError("rate_limit");`
      */
     toThrowProviderError: (kind: ProviderErrorKind) => Promise<void>;
+    /**
+     * Assert a `runCli` result's exit code against the tooling exit contract; a mismatch prints both
+     * codes BY CONTRACT NAME plus bounded stdout/stderr tails.
+     *
+     * `await expect(await runCli("snap", ["--help"])).toExitWith(EXIT.clean);`
+     */
+    toExitWith: (code: number) => Promise<void>;
   }
 }

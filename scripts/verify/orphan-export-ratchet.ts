@@ -62,10 +62,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, Project } from "ts-morph";
 import type { ApiSurfaceEntry } from "../codemods/ast.ts";
 import { buildLiveness, collectApiSurface, isProdConsumed, isPublicTagged, ownExports, publicMarkerOf } from "../codemods/ast.ts";
-import { getWorkspace } from "../ts-workspace.ts";
 
 const EXIT_CLEAN = 0;
 const EXIT_VIOLATIONS = 1;

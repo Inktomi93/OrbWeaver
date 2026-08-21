@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { REPO_ROOT } from "../_kit/artifacts.ts";
+import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 
 // Raw OpenRouter chat-completions wire (snake_case; this probe hits the HTTP endpoint directly).
 interface RawToolCall {

@@ -20,7 +20,7 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const AST_CLI = fileURLToPath(new URL("../../scripts/codemods/ast.ts", import.meta.url));

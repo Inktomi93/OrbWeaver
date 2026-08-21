@@ -42,7 +42,7 @@ import {
   LEADING_FLOOR,
   TEXT_MICRO_PX,
 } from "../../scripts/probes/design-audit-checks.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const BLACK: Rgb = { r: 0, g: 0, b: 0 };
 const WHITE: Rgb = { r: 255, g: 255, b: 255 };

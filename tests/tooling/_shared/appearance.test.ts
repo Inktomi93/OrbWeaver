@@ -1,4 +1,4 @@
-// The appearance shim the browser probes share (scripts/probes/_kit/appearance.ts). Home per
+// The appearance shim the browser probes share (tooling/src/_shared/appearance.ts). Home per
 // Spine-Testing §2: a test of a scripts/ tool lives in tests/tooling/.
 //
 // WHY IT EXISTS (owner ruling 2026-08-18): the dev account STORES `appearance.reducedMotion: true`, so every
@@ -17,11 +17,11 @@ import {
   mergeAppearancePatches,
   parseAppearancePatch,
   trpcProcedureIndex,
-} from "../../scripts/probes/_kit/appearance.ts";
-import { parseSnapArgs } from "../../scripts/probes/snap.ts";
-import { expect, test } from "../support/fixtures.ts";
+} from "@orb/tooling/_shared/appearance";
+import { parseSnapArgs } from "../../../scripts/probes/snap.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
-const PRESETS_PATH = fileURLToPath(new URL("../../scripts/probes/appearance-presets.json", import.meta.url));
+const PRESETS_PATH = fileURLToPath(new URL("../../../tooling/src/_shared/appearance-presets.json", import.meta.url));
 
 /** The live wire shape, measured against the dev stack 2026-08-18: plain JSON (no transformer), one array
  *  element per batched procedure, the settings blob under result.data.config. */

@@ -10,7 +10,7 @@
 // does not take it; the vitest `unit` lane's `tests/**/*.test.ts` glob still collects it.
 import type { WarningChannel } from "../../scripts/check/gates/warning-code-coverage.ts";
 import { createWarningCodeCoverage } from "../../scripts/check/gates/warning-code-coverage.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 import { ctxFor } from "./_support.ts";
 
 const HOME = "packages/server/src/infra/providers/contract/resolve.ts";

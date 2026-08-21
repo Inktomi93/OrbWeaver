@@ -56,8 +56,7 @@
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import type { Page } from "@playwright/test";
-import type { AppearancePatch } from "./_kit/appearance.ts";
+import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
   appearanceHelpBlock,
@@ -66,16 +65,17 @@ import {
   loadAppearancePreset,
   mergeAppearancePatches,
   parseAppearancePatch,
-} from "./_kit/appearance.ts";
-import type { ProbeSession } from "./_kit/browser.ts";
-import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
-import type { Viewport } from "./_kit/flags.ts";
-import { parseViewport } from "./_kit/flags.ts";
+} from "@orb/tooling/_shared/appearance";
+import type { Viewport } from "@orb/tooling/_shared/argv";
+import { parseViewport } from "@orb/tooling/_shared/argv";
+import { print, printResult } from "@orb/tooling/_shared/artifacts";
+import type { ProbeSession } from "@orb/tooling/_shared/browser";
+import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
+import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import type { Page } from "@playwright/test";
 import type { NavMethod } from "./_kit/nav.ts";
 import { runNav } from "./_kit/nav.ts";
-import { print, printResult } from "./_kit/result.ts";
-import type { ThemeRequest } from "./_kit/theme.ts";
-import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_WINDOW_MS = 2500;
@@ -112,13 +112,13 @@ type Args = {
   viewport: Viewport;
   vnc: boolean;
   throttle: boolean;
-  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_kit/appearance.ts). This
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts). This
    *  probe already asks the browser for full motion (`reducedMotion:false`, the OS media query) — but the
    *  dev account STORES `appearance.reducedMotion:true`, so without this every number here described an app
    *  whose own setting had frozen the animations being measured. null = the account's real state. */
   appearance: AppearancePatch | null;
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
-   *  `settings.getUserSettings` response (never written — _kit/theme.ts). null = the account's own theme. */
+   *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];

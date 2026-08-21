@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SpawnLockOpts } from "../../scripts/dev/_kit/spawn-lock.ts";
 import { acquireSpawnLock, handleHeldSpawnLock, releaseSpawnLock } from "../../scripts/dev/_kit/spawn-lock.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const SELF_PID = 1234;
 const HOLDER_PID = 4242;
