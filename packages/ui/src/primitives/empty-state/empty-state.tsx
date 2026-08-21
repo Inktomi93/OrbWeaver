@@ -7,6 +7,8 @@ export interface EmptyStateProps {
   /** Optional muted glyph slot. Superseded by `decoration` when both set. */
   icon?: ReactNode;
   title: ReactNode;
+  /** Promotes a teaching statement one ratified step when it is the surface's focal message. */
+  titleStep?: "default" | "focal";
   description?: ReactNode;
   /** Trailing action slot — typically an `@orb/ui/button` `<Button>`. */
   action?: ReactNode;
@@ -16,8 +18,8 @@ export interface EmptyStateProps {
 /** Teaching empty-state pattern: icon -\> title -\> description -\> action, centered. Copy is the caller's.
  *  The VOICE scales itself to the surface it lands in (a container query on the root — see variants.ts):
  *  CONTENT-tier by default, one type step down inside a narrow LIST pane. No prop, nothing to remember. */
-export function EmptyState({ decoration, icon, title, description, action, className }: EmptyStateProps): ReactElement {
-  const slots = emptyStateVariants();
+export function EmptyState({ decoration, icon, title, titleStep = "default", description, action, className }: EmptyStateProps): ReactElement {
+  const slots = emptyStateVariants({ titleStep });
   let head: ReactElement | null = null;
   if (decoration !== undefined) {
     head = (
@@ -35,7 +37,7 @@ export function EmptyState({ decoration, icon, title, description, action, class
   return (
     <div className={slots.root({ className })} data-slot="empty-state-root">
       {head}
-      <p className={slots.title()} data-slot="empty-state-title">
+      <p className={slots.title()} data-slot="empty-state-title" data-title-step={titleStep === "focal" ? "focal" : undefined}>
         {title}
       </p>
       {description === undefined ? null : (

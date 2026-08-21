@@ -108,6 +108,13 @@
   font-size: var(--orb-tier-row-gloss-size);
 }
 
+/* Functional prose inside a row action owes the readable label floor; this opt-in outranks the
+ * instrument tier's micro gloss without inventing another step. */
+[data-slot="list-row-subtitle"][data-subtitle-step="label"] {
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+}
+
 /* The pane's own chrome — a search field and a picker inside a LIST pane are NOT the datum, and at the
  * tier-less body step (15px) they outshouted the 13px row titles they filter (side-eye P1-1). One step
  * down at instrument, untouched at form. */

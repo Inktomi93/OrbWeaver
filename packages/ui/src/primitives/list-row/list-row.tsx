@@ -19,6 +19,8 @@ export interface ListRowProps {
   fullTitle?: string;
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
+  /** Opts a functional subtitle into the ratified label step instead of the instrument tier's micro gloss. */
+  subtitleStep?: "default" | "label";
   /**
    * WHERE the subtitle sits. `block` (default) is the two-line entity row. `inline` puts it on the TITLE
    * LINE after the name — the instrument-row grammar (the preset rack's name + scent), where the subtitle
@@ -147,6 +149,10 @@ export interface ListRowProps {
  */
 type Slots = ReturnType<typeof listRowVariants>;
 
+function subtitleStepAttribute(step: "default" | "label"): "label" | undefined {
+  return step === "label" ? "label" : undefined;
+}
+
 /** The DOM ids of the row's describing spans (subtitle · meta · markers), for the body's
  *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty string ⇒
  *  omit the attr). */
@@ -178,6 +184,7 @@ function ListRowContent({
   subtitleReveal,
   subtitleInline,
   subtitleDecorative,
+  subtitleStep,
   meta,
   markers,
   titleStep,
@@ -194,6 +201,7 @@ function ListRowContent({
   subtitleReveal: string | undefined;
   subtitleInline: boolean;
   subtitleDecorative: boolean;
+  subtitleStep: "default" | "label";
   meta: string | undefined;
   markers: ReactNode;
   ids: ListRowDescriptors;
@@ -208,6 +216,7 @@ function ListRowContent({
         aria-hidden={subtitleDecorative ? true : undefined}
         className={slots.subtitle({ className: subtitleSwap })}
         data-slot="list-row-subtitle"
+        data-subtitle-step={subtitleStepAttribute(subtitleStep)}
         id={ids.subtitleId}
         title={subtitle}
       >
@@ -363,6 +372,7 @@ export function ListRow({
   subtitleWrap = false,
   subtitlePlacement = "block",
   subtitleDecorative = false,
+  subtitleStep = "default",
   meta,
   markers,
   actions,
@@ -413,6 +423,7 @@ export function ListRow({
           slots={slots}
           subtitle={subtitle}
           subtitleDecorative={subtitleDecorative}
+          subtitleStep={subtitleStep}
           subtitleInline={subtitlePlacement !== "block"}
           subtitleLead={subtitleLead}
           subtitleReveal={subtitleReveal}
