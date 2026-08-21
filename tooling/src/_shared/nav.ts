@@ -17,7 +17,8 @@ import { parseGotoTarget } from "@orb/tooling/_shared/argv";
 import type { Page } from "@playwright/test";
 
 /** The nav verbs a probe CLI offers, spelled as they appear on the command line (minus the `--`). */
-export type NavMethod = "goto" | "open-chat" | "open-character" | "context-tab";
+export const NAV_METHODS = ["goto", "open-chat", "open-character", "context-tab"] as const;
+export type NavMethod = (typeof NAV_METHODS)[number];
 
 /** The CLI flags that carry a nav action, in the order the help text lists them. */
 export const NAV_FLAGS: readonly string[] = ["--goto", "--open-chat", "--open-character", "--context-tab"];

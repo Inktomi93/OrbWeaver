@@ -18,7 +18,7 @@ import {
   parseAppearancePatch,
   trpcProcedureIndex,
 } from "@orb/tooling/_shared/appearance";
-import { parseSnapArgs } from "../../../scripts/probes/snap.ts";
+import { parseSnapArgs } from "../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const PRESETS_PATH = fileURLToPath(new URL("../../../tooling/src/_shared/appearance-presets.json", import.meta.url));
@@ -144,7 +144,7 @@ test("snap's CLI: --full-motion is exactly the sugar, a preset loads, and --appe
   expect(composed.appearance?.["avatarSize"]).toBe("sm");
 });
 
-test("snap refuses a bad appearance flag before a browser boots (exit-2 posture)", () => {
+test("snap refuses a bad appearance flag before a browser boots (misuse posture)", () => {
   expect(parseSnapArgs(["/", "--appearance", "{oops"]).errors[0]).toContain("expects a JSON object");
   expect(parseSnapArgs(["/", "--appearance-preset", "nope"]).errors[0]).toContain("is not a profile");
   // A static mock makes no settings request — the shim would be a lie there.

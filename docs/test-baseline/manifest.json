@@ -1565,6 +1565,7 @@
     "tests/support/factories/factories.int.test.ts",
     "tests/support/fixtures.int.test.ts",
     "tests/support/matchers.test.ts",
+    "tests/tooling/_shared/browser.int.test.ts",
     "tests/tooling/ast-lens.test.ts",
     "tests/tooling/ast-observability.int.test.ts",
     "tests/tooling/baseui-surface-reader.int.test.ts",
@@ -1593,6 +1594,9 @@
     "tests/tooling/snap-fixture.test.ts",
     "tests/tooling/snap-flags.test.ts",
     "tests/tooling/snap-stage.test.ts",
+    "tests/tooling/snap/index.test.ts",
+    "tests/tooling/snap/lib/stage-plan.test.ts",
+    "tests/tooling/snap/ops/fixture.test.ts",
     "tests/tooling/spawn-lock.int.test.ts",
     "tests/tooling/stack-dispatch.int.test.ts",
     "tests/tooling/stack-mode.test.ts",
@@ -1803,6 +1807,18 @@
     },
     "tests/tooling/snap-flags.test.ts": {
       "why": "relocated to tests/tooling/_shared/argv.test.ts with its subject (scripts/probes/_kit/flags.ts -> tooling/src/_shared/argv.ts, the @orb/tooling P1 _shared promotion, #393). Every pin moved verbatim; nothing was dropped. Un-deletes only if the argv idioms ever move back out of _shared."
+    },
+    "tests/tooling/snap-browser.int.test.ts": {
+      "why": "relocated to tests/tooling/_shared/browser.int.test.ts with its subject (the browser bootstrap moved to tooling/src/_shared/browser.ts at P1; the CLI it spawns is tooling/src/snap/cli.ts since P2, #393). Every pin moved verbatim. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/snap-cli.test.ts": {
+      "why": "relocated to tests/tooling/snap/index.test.ts with its subject (scripts/probes/snap.ts decomposed into tooling/src/snap/** at P2, #393; the file pins the tool's index surface). Every pin moved verbatim; the ARG-ERROR exit expectation moved 2->3 with the fleet exit-contract alignment. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/snap-fixture.test.ts": {
+      "why": "relocated to tests/tooling/snap/ops/fixture.test.ts with its subject (scripts/probes/_kit/fixture.ts -> tooling/src/snap/ops/fixture.ts, P2 #393). Every pin moved verbatim. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/snap-stage.test.ts": {
+      "why": "relocated to tests/tooling/snap/lib/stage-plan.test.ts with its subject (snap-stage.ts's pure derivation core -> tooling/src/snap/lib/stage-plan.ts, P2 #393). Every pin moved verbatim. Un-deletes only if the module moves back."
     }
   }
 }

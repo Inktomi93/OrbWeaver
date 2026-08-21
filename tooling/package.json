@@ -7,13 +7,16 @@
     "node": ">=26"
   },
   "exports": {
+    "./*": "./src/*/index.ts",
     "./_shared/*": "./src/_shared/*.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
+    "@orb/kit": "workspace:*",
     "@playwright/test": "catalog:",
+    "sharp": "catalog:",
     "ts-morph": "catalog:"
   }
 }

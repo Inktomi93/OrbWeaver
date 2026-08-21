@@ -52,7 +52,7 @@ export type AppearancePatch = Readonly<Record<string, unknown>>;
  *  `unknown` values for the same reason: the SERVER schema owns the vocabulary. */
 export type SettingsPatch = Readonly<Record<string, unknown>>;
 
-/** Parse outcome: a patch, or a stated reason (the caller turns it into an ARG ERROR — exit 2). */
+/** Parse outcome: a patch, or a stated reason (the caller turns it into an ARG ERROR — EXIT.misuse). */
 export type AppearanceParse = { readonly patch: AppearancePatch } | { readonly error: string };
 
 /** `--full-motion` is exactly this patch — the flag a motion sweep actually types. */
@@ -60,7 +60,7 @@ export const FULL_MOTION_PATCH: AppearancePatch = { reducedMotion: false };
 
 /** THE curated appearance points (`--appearance-preset <name>`), committed beside the probes so a sweep
  *  names a profile instead of pasting JSON. One home: new coverage is a new PROFILE there, never a new flag.
- *  Read eagerly at parse time so an unknown/broken profile is CLI misuse (exit 2), not a mid-run surprise. */
+ *  Read eagerly at parse time so an unknown/broken profile is CLI misuse (EXIT.misuse), not a mid-run surprise. */
 const PRESETS_PATH = new URL("./appearance-presets.json", import.meta.url);
 
 interface PresetFile {
@@ -116,7 +116,7 @@ axis from --reduced-motion, which emulates the OS media query; they compose):
 }
 
 /** Fold one appearance flag's outcome into a CLI's args — the patch accumulates (later keys win, so argv
- *  reads the way it behaves) and a stated reason becomes CLI misuse (exit 2). Shared by all four probes:
+ *  reads the way it behaves) and a stated reason becomes CLI misuse (EXIT.misuse). Shared by all four probes:
  *  a typo'd profile must never quietly audit the account state under a profile's name. */
 export function applyAppearanceFlag(target: { appearance: AppearancePatch | null; errors: string[] }, parsed: AppearanceParse): void {
   if ("error" in parsed) {

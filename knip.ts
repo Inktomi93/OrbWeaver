@@ -44,11 +44,13 @@ const config: KnipConfig = {
       entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // verify-run.int.test.ts asserts missing-binary handling with a deliberately fake binary name.
-      // ss/ps are system binaries scripts/probes/_kit/snap-stage.ts shells out to for port/process probing;
+      // ss is a system binary the stage/stack scripts shell out to for port probing; ps dropped off this
+      // list at P2 of #393 — it now rides runNicedSync spawn args (tooling/src/snap/ops/stage-status.ts),
+      // invisible to knip's binary lens, and knip's own hint flags a dead ignore row.
       // pgrep is the GPU-owner guard in scripts/dev/model-ab.ts (refuse-to-boot over the quantize job/fleet).
       // orb-fake-probe-bin: tool-fixtures' fakeBin proof spawns a PATH-shimmed temp executable by that
       // name (tests/support/tool-fixtures.test.ts) — never a real dependency.
-      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin", "ss", "ps", "pgrep"],
+      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin", "ss", "pgrep"],
       // pino-pretty is spawned as a BINARY by scripts/dev/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
@@ -64,10 +66,9 @@ const config: KnipConfig = {
       // does NOT change them.
       ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
-    // @orb/tooling: _shared modules are entries (research-zone scripts import them by subpath until
-    // their tools promote). The tool entries (`src/*/cli.ts`, `src/*/index.ts`) join at P2 with the
-    // first tool — knip's no-match hint is an error, so a pattern lands only when it matches.
-    tooling: { entry: ["src/_shared/*.ts"], project: ["src/**/*.ts"] },
+    // @orb/tooling: every tool's cli.ts + index.ts are entries; _shared modules are entries too
+    // (research-zone scripts import them by subpath until their tools promote).
+    tooling: { entry: ["src/*/cli.ts", "src/*/index.ts", "src/_shared/*.ts"], project: ["src/**/*.ts"] },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/db": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },

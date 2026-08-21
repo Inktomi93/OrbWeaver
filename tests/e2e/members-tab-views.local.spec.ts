@@ -8,7 +8,7 @@
 // `member`. Both open the SAME chat and the SAME context tab, so the two PNGs are a like-for-like diff.
 //
 // WHY NOT `snap --contexts 2` (the ordinary two-human pixels tool): it targets the multi-user FIXTURE
-// stack, which reuses the SHARED dev ports 8788/5173 verbatim (scripts/probes/_kit/fixture.ts) — so it is
+// stack, which reuses the SHARED dev ports 8788/5173 verbatim (tooling/src/snap/ops/fixture.ts) — so it is
 // unusable while the operator's dev stack is up, and using it means stopping their box. This project's
 // stack is genuinely isolated (own ports, own DB, `E2E_HARNESS=on`), so the pixels are taken here.
 //
