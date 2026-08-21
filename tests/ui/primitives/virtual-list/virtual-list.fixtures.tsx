@@ -321,6 +321,7 @@ export function ResetScopeList(): ReactElement {
           aria-label="Reset rows"
           className="h-full"
           estimateSize={(): number => 40}
+          gapToken="tight"
           getItemKey={(item): string => item.id}
           items={items}
           renderItem={(item, index): ReactElement => (
