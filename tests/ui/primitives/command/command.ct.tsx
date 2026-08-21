@@ -5,7 +5,7 @@ import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { CommandPaletteStory, DerivedItemsStory, LongCommandListStory } from "./command.fixtures.tsx";
+import { AuxiliaryControlStory, CommandPaletteStory, DerivedItemsStory, LongCommandListStory } from "./command.fixtures.tsx";
 
 test("typing filters the item list", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
@@ -37,6 +37,17 @@ test("ArrowDown moves the highlight, Enter selects the highlighted item", async 
   await expect(page.getByRole("option", { name: "readme.md" })).toHaveAttribute("aria-selected", "true");
   await input.press("Enter");
   await expect(page.getByTestId("selected")).toHaveText("readme.md");
+});
+
+test("a focused auxiliary control owns Enter while the roving command item remains selected", async ({ mount, page }) => {
+  await mount(<AuxiliaryControlStory />);
+  const retry = page.getByRole("button", { name: "Retry" });
+  await retry.focus();
+  await retry.press("Enter");
+
+  await expect(page.getByTestId("auxiliary-activated")).toHaveText("true");
+  await expect(page.getByTestId("auxiliary-selected")).toHaveText("");
+  await expect(page.getByRole("option", { name: "Home" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("ArrowDown exposes the roving selected option from the focused combobox", async ({ mount, page }) => {

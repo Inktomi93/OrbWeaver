@@ -87,7 +87,7 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
       <FieldLayout orientation="horizontal">
         <Stack gap="field">
           <Text voice="label">Frosted glass</Text>
-          <Text voice="gloss">
+          <Text className="max-w-prose" voice="gloss">
             Backdrop blur + a translucent fill on the surfaces you pick. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you
             opt in.
           </Text>

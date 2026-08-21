@@ -7,13 +7,15 @@
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 export interface QueryErrorStateProps {
   /** What failed to load, e.g. "your chats" / "the character library" (rendered as "Couldn't load \{label\}."). */
   readonly label: string;
   /** Refetches the failed read — pass QueryBoundary's `renderError(error, retry)` retry straight through. */
   readonly onRetry: () => void;
+  /** Replaces the default Retry button when a containing interaction primitive must own its key routing. */
+  readonly renderRetry?: (onRetry: () => void) => ReactNode;
 }
 
 /**
@@ -22,15 +24,17 @@ export interface QueryErrorStateProps {
  *
  * Usage: `renderError={(_error, retry) => <QueryErrorState label="your chats" onRetry={retry} />}`
  */
-export function QueryErrorState({ label, onRetry }: QueryErrorStateProps): ReactElement {
+export function QueryErrorState({ label, onRetry, renderRetry }: QueryErrorStateProps): ReactElement {
   return (
     <Stack align="center" gap="row" justify="center" padding="section">
       <Text role="status" tone="muted">
         Couldn't load {label}.
       </Text>
-      <Button intent="ghost" onClick={onRetry}>
-        Retry
-      </Button>
+      {renderRetry?.(onRetry) ?? (
+        <Button intent="ghost" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
     </Stack>
   );
 }

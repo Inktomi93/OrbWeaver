@@ -13,6 +13,7 @@ import { AppearanceEffectsSectionStory } from "../_ct-stories.tsx";
 const SETTINGS_VIEW = { userId: "user_ct_effects", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["blurStrength", "blurSurfaces", "enableThemeColorization", "shadowEffects", "surfaceTexture"];
+const FROSTED_GLASS_GLOSS_RE = /Backdrop blur \+ a translucent fill/;
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
@@ -52,4 +53,55 @@ test("the surface-texture select patches surfaceTexture, still key-minimal", asy
 
   await expect.poll(() => lastPatch(trpc)?.["surfaceTexture"], { intervals: [20, 50, 100] }).toBe("grain");
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+});
+
+test("the Frosted glass explanation holds a deliberate prose measure on a wide settings column", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceEffectsSectionStory width={1200} />);
+  const gloss = page.getByText(FROSTED_GLASS_GLOSS_RE);
+  await expect(gloss).toBeVisible();
+
+  const measure = await gloss.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const probe = document.createElement("span");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.display = "block";
+    probe.style.font = style.font;
+    probe.style.width = "1ch";
+    document.body.append(probe);
+    const ch = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { chars: element.getBoundingClientRect().width / ch, lines: element.getClientRects().length };
+  });
+
+  expect(measure.chars).toBeGreaterThanOrEqual(65);
+  expect(measure.chars).toBeLessThanOrEqual(75);
+});
+
+test("the Frosted glass explanation stays contained on mobile without moving the switch rail", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceEffectsSectionStory width={390} />);
+  const gloss = page.getByText(FROSTED_GLASS_GLOSS_RE);
+  const section = page.locator("#settings-anchor-appearance-effects");
+  await expect(gloss).toContainText("Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.");
+  await expect(section).toHaveCount(1);
+
+  const geometry = await page.evaluate(() => {
+    const sectionElement = document.querySelector("#settings-anchor-appearance-effects");
+    const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur +"));
+    const switchElements = Array.from(document.querySelectorAll<HTMLElement>('[role="switch"]'));
+    if (!(sectionElement instanceof HTMLElement && glossElement instanceof HTMLElement) || switchElements.length === 0) {
+      throw new Error("missing Effects geometry target");
+    }
+    const sectionBox = sectionElement.getBoundingClientRect();
+    const glossBox = glossElement.getBoundingClientRect();
+    const switchRights = switchElements.map((element) => element.getBoundingClientRect().right);
+    return {
+      contained: glossBox.left >= sectionBox.left && glossBox.right <= sectionBox.right,
+      switchRailSpread: Math.max(...switchRights) - Math.min(...switchRights),
+    };
+  });
+  expect(geometry.contained).toBe(true);
+  expect(geometry.switchRailSpread).toBeLessThanOrEqual(1);
 });

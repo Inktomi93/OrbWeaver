@@ -80,6 +80,25 @@ test("a Recent threads failure stays visible and Retry restores only that group"
   await expect(component.getByText("Couldn't load recent threads.")).toBeHidden();
 });
 
+for (const key of ["Enter", "Space"] as const) {
+  test(`focused Retry owns ${key} and restores Recent threads without activating a command`, async ({ mount, page }) => {
+    let attempts = 0;
+    await routeTrpc(page, {
+      "chat.listChats": (): unknown => (attempts++ === 0 ? trpcError({ message: "recent threads unavailable" }) : chatListResponder([ADVENTURE])({})),
+    });
+
+    const component = await mount(<CommandPaletteSurfaceStory />);
+    const retry = component.getByRole("button", { name: "Retry" });
+    await expect(retry).toBeVisible();
+    await retry.focus();
+    await retry.press(key);
+
+    await expect(component.getByText("Recent threads", { exact: true })).toBeVisible();
+    await expect(component.getByText("A grand adventure")).toBeVisible();
+    await expect(component.getByText("Couldn't load recent threads.")).toBeHidden();
+  });
+}
+
 test("a contributed command appears in the palette and RUNS when picked", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
 
