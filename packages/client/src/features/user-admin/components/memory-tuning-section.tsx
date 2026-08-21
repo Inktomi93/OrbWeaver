@@ -7,6 +7,7 @@
 //
 // A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config).
 
+import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import { MEMORY_RETRIEVAL_MODES } from "@orb/contracts/search";
 import type { MemoryDefaults, MemoryDefaultsBoundKey, ResolvedMemoryDefaults } from "@orb/contracts/settings";
 import {
@@ -32,18 +33,84 @@ import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOv
 
 // The numeric memoryDefaults knobs — each a MemoryDefaults field with a floor in DEFAULT_MEMORY_DEFAULTS.
 const NUMERIC_KNOBS = [
-  { key: "blockSize", label: "Block size", hint: "Messages per tier-0 digest block (≈3k tok, under the 8192 cap).", step: 1 },
-  { key: "verbatimWindow", label: "Verbatim window", hint: "Recent messages never digested — the protect zone.", step: 1 },
-  { key: "queryWindow", label: "Query window", hint: "Recent messages used as the retrieval query (mixB/mixC).", step: 1 },
-  { key: "fanOut", label: "Fan-out", hint: "Tier-k digests consolidated into one tier-(k+1) digest.", step: 1 },
-  { key: "maxTier", label: "Max tier", hint: "Max consolidation depth; 0 = tier-0 only.", step: 1 },
-  { key: "retrieveK", label: "Retrieve K", hint: "Vector candidate pool size (mixB/mixC).", step: 1 },
-  { key: "rerankTo", label: "Rerank to", hint: "Digests kept after cross-encoder rerank (mixC).", step: 1 },
-  { key: "minScore", label: "Min score", hint: "Minimum cosine similarity for a retrieved digest.", step: 0.05 },
-  { key: "recencyBias", label: "Recency bias", hint: "Mild score boost toward recent digests (0 = off).", step: 0.05 },
+  {
+    key: "blockSize",
+    label: "Block size",
+    hint: "Messages combined into each stored scene. Larger blocks use fewer summaries but make recall less precise.",
+    step: 1,
+  },
+  {
+    key: "verbatimWindow",
+    label: "Verbatim window",
+    hint: "Recent messages kept in full before memory takes over. A larger window preserves detail but delays long-term memory.",
+    step: 1,
+  },
+  {
+    key: "queryWindow",
+    label: "Query window",
+    hint: "Recent messages used to describe the current topic. More context can help, but can also blur what matters now.",
+    step: 1,
+  },
+  {
+    key: "fanOut",
+    label: "Fan-out",
+    hint: "Smaller summaries combined into each older story arc. Higher values cover more history with coarser detail.",
+    step: 1,
+  },
+  {
+    key: "maxTier",
+    label: "Story-arc levels",
+    hint: "How many levels of older story arcs memory can build. More levels reach farther back with less detail; 0 keeps scenes only.",
+    step: 1,
+  },
+  {
+    key: "retrieveK",
+    label: "Search candidates",
+    hint: "Matches kept after vector search. Higher values give Sharper semantic recall more choices but make reranking compare more memories; when reranking succeeds, Reranked memories still caps what reaches the prompt. If reranking is unavailable—or Semantic recall is selected—more candidates can use more prompt space. Embedding and vector-search work stay the same.",
+    step: 1,
+  },
+  {
+    key: "rerankTo",
+    label: "Reranked memories",
+    hint: "Matches kept after Sharper semantic recall re-sorts them. More memories use more prompt space.",
+    step: 1,
+  },
+  {
+    key: "minScore",
+    label: "Minimum match",
+    hint: "How closely a stored scene must match the conversation. A higher minimum reduces noise but can miss useful memories.",
+    step: 0.05,
+  },
+  {
+    key: "recencyBias",
+    label: "Recency bias",
+    hint: "Experimental: changes only candidate order before the recall limit. 0 leaves semantic ordering unchanged.",
+    step: 0.05,
+  },
 ] as const satisfies readonly { key: MemoryDefaultsBoundKey; label: string; hint: string; step: number }[];
 
-const MODE_ITEMS: SelectItems<string> = MEMORY_RETRIEVAL_MODES.map((m) => ({ value: m, label: m }));
+const MODE_GUIDANCE: Record<MemoryRetrievalMode, { readonly label: string; readonly description: string }> = {
+  off: { label: "Off", description: "Recalls no long-term memory. Fastest and uses no memory-model calls." },
+  mixA: {
+    label: "Chronological recall",
+    description: "Recalls stored scenes in time order. No search-model calls, but it is less selective.",
+  },
+  mixB: {
+    label: "Semantic recall",
+    description: "Finds stored scenes related to the current conversation. Costs one embedding search per recall.",
+  },
+  mixC: {
+    label: "Sharper semantic recall",
+    description:
+      "Re-sorts related scenes with the rerank model for sharper recall. Costs an extra model call; if reranking is unavailable, vector order is used.",
+  },
+  tiered: {
+    label: "Story arcs",
+    description: "Recalls older scenes as consolidated story arcs. Covers more history with less scene-level detail.",
+  },
+};
+
+const MODE_ITEMS: SelectItems<MemoryRetrievalMode> = MEMORY_RETRIEVAL_MODES.map((mode) => ({ value: mode, ...MODE_GUIDANCE[mode] }));
 
 type NumericDraft = Record<string, string>;
 
@@ -136,20 +203,20 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
       <Stack gap="section">
         <Stack gap="field">
           <Text voice="label" className="text-muted-foreground">
-            Recall &amp; consolidation (memoryDefaults). Absent knobs run on the grounded deployment floor.
+            Recall &amp; consolidation. Unchanged controls use the deployment defaults.
           </Text>
           <AdminOverrideSelect
             label="Retrieval mode"
-            hint="off | mixA (chronological) | mixB (+vector) | mixC (+rerank) | tiered."
+            hint={MODE_GUIDANCE[effective.mode].description}
             value={effective.mode}
             items={MODE_ITEMS}
             overridden={isOverridden(stored?.mode)}
-            floorLabel={DEFAULT_MEMORY_DEFAULTS.mode}
-            onSet={(next): void => writeMemoryDefaults({ mode: next as MemoryDefaults["mode"] })}
+            floorLabel={MODE_GUIDANCE[DEFAULT_MEMORY_DEFAULTS.mode].label}
+            onSet={(next): void => writeMemoryDefaults({ mode: next as MemoryRetrievalMode })}
           />
           <AdminOverrideSwitch
             label="Keyword match"
-            hint="Also match digest keywords whole-word against recent messages."
+            hint="Also recall scenes whose saved keywords appear in recent messages. This can catch exact names, but may add loosely related scenes."
             value={effective.keywordMatch}
             overridden={isOverridden(stored?.keywordMatch)}
             floorLabel={DEFAULT_MEMORY_DEFAULTS.keywordMatch ? "on" : "off"}
@@ -181,11 +248,11 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
 
         <Stack gap="field">
           <Text voice="label" className="text-muted-foreground">
-            Digest summarizer sampling (memorySummarizer). Temperature unset = the summarizer provider default.
+            Memory summary generation. Unchanged temperature uses the summarizer provider default.
           </Text>
           <AdminOverrideField
             label="Summarize max tokens"
-            hint="Output-token reserve for each digest-summarize call."
+            hint="Maximum output reserved for each memory summary. More tokens preserve detail but cost more time and context."
             value={summarizerDraft}
             onChange={setSummarizerDraft}
             overridden={summarizerOverridden}

@@ -1143,7 +1143,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The scored projection: identity + BOTH ranking numbers, and deliberately NOT the hit's `text` (memory
     // resolves its own digest bodies from the pool it already loaded — the seam carries what recall must
     // EXPLAIN, never a second copy of the content).
-    searchDigests: (query) => input.search.digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
+    searchDigests: (query, onRerankUnavailable) =>
+      input.search
+        .digests(query, onRerankUnavailable === undefined ? undefined : { onRerankUnavailable })
+        .then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
     // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
     // is host-owned per PD-21, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty

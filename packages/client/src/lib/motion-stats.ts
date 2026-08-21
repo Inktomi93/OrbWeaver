@@ -42,8 +42,16 @@
 // cannot be met is not a target. So `virtualizedCls` is accumulated separately and `nonVirtualizedCls`
 // (= `cls` − `virtualizedCls`) is what the budget and the over-budget log style judge. Nothing is hidden:
 // all three ride the snapshot and motion-audit prints them labeled.
+//
+// SEALED SELECT ENTRANCE CALIBRATION (#374). Clean-host production/CT controls showed Base UI Select's
+// normal anchored entrance/positioning work on first AND repeat opens, while non-Select portals and a
+// one-state React portal stay ordinary. select-entrance-evidence.ts correlates only trusted opening
+// intent to the trigger's ARIA-related Positioner, bounded by the popup's real opacity/scale transition.
+// The raw LoAF ring stays intact; motion-audit alone decides which confirmed intervals are budget inputs.
 
 import { logClock } from "./log-clock.ts";
+import type { SelectEntranceEvidence } from "./select-entrance-evidence.ts";
+import { installSelectEntranceObserver, resetSelectEntranceEvidence, selectEntranceForFrame } from "./select-entrance-evidence.ts";
 
 // translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
 // scale-*/translate-* utilities to, and composite exactly like transform.
@@ -71,6 +79,9 @@ const MUTED_STYLE = "color:#888";
 interface LoafScript {
   readonly sourceURL: string;
   readonly duration: number;
+  readonly forcedStyleAndLayoutDuration: number;
+  readonly invoker: string;
+  readonly sourceFunctionName: string;
 }
 interface LoafRecord {
   readonly startTime: number;
@@ -79,8 +90,30 @@ interface LoafRecord {
   /** \>0 ⇒ style/layout ran inside this frame (forced reflow / non-compositor animation) — the jank tell. */
   readonly styleAndLayoutStart: number;
   readonly scripts: readonly LoafScript[];
+  readonly selectEntrance?: SelectEntranceEvidence;
 }
 const loafRing: LoafRecord[] = [];
+
+export interface LongAnimationFrameEvidence {
+  readonly startTime: number;
+  readonly duration: number;
+}
+type LongAnimationFrameSubscriber = (frame: LongAnimationFrameEvidence) => void;
+const longAnimationFrameSubscribers = new Set<LongAnimationFrameSubscriber>();
+
+/** Share the one LoAF observer with dev flaggers that need a rendered-frame clock. */
+export function subscribeLongAnimationFrames(subscriber: LongAnimationFrameSubscriber): () => void {
+  longAnimationFrameSubscribers.add(subscriber);
+  return (): void => {
+    longAnimationFrameSubscribers.delete(subscriber);
+  };
+}
+
+function publishLongAnimationFrame(entry: LoafEntry): void {
+  for (const subscriber of longAnimationFrameSubscribers) {
+    subscriber({ startTime: entry.startTime, duration: entry.duration });
+  }
+}
 
 /** One attributed layout shift — what moved, how far, and whether the spec counts it. NOT exported (the
  *  `LoafRecord` precedent): it is reachable through `MotionSnapshot.shifts`, and a second export would be
@@ -143,6 +176,9 @@ export interface AnimationRecord {
 interface LoafScriptEntry {
   readonly name?: string;
   readonly sourceURL?: string;
+  readonly forcedStyleAndLayoutDuration?: number;
+  readonly invoker?: string;
+  readonly sourceFunctionName?: string;
   readonly duration: number;
 }
 interface LoafEntry extends PerformanceEntry {
@@ -232,11 +268,14 @@ export function installMotionObservers(): void {
     return;
   }
   const supported = PerformanceObserver.supportedEntryTypes;
+  installSelectEntranceObserver();
 
   if (supported.includes("long-animation-frame")) {
     const loaf = new PerformanceObserver((list) => {
       for (const raw of entriesInCurrentCheckpoint(list.getEntries())) {
         const e = raw as LoafEntry;
+        publishLongAnimationFrame(e);
+        const selectEntrance = selectEntranceForFrame(e);
         loafRing.push({
           startTime: Math.round(e.startTime),
           duration: Math.round(e.duration),
@@ -245,7 +284,11 @@ export function installMotionObservers(): void {
           scripts: (e.scripts ?? []).map((s) => ({
             sourceURL: s.sourceURL ?? s.name ?? "(inline)",
             duration: Math.round(s.duration),
+            forcedStyleAndLayoutDuration: Math.round(s.forcedStyleAndLayoutDuration ?? 0),
+            invoker: s.invoker ?? "",
+            sourceFunctionName: s.sourceFunctionName ?? "",
           })),
+          ...(selectEntrance === undefined ? {} : { selectEntrance }),
         });
         if (loafRing.length > LOAF_RING_CAP) {
           loafRing.shift();
@@ -285,6 +328,7 @@ export function motionSnapshot(): MotionSnapshot {
 export function __resetMotionStats(): void {
   evidenceStartTime = performance.now();
   loafRing.length = 0;
+  resetSelectEntranceEvidence();
   shiftRing.length = 0;
   clsTotal = 0;
   observedClsTotal = 0;

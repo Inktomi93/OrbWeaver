@@ -45,7 +45,15 @@ import { ProviderError } from "#infra/providers";
 import type { ChatContext } from "../context.ts";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
-import type { MemoryConfig, MemoryPassCounts, MemoryRecallResult, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory.ts";
+import type {
+  MemoryConfig,
+  MemoryPassCounts,
+  MemoryRecallResult,
+  MemoryRecallWarningEpisode,
+  MemoryScope,
+  MsgRow,
+  WitnessInterval,
+} from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type { GeneratedText, HistoryMacroNames, ResolvedMediaRef, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
@@ -124,6 +132,7 @@ interface EngineDeps {
       readonly config?: MemoryConfig | null | undefined;
       readonly recent?: readonly MsgRow[] | undefined;
       readonly names?: ReadonlyMap<CharacterId, string> | undefined;
+      readonly warningEpisode?: MemoryRecallWarningEpisode | undefined;
     },
   ) => Promise<MemoryRecallResult>;
   /** Injected lock-free compaction core (`makeRunCompaction`) — the managed-compaction post-turn hook rebuilds
@@ -1261,6 +1270,9 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
   const speakerCharId = prep.speakerCharacterId;
   const recall = prep.memoryRecall;
   if (prep.shape?.cardScope !== "scoped" || speakerCharId === null || recall === undefined || recall === null) {
+    if (recall !== undefined && recall !== null) {
+      await emitMemoryRerankWarningOnce(deps, prep.chatId, recall.warningEpisode);
+    }
     return prep.assembleContext;
   }
   const witnessing = await deps.loadWitnessHorizons(ctx.db, prep.chatId, speakerCharId);
@@ -1271,11 +1283,21 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
     config: recall.config,
     recent: recall.recent,
     names: recall.names,
+    warningEpisode: recall.warningEpisode,
     ...(recall.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: recall.liveWindowCutoffSeq } : {}),
   });
+  await emitMemoryRerankWarningOnce(deps, prep.chatId, recall.warningEpisode);
   // The per-speaker recall REPLACES the round-level one, so its trace replaces the round-level trace too —
   // the ctx a speaker's BUILD reads must explain the memory that speaker actually got (#250).
   return { ...prep.assembleContext, memory: recalled.text, memoryTrace: recalled.trace };
+}
+
+/** The engine owns the typed bus literal and emits only after `turnStarted`; the shared episode owns
+ * round-level/per-speaker dedupe for this turn. */
+async function emitMemoryRerankWarningOnce(deps: EngineDeps, chatId: ChatId, episode: MemoryRecallWarningEpisode): Promise<void> {
+  if (episode.takeRerankUnavailable()) {
+    await deps.emit({ type: "warning", chatId, code: "memory_rerank_unavailable" });
+  }
 }
 
 /** What the PRE-START half resolved: the loaded write target (null for a new slot) and the enforced consent

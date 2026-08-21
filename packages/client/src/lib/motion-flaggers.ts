@@ -11,9 +11,9 @@
 //   [css]    a class on a live element with NO matching CSS rule anywhere — the dead-token half of
 //            `pnpm snap --dead-css`, ported to a throttled MutationObserver so it fires on surfaces a
 //            snap run never navigated to. A dead utility is a style that silently did not apply.
-//   [drop]   a requestAnimationFrame gap over budget WHILE an animation is running. Scoped to animation
-//            windows on purpose: a long frame during an idle page is a `[frame]` problem, but a long
-//            frame mid-animation is a VISIBLE stutter, and it is the only one a user can feel.
+//   [drop]   a long animation frame over budget that overlaps a CSS/WAAPI animation lifetime. Scoped to
+//            animation windows on purpose: a long frame during an idle page is a `[frame]` problem, but
+//            a long frame mid-animation is a VISIBLE stutter, and it is the only one a user can feel.
 //   [space]  a replaced element (img/video/iframe/canvas) rendering with NO reserved box — no
 //            width+height attributes, no aspect-ratio, no explicit size. This is a layout shift that
 //            has not happened yet; it is the cause `[cls]` reports after the fact.
@@ -28,13 +28,14 @@
 // re-export from the lib barrel (that would drag it into the prod bundle).
 
 import { logClock } from "./log-clock.ts";
-import { hasVisibleDuration, isExternalDevtoolsElement, runningAnimations, runningLabels } from "./motion-animation-state.ts";
+import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement, resetFrameDropFlagger } from "./motion-animation-state.ts";
+import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
 import { animatedProperties, COMPOSITOR_SAFE_PROPS, surfaceLabelOf } from "./motion-stats.ts";
 
 /** The pack's budgets — ONE table, so a console verdict and the CT that asserts it can never disagree.
  *  Every number is a rendered-behaviour threshold, not a style preference; each states what it means. */
 export const MOTION_BUDGETS = {
-  /** A rAF gap over this DURING an animation is a visible stutter: \>3 dropped frames at 60Hz. */
+  /** A rendered frame over this DURING an animation is a visible stutter: \>3 frame intervals at 60Hz. */
   frameGapMs: 50,
   /** A frame longer than this is `[frame]`-flagged by `long-task-tracer.ts` (which owns the LoAF
    *  observer — see this file's header). Lives here so the pack has ONE budget table. */
@@ -75,8 +76,6 @@ const flagRing: MotionFlagRecord[] = [];
 /** Dedupe identity per raised flag (`tag|offender|shape`). A component that animates `height` on every
  *  keystroke would otherwise bury the console in one defect — the point is the OFFENDER LIST, not a count. */
 const raised = new Set<string>();
-let dropLoopActive = false;
-let dropLoopGeneration = 0;
 
 /** The recent raised flags — `window.__orb.flags()`. Bounded; deduped per offender by construction. */
 export function motionFlags(): readonly MotionFlagRecord[] {
@@ -91,10 +90,7 @@ export function motionFlags(): readonly MotionFlagRecord[] {
 export function __resetMotionFlags(): void {
   flagRing.length = 0;
   raised.clear();
-  // A checkpoint must not inherit an rAF loop started by a boot animation. The queued callback cannot be
-  // cancelled without retaining every id, so generation invalidation makes it retire on its next tick.
-  dropLoopGeneration += 1;
-  dropLoopActive = false;
+  resetFrameDropFlagger();
 }
 
 function route(): string {
@@ -209,172 +205,18 @@ function installAnimationFlagger(): void {
   document.addEventListener("transitionstart", onStart, { capture: true, passive: true });
 }
 
-// ── [drop] — rAF gaps DURING an animation ────────────────────────────────────────────────────────────
+// ── [drop] — long rendered frames DURING an animation ─────────────────────────────────────────────────
 
-/** Measure inter-frame gaps for as long as something is animating, then stop. A permanent rAF loop in a
- *  dev build is itself a battery/jank cost, so the loop's LIFETIME is the animation window. */
-function runDropLoop(): void {
-  if (dropLoopActive) {
-    return;
-  }
-  dropLoopActive = true;
-  const generation = dropLoopGeneration;
-  let last = performance.now();
-  const tick = (now: number): void => {
-    if (generation !== dropLoopGeneration) {
-      return;
-    }
-    const gap = now - last;
-    last = now;
-    // One animation-tree walk per frame. Dev instrumentation must not create the jank it reports.
-    const running = runningAnimations();
-    // An app/OS reduced-motion floor can finish the triggering animation before this first callback.
-    // A late frame with nothing still moving is not a dropped animation frame.
-    if (running.length === 0) {
-      dropLoopActive = false;
-      return;
-    }
-    if (gap > MOTION_BUDGETS.frameGapMs) {
-      const who = runningLabels(running);
-      raise({
-        tag: "drop",
-        key: who,
-        offender: who,
-        detail: `${Math.round(gap)}ms frame gap mid-animation (budget ${MOTION_BUDGETS.frameGapMs}ms)`,
-        overBudget: true,
-      });
-    }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
-function installFrameDropFlagger(): void {
-  const onStart = (): void => runDropLoop();
-  document.addEventListener("animationstart", onStart, { capture: true, passive: true });
-  document.addEventListener("transitionstart", onStart, { capture: true, passive: true });
-}
-
-// ── [css] — live dead-class scan ─────────────────────────────────────────────────────────────────────
-
-// Marker-only classes that legitimately ship no rules (kept VERBATIM from snap.ts's scan so the live
-// flagger and the probe agree about what "dead" means — two definitions would produce two bug reports).
-const CSS_MARKER_PREFIXES = ["group/", "peer/", "lucide", "TanStack", "tsqd-"];
-const CSS_MARKER_EXACT = new Set(["echarts-for-react", "group", "peer"]);
-// A class selector's token, un-escaped: a literal dot then a run of escaped-char-or-ident-char.
-const CLASS_TOKEN_RE = /\.((?:\\.|[A-Za-z0-9_-])+)/gu;
-const CLASS_ESCAPE_RE = /\\(.)/gu;
-
-function isMarkerClass(token: string): boolean {
-  return CSS_MARKER_EXACT.has(token) || CSS_MARKER_PREFIXES.some((p) => token.startsWith(p));
-}
-
-/** Every class token any loaded stylesheet DEFINES a rule for. Walks nested rules (Tailwind v4 emits
- *  variants as nesting) and tolerates cross-origin sheets. */
-function definedClassTokens(): ReadonlySet<string> {
-  const defined = new Set<string>();
-  const walk = (rules: CSSRuleList): void => {
-    for (const rule of rules) {
-      const selector = (rule as CSSStyleRule).selectorText;
-      if (typeof selector === "string") {
-        CLASS_TOKEN_RE.lastIndex = 0;
-        let match = CLASS_TOKEN_RE.exec(selector);
-        while (match !== null) {
-          defined.add((match[1] ?? "").replace(CLASS_ESCAPE_RE, "$1"));
-          match = CLASS_TOKEN_RE.exec(selector);
-        }
-      }
-      // `instanceof`, not a cast + a null check: CSSStyleRule extends CSSGroupingRule in the current
-      // spec, which is what makes Tailwind v4's nested variant rules (a hover utility holds an `&:hover`
-      // child and no own declarations) reachable — and the type system already knows `cssRules` is
-      // non-nullable on the grouping type, so a defensive check there is dead code the linter is right
-      // about.
-      if (rule instanceof CSSGroupingRule) {
-        walk(rule.cssRules);
-      }
-    }
-  };
-  for (const sheet of document.styleSheets) {
-    try {
-      walk(sheet.cssRules);
-    } catch {
-      // Cross-origin sheet — unreadable by spec, not a finding.
-    }
-  }
-  return defined;
-}
-
-/** One dead-class sweep: every class worn by a live element that no rule defines. Deduped by `raise`, so
- *  a token flagged on one surface stays quiet on the next. */
-function scanDeadClasses(): void {
-  const defined = definedClassTokens();
-  for (const el of document.querySelectorAll("*")) {
-    if (isExternalDevtoolsElement(el)) {
-      continue;
-    }
-    for (const token of el.classList) {
-      if (!(defined.has(token) || isMarkerClass(token))) {
-        raise({
-          tag: "css",
-          key: token,
-          offender: `.${token} on ${surfaceLabelOf(el)}`,
-          detail: "dead class — no rule defines it, so the style never applied",
-          overBudget: false,
-        });
-      }
-    }
-  }
-}
-
-/** Throttled to `cssScanIntervalMs` and deferred to idle: the scan is a whole-DOM walk, and running it
- *  synchronously inside a MutationObserver callback would make it the jank it exists to find.
- *
- *  TRAILING-EDGE, not drop: a mutation that lands INSIDE the throttle window still schedules exactly
- *  one deferred scan for when the window clears, rather than being silently discarded. A dropping
- *  throttle only ever scans again if a SECOND mutation happens to arrive after the window — a single
- *  class change mid-window (the common case on a quiet surface) was never scanned at all. */
-function installDeadClassFlagger(): void {
-  let lastScan = 0;
-  let queued = false;
-  let trailingPending = false;
-  const run = (): void => {
-    queued = false;
-    lastScan = performance.now();
-    scanDeadClasses();
-  };
-  const scheduleRun = (): void => {
-    queued = true;
-    if (typeof requestIdleCallback === "function") {
-      requestIdleCallback(run, { timeout: MOTION_BUDGETS.cssScanIntervalMs });
-      return;
-    }
-    setTimeout(run, 0);
-  };
-  const maybeScan = (): void => {
-    if (queued) {
-      return;
-    }
-    const elapsed = performance.now() - lastScan;
-    if (elapsed >= MOTION_BUDGETS.cssScanIntervalMs) {
-      scheduleRun();
-      return;
-    }
-    if (trailingPending) {
-      return;
-    }
-    trailingPending = true;
-    setTimeout(() => {
-      trailingPending = false;
-      maybeScan();
-    }, MOTION_BUDGETS.cssScanIntervalMs - elapsed);
-  };
-  new MutationObserver(maybeScan).observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ["class"],
+function installDropFlagger(): void {
+  installFrameDropFlagger(MOTION_BUDGETS.frameGapMs, ({ frameMs, offender }) => {
+    raise({
+      tag: "drop",
+      key: offender,
+      offender,
+      detail: `${Math.round(frameMs)}ms rendered frame mid-animation (budget ${MOTION_BUDGETS.frameGapMs}ms)`,
+      overBudget: true,
+    });
   });
-  maybeScan();
 }
 
 // ── [space] — unreserved replaced-element boxes ──────────────────────────────────────────────────────
@@ -444,7 +286,18 @@ export function installMotionFlaggers(): void {
     return;
   }
   installAnimationFlagger();
-  installFrameDropFlagger();
-  installDeadClassFlagger();
+  installDropFlagger();
+  installDeadClassFlagger({
+    scanIntervalMs: MOTION_BUDGETS.cssScanIntervalMs,
+    onDeadClass: (token, element) => {
+      raise({
+        tag: "css",
+        key: token,
+        offender: `.${token} on ${surfaceLabelOf(element)}`,
+        detail: "dead class — no rule defines it, so the style never applied",
+        overBudget: false,
+      });
+    },
+  });
   installUnreservedSpaceFlagger();
 }

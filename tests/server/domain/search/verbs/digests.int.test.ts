@@ -217,4 +217,48 @@ describe("digests", () => {
     const reranked = await svc.digests(opts(chat, char, { mode: "mixC" }));
     expect(reranked.map((h) => h.blockKey.blockIdx)).toEqual([1, 0]);
   });
+
+  test("mode mixC falls back to the complete already-retrieved vector order when reranking rejects", async () => {
+    const db = await freshDb();
+    const { chat, char } = await seedOwnerChatChar(db);
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 0, embedding: vec(1) });
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 1, embedding: vec(0.9, 0.1) });
+
+    const svc = makeSearch(db, {
+      embedVector: () => vec(1),
+      rerank: () => Promise.reject(new Error("rerank engine unavailable")),
+    });
+    let unavailable = 0;
+    // `rerankTo: 1` is deliberate: graceful degradation returns the FULL retrieveK vector result, never a
+    // partial rerank-shaped prefix left behind by the failed call.
+    const hits = await svc.digests(opts(chat, char, { mode: "mixC", retrieveK: 2, rerankTo: 1 }), {
+      onRerankUnavailable: () => {
+        unavailable += 1;
+      },
+    });
+
+    expect(hits.map((h) => h.blockKey.blockIdx)).toEqual([0, 1]);
+    expect(hits).toHaveLength(2);
+    expect(unavailable).toBe(1);
+  });
+
+  test("mode mixB never reports rerank unavailable and never calls the reranker", async () => {
+    const db = await freshDb();
+    const { chat, char } = await seedOwnerChatChar(db);
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 0, embedding: vec(1) });
+
+    const svc = makeSearch(db, {
+      embedVector: () => vec(1),
+      rerank: () => Promise.reject(new Error("mixB must not call rerank")),
+    });
+    let unavailable = 0;
+    const hits = await svc.digests(opts(chat, char, { mode: "mixB" }), {
+      onRerankUnavailable: () => {
+        unavailable += 1;
+      },
+    });
+
+    expect(hits.map((h) => h.blockKey.blockIdx)).toEqual([0]);
+    expect(unavailable).toBe(0);
+  });
 });

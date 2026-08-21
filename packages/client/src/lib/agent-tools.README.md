@@ -20,6 +20,8 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 | `__orb.animations()` | active animations: `{ id?, target, properties, compositorClean }[]` — `compositorClean:false` (animating a non-transform/opacity/filter prop) = per-frame-layout jank risk |
 | `__orb.flags()` | motion flagger records for the current evidence window |
 | `__orb.resetEvidence()` | clear flags, motion/CLS, and render-heatmap evidence before a driven checkpoint without resetting app state |
+| `__orb.motionFlaggersSettled()` | await the dev flaggers' one initial full CSS census before a measured checkpoint; later scans remain incremental |
+| `__orb.setMotionAuditDropTrackingPaused(paused)` | motion-audit only: pause duplicate in-page `[drop]` lifetime/report work while its CDP trace owns dropped-frame truth |
 | `__orb.shell()` | DOM-derived shell state: active section, panel modes, `chatOpen` |
 | `__orb.nav` | dev-only SPA-navigation ACTIONS — see below |
 | `__orb.ready` / `.isReady()` | a promise / bool for "hydrated + initial reads settled" |
@@ -87,7 +89,7 @@ Prefixed, low-noise, IS\_DEV-gated — read via `preview_console_logs` or a cons
     interaction over 200ms with its target element.
   - **`[anim]`** (`motion-flaggers.ts`) — an animation/transition animating a NON-compositor property,
     caught at start (`__orb.animations()` samples, so it cannot see a finished 130ms transition).
-  - **`[drop]`** — a rAF gap over 50ms *while something is animating* (a stutter a user can feel).
+  - **`[drop]`** — a rendered frame over 50ms *while something is animating* (a stutter a user can feel).
   - **`[css]`** — a class on a live element that no CSS rule defines (`snap --dead-css`, live).
   - **`[space]`** — a replaced element with no reserved box: a layout shift that hasn't happened yet.
   - **`[cls]`** (`motion-stats.ts`) — each actionable layout shift over the noise floor, naming what moved. The

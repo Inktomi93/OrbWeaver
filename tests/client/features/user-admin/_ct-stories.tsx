@@ -143,6 +143,19 @@ export function MemoryTuningSectionStory(): ReactElement {
   );
 }
 
+/** The Memory tuning section at the narrow phone-content width used by its coarse-pointer containment CT. */
+export function MemoryTuningSectionNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ padding: 8, width: 320 }}>
+          <MemoryTuningSection sectionId="admin-memory-tuning" />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
 /** The Media & trust SECTION (SET-SEAMS stage 4 — the decomposed System pane) in isolation. */
 export function MediaTrustSectionStory(): ReactElement {
   return (
