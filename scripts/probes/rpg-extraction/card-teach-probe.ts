@@ -39,7 +39,7 @@ import { tokenizeContent } from "@orb/kit/content";
 import { RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params.ts";
 import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
-import { REPO_ROOT } from "../_kit/artifacts.ts";
+import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 
 const KEY = (() => {
   const line = fs

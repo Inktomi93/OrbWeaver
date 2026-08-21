@@ -24,7 +24,7 @@ import {
   resetBaseUiSurfaceCache,
   truncatedParts,
 } from "../../scripts/check/baseui-read.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const GENERATOR = join(REPO_ROOT, "scripts", "check", "gen-baseui-surface.ts");

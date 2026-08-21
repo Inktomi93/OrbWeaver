@@ -1,4 +1,4 @@
-// The probe-kit artifact NAMING contract (scripts/probes/_kit/artifacts.ts). Home per Spine-Testing §2:
+// The probe-kit artifact NAMING contract (tooling/src/_shared/artifacts.ts). Home per Spine-Testing §2:
 // a test of a scripts/ tool lives in tests/tooling/.
 //
 // THE DEFECT THIS PINS (2026-08-17, issue #148 item 2): `snap --out /abs/path/sf-fixed.png` wrote
@@ -7,9 +7,9 @@
 // survived so long: only a lane pasting a path from its own scratch dir ever hit it.
 import { isAbsolute, join } from "node:path";
 import process from "node:process";
-import { artifactFilePath, artifactKey, isOutPath, routeSlug } from "../../scripts/probes/_kit/artifacts.ts";
-import { variantOut } from "../../scripts/probes/snap.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { artifactFilePath, artifactKey, isOutPath, routeSlug } from "@orb/tooling/_shared/artifacts";
+import { variantOut } from "../../../scripts/probes/snap.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 const SNAPS = "/repo/reports/snaps";
 

@@ -2,9 +2,15 @@
 // loop; _kit only centralizes the `key=value` splits (FIRST vs LAST `=` — not
 // interchangeable, see below) and the "WxH" viewport parse.
 
-export type EqSplit = { readonly head: string; readonly tail: string };
+export interface EqSplit {
+  readonly head: string;
+  readonly tail: string;
+}
 
-export type Viewport = { readonly width: number; readonly height: number };
+export interface Viewport {
+  readonly width: number;
+  readonly height: number;
+}
 
 /**
  * Split on the LAST `=` — for `--fill "sel=value"` / `--key "sel=KeyName"`: SELECTORS

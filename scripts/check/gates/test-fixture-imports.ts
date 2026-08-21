@@ -1,8 +1,9 @@
-// Gate: test-fixture-imports (core/Spine-Testing.md §4)
-// Fixture doctrine: A test imports { test, expect } from support/fixtures, never directly from vitest or @playwright/test.
-// This ensures composed fixtures (db, frozen clock, etc.) are used.
-// Exempt: e2e (own Playwright lane), support/ (the fixture itself), and .test-d.ts (a separate
-// tsc-only typecheck project that never touches the runtime fixture — core/Spine-Testing.md §1).
+// Gate: test-fixture-imports (core/Spine-Testing.md §4; docs/design/tooling-package.md §4.8)
+// Fixture doctrine: A test imports { test, expect } from support/fixtures, never directly from vitest or
+// @playwright/test. Under tests/tooling/ the door is support/tool-fixtures (which EXTENDS the house test):
+// entering through plain fixtures there skips the RESULT snapshot serializer, so inline snapshots bake
+// unnormalized output — a drift bomb. Exempt: e2e (own Playwright lane), support/ (the fixtures
+// themselves), and .test-d.ts (tsc-only, never touches the runtime fixture — core/Spine-Testing.md §1).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -12,9 +13,12 @@ import type { GateDescriptor } from "../contract.ts";
 const BANNED_MODULES = new Set(["vitest", "@playwright/test"]);
 const FIXTURE_NAMES = new Set(["test", "it", "expect"]);
 const FIXTURE_MESSAGE =
-  "a test/it/expect imported directly from vitest/@playwright/test bypasses the composed fixture — import from 'support/fixtures' instead (core/Spine-Testing.md §4).";
+  "a test/it/expect import bypasses the composed fixture — import from 'support/fixtures' (or, under tests/tooling/, 'support/tool-fixtures' — the door that registers the RESULT serializer) (core/Spine-Testing.md §4; docs/design/tooling-package.md §4.8).";
 
-/** The forbidden `{name, module}` of a direct vitest/playwright fixture import, or undefined. */
+// The plain-fixtures barrel, as a suffix of the (relative) module specifier.
+const PLAIN_FIXTURES_RE = /support\/fixtures(?:\.ts)?$/u;
+
+/** The forbidden `{name, module}` of a fixture import through the wrong door, or undefined. */
 function directFixtureImport(node: Node): { name: string; module: string } | undefined {
   if (!node.isKind(SyntaxKind.ImportSpecifier)) {
     return;
@@ -25,7 +29,15 @@ function directFixtureImport(node: Node): { name: string; module: string } | und
   }
   const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
   const mod = decl?.getModuleSpecifierValue();
-  return mod !== undefined && BANNED_MODULES.has(mod) ? { name, module: mod } : undefined;
+  if (mod === undefined) {
+    return;
+  }
+  if (BANNED_MODULES.has(mod)) {
+    return { name, module: mod };
+  }
+  // The §4.8 tooling arm: plain fixtures inside the tooling mirror — the serializer never registers.
+  const inTooling = node.getSourceFile().getFilePath().includes("tests/tooling/");
+  return inTooling && PLAIN_FIXTURES_RE.test(mod) ? { name, module: mod } : undefined;
 }
 
 export const gate: GateDescriptor = {
@@ -49,12 +61,23 @@ export const gate: GateDescriptor = {
       at: "tests/tooling/x.test.ts",
       why: "test/expect imported directly from vitest — bypasses the composed fixture (§4)",
     },
+    {
+      files: 'import { test, expect } from "../../support/fixtures.ts";\n',
+      at: "tests/tooling/snapx/y.test.ts",
+      expect: { count: 2 },
+      why: "plain fixtures inside the tooling mirror — the tool door (tool-fixtures) registers the RESULT serializer; this skips it (§4.8)",
+    },
   ],
   mustPass: [
     {
       files: 'import { test, expect } from "../support/fixtures.ts";\n',
-      at: "tests/tooling/y.test.ts",
-      why: "imported from support/fixtures — the sanctioned composed fixture, passes",
+      at: "tests/server/y.test.ts",
+      why: "imported from support/fixtures OUTSIDE tests/tooling — the sanctioned composed fixture, passes",
+    },
+    {
+      files: 'import { test, expect } from "../../support/tool-fixtures.ts";\n',
+      at: "tests/tooling/snapx/z.test.ts",
+      why: "the tooling composed test (tool-fixtures) inside the tooling mirror — the §4.8 door, passes",
     },
     {
       files: 'import { test, expect } from "vitest";\n',

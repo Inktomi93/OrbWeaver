@@ -14,7 +14,7 @@ import {
   loafTotals,
   parseMotionArgs,
 } from "../../scripts/probes/motion-audit.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 /** The in-page snapshot fields the verdict reads. Typed off the probe's own parameter so the fixture can
  *  never drift from the shape `clsTotals` actually parses (a probe the reader can't read is a lying proof). */

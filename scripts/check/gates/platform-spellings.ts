@@ -54,7 +54,7 @@
 //   wasted second copy). W4.2 landed 2026-08-07 — 94 sites converted (21 in `packages/**`), 21 iterator
 //   materializations deliberately KEPT, decided with the ts-morph TYPE CHECKER over a tsconfig-loaded project.
 //   DECLARED LIMIT — the arm is SYNTACTIC, and that is a HARNESS FACT, not laziness: `pnpm check` builds the
-//   PURE-AST workspace (`scripts/ts-workspace.ts` `getWorkspace({root})` — no tsconfig, no `@orb/*`
+//   PURE-AST workspace (`tooling/src/_shared/ts-workspace.ts` `getWorkspace({root})` — no tsconfig, no `@orb/*`
 //   resolution), so a `getType()` here answers as if every cross-package type were unknown; a checker-backed
 //   version belongs to a future PUSH-tier typed stage beside `deps:orphan-ratchet`, never the commit bar. So
 //   the arm flags only what it can PROVE IN-FILE: an array literal, an array-returning built-in

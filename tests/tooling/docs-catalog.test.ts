@@ -1,6 +1,6 @@
 import type { ReceiptClaim, ReceiptEntry, ReceiptFacts } from "../../scripts/docs/catalog.ts";
 import { catalogReceipt, debtPathErrors, parseFrontmatter, validateReceiptEntry } from "../../scripts/docs/catalog.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const HASH_LENGTH = 64;
 const COMMIT_LENGTH = 40;

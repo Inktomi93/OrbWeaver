@@ -39,7 +39,16 @@ function isTypeHome(path: string): boolean {
   if (path.includes("/scripts/")) {
     return true;
   }
+  // NOTE (2026-08-21): this clause predates domain/rpg/tools/ (GritQL migration, 64ab26501) and now
+  // ALSO exempts that subsystem's exported types by string accident — 4 live sites measured when it was
+  // briefly removed (apply.ts ×3, dice.ts ×1). Deliberate-or-fix is an open orchestrator routing, #393 P1.
   if (path.includes("/tools/")) {
+    return true;
+  }
+  // @orb/tooling: `_shared/` is the plumbing floor (the tooling analog of kit) and `<tool>/contract/`
+  // rides the `/contract/` clause above — a tool's ops/lib exporting a shape is judged, forcing the
+  // five-slot discipline (docs/design/tooling-package.md §2.5).
+  if (path.includes("/tooling/src/_shared/")) {
     return true;
   }
   if (path.endsWith(".test.ts") || path.endsWith(".test.tsx")) {
@@ -121,6 +130,12 @@ export const gate: GateDescriptor = {
       expect: { count: 1 },
       why: "exported zod schema in verb",
     },
+    {
+      files: "export type Foo = string;\n",
+      at: "tooling/src/snap/ops/capture.ts",
+      expect: { count: 1 },
+      why: "a tool's ops/ exporting a shape — tool types live in the tool's contract/ slot (tooling-package.md §2.5)",
+    },
   ],
   mustPass: [
     {
@@ -132,6 +147,16 @@ export const gate: GateDescriptor = {
       files: "type Foo = string;\n",
       at: "packages/server/src/domain/x/verb.ts",
       why: "not exported",
+    },
+    {
+      files: "export type Foo = string;\n",
+      at: "tooling/src/_shared/x.ts",
+      why: "tooling _shared is the plumbing floor — a sanctioned type home (tooling-package.md §2.4)",
+    },
+    {
+      files: "export type Foo = string;\n",
+      at: "tooling/src/snap/contract/types.ts",
+      why: "a tool's contract/ slot rides the /contract/ clause — the five-slot type home",
     },
   ],
 };

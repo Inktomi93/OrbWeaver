@@ -1,5 +1,5 @@
 // Proves the unit lane + the composed fixtures run (BUILD-PLAN §0 checkpoint: "an empty .test.ts runs").
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 test("frozen clock is deterministic + advances explicitly", ({ clock }) => {
   expect(clock.now()).toBe(clock.frozenAt);

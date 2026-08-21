@@ -35,14 +35,13 @@ import { copyFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
-import { artifactDir } from "./_kit/artifacts.ts";
-import type { ProbeSession } from "./_kit/browser.ts";
-import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
+import type { Viewport } from "@orb/tooling/_shared/argv";
+import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
+import type { ResultPair } from "@orb/tooling/_shared/artifacts";
+import { artifactDir, print, printResult } from "@orb/tooling/_shared/artifacts";
+import type { ProbeSession } from "@orb/tooling/_shared/browser";
+import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
-import type { Viewport } from "./_kit/flags.ts";
-import { parseViewport, splitLastEq } from "./_kit/flags.ts";
-import type { ResultPair } from "./_kit/result.ts";
-import { print, printResult } from "./_kit/result.ts";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_SETTLE_MS = 1500;
@@ -96,7 +95,7 @@ function parseStepFlag(flag: string, rest: string[], steps: Step[]): boolean {
     return true;
   }
   if (flag === "--fill") {
-    // LAST `=` split — selectors contain `=`, values rarely do (_kit/flags.ts).
+    // LAST `=` split — selectors contain `=`, values rarely do (_shared/argv.ts).
     const { head, tail } = splitLastEq(rest.shift() ?? "");
     steps.push({ kind: "fill", selector: head, value: tail });
     return true;
@@ -166,7 +165,7 @@ function parseArgs(argv: string[]): Args {
 const MARKER_COLORS = ["#ff2020", "#20ff20", "#20d0ff", "#ff20ff", "#ffd020", "#ffffff"];
 
 // The click marker: a fixed corner square, installed pre-navigation so it exists from first
-// paint. Raw string (not a function) — see _kit/browser.ts.
+// paint. Raw string (not a function) — see _shared/browser.ts.
 const MARKER_INIT_JS = `(() => {
   const el = document.createElement("div");
   el.id = "__probe-marker";

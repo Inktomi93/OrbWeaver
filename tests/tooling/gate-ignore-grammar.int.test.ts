@@ -24,7 +24,7 @@ import type { Finding } from "../../scripts/check/contract.ts";
 import { loadGates } from "../../scripts/check/loader.ts";
 import type { PassResult } from "../../scripts/check/pass.ts";
 import { projectCtx, runPass } from "../../scripts/check/pass.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const DIR = "packages/ui/src/__g_gi";

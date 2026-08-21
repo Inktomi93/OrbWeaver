@@ -8,7 +8,7 @@ import { gate as noCallerUserIdGate } from "../../scripts/check/gates/no-caller-
 import { gate as offTokenGate } from "../../scripts/check/gates/no-off-token-radius-shadow.ts";
 import { runPass } from "../../scripts/check/pass.ts";
 import { renderPass } from "../../scripts/check/render.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

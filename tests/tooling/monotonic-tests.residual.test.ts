@@ -12,7 +12,7 @@
 // glob still collects it. (The no-manifest-on-a-non-real-tree no-op arm is already covered by every
 // tooth-1 conformance example, which runs tooth 2 against a virtual `/repo` root with no anchor either.)
 import { monotonicTests } from "../../scripts/check/gates/monotonic-tests.ts";
-import { expect, test } from "../support/fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 import { ctxAt, withTree } from "./_support.ts";
 
 const NO_LONGER_EXISTS_RE = /no longer exists/u;
