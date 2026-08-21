@@ -70,7 +70,7 @@ const RAIL_PX = 56;
 /** The viewport widths the issue's live measurements were taken at. */
 const WIDTHS = [1280, 1440, 1920, 2560] as const;
 
-/** The appearance points, named as `scripts/probes/appearance-presets.json` names them. Only the two axes
+/** The appearance points, named as `tooling/src/_shared/appearance-presets.json` names them. Only the two axes
  *  that move HOME's geometry are set: `fontScale` rescales every rem-derived size from the root, and
  *  `density` swaps the four spacing intent tokens. The presets' chat-only keys (chatStyle, avatars,
  *  per-message chips) cannot reach this surface. */

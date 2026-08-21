@@ -15,7 +15,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
-import APPEARANCE_PRESET_FILE from "../../../../../scripts/probes/appearance-presets.json" with { type: "json" };
+import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
