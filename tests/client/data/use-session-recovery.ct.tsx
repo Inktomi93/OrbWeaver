@@ -4,12 +4,14 @@
 // identity on this browser inherits the previous one's tag filters, drafts and view state — the reported
 // repro, restored by omission.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
 import { SessionRecoveryReauthStory, SessionRecoveryStory, SessionSwapStory } from "./_ct-stories.tsx";
 
-const VIEWER = { userId: "usr_ct_owner", handle: "owner", globalRole: "owner" };
+const VIEWER = { userId: "usr_ct_owner", handle: castId<Handle>("owner"), globalRole: "owner" };
 
 test("binds the durable-local namespace to the viewer id off `sessions.me` (F1)", async ({ mount, page }) => {
   await routeTrpc(page, { "sessions.me": (): unknown => VIEWER });
@@ -38,14 +40,14 @@ test("mounts without suspending or navigating when the identity read is still in
 // human's chats/characters/drafts on screen and run every read and write as the new identity.
 //
 // `/api/auth/me` is the only identity the ladder can read pre-tRPC, so it is what the swap is scripted on.
-async function stubSwappableAuth(page: Page): Promise<(handle: string) => void> {
-  let handle = VIEWER.handle;
+async function stubSwappableAuth(page: Page): Promise<(handle: Handle) => void> {
+  let handle: Handle = VIEWER.handle;
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mode: "local" }) }));
   await page.route("**/api/auth/me", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle, role: "owner" }) }),
   );
   await routeTrpc(page, { "sessions.me": (): unknown => VIEWER });
-  return (next: string): void => {
+  return (next: Handle): void => {
     handle = next;
   };
 }
@@ -83,7 +85,7 @@ test("a session that comes back as a DIFFERENT handle resets the tab instead of 
   await mount(<SessionSwapStory />);
   await expect(page.getByTestId("viewer-handle")).toHaveText(VIEWER.handle);
 
-  swapIdentity("intruder");
+  swapIdentity(castId<Handle>("intruder"));
   await page.getByTestId("ct-wake-tab").click();
 
   await expect.poll(() => resets).toBe(1);

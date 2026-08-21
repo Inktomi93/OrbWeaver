@@ -362,7 +362,7 @@
           ]
         }
       ],
-      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation \u2014 R1-R5 costed options for the owner pick.",
       "evidence": [
         "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
         "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
@@ -378,7 +378,7 @@
       "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
       "verifiedAt": "2026-08-18",
       "evidence": [
-        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 \u2014 the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
         "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
       ],
       "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
@@ -431,7 +431,7 @@
       "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
       "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session \u2014 lane lens-triage #210; 70 hits classified with path:line receipts)",
         "pnpm check:docs (2026-08-19: green)"
       ],
       "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
@@ -1219,10 +1219,10 @@
         "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
         "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
       ],
-      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 — awaiting detailed-mockup sign-off (#159), nothing builds before it.",
+      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 \u2014 awaiting detailed-mockup sign-off (#159), nothing builds before it.",
       "claims": [
         {
-          "claim": "Owner picked Observatory V1; detailed mockups gate any build — mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
+          "claim": "Owner picked Observatory V1; detailed mockups gate any build \u2014 mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
           "evidence": [
             {
               "kind": "issue",
@@ -1249,7 +1249,7 @@
         "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
         "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
       ],
-      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
+      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) \u2014 all resolved at merge.",
       "claims": [
         {
           "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
@@ -1347,18 +1347,19 @@
     },
     {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
-      "assignedSha256": "3cd2b963ff96f8e6c2a1f6aa01a8db59028ad7084f027581f9d9eae46202fb15",
+      "assignedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "3cd2b963ff96f8e6c2a1f6aa01a8db59028ad7084f027581f9d9eae46202fb15",
-      "verifiedCommit": "439e17a68bbdf64088faeeab2a19e5b280ad17d2",
-      "verifiedAt": "2026-08-20",
+      "verifiedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
+      "verifiedCommit": "30a36c264c2ea055de71dc61ebf0deccaf0ce433",
+      "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md:1-79 full read against merged implementation 98244f811dfaea17e4b1ef607793d02152eaca06",
         "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
         "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
-        "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings"
+        "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
+        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) \u2014 re-attested post-merge 0cecddf97"
       ],
       "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
       "claims": [

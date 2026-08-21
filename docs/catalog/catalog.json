@@ -23568,33 +23568,34 @@
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 79,
-      "bytes": 4231,
-      "sha256": "3cd2b963ff96f8e6c2a1f6aa01a8db59028ad7084f027581f9d9eae46202fb15",
+      "lines": 80,
+      "bytes": 4364,
+      "sha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "review",
           "status": "active",
-          "updated": "2026-08-20"
+          "updated": "2026-08-21"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
-        "assignedSha256": "3cd2b963ff96f8e6c2a1f6aa01a8db59028ad7084f027581f9d9eae46202fb15",
+        "assignedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "3cd2b963ff96f8e6c2a1f6aa01a8db59028ad7084f027581f9d9eae46202fb15",
-        "verifiedCommit": "439e17a68bbdf64088faeeab2a19e5b280ad17d2",
-        "verifiedAt": "2026-08-20",
+        "verifiedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
+        "verifiedCommit": "30a36c264c2ea055de71dc61ebf0deccaf0ce433",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md:1-79 full read against merged implementation 98244f811dfaea17e4b1ef607793d02152eaca06",
           "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
           "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
-          "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings"
+          "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
+          "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97"
         ],
         "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
         "claims": [
