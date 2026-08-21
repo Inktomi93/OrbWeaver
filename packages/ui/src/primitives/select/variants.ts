@@ -16,9 +16,10 @@ export const selectVariants = tv({
     value: "min-w-0 truncate text-left",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
-    // Select's popup can GROW past the anchor for a long option, so it takes `min-w-(--anchor-width)`
+    // Select's popup can GROW past the anchor for a long option, but never past Base UI's collision-boundary
+    // width — a gloss should wrap on a phone, not push the popup fractionally beyond the viewport.
     // (autocomplete/combobox lock to the exact `w-(--anchor-width)`).
-    popup: [POPUP_SURFACE, "min-w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
+    popup: [POPUP_SURFACE, "min-w-(--anchor-width) max-w-(--available-width)", OVERLAY_MOTION.anchoredPopup],
     group: "flex flex-col",
     groupLabel: "px-block py-field text-label font-medium leading-label text-muted-foreground select-none",
     item: [ITEM_ROW, "justify-between gap-row"],

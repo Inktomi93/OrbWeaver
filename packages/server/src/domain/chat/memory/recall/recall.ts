@@ -23,7 +23,7 @@ import type { ChatContext } from "../../context.ts";
 import { spanWitnessed } from "../build/substrate/witnessing.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";
-import type { DigestRow, MemoryConfig, MemoryRecallResult, MemoryScope, MsgRow, WitnessInterval } from "../types.ts";
+import type { DigestRow, MemoryConfig, MemoryRecallResult, MemoryRecallWarningEpisode, MemoryScope, MsgRow, WitnessInterval } from "../types.ts";
 import { computeBridge } from "./bridge.ts";
 import { blockKeyStr, formatMemory } from "./format.ts";
 import { buildRecallQuery } from "./query.ts";
@@ -39,6 +39,7 @@ interface RecallArgs {
   readonly config?: MemoryConfig | null | undefined;
   readonly recent?: readonly MsgRow[] | undefined;
   readonly names?: ReadonlyMap<CharacterId, string> | undefined;
+  readonly warningEpisode?: MemoryRecallWarningEpisode | undefined;
 }
 
 /** The per-block verdict ledger: every RAW pool member starts here and its entry is overwritten by whichever
@@ -287,7 +288,7 @@ async function selectKeys(
     return { keys: bridge, queryEmbedded: false, queryText: null, candidateCount: bridge.length, scored: null };
   }
   const query = buildRecallQuery(cfg, scope, args.recent ?? [], args.names ?? new Map<CharacterId, string>());
-  const hits = await ctx.searchDigests({ ...query, candidates: bridge });
+  const hits = await ctx.searchDigests({ ...query, candidates: bridge }, args.warningEpisode?.reportRerankUnavailable);
   const scored = new Map<string, ScoredBlock>(hits.map((h) => [blockKeyStr(h.blockKey), h]));
   return {
     keys: hits.map((h) => h.blockKey),
