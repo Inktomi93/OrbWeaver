@@ -37,9 +37,11 @@
 //     and every later poll silently falls back to 1000ms. Hence ONE schedule, minted fresh per call
 //     (`evidencePoll()`), with a fine tail and a stated budget — never the inherited default.
 
+import { setTimeout as delay } from "node:timers/promises";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
-import { MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
+import type { Locator, Page } from "@playwright/test";
+import { loafOverBudget, loafTotals } from "../../../scripts/probes/motion-audit.ts";
+import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 
 /** The score the flagger prints — `shift 0.1234`. Hoisted: a regex literal inside a test body is a
  *  biome `useTopLevelRegex` error. */
@@ -73,10 +75,26 @@ function settlePaint(page: Page): Promise<void> {
 }
 
 interface MotionRead {
+  readonly loafs: readonly {
+    readonly startTime: number;
+    readonly duration: number;
+    readonly blockingDuration: number;
+    readonly styleAndLayoutStart: number;
+    readonly scripts: readonly { readonly sourceURL: string; readonly duration: number }[];
+    readonly selectEntrance?: {
+      readonly id: number;
+      readonly startedAt: number;
+      readonly confirmedAt?: number;
+      readonly endedAt?: number;
+      readonly firstForTrigger: boolean;
+    };
+  }[];
   readonly cls: number;
   readonly observedCls: number;
   readonly virtualizedCls: number;
   readonly nonVirtualizedCls: number;
+  readonly worstBlocking: number;
+  readonly worstShift: number;
   readonly shifts: readonly {
     readonly value: number;
     readonly hadRecentInput: boolean;
@@ -84,6 +102,31 @@ interface MotionRead {
     readonly virtualized: boolean;
     readonly sources: readonly string[];
   }[];
+}
+
+async function resetMotion(page: Page): Promise<void> {
+  // FABRICATION-OK: paired with MotionAnchoredPortalStory's same-module probe slot.
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // A LoAF is keyed by its frame start. Let preparation paint, then set the threshold in the
+          // second presented frame so its pre-click work remains below the checkpoint.
+          (globalThis as typeof globalThis & { __motionReset: () => void }).__motionReset();
+          resolve();
+        });
+      });
+    });
+  });
+}
+
+async function hitPoint(locator: Locator): Promise<{ x: number; y: number }> {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  if (box === null) {
+    throw new Error("visible CT control has no bounding box");
+  }
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 /** Collect every console line the flagger emits. Attached BEFORE mount so nothing is missed. */
@@ -195,4 +238,54 @@ test("the checkpoint reset clears accumulated shifts without reinstalling the ob
   await component.getByRole("button", { name: "reset evidence" }).click();
 
   await expect.poll(async () => await readMotion(page), evidencePoll()).toMatchObject({ cls: 0, observedCls: 0, shifts: [] });
+});
+
+test("a real sealed Select classifies its confirmed first and repeat entrance lifetimes only", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mount(<MotionAnchoredPortalStory />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  const triggerPoint = await hitPoint(trigger);
+  await delay(500);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  await resetMotion(page);
+  await page.mouse.click(triggerPoint.x, triggerPoint.y);
+  await delay(250);
+
+  const first = await readMotion(page);
+  expect(first.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
+  expect(loafTotals(first).classifiedInitializations).toBe(1);
+  expect(loafOverBudget(first)).toBe(false);
+
+  await page.keyboard.press("Escape");
+  await delay(150);
+  await page.getByRole("button", { name: "arm Select blocking" }).click();
+  await resetMotion(page);
+  await page.mouse.click(triggerPoint.x, triggerPoint.y);
+  await delay(250);
+  const repeated = await readMotion(page);
+  expect(repeated.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && !loaf.selectEntrance.firstForTrigger)).toBe(true);
+  expect(loafTotals(repeated).budgetedStyleLayout).toBe(0);
+  // The entrance classification may accept Base UI's style/positioning frame, but a repeat receives no
+  // blocking allowance: this planted app-owned 120ms handler must still fail the unchanged 50ms budget.
+  expect(loafOverBudget(repeated)).toBe(true);
+  await page.keyboard.press("Escape");
+  await delay(150);
+
+  const blockingPoint = await hitPoint(page.getByRole("button", { name: "plant app blocking" }));
+  await resetMotion(page);
+  await page.mouse.click(blockingPoint.x, blockingPoint.y);
+  await delay(150);
+  const blocked = await readMotion(page);
+  expect(blocked.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
+  expect(loafOverBudget(blocked)).toBe(true);
+
+  const stylePoint = await hitPoint(page.getByRole("button", { name: "plant app style" }));
+  await resetMotion(page);
+  await page.mouse.click(stylePoint.x, stylePoint.y);
+  await delay(150);
+  const styled = await readMotion(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+  expect(loafTotals(styled).budgetedStyleLayout).toBeGreaterThan(0);
+  expect(loafOverBudget(styled)).toBe(true);
 });
