@@ -725,6 +725,7 @@
       "evidence": [
         "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-110 full read against implementation commit 6e7293e41e7efa9293c1d59ed49996528eba289f",
         "git show --stat 6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "stacked catalog commit 768af7dc0b8a2f72d0c0acdf8f846ea89b80027b passed the complete static pre-commit verifier",
         "scratch-real-corpus workload and live-source immutability receipts recorded in the reviewed document",
         "GitHub issues #290 and #291 re-derived on 2026-08-20"
       ],
