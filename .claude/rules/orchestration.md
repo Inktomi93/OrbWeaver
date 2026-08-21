@@ -83,6 +83,12 @@ a11y → `side-eye`; both if the change spans both.
   top — a re-delivery-free merge for the orchestrator.
 - Dispatch independent subagents in parallel / in the background and keep working — don't block on one
   agent while other dispatchable work waits.
+- **Lanes NEVER busy-wait on a long run (usage ruling 2026-08-21, paid ~30% of a weekly cap in one
+  day):** every sleep-loop poll re-bills cache reads on the lane's ENTIRE context — a 328k-context
+  lane polling a 90-min calibration at 45s intervals burned millions of token-equivalents saying
+  "not done yet". A lane that launches a >10-min detached run REPORTS AND STOPS (its report names
+  the log/exit-file); the orchestrator or a cron/monitor picks up the completion and resumes the
+  lane by SendMessage. Waiting is the orchestrator's cheap loop, never a fat lane context's.
 - After two failed attempts at a tier, escalate one tier or take over — don't retry the same tier a third
   time.
 - Non-trivial changes pass a fresh-context lens (`verifier` and/or `side-eye`) before you report them done.
