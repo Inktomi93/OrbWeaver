@@ -50,7 +50,12 @@ mechanism found in typescript-checker's ts-native — conditional LOCAL pnpm pat
 arm A fixes verdict AND speed; calibration must run on the shipping checker config). Codex's FINAL
 merge `837e73853` (its branch 3cbb9602a..837e73853: memory-retrieval teaching #331 + coarse widths
 #371 + Select motion calibration #374/#389, 44 files +3172) is UNDER REVIEW — stickler dispatched;
-its verdict routes fixes before this merge is trusted. Codex residue cleanup = #400.
+its verdict routes fixes before this merge is trusted. Codex residue cleanup = #400. LATE DELTA: the TS7 four-arm falsification
+CONFIRMED one bug caused both symptoms; a one-line typescript-checker patch landed, native checker ON
+in both configs (identical verdict to classic, faster); gate calibration running cold on the landed
+config — its report brings the recommended break + non-comparability evidence vs the old 1,115-mutant
+population. Two private patches now carried (core sandbox + checker path-normalization); NEVER filed
+upstream (owner posture).
 
 This page is the cold-start entry point, not a backlog or a second source of status. Mutable work
 lives in [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1); repository documents
