@@ -66,6 +66,8 @@ export function createCompareAndSetImportedTokenUsage(db: Db): CompareAndSetImpo
         and(
           eq(messageVariants.id, candidate.variantId),
           eq(messageVariants.tokenProvenance, "unrecorded"),
+          eq(messageVariants.content, candidate.content),
+          candidate.metadata === null ? isNull(messageVariants.metadata) : eq(messageVariants.metadata, candidate.metadata),
           candidate.tokensIn === null ? isNull(messageVariants.tokensIn) : eq(messageVariants.tokensIn, candidate.tokensIn),
           candidate.tokensOut === null ? isNull(messageVariants.tokensOut) : eq(messageVariants.tokensOut, candidate.tokensOut),
         ),

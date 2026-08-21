@@ -94,6 +94,39 @@ describe("assistantTurnDelta", () => {
     expect(d.modelGenTimeMs).toBe(1200);
   });
 
+  test("canon model samples preserve independently nullable token axes", () => {
+    const outputOnly = canonMessageDelta({
+      ownerId: OWNER,
+      sign: 1,
+      now: NOW,
+      row: {
+        characterId: ARIA,
+        role: "assistant",
+        createdAt: NOW,
+        content: "hi",
+        tokensIn: null,
+        tokensOut: 9,
+        tokenProvenance: "measured",
+        costUsd: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        contextWindow: null,
+        genStartedAt: null,
+        genFinishedAt: null,
+        model: "opus",
+        provider: "anthropic",
+        reasoning: null,
+        metadata: null,
+        selectedIdx: null,
+        variantCount: 1,
+      },
+    });
+    expect(outputOnly.modelTokensIn).toBe(0);
+    expect(outputOnly.modelTokensOut).toBe(9);
+    expect(outputOnly.modelTokensInMeasuredSamples).toBeUndefined();
+    expect(outputOnly.modelTokensOutMeasuredSamples).toBe(1);
+  });
+
   test("no model → no model slice (apply skips model_stats)", () => {
     const d = assistantTurnDelta({
       ownerId: OWNER,

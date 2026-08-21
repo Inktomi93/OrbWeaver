@@ -289,11 +289,11 @@ function record(scenario: string, turn: string, t: TurnResult, note = ""): void 
   rows.push({
     scenario,
     turn,
-    tokensIn: r.usage.tokensIn,
-    tokensOut: r.usage.tokensOut,
+    tokensIn: r.usage.tokensIn ?? 0,
+    tokensOut: r.usage.tokensOut ?? 0,
     cacheRead: r.usage.cacheReadTokens,
     cacheWrite: r.usage.cacheWriteTokens,
-    costUsd: r.usage.costUsd,
+    costUsd: r.usage.costUsd ?? 0,
     elapsedMs: t.elapsedMs,
     note,
   });

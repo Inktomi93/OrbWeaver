@@ -390,12 +390,10 @@ describe("engine stats — a reasoning-bearing assistant turn credits model_stat
 });
 
 describe("engine stats — provider-reported OpenRouter cost reaches model_stats (#291)", () => {
-  test("a completed OpenRouter-shaped stream atomically carries its measured cost into the model rollup", async () => {
-    const rawProviderResult: ChatCompletionResult = {
-      id: "gen-openrouter-cost-fence",
-      choices: [{ message: { content: "the provider-shaped reply" }, finishReason: "stop" }],
-      usage: { promptTokens: 10, completionTokens: 20, cost: 0.5 },
-    };
+  async function runProviderResult(rawProviderResult: ChatCompletionResult): Promise<{
+    readonly variant: typeof messageVariants.$inferSelect;
+    readonly model: typeof modelStats.$inferSelect;
+  }> {
     const openRouterConnection: ResolvedConnection = {
       ...CONNECTION,
       credential: makeOpenRouterCredential(),
@@ -436,7 +434,6 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
     await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId, connection: openRouterConnection }));
 
     const variant = (await db.select().from(messageVariants))[0];
-    expect(variant).toMatchObject({ costUsd: 0.5, tokensIn: 10, tokensOut: 20, tokenProvenance: "measured", provider: "openrouter" });
 
     const batch: BatchStmt[] = [];
     for (const delta of deltas) {
@@ -445,6 +442,19 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
     await db.batch(batchMany(batch));
 
     const model = (await db.select().from(modelStats).where(eq(modelStats.ownerId, HOST)))[0];
+    if (variant === undefined || model === undefined) {
+      throw new Error("provider result did not persist its canon/model rows");
+    }
+    return { variant, model };
+  }
+
+  test("a completed OpenRouter-shaped stream atomically carries its measured cost into the model rollup", async () => {
+    const { variant, model } = await runProviderResult({
+      id: "gen-openrouter-cost-fence",
+      choices: [{ message: { content: "the provider-shaped reply" }, finishReason: "stop" }],
+      usage: { promptTokens: 10, completionTokens: 20, cost: 0.5 },
+    });
+    expect(variant).toMatchObject({ costUsd: 0.5, tokensIn: 10, tokensOut: 20, tokenProvenance: "measured", provider: "openrouter" });
     expect(model).toMatchObject({
       model: "gpt",
       provider: "openrouter",
@@ -454,6 +464,41 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
       tokensInMeasuredSamples: 1,
       tokensOutMeasuredSamples: 1,
     });
+  });
+
+  test.each([
+    {
+      label: "no usage object",
+      usage: undefined,
+      variant: { tokensIn: null, tokensOut: null, tokenProvenance: "unrecorded", costUsd: null },
+      model: { tokensInMeasuredSamples: 0, tokensOutMeasuredSamples: 0, costSamples: 0 },
+    },
+    {
+      label: "one missing token axis",
+      usage: { promptTokens: 3 },
+      variant: { tokensIn: 3, tokensOut: null, tokenProvenance: "measured", costUsd: null },
+      model: { tokensInMeasuredSamples: 1, tokensOutMeasuredSamples: 0, costSamples: 0 },
+    },
+    {
+      label: "provider-reported zeroes",
+      usage: { promptTokens: 0, completionTokens: 0, cost: 0 },
+      variant: { tokensIn: 0, tokensOut: 0, tokenProvenance: "measured", costUsd: 0 },
+      model: { tokensInMeasuredSamples: 1, tokensOutMeasuredSamples: 1, costSamples: 1 },
+    },
+    {
+      label: "tokens without cost",
+      usage: { promptTokens: 3, completionTokens: 4 },
+      variant: { tokensIn: 3, tokensOut: 4, tokenProvenance: "measured", costUsd: null },
+      model: { tokensInMeasuredSamples: 1, tokensOutMeasuredSamples: 1, costSamples: 0 },
+    },
+  ])("preserves provider recordedness for $label", async ({ usage, variant: expectedVariant, model: expectedModel }) => {
+    const rawProviderResult: ChatCompletionResult = {
+      choices: [{ message: { content: "the provider-shaped reply" }, finishReason: "stop" }],
+      ...(usage === undefined ? {} : { usage }),
+    };
+    const { variant, model } = await runProviderResult(rawProviderResult);
+    expect(variant).toMatchObject(expectedVariant);
+    expect(model).toMatchObject(expectedModel);
   });
 });
 

@@ -403,6 +403,15 @@ describe("runResponsesTurn — stream reduce → ChatResult", () => {
     expect(result.usage.isByok).toBe(true);
   });
 
+  test("preserves an omitted usage object as unrecorded", async () => {
+    const { client } = streamingClient([
+      { type: "response.output_text.delta", delta: "Hello" },
+      { type: "response.completed", response: { status: "completed", incompleteDetails: null, outputText: "Hello", output: [] } },
+    ]);
+    const result = await runResponsesTurn(client, makeRequest(), DEPS);
+    expect(result.usage).toMatchObject({ tokensIn: null, tokensOut: null, costUsd: null });
+  });
+
   test("a response.failed event becomes a thrown ProviderError", async () => {
     const { client } = streamingClient([{ type: "response.failed", response: { error: { code: "server_error", message: "boom" } } }]);
     await expect(runResponsesTurn(client, makeRequest(), DEPS)).rejects.toMatchObject({

@@ -121,7 +121,7 @@ function push(path: Measure["path"], turn: number, wallMs: number, r: ChatResult
     ttftMs: r.ttftMs,
     cacheRead: r.usage.cacheReadTokens,
     cacheWrite: r.usage.cacheWriteTokens,
-    costUsd: r.usage.costUsd,
+    costUsd: r.usage.costUsd ?? 0,
   });
   if (VERBOSE) {
     console.log(`\n[${path}/t${turn}] ${wallMs}ms reply: ${r.reply.slice(0, SNIPPET)}`);

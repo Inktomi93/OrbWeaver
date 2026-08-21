@@ -69,7 +69,9 @@ const AGENT_ASSIST = {
   content: "buddy speaks",
   model: "gpt",
   provider: "openrouter",
-  tokensIn: 7,
+  // Deliberately output-only: the drift gate must prove the live model slice and the canon rebuild
+  // count each nullable axis independently instead of manufacturing an input sample from scalar zero.
+  tokensIn: null,
   tokensOut: 11,
 } as const;
 const USER_TEXT = "hello world";
@@ -292,7 +294,7 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // Guard against a false green from two identical EMPTIES (a canon that silently dropped the rows would
     // still `toEqual`): pin the agent's contribution is actually present — the host counts BOTH assistant
     // turns, and no character_stats row was minted for the agent.
-    expect(live.owner).toMatchObject({ assistantTurns: 2, tokensIn: 19, tokensOut: 35 });
+    expect(live.owner).toMatchObject({ assistantTurns: 2, tokensIn: 12, tokensOut: 35 });
     expect(live.chars).toHaveLength(1);
   });
 

@@ -226,8 +226,8 @@ export interface CostDetails {
 /** Token + cost accounting for one chat turn. */
 export interface ChatUsage {
   readonly model: string;
-  readonly tokensIn: number;
-  readonly tokensOut: number;
+  readonly tokensIn: number | null;
+  readonly tokensOut: number | null;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
   readonly cacheCreation5mTokens: number | null;
@@ -236,7 +236,7 @@ export interface ChatUsage {
   readonly contextWindow: number | null;
   readonly maxOutputTokens: number | null;
   readonly webSearchRequests: number;
-  readonly costUsd: number;
+  readonly costUsd: number | null;
   readonly costDetails: CostDetails | null;
   /** True when billed against a BYOK credential rather than our OpenRouter credits; null when N/A. */
   readonly isByok: boolean | null;

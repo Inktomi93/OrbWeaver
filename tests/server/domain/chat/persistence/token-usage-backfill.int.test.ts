@@ -55,6 +55,8 @@ describe("imported token-usage persistence", () => {
     const exact = await seedMessage(db, chatId, 1, { content: "exact" });
     const legacy = await seedMessage(db, chatId, 2, { content: "legacy" });
     const raced = await seedMessage(db, chatId, 3, { content: "raced" });
+    const contentRaced = await seedMessage(db, chatId, 4, { content: "old content" });
+    const metadataRaced = await seedMessage(db, chatId, 5, { content: "metadata raced" });
     await db
       .update(messageVariants)
       .set({ metadata: { ["token_count"]: 4 } })
@@ -66,7 +68,15 @@ describe("imported token-usage persistence", () => {
     const exactCandidate = byId.get(exact.variantId);
     const legacyCandidate = byId.get(legacy.variantId);
     const racedCandidate = byId.get(raced.variantId);
-    if (exactCandidate === undefined || legacyCandidate === undefined || racedCandidate === undefined) {
+    const contentRacedCandidate = byId.get(contentRaced.variantId);
+    const metadataRacedCandidate = byId.get(metadataRaced.variantId);
+    if (
+      exactCandidate === undefined ||
+      legacyCandidate === undefined ||
+      racedCandidate === undefined ||
+      contentRacedCandidate === undefined ||
+      metadataRacedCandidate === undefined
+    ) {
       throw new Error("seeded candidate missing");
     }
     const compareAndSet = createCompareAndSetImportedTokenUsage(db);
@@ -78,6 +88,15 @@ describe("imported token-usage persistence", () => {
     // Simulate a live provider write after the reader snapshot but before this workload's CAS.
     await db.update(messageVariants).set({ tokensIn: 23, tokensOut: 42, tokenProvenance: "measured" }).where(eq(messageVariants.id, raced.variantId));
     expect(await compareAndSet({ candidate: racedCandidate, resolution: { tokensIn: null, tokensOut: 2, tokenProvenance: "estimated" } })).toBe(false);
+
+    await db.update(messageVariants).set({ content: "new content" }).where(eq(messageVariants.id, contentRaced.variantId));
+    expect(await compareAndSet({ candidate: contentRacedCandidate, resolution: { tokensIn: null, tokensOut: 2, tokenProvenance: "estimated" } })).toBe(false);
+
+    await db
+      .update(messageVariants)
+      .set({ metadata: { ["token_count"]: 12 } })
+      .where(eq(messageVariants.id, metadataRaced.variantId));
+    expect(await compareAndSet({ candidate: metadataRacedCandidate, resolution: { tokensIn: null, tokensOut: 2, tokenProvenance: "estimated" } })).toBe(false);
 
     const rows = await db.select().from(messageVariants).where(eq(messageVariants.messageId, exact.messageId));
     expect(rows[0]).toMatchObject({ tokensIn: null, tokensOut: 4, tokenProvenance: "measured" });
