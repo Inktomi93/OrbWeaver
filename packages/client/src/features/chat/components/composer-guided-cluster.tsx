@@ -30,7 +30,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Drama, FastForward, Icon, Play, RotateCcw, Square } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Container, Grid, Row } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
@@ -71,6 +71,8 @@ export interface ComposerGuidedClusterProps {
    *  `sendUnavailableReason`. Engine-agnostic; the reason wins over a phase reason (both are persistent). */
   readonly sendUnavailable: boolean;
   readonly sendUnavailableReason: string | undefined;
+  /** The room-level action that leads the four-home action grid. */
+  readonly chatControl: ReactNode;
   /** The character speaker picker belongs to Their reply; owning it here keeps semantics and wrapping aligned. */
   readonly speakerControl: ReactNode;
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
@@ -82,7 +84,19 @@ const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const { chatId, value, onChange, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason, speakerControl, sendControl } = props;
+  const {
+    chatId,
+    value,
+    onChange,
+    busy = false,
+    tailIsAssistant,
+    imageControls,
+    sendUnavailable,
+    sendUnavailableReason,
+    chatControl,
+    speakerControl,
+    sendControl,
+  } = props;
   const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
   const utilities = useComposerUtilities(chatId);
   const trimmed = value.trim();
@@ -126,60 +140,89 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   };
 
   return (
-    <Row gap="section" align="center" className="min-w-0 flex-1 flex-wrap justify-end" data-slot="composer-guided-cluster">
-      <Row aria-label="Your message" data-slot="composer-you-actions" gap="field" role="group">
-        <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
-        {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
-      </Row>
-      <Row aria-label="Their reply" data-slot="composer-them-actions" gap="field" role="group">
-        <GuidedIconButton
-          icon={RotateCcw}
-          label={hasText ? "Try another reply with this direction" : "Try another reply"}
-          steerCue={STEER_CUE_SWIPE}
-          hasText={hasText}
-          disabled={!(canTargetTail && idle)}
-          reason={reasonFor(SWIPE_NEEDS_REPLY)}
-          buttonTestId="composerGuidedSwipe"
-          onFire={(): void => guided.fireSwipe(trimmed)}
+    <Container className="w-full min-w-0">
+      <Grid cols="actionBar" gap="section" className="min-w-0" data-slot="composer-guided-cluster">
+        <Row
+          aria-label="Chat actions"
+          className="justify-self-start @max-md:col-start-1 @max-md:row-start-1"
+          data-slot="composer-chat-actions"
+          gap="field"
+          role="group"
+        >
+          {chatControl}
+        </Row>
+        <Row
+          aria-label="Your message"
+          className="justify-self-start @max-md:col-start-2 @max-md:row-start-1 @max-md:justify-self-end"
+          data-slot="composer-you-actions"
+          gap="field"
+          role="group"
+        >
+          <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
+          {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
+        </Row>
+        <Row
+          aria-label="Their reply"
+          className="min-w-0 justify-self-end @max-md:col-start-1 @max-md:row-start-2 @max-md:justify-self-start @max-xs:col-span-2 @max-xs:justify-self-center"
+          data-slot="composer-them-actions"
+          gap="field"
+          role="group"
+        >
+          <GuidedIconButton
+            icon={RotateCcw}
+            label={hasText ? "Try another reply with this direction" : "Try another reply"}
+            steerCue={STEER_CUE_SWIPE}
+            hasText={hasText}
+            disabled={!(canTargetTail && idle)}
+            reason={reasonFor(SWIPE_NEEDS_REPLY)}
+            buttonTestId="composerGuidedSwipe"
+            onFire={(): void => guided.fireSwipe(trimmed)}
+          />
+          <ResponseGuidedButton hasText={hasText} idle={idle} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
+          <GuidedIconButton
+            icon={FastForward}
+            label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
+            steerCue={STEER_CUE_CONTINUE}
+            hasText={hasText}
+            disabled={!(canTargetTail && idle)}
+            reason={reasonFor(SWIPE_NEEDS_REPLY)}
+            buttonTestId="composerGuidedContinue"
+            onFire={(): void => fireAndClear(guided.fireContinue)}
+          />
+          {speakerControl}
+        </Row>
+        <Row
+          aria-label="Attach and send"
+          className="justify-self-end @max-md:col-start-2 @max-md:row-start-2 @max-xs:col-span-2 @max-xs:col-start-1 @max-xs:row-start-3"
+          data-slot="composer-attach-actions"
+          gap="field"
+          role="group"
+        >
+          <ComposerGuidedUtilityMenu
+            hasText={hasText}
+            trimmed={trimmed}
+            idle={idle}
+            canTargetTail={canTargetTail}
+            guided={guided}
+            utilities={utilities}
+            onChange={onChange}
+            onRewrite={rewrite.open}
+            game={game}
+            image={imageControls}
+          />
+          {sendControl}
+        </Row>
+        <RewriteDialog
+          open={rewrite.isOpen}
+          onOpenChange={rewrite.setOpen}
+          instruction={rewrite.instruction}
+          onInstructionChange={rewrite.setInstruction}
+          selected={rewrite.toggles}
+          onToggle={rewrite.toggle}
+          onApply={rewrite.apply}
         />
-        <ResponseGuidedButton hasText={hasText} idle={idle} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
-        <GuidedIconButton
-          icon={FastForward}
-          label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
-          steerCue={STEER_CUE_CONTINUE}
-          hasText={hasText}
-          disabled={!(canTargetTail && idle)}
-          reason={reasonFor(SWIPE_NEEDS_REPLY)}
-          buttonTestId="composerGuidedContinue"
-          onFire={(): void => fireAndClear(guided.fireContinue)}
-        />
-        {speakerControl}
-      </Row>
-      <Row aria-label="Attach and send" data-slot="composer-attach-actions" gap="field" role="group">
-        <ComposerGuidedUtilityMenu
-          hasText={hasText}
-          trimmed={trimmed}
-          idle={idle}
-          canTargetTail={canTargetTail}
-          guided={guided}
-          utilities={utilities}
-          onChange={onChange}
-          onRewrite={rewrite.open}
-          game={game}
-          image={imageControls}
-        />
-        {sendControl}
-      </Row>
-      <RewriteDialog
-        open={rewrite.isOpen}
-        onOpenChange={rewrite.setOpen}
-        instruction={rewrite.instruction}
-        onInstructionChange={rewrite.setInstruction}
-        selected={rewrite.toggles}
-        onToggle={rewrite.toggle}
-        onApply={rewrite.apply}
-      />
-    </Row>
+      </Grid>
+    </Container>
   );
 }
 

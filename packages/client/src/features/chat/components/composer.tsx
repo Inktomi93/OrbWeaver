@@ -382,40 +382,34 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
           // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
           className={cn(
             CHAT_TRACK,
-            "rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
+            "rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
           )}
         >
-          {/* ROW 1 — chat actions plus three truthful, atomic action groups. The outer row and guided cluster
-              both participate in wrapping: groups stay intact while the cluster takes the width left after
-              Chat actions, so coarse controls reflow inside the composer's actual content box. */}
-          <Row gap="field" align="start" className="min-w-0 flex-wrap" data-slot="composer-actions">
-            <Row aria-label="Chat actions" data-slot="composer-chat-actions" gap="field" role="group">
-              <ActiveChatOptionsMenu chatId={chatId} />
-            </Row>
-            <ComposerGuidedCluster
-              chatId={chatId}
-              value={value}
-              onChange={onChange}
-              busy={sendMessage.isPending}
-              tailIsAssistant={tailRole === "assistant"}
-              imageControls={imageControls}
-              sendUnavailable={sendAvailability.unavailable}
-              sendUnavailableReason={sendAvailability.reason}
-              speakerControl={<SpeakAsSelect chatId={chatId} />}
-              sendControl={
-                <ComposerSendControl
-                  showStop={showStop}
-                  stopping={stopping}
-                  onStop={stopTurn.stop}
-                  onSend={submit}
-                  sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
-                  sendPending={sendMessage.isPending || continueOnEmpty.isPending}
-                  unavailable={sendAvailability.unavailable}
-                  unavailableReason={sendAvailability.reason}
-                />
-              }
-            />
-          </Row>
+          {/* ROW 1 — four truthful action homes on explicit container-responsive tracks. */}
+          <ComposerGuidedCluster
+            chatId={chatId}
+            value={value}
+            onChange={onChange}
+            busy={sendMessage.isPending}
+            tailIsAssistant={tailRole === "assistant"}
+            imageControls={imageControls}
+            sendUnavailable={sendAvailability.unavailable}
+            sendUnavailableReason={sendAvailability.reason}
+            chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
+            speakerControl={<SpeakAsSelect chatId={chatId} />}
+            sendControl={
+              <ComposerSendControl
+                showStop={showStop}
+                stopping={stopping}
+                onStop={stopTurn.stop}
+                onSend={submit}
+                sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+                sendPending={sendMessage.isPending || continueOnEmpty.isPending}
+                unavailable={sendAvailability.unavailable}
+                unavailableReason={sendAvailability.reason}
+              />
+            }
+          />
           {/* ROW 2 — the textarea owns the full input line; speaker selection lives with Their reply above. */}
           <Row gap="field" align="center" data-slot="composer-input">
             <Textarea
