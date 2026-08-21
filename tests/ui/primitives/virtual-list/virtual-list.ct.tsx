@@ -151,6 +151,12 @@ test("a 906-row measured list resets a settled 30-row scope after old-offset cla
   await expect(scroll).toHaveAttribute("data-clamp-events", "1");
   await expect(component.locator('[data-slot="virtual-list-row"]')).not.toHaveCount(0);
   await expect(component.locator('[data-slot="virtual-list-row"]').first()).toHaveAttribute("aria-setsize", "30");
+  await page.evaluate(
+    async () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
   await expect
     .poll(() =>
       component.locator('[data-slot="virtual-list-row"]').evaluateAll((rows) => {

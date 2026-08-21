@@ -137,6 +137,18 @@ export function VirtualList<T>({
     useFlushSync: false,
   });
 
+  // TanStack's default resize anchor reads its cached scroll offset. A programmatic landing updates the
+  // DOM before the scroll event refreshes that cache, so rows measured in that seam can be misclassified
+  // as above the viewport and push the list away from the requested target. Preserve the default policy,
+  // but ask the owned scroll node for the live offset.
+  useLayoutEffect((): (() => void) => {
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance): boolean =>
+      item.start < (scrollRef.current?.scrollTop ?? 0) && (!instance.itemSizeCache.has(item.key) || instance.scrollDirection !== "backward");
+    return (): void => {
+      virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
+    };
+  }, [virtualizer]);
+
   // The unbounded-window tripwire — thrown, not warned.
   useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "VirtualList"), []);
 
