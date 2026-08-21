@@ -88,18 +88,19 @@ function settlePageSequentially(args: {
   return args.page.reduce<Promise<void>>((previous, candidate) => previous.then(() => settleCandidate({ ...args, candidate })), Promise.resolve());
 }
 
-/** Rebuild distinct owners serially; the DB writer owns one atomic owner rebuild at a time. */
-function reconcileChangedOwners(args: {
-  readonly deps: ImportTokenUsageBackfillDeps;
-  readonly changedOwners: ReadonlySet<UserId>;
-  readonly signal: AbortSignal;
-}): Promise<void> {
+/**
+ * Rebuild distinct owners serially; the DB writer owns one atomic owner rebuild at a time.
+ *
+ * DELIBERATELY UNCANCELLABLE (it takes no `AbortSignal`): this is the SETTLEMENT of writes that already
+ * landed, not more work. A cancel that skipped it left every CAS-promoted row counted under the old
+ * provenance in the rollups FOREVER — a re-run cannot heal it, because a settled row returns at
+ * `alreadyMeasured`/`alreadyEstimated` before it can re-enter `changedOwners`, and the loop's contract
+ * (this file's header) is that a second pass is a read-only census. The set is bounded by the owners this
+ * run actually WROTE, so the uninterruptible tail is proportional to work done, never to corpus size.
+ */
+function reconcileChangedOwners(args: { readonly deps: ImportTokenUsageBackfillDeps; readonly changedOwners: ReadonlySet<UserId> }): Promise<void> {
   return [...args.changedOwners].reduce<Promise<void>>(
-    (previous, ownerId) =>
-      previous.then(() => {
-        args.signal.throwIfAborted();
-        return args.deps.reconcileImportStats({ ownerId });
-      }),
+    (previous, ownerId) => previous.then(() => args.deps.reconcileImportStats({ ownerId })),
     Promise.resolve(),
   );
 }
@@ -133,8 +134,13 @@ export function createBackfillTokenUsage(deps: ImportTokenUsageBackfillDeps): Ba
       }
     };
 
-    await sweepPage(null);
-    await reconcileChangedOwners({ deps, changedOwners, signal });
+    // The reconcile rides a `finally` so an ABORT (or any sweep failure) still settles what was written —
+    // see {@link reconcileChangedOwners}. Order matters: cancel stops scanning, it never strands rollups.
+    try {
+      await sweepPage(null);
+    } finally {
+      await reconcileChangedOwners({ deps, changedOwners });
+    }
     return {
       ...counts,
       ownersScanned: ownersScanned.size,

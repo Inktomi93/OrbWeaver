@@ -47,6 +47,28 @@ describe("imported token-usage persistence", () => {
     expect((await list({ hostUserId: null, afterVariantId: null, limit: 10 })).map((row) => row.ownerId)).toEqual([other, owner, owner]);
   });
 
+  // The one-host rule is WRITER DISCIPLINE (D18), not a DB constraint — `chat_participants` has no
+  // uniqueness over (chatId, role='host'). A plain role='host' join therefore emits one candidate row PER
+  // present human host, which silently doubles every census number the workload reports (`scanned`,
+  // `ownersScanned`, `compareAndSetSkipped`) and leaves the loser host unreconciled. The reader resolves
+  // exactly ONE seat — the earliest-joined present human host.
+  test("a room holding two present human hosts still yields ONE candidate per variant, owned by the earliest seat", async () => {
+    const founder = await seedUser(db, castId<Handle>("founder"));
+    const second = await seedUser(db, castId<Handle>("second_host"));
+    const chatId = await seedChat(db, "two_hosts");
+    await db.update(chats).set({ importedFrom: "two-hosts.jsonl" }).where(eq(chats.id, chatId));
+    await seedParticipant(db, { chatId, key: "founder_host", userId: founder, role: "host", joinSeq: 0 });
+    await seedParticipant(db, { chatId, key: "second_host", userId: second, role: "host", joinSeq: 4 });
+    // A host who LEFT keeps role='host' and must not resurrect as a candidate owner either.
+    const departed = await seedUser(db, castId<Handle>("departed_host"));
+    await seedParticipant(db, { chatId, key: "departed_host", userId: departed, role: "host", joinSeq: 1, leftSeq: 2 });
+    const only = await seedMessage(db, chatId, 1, { role: "assistant", content: "one row, one owner" });
+
+    const candidates = await createListImportedTokenUsageCandidates(db)({ hostUserId: null, afterVariantId: null, limit: 10 });
+
+    expect(candidates.map((row) => ({ variantId: row.variantId, ownerId: row.ownerId }))).toEqual([{ variantId: only.variantId, ownerId: founder }]);
+  });
+
   test("the CAS fills only a matching unrecorded row, promotes legacy numbers without rewriting them, and loses to measured usage", async () => {
     const owner = await seedUser(db, castId<Handle>("cas_owner"));
     const chatId = await seedChat(db, "cas");

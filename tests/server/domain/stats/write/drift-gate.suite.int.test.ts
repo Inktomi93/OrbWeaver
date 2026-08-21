@@ -74,6 +74,20 @@ const AGENT_ASSIST = {
   tokensIn: null,
   tokensOut: 11,
 } as const;
+// The ESTIMATED turn — an IMPORTED row the token-usage catch-up settled (`domain/import/verbs/
+// backfill-token-usage`). It is the third `tokenProvenance` arm and the one no writer test exercised: the
+// sample keys it feeds are RUNTIME-BUILT STRINGS on both sides (`tokenSampleSlice`'s
+// `` `${prefix}…${suffix}` `` and the rebuild's `` acc[`tokensIn${kind}`] ``), so a typo in either half is
+// invisible to tsc and shows up only as a rollup that silently counts nothing. Both writers must fold it
+// into the ESTIMATED columns and leave the measured ones alone.
+const ESTIMATED_ASSIST = {
+  content: "an imported line, token-counted by estimate",
+  model: "gpt",
+  provider: "openrouter",
+  tokensIn: 7,
+  tokensOut: 3,
+  tokenProvenance: "estimated",
+} as const;
 const USER_TEXT = "hello world";
 // biome-ignore lint/style/useNamingConvention: the json_extract('$.reasoning_duration') read path key.
 const CHAR_META = { reasoning_duration: CHAR_ASSIST.reasoningDuration } as const;
@@ -111,6 +125,15 @@ beforeEach(async () => {
     characterId: null,
     createdAt: T0,
     variants: [{ ...AGENT_ASSIST }],
+  });
+  // seq 4 — the ESTIMATED turn (an imported row the catch-up settled).
+  await seedMessage(db, {
+    chatId,
+    seq: 4,
+    role: "assistant",
+    characterId,
+    createdAt: T0,
+    variants: [{ ...ESTIMATED_ASSIST }],
   });
 });
 
@@ -198,6 +221,34 @@ function liveDeltas(): StatsDelta[] {
         genFinishedAt: null,
         model: AGENT_ASSIST.model,
         provider: AGENT_ASSIST.provider,
+        reasoning: null,
+        metadata: null,
+        selectedIdx: null,
+        variantCount: 1,
+      },
+    }),
+    // The ESTIMATED turn — the third provenance arm, folded by both writers into the *EstimatedSamples
+    // columns (and into the same scalar token totals a measured row feeds).
+    canonMessageDelta({
+      ownerId,
+      sign: 1,
+      now: T0,
+      row: {
+        characterId,
+        role: "assistant",
+        createdAt: T0,
+        content: ESTIMATED_ASSIST.content,
+        tokensIn: ESTIMATED_ASSIST.tokensIn,
+        tokensOut: ESTIMATED_ASSIST.tokensOut,
+        tokenProvenance: ESTIMATED_ASSIST.tokenProvenance,
+        costUsd: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        contextWindow: null,
+        genStartedAt: null,
+        genFinishedAt: null,
+        model: ESTIMATED_ASSIST.model,
+        provider: ESTIMATED_ASSIST.provider,
         reasoning: null,
         metadata: null,
         selectedIdx: null,
@@ -294,8 +345,17 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // Guard against a false green from two identical EMPTIES (a canon that silently dropped the rows would
     // still `toEqual`): pin the agent's contribution is actually present — the host counts BOTH assistant
     // turns, and no character_stats row was minted for the agent.
-    expect(live.owner).toMatchObject({ assistantTurns: 2, tokensIn: 12, tokensOut: 35 });
+    expect(live.owner).toMatchObject({ assistantTurns: 3, tokensIn: 19, tokensOut: 38 });
     expect(live.chars).toHaveLength(1);
+    // …and the PROVENANCE split is real on both sides: the estimated turn lands in the estimated columns
+    // only (a runtime-built key that missed would leave these at 0 while `toEqual` above stayed green,
+    // because both writers would have missed it the same way ONLY if they shared the typo — they don't).
+    expect(live.owner).toMatchObject({
+      tokensInMeasuredSamples: 2,
+      tokensOutMeasuredSamples: 3,
+      tokensInEstimatedSamples: 1,
+      tokensOutEstimatedSamples: 1,
+    });
   });
 
   // R0 §4.7 — THE HUSK IS A TWO-WRITER CONTRACT, and this is the arm that pins it. A husk (`chats.started_at`
@@ -339,7 +399,7 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // …and not vacuously: the husk's own character never gets a rollup row, and the owner's chat count is
     // still the ONE started room.
     expect(reconciled.chars).toHaveLength(1);
-    expect(reconciled.chars[0]).toMatchObject({ chats: 1, assistantTurns: 1 });
-    expect(reconciled.owner).toMatchObject({ chats: 1, assistantTurns: 2 });
+    expect(reconciled.chars[0]).toMatchObject({ chats: 1, assistantTurns: 2 });
+    expect(reconciled.owner).toMatchObject({ chats: 1, assistantTurns: 3 });
   });
 });

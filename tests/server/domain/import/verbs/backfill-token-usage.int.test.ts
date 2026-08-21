@@ -13,9 +13,12 @@ import {
   createListImportedTokenUsageCandidates,
 } from "../../../../../packages/server/src/domain/chat/persistence/token-usage-backfill.ts";
 import { createBackfillTokenUsage } from "../../../../../packages/server/src/domain/import/verbs/backfill-token-usage.ts";
+import { readOverview } from "../../../../../packages/server/src/domain/stats/persistence/rollups.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
+import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedChat, seedMessage, seedParticipant, seedUser } from "../../chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../chat/_support.ts";
 
 let db: Db;
 
@@ -101,5 +104,45 @@ describe("createBackfillTokenUsage", () => {
       ownersReconciled: 0,
     });
     expect(reconcileImportStats).not.toHaveBeenCalled();
+  });
+
+  // THE WHOLE ESTIMATED ARM, END TO END, through the REAL post-settle op the composition root wires
+  // (`ImportWorkloadDeps.reconcileImportStats` → `reconcileStats`) instead of a `vi.fn`. The arm above
+  // stops at the variant row; nothing proved that an estimated promotion actually reaches the rollups and
+  // reads back as estimated — and it cannot be proved statically, because the rollup sample columns are
+  // addressed by RUNTIME-BUILT KEY on both writers (`tokensIn${kind}` / `` `${prefix}…${suffix}` ``).
+  test("a countless imported row settles ESTIMATED and the real reconcile carries that provenance to readOverview", async () => {
+    const ownerId = await seedUser(db, castId<Handle>("estimated_owner"));
+    const characterId = await seedCharacter(db, ownerId, "aria");
+    const chatId = await seedChat(db, "estimated");
+    await db.update(chats).set({ importedFrom: "countless-corpus.jsonl" }).where(eq(chats.id, chatId));
+    await seedParticipant(db, { chatId, key: "estimated_host", userId: ownerId, role: "host" });
+    // The reconcile's owner-scoping is MEMBERSHIP-derived (a chat with a character seat this user owns).
+    await seedParticipant(db, { chatId, key: "estimated_char", characterId, role: "member" });
+    const body = "an imported assistant line that carried no token count at all";
+    const imported = await seedMessage(db, chatId, 1, { role: "assistant", characterId, content: body });
+    const clock = createFrozenClock();
+
+    const result = await createBackfillTokenUsage({
+      listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
+      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db),
+      reconcileImportStats: ({ ownerId: owner }) => reconcileStats(db, { ownerId: owner, now: clock.now }).then(() => undefined),
+    })({ ownerId, dryRun: false, report: vi.fn(), signal: new AbortController().signal });
+
+    expect(result).toMatchObject({ scanned: 1, estimated: 1, ownersReconciled: 1 });
+    expect((await db.select().from(messageVariants).where(eq(messageVariants.id, imported.variantId)))[0]).toMatchObject({
+      tokensOut: estimateTokens(body),
+      tokenProvenance: "estimated",
+    });
+    // The read seam a user actually sees: the estimate is COUNTED, labelled `estimated`, and carries no
+    // manufactured dollar cost.
+    expect(await readOverview(db, ownerId)).toMatchObject({
+      tokensOut: estimateTokens(body),
+      tokensOutProvenance: "estimated",
+      // The input axis of an assistant-only estimate stays unrecorded — an estimate is never symmetric.
+      tokensIn: null,
+      tokensInProvenance: "unrecorded",
+      costUsd: null,
+    });
   });
 });

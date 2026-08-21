@@ -427,6 +427,13 @@ function dispatch(acc: TurnAccumulator, message: SDKMessage): void {
 
 type Narrow<K extends SDKMessage["type"]> = Extract<SDKMessage, { type: K }>;
 
+/** The mutable accumulator for the `result`-frame half of {@link ChatUsage} — DERIVED from the contract
+ *  (never re-spelled), minus the four fields the accumulator does not fold: `model` + `reasoningTokens`
+ *  come from the turn context / `thinking_tokens` frames, and `costDetails`/`isByok` are OpenRouter-only. */
+type MutableChatUsageAcc = {
+  -readonly [K in keyof Omit<ChatUsage, "model" | "reasoningTokens" | "costDetails" | "isByok">]: ChatUsage[K];
+};
+
 /** Owns all turn-local state; `finish()`/`finishWithError()` are the only exits. */
 class TurnAccumulator {
   reply = "";
@@ -454,17 +461,26 @@ class TurnAccumulator {
    *  ends the turn on the first one. Collected only when the terminal channel actually mounted. */
   readonly terminalToolCalls: ToolCallInput[] = [];
   readonly events: ChatEvent[] = [];
-  readonly usageAcc = {
-    tokensIn: 0,
-    tokensOut: 0,
+  /** ABSENCE IS NULL, NEVER ZERO. Every axis the SDK only reports through a `result` frame starts null and
+   *  becomes a number the first time a `modelUsage` entry (or the optional `usage.cache_creation` frame)
+   *  is folded — a turn whose result carried an EMPTY `modelUsage` therefore reports nothing at all.
+   *  A fabricated 0 would be stamped `measured` by `canon-write.ts::variantEconomics` (0 !== null) and
+   *  counted as a real cost sample by the stats rollups. This is the same null-absence contract the other
+   *  three mappers state with `?? null`: `backends/kit/openai-compat/stream.ts::mapUsage`,
+   *  `backends/openrouter/runners/chat/responses.ts::mapResponsesUsage`, and this backend's own
+   *  `summarize.ts::reduceSummarizeStream`. The three counters that stay plain numbers are the contract's
+   *  non-nullable ones — 0 IS the honest "no cache read / no cache write / no web search". */
+  readonly usageAcc: MutableChatUsageAcc = {
+    tokensIn: null,
+    tokensOut: null,
     cacheReadTokens: 0,
     cacheWriteTokens: 0,
-    cacheCreation5mTokens: 0,
-    cacheCreation1hTokens: 0,
-    contextWindow: 0,
-    maxOutputTokens: 0,
+    cacheCreation5mTokens: null,
+    cacheCreation1hTokens: null,
+    contextWindow: null,
+    maxOutputTokens: null,
     webSearchRequests: 0,
-    costUsd: 0,
+    costUsd: null,
   };
   readonly startedAt: number;
   readonly ctx: TurnStreamContext;
@@ -514,13 +530,15 @@ class TurnAccumulator {
       ttftMs: this.ttftMs,
       ok,
       ...(contextUsage !== undefined ? { contextUsage } : {}),
+      // `ProviderTurnUsage`'s fields are OPTIONAL precisely so "a turn that never reached a result frame
+      // still logs a coherent line" — an unbilled axis is OMITTED here, never logged as a measured 0.
       usage: {
-        tokensIn: this.usageAcc.tokensIn,
-        tokensOut: this.usageAcc.tokensOut,
+        ...(this.usageAcc.tokensIn !== null ? { tokensIn: this.usageAcc.tokensIn } : {}),
+        ...(this.usageAcc.tokensOut !== null ? { tokensOut: this.usageAcc.tokensOut } : {}),
         reasoningTokens: this.reasoningTokens,
         cacheReadTokens: this.usageAcc.cacheReadTokens,
         cacheWriteTokens: this.usageAcc.cacheWriteTokens,
-        costUsd: this.usageAcc.costUsd,
+        ...(this.usageAcc.costUsd !== null ? { costUsd: this.usageAcc.costUsd } : {}),
         warmSpareClaimed: this.warmSpareClaimed,
       },
     });
@@ -784,16 +802,18 @@ function handleAuthStatus(acc: TurnAccumulator, message: Narrow<"auth_status">):
 }
 
 function accumulateUsage(acc: TurnAccumulator, message: Narrow<"result">): void {
+  // Every fold starts from `?? 0`, so the FIRST billed entry turns a null axis into a number and an empty
+  // `modelUsage` leaves every one of them null (the absence contract on `usageAcc`).
   for (const modelUsage of Object.values(message.modelUsage)) {
-    acc.usageAcc.tokensIn += modelUsage.inputTokens;
-    acc.usageAcc.tokensOut += modelUsage.outputTokens;
+    acc.usageAcc.tokensIn = (acc.usageAcc.tokensIn ?? 0) + modelUsage.inputTokens;
+    acc.usageAcc.tokensOut = (acc.usageAcc.tokensOut ?? 0) + modelUsage.outputTokens;
     acc.usageAcc.cacheReadTokens += modelUsage.cacheReadInputTokens;
     acc.usageAcc.cacheWriteTokens += modelUsage.cacheCreationInputTokens;
-    acc.usageAcc.costUsd += modelUsage.costUSD;
+    acc.usageAcc.costUsd = (acc.usageAcc.costUsd ?? 0) + modelUsage.costUSD;
     acc.usageAcc.webSearchRequests += modelUsage.webSearchRequests;
     // Prefer the configured cap over the model's reported capability, so provenance reflects the user's budget.
-    acc.usageAcc.contextWindow = Math.max(acc.usageAcc.contextWindow, acc.ctx.configuredMaxContextTokens ?? modelUsage.contextWindow);
-    acc.usageAcc.maxOutputTokens = Math.max(acc.usageAcc.maxOutputTokens, acc.ctx.configuredMaxOutputTokens ?? modelUsage.maxOutputTokens);
+    acc.usageAcc.contextWindow = Math.max(acc.usageAcc.contextWindow ?? 0, acc.ctx.configuredMaxContextTokens ?? modelUsage.contextWindow);
+    acc.usageAcc.maxOutputTokens = Math.max(acc.usageAcc.maxOutputTokens ?? 0, acc.ctx.configuredMaxOutputTokens ?? modelUsage.maxOutputTokens);
   }
   // The SDK types usage.cache_creation as required, but it's absent when no prompt-cache write occurred
   // (runtime-optional) — annotate as optional so the guard is honest, not "unnecessary".
