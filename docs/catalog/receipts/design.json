@@ -118,30 +118,35 @@
     },
     {
       "path": "docs/design/chat-visual-findings-364-366.md",
-      "assignedSha256": "f3d5588690dc7fc900891e4d2b264551a0017adfecfc16bacd2a22d7b86bd9c4",
+      "assignedSha256": "4dc0dcdcbd2ba734c072073125f5720a243ad9b858d3c3e2fe14bcc03fb5f474",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "f3d5588690dc7fc900891e4d2b264551a0017adfecfc16bacd2a22d7b86bd9c4",
-      "verifiedCommit": "cfc421fca6bb415a8a98a6a81f6a311e9ef43990",
+      "verifiedSha256": "4dc0dcdcbd2ba734c072073125f5720a243ad9b858d3c3e2fe14bcc03fb5f474",
+      "verifiedCommit": "8faff2ff3f479e65540954e32af25f62c8561564",
       "verifiedAt": "2026-08-20",
       "evidence": [
-        "docs/design/chat-visual-findings-364-366.md:1-64 full read against implementation commit cfc421fca6bb415a8a98a6a81f6a311e9ef43990",
+        "docs/design/chat-visual-findings-364-366.md:1-67 full read against implementation commit b3ab26baf62d236809c66e6ae524a95f2fda18ce",
+        "git show 8faff2ff3f479e65540954e32af25f62c8561564:docs/design/chat-visual-findings-364-366.md: SHA-256 4dc0dcdcbd2ba734c072073125f5720a243ad9b858d3c3e2fe14bcc03fb5f474",
         "fresh Playwright CT: 54 passed across composer, face strip, and actionBar grid",
         "private rendered matrix: 80/80 appearance arms plus Light, none, focus, context, and coarse-width controls"
       ],
-      "summary": "Issues #364-#366 design and as-built receipt: explicit composer action tracks, semantic functional face labels, and immediate paint-transition-free keyboard focus, with scoped CT and private rendered evidence.",
+      "summary": "Issues #364-#366 design and as-built receipt: four explicit composer action homes, the guided-control leaf split, semantic functional face labels, and immediate paint-transition-free keyboard focus, with scoped CT and private rendered evidence.",
       "claims": [
         {
-          "claim": "The four existing composer action homes retain semantic ownership while moving onto explicit responsive grid rows, including impersonation Stop under Your message.",
+          "claim": "The composer cluster owns four semantic action homes on explicit responsive grid rows, including impersonation Stop under Your message, while four presentation leaves live in composer-guided-buttons.tsx and are imported directly by the cluster.",
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:128"
+              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:39"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer-guided-buttons.tsx:29"
             },
             {
               "kind": "test",
-              "target": "tests/client/features/chat/components/composer.ct.tsx:283"
+              "target": "tests/client/features/chat/components/composer.ct.tsx:238"
             },
             {
               "kind": "issue",
@@ -180,58 +185,6 @@
             {
               "kind": "issue",
               "target": "#366"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/design/composer-action-anatomy.md",
-      "assignedSha256": "fc8c27b371190c1da9c2853f534dbf690b270b983e2523e7cb939e4b7081c07c",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "fc8c27b371190c1da9c2853f534dbf690b270b983e2523e7cb939e4b7081c07c",
-      "verifiedCommit": "0f626a82cc81d6d01580ea084b79463ae7643d47",
-      "verifiedAt": "2026-08-20",
-      "evidence": [
-        "docs/design/composer-action-anatomy.md: full read against the verified implementation and component tests",
-        "git show 0f626a82cc81d6d01580ea084b79463ae7643d47:docs/design/composer-action-anatomy.md: SHA-256 fc8c27b371190c1da9c2853f534dbf690b270b983e2523e7cb939e4b7081c07c",
-        "tests/client/features/chat/components/composer.ct.tsx: 32/32 and the exact seven-file aggregate 83/83 at the verified commit"
-      ],
-      "summary": "Composer action anatomy (#206): current design and proof contract for the responsive composer candidate; code and component tests remain behavior authority.",
-      "claims": [
-        {
-          "claim": "The composer has one wrapping action row and three semantic action groups; the drafting Stop is owned by Your message and the terminal Send/turn-Stop slot is owned by Attach and send.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/chat/components/composer.tsx:391"
-            },
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:130"
-            },
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:158"
-            }
-          ]
-        },
-        {
-          "claim": "The component test uses a real coarse touch context and proves ownership, the 44px target floor, containment, non-overlap, order, and live drafting-Stop behavior at 390px and 320px.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/features/chat/components/composer.ct.tsx:246"
-            },
-            {
-              "kind": "test",
-              "target": "tests/client/features/chat/components/composer.ct.tsx:381"
-            },
-            {
-              "kind": "issue",
-              "target": "#206"
             }
           ]
         }
