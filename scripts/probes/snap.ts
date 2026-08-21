@@ -2467,9 +2467,19 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
       var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       var node;
       while ((node = walker.nextNode())) {
-        if (node.parentElement && !node.parentElement.closest("[aria-hidden='true']")) textNodes.push(node.textContent || "");
+        var hidden = false;
+        var cur = node.parentElement;
+        while (cur) {
+          if (cur.getAttribute && cur.getAttribute("aria-hidden") === "true") {
+            hidden = true;
+            break;
+          }
+          if (cur === el) break;
+          cur = cur.parentElement;
+        }
+        if (!hidden) textNodes.push(node.textContent || "");
       }
-      var text2 = textNodes.join(" ").trim().replace(/\\s+/g, " ");
+      var text2 = textNodes.join("").trim().replace(/\\s+/g, " ");
       if (text2) return text2;
       var title = el.getAttribute("title");
       if (title && title.trim()) return title.trim();

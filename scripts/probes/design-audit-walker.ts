@@ -871,7 +871,9 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     // finding, not this one, and an off-screen or clipped-stub control is offered to nobody. A generic
     // tabindex=-1 node is programmatic focus plumbing, not an offered action: keep it in accessibleNames
     // and tabIndexes above, but do not let inherited descendant text turn nested modal/command wrappers
-    // into duplicate generic doors (issue #370). Explicit roles and every other tabindex remain judged.
+    // into duplicate generic doors (issue #370). This excludes role="generic" whether implicit OR
+    // explicit — doorRole does not distinguish the two — so only non-generic roles and any tabindex
+    // other than -1 remain judged.
     var doorName = doorNameKey(iel.getAttribute("aria-label") || labelledbyText(iel) || (iel.textContent || "") || iel.getAttribute("title") || altTextOf(iel));
     var resolvedDoorRole = doorRole(iel);
     var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";

@@ -31,7 +31,9 @@ export const commandVariants = tv({
   slots: {
     root: `flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground ${FOCUS_RING_WITHIN_INSET}`,
     // The coarse-pointer arm is the 44px tap floor (side-eye: the picker's input measured 43px on a
-    // phone). `control-sm` is NOT pointer-conditional — only `control-lg` is — so the floor is spelled here.
+    // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
+    // via the `pointer: fine` media query, not Tailwind's `pointer-coarse:` variant — spelling the
+    // floor here keeps the tap target explicit rather than relying on that CSS-var-only coincidence.
     inputWrapper: "flex h-control-sm items-center gap-row border-b border-border px-row pointer-coarse:h-touch-target",
     input:
       "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground pointer-coarse:h-touch-target",

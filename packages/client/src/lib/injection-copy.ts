@@ -63,10 +63,6 @@ export const SWIPE_NEEDS_REPLY = "needs an existing reply (try Generate reply or
  *  PLAIN reroll (ignores any typed steer), Swipe is the steer-aware reroll. Both reroll the tail assistant. */
 export const REGENERATE_PLAIN_HELPER = "Creates another version of the last reply — ignores your typed direction.";
 
-/** Continue — needs an assistant reply to extend (a user-tail or greeting-less room has none; Generate reply
- *  or Impersonate produces one). */
-export const CONTINUE_NEEDS_REPLY = "needs an existing reply to continue (try Generate reply or Draft your line first)";
-
 /** The hover cue shown on a guided icon while the composer HAS text — teaches the typed-text-becomes-steer
  *  contract at the point of action (defuses the invisible mode-switch). Per-icon variants read naturally. */
 // The guided-IMPERSONATE failure surface. Impersonate rides a SUBSCRIPTION, not a mutation, so it has no
