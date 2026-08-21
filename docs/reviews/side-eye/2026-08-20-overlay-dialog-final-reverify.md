@@ -1,6 +1,6 @@
 ---
-kind: side-eye-review
-status: current-graduate
+kind: review
+status: active
 updated: 2026-08-20
 final_ref: 2895946d810415f85c5bb001d27af60d396660be
 issues: [315, 359, 361, 363, 367, 368, 369]
