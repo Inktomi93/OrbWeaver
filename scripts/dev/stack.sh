@@ -82,8 +82,8 @@ SERVER_LOG="$RUN_DIR/server.log"
 CLIENT_LOG="$RUN_DIR/client.log"
 BACKEND_PORT="${PORT:-8788}"
 # VITE_PORT + VITE_API_TARGET are env-overridable (defaults = the canonical dev origin) so the
-# `snap --isolated` stage can boot a SECOND isolated dev stack on offset ports (scripts/probes/_kit/
-# snap-stage.ts). Exported below so the vite child (which reads them in packages/client/vite.config.ts)
+# `snap --isolated` stage can boot a SECOND isolated dev stack on offset ports (tooling/src/snap/
+# ops/stage.ts). Exported below so the vite child (which reads them in packages/client/vite.config.ts)
 # actually sees them. Unset ⇒ 5173 + this stack's own backend — byte-for-byte the old behavior.
 VITE_PORT="${VITE_PORT:-5173}"
 : "${VITE_API_TARGET:=http://127.0.0.1:$BACKEND_PORT}"

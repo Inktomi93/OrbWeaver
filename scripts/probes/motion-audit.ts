@@ -74,8 +74,8 @@ import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "@orb/tooling
 import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import type { Page } from "@playwright/test";
-import type { NavMethod } from "./_kit/nav.ts";
-import { runNav } from "./_kit/nav.ts";
+import type { NavMethod } from "@orb/tooling/_shared/nav";
+import { runNav } from "@orb/tooling/_shared/nav";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_WINDOW_MS = 2500;

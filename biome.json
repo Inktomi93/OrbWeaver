@@ -429,7 +429,7 @@
       }
     },
     {
-      "includes": ["packages/*/src/**/index.ts"],
+      "includes": ["packages/*/src/**/index.ts", "tooling/src/*/index.ts"],
       "linter": {
         "rules": {
           "performance": {
@@ -466,6 +466,16 @@
         "rules": {
           "style": {
             "noProcessEnv": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["tooling/src/snap/ops/stage.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
           }
         }
       }
@@ -698,7 +708,7 @@
         "packages/server/src/infra/image/index.ts",
         "tests/server/infra/image/index.int.test.ts",
         "tests/server/infra/providers/backends/local-light/image-embed.int.test.ts",
-        "scripts/probes/snap.ts",
+        "tooling/src/snap/ops/contrast.ts",
         "scripts/probes/design-audit.ts"
       ],
       "linter": {

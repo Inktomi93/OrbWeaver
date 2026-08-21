@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-14
+updated: 2026-08-21
 ---
 
 # Streaming message SHAPE CHURN — measured mechanism + the ranked fix plan
@@ -119,7 +119,7 @@ transitions — a churn is any entry where a tag at an EXISTING position changed
 appended.
 
 ```bash
-node scripts/probes/snap.ts / --out churn --wide \
+pnpm snap / --out churn --wide \
   --eval 'async () => {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     document.querySelector("[data-slot=list-row-body]")?.click();

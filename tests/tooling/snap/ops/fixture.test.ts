@@ -1,5 +1,5 @@
 // Fixture tests for the PURE target resolution behind `snap --contexts`/`--as`
-// (scripts/probes/_kit/fixture.ts) — no curl, no stack: the flag > env > offset-pair-default precedence,
+// (tooling/src/snap/ops/fixture.ts) — no curl, no stack: the flag > env > offset-pair-default precedence,
 // the derived server PORT the `/proc` env-pin check needs, and the roster/handle refusals. The live
 // detection (`fixtureStatus`) and the login door talk to a running fixture and are proven against it, not
 // here (this file's home is tests/tooling/ per core/Spine-Testing.md §2 — a test of a scripts/ tool).
@@ -18,10 +18,10 @@ import {
   FIXTURE_VITE_PORT,
   resolveFixtureTarget,
   resolveFixtureUsers,
-} from "../../scripts/probes/_kit/fixture.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+} from "../../../../tooling/src/snap/ops/fixture.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const REPO_ROOT = join(import.meta.dirname, "..", "..");
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 
 // ── resolveFixtureTarget ────────────────────────────────────────────────────────────────────────────────
 

@@ -21,10 +21,19 @@
 export const SAMPLE_RING_FRAC = 0.15;
 export const SAMPLE_RING_MAX_PX = 6;
 
-export type Rgb = { r: number; g: number; b: number };
+export interface Rgb {
+  r: number;
+  g: number;
+  b: number;
+}
 
 /** A CSS-pixel box in viewport coordinates (getBoundingClientRect's x/y/width/height). */
-export type PixelBox = { x: number; y: number; width: number; height: number };
+export interface PixelBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 function medianChannel(values: number[]): number {
   values.sort((a, b) => a - b);

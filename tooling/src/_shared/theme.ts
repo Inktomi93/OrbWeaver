@@ -36,7 +36,7 @@ export const NO_THEME = "none";
 /** What `--theme` asked for: a theme NAME (case-insensitive, e.g. "Light"), a raw theme id, or `none`. */
 export type ThemeRequest = string;
 
-/** Parse outcome: a request, or a stated reason (the caller turns it into an ARG ERROR — exit 2). */
+/** Parse outcome: a request, or a stated reason (the caller turns it into an ARG ERROR — EXIT.misuse). */
 export type ThemeParse = { readonly theme: ThemeRequest } | { readonly error: string };
 
 /** One entry of the app's theme library, as much of `ThemeView` as the shim needs. */

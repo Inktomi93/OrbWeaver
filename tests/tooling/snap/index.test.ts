@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { CapturedRequest } from "@orb/tooling/_shared/browser";
-import type { SnapFailureSummary } from "../../scripts/probes/snap.ts";
+import type { SnapFailureSummary } from "../../../tooling/src/snap/index.ts";
 import {
   capEvalText,
   hasSnapFailure,
@@ -13,11 +13,11 @@ import {
   partitionFailedRequests,
   selectConsoleMessagesForReport,
   splitTrailingEvals,
-} from "../../scripts/probes/snap.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+} from "../../../tooling/src/snap/index.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
-const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-const SNAP_CLI = fileURLToPath(new URL("../../scripts/probes/snap.ts", import.meta.url));
+const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
+const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", import.meta.url));
 const CLEAN_FAILURES: SnapFailureSummary = {
   navigation: 0,
   navActions: 0,
@@ -223,7 +223,7 @@ test("snap CLI prints the --out warning before booting chromium", () => {
   // the unrelated page-target error, and the caller STILL learns the --out did nothing.
   const result = runSnap(["--out", "lost-capture", "--text", "--eval@1", "document.title"]);
 
-  expect(result.status).toBe(2);
+  expect(result.status).toBe(3);
   expect(result.stdout).toContain("ARG WARNING  ");
   expect(result.stdout).toContain("NO IMAGE WILL BE WRITTEN");
 });
@@ -352,7 +352,7 @@ test("snap help exits cleanly without starting Chromium", () => {
 test("snap CLI exits 2 for misuse before starting Chromium", () => {
   const result = runSnap(["--eval@1", "document.title"]);
 
-  expect(result.status).toBe(2);
+  expect(result.status).toBe(3);
   expect(result.stdout).toContain("ARG ERROR    page target @1 is out of range for pages=1");
   expect(result.stdout).toContain("pnpm snap --help");
 });

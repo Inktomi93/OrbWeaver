@@ -23,8 +23,9 @@
 // (its header docstring): owner/owner-dev-pass, member/member-dev-pass. A handle outside this map (or a
 // `--contexts N` bigger than the fixture actually seeds) is a loud refusal, never a guess.
 
-import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { runNicedSync } from "../../_shared/proc.ts";
+import type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "../contract/fixture.ts";
 
 // The fixture's OFFSET pair (multi-user-fixture.sh's FIXTURE_PORT/FIXTURE_VITE_PORT defaults) — NOT the
 // dev stack's 8788/5173, so both run side by side. `localhost` for the vite origin, 127.0.0.1 for the
@@ -43,20 +44,7 @@ export const FIXTURE_CREDENTIALS: readonly { readonly handle: string; readonly p
   { handle: "member", password: "member-dev-pass" },
 ];
 
-export const FIXTURE_UP_REMEDY = "run scripts/dev/multi-user-fixture.sh up";
-
-/** Where the fixture answers: its server origin (health/auth-config/login) + the vite origin the browser
- *  navigates. Resolved ONCE per run and threaded through the status probe, the login door and `opts.base`
- *  — the coupling that was missing when SNAP_FIXTURE_SERVER_URL existed but nothing read it. */
-export type FixtureTarget = {
-  readonly serverUrl: string;
-  readonly baseUrl: string;
-  /** The server origin's TCP port — the `/proc` env-pin check needs the number, not the URL. */
-  readonly serverPort: number;
-};
-
-/** Explicit (CLI-flag) overrides; `null`/absent falls through to env, then to the offset-pair defaults. */
-export type FixtureTargetOverride = { readonly serverUrl?: string | null; readonly baseUrl?: string | null };
+const FIXTURE_UP_REMEDY = "run scripts/dev/multi-user-fixture.sh up";
 
 const TRAILING_SLASH_RE = /\/$/u;
 
@@ -86,11 +74,11 @@ export function resolveFixtureTarget(
 }
 
 function curlOk(url: string): boolean {
-  return spawnSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
+  return runNicedSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
 }
 
 function curlJson<T>(url: string): T | null {
-  const res = spawnSync("curl", ["-sf", "-m", "2", url], { encoding: "utf8" });
+  const res = runNicedSync("curl", ["-sf", "-m", "2", url]);
   if (res.status !== 0) {
     return null;
   }
@@ -101,30 +89,28 @@ function curlJson<T>(url: string): T | null {
   }
 }
 
-type AuthConfig = { readonly mode?: string; readonly localEnabled?: boolean; readonly multiHumanCapable?: boolean };
+interface AuthConfig {
+  readonly mode?: string;
+  readonly localEnabled?: boolean;
+  readonly multiHumanCapable?: boolean;
+}
 
 /** Env-pin mismatch check ported from stack.sh's `env_pin_report` — reads the LIVE process's actual
  *  AUTH_MODE off /proc, since a `.env`-loaded or since-restarted value can drift from what a caller thinks
  *  is running. Returns null when unreadable (container without /proc access, wrong OS) — treated as "can't
  *  prove it's the fixture," same as a mismatch. */
 function livePortOwnerIsLocalAuth(serverPort: number): boolean | null {
-  const pid = spawnSync("bash", ["-c", `ss -tlnp 2>/dev/null | grep ':${serverPort} ' | grep -oP 'pid=\\K[0-9]+' | head -1`], {
-    encoding: "utf8",
-  }).stdout.trim();
+  const pid = runNicedSync("bash", ["-c", `ss -tlnp 2>/dev/null | grep ':${serverPort} ' | grep -oP 'pid=\\K[0-9]+' | head -1`]).stdout.trim();
   if (pid === "") {
     return null;
   }
-  const res = spawnSync("bash", ["-c", `tr '\\0' '\\n' </proc/${pid}/environ 2>/dev/null | grep '^AUTH_MODE=' | cut -d= -f2-`], {
-    encoding: "utf8",
-  });
+  const res = runNicedSync("bash", ["-c", `tr '\\0' '\\n' </proc/${pid}/environ 2>/dev/null | grep '^AUTH_MODE=' | cut -d= -f2-`]);
   if (res.status !== 0) {
     return null;
   }
   const mode = res.stdout.trim();
   return mode === "local";
 }
-
-export type FixtureStatus = { readonly up: true } | { readonly up: false; readonly reason: string };
 
 /** Is the multi-user FIXTURE (not a single-user stack) live at `target`? Checks three things a caller could
  *  otherwise be fooled by: the origin answers at all, `/api/auth/config` reports `localEnabled`+

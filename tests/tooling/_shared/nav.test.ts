@@ -1,12 +1,12 @@
-// The ONE SPA-navigation vocabulary the browser probes share (scripts/probes/_kit/nav.ts). Home per
+// The ONE SPA-navigation vocabulary the browser probes share (tooling/src/_shared/nav.ts). Home per
 // Spine-Testing §2: a test of a scripts/ tool lives in tests/tooling/.
 //
 // WHY IT IS SHARED (2026-08-17, issue #148 item 1): the bridge call was hand-spelled in snap and again in
 // design-audit, and motion-audit/perf-meter had no nav at all — so the two probes that answer "is this
 // surface smooth / responsive" could not reach any surface behind a room. Four probes, one spelling: a
 // probe that arrives differently is a probe measuring something else.
-import { buildNavScript, NAV_FLAG_METHOD, NAV_FLAGS } from "../../scripts/probes/_kit/nav.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { buildNavScript, NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/_shared/nav";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 test("each verb calls its own bridge method with the raw target", () => {
   expect(buildNavScript("open-chat", "latest")).toContain('nav.openChat("latest")');
