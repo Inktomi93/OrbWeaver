@@ -3,6 +3,7 @@
 
 import type { Db } from "@orb/db";
 import { chats, messageVariants } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -47,26 +48,36 @@ describe("imported token-usage persistence", () => {
     expect((await list({ hostUserId: null, afterVariantId: null, limit: 10 })).map((row) => row.ownerId)).toEqual([other, owner, owner]);
   });
 
-  // The one-host rule is WRITER DISCIPLINE (D18), not a DB constraint — `chat_participants` has no
-  // uniqueness over (chatId, role='host'). A plain role='host' join therefore emits one candidate row PER
-  // present human host, which silently doubles every census number the workload reports (`scanned`,
-  // `ownersScanned`, `compareAndSetSkipped`) and leaves the loser host unreconciled. The reader resolves
-  // exactly ONE seat — the earliest-joined present human host.
-  test("a room holding two present human hosts still yields ONE candidate per variant, owned by the earliest seat", async () => {
-    const founder = await seedUser(db, castId<Handle>("founder"));
+  // A plain role='host' join emits one candidate row PER matching host seat, which silently doubles every
+  // census number the workload reports (`scanned`, `ownersScanned`, `compareAndSetSkipped`) and leaves the
+  // loser host unreconciled (#382). TWO mechanisms keep it at one, and this test pins both halves:
+  //   · the PRESENT-host half is now PHYSICS — `chat_participants_chat_host_unique`, a partial UNIQUE over
+  //     (chatId) WHERE role='host' AND left_seq IS NULL (#390). The two-present-host roster this test used
+  //     to seed is no longer constructible, so the arm asserts the REFUSAL instead of the reader's tiebreak.
+  //   · the DEPARTED-host half is still the READER's — a host who left KEEPS role='host' and is deliberately
+  //     outside the partial index, so the resolver's own `leftSeq IS NULL` + limit-1 is what stops every
+  //     prior host of the room from re-entering the join. That arm is unchanged and still the live defect pin.
+  test("a room's prior hosts stay OUT of the census: one candidate per variant, owned by the present seat", async () => {
+    const current = await seedUser(db, castId<Handle>("current_host"));
     const second = await seedUser(db, castId<Handle>("second_host"));
     const chatId = await seedChat(db, "two_hosts");
     await db.update(chats).set({ importedFrom: "two-hosts.jsonl" }).where(eq(chats.id, chatId));
-    await seedParticipant(db, { chatId, key: "founder_host", userId: founder, role: "host", joinSeq: 0 });
-    await seedParticipant(db, { chatId, key: "second_host", userId: second, role: "host", joinSeq: 4 });
-    // A host who LEFT keeps role='host' and must not resurrect as a candidate owner either.
-    const departed = await seedUser(db, castId<Handle>("departed_host"));
-    await seedParticipant(db, { chatId, key: "departed_host", userId: departed, role: "host", joinSeq: 1, leftSeq: 2 });
+    // Two hosts who LEFT keep role='host' (deliberately outside the partial index) and joined EARLIEST, so
+    // the resolver's `ORDER BY joinSeq` would hand the census to a departed owner if its `leftSeq IS NULL`
+    // filter were dropped — that ordering is what makes this arm a live pin rather than a tautology.
+    const founder = await seedUser(db, castId<Handle>("founder"));
+    const successor = await seedUser(db, castId<Handle>("successor_host"));
+    await seedParticipant(db, { chatId, key: "founder_host", userId: founder, role: "host", joinSeq: 0, leftSeq: 2 });
+    await seedParticipant(db, { chatId, key: "successor_host", userId: successor, role: "host", joinSeq: 1, leftSeq: 3 });
+    await seedParticipant(db, { chatId, key: "current_host", userId: current, role: "host", joinSeq: 4 });
+    // A SECOND present host is refused by the index — the double-count state is unreachable, not merely handled.
+    const collision = await seedParticipant(db, { chatId, key: "second_host", userId: second, role: "host", joinSeq: 5 }).catch((err: unknown) => err);
+    expect(isConstraintViolation(collision)?.kind).toBe("unique");
     const only = await seedMessage(db, chatId, 1, { role: "assistant", content: "one row, one owner" });
 
     const candidates = await createListImportedTokenUsageCandidates(db)({ hostUserId: null, afterVariantId: null, limit: 10 });
 
-    expect(candidates.map((row) => ({ variantId: row.variantId, ownerId: row.ownerId }))).toEqual([{ variantId: only.variantId, ownerId: founder }]);
+    expect(candidates.map((row) => ({ variantId: row.variantId, ownerId: row.ownerId }))).toEqual([{ variantId: only.variantId, ownerId: current }]);
   });
 
   test("the CAS fills only a matching unrecorded row, promotes legacy numbers without rewriting them, and loses to measured usage", async () => {
