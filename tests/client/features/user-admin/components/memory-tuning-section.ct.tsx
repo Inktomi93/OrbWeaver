@@ -182,4 +182,39 @@ test.describe("coarse pointer containment", () => {
     expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
     expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.clientWidth);
   });
+
+  test("the mode and keyword hint buttons plus keyword switch are real, separate touch-size controls", async ({ mount, page }) => {
+    await stub(page);
+    await mount(<MemoryTuningSectionNarrowStory />);
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse-only geometry arm must be active").toBe(true);
+
+    const controls = [
+      page.getByRole("button", { name: "More info about Retrieval mode" }),
+      page.getByRole("button", { name: "More info about Keyword match" }),
+      page.getByRole("switch", { name: "Keyword match" }),
+    ];
+    const boxes = await Promise.all(
+      controls.map(async (control) => {
+        await expect(control).toBeVisible();
+        const box = await control.boundingBox();
+        expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+        expect(
+          await control.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            return hit === element || (hit !== null && element.contains(hit));
+          }),
+          "the centre of each visible box belongs to that control",
+        ).toBe(true);
+        return box;
+      }),
+    );
+    const overlaps = boxes.flatMap((a, left) =>
+      boxes
+        .slice(left + 1)
+        .filter((b) => a !== null && b !== null && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y),
+    );
+    expect(overlaps, "coarse targets do not overlap each other").toEqual([]);
+  });
 });
