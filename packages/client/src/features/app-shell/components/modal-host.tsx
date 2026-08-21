@@ -41,28 +41,49 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
   };
 
   if (def.presentation === "drawer") {
-    return (
-      <Drawer open={true} onOpenChange={onOpenChange} side="bottom">
-        <DrawerPopup side="bottom" container={container}>
-          {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-          <header className="shell-modal-header sticky top-0 z-(--z-sticky) shrink-0 bg-card">
-            <DrawerTitle>{def.title}</DrawerTitle>
-            <DrawerClose
-              render={
-                <Button intent="ghost" size="icon" aria-label="Close">
-                  <Icon icon={X} size="sm" />
-                </Button>
-              }
-            />
-          </header>
-          {body}
-        </DrawerPopup>
-      </Drawer>
-    );
+    return <DrawerModal key={openModal} body={body} container={container} def={def} onOpenChange={onOpenChange} />;
   }
 
   const mobileSheetModalId = registry.list().find((modal) => modal.trigger.placement === "mobile-tab")?.id;
   return <DialogModal body={body} container={container} def={def} mobileSheetModalId={mobileSheetModalId} onOpenChange={onOpenChange} />;
+}
+
+interface DrawerModalProps {
+  readonly body: ReactNode;
+  readonly container?: DialogPopupProps["container"];
+  readonly def: ModalDefinition;
+  readonly onOpenChange: (nextOpen: boolean) => void;
+}
+
+function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): ReactElement {
+  // Base UI asks the old popup for finalFocus after a replacement Dialog has mounted. Only a close
+  // initiated by this Drawer should restore its captured trigger; replacing the shared modal slot never
+  // sends this Drawer an onOpenChange(false), so its queued cleanup must leave the Dialog's initialFocus.
+  const closeRequestedRef = useRef(false);
+  const onDrawerOpenChange = (nextOpen: boolean): void => {
+    closeRequestedRef.current = !nextOpen;
+    onOpenChange(nextOpen);
+  };
+  const resolveDrawerFinalFocus = (): boolean => closeRequestedRef.current;
+
+  return (
+    <Drawer open={true} onOpenChange={onDrawerOpenChange} side="bottom">
+      <DrawerPopup side="bottom" container={container} finalFocus={resolveDrawerFinalFocus}>
+        {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
+        <header className="shell-modal-header sticky top-0 z-(--z-sticky) shrink-0 bg-card">
+          <DrawerTitle>{def.title}</DrawerTitle>
+          <DrawerClose
+            render={
+              <Button intent="ghost" size="icon" aria-label="Close">
+                <Icon icon={X} size="sm" />
+              </Button>
+            }
+          />
+        </header>
+        {body}
+      </DrawerPopup>
+    </Drawer>
+  );
 }
 
 /**
