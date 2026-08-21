@@ -1,0 +1,247 @@
+// ui-audit in-page walker — segment: quality censuses: heading order, text overflow, repeated container text, clipped positioned children, edge-flush scroller cards.
+// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
+// segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
+// pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
+// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skipped-heading; visible headings only so a
+  //    hidden warm pane's outline can't fake a skip) ────────────────────────
+  var headings = [];
+  for (var ho = 0; ho < headingEls.length; ho += 1) {
+    var hoel = headingEls[ho];
+    if (!isVisible(hoel) || hoel.closest("[aria-hidden='true']") || isDevChrome(hoel)) continue;
+    headings.push({ level: Number(hoel.tagName[1]), text: (hoel.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 60) });
+  }
+
+  // ── text overflow (impeccable text-overflow — block + inline arms) ───────
+  var overflows = [];
+  var OVERFLOW_SKIP_TAGS = { pre: 1, code: 1, textarea: 1, svg: 1, canvas: 1, select: 1, option: 1 };
+  var isScrollRegion = function (s) {
+    return /(auto|scroll)/.test(s.overflowX || "") || /(auto|scroll)/.test(s.overflow || "") || /(auto|scroll)/.test(s.overflowY || "");
+  };
+  for (var ov = 0; ov < allEls.length && overflows.length < 100; ov += 1) {
+    var ovel = allEls[ov];
+    var ovTag = ovel.tagName.toLowerCase();
+    if (OVERFLOW_SKIP_TAGS[ovTag] === 1) continue;
+    if (ovel.namespaceURI === "http://www.w3.org/2000/svg") continue;
+    if (!isVisible(ovel) || ovel.closest("[aria-hidden='true']")) continue;
+    var hasDirect = false;
+    for (var oc = 0; oc < ovel.childNodes.length; oc += 1) {
+      var on = ovel.childNodes[oc];
+      if (on.nodeType === 3 && on.textContent.trim().length > 0) { hasDirect = true; break; }
+    }
+    if (!hasDirect) continue;
+    var ovStyle = getComputedStyle(ovel);
+    var ovRect = ovel.getBoundingClientRect();
+    if (ovRect.width <= 2 && ovRect.height <= 2) continue; // sub-2px plumbing boxes
+    // The CLIPPED screen-reader-only state is the other sr-only shape, and it keeps a full-size box:
+    // clientWidth 24 against a nowrap scrollWidth 70 on the shell skip link read as a 46px spill. Nothing
+    // spills — nothing is painted. The revealed (not-sr-only) arm has no clip and is still judged.
+    if (isVisuallyHidden(ovel)) continue;
+    if (isScrollRegion(ovStyle)) continue;
+    var scrollAnc = false;
+    for (var oap = ovel.parentElement; oap; oap = oap.parentElement) {
+      if (isScrollRegion(getComputedStyle(oap))) { scrollAnc = true; break; }
+    }
+    if (scrollAnc) continue;
+    var delta = ovel.scrollWidth - ovel.clientWidth;
+    if (ovel.clientWidth > 0 && delta >= 16) {
+      overflows.push({ selector: describe(ovel), spillPx: Math.round(delta), mode: "block" });
+      continue;
+    }
+    if (ovel.clientWidth === 0 && ovRect.width > 0) {
+      var container = ovel.parentElement;
+      while (container && container.clientWidth === 0) container = container.parentElement;
+      if (!container) continue;
+      var transformed = false;
+      for (var tpp = ovel; tpp && tpp !== container.parentElement; tpp = tpp.parentElement) {
+        var tv = getComputedStyle(tpp).transform;
+        if (tv && tv !== "none") { transformed = true; break; }
+      }
+      if (transformed) continue;
+      var cRect = container.getBoundingClientRect();
+      var spill = ovRect.right - (cRect.left + container.clientLeft + container.clientWidth);
+      if (spill >= 16) {
+        overflows.push({ selector: describe(ovel), spillPx: Math.round(spill), mode: "inline" });
+      }
+    }
+  }
+
+  // ── repeated literal text inside one decorated container (impeccable
+  //    repeated-container-text; structural-signature grouping in-page) ──────
+  var repeatedTexts = [];
+  var REPEAT_SKIP_SEL = "table,select,datalist,nav,menu,[role='navigation'],[role='menu'],[role='menubar'],[role='listbox'],[role='grid'],[role='tablist'],[role='radiogroup'],[aria-hidden='true']";
+  var REPEAT_CONTAINER_TAGS = { div: 1, section: 1, article: 1, aside: 1, main: 1, figure: 1, form: 1, fieldset: 1, details: 1, li: 1 };
+  var repeatContainers = [];
+  var repeatContainerSet = new Set();
+  for (var rc = 0; rc < allEls.length; rc += 1) {
+    var rcel = allEls[rc];
+    if (REPEAT_CONTAINER_TAGS[rcel.tagName.toLowerCase()] !== 1) continue;
+    if (rcel.closest(REPEAT_SKIP_SEL)) continue;
+    var rcStyle = getComputedStyle(rcel);
+    var rcShadow = rcStyle.boxShadow !== "none" && rcStyle.boxShadow.trim() !== "";
+    var rcBorderSides = 0;
+    if ((Number.parseFloat(rcStyle.borderTopWidth) || 0) >= 1) rcBorderSides += 1;
+    if ((Number.parseFloat(rcStyle.borderRightWidth) || 0) >= 1) rcBorderSides += 1;
+    if ((Number.parseFloat(rcStyle.borderBottomWidth) || 0) >= 1) rcBorderSides += 1;
+    if ((Number.parseFloat(rcStyle.borderLeftWidth) || 0) >= 1) rcBorderSides += 1;
+    var rcRadius = (Number.parseFloat(rcStyle.borderRadius) || 0) > 0;
+    var rcBg = parseRgb(rcStyle.backgroundColor);
+    var rcHasBg = !!(rcBg && rcBg.a > 0.1);
+    if (!((rcShadow || rcBorderSides >= 3) && (rcRadius || rcHasBg))) continue;
+    repeatContainers.push(rcel);
+    repeatContainerSet.add(rcel);
+  }
+  for (var rci = 0; rci < repeatContainers.length && repeatedTexts.length < 40; rci += 1) {
+    var rcont = repeatContainers[rci];
+    if (!isVisible(rcont)) continue;
+    var rdesc = rcont.querySelectorAll("*");
+    if (rdesc.length > 250) continue;
+    var groups = {};
+    for (var rd = 0; rd < rdesc.length; rd += 1) {
+      var del = rdesc[rd];
+      var owned = false;
+      for (var ranc = del.parentElement; ranc && ranc !== rcont; ranc = ranc.parentElement) {
+        if (repeatContainerSet.has(ranc)) { owned = true; break; }
+      }
+      if (owned) continue;
+      if (del.closest(REPEAT_SKIP_SEL)) continue;
+      if (/icon|material-symbols|(?:^|\\s)fa[srlbd]?(?:\\s|-|$)/i.test(String(del.getAttribute("class") || ""))) continue;
+      if (!isVisible(del)) continue;
+      var dtext = directTextOf(del);
+      if (dtext.length < 4 || dtext.length > 48) continue;
+      if (!/[a-zA-Z]/.test(dtext)) continue;
+      var sig = [];
+      for (var scur = del; scur && scur !== rcont; scur = scur.parentElement) {
+        var scls = String(scur.getAttribute("class") || "").trim().split(/\\s+/).filter(Boolean).sort().join(".");
+        sig.push(scur.tagName.toLowerCase() + (scls ? "." + scls : ""));
+      }
+      if (!groups[dtext]) groups[dtext] = [];
+      groups[dtext].push(sig.join(">"));
+    }
+    for (var gt in groups) {
+      var sigs = groups[gt];
+      if (sigs.length < 3) continue;
+      var distinct = new Set(sigs).size;
+      if (distinct < 3) continue;
+      repeatedTexts.push({ containerSelector: describe(rcont), text: gt.slice(0, 40), count: sigs.length, distinctSigs: distinct });
+    }
+  }
+
+  // ── clipping container vs positioned child (impeccable clipped-overflow-container) ──
+  var clippedOverflows = [];
+  var clipsVal = function (v) { return v === "hidden" || v === "clip"; };
+  var DECOR_IDENT_RE = /\\b(art|bg|background|badge|blob|crop|decor|dot|glow|grain|image|mask|ornament|overlay|photo|scrim|shadow|shine|texture)\\b/i;
+  var VIEWPORT_IDENT_RE = /\\b(carousel|comparison|compare|fisheye|marquee|preview|scroller|slider|slideshow|split|viewport|demo-area|demo-stage|demo-viewport)\\b/i;
+  var CHILD_SUBSTANTIVE_SEL = "a[href],button,input,select,summary,textarea,[tabindex]:not([tabindex='-1']),[role='button'],[role='dialog'],[role='link'],[role='listbox'],[role='menu'],[role='menuitem'],[role='option'],[role='tooltip']";
+  for (var co = 0; co < allEls.length && clippedOverflows.length < 40; co += 1) {
+    var coel = allEls[co];
+    var coStyle = getComputedStyle(coel);
+    var clipX = clipsVal(coStyle.overflowX) || clipsVal(coStyle.overflow);
+    var clipY = clipsVal(coStyle.overflowY) || clipsVal(coStyle.overflow);
+    if (!clipX && !clipY) continue;
+    if (/(auto|scroll)/.test((coStyle.overflow || "") + (coStyle.overflowX || "") + (coStyle.overflowY || ""))) continue;
+    if (!isVisible(coel)) continue;
+    // Every screen-reader-only box is an overflow:hidden clip by construction, so this rule would call
+    // each one a UI-cutting container. Cut UI is a claim about pixels; a clipped stub paints none.
+    if (isVisuallyHidden(coel)) continue;
+    var coIdent = ((coel.getAttribute("class") || "") + " " + (coel.getAttribute("id") || "")).toLowerCase();
+    var coRoleDesc = (coel.getAttribute("aria-roledescription") || "").toLowerCase();
+    if (VIEWPORT_IDENT_RE.test(coIdent) || /\\b(carousel|slider)\\b/.test(coRoleDesc)) continue;
+    var coRect = coel.getBoundingClientRect();
+    var coChildren = coel.querySelectorAll("*");
+    var coTag = coel.tagName.toLowerCase();
+    for (var cc = 0; cc < coChildren.length; cc += 1) {
+      var cchild = coChildren[cc];
+      if (isDevChrome(cchild)) continue;
+      var ccStyle = getComputedStyle(cchild);
+      var ccPos = ccStyle.position || "";
+      if (ccPos !== "absolute" && ccPos !== "fixed") continue;
+      // A fixed child of the ROOT clip (html/body overflow gutters) is viewport-anchored — root
+      // overflow does not clip it unless the root establishes a containing block. Toasts/portals
+      // live exactly there; only a NON-root clipping ancestor is a real cut risk.
+      if (ccPos === "fixed" && (coTag === "html" || coTag === "body")) continue;
+      // A SCROLL REGION between the child and this clip container means the child is
+      // scroll-managed content (virtualizer overscan rows, long panes), not cut UI — geometry
+      // "escapes" the outer rect only because the content scrolls.
+      var scrollBetween = false;
+      for (var sb = cchild.parentElement; sb && sb !== coel; sb = sb.parentElement) {
+        if (isScrollRegion(getComputedStyle(sb))) { scrollBetween = true; break; }
+      }
+      if (scrollBetween) continue;
+      // decorative child?
+      if (cchild.closest("[aria-hidden='true']")) continue;
+      var ccRole = (cchild.getAttribute("role") || "").toLowerCase();
+      if (ccRole === "none" || ccRole === "presentation") continue;
+      var ccTag = cchild.tagName.toLowerCase();
+      if (ccTag === "img" || ccTag === "svg" || ccTag === "canvas" || ccTag === "video") continue;
+      var ccIdent = (cchild.getAttribute("class") || "") + " " + (cchild.getAttribute("id") || "");
+      var ccText = (cchild.textContent || "").replace(/\\s+/g, " ").trim();
+      var ccSubstantive = ccText.length > 0 || (cchild.matches && cchild.matches(CHILD_SUBSTANTIVE_SEL)) || !!cchild.querySelector(CHILD_SUBSTANTIVE_SEL);
+      if (DECOR_IDENT_RE.test(ccIdent) && !ccSubstantive) continue;
+      if (!ccSubstantive) continue;
+      var ccRect = cchild.getBoundingClientRect();
+      var escapes = null;
+      if (ccRect.width > 0 || ccRect.height > 0) {
+        escapes =
+          (clipX && (ccRect.left < coRect.left - 2 || ccRect.right > coRect.right + 2)) ||
+          (clipY && (ccRect.top < coRect.top - 2 || ccRect.bottom > coRect.bottom + 2));
+      }
+      if (escapes === false) continue;
+      if (escapes === null) {
+        var insets = [ccStyle.top, ccStyle.right, ccStyle.bottom, ccStyle.left].join(" ").toLowerCase();
+        if (!(/(^|[\\s(])-+(?:\\d|\\.)/.test(insets) || /(^|[\\s(])100(?:\\.0+)?%/.test(insets))) continue;
+      }
+      clippedOverflows.push({ selector: describe(coel), childSelector: describe(cchild) });
+      break;
+    }
+  }
+
+  // ── cards flush against a scroller edge at rest (impeccable edge-flush-cards) ──
+  var edgeFlushCards = [];
+  for (var ef = 0; ef < allEls.length && edgeFlushCards.length < 20; ef += 1) {
+    var scroller = allEls[ef];
+    var efStyle = getComputedStyle(scroller);
+    if (!(/(auto|scroll)/.test(efStyle.overflowX || "") || /(auto|scroll)/.test(efStyle.overflow || ""))) continue;
+    if (scroller.scrollWidth <= scroller.clientWidth + 8) continue;
+    if (scroller.scrollLeft > 4) continue;
+    var scRect = scroller.getBoundingClientRect();
+    if (scRect.width < 120 || scRect.height < 60) continue;
+    var contentLeft = scRect.left + scroller.clientLeft;
+    var contentRight = contentLeft + scroller.clientWidth;
+    var flushCount = 0;
+    var worst = null;
+    var cards = scroller.querySelectorAll("*");
+    for (var cf = 0; cf < cards.length; cf += 1) {
+      var card = cards[cf];
+      if (!isVisible(card)) continue;
+      var owner = card.parentElement;
+      while (owner && owner !== scroller && !(/(auto|scroll)/.test(getComputedStyle(owner).overflowX || ""))) owner = owner.parentElement;
+      if (owner !== scroller) continue;
+      var cfStyle = getComputedStyle(card);
+      var cfRect = card.getBoundingClientRect();
+      if (cfRect.width < 80 || cfRect.height < 40) continue;
+      var cfBg = parseRgb(cfStyle.backgroundColor);
+      var cfHasBg = !!(cfBg && cfBg.a > 0.5);
+      var cfBorders = 0;
+      if ((Number.parseFloat(cfStyle.borderTopWidth) || 0) > 0) cfBorders += 1;
+      if ((Number.parseFloat(cfStyle.borderRightWidth) || 0) > 0) cfBorders += 1;
+      if ((Number.parseFloat(cfStyle.borderBottomWidth) || 0) > 0) cfBorders += 1;
+      if ((Number.parseFloat(cfStyle.borderLeftWidth) || 0) > 0) cfBorders += 1;
+      if (!cfHasBg && cfBorders < 2) continue;
+      var leftGutter = cfRect.left - contentLeft;
+      var rightGap = contentRight - cfRect.right;
+      var flushRight = leftGutter >= 6 && rightGap < 8 && rightGap > -24;
+      var flushLeft = rightGap >= 6 && leftGutter < 8 && leftGutter > -24;
+      if (!flushRight && !flushLeft) continue;
+      flushCount += 1;
+      var gap = Math.round(flushRight ? rightGap : leftGutter);
+      if (worst === null || gap < worst.gapPx) {
+        worst = { cardSelector: describe(card), edge: flushRight ? "right" : "left", gapPx: gap };
+      }
+    }
+    if (worst !== null) {
+      edgeFlushCards.push({ scrollerSelector: describe(scroller), cardSelector: worst.cardSelector, edge: worst.edge, gapPx: worst.gapPx, count: flushCount });
+    }
+  }
+
+`;

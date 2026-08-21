@@ -76,6 +76,50 @@ export function spawnFullPrioritySync(
   return { status: res.status };
 }
 
+export interface NicedChildOptions {
+  readonly cwd?: string;
+  readonly env?: NodeJS.ProcessEnv;
+  /** Receives every stdout/stderr chunk (probe-fire forwards the child server's output to ITS stderr
+   *  so boot failures stay visible while the parseable payload owns stdout). */
+  readonly onOutput?: (chunk: Buffer) => void;
+}
+
+export interface NicedChild {
+  readonly pid: number | undefined;
+  /** Signal the WHOLE process group — `detached:true` gives the child its own pgid, so this reaps the
+   *  full tree (pnpm→node→server); signalling only the direct child orphans the real process. */
+  readonly killGroup: (signal: NodeJS.Signals) => void;
+}
+
+/** Long-lived detached child under `nice -n 19` (the ephemeral-server / supervisor shape): own process
+ *  group, piped output via `onOutput`, reaped by `killGroup`. The caller owns lifecycle; nothing here
+ *  waits for exit. */
+export function spawnNicedChild(cmd: string, args: readonly string[], opts: NicedChildOptions = {}): NicedChild {
+  const child = spawn("nice", ["-n", "19", cmd, ...args], {
+    ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+    ...(opts.env === undefined ? {} : { env: opts.env }),
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (opts.onOutput !== undefined) {
+    child.stdout?.on("data", opts.onOutput);
+    child.stderr?.on("data", opts.onOutput);
+  }
+  return {
+    pid: child.pid,
+    killGroup: (signal): void => {
+      if (typeof child.pid !== "number") {
+        return;
+      }
+      try {
+        process.kill(-child.pid, signal);
+      } catch {
+        /* group already gone */
+      }
+    },
+  };
+}
+
 /** Spawn `cmd args…` under `nice -n 19`, collect utf8 output, resolve on exit (never rejects on a
  *  non-zero code — the CALLER judges codes against the exit contract). */
 export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNicedOptions = {}): Promise<SpawnNicedResult> {

@@ -1572,6 +1572,7 @@
     "tests/tooling/chat-component-presence.test.ts",
     "tests/tooling/check-gates.int.test.ts",
     "tests/tooling/codemod-kit.int.test.ts",
+    "tests/tooling/cpu-profile/index.test.ts",
     "tests/tooling/dependency-cruiser.int.test.ts",
     "tests/tooling/design-audit-walker.ct.tsx",
     "tests/tooling/design-audit.test.ts",
@@ -1583,7 +1584,9 @@
     "tests/tooling/migrate-macro-blocks.test.ts",
     "tests/tooling/monotonic-tests.residual.test.ts",
     "tests/tooling/motion-audit.test.ts",
+    "tests/tooling/motion-audit/index.test.ts",
     "tests/tooling/no-test-fabrication.residual.test.ts",
+    "tests/tooling/render-trace/index.test.ts",
     "tests/tooling/schema-baseline-parity.int.test.ts",
     "tests/tooling/scoped-run.int.test.ts",
     "tests/tooling/seed-demo.int.test.ts",
@@ -1603,6 +1606,7 @@
     "tests/tooling/suppressions.residual.test.ts",
     "tests/tooling/tool-guard.int.test.ts",
     "tests/tooling/trace-render.test.ts",
+    "tests/tooling/ui-audit/index.test.ts",
     "tests/tooling/verify-run.int.test.ts",
     "tests/tooling/vllm-gen-window-parity.int.test.ts",
     "tests/tooling/warning-code-coverage.residual.test.ts",
@@ -1819,6 +1823,15 @@
     },
     "tests/tooling/snap-stage.test.ts": {
       "why": "relocated to tests/tooling/snap/lib/stage-plan.test.ts with its subject (snap-stage.ts's pure derivation core -> tooling/src/snap/lib/stage-plan.ts, P2 #393). Every pin moved verbatim. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/design-audit.test.ts": {
+      "why": "relocated to tests/tooling/ui-audit/index.test.ts with its subject (scripts/probes/design-audit{,-checks,-walker}.ts -> tooling/src/ui-audit/**, the @orb/tooling P3 move, #393); imports now enter through the tool's index.ts front door and parseAuditArgs joined the same import. Every fixture case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/motion-audit.test.ts": {
+      "why": "relocated to tests/tooling/motion-audit/index.test.ts with its subject (scripts/probes/motion-audit.ts -> tooling/src/motion-audit/**, the @orb/tooling P3 move, #393); the verdict pins (clsTotals/loafTotals/calibratedDroppedFramePct) import through the tool's index.ts. Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/trace-render.test.ts": {
+      "why": "relocated to tests/tooling/render-trace/index.test.ts with its subject (scripts/probes/trace-render.ts -> tooling/src/render-trace/**, the @orb/tooling P3 move, #393); renderTrace + the type-only server shapes import through the tool's index.ts. Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
     }
   }
 }

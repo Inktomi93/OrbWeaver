@@ -1,0 +1,314 @@
+// ui-audit in-page walker — segment: decor censuses: nested cards, gradient text, animated img-hover, accent borders, glow shadows, radial glows, bg patterns, icon tiles, static motion offenders.
+// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
+// segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
+// pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
+// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shadow||border) && (radius||bg)) ─────────
+  function isCardLike(el) {
+    var s = getComputedStyle(el);
+    var hasShadow = s.boxShadow !== "none" && s.boxShadow.trim() !== "";
+    var hasBorder =
+      Number.parseFloat(s.borderTopWidth) > 0 ||
+      Number.parseFloat(s.borderRightWidth) > 0 ||
+      Number.parseFloat(s.borderBottomWidth) > 0 ||
+      Number.parseFloat(s.borderLeftWidth) > 0 ||
+      CARD_CLASS_RE.test(el.className || "");
+    var radius = Number.parseFloat(s.borderTopLeftRadius) || 0;
+    var bg = parseRgb(s.backgroundColor);
+    var hasBg = bg !== null && bg.a > 0.05;
+    return (hasShadow || hasBorder) && (radius > 0 || hasBg);
+  }
+  // AN INTERACTIVE ISLAND IS NOT A NESTED CARD (2026-08-16 — 26/26 findings on home were this shape).
+  // Chrome-diet CD1 SANCTIONS border+radius+bg on interactive islands and elevated surfaces
+  // (.claude/skills/side-eye-design-review/reference/design-context.md:38; the density spec's own words:
+  // "a grid cell IS an interactive island", docs/design/density-pass-spec.md:134). So a button/link/
+  // input/[role=button] carrying a border and a radius inside a card is the house style, not a defect.
+  // The rule keeps its real target: a decorative CARD PANEL nested inside another card panel.
+  var INTERACTIVE_ISLAND_SELECTOR = "a,button,input,select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=option],[role=tab],[role=switch],[role=checkbox],[role=radio]";
+  function isInteractiveIsland(el) {
+    if (el.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
+    // ListRow's root owns the row's visual chrome but delegates the one offered action to its
+    // direct child. Treat that sanctioned wrapper as its interactive island; a generic bordered
+    // wrapper stays judged, so a decorative panel cannot hide behind this exception.
+    if (el.getAttribute("data-slot") === "list-row-root") {
+      var control = el.firstElementChild;
+      if (control !== null && control.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
+    }
+    // A wrapper whose whole job is to host one control (the label+control field shell) rides along.
+    return el.closest(INTERACTIVE_ISLAND_SELECTOR) !== null;
+  }
+  function isExcludedCardContext(el) {
+    var s = getComputedStyle(el);
+    if (s.position === "absolute" || s.position === "fixed") return true;
+    if (isInteractiveIsland(el)) return true;
+    // A PILL is a chip, not a panel. Fully-rounded geometry (radius >= half the short side) is the
+    // badge/avatar/tag shape — the rule's real target is a bordered PANEL nested in a bordered panel,
+    // and a "Dormant" status pill inside a card is house vocabulary, not a card-in-card.
+    var pillRect = el.getBoundingClientRect();
+    var pillRadius = Number.parseFloat(s.borderTopLeftRadius) || 0;
+    if (pillRadius >= Math.min(pillRect.width, pillRect.height) / 2) return true;
+    var role = el.getAttribute("role") || "";
+    if (EXCLUDE_CARD_CONTEXT_RE.test(el.className || "") || EXCLUDE_CARD_CONTEXT_RE.test(role)) return true;
+    var text = (el.textContent || "").trim();
+    var rect = el.getBoundingClientRect();
+    if (text.length < 10 && rect.width < 50 && rect.height < 30) return true;
+    return false;
+  }
+  var cardEls = [];
+  for (var c = 0; c < allEls.length; c += 1) {
+    var cel = allEls[c];
+    if (!isVisible(cel) || !isCardLike(cel) || isExcludedCardContext(cel)) continue;
+    cardEls.push(cel);
+  }
+  var nestedSet = [];
+  for (var n = 0; n < cardEls.length; n += 1) {
+    var cand2 = cardEls[n];
+    var p = cand2.parentElement;
+    while (p) {
+      if (cardEls.indexOf(p) !== -1) {
+        nestedSet.push(cand2);
+        break;
+      }
+      p = p.parentElement;
+    }
+  }
+  var innermost = nestedSet.filter(function (el1) {
+    return !nestedSet.some(function (el2) {
+      return el2 !== el1 && el1.contains(el2);
+    });
+  });
+  var nestedCards = innermost.map(function (el) {
+    return { selector: describe(el), isNested: true };
+  });
+
+  // ── gradient text (background-clip:text + transparent color) ────────────
+  var gradientTexts = [];
+  for (var g = 0; g < textEls.length; g += 1) {
+    var gel = textEls[g];
+    var gs = getComputedStyle(gel);
+    var clip = gs.webkitBackgroundClip || gs.backgroundClip;
+    var gbg = gs.backgroundImage;
+    var gcolorParsed = parseRgb(gs.color);
+    var isTransparentColor = gs.color === "transparent" || (gcolorParsed !== null && gcolorParsed.a === 0);
+    if (clip === "text" && gbg && gbg.indexOf("gradient") !== -1 && isTransparentColor) {
+      gradientTexts.push({ selector: describe(gel), hasGradientText: true });
+    }
+  }
+
+  // ── animated <img> on hover (statically detectable) ──────────────────────
+  var animatedImgHovers = [];
+  for (var h = 0; h < imgEls.length; h += 1) {
+    var himg = imgEls[h];
+    var hcls = typeof himg.className === "string" ? himg.className.split(/\\s+/) : [];
+    if (hcls.some(function (c) { return TAILWIND_HOVER_TRANSFORM_RE.test(c); })) {
+      animatedImgHovers.push({ selector: describe(himg), hasHoverAnimation: true });
+    }
+  }
+  try {
+    for (var s2 = 0; s2 < document.styleSheets.length; s2 += 1) {
+      var rules;
+      try {
+        rules = document.styleSheets[s2].cssRules;
+      } catch (e) {
+        continue;
+      }
+      for (var r = 0; r < rules.length; r += 1) {
+        var rule = rules[r];
+        if (!rule.selectorText) continue;
+        if (
+          /:hover/i.test(rule.selectorText) &&
+          /img/i.test(rule.selectorText) &&
+          HOVER_TRANSFORM_RE.test(rule.cssText)
+        ) {
+          animatedImgHovers.push({ selector: rule.selectorText, hasHoverAnimation: true });
+        }
+      }
+    }
+  } catch (e) {
+    /* cross-origin stylesheet — skip */
+  }
+
+  // ── accent borders (impeccable side-tab / border-accent-on-rounded) ─────
+  var accentBorders = [];
+  for (var ab = 0; ab < allEls.length && accentBorders.length < 200; ab += 1) {
+    var abel = allEls[ab];
+    if (!isVisible(abel)) continue;
+    var abTag = abel.tagName.toLowerCase();
+    var abStyle = getComputedStyle(abel);
+    var widths = {
+      top: Number.parseFloat(abStyle.borderTopWidth) || 0,
+      right: Number.parseFloat(abStyle.borderRightWidth) || 0,
+      bottom: Number.parseFloat(abStyle.borderBottomWidth) || 0,
+      left: Number.parseFloat(abStyle.borderLeftWidth) || 0,
+    };
+    var maxW = Math.max(widths.top, widths.right, widths.bottom, widths.left);
+    if (maxW < 2) continue;
+    var ownBg = parseRgb(abStyle.backgroundColor);
+    if (BORDER_SAFE_TAGS[abTag] === 1) continue;
+    if (abTag === "span" && !(ownBg && ownBg.a > 0.5)) continue;
+    accentBorders.push({
+      selector: describe(abel),
+      tag: abTag,
+      widths: widths,
+      colors: {
+        top: parseRgb(abStyle.borderTopColor),
+        right: parseRgb(abStyle.borderRightColor),
+        bottom: parseRgb(abStyle.borderBottomColor),
+        left: parseRgb(abStyle.borderLeftColor),
+      },
+      radius: Number.parseFloat(abStyle.borderTopLeftRadius) || 0,
+      badgeLike: abTag === "span" && !!(ownBg && ownBg.a > 0.5),
+      tabContext: !!(abel.closest("[role='tablist'],[role='tab'],nav") || abel.getAttribute("aria-selected") !== null),
+      statusContext: !!abel.closest("[role='status'],[role='alert'],[aria-live]"),
+    });
+  }
+
+  // ── chromatic glow shadows (impeccable dark-glow) ────────────────────────
+  var shadowGlows = [];
+  for (var sg = 0; sg < allEls.length && shadowGlows.length < 200; sg += 1) {
+    var sgel = allEls[sg];
+    var sgStyle = getComputedStyle(sgel);
+    var bs = sgStyle.boxShadow;
+    var ts = sgStyle.textShadow;
+    if ((bs === "none" || !bs) && (ts === "none" || !ts)) continue;
+    if (!isVisible(sgel)) continue;
+    var sgBackdrop = resolveBackdrop(sgel.parentElement || sgel);
+    shadowGlows.push({
+      selector: describe(sgel),
+      boxShadow: bs === "none" ? "" : bs,
+      textShadow: ts === "none" ? "" : ts,
+      // The dark-glow tell is not a contrast VERDICT — it only asks "is this backdrop dark?" — so it keeps
+      // reading the best-effort composite for an unresolved backdrop. Refusing here would silently drop
+      // glow findings on every surface with a fixed art layer, which this change never judged.
+      backdropColor: sgBackdrop.kind === "flat" ? sgBackdrop.color : sgBackdrop.kind === "unresolved" ? sgBackdrop.fallback : null,
+    });
+  }
+
+  // ── radial-gradient washes incl. pseudo-elements (impeccable radial-halo /
+  //    radial-spotlight-glow; sanctioned owner carriers tagged, judged in checks) ──
+  var radialGlows = [];
+  var PSEUDOS = ["", "::before", "::after"];
+  for (var rg = 0; rg < allEls.length && radialGlows.length < 100; rg += 1) {
+    var rgel = allEls[rg];
+    if (!isVisible(rgel)) continue;
+    for (var pi = 0; pi < PSEUDOS.length; pi += 1) {
+      var pStyle = PSEUDOS[pi] === "" ? getComputedStyle(rgel) : getComputedStyle(rgel, PSEUDOS[pi]);
+      if (PSEUDOS[pi] !== "" && (!pStyle.content || pStyle.content === "none")) continue;
+      var rbg = pStyle.backgroundImage || "";
+      if (rbg.indexOf("radial-gradient") === -1) continue;
+      var rrect = rgel.getBoundingClientRect();
+      radialGlows.push({
+        selector: describe(rgel) + PSEUDOS[pi],
+        value: rbg,
+        width: rrect.width,
+        height: rrect.height,
+        sanctioned: !!(rgel.matches && rgel.matches(SANCTIONED_GLOW_SEL)),
+      });
+    }
+  }
+
+  // ── decorative bg patterns: stripes + grid-line fields (impeccable
+  //    repeating-stripes-gradient / codex-grid-background) ──────────────────
+  var bgPatterns = [];
+  for (var bp = 0; bp < allEls.length && bgPatterns.length < 50; bp += 1) {
+    var bpel = allEls[bp];
+    if (!isVisible(bpel)) continue;
+    var bpStyle = getComputedStyle(bpel);
+    var bpImg = bpStyle.backgroundImage || "";
+    if (bpImg === "none") continue;
+    var isStripe = bpImg.indexOf("repeating-linear-gradient") !== -1;
+    var linearCount = (bpImg.match(/(?:^|[^-])linear-gradient\\(/g) || []).length;
+    var sizeMatch = /^\\s*([\\d.]+)px\\s+([\\d.]+)px/.exec(bpStyle.backgroundSize || "");
+    var isGrid = !isStripe && linearCount >= 2 && !!sizeMatch && Number(sizeMatch[1]) <= 200 && Number(sizeMatch[2]) <= 200;
+    if (!isStripe && !isGrid) continue;
+    var bpRect = bpel.getBoundingClientRect();
+    bgPatterns.push({
+      selector: describe(bpel),
+      kind: isStripe ? "stripe" : "grid",
+      backgroundSize: bpStyle.backgroundSize || "",
+      width: bpRect.width,
+      height: bpRect.height,
+    });
+  }
+
+  // ── icon tile stacked above a heading (impeccable icon-tile-stack) ───────
+  var iconTiles = [];
+  var headingEls = document.querySelectorAll("h1,h2,h3,h4,h5,h6");
+  for (var ht = 0; ht < headingEls.length; ht += 1) {
+    var hel = headingEls[ht];
+    if (!isVisible(hel) || isDevChrome(hel)) continue;
+    var sibEl = hel.previousElementSibling;
+    if (!sibEl || HEADING_TAGS[sibEl.tagName.toLowerCase()] === 1 || !isVisible(sibEl)) continue;
+    var sibStyle = getComputedStyle(sibEl);
+    var sibRect = sibEl.getBoundingClientRect();
+    var sibBg = parseRgb(sibStyle.backgroundColor);
+    var iconChild = sibEl.querySelector("svg,i[class*='icon'],span[class*='icon']");
+    iconTiles.push({
+      headingTag: hel.tagName.toLowerCase(),
+      headingText: (hel.textContent || "").trim().slice(0, 60),
+      headingTop: hel.getBoundingClientRect().top,
+      siblingSelector: describe(sibEl),
+      siblingWidth: sibRect.width,
+      siblingHeight: sibRect.height,
+      siblingBottom: sibRect.bottom,
+      siblingBgAlpha: sibBg ? sibBg.a : 0,
+      siblingHasBgImage: !!(sibStyle.backgroundImage && sibStyle.backgroundImage !== "none"),
+      siblingBorderWidth: Number.parseFloat(sibStyle.borderTopWidth) || 0,
+      siblingRadiusPx: Number.parseFloat(sibStyle.borderTopLeftRadius) || 0,
+      hasIconChild: !!iconChild,
+      iconChildWidth: iconChild ? iconChild.getBoundingClientRect().width : 0,
+    });
+  }
+
+  // ── static motion offenders (impeccable bounce-easing / layout-transition).
+  //    Overshoot-bezier extraction is a bounded numeric FACT filter (the
+  //    nestedCards precedent); rule/severity/exemption verdicts stay in checks. ──
+  var motionStatics = [];
+  var LAYOUT_PROP_RE = /^(width|height|max-width|max-height|min-width|min-height|padding(-(top|right|bottom|left))?|margin(-(top|right|bottom|left))?)$/;
+  var BOUNCE_NAME_RE = /bounce|elastic|wobble|jiggle|spring/i;
+  var BEZIER_RE = /cubic-bezier\\(\\s*([\\d.-]+)\\s*,\\s*([\\d.-]+)\\s*,\\s*([\\d.-]+)\\s*,\\s*([\\d.-]+)\\s*\\)/g;
+  for (var ms = 0; ms < allEls.length && motionStatics.length < 100; ms += 1) {
+    var msel = allEls[ms];
+    if (!isVisible(msel)) continue;
+    var msStyle = getComputedStyle(msel);
+    var an = msStyle.animationName || "none";
+    if (an !== "none" && BOUNCE_NAME_RE.test(an)) {
+      motionStatics.push({ selector: describe(msel), kind: "bounce-name", value: an, panelExempt: false });
+      continue;
+    }
+    var tfAll = (msStyle.transitionTimingFunction || "") + " " + (msStyle.animationTimingFunction || "");
+    if (tfAll.indexOf("cubic-bezier") !== -1) {
+      var bm;
+      BEZIER_RE.lastIndex = 0;
+      while ((bm = BEZIER_RE.exec(tfAll)) !== null) {
+        var y1 = Number.parseFloat(bm[2]);
+        var y2 = Number.parseFloat(bm[4]);
+        if (y1 < -0.1 || y1 > 1.1 || y2 < -0.1 || y2 > 1.1) {
+          motionStatics.push({ selector: describe(msel), kind: "overshoot-bezier", value: bm[0], panelExempt: false });
+          break;
+        }
+      }
+    }
+    var tp = msStyle.transitionProperty || "";
+    if (tp !== "all" && tp !== "none" && tp !== "") {
+      var durs = (msStyle.transitionDuration || "").split(",");
+      var props = tp.split(",");
+      var layoutHits = [];
+      for (var tpi = 0; tpi < props.length; tpi += 1) {
+        var prop = props[tpi].trim().toLowerCase();
+        if (!LAYOUT_PROP_RE.test(prop)) continue;
+        var dur = Number.parseFloat((durs[tpi] || durs[0] || "0").trim()) || 0;
+        if (dur > 0) layoutHits.push(prop);
+      }
+      if (layoutHits.length > 0) {
+        motionStatics.push({
+          selector: describe(msel),
+          kind: "layout-transition",
+          value: layoutHits.join(", "),
+          panelExempt: !!msel.closest(PANEL_EXEMPT_SEL),
+        });
+      }
+    }
+  }
+
+`;
