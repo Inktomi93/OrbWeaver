@@ -11413,6 +11413,84 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/memory-retrieval-graceful-degrade.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 115,
+      "bytes": 13984,
+      "sha256": "03c63536b8c940623996412ca3de93ace0fb3d6950926c7f27f51886cf089a09",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/memory-retrieval-graceful-degrade.md",
+        "assignedSha256": "03c63536b8c940623996412ca3de93ace0fb3d6950926c7f27f51886cf089a09",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "03c63536b8c940623996412ca3de93ace0fb3d6950926c7f27f51886cf089a09",
+        "verifiedCommit": "b33cc95bf1a9628811450cedd712310b10a78953",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/design/memory-retrieval-graceful-degrade.md:1-115 full read against implementation commit b33cc95bf1a9628811450cedd712310b10a78953",
+          "packages/server/src/domain/search/verbs/digests.ts:76 local mixC fallback preserves the retrieved result",
+          "packages/server/src/domain/chat/engine/engine.ts:1299 emits the typed chat warning",
+          "tests/server/domain/search/verbs/digests.int.test.ts:221 verifies the complete retrieved-order fallback",
+          "tests/server/domain/chat/engine/engine.int.test.ts:764 verifies turn-scoped dedupe and a fresh episode",
+          "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54 verifies rendered mode guidance and accessibility",
+          "GitHub issues #331 and #332 re-derived on 2026-08-20"
+        ],
+        "summary": "Memory retrieval controls teach benefit and cost without exposing stored enum values; mixC rerank failure preserves completed vector recall and surfaces one typed warning per turn episode.",
+        "claims": [
+          {
+            "claim": "Memory retrieval modes use human consequence-first labels and exact experimental recency guidance; mixC rerank failure preserves retrieved vector order and reports one turn-scoped typed warning; mutable lifecycle remains in GitHub issues #331 and #332.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/user-admin/components/memory-tuning-section.tsx:87"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/search/verbs/digests.ts:76"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/engine/engine.ts:1299"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/domain/search/verbs/digests.int.test.ts:221"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/domain/chat/engine/engine.int.test.ts:764"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54"
+              },
+              {
+                "kind": "issue",
+                "target": "#331"
+              },
+              {
+                "kind": "issue",
+                "target": "#332"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/mocks/README.md",
       "lane": "design",
       "issue": 5,
