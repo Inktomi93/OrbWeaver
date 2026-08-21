@@ -181,6 +181,46 @@ describe("consumeTurnStream", () => {
     expect(result.usage.reasoningTokens).toBeNull();
   });
 
+  // THE MEASURED-ZERO DEFECT. A success frame CAN carry an empty `modelUsage` (nothing billed under this
+  // turn's model — a fully cached/short-circuited loop, or a frame the CLI emits without the map). A
+  // fabricated 0 does not stay cosmetic: `canon-write.ts::variantEconomics` stamps `tokenProvenance`
+  // 'measured' on any non-null token pair (0 !== null) and the stats rollups then count a $0.00 COST
+  // SAMPLE, so an unmeasured turn is laundered into measured provenance and drags the owner's averages.
+  // The other three mappers all report absence as null; this one must too.
+  test("an empty modelUsage reports NULL on every billed axis — never a measured zero", async () => {
+    const unbilled = { ...successResult, modelUsage: {}, usage: {} };
+    const result = await consumeTurnStream(streamOf([initMsg, assistantMsg, unbilled]), baseCtx);
+    expect(result.usage).toMatchObject({
+      tokensIn: null,
+      tokensOut: null,
+      costUsd: null,
+      contextWindow: null,
+      maxOutputTokens: null,
+      cacheCreation5mTokens: null,
+      cacheCreation1hTokens: null,
+      // The contract's non-nullable counters: 0 IS the honest "nothing read / written / searched".
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      webSearchRequests: 0,
+    });
+    // Non-vacuity control: the SAME reducer over a frame that DID bill reports numbers, so the nulls above
+    // are the absence path and not a reducer that stopped folding usage altogether.
+    const billed = await consumeTurnStream(streamOf([initMsg, assistantMsg, successResult]), baseCtx);
+    expect(billed.usage).toMatchObject({ tokensIn: 10, tokensOut: 5, contextWindow: 200_000, cacheCreation5mTokens: 0 });
+  });
+
+  test("the provider.turn log OMITS an unbilled axis instead of logging a measured zero", async () => {
+    const info = vi.spyOn(logger, "info");
+    const unbilled = { ...successResult, modelUsage: {}, usage: {} };
+    await consumeTurnStream(streamOf([initMsg, assistantMsg, unbilled]), baseCtx);
+    const usage = (providerLines(info, "provider.turn")[0] as Record<string, unknown> | undefined)?.["usage"] as Record<string, unknown> | undefined;
+    expect(usage).toBeDefined();
+    expect(usage).not.toHaveProperty("tokensIn");
+    expect(usage).not.toHaveProperty("tokensOut");
+    expect(usage).not.toHaveProperty("costUsd");
+    expect(usage).toMatchObject({ cacheReadTokens: 0, cacheWriteTokens: 0 });
+  });
+
   test("a model_refusal_no_fallback frame emits a `refusal` event carrying the category", async () => {
     const refusal = {
       type: "system",

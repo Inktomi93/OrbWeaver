@@ -112,6 +112,31 @@ describe("resolve", () => {
     });
   });
 
+  // The no-auth local server (the case the resolver's own comment names): the row exists and decrypts
+  // cleanly, but its plaintext is EMPTY. `apiKey` must be NULL, not `""` — the mint's contract is
+  // "null for no-auth", and an empty-string key travels into an `Authorization: Bearer ` header. The
+  // length check is what draws that line; without this pin a `>= 0` mutation survives untested.
+  test("an EMPTY custom_openai key is no key at all → apiKey null (not an empty string)", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "",
+      metadata: { kind: "custom_openai", baseUrl: "http://127.0.0.1:8000/v1" },
+    });
+
+    const resolved = await svc.resolve({ principal: principal(owner), source: "custom_openai" });
+
+    if (resolved.source !== "custom_openai") {
+      throw new Error(`expected a custom_openai credential, got ${resolved.source}`);
+    }
+    expect(resolved.baseUrl).toBe("http://127.0.0.1:8000/v1");
+    // Asserted on the field itself: `toMatchObject({apiKey: null})` would not distinguish "" from null.
+    expect(resolved.apiKey).toBeNull();
+  });
+
   test("a custom_openai row with corrupt/missing baseUrl metadata → typed credential_metadata_invalid", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
