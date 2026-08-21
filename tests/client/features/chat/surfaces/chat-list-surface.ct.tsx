@@ -15,6 +15,7 @@
 // tRPC proxy builds the path structurally, so the CT runs regardless of the transport verb landing.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import { ChatListSurfaceStory } from "../_ct-stories.tsx";
@@ -44,6 +45,25 @@ const GAME = makeChatSummary({
 // F7 state rows: the summary already carries starred/archived — the row must SHOW them.
 const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", starred: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
+
+function datedChatListResponder(all: readonly ReturnType<typeof makeChatSummary>[]): (input: unknown) => unknown {
+  return (input: unknown): unknown => {
+    const beforeRecencyAt = (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt;
+    const scoped = beforeRecencyAt === undefined ? all : all.filter((chat) => (chat.lastMessageAt ?? chat.updatedAt) < beforeRecencyAt);
+    return chatListResponder(scoped)(input);
+  };
+}
+
+function resolvedPx(component: Page, token: string): Promise<number> {
+  return component.evaluate((name: string) => {
+    const probe = document.createElement("div");
+    probe.style.height = `var(${name})`;
+    document.body.append(probe);
+    const value = Number.parseFloat(getComputedStyle(probe).height);
+    probe.remove();
+    return value;
+  }, token);
+}
 
 // A 3-seat room — D3: it must lead with an AvatarStack, not borrow one member's portrait.
 const GROUP = makeChatSummary({
@@ -78,6 +98,7 @@ const LEADING_BUDGET_PX = 60;
 const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
 /** The archived row's receded skin — the visual reinforcement of the "Archived" text datum. */
 const RECEDED_RE = /opacity-60/u;
+const RECENT_ROW_RE = /^Recent /u;
 /** A PRESSED star toggle's accessible name (§12 — the un-set verb names the on state). */
 const ANY_PRESSED_STAR = /^Unstar /u;
 // Base UI's Avatar mounts `avatar-image` only once the image reaches "loaded" status, so the blob route is
@@ -146,6 +167,81 @@ test("the search field narrows the rows — the predicate rides the SERVER query
   // rows here and be blind to every chat past the keyset, so "the right rows are showing" is not the assertion
   // that distinguishes the two — the wire input is.
   await expect.poll(() => trpc.inputs("chat.listChats").some((i) => (i as { search?: string } | undefined)?.search === "aria")).toBe(true);
+});
+
+test("jumping to a month resets loaded pages and lands its newest old row without a deep wheel walk", async ({ mount, page }) => {
+  const recent = Array.from({ length: 70 }, (_unused, at) => {
+    const recencyAt = Date.UTC(2026, 6, 1) - at;
+    return makeChatSummary({ id: `chat_recent_${String(at)}`, title: `Recent ${String(at).padStart(3, "0")}`, lastMessageAt: recencyAt, updatedAt: recencyAt });
+  });
+  const old = Array.from({ length: 10 }, (_unused, at) => {
+    const recencyAt = Date.UTC(2020, 5, 20) - at;
+    return makeChatSummary({
+      id: `chat_old_${String(at)}`,
+      title: at === 0 ? "June 2020 anchor" : `Old ${String(at).padStart(3, "0")}`,
+      lastMessageAt: recencyAt,
+      updatedAt: recencyAt,
+    });
+  });
+  const trpc = await routeTrpc(page, { "chat.listChats": datedChatListResponder([...recent, ...old]), "character.list": { items: [], nextCursor: null } });
+  const component = await mount(<ChatListSurfaceStory />);
+
+  const list = component.getByRole("list", { name: "Chats" });
+  await list.hover();
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, EVICTION_SCROLL_STEP_PX);
+      return trpc.inputs("chat.listChats").filter((input) => (input as { cursor?: unknown } | undefined)?.cursor !== undefined).length;
+    }, evictionPoll())
+    .toBeGreaterThan(0);
+
+  const month = component.getByLabel("Jump to month");
+  await month.fill("2020-06");
+
+  await expect(component.getByText("June 2020 anchor")).toBeVisible();
+  await expect(component.getByText(RECENT_ROW_RE)).toHaveCount(0);
+  await expect
+    .poll(() => trpc.inputs("chat.listChats").some((input) => (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt === Date.UTC(2020, 6, 1)))
+    .toBe(true);
+
+  const clear = component.getByRole("button", { name: "Clear month jump" });
+  await expect
+    .poll(
+      async () => {
+        await page.keyboard.press("Tab");
+        return clear.evaluate((element) => element.ownerDocument.activeElement === element);
+      },
+      { intervals: [20, 20, 20, 20], timeout: 2000 },
+    )
+    .toBe(true);
+  await clear.press("Enter");
+  await expect(month).toHaveValue("");
+  await expect(component.getByText("Recent 000")).toBeVisible();
+});
+
+test.describe("date jump coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("the native month field and clear action meet the resolved tap floor", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const component = await mount(<ChatListSurfaceStory width={320} />);
+
+    const month = component.getByLabel("Jump to month");
+    await month.fill("2020-06");
+    const clear = component.getByRole("button", { name: "Clear month jump" });
+    const floor = await resolvedPx(page, "--spacing-touch-target");
+    const [searchBox, monthBox, clearBox] = await Promise.all([
+      component.getByRole("textbox", { name: "Search chats" }).boundingBox(),
+      month.boundingBox(),
+      clear.boundingBox(),
+    ]);
+
+    expect(monthBox?.height ?? 0).toBeGreaterThanOrEqual(floor);
+    expect(clearBox?.height ?? 0).toBeGreaterThanOrEqual(floor);
+    expect(monthBox?.x ?? -1).toBeGreaterThanOrEqual(searchBox?.x ?? 0);
+    expect((clearBox?.x ?? 0) + (clearBox?.width ?? 0)).toBeLessThanOrEqual((searchBox?.x ?? 0) + (searchBox?.width ?? 0));
+  });
 });
 
 test("a SEARCH that matches nothing says NO MATCHES — never the library-empty copy", async ({ mount, page }) => {

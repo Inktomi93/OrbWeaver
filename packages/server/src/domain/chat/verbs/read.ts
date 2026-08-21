@@ -593,7 +593,7 @@ async function buildPreviewContext(
  *  chats band and the character card both PRINT this number, and "how many rows this page happened to
  *  carry" is not that number. */
 function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listChats"] {
-  return async ({ principal, includeArchived, characterId, search, limit, cursor }: ListChatsParams): Promise<ChatListPage> => {
+  return async ({ principal, includeArchived, characterId, search, beforeRecencyAt, limit, cursor }: ListChatsParams): Promise<ChatListPage> => {
     // Normalized ONCE, here: the predicate is a `lower(...) like` so the needle has to arrive lowercased,
     // and a whitespace-only query is the UNSEARCHED list, never a search for a space.
     const needle = search?.trim().toLowerCase() ?? "";
@@ -601,6 +601,7 @@ function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listCha
       ...(includeArchived !== undefined ? { includeArchived } : {}),
       ...(characterId !== undefined ? { characterId } : {}),
       ...(needle === "" ? {} : { search: needle }),
+      ...(beforeRecencyAt !== undefined ? { beforeRecencyAt } : {}),
     };
     const pageSize = Math.min(Math.max(limit ?? CHAT_LIST_DEFAULT_LIMIT, 1), CHAT_LIST_MAX_LIMIT);
     const rows = await listMemberChats(ctx.db, principal.userId, {

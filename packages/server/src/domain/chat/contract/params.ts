@@ -94,6 +94,8 @@ export interface ListChatsParams extends ChatActorParams {
    *  newest message's body, over the WHOLE library instead of the page the
    *  client happens to hold. Blank/whitespace is the unsearched list. */
   readonly search?: string | undefined;
+  /** Exclusive epoch-millisecond ceiling over the displayed-recency clock. */
+  readonly beforeRecencyAt?: number | undefined;
   readonly limit?: number | undefined;
   readonly cursor?: ChatListCursor | undefined;
 }
