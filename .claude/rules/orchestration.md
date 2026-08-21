@@ -209,10 +209,16 @@ linked Project issue — no lane touches `work:item`.
 
 Every lane, without being told per-brief:
 
-- **The dev vite (`:5173`) prebundles workspace packages** — a `kit`/`ui`/`contracts` edit does NOT
-  HMR onto the served page (client-file edits do). Rendered verification of a workspace-dep change is
-  INVALID until you prove the served module (`curl :5173/@fs/<abs path> | grep <your symbol>`) or the
-  stack restarts. Flag "needs restart" in your merge report whenever you touch those packages.
+- **The dev stack self-heals on source changes — do NOT flag routine "needs restart"** (law corrected
+  2026-08-21; the old "vite prebundles workspace packages" fact died with 086c4e047). Workspace packages
+  are SOURCE-consumed by vite (zero `@orb/*` in `.vite/deps`; probed live: a `packages/ui` edit HMR'd
+  onto `:5173` with no restart); exports-map moves auto-restart vite via the `orb:workspace-exports-restart`
+  plugin; the server auto-respawns via `node --watch` over server/contracts/db/kit src (warm engines
+  re-adopted, seconds). The ONLY manual-restart triggers: `.env` edits, `pnpm install`/dep changes,
+  supervisor-script (`stack.sh`/`dev.sh`) edits, engine-posture changes. When in doubt, prove the served
+  module (`curl :5173/@fs/<abs path> | grep <symbol>`) instead of bouncing the stack. NOTE: a watched-src
+  save DOES respawn the server and wipes in-memory wire/RPG flight recorders — time merges accordingly
+  when a live drive depends on them.
 - **A snap stage's db is whatever its cached dir already holds** (corrected 2026-08-19 — the seed
   copies the dev db only into a FRESH stage dir; a cached stage keeps its old state, which can be
   thin). Verify provenance before using owner-corpus rows as receipts (fresh sha, or probe a known
