@@ -2,7 +2,7 @@
 // props (getItemKey/estimateSize/renderItem) live HERE; the tests pass only numbers/strings.
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
-import { Component, useState } from "react";
+import { Component, useRef, useState } from "react";
 
 interface FixtureItem {
   readonly id: string;
@@ -287,16 +287,33 @@ function scopeRowHeight(index: number): number {
 export function ResetScopeList(): ReactElement {
   const [scopeChanged, setScopeChanged] = useState(false);
   const [itemsSettled, setItemsSettled] = useState(false);
+  const hostRef = useRef<HTMLDivElement>(null);
   const items = Array.from({ length: itemsSettled ? 30 : 906 }, (_, index) => ({
     id: `${itemsSettled ? "after" : "before"}-${String(index)}`,
     label: `${itemsSettled ? "After" : "Before"} ${String(index)}`,
   }));
   return (
-    <div>
+    <div ref={hostRef}>
       <button data-testid="change-scope" onClick={(): void => setScopeChanged(true)} type="button">
         scope
       </button>
-      <button data-testid="settle-scope" onClick={(): void => setItemsSettled(true)} type="button">
+      <button
+        data-testid="settle-scope"
+        onClick={(): void => {
+          const scrollElement = hostRef.current?.querySelector<HTMLElement>('[data-slot="virtual-list-scroll"]');
+          const targetWindow = scrollElement?.ownerDocument.defaultView;
+          targetWindow?.requestAnimationFrame(() => {
+            if (scrollElement !== null && scrollElement !== undefined) {
+              // Model the browser's old-offset clamp after the shorter scope commits but before the
+              // virtualizer's deferred landing. The rejected immediate landing loses this ordering.
+              scrollElement.scrollTop = 1000;
+              scrollElement.dataset["clampEvents"] = String(Number(scrollElement.dataset["clampEvents"] ?? "0") + 1);
+            }
+          });
+          setItemsSettled(true);
+        }}
+        type="button"
+      >
         settle
       </button>
       <div style={{ height: 240 }}>
@@ -313,6 +330,41 @@ export function ResetScopeList(): ReactElement {
           )}
           resetScrollKey={scopeChanged ? 1 : 0}
           resetScrollReady={itemsSettled === scopeChanged}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Reset lifecycle fixture: separate settled scope changes let CT hold and reorder animation frames. */
+export function ResetScopeLifecycleList(): ReactElement {
+  const [scope, setScope] = useState(0);
+  const items = Array.from({ length: 120 }, (_, index) => ({
+    id: `scope-${String(scope)}-${String(index)}`,
+    label: `Scope ${String(scope)} row ${String(index)}`,
+  }));
+  return (
+    <div>
+      <button data-testid="scope-a" onClick={(): void => setScope(1)} type="button">
+        scope A
+      </button>
+      <button data-testid="scope-b" onClick={(): void => setScope(2)} type="button">
+        scope B
+      </button>
+      <div data-testid="active-scope">{scope}</div>
+      <div style={{ height: 240 }}>
+        <VirtualList
+          aria-label="Lifecycle reset rows"
+          className="h-full"
+          estimateSize={(): number => 40}
+          getItemKey={(item): string => item.id}
+          items={items}
+          renderItem={(item): ReactElement => (
+            <button style={{ height: 40 }} type="button">
+              {item.label}
+            </button>
+          )}
+          resetScrollKey={scope}
         />
       </div>
     </div>
