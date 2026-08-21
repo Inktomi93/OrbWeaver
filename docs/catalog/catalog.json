@@ -1074,27 +1074,27 @@
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 207,
-      "bytes": 23836,
-      "sha256": "b85dec77c702ea4f688f6a49e95cae2c7629b5890461776c5c1ea7ac195220a4",
+      "lines": 234,
+      "bytes": 26182,
+      "sha256": "69dc218ba22513ec0f06498c860c66fe9fcb68bd01dc57e35827c330963f58f9",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-18"
+          "updated": "2026-08-21"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Testing.md",
-        "assignedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
+        "assignedSha256": "69dc218ba22513ec0f06498c860c66fe9fcb68bd01dc57e35827c330963f58f9",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "b85dec77c702ea4f688f6a49e95cae2c7629b5890461776c5c1ea7ac195220a4",
-        "verifiedCommit": "8095a88078273acd0a4658ebdcdab8cf94038d44",
+        "verifiedSha256": "69dc218ba22513ec0f06498c860c66fe9fcb68bd01dc57e35827c330963f58f9",
+        "verifiedCommit": "405d8787e1232f551a524a004c7c83cc3f42e067",
         "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
