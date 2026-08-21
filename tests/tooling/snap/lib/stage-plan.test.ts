@@ -1,4 +1,4 @@
-// Fixture tests for the PURE derivation core of `snap --isolated` (scripts/probes/_kit/snap-stage.ts) —
+// Fixture tests for the PURE derivation core of `snap --isolated` (tooling/src/snap/lib/stage-plan.ts) —
 // no git, no worktree, no stack: sha/port/path derivation + the reuse-vs-rebuild staleness rule, plus a
 // smoke that the stage dir lands under a gitignored path. The imperative worktree/install/boot orchestration
 // is deliberately NOT exercised here (it spins a real stack — out of the CI-tier's remit; this file's home
@@ -6,7 +6,7 @@
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ActiveStage } from "../../scripts/probes/_kit/snap-stage.ts";
+import type { ActiveStage } from "../../../../tooling/src/snap/contract/stage.ts";
 import {
   bandAccess,
   DEV_SERVER_PORT,
@@ -16,7 +16,6 @@ import {
   foreignStageRefusal,
   ISOLATION_TRIPWIRE,
   markerRootFromCommonDir,
-  readActive,
   SHORT_SHA_LEN,
   STAGE_INHERITED_ENV_KEYS,
   shortSha,
@@ -25,9 +24,9 @@ import {
   stageInheritedEnv,
   stagePaths,
   stagePorts,
-  writeActive,
-} from "../../scripts/probes/_kit/snap-stage.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+} from "../../../../tooling/src/snap/lib/stage-plan.ts";
+import { readActive, writeActive } from "../../../../tooling/src/snap/ops/stage.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const SHORT = "0123456789ab";
@@ -110,7 +109,7 @@ test("stageDecision rebuilds when --fresh is forced even on a healthy same-sha s
 // ── gitignore coverage + version tripwire ───────────────────────────────────────────────────────────────
 
 test("the stage dir lands under .cache/, which .gitignore excludes wholesale (no stray worktree ever staged)", () => {
-  const gitignore = readFileSync(join(import.meta.dirname, "..", "..", ".gitignore"), "utf8");
+  const gitignore = readFileSync(join(import.meta.dirname, "..", "..", "..", "..", ".gitignore"), "utf8");
   expect(gitignore).toMatch(CACHE_IGNORE_RE);
   expect(stagePaths("/repo", SHA).dir).toContain("/.cache/snap-stage/");
 });
@@ -275,6 +274,6 @@ test("the isolation tripwire is the exact env var vite.config reads for its prox
   // If this constant and packages/client/vite.config.ts ever drift, the version guard silently passes a
   // pre-support ref (or rejects a good one). Prove they still name the same knob.
   expect(ISOLATION_TRIPWIRE).toBe("VITE_API_TARGET");
-  const viteConfig = readFileSync(join(import.meta.dirname, "..", "..", "packages", "client", "vite.config.ts"), "utf8");
+  const viteConfig = readFileSync(join(import.meta.dirname, "..", "..", "..", "..", "packages", "client", "vite.config.ts"), "utf8");
   expect(viteConfig).toContain(ISOLATION_TRIPWIRE);
 });

@@ -7,7 +7,8 @@
 // control — a green that cannot fail is not a fence.
 
 import { parseAuditArgs } from "../../scripts/probes/design-audit.ts";
-import type { AccentBorderInput, Backdrop, IconTileInput, RawSamples, Rgb, TextStyleInput } from "../../scripts/probes/design-audit-checks.ts";
+import type { Rgb } from "@orb/tooling/_shared/wcag";
+import type { AccentBorderInput, Backdrop, IconTileInput, RawSamples, TextStyleInput } from "../../scripts/probes/design-audit-checks.ts";
 import {
   checkAccentBorder,
   checkAccessibleName,

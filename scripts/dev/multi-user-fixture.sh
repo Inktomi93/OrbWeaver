@@ -22,7 +22,7 @@
 # same recipe every e2e mode uses (tests/e2e/support/modes.ts: own ports + own DB + own assets). Three
 # things are isolated, and all three are required for coexistence:
 #   • ports    — PORT/VITE_PORT/VITE_API_TARGET (this file is the ONE source of truth; the snap side
-#                mirrors them by hand in scripts/probes/_kit/fixture.ts, same as the credentials).
+#                mirrors them by hand in tooling/src/snap/ops/fixture.ts, same as the credentials).
 #   • data     — DB + assets under .cache/multi-user-fixture/ (never the dev ./data/orbweaver.db).
 #   • pidfile  — STACK_RUN_DIR (stack.sh's env hook): the fixture's pgid/logs live under its own dir, so
 #                `pnpm stack stop` can never kill the fixture, nor this script the dev stack.

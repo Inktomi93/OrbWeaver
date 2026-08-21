@@ -16,7 +16,11 @@ export const gate: GateDescriptor = {
       p.includes(".test.") ||
       p.startsWith("tests/") ||
       p.startsWith("scripts/") ||
-      p.startsWith("tools/")
+      p.startsWith("tools/") ||
+      // tooling/ = the promoted dev-tool fleet (docs/design/tooling-package.md §3.2): tools MEASURE the
+      // real wall clock (watch-series elapsed, stage markers, artifact timestamps) — the injected-clock
+      // determinism law governs app code, and the fence matches the scripts/ zone it was promoted from.
+      p.startsWith("tooling/")
     ),
   visit(node, _sf, ctx): void {
     if (Node.isCallExpression(node)) {
@@ -83,6 +87,16 @@ export const gate: GateDescriptor = {
         "packages/kit/src/time/index.ts": `
           export function doThing() {
             return Date.now();
+          }
+        `,
+      },
+    },
+    {
+      why: "Date.now() in the fenced tooling/ zone — tools measure the real wall clock",
+      files: {
+        "tooling/src/snap/ops/watch.ts": `
+          export function elapsed(start: number) {
+            return Date.now() - start;
           }
         `,
       },

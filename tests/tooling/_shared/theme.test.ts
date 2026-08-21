@@ -17,7 +17,7 @@ import {
   themeHelpBlock,
   themeWarning,
 } from "@orb/tooling/_shared/theme";
-import { parseSnapArgs } from "../../../scripts/probes/snap.ts";
+import { parseSnapArgs } from "../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** The live shape of `settings.listThemes` (ThemeView rows, seeds + the caller's own), batched. */
