@@ -9,7 +9,7 @@ import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { setNumber } from "../../../../support/ct/set-number.ts";
-import { MemoryTuningSectionStory } from "../_ct-stories.tsx";
+import { MemoryTuningSectionNarrowStory, MemoryTuningSectionStory } from "../_ct-stories.tsx";
 
 // The section reads its knob VALUES from `overrides` (⊕ the contract floors), not `resolved` — so a plain
 // partial resolved slice suffices (routeTrpc stubs are untyped; the admin-surface CT's APP_SETTINGS
@@ -17,6 +17,7 @@ import { MemoryTuningSectionStory } from "../_ct-stories.tsx";
 const RESOLVED = { memoryDefaults: {}, memorySummarizer: {} };
 
 const UPDATE_PROC = "settings.updateAppSettings";
+const RAW_MODE_LABEL = /\b(?:mixA|mixB|mixC|tiered)\b/u;
 
 function stub(page: Page, overrides: Record<string, unknown> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -30,12 +31,74 @@ function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
   return input?.partial;
 }
 
-test("mounts on the grounded floor (blockSize 8, retrieval mode mixC, summarize max tokens 1024)", async ({ mount, page }) => {
+const MODE_GUIDANCE = [
+  ["Off", "Recalls no long-term memory. Fastest and uses no memory-model calls."],
+  ["Chronological recall", "Recalls stored scenes in time order. No search-model calls, but it is less selective."],
+  ["Semantic recall", "Finds stored scenes related to the current conversation. Costs one embedding search per recall."],
+  [
+    "Sharper semantic recall",
+    "Re-sorts related scenes with the rerank model for sharper recall. Costs an extra model call; if reranking is unavailable, vector order is used.",
+  ],
+  ["Story arcs", "Recalls older scenes as consolidated story arcs. Covers more history with less scene-level detail."],
+] as const;
+
+test("mounts on the grounded floor with a human mode label (blockSize 8, sharper semantic recall, summarize max tokens 1024)", async ({ mount, page }) => {
   await stub(page);
   await mount(<MemoryTuningSectionStory />);
   await expect(page.getByRole("textbox", { name: "Block size" })).toHaveValue("8");
   await expect(page.getByRole("textbox", { name: "Summarize max tokens" })).toHaveValue("1,024");
-  await expect(page.getByRole("combobox", { name: "Retrieval mode" })).toContainText("mixC");
+  await expect(page.getByRole("combobox", { name: "Retrieval mode" })).toContainText("Sharper semantic recall");
+  await expect(page.getByText("Using the deployment default: Sharper semantic recall.")).toBeVisible();
+});
+
+test("all five modes teach benefit + cost in the open picker, with clean accessible names and no raw enum leak", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<MemoryTuningSectionStory />);
+  const combo = page.getByRole("combobox", { name: "Retrieval mode" });
+  await combo.click();
+
+  await Promise.all(
+    MODE_GUIDANCE.map(async ([label, description]) => {
+      const option = page.getByRole("option", { name: label, exact: true });
+      await expect(option).toBeVisible();
+      const gloss = option.locator('[data-slot="select-item-description"]');
+      await expect(gloss).toHaveText(description);
+      const glossId = await gloss.getAttribute("id");
+      await expect(option).toHaveAttribute("aria-describedby", glossId ?? "");
+    }),
+  );
+  await expect(page.getByText(RAW_MODE_LABEL)).toHaveCount(0);
+});
+
+test("the recency control states its experimental order-only behavior and zero default truth", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<MemoryTuningSectionStory />);
+
+  const info = page.getByRole("button", { name: "More info about Recency bias" });
+  await info.hover();
+  const copy = "Experimental: changes only candidate order before the recall limit. 0 leaves semantic ordering unchanged.";
+  await expect(page.getByText(copy)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Recency bias" })).toHaveValue("0");
+});
+
+test("the mode picker is fully keyboard-selectable and writes the underlying enum", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<MemoryTuningSectionStory />);
+  const combo = page.getByRole("combobox", { name: "Retrieval mode" });
+
+  await combo.focus();
+  await combo.press("Enter");
+  const current = page.getByRole("option", { name: "Sharper semantic recall", exact: true });
+  await expect(current).toBeFocused();
+  await current.press("ArrowDown");
+  const storyArcs = page.getByRole("option", { name: "Story arcs", exact: true });
+  await expect(storyArcs).toBeFocused();
+  await storyArcs.press("Enter");
+
+  await expect(combo).toHaveAttribute("aria-expanded", "false");
+  await expect
+    .poll(() => (lastPartial(trpc)?.["memoryDefaults"] as Record<string, unknown> | undefined)?.["mode"], { intervals: [20, 50, 100] })
+    .toBe("tiered");
 });
 
 test("editing a numeric knob + Save fires updateAppSettings with the memoryDefaults delta", async ({ mount, page }) => {
@@ -52,7 +115,7 @@ test("an out-of-range knob is CLAMPED to a schema-valid value, never sent raw (n
   await mount(<MemoryTuningSectionStory />);
   // minScore is bounded 0..1; typing 5 must clamp to 1 (a raw 5 would fail the inner schema → the whole
   // memoryDefaults `.catch(undefined)` would silently wipe every override).
-  await setNumber(page.getByRole("textbox", { name: "Min score" }), "5");
+  await setNumber(page.getByRole("textbox", { name: "Minimum match" }), "5");
   await page.getByRole("button", { name: "Save" }).first().click();
   await expect.poll(() => (lastPartial(trpc)?.["memoryDefaults"] as Record<string, unknown> | undefined)?.["minScore"], { intervals: [20, 50, 100] }).toBe(1);
 });
@@ -84,4 +147,29 @@ test("a memoryDefaults override shows 'Overridden' and Reset clears the whole me
   // The first Reset button belongs to the memoryDefaults section.
   await page.getByRole("button", { name: "Reset to defaults" }).first().click();
   await expect.poll(() => lastPartial(trpc)?.["memoryDefaults"], { intervals: [20, 50, 100] }).toBeNull();
+});
+
+test.describe("coarse pointer containment", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
+
+  test("the narrow picker and its glossed popup stay inside the viewport with a touch-size trigger", async ({ mount, page }) => {
+    await stub(page);
+    await mount(<MemoryTuningSectionNarrowStory />);
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse-only geometry arm must be active").toBe(true);
+
+    const combo = page.getByRole("combobox", { name: "Retrieval mode" });
+    const triggerBox = await combo.boundingBox();
+    expect(triggerBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await combo.click();
+
+    const popup = page.locator('[data-slot="select-popup"]');
+    await expect(popup).toBeVisible();
+    const bounds = await popup.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, viewport: window.innerWidth, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
+    });
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
+    expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.clientWidth);
+  });
 });

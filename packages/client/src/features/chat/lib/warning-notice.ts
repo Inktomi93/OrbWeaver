@@ -41,6 +41,8 @@ export function warningNotice(code: ChatWarningCode): NotifyNotice {
       return { description: "This model doesn't support them, so the reply came back without any tool use.", title: "Tools were turned off for this reply" };
     case "memory_build_failed":
       return { description: "Your reply is unaffected — only the long-term memory index missed this turn.", title: "Long-term memory couldn't update" };
+    case "memory_rerank_unavailable":
+      return { description: "Using vector recall for this turn instead. Your reply will continue.", title: "Memory reranking was unavailable" };
     case "structured_output_unsupported":
       return { description: "This model doesn't support it, so the reply came back as plain text.", title: "Structured output isn't supported" };
     case "prompt_transform_skipped":

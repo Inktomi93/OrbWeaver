@@ -80,6 +80,9 @@ export const CHAT_WARNING_CODES = [
   // (a summarizer outage, a store failure, a mint failure). Emitted from the engine's memory-trigger catch so
   // the silent-failure black hole (stickler F1/F1d) is observable; the turn's reply is unaffected.
   "memory_build_failed",
+  // mixC recall's cross-encoder reranker failed after vector retrieval had already succeeded. The turn keeps
+  // the exact mixB/vector order and emits once for the whole turn's round + per-speaker recall episode.
+  "memory_rerank_unavailable",
   // A structured-output `responseFormat` was requested but `capability.output.structured` isn't true → dropped;
   // the turn proceeds free-text (D79 interactive-axis degrade, 04 §7; the emit site is the engine's structured
   // request-builder gate, mirror of tools_unsupported).

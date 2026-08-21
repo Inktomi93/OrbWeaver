@@ -976,7 +976,7 @@ type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBl
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left
  *  "why did THIS block surface" unanswerable at the only seam that knows). */
-type SearchDigestsOp = (query: MemoryQueryOptions) => Promise<readonly ScoredBlock[]>;
+type SearchDigestsOp = (query: MemoryQueryOptions, onRerankUnavailable?: (() => void) | undefined) => Promise<readonly ScoredBlock[]>;
 
 /** The cross-chat corpus/digest+segment scan; host-only scope is enforced by the caller. */
 type SearchCorpusOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
