@@ -168,6 +168,23 @@ export function AppShellNoticeBandStory(): ReactElement {
           >
             raise notice
           </button>
+          {/* A notice long enough that THREE of them overflow the band's one-screen budget (shell.css's
+              `max-block-size: min(14rem, 30dvh)`). The short notice above cannot: a burst of three fits
+              inside the cap, so a "the band is at most N tall" assertion driven by it passes whether or
+              not the cap bites at all. The burst arm needs a stack that genuinely exceeds the window. */}
+          <button
+            data-testid="raise-tall-notice"
+            onClick={(): void => {
+              notify.error({
+                description:
+                  "The live connection dropped while a turn was streaming and could not be restarted. The transcript kept everything that had already arrived, the composer is still yours, and the next send will open a fresh connection — nothing you wrote has been lost.",
+                title: "Lost the live connection",
+              });
+            }}
+            type="button"
+          >
+            raise tall notice
+          </button>
         </CtFakeSectionRegistry>
       </CtToastSurface>
     </CtDataProviders>
