@@ -6,17 +6,22 @@
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.stryker.config.ts" },
 
-  "_plugins_comment": "Explicit plugin paths — pnpm's strict node_modules layout breaks Stryker's auto-discovery ('Cannot find Checker plugin typescript' even though it's installed).",
-  "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
+  "_plugins_comment": "Explicit plugin paths — pnpm's strict node_modules layout breaks Stryker's auto-discovery ('Cannot find Checker plugin typescript' even though it's installed). The third entry is OURS: a relative path, which Stryker's PluginLoader resolves via pathToFileURL + import() (node 26 strips the types, no build step).",
+  "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker", "./scripts/mutation/arid-ignorer.ts"],
 
+  "_ignorers_comment": "The ARID ignorer (scripts/mutation/arid-ignorer.ts, self-test tests/tooling/mutation-arid-ignorer.test.ts) drops string-literal mutants whose only destination is an observability sink — trace recorders, trace-collection appends, trace assignments, trace-carrying payload objects, logger calls. Those survive by DESIGN (a test that pinned a debug label byte-for-byte would be the tautology Spine-Testing.md bans), so they are fixed noise in the denominator. It is STRUCTURAL, never an in-source annotation: there is no per-site opt-out an author can reach for.",
+  "ignorers": ["arid"],
+
+  "_checkers_comment": "The NATIVE TypeScript 7 checker, on a PATCHED typescript-checker (patches/@stryker-mutator__typescript-checker@10.0.0.patch) and with `@typescript/native` aliased to typescript@7 in the root devDependencies (the checker's loader imports `@typescript/native/unstable/sync` FIRST; its own error message recommends a `typescript7` alias that its code never reads — ignore that message). WHAT THE PATCH FIXES, because the stock preview is silently WRONG here and a bare version bump would re-break it: `ts-native/native-typescript-compiler.js` registers the SANITIZED tsconfig under the RAW `options.tsconfigFile` string (`#adjustTSConfigFile(fileName = this.options.tsconfigFile)`) while the compiler opens `this.tsconfigFile` = `toPosixFileName(path.resolve(...))`. With a relative `tsconfigFile` the two names differ, `NativeFileSystem.readFile` misses, and — per its own comment — the compiler FALLS BACK TO DISK, reading the UNSANITIZED tsconfig. Sanitizing is not optional: `tsconfig-helpers.js` COMPILER_OPTIONS_OVERRIDES forces allowUnreachableCode/noUnusedLocals/noUnusedParameters (stryker-js#391) precisely because mutants violate them by construction — our tsconfig.base.json sets all three the strict way. Unpatched, `if (cond)` -> `if (false)` mutants are disqualified as CompileError (TS7027) and silently LEAVE THE DENOMINATOR. MEASURED 2026-08-21, kit/macro/engine.ts, 47 mutants, --concurrency 6, quiet box, back-to-back: stock native + relative tsconfig = 11 killed / 0 timeout / 6 survived / 28 compile-error, 57.89, 9m41s. native + ABSOLUTE tsconfig (the falsification arm) = 17 / 1 / 7 / 20, 66.67, 3m03s. native + root-relaxed tsconfig = 18 / 0 / 7 / 20, 66.67, 3m02s. classic = 18 / 0 / 7 / 20, 66.67, 3m17s. So the population difference AND the '2.8x slowdown' were ONE bug — the repeated disk fallback — and the fixed native checker is classic's verdict at classic-or-better speed. Revert to `checkers` without `typescriptChecker` if the patch ever fails to apply.",
   "checkers": ["typescript"],
+  "typescriptChecker": { "experimentalNativePreview": true },
   "_tsconfig_comment": "Uses the root aggregating tsconfig.json.",
   "tsconfigFile": "tsconfig.json",
 
   "reporters": ["html", "clear-text", "progress"],
   "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
 
-  "_mutate_comment": "Default scope = the high-stakes pure modules (all exist; PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts). Broaden on the CLI, e.g. `pnpm test:mutation --mutate 'packages/server/src/domain/chat/**/*.ts'`.",
+  "_mutate_comment": "Default scope = the high-stakes pure modules (all exist; PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts). Broaden on the CLI, e.g. `pnpm test:mutation --mutate 'packages/server/src/domain/chat/**/*.ts'`. SENTINELS (added 2026-08-21, exploratory ONLY — the gate's mutate list is a CALIBRATED set and stays frozen): the last four entries are the two defect classes no other tier sees. (a) RUNTIME-STRING-KEY arithmetic — stats-delta.ts and rebuild-from-canon.ts accumulate per-turn economics through keys resolved at runtime, where an operator flip produces a plausible number no type or schema notices. (b) SHIPPED-INVERSION — canon-write.ts and memory/recall/recall.ts are exactly where a survived conditional already cost a live bug (the recall.ts inversion), which is the founding case for this whole apparatus. Promote a sentinel into the gate list only WITH a fresh calibration; the gate's `break` is bound to its measured set.",
   "mutate": [
     "packages/kit/src/macro/**/*.ts",
     "packages/kit/src/regex/**/*.ts",
@@ -25,6 +30,10 @@
     "packages/server/src/domain/credentials/**/*.ts",
     "packages/server/src/foundation/observability/audit.ts",
     "packages/server/src/infra/providers/backends/openrouter/**/*.ts",
+    "packages/server/src/domain/chat/substrate/stats-delta.ts",
+    "packages/server/src/domain/stats/write/rebuild-from-canon.ts",
+    "packages/server/src/domain/chat/persistence/canon-write.ts",
+    "packages/server/src/domain/chat/memory/recall/recall.ts",
     "!packages/**/*.d.ts"
   ],
 
@@ -58,7 +67,7 @@
 
   "_coverage_comment": "coverageAnalysis is deliberately NOT set — the @stryker-mutator/vitest-runner IGNORES it and always uses perTest (verified in its docs + the installed runner). Each mutant runs only its covering tests; the libSQL native binding survives the runner's forced pool:'threads'.",
 
-  "_dryruntimeout_comment": "Same reason as the gate config: Stryker's default dryRunTimeoutMinutes of 5 is far under this project's serial dry run. The runner pins maxThreads:1/maxConcurrency:1, so the whole unit+integration+contract set (~1,300 files, 7.3 min of wall time across 14 parallel forks) runs one at a time before any mutant is tested.",
+  "_dryruntimeout_comment": "Same reason as the gate config: Stryker's default dryRunTimeoutMinutes of 5 is far under this project's serial dry run. The runner pins one worker (`pool:'threads'` + `maxWorkers:1`), so the dry run executes one file at a time before any mutant is tested. Since v10 the runner also narrows the dry run to vitest `--related` of the mutate targets (`vitest.related`, DEFAULT TRUE). Do NOT read that as 'the dry run got cheap' — measured on the gate's four targets it still ran 12,060 tests in 17m26s, because they sit deep in the composition graph. What it DOES introduce is a silent failure mode: a target related-mode cannot reach reports NoCoverage rather than failing loudly. See the gate config's `_dryruntimeout_comment` for the receipts.",
   "dryRunTimeoutMinutes": 45,
 
   "ignoreStatic": true,
