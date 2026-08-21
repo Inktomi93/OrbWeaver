@@ -15997,6 +15997,65 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/performance/2026-08-20-chat-transcript-render-191.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 174,
+      "bytes": 14853,
+      "sha256": "9f566bd9552deddb16fb258709c420de2f7705436932b1a6cd800a97ecf3dd63",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/performance/2026-08-20-chat-transcript-render-191.md",
+        "assignedSha256": "9f566bd9552deddb16fb258709c420de2f7705436932b1a6cd800a97ecf3dd63",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "9f566bd9552deddb16fb258709c420de2f7705436932b1a6cd800a97ecf3dd63",
+        "verifiedCommit": "2d7039d0e38389dced23ee6e4aeba4f652cde73a",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/reviews/performance/2026-08-20-chat-transcript-render-191.md:1-174 full read against exact reviewed ref 2895946d810415f85c5bb001d27af60d396660be",
+          "exact 11-commit development reproduction attributed to one mount, two parent executions, and eight descendant/virtualizer settles",
+          "longest real room measured at 222 messages with a bounded 3-8-row virtualized DOM window and clean warm production navigation",
+          "focused message-list component tests passed 44/44; GitHub issue #191 re-derived on 2026-08-20"
+        ],
+        "summary": "Exact-tree performance attribution accepts the transcript profiler count as designed instrumentation behavior; TanStack Virtual remains and production reopen thresholds are recorded.",
+        "claims": [
+          {
+            "claim": "The raw chat:transcript development commit count is not evidence of duplicate wire reads or full transcript rerenders, and representative production behavior remains bounded.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#191"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/chat/surfaces/message-list-surface.tsx:69"
+              },
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/message-list/message-list.tsx:181"
+              },
+              {
+                "kind": "test",
+                "target": "tests/ui/primitives/message-list/message-list.ct.tsx:59"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/repository-audit-2026-08-13/FINAL-VERIFICATION.md",
       "lane": "repository-audits",
       "issue": 6,
