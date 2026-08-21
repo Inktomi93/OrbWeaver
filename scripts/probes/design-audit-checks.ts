@@ -13,9 +13,9 @@
 // Full 59-rule triage + license statement:
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
 
-import { TOKENS } from "@orb/ui/tokens";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
+import { TOKENS } from "@orb/ui/tokens";
 
 export type Severity = "P0" | "P1" | "P2" | "P3";
 
@@ -92,7 +92,6 @@ function stackFaces(stack: string): string[] {
 /** Every non-generic face the token stacks name (`font.sans` + `font.mono`) — the ONLY faces a
  *  rendered page may resolve. Anything else is `off-theme-font`. */
 export const RAMP_FONT_FACES: ReadonlySet<string> = new Set([...stackFaces(TOKENS["font.sans"].value), ...stackFaces(TOKENS["font.mono"].value)]);
-
 
 /** A gradient stop whose alpha is below this can't be trusted for worst-stop contrast math —
  *  what shows through underneath is unknown, so the check REFUSES (indeterminate) instead of
