@@ -18,10 +18,10 @@
 // The rest of the flagger pack ([anim] · [css] · [drop] · [space]) lives in `motion-flaggers.ts` —
 // this file is at the client 450-line cap, and those flaggers need no LoAF/CLS ring. They import the
 // surface-label + compositor vocabulary FROM HERE so both halves speak one language (the
-// `surfaceLabelOf` note below is the same reasoning, one level up). `[frame]`/`[input]`/`[reflow]` are
-// NOT here either: `long-task-tracer.ts` already owned the LoAF-over-budget and slow-interaction
-// channels before this pack existed, so they were extended in place rather than re-implemented (a
-// second emitter for one signal is the "two homes for one concept" the constitution merges, AGENTS §3).
+// `surfaceLabelOf` note below is the same reasoning, one level up). `[frame]`/`[input]`/`[reflow]` EMIT
+// from `long-task-tracer.ts`, but the FRAMES they judge come from the one observer installed here
+// (`subscribeLongAnimationFrames`). One emitter per signal (AGENTS §3); one OBSERVER per entry type is
+// the same rule one level down — until P7 this file and the tracer each ran their own.
 //
 // TWO TOTALS, AND THIS IS THE POINT. The Layout Instability spec zeroes `hadRecentInput` shifts
 // (anything within 500ms of real input) so the metric reports only surprise. That exclusion HIDES the
@@ -94,14 +94,26 @@ interface LoafRecord {
 }
 const loafRing: LoafRecord[] = [];
 
+/** One long animation frame as the ONE observer publishes it: the raw entry fields, undefaulted only
+ *  where lib.dom cannot type them. Subscribers apply their OWN budget and attribution — the observer
+ *  makes no judgement, which is what lets `[drop]` and `[frame]` disagree about what matters. */
 export interface LongAnimationFrameEvidence {
   readonly startTime: number;
   readonly duration: number;
+  readonly blockingDuration: number;
+  /** \>0 ⇒ style/layout ran inside this frame — `long-task-tracer.ts`'s `[reflow]` tell. */
+  readonly styleAndLayoutStart: number;
+  readonly scripts: readonly LoafScriptEntry[];
 }
 type LongAnimationFrameSubscriber = (frame: LongAnimationFrameEvidence) => void;
 const longAnimationFrameSubscribers = new Set<LongAnimationFrameSubscriber>();
 
-/** Share the one LoAF observer with dev flaggers that need a rendered-frame clock. */
+/** Subscribe to THE LoAF observer — this file installs the app's only `long-animation-frame`
+ *  PerformanceObserver, and every other rendered-frame consumer arrives here instead of installing a
+ *  second one (`motion-animation-state.ts`'s `[drop]` flagger; `long-task-tracer.ts`'s
+ *  `[frame]`/`[reflow]`). Delivery is gated on THIS file's checkpoint floor (`__resetMotionStats`),
+ *  which the dev bridge resets alongside every other evidence floor; a subscriber owning a narrower
+ *  floor still applies its own on top. */
 export function subscribeLongAnimationFrames(subscriber: LongAnimationFrameSubscriber): () => void {
   longAnimationFrameSubscribers.add(subscriber);
   return (): void => {
@@ -110,8 +122,15 @@ export function subscribeLongAnimationFrames(subscriber: LongAnimationFrameSubsc
 }
 
 function publishLongAnimationFrame(entry: LoafEntry): void {
+  const frame: LongAnimationFrameEvidence = {
+    startTime: entry.startTime,
+    duration: entry.duration,
+    blockingDuration: entry.blockingDuration ?? 0,
+    styleAndLayoutStart: entry.styleAndLayoutStart ?? 0,
+    scripts: entry.scripts ?? [],
+  };
   for (const subscriber of longAnimationFrameSubscribers) {
-    subscriber({ startTime: entry.startTime, duration: entry.duration });
+    subscriber(frame);
   }
 }
 

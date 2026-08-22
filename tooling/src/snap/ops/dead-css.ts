@@ -1,5 +1,9 @@
 // The dead-class scan: DOM class tokens vs the compiled CSSOM (dead tokens + empty rules). The scan's
 // dead-token definition is shared with the client's [css] flagger — two definitions would file two bugs.
+// That sharing is now literal, not by hand-copy: the marker tables and the selector-token regex SOURCE
+// come from `@orb/kit/dead-css` and are SERIALIZED into the in-page string below, so the flagger and this
+// probe compile the same regex and skip the same namespaces by construction.
+import { CLASS_SELECTOR_TOKEN_PATTERN, CLASS_TOKEN_ESCAPE_PATTERN, DEAD_CSS_MARKER_EXACT, DEAD_CSS_MARKER_PREFIXES } from "@orb/kit/dead-css";
 import type { Page } from "@playwright/test";
 
 // ── Dead-class scan ─────────────────────────────────────────────────────────
@@ -33,21 +37,19 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{
     }
     const defined = new Set();
     const empty = new Set();
-    // BACKSLASH DOUBLING IS DELIBERATE — do not "fix" it. This whole IIFE is a
-    // RAW STRING (see the keepNames note above), NOT a JS regex literal. Every
-    // backslash that must survive into the browser-side regex has to be escaped
-    // once here so the string literal yields it. The regex the browser actually
-    // compiles is /.((?:\\.|[A-Za-z0-9_-])+)/g — i.e. a literal dot, then a run
-    // of either an escaped char (\\.) or a CSS ident char. Halving these (.→.,
-    // \\.→.) would change the in-browser regex and break dead-class matching.
-    const re = /\\.((?:\\\\.|[A-Za-z0-9_-])+)/g;
+    // THE REGEX IS BUILT FROM @orb/kit/dead-css'S SOURCE, not written here. This whole IIFE is a RAW
+    // STRING, so a regex LITERAL has to carry doubled backslashes to survive it — a hand-maintained
+    // second spelling of the flagger's pattern, and the one thing most likely to drift. JSON.stringify
+    // emits the escaped literal for us and new RegExp compiles exactly the pattern the flagger compiles.
+    const re = new RegExp(${JSON.stringify(CLASS_SELECTOR_TOKEN_PATTERN)}, "g");
+    const unescapeRe = new RegExp(${JSON.stringify(CLASS_TOKEN_ESCAPE_PATTERN)}, "g");
     const walk = (rules) => {
       for (const r of rules) {
         const sel = r.selectorText;
         if (typeof sel === "string") {
           re.lastIndex = 0;
           let m;
-          while ((m = re.exec(sel)) !== null) defined.add(m[1].replace(/\\\\(.)/g, "$1"));
+          while ((m = re.exec(sel)) !== null) defined.add(m[1].replace(unescapeRe, "$1"));
           // A style rule with zero surviving declarations AND no nested
           // child rules = the browser rejected every value in it. (Tailwind
           // v4 variants emit nesting — hover utilities hold an &:hover child
@@ -63,10 +65,11 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{
     for (const sheet of document.styleSheets) {
       try { walk(sheet.cssRules); } catch { /* cross-origin */ }
     }
-    const skip = (t) =>
-      t === "group" || t === "peer" || t.startsWith("group/") || t.startsWith("peer/") ||
-      // third-party marker classes that ship no stylesheet rules
-      t === "echarts-for-react" || t.startsWith("lucide") || t.startsWith("TanStack") || t.startsWith("tsqd-");
+    // Marker-only namespaces that ship no stylesheet rules — the SAME two tables the client flagger
+    // reads (@orb/kit/dead-css), serialized in rather than restated.
+    const markerExact = ${JSON.stringify(DEAD_CSS_MARKER_EXACT)};
+    const markerPrefixes = ${JSON.stringify(DEAD_CSS_MARKER_PREFIXES)};
+    const skip = (t) => markerExact.indexOf(t) !== -1 || markerPrefixes.some((p) => t.startsWith(p));
     const dead = [];
     for (const [token, count] of used) {
       if (!defined.has(token) && !skip(token)) dead.push({ token, count });
@@ -80,7 +83,7 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{
       re.lastIndex = 0;
       let m;
       while ((m = re.exec(sel)) !== null) {
-        if (used.has(m[1].replace(/\\\\(.)/g, "$1"))) return true;
+        if (used.has(m[1].replace(unescapeRe, "$1"))) return true;
       }
       return false;
     });
