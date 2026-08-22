@@ -413,3 +413,5 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': patches/@stryker-mutator__core@10.0.0.patch
   '@stryker-mutator/typescript-checker@10.0.0': patches/@stryker-mutator__typescript-checker@10.0.0.patch
+
+nodeOptions: "--max-old-space-size=16384"
