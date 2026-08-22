@@ -34,9 +34,10 @@
 // index. Zero such tables exist (all 76 are written literally); the day one is introduced this gate goes
 // quiet on it rather than wrong — which is why `db-structure` + the baseline parity stage remain the
 // structural belts around it.
+
+import { isSchemaFile, leadingIndexedColumns, referencingColumns, schemaTables } from "@orb/tooling/_shared/schema-read";
 import type { SourceFile } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import { isSchemaFile, leadingIndexedColumns, referencingColumns, schemaTables } from "@orb/tooling/_shared/schema-read";
 
 const MESSAGE =
   "a foreign-key column that does not LEAD any index — SQLite auto-indexes only the PARENT side of an FK, " +

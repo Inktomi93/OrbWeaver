@@ -21,10 +21,11 @@
 // `.references(<fn>, <object>)` call. A reference whose options object is a spread of a shared const
 // (`{ ...CASCADE }`) would read as stating nothing and RED — deliberately fail-CLOSED: the author names
 // the action at the column, where the reader of the column looks for it.
+
+import { isSchemaFile } from "@orb/tooling/_shared/schema-read";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import { isSchemaFile } from "@orb/tooling/_shared/schema-read";
 
 const REFERENCES = "references";
 const ON_DELETE = "onDelete";
