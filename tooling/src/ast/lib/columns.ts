@@ -202,8 +202,8 @@ function drizzleWriteTarget(receiver: Node): Node | undefined {
   let cur: Node | undefined = receiver;
   while (cur !== undefined && target === undefined) {
     const node: Node = cur;
-    const inner: Node | undefined = Node.isCallExpression(node) ? node.getExpression() : node;
-    if (inner === undefined || !Node.isPropertyAccessExpression(inner)) {
+    const inner: Node = Node.isCallExpression(node) ? node.getExpression() : node;
+    if (!Node.isPropertyAccessExpression(inner)) {
       cur = undefined; // not a member access at all — the chain is not a drizzle write chain; stop.
       continue;
     }

@@ -114,7 +114,7 @@ function isMappedWithin(el: Node, container: JsxElement): boolean {
   while (cur !== undefined && cur !== container) {
     if (cur.isKind(SyntaxKind.ArrowFunction) || cur.isKind(SyntaxKind.FunctionExpression)) {
       const call = cur.getParent();
-      if (call?.isKind(SyntaxKind.CallExpression) === true) {
+      if (call.isKind(SyntaxKind.CallExpression)) {
         const callee = call.getExpression();
         if (callee.isKind(SyntaxKind.PropertyAccessExpression) && MAP_CALLEE_RE.test(callee.getText())) {
           return true;

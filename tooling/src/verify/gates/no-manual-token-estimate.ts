@@ -28,7 +28,7 @@ function isCharsPerTokenConst(node: Node): boolean {
   if (!CHARS_PER_TOKEN_NAME.test(node.getText())) {
     return false;
   }
-  const decl = node.getSymbol()?.getDeclarations()?.[0];
+  const decl = node.getSymbol()?.getDeclarations()[0];
   if (decl === undefined || !Node.isVariableDeclaration(decl)) {
     return false;
   }

@@ -249,8 +249,8 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
     stdio: ["ignore", "pipe", "pipe"],
   });
   if (opts.onOutput !== undefined) {
-    child.stdout?.on("data", opts.onOutput);
-    child.stderr?.on("data", opts.onOutput);
+    child.stdout.on("data", opts.onOutput);
+    child.stderr.on("data", opts.onOutput);
   }
   return {
     pid: child.pid,

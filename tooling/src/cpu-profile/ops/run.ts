@@ -61,7 +61,7 @@ export async function runCpuProfile(opts: Args): Promise<number> {
   // ZERO HYGIENE (#409) — the apparatus arm, BEFORE any bucketing: the meter rides an init script and a
   // page can outlive or replace it. Reading `undefined` here used to reach the bucketer and die as a
   // bare TypeError stack: an exit code with no diagnosis, which is the same failure as a silent zero.
-  if (data === undefined || data === null) {
+  if (data === undefined) {
     print(`URL      ${url}`);
     return instrumentError(meterApparatusGap(url));
   }

@@ -15,6 +15,7 @@
 // MECHANISM: `STACK_DISPATCH_PROBE=1` makes stack.sh print its classification and exit immediately —
 // after classification, before any action — so nothing is spawned, no port is touched, and the prod
 // supervisor is never exec'd. `.int.test.ts` because it shells out; it writes nothing to the tree.
+import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -28,7 +29,9 @@ interface Dispatch {
 }
 
 function dispatch(...argv: readonly string[]): Dispatch {
-  const res = spawnSync("bash", [STACK_SH, ...argv], {
+  // `SpawnSyncReturns<string | null>`, not node's `<string>`: a spawn that never STARTS (no `bash`
+  // on PATH) returns null for both pipes, so the `?? ""` guards below are load-bearing.
+  const res: SpawnSyncReturns<string | null> = spawnSync("bash", [STACK_SH, ...argv], {
     encoding: "utf8",
     env: { ...process.env, STACK_DISPATCH_PROBE: "1" },
   });

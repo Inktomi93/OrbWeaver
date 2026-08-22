@@ -14,7 +14,7 @@ type PageHandle = Awaited<ReturnType<typeof launchProbeSession>>["page"];
 async function markStep(page: PageHandle, idx: number, label: string): Promise<void> {
   await page.evaluate(
     ([i, l]) => {
-      (globalThis as unknown as MeterWindow).__perfMeter.markStep(Number(i), String(l));
+      (globalThis as unknown as MeterWindow).__perfMeter?.markStep(Number(i), String(l));
     },
     [String(idx), label] as const,
   );
@@ -64,10 +64,13 @@ async function dispatchStep(page: PageHandle, idx: number, step: Exclude<Step, {
   await markStep(page, idx, label);
   if (step.kind === "click") {
     await loc.click({ timeout: STEP_TIMEOUT_MS });
-  } else if (step.kind === "hover") {
-    await loc.hover();
   } else if (step.kind === "fill") {
     await loc.fill(step.value);
+  } else {
+    // `hover` is the only kind left (nav/pause/wheel/wheelburst/jsclick all returned above), so
+    // a `step.kind === "hover"` test here would be a condition that cannot be false. The `hover`
+    // arm is the one that reads no kind-specific field, which is why it is the residue.
+    await loc.hover();
   }
 }
 

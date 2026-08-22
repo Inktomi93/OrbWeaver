@@ -145,7 +145,18 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 //     the text is a genuine comparison), a code span WRAPPED across two comment lines (TSDoc code spans are
 //     single-line — reflowed, never truncated), and a markdown ``…`` double-backtick span (TSDoc has no
 //     such form and no in-span escape — rewritten as backslash-escaped prose).
-//   strict-boolean-expressions (61) / no-unnecessary-condition (41) — still tracked at #472.
+//   no-unnecessary-condition — LANDED, all 41 fixed, ON below for tooling/src + tests/tooling. Two
+//     classes, and telling them apart was the whole job. (a) A GENUINELY dead check: ts-morph's
+//     `getParent()`/`getExpression()`/`getDeclarations()` are non-optional on the node types these
+//     call sites hold, a `matchAll` match always carries `.index`, and `exec` returns `null` and never
+//     `undefined` — those guards are deleted. (b) A check the rule called dead because THE TYPE LIED,
+//     which is a type-modelling defect and NOT a delete: node types `spawnSync`'s stdout/stderr as
+//     `string` though a spawn that never starts returns null (the two int-test helpers now annotate
+//     `SpawnSyncReturns<string | null>`), `process.stdout.columns` is typed non-optional but only
+//     exists on a tty, and `MeterWindow.__perfMeter` was non-optional even though #409 exists BECAUSE
+//     the in-page meter can be absent. Those seams were re-typed and every guard kept.
+//   strict-boolean-expressions (61 at the survey, 59 after the two above removed two sites) — still
+//     tracked at #472.
 //
 // Scope note: the react/tailwind/query/router blocks above stay off tooling by construction (node-context
 // tools render nothing). What tooling gets is the ASYNC-SAFETY + dispatch + deprecation set — exactly the
@@ -375,6 +386,17 @@ export default tseslint.config(
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-deprecated": "error",
     },
+  },
+  {
+    // #472 family 2, TOOLING ONLY — not the whole SAFETY_SURFACE. A condition the type system says can
+    // never flip is either a dead guard or a LIE in the type, and on a tool tree that walks ASTs and
+    // spawns processes it is regularly the second (the SAFETY_SURFACE header names the three seams it
+    // caught that way). Measured 41 here, all fixed, none suppressed. The #473 dirs (tests/server &
+    // co, 1,276 files) were NEVER surveyed for this rule, so they stay outside until someone measures
+    // them — turning it on there sight-unseen is how a rule lands with a suppression wave attached.
+    files: [TOOLING_SRC, TOOLING_TESTS],
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: { "@typescript-eslint/no-unnecessary-condition": "error" },
   },
   {
     // require-await is TOOL-SOURCE ONLY, never `tests/**` — the 26/26 test-double triage in the

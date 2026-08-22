@@ -135,7 +135,7 @@ export const gate: GateDescriptor = {
   run: (ctx) => {
     const baseline = loadBaseline(ctx.root);
     for (const v of reconcileSuppressions(ctx.root, ctx.files, baseline)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message ?? "" });
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
   // NOTE: the BASELINE-BUDGET ratchet arms (a file AT its baseline passes; EXCEEDING REDs only the

@@ -63,11 +63,13 @@ function relPath(root: string, abs: string): string {
 // PropertyAccess(PropertyAccess(Identifier "test")) — walk the `.expression` spine to the root so
 // `it`/`test`/`describe` is recognized through nested member access (`test.describe.only`, etc.).
 function rootIdentifier(node: TsMorphNode): string | undefined {
-  let cursor: TsMorphNode | undefined = node;
-  while (cursor !== undefined && Node.isPropertyAccessExpression(cursor)) {
+  // `.getExpression()` of a PropertyAccessExpression is never undefined, so the spine walk cannot
+  // fall off the end — only the kind test ends it.
+  let cursor: TsMorphNode = node;
+  while (Node.isPropertyAccessExpression(cursor)) {
     cursor = cursor.getExpression();
   }
-  return cursor !== undefined && Node.isIdentifier(cursor) ? cursor.getText() : undefined;
+  return Node.isIdentifier(cursor) ? cursor.getText() : undefined;
 }
 
 // True when a `<root>.<modifier>(...)` call is the MODIFIER form (declares a skipped/focused/todo

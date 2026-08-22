@@ -55,7 +55,7 @@ export function renameJsxTag(ctx: CodemodContext, oldTagName: string, newTagName
         }
         // For paired (non-self-closing) elements, also update the closer.
         const parent = el.getParent();
-        if (parent && Node.isJsxElement(parent)) {
+        if (Node.isJsxElement(parent)) {
           parent.getClosingElement().getTagNameNode().replaceWithText(newTagName);
         }
       }

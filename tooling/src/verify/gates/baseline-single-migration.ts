@@ -55,7 +55,7 @@ function checkJournal(migrationsDir: string): Violation[] {
   }
   const journal = JSON.parse(readFileSync(journalPath, "utf-8")) as Journal;
   const entries = journal.entries ?? [];
-  const isSingleBaseline = entries.length === 1 && entries[0]?.idx === 0 && entries[0]?.tag === BASELINE_TAG;
+  const isSingleBaseline = entries.length === 1 && entries[0]?.idx === 0 && entries[0].tag === BASELINE_TAG;
   if (isSingleBaseline) {
     return [];
   }

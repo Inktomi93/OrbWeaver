@@ -32,7 +32,7 @@ export function classifyInstance(opts: {
       ? { verdict: "absent", reason: `the recorded pid ${record.pid} is gone and nothing holds the port — stale pidfile` }
       : {
           verdict: "foreign",
-          reason: `the recorded pid ${record.pid} is gone but pid ${observed.listenerPid ?? "?"} holds the port — a different process took it`,
+          reason: `the recorded pid ${record.pid} is gone but pid ${observed.listenerPid} holds the port — a different process took it`,
         };
   }
   if (observed.listenerPid !== null && observed.listenerPid !== record.pid) {

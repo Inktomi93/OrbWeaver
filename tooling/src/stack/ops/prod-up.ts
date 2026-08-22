@@ -259,7 +259,7 @@ async function spawnProdForeground(port: number, overlay: Readonly<Record<string
     log(`spawn failed — ${exit.error.message}`);
     return EXIT.violations;
   }
-  return (exit.signal === null ? (exit.code ?? 0) : SIGNAL_EXIT_BASE + (osConstants.signals[exit.signal] ?? 0)) as ExitCode;
+  return (exit.signal === null ? (exit.code ?? 0) : SIGNAL_EXIT_BASE + osConstants.signals[exit.signal]) as ExitCode;
 }
 
 /** `restart` — BUILD FIRST, then stop. A restart --build that stopped the server first would open a window

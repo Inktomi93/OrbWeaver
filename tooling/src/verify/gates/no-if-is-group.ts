@@ -25,10 +25,6 @@ export const gate: GateDescriptor = {
         // We only care if it's used in an IfStatement or ConditionalExpression (ternary)
         // Check the parent chain
         const parent = node.getParent();
-        if (!parent) {
-          return;
-        }
-
         if ((Node.isIfStatement(parent) && parent.getExpression() === node) || (Node.isConditionalExpression(parent) && parent.getCondition() === node)) {
           ctx.report(node);
         }

@@ -219,7 +219,7 @@ function flagHandRolledRegionDef(obj: TsNode, out: (line: number, message: strin
     return;
   }
   const parent = obj.getParent();
-  if (parent !== undefined && Node.isCallExpression(parent) && parent.getExpression().getText() === "defineContextRegion") {
+  if (Node.isCallExpression(parent) && parent.getExpression().getText() === "defineContextRegion") {
     return;
   }
   out(
