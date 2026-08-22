@@ -19,15 +19,14 @@
 // only cure was wiping localStorage. So an entry the tag library does not know is dropped from the REQUEST
 // (`effectiveTagFilter`) while staying in the store, where the chip row renders it clearable — visible + inert.
 //
-// THE BROWSE POSITION SURVIVES THE PANE SWAP (#255). Opening somebody swaps this whole LIST pane to her
-// chats projection (per the projection design's D2 arm — selection ⇒ projection, back = deselect,
-// `docs/design/list-pane-projection-proposal.md` §10), which UNMOUNTS this surface.
-// The paged rows survive that in the query cache; the list's scroll offset did not, so backing out of a card
-// 300 rows down landed at the top and browsing a real library was a click-and-Back-and-scroll loop. The
-// offset is captured at the CLICK (`captureBrowseOffset`) and re-applied at mount through `VirtualList`'s
-// `initialScrollOffset`. This changes nothing about D2 itself: the swap is still unconditional, back is
-// still deselect, and no chrome is added — D2's priced cost ("can't browse the library while editing her")
-// is untouched; losing your PLACE was never part of that price.
+// THE PANE NO LONGER SWAPS, SO THE BROWSE POSITION IS NOT AT RISK (#501, owner ruling 2026-08-22 —
+// "library stays docked"; it supersedes `list-pane-projection-proposal.md` §10 D2, which that doc itself
+// records as a design RECOMMENDATION rather than an owner-ruled entry). Opening somebody USED to swap this
+// whole LIST pane to her chats projection, unmounting this surface — the paged rows survived in the query
+// cache but the virtual list's scroll offset did not, so #255 captured the offset at the click and re-applied
+// it at mount. Nothing unmounts on a selection now: the library keeps its window, its scroll and the focused
+// row for free, and the two seams that stood in for them (`characterBrowseOffset`, `useRestoreRowFocus`) are
+// deleted rather than left standing beside a swap that no longer happens.
 //
 // The two reads that deliberately do NOT ride the lens: the FAVORITES strip (its own `starred: true` page —
 // it is a shortcut across the library, not a view of the filtered set, and reading the filtered page would
@@ -54,12 +53,9 @@ import {
   clearCharacterFilters,
   clearCharacterSelection,
   cycleTagFilter,
-  getCharacterBrowseOffset,
   selectCharacter,
-  selectCharacterFromPicker,
   selectChat,
   setActiveSection,
-  setCharacterBrowseOffset,
   toggleFavoritesOnly,
   toggleFiltersOpen,
   toggleShowArchived,
@@ -81,7 +77,6 @@ import { CharacterLibraryToolbar } from "../components/character-library-toolbar
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { useLibraryLens } from "../hooks/use-library-lens.ts";
-import { useRestoreRowFocus } from "../hooks/use-restore-row-focus.ts";
 import { effectiveTagFilter, knownTagIds, loadedProgressLabel, partialGroupingLabel, resultCountLabel, tagVocabulary } from "../lib/character-library-lens.ts";
 import { resumeTargets } from "../lib/character-list-view.ts";
 
@@ -146,21 +141,12 @@ const useCharacterLibraryCollection = createCollectionSurface({
 
 export interface CharacterLibrarySurfaceProps {
   readonly ariaLabel?: string;
-  /** The character whose row should reclaim keyboard focus when the library (re)mounts — the modal pane's
-   *  ← Back return target, so backing out of her chats projection lands focus on the row it came from, not
-   *  `<body>` (the facet-editor back-focus precedent). `null` = no restore (the
-   *  initial mount, where stealing focus would jump the tab order past the rail nav). */
-  readonly focusCharacterId?: CharacterId | null;
 }
 
 /** The character library: header + favorites + filters + the flat/categorized paged list + bulk mode. */
-export function CharacterLibrarySurface({ ariaLabel = "Character library", focusCharacterId = null }: CharacterLibrarySurfaceProps): ReactElement {
+export function CharacterLibrarySurface({ ariaLabel = "Character library" }: CharacterLibrarySurfaceProps = {}): ReactElement {
   const trpc = useTRPC();
   const surfaceRef = useRef<HTMLDivElement>(null);
-  // The browse position to REMOUNT at, snapshotted once (`useState`'s lazy initializer, not a subscription):
-  // this is a mount-time initializer, and a live subscription would re-scroll the list under the user every
-  // time the value changed. `0` — the store's own default — is the honest first-visit value.
-  const [initialScrollOffset] = useState(getCharacterBrowseOffset);
   const { startChat } = useStartChat();
   const invalidation = useInvalidation();
   const [query, setQuery] = useState("");
@@ -188,7 +174,19 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   // link. `listTagFilterVocabulary` is the same owned ROWS (it must be: this answer is also the referential
   // authority for the persisted filter below) with four columns instead of eleven and one GROUP BY instead
   // of five: 132,996 bytes for the same library.
-  const tagLibraryQuery = useQuery(trpc.tag.listTagFilterVocabulary.queryOptions());
+  // …AND IT WAITS FOR A REASON TO EXIST (#502, side-eye 2026-08-22 rail-characters P3-2). 551 rows landed on
+  // the section's cold ENTRY — `[perf] slow commit region:list 31ms (nested-update)`, 2 long tasks with a
+  // 69ms worst, over the 50ms LoAF budget — to paint chips that, since #491, are BEHIND A CLOSED DISCLOSURE
+  // on first visit. So the read is gated on a reason to have run it, and there are exactly two:
+  //   · the disclosure is OPEN (the chips are on screen), or
+  //   · a PERSISTED tag filter exists — because then this answer is not decoration, it is the referential
+  //     AUTHORITY that keeps a dead tag id from vetoing the whole library invisibly (the owner's import
+  //     repro, below). With no entries there is nothing to validate, so nothing is deferred but pixels.
+  // `enabled:false` leaves the query PENDING, never errored/succeeded, which is exactly what the two readers
+  // downstream already treat as "not answered": the reserve renders only while the rail is open, and
+  // `effectiveTagFilter` keeps trusting the stored blob until a SETTLED read says otherwise.
+  const vocabularyNeeded = filtersOpen || tagFilter.length > 0;
+  const tagLibraryQuery = useQuery({ ...trpc.tag.listTagFilterVocabulary.queryOptions(), enabled: vocabularyNeeded });
   const tagLibrary = tagLibraryQuery.data ?? [];
   const availableTags = tagVocabulary(tagLibrary, tagFilter);
   // A persisted entry whose tag the library does not know can never match a row, and the server's tag
@@ -233,29 +231,11 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const favoritesQuery = useQuery(trpc.character.list.queryOptions({ starred: true, limit: FAVORITES_STRIP_LIMIT }));
   const favorites = favoritesQuery.data?.items ?? [];
 
-  // A pick FROM THE PICKER (a card click / a favorites face): the same selection write, plus the focus
-  // decision the pane swap needs — the projection that replaces this library takes focus (§3.7).
-  //
-  // …AND THE BROWSE POSITION (#255). This click is what swaps the LIST pane to her chats projection (per
-  // the projection design's D2 arm — selection ⇒ projection, back = deselect,
-  // `docs/design/list-pane-projection-proposal.md` §10), which unmounts this whole surface. Back-focus
-  // already survived that (`focusCharacterId`); the SCROLL did not, so backing out of the 327th card landed
-  // at the top of the library and browsing was a click-and-Back-and-scroll loop. The offset is read here,
-  // straight off the list's scroll element, because this is the last moment it is both meaningful and
-  // ATTACHED — an unmount-time read reports 0 (React runs cleanups around DOM removal), and a scroll-time
-  // read would write to a `persist`-wrapped store on every frame. The element is found by the primitive's
-  // own slot inside this surface's container — the scoped-querySelector precedent `useRestoreRowFocus`
-  // already uses, never a document-wide reach.
-  const captureBrowseOffset = (): void => {
-    const scroller = surfaceRef.current?.querySelector<HTMLElement>('[data-slot="virtual-list-scroll"]');
-    if (scroller !== null && scroller !== undefined) {
-      setCharacterBrowseOffset(scroller.scrollTop);
-    }
-  };
-  const openEditor = (id: string): void => {
-    captureBrowseOffset();
-    selectCharacterFromPicker(castId<CharacterId>(id));
-  };
+  // A pick (a card click / a favorites face) is now JUST the selection write (#501): this surface stays
+  // mounted beside the editor it opens, so there is no pane swap to arbitrate focus with and no browse
+  // position to rescue — the row the user pressed keeps the focus the browser gave it, and the virtual
+  // list keeps its own scroll.
+  const openEditor = (id: string): void => selectCharacter(castId<CharacterId>(id));
   const toggleStar = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
   const toggleArchive = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
   const toggleBulk = (id: string): void => collection.selection.toggle(id);
@@ -307,7 +287,6 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   );
 
   useFocusOnMount(surfaceRef);
-  useRestoreRowFocus(surfaceRef, focusCharacterId, items);
   const selectedCount = collection.selection.selected.size;
 
   return (
@@ -369,7 +348,6 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
             filtered={items}
             filtersActive={lens.filtersActive}
             hasNextPage={collection.hasNextPage}
-            initialScrollOffset={initialScrollOffset}
             isFetchingNextPage={collection.isFetchingNextPage}
             isPending={collection.isPending}
             listProps={collection.listProps}

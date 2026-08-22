@@ -18,6 +18,7 @@ import { TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations.ts";
+import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 
 export interface CharacterTagsRowProps {
   readonly characterId: CharacterId;
@@ -41,8 +42,11 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
   return (
     <Row gap="field" align="center" className="flex-wrap" data-slot="character-tags">
       {visible.length === 0 ? (
+        // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
+        // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in
+        // the "Add tag" button beside it, which is why the value can just say what is there.
         <Text size="micro" tone="muted">
-          No tags
+          {EMPTY_VALUE}
         </Text>
       ) : (
         visible.map((tag) => (

@@ -35,6 +35,9 @@ import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+// The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
+// feature's internals to mount the REAL production host (the app-shell stories do the same).
+import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
@@ -300,11 +303,15 @@ export function CharacterBulkBarStory(): ReactElement {
   );
 }
 
-// ── Arm A: the MODAL LIST pane (list-pane-projection §3) ───────────────────────────────────────────
-// Mounted through the REAL section registry (`registry.get("characters").list()` / `.listHeader()`) — the
-// same calls the shell's list region + PanelChrome make — so these drive the PRODUCTION path end to end:
-// the `makeCharactersSection` door param, the chat-owned projection body threaded in at the door, and the
-// selection-driven swap. A bespoke mount of the pane component would prove none of that.
+// ── The LIST pane + the CONTEXT pane, through the REAL section registry ─────────────────────────────
+// `registry.get("characters").list()` / `.listHeader()` / `.context` are the same calls the shell's list
+// region, PanelChrome and `SectionContextHost` make — so these drive the PRODUCTION path end to end,
+// including the `makeCharactersSection` door param and the chat-owned projection body threaded in at it.
+// A bespoke mount of a pane component would prove none of that.
+//
+// The LIST harness used to carry a `selectedCharacterId` PROJECTION arm, because the pane swapped roles on
+// selection (Arm A). #501 ended the swap — the pane is the library in both arms — so selection is now just
+// state the CT sets to prove the library STAYS.
 
 /** Mirrors the shell's two LIST mount points: the chrome band + the pane, in one box. */
 function CharactersListHarness(): ReactElement {
@@ -328,12 +335,12 @@ function CharactersListHarness(): ReactElement {
 }
 
 export interface CharactersListPaneStoryProps {
-  /** Pre-select a character (the PROJECTION role); omitted mounts the PICKER role. */
+  /** Pre-select a character — the arm that proves the library STAYS (#501). Omitted = nothing selected. */
   readonly selectedCharacterId?: string;
 }
 
 /** The characters LIST band + pane over the real registry and the real data layer. */
-export function CharactersListPaneStory({ selectedCharacterId }: CharactersListPaneStoryProps = {}): ReactElement {
+export function CharactersListStory({ selectedCharacterId }: CharactersListPaneStoryProps = {}): ReactElement {
   useEffect(() => {
     if (selectedCharacterId !== undefined) {
       selectCharacter(castId<CharacterId>(selectedCharacterId));
@@ -349,13 +356,50 @@ export function CharactersListPaneStory({ selectedCharacterId }: CharactersListP
   );
 }
 
-// ── The COMPOSED characters screen: LIST pane + CONTENT editor, the two focus-managing surfaces one
-// selection mounts (list-pane-projection §3.7 — the P1 focus race). Mounting the pane ALONE cannot see the
-// defect: the editor's own `useFocusOnMount` is what takes the focus back, and it only exists in this
-// composition. Both regions come from the REAL section registry, exactly as the shell renders them.
+/** Mirrors the shell's CONTEXT mount: `SectionContextHost` over the section definition — the real tab strip
+ *  (Field · Chats · Links · Options) and the real body, at the docked panel's width. The cross-section
+ *  probes ride along, because a projection row click is a store write, never a UI echo. */
+function CharactersContextHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const activeSection = useActiveSection();
+  const activeChatId = useActiveChatId();
+  return (
+    <div style={{ height: 640, width: 384 }}>
+      <SectionContextHost definition={registry.get("characters")} />
+      <p data-testid="active-section">{activeSection}</p>
+      <p data-testid="started-chat">{activeChatId ?? ""}</p>
+    </div>
+  );
+}
 
-/** The characters section's LIST (band + pane) beside its CONTENT (the editor), plus a NON-picker entry
- *  into the same selection — a deep link / agent nav, which must leave focus with the editor. */
+export interface CharactersContextStoryProps {
+  /** The open character whose CONTEXT the pane shows — the tabs' whole state projection. */
+  readonly selectedCharacterId: string;
+}
+
+/** The characters CONTEXT panel over the real registry + data layer (#501 — her chats live here now). */
+export function CharactersContextStory({ selectedCharacterId }: CharactersContextStoryProps): ReactElement {
+  useEffect(() => {
+    selectCharacter(castId<CharacterId>(selectedCharacterId));
+    return (): void => clearCharacterSelection();
+  }, [selectedCharacterId]);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <CharactersContextHarness />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+// ── The COMPOSED characters screen: LIST pane + CONTENT editor + CONTEXT panel — the three regions one
+// selection drives. Composed, not separate, because the findings live BETWEEN them: whether the library
+// survives a pick (#501) is a claim about LIST while CONTENT mounts, and whether the hero's "N chats ›"
+// lands anywhere is a claim about CONTENT writing a tab CONTEXT renders. All three come from the REAL
+// section registry, exactly as the shell renders them.
+
+/** The characters section's LIST (band + pane), its CONTENT (the editor) and its CONTEXT (the tab panel),
+ *  plus a NON-picker entry into the same selection — a deep link / agent nav. */
 function CharactersScreenHarness(): ReactElement {
   const registry = useSectionRegistry();
   const definition = registry.get("characters");
@@ -372,6 +416,9 @@ function CharactersScreenHarness(): ReactElement {
       </div>
       <div data-testid="content-region" style={{ flex: 1, minWidth: 0 }}>
         {content()}
+      </div>
+      <div data-testid="context-region" style={{ width: 384 }}>
+        <SectionContextHost definition={definition} />
       </div>
     </div>
   );

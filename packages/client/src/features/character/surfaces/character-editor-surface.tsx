@@ -6,9 +6,9 @@
 // Autosave everywhere (D66 A4 / north-star §7): no Save/Discard — the header carries the token split +
 // the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
 //
-// Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›" points at
-// the LIST pane, which — with her selected — already IS her chats (Arm A / D8). Both
-// ride the ONE home for those intents (`lib/character-chat-intents.ts`), shared with the LIST band.
+// Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›" reveals
+// the CONTEXT **Chats** tab, which is where her history lives now that the LIST pane stays the library
+// (#501, D8). Both ride the ONE home for those intents (`lib/character-chat-intents.ts`).
 
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
@@ -23,7 +23,7 @@ import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
-import { clearCharacterFacet, listProjectionOwnsFocus, selectCharacterFacet, useNarrowViewport, useSelectedCharacterFacetId } from "#state";
+import { clearCharacterFacet, selectCharacterFacet, useSelectedCharacterFacetId } from "#state";
 import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
 import { CharacterFacetList } from "../components/character-facet-list.tsx";
 import { CharacterHeroBand } from "../components/character-hero-band.tsx";
@@ -38,7 +38,7 @@ import {
   permanentTokenCount,
   totalTokenCount,
 } from "../lib/character-card-form-model.ts";
-import { revealChatsProjection, useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
+import { revealCharacterChats, useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
 import { characterDraftStore } from "../lib/character-draft-store.ts";
 import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge.ts";
 
@@ -145,13 +145,12 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const form = session.form as AppFormInstance<CharacterCardFormValues>;
 
   const surfaceRef = useRef<HTMLDivElement>(null);
-  // Stand down when the selection came from the LIST PICKER: that pick swaps the pane beside this editor
-  // into her chats, and the pane the user just transformed owns the focus (the
-  // decision lives on the selection intent, so neither surface has to win a mount-effect race). Every other
-  // entry (deep link, agent nav, a fresh create) keeps this editor's own behavior.
-  useFocusOnMount(surfaceRef, !listProjectionOwnsFocus(data.id));
+  // Unconditional again (#501). It used to stand down when the selection came from the LIST PICKER, because
+  // that pick SWAPPED the pane beside this editor into her chats and the pane the user had just transformed
+  // owned the focus. Nothing swaps now — the library stays docked with the pressed row still in it — so
+  // there is no second focus claimant and no intent seam to arbitrate one.
+  useFocusOnMount(surfaceRef);
   const selectedFacetId = useSelectedCharacterFacetId();
-  const narrow = useNarrowViewport();
   // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list
   // which row should reclaim focus.
   const [backFocusFacetId, setBackFocusFacetId] = useState<CharacterCardFacet["id"] | null>(null);
@@ -175,9 +174,9 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   // `character-chat-intents.ts`), so the two primaries can't drift.
   const startChatWith = useStartChatWithCharacter();
   const onNewChat = (): void => startChatWith(data.id);
-  // "N chats ›" no longer LEAVES for the Chats section (D8): with her selected, the LIST pane already IS
-  // her history, so the hero points AT it — opening the sheet on narrow, un-collapsing + focusing on wide.
-  const onViewChats = (): void => revealChatsProjection(narrow);
+  // "N chats ›" does not LEAVE for the Chats section (D8) — it reveals the CONTEXT **Chats** tab, which is
+  // where her history lives since the LIST pane stopped swapping (#501).
+  const onViewChats = (): void => revealCharacterChats();
 
   // Publish the live handle so the CONTEXT Field inspector (a sibling shell region, no shared React
   // ancestor) can bind the facet's small fields. Clears on unmount so a stale handle never outlives

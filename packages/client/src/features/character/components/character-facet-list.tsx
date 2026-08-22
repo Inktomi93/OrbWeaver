@@ -18,6 +18,7 @@ import type { AppFormInstance } from "#forms";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
 import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 import { CharacterFacetRow } from "./character-facet-row.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
@@ -88,9 +89,10 @@ function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormVal
   }
 }
 
-/** What a screen reader hears for a facet with nothing in it. Terse by design — the row's visible "Add…"
- *  in words, not a second gloss (the subtitle already says what the facet DOES). */
-const EMPTY_SUMMARY = "Empty";
+/** The house empty word (#502, `lib/empty-vocabulary.ts`) — BOTH what the row shows and what a screen reader
+ *  hears, since the facet row renders this same string as its visible state word (see its `fillSummary`
+ *  node). Aliased locally because the two summary builders below read it in every arm. */
+const EMPTY_SUMMARY = EMPTY_VALUE;
 
 /** A filled TEXT facet's magnitude. Plain digits, deliberately UNGROUPED: this string is only ever spoken,
  *  a screen reader groups the number itself, and `.toLocaleString()` is banned repo-wide (`no-raw-intl-time`)

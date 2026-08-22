@@ -11,8 +11,12 @@
 //
 // So the seam INVERTS: `useShellLayout` — the one place that already computes the carry, every commit —
 // registers it here, and a writer outside the shell docks the LIST through `dockListPanel` instead of
-// hand-writing `setPanelMode("list", …)` past it. `revealChatsProjection` (the character screen's
-// "N chats ›" hero link) is that writer, and going behind the carry is exactly the defect #391 names.
+// hand-writing `setPanelMode("list", …)` past it — going behind the carry is exactly the defect #391 names.
+// The writer that paid for this seam was the character screen's "N chats ›" hero link
+// (`revealChatsProjection`); #501 re-pointed that intent at the CONTEXT Chats tab, so the door currently has
+// no production caller. It is KEPT, with its invariant pinned by CT (`tests/client/state/list-flip-carry.ct
+// .tsx` at the store, `app-shell.ct.tsx` "#391" in the real frame): the rule is a property of the FLIP, and
+// the next feature that docks the LIST must find a door that pays the carry rather than re-derive the bug.
 //
 // AN UNREGISTERED CARRY IS NOT A FAILURE MODE. No shell mounted ⇒ no rendered frame ⇒ no regime for a flip
 // to move CONTEXT between, so the dock is simply the override write. That is why this is `?.()` rather

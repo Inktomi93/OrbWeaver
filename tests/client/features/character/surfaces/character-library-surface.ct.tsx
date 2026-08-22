@@ -1052,6 +1052,9 @@ test("the chip rail runs at the tight 32px pitch the grouping is paid for out of
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
   await openFilters(component);
+  // The vocabulary is READ ON DISCLOSURE now (#502), so the chips arrive a round trip after the click —
+  // barrier on a settled chip before measuring, or the census reads zero for a timing reason.
+  await expect(component.getByRole("button", { name: SECOND_RAIL_CHIP })).toBeVisible();
 
   // Two chips on consecutive wrapped lines: the pitch is the chip box + the atom gap, and nothing else.
   const tops = await component
@@ -1283,8 +1286,11 @@ test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does 
     "tag.listTagFilterVocabulary": hold,
   });
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
-  await hold.requested;
+  // OPEN FIRST, THEN await the request (#502): the vocabulary read is gated on the disclosure, so waiting
+  // for it before the click would wait forever — and the reserve exists for exactly this window, which is
+  // now the beat between opening the rail and the 551 rows landing.
   await openFilters(component);
+  await hold.requested;
 
   // HELD: the reserve is rendered, and it is what the group is spending its height on.
   const group = component.getByRole("group", { name: "Filters" });
@@ -1715,4 +1721,28 @@ test("#493 a COMPLETE library groups with no caveat — the notice is a claim ab
 
   await expect(component.getByText("loaded so far", { exact: false })).toHaveCount(0);
   await expect(component.getByText(LOADED_PROGRESS)).toHaveCount(0);
+});
+
+// ── #502: THE 551-ROW VOCABULARY WAITS FOR A REASON TO EXIST ─────────────────────────────────────────
+// Section entry breached the long-task budget (side-eye 2026-08-22 rail-characters P3-2: 2 long tasks,
+// worst 69ms, `[perf] slow commit region:list 31ms (nested-update)`) landing a 551-row tag vocabulary — to
+// paint chips that #491 had already put BEHIND A CLOSED DISCLOSURE on first visit. The read is gated now,
+// and the two arms below are the whole gate: no reason ⇒ no request, a reason ⇒ the request.
+test("#502 the tag vocabulary is NOT read while the filter disclosure is shut — and IS the moment it opens", async ({ mount, page }) => {
+  const trpc = await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  // SETTLE on the rendered library — the count below is only meaningful once the pane has finished the
+  // reads it does make (a count taken mid-mount would pass for the wrong reason).
+  await expect(component.getByText("Tagged One")).toBeVisible();
+  await expect(component.getByRole("button", { name: MORE_FILTERS })).toBeVisible();
+
+  // ONESHOT-OK: settled by construction — the two barriers above are the LAST things this pane paints on a
+  // cold mount, so every request it was ever going to fire has been recorded. Polling a zero would only
+  // re-read the same zero for five seconds and could not tell a gated read from a slow one.
+  expect(trpc.count("tag.listTagFilterVocabulary")).toBe(0);
+
+  // The positive control, same mount: opening the disclosure is a reason, and the chips arrive.
+  await openFilters(component);
+  await expect(component.getByRole("button", { name: SECOND_RAIL_CHIP })).toBeVisible();
+  await expect.poll(() => trpc.count("tag.listTagFilterVocabulary"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
 });
