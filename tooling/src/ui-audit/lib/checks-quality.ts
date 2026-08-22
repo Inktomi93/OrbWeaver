@@ -27,12 +27,32 @@ export function checkRepeatedText(input: RepeatedTextInput): Finding {
   };
 }
 
+/** The measured spill, or the honest absence of one on the zero-size positioned fallback. */
+function clipSpillValue(input: ClippedOverflowInput): string {
+  const where = input.side === null ? "" : ` ${input.side} by ${input.spillPx}px`;
+  return `clips ${input.childSelector}${where}`;
+}
+
 export function checkClippedOverflow(input: ClippedOverflowInput): Finding {
+  // A cut CONTROL is broken pixels a first-timer reads as a rendering bug (#439: "Blank chat" painted
+  // as "nk chat" with its icon gone), so the in-flow arm is a P1. The positioned arm stays P2 — an
+  // escape-needing tooltip/menu is a composition smell, not a mangled control.
+  if (input.flow === "in-flow") {
+    return {
+      rule: "clipped-overflow",
+      severity: "P1",
+      selector: input.selector,
+      value: clipSpillValue(input),
+      message:
+        "an in-flow control is painted OUTSIDE its overflow-hidden/clip container and cut — the row is wider than the box it sits in (a nowrap justify-end row spills LEFT, which scrollWidth cannot see). Let the row wrap, let the controls share the width (flex-1 + min-w-0), or shorten the label at narrow container widths",
+      origin: "impeccable",
+    };
+  }
   return {
     rule: "clipped-overflow",
     severity: "P2",
     selector: input.selector,
-    value: `clips ${input.childSelector}`,
+    value: clipSpillValue(input),
     message:
       "an overflow-hidden/clip container is cutting a positioned child that needs to escape (tooltip/menu/badge) — portal it, use position:fixed, or let the overflow be visible (skill §3)",
     origin: "impeccable",
