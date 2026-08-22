@@ -29,8 +29,10 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
 import { print, printResult, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { instrumentError } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { spawnNicedChild } from "../../_shared/proc.ts";
+import { fireEvidenceGap } from "../lib/evidence.ts";
 import { renderTrace } from "../lib/render.ts";
 
 // Cold compile of the server graph is bounded generously; a warm host is far under it.
@@ -208,8 +210,11 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
     const rendered = await renderTraces(baseUrl, batch.requestIds, debugToken);
     // The unwired-tracing tell: requests landed but NONE carried an X-Request-Id → the observability
     // middleware is not mounted. `initTracing()` is wired (entry/lifecycle.ts:169), so this arm firing
-    // today means a LIVE REGRESSION at entry — reported loudly, still exit 0 (a missing capability is a
-    // skip, not a request failure).
+    // today means a LIVE REGRESSION at entry — reported loudly, and (#409) EXIT.toolError: the prior
+    // ruling here was "still exit 0, a missing capability is a skip". That ruling survives; its INPUT
+    // changed — the same comment records the middleware as WIRED, which makes this a tripwire, and a
+    // tripwire that exits 0 is not a tripwire. lib/evidence.ts carries the fork in full.
+    const gap = fireEvidenceGap({ fired: batch.fired, missingRid: batch.missingRid, rendered });
     const unwired = batch.fired > 0 && batch.missingRid === batch.fired;
     if (unwired) {
       process.stderr.write(
@@ -221,6 +226,9 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
       ["failures", batch.failures],
       ["traces", unwired ? "UNWIRED" : rendered],
     ]);
+    if (gap !== null) {
+      return instrumentError(gap);
+    }
     return batch.failures > 0 ? EXIT.violations : EXIT.clean;
   };
 

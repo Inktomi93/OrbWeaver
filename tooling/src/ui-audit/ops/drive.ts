@@ -9,6 +9,7 @@ import { runNav } from "@orb/tooling/_shared/nav";
 import type { RawSamples } from "../contract/samples.ts";
 import type { Args, AuditAction, CaptureOutcome } from "../contract/types.ts";
 import { CLICK_TIMEOUT_MS, NAV_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
+import { SAMPLE_COLLECTION_PREFIX } from "../lib/evidence.ts";
 import { COLLECT_SAMPLES_JS } from "./walker.ts";
 
 type AuditPage = Awaited<ReturnType<typeof launchProbeSession>>["page"];
@@ -64,6 +65,8 @@ export async function navigateAndReveal(page: AuditPage, opts: Args, url: string
     const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
     return { navError, actionsFailed, samples };
   } catch (e) {
-    return { navError: `sample collection threw: ${errorMessage(e)}`, actionsFailed, samples: null };
+    // The prefix is load-bearing: ops/run.ts reads it to tell an INSTRUMENT failure (the walk threw)
+    // apart from a page-level nav error, which is a real defect of the page (#409).
+    return { navError: `${SAMPLE_COLLECTION_PREFIX}: ${errorMessage(e)}`, actionsFailed, samples: null };
   }
 }

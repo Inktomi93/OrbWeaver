@@ -13,9 +13,15 @@
 // in-page; all severity/threshold decisions happen back in Node via lib/collect.ts (unit-tested at
 // tests/tooling/ui-audit/index.test.ts). The browser never decides pass/fail.
 //
+// ZERO HYGIENE (#409): every check family is a fold over a sample list, so an EMPTY walk folds to
+// "no findings — clean" — the cleanest report in the product describing a page that rendered nothing.
+// A zero node census, or a walk that threw, is EXIT.toolError naming what was absent (lib/evidence.ts),
+// and the RESULT line publishes `census=` so a clean verdict always shows its denominator.
+//
 // Exit: 0 clean (no finding at/above --fail-on) · 1 findings or a nav error (an audit that never loaded
-// the page has nothing to say) · EXIT.misuse on a bad CLI — a typo'd flag silently scans the wrong
-// surface and reports it clean, so it is a hard error, never an ignored line.
+// the page has nothing to say) · EXIT.toolError when nothing was censused · EXIT.misuse on a bad CLI —
+// a typo'd flag silently scans the wrong surface and reports it clean, so it is a hard error, never an
+// ignored line.
 import process from "node:process";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";

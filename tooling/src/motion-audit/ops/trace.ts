@@ -52,6 +52,9 @@ export async function runAudit(
     animations: await readAnimations(page),
     frames: calibratedDroppedFramePct(traceEvents),
     pageErrors: [],
+    // Kept even when frames are found: an empty population is diagnosed by whether the TRACE was empty
+    // too (lib/evidence.ts) — "nothing composited" and "tracing never ran" need different remedies.
+    traceEventCount: traceEvents.length,
     stepFailed,
     reachFailures: 0,
   };

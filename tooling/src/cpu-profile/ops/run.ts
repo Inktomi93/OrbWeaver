@@ -5,8 +5,10 @@ import { writeFile } from "node:fs/promises";
 import type { ResultPair } from "@orb/tooling/_shared/artifacts";
 import { artifactFile, print, printResult } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
-import type { Args, MeterWindow } from "../contract/types.ts";
+import { instrumentError } from "@orb/tooling/_shared/evidence";
+import type { Args, MeterData, MeterWindow } from "../contract/types.ts";
 import { NAV_TIMEOUT_MS, TRAILING_SETTLE_MS } from "../lib/budgets.ts";
+import { meterApparatusGap, meterEvidenceGaps } from "../lib/evidence.ts";
 import { runSteps } from "./drive.ts";
 import { METER_INIT_JS } from "./meter.ts";
 import { buildReports, printTable } from "./report.ts";
@@ -51,10 +53,23 @@ export async function runCpuProfile(opts: Args): Promise<number> {
     await writeFile(profilePath, JSON.stringify(profile));
   }
 
-  const data = await page.evaluate(() => (globalThis as unknown as MeterWindow).__perfMeter);
+  const data: MeterData | undefined = await page.evaluate(() => (globalThis as unknown as MeterWindow).__perfMeter);
   const pageErrors = session.pageErrors;
   await session.context.close();
   await session.browser.close();
+
+  // ZERO HYGIENE (#409) — the apparatus arm, BEFORE any bucketing: the meter rides an init script and a
+  // page can outlive or replace it. Reading `undefined` here used to reach the bucketer and die as a
+  // bare TypeError stack: an exit code with no diagnosis, which is the same failure as a silent zero.
+  if (data === undefined || data === null) {
+    print(`URL      ${url}`);
+    return instrumentError(meterApparatusGap(url));
+  }
+  const gaps = meterEvidenceGaps(data);
+  if (gaps.length > 0) {
+    print(`URL      ${url}`);
+    return instrumentError(...gaps);
+  }
 
   const reports = buildReports(data);
   // `--out` names a base under reports/perf-meter/ — or, path-shaped, the exact file (_shared/artifacts.ts).

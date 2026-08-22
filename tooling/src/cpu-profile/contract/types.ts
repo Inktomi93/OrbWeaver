@@ -34,7 +34,7 @@ export interface Args {
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
    *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
-  /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
+  /** CLI misuse collected without side effects; any entry means EXIT.misuse (3) before a browser boots. */
   errors: string[];
 }
 
@@ -73,6 +73,11 @@ export interface MeterData {
   readonly shifts: Shift[];
   readonly rafGaps: RafGap[];
   readonly stepMarks: StepMark[];
+  /** The observer types that actually INSTALLED in the page (ops/meter.ts). An empty `longTasks` from a
+   *  quiet page and one from an observer that never attached look identical; this is the difference
+   *  (#409). Optional: a page carrying an OLDER injected meter (`--base` at an old sha) has no field,
+   *  which reads as "unknown", never as "absent". */
+  readonly installed?: readonly string[];
 }
 
 export interface MeterWindow {

@@ -165,7 +165,7 @@ ${appearanceHelpBlock()}
 
 ${themeHelpBlock()}
 
-Exit: 0 clean · 1 step failure / page error · 2 CLI misuse.`;
+Exit: 0 clean · 1 step failure / page error · 2 nothing was metered (absent meter / no steps) · 3 CLI misuse.`;
 
 /** Argv is scanned for misuse BEFORE a browser boots (snap/design-audit's strict-CLI posture). An unknown
  *  flag used to be silently skipped, so a typo'd step metered the landing page and reported it clean. */

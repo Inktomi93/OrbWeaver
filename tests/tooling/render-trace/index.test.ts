@@ -6,7 +6,7 @@
 // escape ever lands in the string; a real terminal would only add codes around the same substrings).
 import process from "node:process";
 import type { RequestTrace, SerializedSpan } from "../../../tooling/src/render-trace/index.ts";
-import { renderTrace } from "../../../tooling/src/render-trace/index.ts";
+import { fireEvidenceGap, renderTrace } from "../../../tooling/src/render-trace/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ANSI_ESCAPE = "\x1b[";
@@ -126,4 +126,24 @@ test("non-TTY output carries no ANSI escape codes (identity path)", () => {
   const out = renderTrace(trace({ status: "error" }));
   expect(process.stdout.isTTY).not.toBe(true);
   expect(out).not.toContain(ANSI_ESCAPE);
+});
+
+// ── ZERO HYGIENE (#409): the fire op's evidence verdict, pure ────────────────────────────────────────
+// The cli-tier arms of this contract live in cli.int.test.ts; `fire` boots a whole server, so its
+// decision is pinned at the pure seam instead.
+
+test("a fire run whose requests carried NO request id is an evidence gap, not a clean skip", () => {
+  // The recorded ruling this changes ("still exit 0 — a missing capability is a skip") survives; its
+  // input changed: the middleware IS wired, so this arm is a live-regression tripwire.
+  const gap = fireEvidenceGap({ fired: 2, missingRid: 2, rendered: 0 });
+  expect(gap?.evidence).toBe("the observability middleware");
+});
+
+test("requests that carried ids but produced NO trace are an evidence gap of their own", () => {
+  expect(fireEvidenceGap({ fired: 2, missingRid: 0, rendered: 0 })?.evidence).toBe("the trace ring");
+});
+
+test("a run that rendered at least one trace has its evidence, and a run that fired nothing is not judged", () => {
+  expect(fireEvidenceGap({ fired: 2, missingRid: 1, rendered: 1 })).toBeNull();
+  expect(fireEvidenceGap({ fired: 0, missingRid: 0, rendered: 0 })).toBeNull();
 });

@@ -6,6 +6,10 @@ export const METER_INIT_JS = `(() => {
     shifts: [],      // {t, value}
     rafGaps: [],     // {t, gap}
     stepMarks: [],   // {idx, label, t}
+    // Which observers actually INSTALLED. Every observe() below is wrapped in a catch that leaves its
+    // bucket empty, and an empty bucket is indistinguishable from a quiet page — so the run needs to
+    // know the difference (#409: absent apparatus must never read as a clean zero).
+    installed: [],
     markStep(idx, label) { this.stepMarks.push({ idx, label, t: performance.now() }); },
   });
   // Prefer LoAF (attributed, not deprecated) over the coarse \`longtask\` type — same pattern as
@@ -25,13 +29,15 @@ export const METER_INIT_JS = `(() => {
           });
         }
       }).observe({ type: "long-animation-frame", buffered: true });
-    } catch (_e) { /* long-animation-frame unsupported despite the feature check — the bucket just stays empty */ }
+      m.installed.push("long-animation-frame");
+    } catch (_e) { /* long-animation-frame unsupported despite the feature check — the bucket stays empty AND unrecorded */ }
   } else {
     try {
       new PerformanceObserver((l) => {
         for (const e of l.getEntries()) m.longTasks.push({ t: e.startTime, dur: e.duration, blockingDuration: null, worstScript: null });
       }).observe({ type: "longtask", buffered: true });
-    } catch (_e) { /* longtask unsupported — the bucket just stays empty */ }
+      m.installed.push("longtask");
+    } catch (_e) { /* longtask unsupported — the bucket stays empty AND unrecorded */ }
   }
   try {
     new PerformanceObserver((l) => {
@@ -45,6 +51,7 @@ export const METER_INIT_JS = `(() => {
         });
       }
     }).observe({ type: "event", durationThreshold: 16, buffered: true });
+    m.installed.push("event");
   } catch (_e) { /* event timing unsupported */ }
   try {
     new PerformanceObserver((l) => {
@@ -52,6 +59,7 @@ export const METER_INIT_JS = `(() => {
         if (!e.hadRecentInput) m.shifts.push({ t: e.startTime, value: e.value });
       }
     }).observe({ type: "layout-shift", buffered: true });
+    m.installed.push("layout-shift");
   } catch (_e) { /* layout-shift unsupported */ }
   // Kept alongside LoAF: LoAF only reports frames >50ms, so this 33ms-threshold rAF-gap loop is
   // the only detector for the 34-49ms dropped-frame band (a full frame budget at 30fps).

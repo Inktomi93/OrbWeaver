@@ -111,7 +111,8 @@ ${themeHelpBlock()}
   --full-motion (is the nice stuff good?). This probe's browser-level reducedMotion:false is the OS
   media query only; it does NOT turn the app's own setting back on.
 
-Exit: 0 pass · 1 budget breach / failed action / page error · 2 CLI misuse.`;
+Exit: 0 pass · 1 budget breach / failed action / page error · 2 nothing was observed (no __orb bridge,
+      no composited frame) · 3 CLI misuse.`;
 
 /** Argv is scanned for misuse BEFORE a browser boots — snap's and design-audit's strict-CLI posture. A
  *  typo'd nav flag used to print "(ignored)" and audit the landing page under the name of the surface the

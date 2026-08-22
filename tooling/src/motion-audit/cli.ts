@@ -19,7 +19,12 @@
 // dropped-frames > 5% (advisory headless). A failed reach action is a FAILED run: the alternative is a
 // smoothness number for the wrong surface.
 //
-// Exit: 0 pass · 1 budget breach / failed action / page error · EXIT.misuse on a bad CLI.
+// ZERO HYGIENE (#409): a run that OBSERVED NOTHING is not a verdict. No `__orb` bridge, no in-page
+// motion snapshot, or an empty frame population (nothing composited in the measured window) exits
+// EXIT.toolError naming what was absent — never `0%` / PASS. lib/evidence.ts carries the receipts.
+//
+// Exit: 0 pass · 1 budget breach / failed action / page error · EXIT.toolError when the evidence was
+// absent · EXIT.misuse on a bad CLI.
 import process from "node:process";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";

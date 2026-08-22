@@ -28,7 +28,7 @@ export interface Args {
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
    *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
-  /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
+  /** CLI misuse collected without side effects; any entry means EXIT.misuse (3) before a browser boots. */
   errors: string[];
 }
 
@@ -93,7 +93,9 @@ export interface TraceEvent {
 export interface FrameTotals {
   readonly total: number;
   readonly dropped: number;
-  readonly pct: number;
+  /** NULL ⇔ `total === 0`: an empty population has no percentage, and reporting 0% there would state a
+   *  smoothness the probe never observed (#409, lib/evidence.ts owns the verdict consequence). */
+  readonly pct: number | null;
 }
 
 /** lib/frames.ts's calibratedDroppedFramePct return — raw, Select-entrance-classified, budgeted. */
@@ -108,6 +110,9 @@ export interface AuditData {
   readonly animations: readonly AnimationRecord[];
   readonly frames: CalibratedFrames;
   readonly pageErrors: readonly string[];
+  /** Every CDP trace event the measured window delivered. Diagnostic only: it separates "the trace ran
+   *  and nothing composited" from "tracing delivered nothing at all" in the absent-evidence message. */
+  readonly traceEventCount: number;
   readonly stepFailed: boolean;
   /** Reach actions that did not land — the run is FAILED, because the window measured another surface. */
   readonly reachFailures: number;
