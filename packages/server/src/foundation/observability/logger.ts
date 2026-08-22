@@ -8,6 +8,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import process from "node:process";
 import { Writable } from "node:stream";
+import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
 import { env } from "#foundation/env";
@@ -18,39 +19,6 @@ type Logger = pino.Logger;
 
 const LOG_RING_CAPACITY = 2000;
 const REQUEST_RING_CAPACITY = 500;
-
-/** Circular buffer of raw serialized log lines. Strings are stored and parsed lazily on query (cheap
- *  writes; the parse cost only happens when someone curls /api/_debug/logs). */
-class LineRing {
-  private readonly buf: (string | undefined)[];
-  private readonly cap: number;
-  private head = 0;
-  private size = 0;
-
-  constructor(cap: number) {
-    this.cap = cap;
-    this.buf = new Array<string | undefined>(cap);
-  }
-
-  push(line: string): void {
-    this.buf[this.head] = line;
-    this.head = (this.head + 1) % this.cap;
-    this.size = Math.min(this.size + 1, this.cap);
-  }
-
-  /** Most-recent-first. */
-  recent(limit: number): string[] {
-    const out: string[] = [];
-    const n = Math.min(limit, this.size);
-    for (let i = 1; i <= n; i += 1) {
-      const line = this.buf[(this.head - i + this.cap) % this.cap];
-      if (line !== undefined) {
-        out.push(line);
-      }
-    }
-    return out;
-  }
-}
 
 /** One entry in the request ring; consumed by `recordRequest`/`recentRequests` + the debug surface. */
 export interface RequestRecord {
@@ -65,39 +33,11 @@ export interface RequestRecord {
   userId?: UserId;
 }
 
-class RequestRing {
-  private readonly buf: (RequestRecord | undefined)[];
-  private readonly cap: number;
-  private head = 0;
-  private size = 0;
-
-  constructor(cap: number) {
-    this.cap = cap;
-    this.buf = new Array<RequestRecord | undefined>(cap);
-  }
-
-  push(record: RequestRecord): void {
-    this.buf[this.head] = record;
-    this.head = (this.head + 1) % this.cap;
-    this.size = Math.min(this.size + 1, this.cap);
-  }
-
-  recent(limit: number): RequestRecord[] {
-    const out: RequestRecord[] = [];
-    const n = Math.min(limit, this.size);
-    for (let i = 1; i <= n; i += 1) {
-      const record = this.buf[(this.head - i + this.cap) % this.cap];
-      if (record !== undefined) {
-        out.push(record);
-      }
-    }
-    return out;
-  }
-}
-
-/** The pino stream-attached ring; the debug surface reads it. ASSUMES(single-replica). */
-export const logRing = new LineRing(LOG_RING_CAPACITY);
-const requestRing = new RequestRing(REQUEST_RING_CAPACITY);
+/** The pino stream-attached ring of raw serialized log lines — strings in, parsed lazily on query (cheap
+ *  writes; the parse cost only happens when someone curls /api/_debug/logs). The debug surface reads it.
+ *  ASSUMES(single-replica). */
+export const logRing = createBoundedRing<string>(LOG_RING_CAPACITY);
+const requestRing = createBoundedRing<RequestRecord>(REQUEST_RING_CAPACITY);
 
 export function recordRequest(record: RequestRecord): void {
   requestRing.push(record);

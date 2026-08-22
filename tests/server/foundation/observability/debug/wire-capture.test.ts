@@ -48,6 +48,33 @@ describe("wire-capture recorder", () => {
     expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), limit: 2 })).toHaveLength(2);
   });
 
+  // THE PLANTED-EVICTION PIN (#414): the recorder's cap and eviction ORDER, asserted through the public
+  // sink+read rather than the ring's internals — the property that had to survive the move onto
+  // @orb/kit/bounded-ring byte-for-byte. 256 is the recorder's own capacity constant; the pin derives it
+  // from the observed plateau instead of re-spelling it, so a deliberate cap change re-reads honestly.
+  test("EVICTION: pushing past the ring capacity drops the OLDEST captures and the tail stays newest-first", () => {
+    const chat = castId<ChatId>("chat_evict");
+    for (let i = 0; i < 300; i += 1) {
+      capture(chat, "vllm", { n: i });
+    }
+    const all = recentWireCaptures({ chatId: chat, limit: 10_000 });
+    expect(all.length).toBeLessThan(300); // the ring is BOUNDED — it did not grow to hold every push
+    expect(all.map((c) => c.body["n"])).toEqual(Array.from({ length: all.length }, (_, i) => 299 - i));
+    // and the evicted head is genuinely gone, not merely unread
+    expect(all.some((c) => c.body["n"] === 0)).toBe(false);
+  });
+
+  test("a FILTERED read scans PAST non-matches to fill its limit (the lazy newest-first door)", () => {
+    const wanted = castId<ChatId>("chat_w");
+    const other = castId<ChatId>("chat_o");
+    // Interleave so the newest 20 records contain only 10 matches — a pre-sliced tail would under-report.
+    for (let i = 0; i < 10; i += 1) {
+      capture(wanted, "vllm", { n: i });
+      capture(other, "vllm", { n: i });
+    }
+    expect(recentWireCaptures({ chatId: wanted, limit: 10 }).map((c) => c.body["n"])).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+  });
+
   test("resetWireCaptures clears the ring (test isolation — no cross-row bleed)", () => {
     capture(castId<ChatId>("chat_a"), "vllm");
     resetWireCaptures();

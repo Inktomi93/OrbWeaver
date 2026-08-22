@@ -8,7 +8,7 @@
 // allowlist can't rot. Keys on the `Dialog` root import only — a file using DialogClose/DialogTitle INSIDE a
 // FormDialog (the composite renders the root) is legal and never trips this.
 import type { Node, SourceFile } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const DIALOG_MODULE = "@orb/ui/dialog";
@@ -25,23 +25,30 @@ const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
 /** Sanctioned NON-form (or genuinely-divergent) Dialog species → the cited reason it stays raw. A stale
  *  entry (the file no longer imports Dialog — it migrated onto FormDialog/ConfirmDialog) REDs via
  *  `finalize`, so this can't rot. */
-const ALLOWLIST: Record<string, string> = {
-  "packages/client/src/features/app-shell/components/modal-host.tsx":
-    "the shell's ONE generic modal seam — renders arbitrary registry-owned modal bodies (+ a drawer presentation) in a Dialog; not a form/prompt.",
-  "packages/client/src/features/chat/components/rename-chat-dialog.tsx":
-    "§13.4 single-rename carve-out; the chat lane is held untouched this wave (active parallel work) — revisit onto FormDialog's prompt mode when the lane is free.",
-  "packages/client/src/features/chat/components/invite-dialog.tsx": "§13.4 invite species; the chat lane is held untouched this wave.",
-  "packages/client/src/features/chat/anchors/join-invite-dialog.tsx":
-    "the /join preview→confirm landing (loading/invalid/ready states) — a multi-state flow, not a form; chat lane.",
-  "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx": "a character-gallery picker surface (owns its Dialog root); chat lane.",
-  "packages/client/src/features/chat/components/member-card-viewer.tsx":
-    "the D22 read-only, level-clamped member card VIEWER (getMemberCard) — a content-display species like character-gallery-dialog/readable-overlay: no bound fields, a single Close, owns its Dialog root.",
-  "packages/client/src/features/chat/components/variant-wire-viewer.tsx":
-    "the RAWVIEW per-variant wire INSPECTOR (getVariantWire) — the member-card-viewer content-display species exactly: a host-only read-only readout of the prompt a past turn sent, no bound fields, a single Close, owns its Dialog root.",
-  "packages/client/src/features/preset/components/variable-editor-dialog.tsx":
-    "a bound-field form with a PINNED title above an internally-scrolled body (7 fields + a dynamic option list); FormDialog's single-Stack shell can't preserve the pinned-title scroll — divergent, kept raw with this citation.",
-  "packages/client/src/features/rpg/components/rpg-scene-cards.tsx":
-    "the P4 card-archive VIEWER (parity-plus §4.7): opens an archived ImmersiveCard in a lightbox-style dialog — the readable-overlay content-display species, not a form/prompt; no bound fields.",
+const ALLOWLIST: ExemptionTable = {
+  "packages/client/src/features/app-shell/components/modal-host.tsx": {
+    why: "the shell's ONE generic modal seam — renders arbitrary registry-owned modal bodies (+ a drawer presentation) in a Dialog; not a form/prompt.",
+  },
+  "packages/client/src/features/chat/components/rename-chat-dialog.tsx": {
+    why: "§13.4 single-rename carve-out; the chat lane is held untouched this wave (active parallel work) — revisit onto FormDialog's prompt mode when the lane is free.",
+  },
+  "packages/client/src/features/chat/components/invite-dialog.tsx": { why: "§13.4 invite species; the chat lane is held untouched this wave." },
+  "packages/client/src/features/chat/anchors/join-invite-dialog.tsx": {
+    why: "the /join preview→confirm landing (loading/invalid/ready states) — a multi-state flow, not a form; chat lane.",
+  },
+  "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx": { why: "a character-gallery picker surface (owns its Dialog root); chat lane." },
+  "packages/client/src/features/chat/components/member-card-viewer.tsx": {
+    why: "the D22 read-only, level-clamped member card VIEWER (getMemberCard) — a content-display species like character-gallery-dialog/readable-overlay: no bound fields, a single Close, owns its Dialog root.",
+  },
+  "packages/client/src/features/chat/components/variant-wire-viewer.tsx": {
+    why: "the RAWVIEW per-variant wire INSPECTOR (getVariantWire) — the member-card-viewer content-display species exactly: a host-only read-only readout of the prompt a past turn sent, no bound fields, a single Close, owns its Dialog root.",
+  },
+  "packages/client/src/features/preset/components/variable-editor-dialog.tsx": {
+    why: "a bound-field form with a PINNED title above an internally-scrolled body (7 fields + a dynamic option list); FormDialog's single-Stack shell can't preserve the pinned-title scroll — divergent, kept raw with this citation.",
+  },
+  "packages/client/src/features/rpg/components/rpg-scene-cards.tsx": {
+    why: "the P4 card-archive VIEWER (parity-plus §4.7): opens an archived ImmersiveCard in a lightbox-style dialog — the readable-overlay content-display species, not a form/prompt; no bound fields.",
+  },
 };
 
 function rel(path: string): string {

@@ -24028,9 +24028,9 @@
       "path": "docs/reviews/tooling/2026-08-22-gate-stance-census.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 297,
-      "bytes": 29531,
-      "sha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
+      "lines": 371,
+      "bytes": 35732,
+      "sha256": "958b6b9501c10f71f09307a0a8f1670f625450637c1ca4d18131963bc5886624",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -24043,19 +24043,20 @@
       },
       "receipt": {
         "path": "docs/reviews/tooling/2026-08-22-gate-stance-census.md",
-        "assignedSha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
+        "assignedSha256": "958b6b9501c10f71f09307a0a8f1670f625450637c1ca4d18131963bc5886624",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
-        "verifiedCommit": "aabad445994dc02fd866faef511da0d987bfa9a7",
+        "verifiedSha256": "958b6b9501c10f71f09307a0a8f1670f625450637c1ca4d18131963bc5886624",
+        "verifiedCommit": "a61b267bb9378563b362a421856c078df39690a0",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
           "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
           "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
           "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
-          "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)"
+          "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)",
+          "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section — 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
         ],
         "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
         "claims": [

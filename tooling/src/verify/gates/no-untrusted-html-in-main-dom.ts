@@ -9,19 +9,24 @@
 // standing answer to "where may raw HTML go", not a live-usage claim. The arm self-guards on a REAL-TREE
 // ANCHOR (gate-hub #11): the token vocabulary, which a conformance mini-project never carries by accident.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { repoRel } from "../lib/pass.ts";
+import { reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const SCOPE = /\/packages\/(?:client|ui)\/src\//u;
-/** The two seal homes, named individually so the stale arm can name the dead one. */
-const EXEMPT_ZONES: readonly RegExp[] = [/\/packages\/ui\/src\/markdown\//u, /\/packages\/ui\/src\/content\/sandbox-frame\//u];
+/** The two seal homes — SCANNED, exempted by a cited row, swept by the shared rename tripwire. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/ui/src/markdown/": {
+    why: "the sanitized markdown seal — the architecture's standing answer to 'where may rendered HTML go', whether or not it spells the injection today (it currently goes through Streamdown's sanitized render). Ends when the seal moves: the rename tripwire reds the row at its dead path",
+  },
+  "packages/ui/src/content/sandbox-frame/": {
+    why: "the sandboxed iframe host (srcdoc + per-frame CSP) — the other sanctioned destination for untrusted HTML, same standing permission and the same end condition",
+  },
+};
 
 const GATE_SELF = "tooling/src/verify/gates/no-untrusted-html-in-main-dom.ts";
 /** Real-tree anchor (gate-hub #11). */
 const ANCHOR = "packages/ui/src/tokens/index.ts";
-const STALE_PREFIX =
-  "stale EXEMPT zone — the pattern matches NO file in the project (ratchet down): the seal home it named " +
-  "was renamed or deleted, so the row exempts nothing while reading as live law. Re-point or delete it: ";
 
 export const gate: GateDescriptor = {
   name: "no-untrusted-html-in-main-dom",
@@ -31,13 +36,13 @@ export const gate: GateDescriptor = {
   message:
     "dangerouslySetInnerHTML in the app DOM — untrusted HTML MUST go through <SandboxFrame> (sandboxed iframe + per-frame CSP) or the sanitized @orb/ui/markdown seal (D44 — UI-Theming-and-Content.md §12.2). Never inject raw HTML into the main document.",
   fix: "use <SandboxFrame> or the @orb/ui/markdown seal",
-  scanRoot: (p) => {
-    const full = `/${p}`;
-    return SCOPE.test(full) && !EXEMPT_ZONES.some((zone) => zone.test(full));
-  },
+  scanRoot: (p) => SCOPE.test(`/${p}`),
   kinds: [SyntaxKind.JsxAttribute],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
     if (!Node.isJsxAttribute(node)) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     if (node.getNameNode().getText() === "dangerouslySetInnerHTML") {
@@ -45,20 +50,7 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    const paths = ctx.project.getSourceFiles().map((sf) => sf.getFilePath() as string);
-    for (const zone of EXEMPT_ZONES) {
-      if (!paths.some((p) => zone.test(p))) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_PREFIX}${zone.source} — the zone list lives in tooling/src/verify/gates/no-untrusted-html-in-main-dom.ts`,
-        });
-      }
-    }
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "raw-HTML seal", anchor: ANCHOR });
   },
   mustFlag: [
     {
@@ -71,15 +63,15 @@ export const gate: GateDescriptor = {
         [ANCHOR]: "export const tokens = {};\n",
         "packages/ui/src/markdown/index.tsx": "export const M = null;\n",
       },
-      expect: { count: 1, messageIncludes: "stale EXEMPT zone" },
-      why: "THE STALE ARM: the anchor is loaded and the markdown seal still matches a file, but the sandbox-frame zone matches none — that row exempts nothing and ratchets down",
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the anchor is loaded and the markdown seal still resolves, but the sandbox-frame home resolves to no file — that row exempts nothing and ratchets down",
     },
   ],
   mustPass: [
     {
       files: "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n",
       at: "packages/ui/src/markdown/index.tsx",
-      why: "exempt markdown seal",
+      why: "THE ALLOWLIST ITSELF: the markdown seal is now SCANNED and its injection passes only on a cited SANCTIONED_HOMES row",
     },
     {
       files: "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n",
@@ -92,7 +84,7 @@ export const gate: GateDescriptor = {
         "packages/ui/src/markdown/index.tsx": "export const M = null;\n",
         "packages/ui/src/content/sandbox-frame/index.tsx": "export const S = null;\n",
       },
-      why: "both seal homes STILL EARNED, judged against the real-tree anchor: each matches a live file, so the stale arm stays quiet",
+      why: "both seal homes STILL EARNED, judged against the real-tree anchor: each resolves to a live file, so the tripwire stays quiet",
     },
   ],
 };

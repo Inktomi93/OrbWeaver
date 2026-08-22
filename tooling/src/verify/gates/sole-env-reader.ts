@@ -9,12 +9,25 @@
 // exception if role-policy.ts itself has left the project. The arm self-guards on a REAL-TREE ANCHOR
 // (gate-hub #11): `foundation/env/index.ts`, the home this gate exists to protect — a conformance
 // mini-project only has it when an example materializes it deliberately.
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): foundation/env is SCANNED and exempted by a cited
+// row plus the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home follows its old path
+// into the void the day it moves, and the new sole reader is judged by nobody. The tripwire anchors on the
+// SHARED anchor, never on this gate's ANCHOR: that file is INSIDE the home, so it would take its own guard
+// down with it.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
-const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//u;
 const GATE_SELF = "tooling/src/verify/gates/sole-env-reader.ts";
+
+/** The ONE home that may touch process.env — everything else imports the frozen `env`. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/server/src/foundation/env/": {
+    why: "THE sole reader (Tier-2-Foundation.md inv #1) — it is what freezes `env` for every other tier, so it cannot violate its own rule. Ends when the env home moves: the rename tripwire reds the row at its dead path instead of letting the exemption follow it",
+  },
+};
 /** Real-tree anchor (gate-hub #11): the frozen-env home itself. */
 const ANCHOR = "packages/server/src/foundation/env/index.ts";
 const ROLE_POLICY_REL = "packages/server/src/domain/sessions/substrate/role-policy.ts";
@@ -79,10 +92,13 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: SOLE_ENV_MESSAGE,
   fix: "import the frozen `env` from foundation/env and dot-access a typed key; foundation/env is the ONE place that touches process.env.",
-  scanRoot: (p) => p.includes("packages/server/src/") && !ENV_HOME.test(`/${p}`),
+  scanRoot: (p) => p.includes("packages/server/src/"),
   kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
   visit: (node, sf, ctx) => {
     if (!isProcessEnvAccess(node)) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     if (ROLE_POLICY.test(sf.getFilePath()) && isSanctionedRolePolicyRead(node)) {
@@ -94,6 +110,7 @@ export const gate: GateDescriptor = {
     seenKeys.clear();
   },
   finalize: (ctx) => {
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "sole process.env reader" });
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
@@ -138,8 +155,20 @@ export const gate: GateDescriptor = {
       expect: { count: 1, messageIncludes: "stale exception" },
       why: "the coarser staleness: the sanctioned reader file itself is gone, so the whole ROLE_POLICY exception is dead — reported ONCE instead of one-per-key",
     },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but foundation/env/ resolves to no file — the env home moved, which the old scanRoot exclusion could not see at all",
+    },
   ],
   mustPass: [
+    {
+      files: 'export const env = Object.freeze({ ok: process.env["OK"] });\n',
+      at: "packages/server/src/foundation/env/read.ts",
+      why: "THE ALLOWLIST ITSELF: the sole reader is now SCANNED and passes only because a cited SANCTIONED_HOMES row covers foundation/env/ — deliberately NOT at the gate's own ANCHOR path, so neither stale arm is armed here",
+    },
     {
       files: "// process.env is only read in foundation/env (inv #1)\nexport const x = 1;\n",
       at: "packages/server/src/domain/hub/z.ts",

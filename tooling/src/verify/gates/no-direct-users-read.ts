@@ -9,20 +9,33 @@
 // no longer touches identity is a licence waiting to be used). The arm self-guards on a REAL-TREE ANCHOR
 // (gate-hub #11): the identity root's own schema file, which a conformance mini-project only has when an
 // example materializes it deliberately.
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the two identity domains are SCANNED and exempted
+// by cited rows, not scoped out of scanRoot — a carve-out keyed on a path that no longer exists is
+// unfalsifiable, and the shared RENAME TRIPWIRE (mode B) is what makes it falsifiable.
 import type { ImportSpecifier } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { homeFiles, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const TABLE = "users";
 const DB_SPECIFIER = /^@orb\/db(?:\/|$)/u;
 const MESSAGE =
   "the 'users' table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read chokepoint — Spine-Identity-and-Auth.md). Every other domain takes userId from the resolved Principal (the injected context) — never query users directly.";
 const MSG_DIR = /packages\/server\/src\/domain\//u;
-/** The TWO sanctioned identity domains (Spine-Identity-and-Auth.md): sessions writes on the resolution
- *  path, admin does user management. Named individually so the stale arm can name the dead one. */
-const EXEMPT_DOMAINS = ["sessions", "admin"] as const;
 const DOMAIN_ROOT = "packages/server/src/domain/";
+
+/** The TWO sanctioned identity domains (Spine-Identity-and-Auth.md): sessions writes on the resolution
+ *  path, admin does user management. Keyed by PATH so both staleness modes can name the dead one. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  [`${DOMAIN_ROOT}sessions/`]: {
+    why: "the resolution-path writer — it is what turns a session into the Principal every other domain reads userId from, so it must touch the identity root. Ends when sessions stops importing `users` (mode A) or moves (mode B)",
+  },
+  [`${DOMAIN_ROOT}admin/`]: {
+    why: "user MANAGEMENT (role grants, the owner/admin surface) is the other sanctioned reader. Same two end conditions",
+  },
+};
 
 const GATE_SELF = "tooling/src/verify/gates/no-direct-users-read.ts";
 /** Real-tree anchor (gate-hub #11): the identity root's own schema file. */
@@ -47,31 +60,32 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "take userId from the resolved Principal (the injected context); the `users` table is read/written ONLY by domain/sessions + domain/admin.",
-  scanRoot: (p) => MSG_DIR.test(p) && !EXEMPT_DOMAINS.some((d) => p.includes(`${DOMAIN_ROOT}${d}/`)),
+  scanRoot: (p) => MSG_DIR.test(p),
   kinds: [SyntaxKind.ImportSpecifier],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
+      return;
+    }
     if (Node.isImportSpecifier(node) && isUsersFromDb(node)) {
       ctx.report(node, { token: TABLE, offset: 0 });
     }
   },
-  // The exempt domains are scanRoot-EXCLUDED, so the walk never sees them — the stale arm reads them off
-  // the shared project directly.
   finalize: (ctx) => {
+    // MODE B (the rename tripwire) — a carve-out whose domain dir resolves to nothing.
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "sanctioned identity domain", anchor: ANCHOR });
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
-    for (const domain of EXEMPT_DOMAINS) {
-      const prefix = `${ctx.root}/${DOMAIN_ROOT}${domain}/`;
-      const reads = ctx.project
-        .getSourceFiles()
-        .filter((sf) => sf.getFilePath().startsWith(prefix))
-        .some((sf) => sf.getDescendantsOfKind(SyntaxKind.ImportSpecifier).some((spec) => isUsersFromDb(spec)));
-      if (!reads) {
+    // MODE A — the domain exists but no longer reads `users`, so its sanctioned-reader claim is dead.
+    for (const key of Object.keys(SANCTIONED_HOMES)) {
+      const files = homeFiles(ctx, key);
+      const reads = files.some((sf) => sf.getDescendantsOfKind(SyntaxKind.ImportSpecifier).some((spec) => isUsersFromDb(spec)));
+      if (files.length > 0 && !reads) {
         ctx.report({
           file: GATE_SELF,
           line: 1,
           column: 0,
-          message: `${STALE_PREFIX}"${domain}" — delete the row in tooling/src/verify/gates/no-direct-users-read.ts`,
+          message: `${STALE_PREFIX}"${key}" — delete the row in tooling/src/verify/gates/no-direct-users-read.ts`,
         });
       }
     }
@@ -87,8 +101,17 @@ export const gate: GateDescriptor = {
         [ANCHOR]: 'export const users = sqliteTable("users", {});\n',
         "packages/server/src/domain/sessions/persistence/users.ts": 'import { users } from "@orb/db";\nexport const u = users;\n',
       },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "MODE B (the rename tripwire): the anchor is loaded and sessions still reads `users`, while admin resolves to NO file — the carve-out names a domain that is gone. Exactly ONE finding: mode A is guarded on the home having files, so the two arms never double-report the same row",
+    },
+    {
+      files: {
+        [ANCHOR]: 'export const users = sqliteTable("users", {});\n',
+        "packages/server/src/domain/sessions/persistence/users.ts": 'import { users } from "@orb/db";\nexport const u = users;\n',
+        "packages/server/src/domain/admin/verbs/set-role.ts": "export const setRole = null;\n",
+      },
       expect: { count: 1, messageIncludes: "stale EXEMPT_DOMAINS row" },
-      why: "THE STALE ARM: the anchor (the identity root's schema) is loaded; sessions still reads `users` and keeps its carve-out, admin reads none — that row's sanctioned-reader claim is dead and ratchets down",
+      why: "MODE A alone: admin still EXISTS but imports no `users` symbol any more — its sanctioned-reader claim is dead and the carve-out is just a standing licence",
     },
   ],
   mustPass: [
@@ -100,7 +123,7 @@ export const gate: GateDescriptor = {
     {
       files: 'import { users } from "@orb/db";\nexport const u = users;\n',
       at: "packages/server/src/domain/sessions/x.ts",
-      why: "the `users` import in an EXEMPT domain (sessions — the resolution-path writer) — the carve-out, passes; with no anchor in this project the stale arm stays silent (THE ANCHOR GUARD)",
+      why: "THE ALLOWLIST ITSELF: the `users` import in a sanctioned identity domain (sessions — the resolution-path writer) is now SCANNED and passes on a cited row; with no anchor in this project both stale arms stay silent (THE ANCHOR GUARD)",
     },
     {
       files: {

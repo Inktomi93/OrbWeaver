@@ -5,7 +5,7 @@
 // `ownerId` on an unlisted table is a doubling — RED with the D23 cite; a stale allowlist entry is also RED (two-direction ratchet).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
@@ -15,36 +15,40 @@ const TABLE_FN = "sqliteTable";
 /** SQL table names sanctioned to carry an `ownerId` column, each with its ledger justification. The
  *  gate is measured against reality: a NEW ownerId on a table NOT here is RED; a listed table with NO
  *  ownerId column anywhere is a STALE entry (RED). Verified against packages/db/src/schema at landing. */
-export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
+export const OWNERID_ALLOWLIST: ExemptionTable = {
   // TRUE PRODUCERS (D23 KEEP)
-  characters: "D23 true producer",
-  personas: "D23 true producer",
-  presets: "D23 true producer (nullable — the shared system default)",
-  world_books: "D23 true producer",
-  regex_scripts: "D23 true producer (D121-E — the regex SCRIPT LIBRARY; a script is authored with no owning parent to derive through)",
-  refinery_schemas:
-    "D23 true producer (R3/SF0 — the custom payload-schema LIBRARY; a schema is authored library tooling with no owning parent to derive through, the presets shape)",
-  tags: "D23 true producer",
-  user_credentials: "D23 true producer",
-  workloads: "D23 true producer",
-  workload_schedules: "D23 true producer (a user-authored recurring-run config; no owned anchor to derive from — the TIME dimension over the workloads queue)",
-  documents: "D49 databank producer / D23 top-level owned canon",
-  themes: "D23 generalized producer list (themes) / D44/D63",
-  assets: "D21 single-owned (per-user, fetchOwned)",
-  automation_rules: "D46 host-authored rule (runs as its author)",
-  global_variables: "D46 per-user cross-chat KV (fetchOwned)",
-  plugins: "D46 true producer (the installing principal's per-user plugin registry; a plugin runs as its owner)",
-  plugin_kv:
-    "D46 denormalized guard on the plugin_id partition — the belt WHERE (plugin_id, owner_id) makes a cross-owner KV read structurally impossible even if a plugin_id were reused (plugin-design/02 §3); owner also drives the user-hard-delete cascade",
+  characters: { why: "D23 true producer" },
+  personas: { why: "D23 true producer" },
+  presets: { why: "D23 true producer (nullable — the shared system default)" },
+  world_books: { why: "D23 true producer" },
+  regex_scripts: { why: "D23 true producer (D121-E — the regex SCRIPT LIBRARY; a script is authored with no owning parent to derive through)" },
+  refinery_schemas: {
+    why: "D23 true producer (R3/SF0 — the custom payload-schema LIBRARY; a schema is authored library tooling with no owning parent to derive through, the presets shape)",
+  },
+  tags: { why: "D23 true producer" },
+  user_credentials: { why: "D23 true producer" },
+  workloads: { why: "D23 true producer" },
+  workload_schedules: {
+    why: "D23 true producer (a user-authored recurring-run config; no owned anchor to derive from — the TIME dimension over the workloads queue)",
+  },
+  documents: { why: "D49 databank producer / D23 top-level owned canon" },
+  themes: { why: "D23 generalized producer list (themes) / D44/D63" },
+  assets: { why: "D21 single-owned (per-user, fetchOwned)" },
+  automation_rules: { why: "D46 host-authored rule (runs as its author)" },
+  global_variables: { why: "D46 per-user cross-chat KV (fetchOwned)" },
+  plugins: { why: "D46 true producer (the installing principal's per-user plugin registry; a plugin runs as its owner)" },
+  plugin_kv: {
+    why: "D46 denormalized guard on the plugin_id partition — the belt WHERE (plugin_id, owner_id) makes a cross-owner KV read structurally impossible even if a plugin_id were reused (plugin-design/02 §3); owner also drives the user-hard-delete cascade",
+  },
   // PARENTLESS PER-USER AGGREGATES (D23 KEEP)
-  owner_stats: "D23 parentless per-user aggregate",
-  daily_stats: "D23 parentless per-user aggregate (×day)",
-  model_stats: "D23 parentless per-user aggregate (×model)",
-  keyword_cooccurrence: "D23 parentless per-user aggregate (×keyword-pair)",
-  theme_clusters: "D23 parentless per-user aggregate (×cluster)",
+  owner_stats: { why: "D23 parentless per-user aggregate" },
+  daily_stats: { why: "D23 parentless per-user aggregate (×day)" },
+  model_stats: { why: "D23 parentless per-user aggregate (×model)" },
+  keyword_cooccurrence: { why: "D23 parentless per-user aggregate (×keyword-pair)" },
+  theme_clusters: { why: "D23 parentless per-user aggregate (×cluster)" },
   // SCOPE-SUBJECT (D23 "no derivable owner → KEEP")
-  chat_tags: "D30 per-user overlay on an ownerless chat (the tagger IS the owner)",
-  global_documents: "D49 personal-bank scope junction (the ownerId IS the scope subject)",
+  chat_tags: { why: "D30 per-user overlay on an ownerless chat (the tagger IS the owner)" },
+  global_documents: { why: "D49 personal-bank scope junction (the ownerId IS the scope subject)" },
 };
 const STALE_MESSAGE = (table: string): string =>
   `OWNERID_ALLOWLIST names "${table}" but no schema table of that name carries an \`ownerId\` column — ` +
