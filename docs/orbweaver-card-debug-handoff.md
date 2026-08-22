@@ -1,7 +1,7 @@
 ---
 kind: handoff
 status: superseded
-updated: 2026-08-14
+updated: 2026-08-22
 ---
 
 # Orbweaver — immersive-card debugging handoff
@@ -34,9 +34,9 @@ Note: global KISS/YAGNI is **suspended** in this repo — build maximal, not min
 | fact | value |
 | - | - |
 | start command | `pnpm stack up prod` |
-| under it | `NODE_ENV=production node packages/server/src/entry/index.ts` (= `pnpm start`, foreground) |
+| under it | `NODE_ENV=production node packages/server/src/entry/index.ts` — the same spawn in the FOREGROUND is `pnpm stack start-fg prod` |
 | port | `8788`, public at `https://orbweaver.inktomi.tech` |
-| supervisor | `scripts/dev/stack-prod.ts` owns the lifecycle (spawn / identity-verified adopt / bounded-drain stop). There is still no *restart-on-crash* supervisor: if the process dies, nothing brings it back. |
+| supervisor | `tooling/src/stack/ops/prod-entry.ts` (+ `prod-up.ts`/`prod-down.ts`) owns the lifecycle (spawn / identity-verified adopt / bounded-drain stop). There is still no *restart-on-crash* supervisor: if the process dies, nothing brings it back. |
 | pidfile | `.cache/stack/prod.json` — pid + pgid + port + /proc start-ticks + debug flag |
 | logs | `.cache/stack/prod.log` |
 | env | `.env` in repo root, read at boot via `node:util`'s `parseEnv` (dotenv was removed) |
@@ -66,8 +66,12 @@ anything unclassifiable **exits 2 with usage and touches nothing**. Three refusa
 | you typed | what happens |
 | - | - |
 | `restart --force prod` | **refused.** `--force` is dev-only: it SIGKILLs whatever holds :8788/:5173 *and the whole detached vLLM fleet*, ignoring ownership. Prod only ever signals an instance whose identity it proved. Stop the port holder yourself, then `stack up prod`. |
-| `start-fg prod` / `_leader prod` | **refused** — dev-only internals (the Playwright webServer entry and the setsid re-exec target). Prod has no foreground vite and detaches its own server. |
+| `_leader prod` | **refused** — `_leader` is the DEV-ONLY setsid re-exec target, and prod has no setsid leader: its supervisor either detaches the server itself (`up prod`) or runs it in this terminal (`start-fg prod`). |
 | `up --build` (dev) | **refused** — `--build` is prod-only; the vite dev server needs no bundle. |
+
+`start-fg prod` is **not** a refusal — it is the FOREGROUND on-box production run (`NODE_ENV=production node
+packages/server/src/entry/index.ts` in this terminal, no pidfile, Ctrl-C stops it) that replaced the removed
+`pnpm start`. Only `start-fg`'s DEV arm is the Playwright webServer entrypoint.
 
 **Run from anywhere.** The supervisor derives the repo root from its own file location, so the two cwd
 traps that used to bite (`.env` and `CLIENT_DIST_DIR` are both cwd-relative) are closed by construction.
@@ -96,7 +100,8 @@ traps that used to bite (`.env` and `CLIENT_DIST_DIR` are both cwd-relative) are
 
 - There is **no root `build` script**. The only build in this repo is `@orb/client`'s `vite build`; the
   server has no build step at all.
-- `pnpm start` runs the same server in the FOREGROUND — fine for a quick check, wrong for leaving it up.
+- `pnpm stack start-fg prod` runs the same server in the FOREGROUND — fine for a quick check, wrong for
+  leaving it up. (It replaced the removed `pnpm start` script.)
 - Restarting prod drops live SSE connections and disconnects any player.
 
 ---
@@ -151,7 +156,7 @@ check.
 ## 1c. Who else spawns a stack on this box
 
 Reference for reading `ss` output and for understanding why `stack up prod` refuses what it refuses. The
-machine-readable copy is `STACK_SPAWNERS` in `scripts/dev/_kit/stack-mode.ts` (status uses it to *name* a
+machine-readable copy is `STACK_SPAWNERS` in `tooling/src/stack/lib/spawners.ts` (status uses it to *name* a
 foreign port holder instead of printing a bare pid).
 
 | spawner | server | vite | how to tell it apart |
@@ -475,7 +480,7 @@ When you find something new: add it to the dogfood doc, not here.
 ## Appendix A — DEMOTED: the manual incantations `pnpm stack … prod` replaces
 
 > **Do not use these.** They are kept only so you can recognise them in older notes, and as a break-glass
-> fallback if `scripts/dev/stack-prod.ts` is itself the thing that is broken. Every one of them has a
+> fallback if `tooling/src/stack/ops/prod-entry.ts` is itself the thing that is broken. Every one of them has a
 > failure mode the supervisor now closes; those are named per block.
 
 ### A.1 Manual production launch (replaced by `pnpm stack up prod`)
