@@ -75,7 +75,7 @@ test("resolveFixtureTarget keeps the default port when the override URL is unpar
 // ── the shell/TS hand-lockstep (the ports live in two files by necessity) ────────────────────────────────
 
 test("the fixture launcher script binds the SAME offset pair these constants mirror", () => {
-  const script = readFileSync(join(REPO_ROOT, "scripts", "dev", "multi-user-fixture.sh"), "utf8");
+  const script = readFileSync(join(REPO_ROOT, "tooling", "src", "stack", "multi-user-fixture.sh"), "utf8");
   expect(script).toContain(`export PORT="\${FIXTURE_PORT:-${FIXTURE_SERVER_PORT}}"`);
   expect(script).toContain(`export VITE_PORT="\${FIXTURE_VITE_PORT:-${FIXTURE_VITE_PORT}}"`);
   // Its own pidfile dir — without it a second stack from this tree clobbers the dev stack's pgid.

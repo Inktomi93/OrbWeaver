@@ -52,10 +52,25 @@
 
 ### Operator one-offs
 
-`dev/sandbox.sh` (`pnpm sandbox`) · `dev/vllm-setup.sh` · `dev/oracle-steady-clone.sh` ·
-`dev/multi-user-fixture.sh` · `probes/history-system-rows.ts` (`pnpm probe:history-system-rows`, the
-D69 capability measurement) · `mutation/arid-ignorer.ts` (the Stryker `PluginKind.Ignore` plugin —
-`Spine-Testing.md` §"An ARID mutant is not a test failure").
+`dev/sandbox.sh` (`pnpm sandbox`) · `dev/oracle-steady-clone.sh` · `probes/history-system-rows.ts`
+(`pnpm probe:history-system-rows`, the D69 capability measurement) · `mutation/arid-ignorer.ts` (the
+Stryker `PluginKind.Ignore` plugin — `Spine-Testing.md` §"An ARID mutant is not a test failure").
+
+Both survivors are HAND-RUN ONLY, re-derived 2026-08-22 (#421): `sandbox.sh` is reached solely by its
+`pnpm sandbox` alias and runs on the HOST to launch `.devcontainer/`; `oracle-steady-clone.sh` is the
+retired neo-parity campaign's capture rig — it needs an external neo-tavern working tree, no tool or
+test executes it, and its only citations are the prose lines naming it as the regeneration procedure
+for the committed `tests/support/fixtures/parity/neo-reference.json`
+(`tests/support/parity-runner.ts:5`, the fixture's own `$comment`).
+
+## Tool dependencies that LEFT this zone
+
+`dev/multi-user-fixture.sh` and `dev/vllm-setup.sh` moved to `tooling/src/stack/` on 2026-08-22
+(#421). Neither was research: `engines.sh` CALLS `vllm-setup.sh` (first-run venv bootstrap, and the
+gpu image copies it), and `multi-user-fixture.sh` is contract-referenced by the stack tool, the seed
+tool's `multi-user` verb (its env contract) and snap's fixture door — tooling reaching UP into
+`scripts/` is the inversion the zone split exists to forbid. Their front door is now
+`pnpm fixture <verb>` and `pnpm engines` (never a path).
 
 ### Server runtime data that USED to live here
 

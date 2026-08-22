@@ -4,7 +4,7 @@
 import type { StackSpawner } from "../contract/types.ts";
 
 /** Sources: tooling/src/stack/stack.sh (dev), tooling/src/snap/ops/stage.ts (snap stage offsets),
- *  scripts/dev/multi-user-fixture.sh, tests/e2e/support/modes.ts (the three auth-mode projects + the
+ *  tooling/src/stack/multi-user-fixture.sh, tests/e2e/support/modes.ts (the three auth-mode projects + the
  *  fixture provider), playwright-ct.config.ts. PROD deliberately shares the dev SERVER port: they are two
  *  ways to serve the same app on this box and must never run at once — `classifyInstance` turns that into
  *  a loud refusal instead of a race. */
