@@ -72,6 +72,15 @@ export function checkAccentBorder(input: AccentBorderInput): Finding[] {
   if (input.statusContext) {
     return [];
   }
+  // RATIFIED (owner, 2026-08-22, issue #485): the `@orb/ui` ListRow selected-row left accent — a 2px
+  // `border-l-primary` on a `rounded-control` row (packages/ui/src/primitives/list-row/variants.ts) — is
+  // the app-wide SELECTION idiom, not a decorative card tell, so it is exempt from both §6 accent-border
+  // bans. The sample's predicate is deliberately BOTH halves (slot identity AND `data-selected`): an
+  // unselected list row wearing a hardcoded accent, and any non-ListRow rounded box with a left edge,
+  // stay judged — that is what keeps this exemption from widening into the rule's real target.
+  if (input.listRowSelected) {
+    return [];
+  }
   const findings: Finding[] = [];
   const seenRules = new Set<string>();
   for (const side of BORDER_SIDES) {

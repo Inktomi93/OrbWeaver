@@ -140,6 +140,48 @@ export function WalkerAccentBorderStory(): ReactElement {
   );
 }
 
+/** The RATIFIED SELECTION-ACCENT stage (owner ruling 2026-08-22, issue #485). The `@orb/ui` ListRow paints
+ *  its selected state as a 2px left ember bar on a rounded row — the textbook shape of BOTH §6 accent-border
+ *  bans, and the selection idiom of every list in the app, so design-audit exempts it. The exemption's
+ *  predicate is two-halved, and this stage is the shape that proves neither half can be dropped:
+ *   - the two RATIFIED arms — the primitive's own carriers, selected: `list-row-body` (the default `rowTint`)
+ *     and `list-row-root` (the whole-row arm) — must go quiet;
+ *   - the UNSELECTED row, same slot, same hardcoded accent, must still fire: the ruling is about the
+ *     SELECTION state, not about a licence for list rows to wear accent edges;
+ *   - the SELECTED-but-not-a-ListRow box must still fire: `data-selected` alone is not the idiom;
+ *   - and a plain rounded card with the same edge keeps firing, which is the rule's real target.
+ *  The edge is authored in `oklch()` because that is the only spelling a tokens-only tree can produce. */
+export function WalkerListRowSelectionStory(): ReactElement {
+  const row = {
+    backgroundColor: "rgb(24, 24, 28)",
+    borderRadius: 8,
+    borderLeft: "2px solid oklch(0.72 0.175 52)",
+    color: "rgb(240, 240, 240)",
+    marginBottom: 8,
+    padding: 12,
+    width: 320,
+  } as const;
+  return (
+    <div style={{ padding: 24, width: 400 }}>
+      <div data-selected="" data-slot="list-row-body" data-testid="ratified-selected-body" style={row}>
+        the selected preset
+      </div>
+      <div data-selected="" data-slot="list-row-root" data-testid="ratified-selected-root" style={row}>
+        the selected chat
+      </div>
+      <div data-slot="list-row-body" data-testid="unselected-row-accent" style={row}>
+        an unselected row wearing a hardcoded accent
+      </div>
+      <div data-selected="" data-testid="selected-not-a-list-row" style={row}>
+        a selected something-else
+      </div>
+      <div data-testid="plain-accent-card" style={row}>
+        an ordinary rounded card with an accent edge
+      </div>
+    </div>
+  );
+}
+
 /** The SCREEN-READER-ONLY stage: the app-wide `sr-only` posture the shell skip link wears, measured off the
  *  live surface (snap --eval, 2026-08-18) — `position:absolute; overflow:hidden; clip-path:inset(50%);
  *  white-space:nowrap`, where the 1px width loses to the control's own padding, so the box is 26x32 with

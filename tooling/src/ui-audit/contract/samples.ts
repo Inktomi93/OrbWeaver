@@ -189,6 +189,12 @@ export interface AccentBorderInput {
   readonly badgeLike: boolean;
   readonly tabContext: boolean;
   readonly statusContext: boolean;
+  /** The element IS a `@orb/ui` ListRow selection carrier (the primitive's own `list-row-root` /
+   *  `list-row-body` slot) AND is currently selected — the owner-ratified selection idiom (2026-08-22,
+   *  issue #485). BOTH halves are required: an unselected row, or any other rounded box wearing a left
+   *  accent, keeps being judged. Derived in the walker (ops/walker/census-decor.ts), judged in
+   *  lib/checks-decor.ts. */
+  readonly listRowSelected: boolean;
 }
 
 // ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──

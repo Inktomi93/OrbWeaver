@@ -160,6 +160,9 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       badgeLike: abTag === "span" && !!(ownBg && ownBg.a > 0.5),
       tabContext: !!(abel.closest("[role='tablist'],[role='tab'],nav") || abel.getAttribute("aria-selected") !== null),
       statusContext: !!abel.closest("[role='status'],[role='alert'],[aria-live]"),
+      // The ratified ListRow selection accent (issue #485) — matches on the ELEMENT itself, never an
+      // ancestor: a decorative panel nested inside a selected row must keep being judged.
+      listRowSelected: !!(abel.matches && abel.matches(LIST_ROW_SELECTED_SEL)),
     });
   }
 
