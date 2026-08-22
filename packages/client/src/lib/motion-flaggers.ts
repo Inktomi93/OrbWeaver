@@ -9,8 +9,10 @@
 //            (motion guide §2). Catching it at `animationstart`/`transitionstart` is the only reliable
 //            read. Compositor-only is a CORRECTNESS constraint here, not a preference (guide §3.7).
 //   [css]    a class on a live element with NO matching CSS rule anywhere — the dead-token half of
-//            `pnpm snap --dead-css`, ported to a throttled MutationObserver so it fires on surfaces a
-//            snap run never navigated to. A dead utility is a style that silently did not apply.
+//            `pnpm snap --dead-css`, running on a throttled MutationObserver so it fires on surfaces a
+//            snap run never navigated to. A dead utility is a style that silently did not apply. The
+//            DEFINITION of "dead" (the tokenizer + the marker namespaces) is `@orb/kit/dead-css`, one
+//            home shared with the snap op — this is the same scan on a different clock, not a port.
 //   [drop]   a long animation frame over budget that overlaps a CSS/WAAPI animation lifetime. Scoped to
 //            animation windows on purpose: a long frame during an idle page is a `[frame]` problem, but
 //            a long frame mid-animation is a VISIBLE stutter, and it is the only one a user can feel.

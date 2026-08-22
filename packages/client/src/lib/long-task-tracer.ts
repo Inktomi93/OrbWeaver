@@ -1,15 +1,16 @@
-// Dev-only render-jank attribution: PerformanceObservers turn Chrome's generic scheduler violations
-// into console lines naming the ROUTE, the ELEMENT (slow events), and — for long frames — the SCRIPT
-// that caused them. Prefers the Long Animation Frames API (LoAF, Chrome M123+) over the deprecated
-// `longtask` type: LoAF reports the whole janky frame WITH per-script attribution (invoker + source),
-// which `longtask` (deprecated, attribution-free, and emitting a console deprecation notice per entry)
-// cannot. Falls back to `longtask` only where LoAF is unsupported. Dynamically imported behind
-// import.meta.env.DEV — never re-export from the lib barrel, that would drag it into the prod bundle.
+// Dev-only render-jank attribution: turns Chrome's generic scheduler violations into console lines
+// naming the ROUTE, the ELEMENT (slow events), and — for long frames — the SCRIPT that caused them.
+// Prefers the Long Animation Frames API (LoAF, Chrome M123+) over the deprecated `longtask` type: LoAF
+// reports the whole janky frame WITH per-script attribution (invoker + source), which `longtask`
+// (deprecated, attribution-free, and emitting a console deprecation notice per entry) cannot. Falls back
+// to `longtask` only where LoAF is unsupported. Dynamically imported behind import.meta.env.DEV — never
+// re-export from the lib barrel, that would drag it into the prod bundle.
 //
-// THIS FILE IS THE `[frame]`/`[input]`/`[reflow]` THIRD OF THE MOTION FLAGGER PACK (task #39). It owned
-// the LoAF + event-timing observers before the pack existed, so the pack's tag vocabulary and budget
-// table were adopted HERE rather than a second observer being installed in `motion-flaggers.ts` — one
-// signal, one emitter (AGENTS §3). The channels, and why each is its own tag:
+// THIS FILE OWNS THE `[frame]`/`[input]`/`[reflow]` CHANNELS, NOT THE LoAF OBSERVER. It installs the
+// event-timing observer itself; its long frames arrive from `motion-stats.ts`'s single
+// `long-animation-frame` observer via `subscribeLongAnimationFrames` (P7 — this file used to install a
+// second observer over the same entries). One signal, one emitter (AGENTS §3); one entry type, one
+// observer. The channels, and why each is its own tag:
 //   [frame]   a frame over `longFrameMs`, attributed to its costliest script. WHAT blocked.
 //   [reflow]  that frame ALSO ran style/layout (`styleAndLayoutStart` > 0) — a forced synchronous
 //             reflow or a non-compositor animation. This is the diagnosis `[frame]` alone does not
@@ -20,6 +21,8 @@
 
 import { logClock } from "./log-clock.ts";
 import { MOTION_BUDGETS } from "./motion-flaggers.ts";
+import type { LongAnimationFrameEvidence } from "./motion-stats.ts";
+import { subscribeLongAnimationFrames } from "./motion-stats.ts";
 
 const PERF_STYLE = "color:#c60;font-weight:bold";
 const MUTED_STYLE = "color:#888";
@@ -32,23 +35,8 @@ export function __resetLongTaskEvidence(): void {
   evidenceStartTime = performance.now();
 }
 
-function belongsToCurrentCheckpoint(entry: PerformanceEntry): boolean {
+function belongsToCurrentCheckpoint(entry: { readonly startTime: number }): boolean {
   return entry.startTime >= evidenceStartTime;
-}
-
-/** LoAF shapes — lib.dom predates the Long Animation Frames API, so we narrow the entry structurally. */
-interface LoafScript {
-  readonly duration: number;
-  readonly invoker?: string;
-  readonly sourceURL?: string;
-  readonly sourceFunctionName?: string;
-  readonly name?: string;
-}
-interface LoafEntry extends PerformanceEntry {
-  readonly blockingDuration?: number;
-  /** \>0 ⇒ style/layout ran inside this frame — the `[reflow]` tell (see the header). */
-  readonly styleAndLayoutStart?: number;
-  readonly scripts?: readonly LoafScript[];
 }
 
 interface EventTimingEntry extends PerformanceEntry {
@@ -121,7 +109,7 @@ function basename(url: string): string {
 }
 
 /** The costliest script in a long frame as a compact "function · source · Nms" attribution — LoAF's payoff. */
-function attributeFrame(scripts: readonly LoafScript[]): string {
+function attributeFrame(scripts: LongAnimationFrameEvidence["scripts"]): string {
   if (scripts.length === 0) {
     return "(no script attribution)";
   }
@@ -153,15 +141,40 @@ function route(): string {
   return globalThis.location.pathname + globalThis.location.search;
 }
 
-function actionableBlockingDuration(entry: LoafEntry): number | null {
-  if (entry.duration < MOTION_BUDGETS.longFrameMs) {
+function actionableBlockingDuration(frame: LongAnimationFrameEvidence): number | null {
+  if (frame.duration < MOTION_BUDGETS.longFrameMs) {
     return null;
   }
-  const blocking = Math.round(entry.blockingDuration ?? 0);
+  const blocking = Math.round(frame.blockingDuration);
   // Headless Chrome can stretch an otherwise idle/presentation frame past 100ms while reporting zero
   // blocking work. Keep it in the pulled LoAF ring, but do not push a console accusation with nothing
   // actionable to attribute; motion-audit likewise gates on blockingDuration, not wall time.
   return blocking === 0 ? null : blocking;
+}
+
+/** The `[frame]` + `[reflow]` console pair for ONE published long animation frame. Applies this file's
+ *  own checkpoint floor on top of the publisher's — the two floors move together through the dev
+ *  bridge's `resetEvidence`, and a buffered entry from before a probe's checkpoint is not this
+ *  surface's evidence. */
+function reportLongFrame(frame: LongAnimationFrameEvidence): void {
+  if (!belongsToCurrentCheckpoint(frame)) {
+    return;
+  }
+  const blocking = actionableBlockingDuration(frame);
+  if (blocking === null) {
+    return;
+  }
+  const who = attributeFrame(frame.scripts);
+  console.warn(
+    `%c${logClock()} [frame]%c long frame ${Math.round(frame.duration)}ms · blocking ${blocking}ms (budget ${MOTION_BUDGETS.longFrameMs}ms) · ${who} · route ${route()}`,
+    PERF_STYLE,
+    MUTED_STYLE,
+  );
+  // The diagnosis half: this frame also ran style/layout, so the cost is a forced reflow or a
+  // non-compositor animation — not merely a long script. Same attribution, different fix.
+  if (frame.styleAndLayoutStart > 0) {
+    console.warn(`%c${logClock()} [reflow]%c style/layout ran inside that frame · ${who} · route ${route()}`, PERF_STYLE, MUTED_STYLE);
+  }
 }
 
 /** Install the jank observers (idempotence is the caller's concern — main.tsx runs it exactly once). */
@@ -174,30 +187,13 @@ export function installLongTaskTracer(): void {
   // Prefer LoAF (attributed, not deprecated) — fall back to the coarse `longtask` type only where
   // LoAF is unavailable (Chrome < M123, Firefox, Safari). Never observe both: `longtask` emits a
   // per-entry "Deprecated API for given entry type" console notice, so we avoid it entirely on Chrome.
+  //
+  // The LoAF arm SUBSCRIBES rather than observing: `motion-stats.ts` installs the app's one
+  // `long-animation-frame` PerformanceObserver and publishes each entry (P7 — this file used to install
+  // a second observer over the identical entries). The channels, the budget, the checkpoint floor and
+  // every console line below are unchanged; only the frame SOURCE moved.
   if (supported.includes("long-animation-frame")) {
-    const loaf = new PerformanceObserver((list) => {
-      for (const raw of list.getEntries().filter(belongsToCurrentCheckpoint)) {
-        const entry = raw as LoafEntry;
-        const blocking = actionableBlockingDuration(entry);
-        if (blocking === null) {
-          continue;
-        }
-        const who = attributeFrame(entry.scripts ?? []);
-        console.warn(
-          `%c${logClock()} [frame]%c long frame ${Math.round(entry.duration)}ms · blocking ${blocking}ms (budget ${MOTION_BUDGETS.longFrameMs}ms) · ${who} · route ${route()}`,
-          PERF_STYLE,
-          MUTED_STYLE,
-        );
-        // The diagnosis half: this frame also ran style/layout, so the cost is a forced reflow or a
-        // non-compositor animation — not merely a long script. Same attribution, different fix.
-        if ((entry.styleAndLayoutStart ?? 0) > 0) {
-          console.warn(`%c${logClock()} [reflow]%c style/layout ran inside that frame · ${who} · route ${route()}`, PERF_STYLE, MUTED_STYLE);
-        }
-      }
-    });
-    // Plain cast (not `as any`, which would trip the suppression ratchet): lib.dom types the observe
-    // init's `type` as string, so the LoAF entry-type string is valid — same cast the event observer uses below.
-    loaf.observe({ type: "long-animation-frame", buffered: true } as PerformanceObserverInit);
+    subscribeLongAnimationFrames(reportLongFrame);
   } else if (supported.includes("longtask")) {
     const lt = new PerformanceObserver((list) => {
       for (const entry of list.getEntries().filter(belongsToCurrentCheckpoint)) {
