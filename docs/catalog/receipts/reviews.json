@@ -1548,7 +1548,7 @@
       "assignedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
       "disposition": "current",
       "authority": "review",
-      "fullRead": true,
+      "fullRead": false,
       "verifiedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
       "verifiedCommit": "3343705939fe2bc48ed9bb45994e8513a596ed6f",
       "verifiedAt": "2026-08-22",
@@ -1580,8 +1580,39 @@
           ]
         }
       ],
-      "evidence": ["full read at receipt time; screenshots under reports/snaps/se-visual-* (gitignored artifacts)"],
+      "evidence": [
+        "receipted from the authoring lane's full report (verdicts + measurements relayed verbatim); the doc itself not independently re-read at receipt time; screenshots under reports/snaps/se-visual-* (gitignored)"
+      ],
       "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
+    },
+    {
+      "path": "docs/reviews/tooling/2026-08-22-research-zone-assessment.md",
+      "assignedSha256": "19e500dae25ed0ad8cbf53d407098daa80724472babfe3adbca772e2b367f1be",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": false,
+      "verifiedSha256": "19e500dae25ed0ad8cbf53d407098daa80724472babfe3adbca772e2b367f1be",
+      "verifiedCommit": "fa21fedf528e3d32d6927dd729845efacbbdbbdb",
+      "verifiedAt": "2026-08-22",
+      "claims": [
+        {
+          "claim": "The research zone's ranked tool candidates are parity-oracle (rank 1 — a golden regenerator with no --check arm feeding the live parity vitest project), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED do-NOT-run, value preserved in the one-call-spike design doc).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tests/support/parity-runner.ts:111"
+            },
+            {
+              "kind": "doc",
+              "target": "docs/design/rpg-extraction-one-call-spike.md"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "receipted from the authoring lane's report; typecheck:graph exit 0 proves every scripts/*.ts compiles against today's tree (tsconfig includes scripts); pnpm ast is blind to scripts/ so liveness claims used scoped literal search"
+      ],
+      "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
     }
   ]
 }
