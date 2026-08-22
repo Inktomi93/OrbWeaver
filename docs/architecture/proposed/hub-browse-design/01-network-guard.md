@@ -231,7 +231,7 @@ export type FetchImageOp = (url: string) => Promise<{ readonly bytes: Uint8Array
 
 1. **No raw egress in domains** — no `domain/**` file calls global `fetch` (or imports undici);
    all outbound HTTP from a domain goes through a compose-bound injected op.
-   _Enforcement: ts-morph gate `no-raw-egress` (`scripts/check/gates/`) — `fetch` call sites in
+   _Enforcement: ts-morph gate `no-raw-egress` (`tooling/src/verify/gates/`) — `fetch` call sites in
    `domain/**` are RED (test files exempt); resolve-time backstop: domains don't import
    `infra/network` internals._
 2. **`safeFetch` is self-enforcing** — its resolve→validate→pin path runs with

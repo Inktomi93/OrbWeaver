@@ -80,13 +80,13 @@ EventEmitter home (gate `bus-channel-primitive`); every stream rides the ONE mul
 ### 1.2 The gate battery over the planes — actual mechanics
 
 **The coverage ratchets** (`bus-coverage` · `user-bus-coverage` · `rpg-bus-coverage`) are three thin
-SPECs over ONE reconcile, `scripts/check/bus-coverage-lib.ts`:
+SPECs over ONE reconcile, `tooling/src/verify/lib/bus-coverage.ts`:
 
 - `busEventKeys` parses the member names out of the bus's `*_EVENT_TYPES` const (object-literal shape
-  for chat/user, array shape for rpg) — `bus-coverage-lib.ts:40-59`.
+  for chat/user, array shape for rpg) — `bus-coverage.ts:23-42`.
 - `literalCorpus` concatenates EVERY string literal under `packages/server/src/(domain|transport)/`
-  (comments excluded) — `:61-75`; a member is "emitted" iff the corpus contains it space-delimited.
-- Reconcile: not-emitted ∧ not-DEFERRED → MISSING-red; emitted ∧ DEFERRED → STALE-red (`:80-102`).
+  (comments excluded) — `:45-58`; a member is "emitted" iff the corpus contains it space-delimited.
+- Reconcile: not-emitted ∧ not-DEFERRED → MISSING-red; emitted ∧ DEFERRED → STALE-red (`:73-83`).
   Self-cleaning both directions; DEFERRED rows carry citations (the sole live one:
   `user-bus-coverage.ts:23-26` `connectionsChanged`).
 
@@ -98,10 +98,10 @@ could be false-covered by an unrelated literal; acceptable for a ratchet, worth 
 
 **The belt-existence gate** (`bus-definition-belts`) closes "a new bus ships the const but not the
 enforcement": every `*_EVENT_TYPES` const in contracts shaped `satisfies Record<X["type"], true>` or
-`as const satisfies readonly X["type"][]` must have BOTH (1) a `scripts/check/gates/*.ts` file naming
-the const and (2) a client mapped-type total map over the union (`bus-definition-belts.ts:109-127`).
+`as const satisfies readonly X["type"][]` must have BOTH (1) a `tooling/src/verify/gates/*.ts` file naming
+the const and (2) a client mapped-type total map over the union (`bus-definition-belts.ts:159-174`).
 **Two deliberate exclusions define its blind spot:** a plain `as const` with no `satisfies`
-(`DOMAIN_EVENT_TYPES`) is out of scope by fixture (`:162-167`), and a union with NO const at all
+(`DOMAIN_EVENT_TYPES`) is out of scope by fixture (`:104`), and a union with NO const at all
 (`AutomationBusEvent`) never enters `findEventTypesConsts` — §2.3 is the live consequence.
 
 **THE THREE COUPLED SITES of bus coverage** (memory lesson, restated with receipts — every new member
@@ -123,7 +123,7 @@ secrets TYPE-LEVEL unrepresentable; contract-tests pin it). `membership-fan-guar
 under `domain/chat/**` (member-visible state must fan to the roster, never one user).
 
 **The client-side ratchet that already exists and matters here:** `query-freshness-coverage`
-(`scripts/check/gates/query-freshness-coverage.ts`) — with `staleTime: Infinity`, every client-consumed
+(`tooling/src/verify/gates/query-freshness-coverage.ts`) — with `staleTime: Infinity`, every client-consumed
 tRPC query key must be covered by a reachable invalidation-seam row OR carry a cited STATIC/DEFERRED
 registry entry; self-cleaning in both directions with an orphan arm and a rename tripwire. **This gate
 is why refinery/databank/discovery are not silent today — they are CITED** (`:128-160` refinery+databank

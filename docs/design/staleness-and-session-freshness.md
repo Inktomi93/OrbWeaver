@@ -423,7 +423,7 @@ the client fix contains every storm class, including future ones.
 - **W6 — per-user namespacing of durable-local state. BUILT 2026-08-14 (lane 1).**
   Files: `packages/client/src/state/create-persisted-store.ts` + `create-entity-draft-store.ts` (the
   key scheme, the store registry, `bindDurableLocalToUser(userId)`, the legacy-blob adoption);
-  `routes/app-root.tsx` (bind once viewer resolves). Check `scripts/check/gates/persistence-boundary.ts`
+  `routes/app-root.tsx` (bind once viewer resolves). Check `tooling/src/verify/gates/persistence-boundary.ts`
   for literal key-prefix assumptions (the gate's DEVICE\_LOCAL\_REGISTRY is name-keyed — verify, adjust
   its fixture if it asserts the raw prefix).
   Tests: door units (rebind rehydrates from the user key; legacy adoption moves-then-deletes; two
@@ -609,7 +609,7 @@ Where the implementation deviated from §5's letter, and why. Each was forced by
 6. **The coarse-form table lives in CONTRACTS, and the gate is why.** `COARSE_USER_BUS_EVENT` first sat in
    `transport/trpc/user-events-bus.ts` — and `user-bus-coverage` promptly went RED with "DEFERRED member now
    HAS an emit site: connectionsChanged". That ratchet reconciles against a LITERAL CORPUS of every string in
-   `server/src/{domain,transport}` (`scripts/check/bus-coverage-lib.ts:15,62`), so a totality table parked in
+   `server/src/{domain,transport}` (`tooling/src/verify/lib/bus-coverage.ts:20,45`), so a totality table parked in
    transport makes every member — including a deliberately unemitted one — read as emitted, turning the
    dead-wire belt permanently green. Moving the const beside the union it derives from fixes the gate AND is
    the better home (one home: "the id-less form of member X" is a fact about the union). Worth generalizing:

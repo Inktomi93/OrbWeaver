@@ -56,7 +56,7 @@ updated: 2026-08-14
 | quiet mode (W8) | `transport/trpc/user-events-bus.ts:21-110` | per-`(userId, type)`, AsyncLocalStorage-scoped to the bulk run; first emit passes, rest silenced, coarse terminal from `finally`; opened only at `entry/compose/portability-runner.ts:186,217,228` |
 | R1-4a residual | `domain/chat/verbs/chat-lifecycle.ts:259-270` | `chatDeleted` must emit BEFORE the row delete (a post-delete append FK-fails and `bus.ts` FLAG[emit-is-total] refuses to fan an unlogged event) — so a raced reap fans a `chatDeleted` for a room that survived |
 | indexes for reach lookups | `db/schema/chat.ts:529` (`chat_participants_character_idx`, comment cites the bridge) · `:534` (`chat_participants_active_persona_idx`) · `:189` (`chats_anchor_persona_idx`) · `schema/world-info.ts:133-145` (`chat_books` PK leads chatId; `worldBookId` FK indexed per `fk-columns-indexed`) | every resolver in §3.5 is one indexed SELECT |
-| G-A / G-B | `scripts/check/gates/domain-freshness-plane.ts` (26-row registry, `FreshnessRow` `:42`) · `bus-definition-belts.ts` (`SERVER_INTERNAL_REACH` `:64`) | the declared-rows grammar the room-reach lane extends (§7) |
+| G-A / G-B | `tooling/src/verify/gates/domain-freshness-plane.ts` (26-row registry, `FreshnessRow` `:68`) · `bus-definition-belts.ts` (`SERVER_INTERNAL_REACH` `:71`) | the declared-rows grammar the room-reach lane extends (§7) |
 
 Not touched: the derived-data cluster (`Knowledge-Cluster.md`) — no entity in scope is a vector/derived
 table; `corpusRecomputed` and the indexer subscriber are unaffected.
@@ -328,7 +328,7 @@ regardless of N (§5). No polling, no presence queries, no new sockets.
 
 Prose-only boundaries are wishes (constitution §2.3); the lane is enforced at three tiers, each named:
 
-1. **tsc — the registry field.** `FreshnessRow` (`domain-freshness-plane.ts:42`) gains a REQUIRED
+1. **tsc — the registry field.** `FreshnessRow` (`domain-freshness-plane.ts:68`) gains a REQUIRED
    `roomReach: { lane: "none"; why: string } | { lane: "bridge"; entity: RoomEntityKind }`. Every one of
    the 26 existing rows must declare on the day the field lands (compile-forced); `character`/`persona`/
    `world-info` declare `bridge`, everything else `none` with the cite + end condition (the gate's
@@ -347,7 +347,7 @@ Prose-only boundaries are wishes (constitution §2.3); the lane is enforced at t
    requires the junction, the junction trips SEATED-red, clearing SEATED-red requires the `bridge` lane,
    and the `bridge` lane requires the resolver + client rows via tier 2.
 
-Gate work follows `scripts/check/GATE-AUTHORING.md` (two-sided receipts; the six-case probe shape where
+Gate work follows `tooling/src/verify/gates/GATE-AUTHORING.md` (two-sided receipts; the six-case probe shape where
 markers apply; conformance rows retargeted when any exemption row moves).
 
 ## 8. Non-goals + candidate rows deliberately not in this wave
@@ -438,8 +438,8 @@ Read IN FULL this session: `contracts/src/user-bus/index.ts` · `contracts/src/c
 `entry/compose/event-bus.ts` · `entry/compose/emit-character-updated.ts` ·
 `entry/compose/emit-chat-changed.ts` · `client/data/invalidation.ts` · `client/data/bus/use-chat-bus.ts`
 · `client/data/bus/use-user-bus.ts` · `client/data/bus/apply-chat-bus-event.ts` ·
-`client/data/bus/chat-event-seq-guard.ts` · `scripts/check/gates/domain-freshness-plane.ts` ·
-`scripts/check/gates/membership-fan-guard.ts` · `substrate/chat-detail.ts` · `substrate/participant-name.ts` ·
+`client/data/bus/chat-event-seq-guard.ts` · `tooling/src/verify/gates/domain-freshness-plane.ts` ·
+`tooling/src/verify/gates/membership-fan-guard.ts` · `substrate/chat-detail.ts` · `substrate/participant-name.ts` ·
 `world-info/verbs/entries/update.ts` · `Knowledge-Cluster.md` · `Spine-Identity-and-Auth.md` ·
 `Documentation-Law.md`. Read in relevant part (offsets cited inline): `entry/compose/services.ts` ·
 `entry/compose/search-discovery.ts` · `entry/compose/chat.ts` (`resolveUserPublics`) ·

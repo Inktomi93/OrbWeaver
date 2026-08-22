@@ -47,7 +47,7 @@ genuinely new — exactly the study's R0.
 3. `contracts/character` — the study's I1 tightening IN PLACE: `refinerySignalsSchema.analysis` becomes
    the typed analyze payload (nullable), imported from `#refinery`. `score` unchanged.
 4. `packages/db/src/schema/refinery.ts` — `refinery_sessions` + `refinery_runs` (+ barrel row, alphabetical).
-5. `scripts/check/gates/db-structure.ts` — a `BASELINE_RIDER_PRODUCERS` entry
+5. `tooling/src/verify/gates/db-structure.ts` — a `BASELINE_RIDER_PRODUCERS` entry
    `refinery → packages/server/src/domain/refinery` (the gate's DESIGNED pre-producer mechanism; the crew/
    automation/rpg/roster-preset precedent). **R1 removes it**; the gate auto-flags it stale the moment the
    domain dir lands.
@@ -223,11 +223,11 @@ polymorphic refs); D28 clean (`original_card` is an opaque blob copy, FKs nothin
 4. `packages/db/src/schema/refinery.ts` — NEW.
 5. `packages/db/src/schema/index.ts` — barrel row.
 6. `packages/db/src/migrations/*` — regenerated baseline + meta (biome-formatted).
-7. `scripts/check/gates/db-structure.ts` — the baseline-rider entry (gate edit ⇒ run the gate suites).
-   7a. `scripts/check/gates/own-tables-only.ts` — a `SCHEMA_OWNERS` row (`refinery → ["refinery"]`, the
+7. `tooling/src/verify/gates/db-structure.ts` — the baseline-rider entry (gate edit ⇒ run the gate suites).
+   7a. `tooling/src/verify/gates/own-tables-only.ts` — a `SCHEMA_OWNERS` row (`refinery → ["refinery"]`, the
    pre-producer twin of the rider; R1 deletes both). Surfaced by the structure run, not the pre-build
    sweep — the gate's totality arm demands a deliberate owner for every table-bearing schema file.
-   7b. `scripts/check/gates/table-scoping-class.ts` — two `parent`-class rows (the D23 DERIVE declaration
+   7b. `tooling/src/verify/gates/table-scoping-class.ts` — two `parent`-class rows (the D23 DERIVE declaration
    made legible to readers + gates) + the census comment corrected (it had ALREADY drifted 80→82 before
    this lane; now 84 — 23 ownerId · 19 membership · 15 junction · 22 parent · 5 global).
 8. `tests/contracts/character/index.contract.test.ts:60` — stale fixture (`analysis:{tone:…}` fails the
@@ -413,7 +413,7 @@ precedent, cited in the verb header) → `snapshotCharacter("auto: before refine
 ### 9.7 Prose slots (12) + postures (3)
 
 - **Slots** (`contracts/refinery/prose.ts` table + `PROSE_SLOT_IDS` rows + the `contracts/prose`
-  composition spread + `prose-baseline.json` entries via `scripts/check/gen-prose-baseline.ts`): four
+  composition spread + `prose-baseline.json` entries via `tooling/src/verify/ops/gen/model-prose.ts`): four
   stage-SYSTEM slots (`refinery.score.system`, `.rewrite.system`, `.refine.system`, `.analyze.system`)
   - eight (stage × mode) INSTRUCTION slots (`refinery.score.mode.full`/`.quick`,
     `refinery.rewrite.mode.conservative`/`.balanced`/`.expansive`,
