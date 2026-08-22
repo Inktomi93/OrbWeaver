@@ -35,6 +35,12 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
   }
   // Motion-law sanctioned measured-var height panels (motion guide §3.7).
   var PANEL_EXEMPT_SEL = "[data-slot='accordion-panel'],[data-slot='collapsible-panel']";
+  // The owner-RATIFIED ListRow selection accent (2026-08-22, issue #485): a 2px left ember bar on the
+  // selected row, which is the app-wide selection idiom. Both slots carry it — \`list-row-body\` is the
+  // default \`rowTint\` arm, \`list-row-root\` the arm that paints the whole row — and BOTH halves of each
+  // predicate are load-bearing: the slot identity says it is the primitive, \`[data-selected]\` says it is
+  // the selection state. Without the state half an unselected row's hardcoded accent would go unjudged.
+  var LIST_ROW_SELECTED_SEL = "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected]";
   var HEADING_TAGS = { h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1 };
   var BORDER_SAFE_TAGS = { a: 1, button: 1, input: 1, select: 1, textarea: 1, option: 1, hr: 1, table: 1, thead: 1, tbody: 1, tr: 1, td: 1, th: 1, fieldset: 1 };
   var QUALITY_TEXT_TAGS = { p: 1, li: 1, td: 1, th: 1, dd: 1, blockquote: 1, figcaption: 1 };

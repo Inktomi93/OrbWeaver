@@ -740,6 +740,7 @@ const ACCENT_BASE: AccentBorderInput = {
   badgeLike: false,
   tabContext: false,
   statusContext: false,
+  listRowSelected: false,
 };
 const ACCENT_RED: Rgb = { r: 220, g: 40, b: 40, a: 1 };
 
@@ -798,6 +799,30 @@ test("a thick chromatic LEFT border on a rounded card fires BOTH tells (issue #1
   }).map((f) => f.rule);
   expect(rules).toContain("side-tab");
   expect(rules).toContain("border-accent-on-rounded");
+});
+
+test("the ratified ListRow selection accent is exempt, and neither half of the predicate exempts alone (issue #485)", () => {
+  // OWNER RULED 2026-08-22: the selected-row left ember bar (a 2px `border-l-primary` on a rounded row) is
+  // the app-wide selection idiom and stands as shipped. The `listRowSelected` sample is the walker's
+  // two-halved verdict — the primitive's own slot AND `data-selected` — and this is the check's half of
+  // that contract: the flag exempts, and its absence leaves the identical geometry fully judged.
+  const selectedRow = checkAccentBorder({
+    ...ACCENT_BASE,
+    listRowSelected: true,
+    radius: 6,
+    widths: { ...ACCENT_BASE.widths, left: 2 },
+    colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+  });
+  expect(selectedRow, "the ratified selection idiom is not a card tell").toEqual([]);
+
+  const sameGeometryUnratified = checkAccentBorder({
+    ...ACCENT_BASE,
+    radius: 6,
+    widths: { ...ACCENT_BASE.widths, left: 2 },
+    colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+  }).map((f) => f.rule);
+  expect(sameGeometryUnratified, "the exemption is the FLAG, never the shape").toContain("side-tab");
+  expect(sameGeometryUnratified).toContain("border-accent-on-rounded");
 });
 
 test("a badge-like chip keeps its side-edge exemption even with a radius", () => {

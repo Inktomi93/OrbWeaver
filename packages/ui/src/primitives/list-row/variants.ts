@@ -27,6 +27,16 @@ export const listRowVariants = tv({
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
     // narrow panel; north-star N2). Selected reads as a 2px left ember bar + a 10% `--color-primary` tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
+    //
+    // THE LEFT EMBER BAR IS OWNER-RATIFIED (2026-08-22, issue #485). `border-l-2` +
+    // `data-selected:border-l-primary` on a `rounded-control` row is the textbook shape of design-audit's
+    // two §6 absolute bans (`side-tab` + `border-accent-on-rounded`), and it fired on every list in the app
+    // — because it IS the app-wide selection idiom, not a decorative card tell. The owner ruled it stands
+    // as shipped; design-audit carries the matching SCOPED exemption, keyed on slot identity AND
+    // `data-selected` together (tooling/src/ui-audit/lib/checks-decor.ts + ops/walker/core.ts's
+    // `LIST_ROW_SELECTED_SEL`). Consequence for anyone editing here: the accent's CARRIER is part of the
+    // exemption — moving it off the `list-row-root` / `list-row-body` slots, or painting it at rest instead
+    // of under `data-selected`, re-reds the whole tree in the design audit.
     body: [
       "group flex min-w-0 flex-1 items-center gap-row rounded-control border-l-2 border-l-transparent outline-none",
       `data-selected:border-l-primary data-selected:bg-primary/10 ${DISABLED_STATE}`,

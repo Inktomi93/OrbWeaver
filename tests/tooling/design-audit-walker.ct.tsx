@@ -24,6 +24,7 @@ import {
   WalkerDuplicateSlotStory,
   WalkerGradientBackdropStory,
   WalkerListRowCardStory,
+  WalkerListRowSelectionStory,
   WalkerNeighbourButtonsStory,
   WalkerPaintLayerStory,
   WalkerProgrammaticFocusDoorStory,
@@ -217,6 +218,39 @@ test("the rgb-authored twin fires identically, and a hairline neutral card stays
   expect(selectorsFor(findings, "border-accent-on-rounded")).toContain("[data-testid=accent-card-rgb]");
   const neutral = findings.filter((f) => f.selector === "[data-testid=neutral-card]" && (f.rule === "side-tab" || f.rule === "border-accent-on-rounded"));
   expect(neutral, "a hairline achromatic border on a radius is the sanctioned elevation recipe").toEqual([]);
+});
+
+// ── The RATIFIED ListRow selection accent, and the exemption that must not widen (issue #485) ─────
+// OWNER RULED 2026-08-22: the ListRow selected-row left ember bar stands as shipped, so design-audit carries
+// a SCOPED exemption for it. The exemption is a two-halved predicate — the primitive's own slot AND
+// `data-selected` — because a one-halved version is exactly how an exemption eats the rule it lives in: keyed
+// on the slot alone it would licence every list row to wear a decorative accent edge at rest, and keyed on
+// the state alone it would licence any selected box anywhere. Both negative halves are pinned below.
+function accentRulesOn(findings: readonly Finding[], testId: string): string[] {
+  return findings
+    .filter((f) => f.selector === `[data-testid=${testId}]` && (f.rule === "side-tab" || f.rule === "border-accent-on-rounded"))
+    .map((f) => f.rule);
+}
+
+test("the selected ListRow's left ember bar is exempt on BOTH of the primitive's carriers", async ({ mount, page }) => {
+  await mount(<WalkerListRowSelectionStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
+  expect(accentRulesOn(findings, "ratified-selected-body"), `the default rowTint arm is the ratified idiom — got ${seen}`).toEqual([]);
+  expect(accentRulesOn(findings, "ratified-selected-root"), `the whole-row rowTint arm is the same idiom — got ${seen}`).toEqual([]);
+});
+
+test("the exemption did not widen: an unselected row, a selected non-row, and a plain card all still fire BOTH tells", async ({ mount, page }) => {
+  await mount(<WalkerListRowSelectionStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
+  for (const testId of ["unselected-row-accent", "selected-not-a-list-row", "plain-accent-card"]) {
+    const rules = accentRulesOn(findings, testId);
+    expect(rules, `${testId} is not the ratified idiom and must still be judged — got ${seen}`).toContain("side-tab");
+    expect(rules, `${testId} still fights its own corner radius — got ${seen}`).toContain("border-accent-on-rounded");
+  }
 });
 
 // ── The screen-reader-only state paints nothing, so the paint rules must not judge it ─────────────
