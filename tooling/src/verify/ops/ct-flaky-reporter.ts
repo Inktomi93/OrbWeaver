@@ -29,7 +29,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, relative } from "node:path";
 import process from "node:process";
 import { reportsPath } from "@orb/tooling/_shared/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { FullResult, Reporter, Suite, TestCase } from "@playwright/test/reporter";
+
+refuseDirectInvocation(import.meta.url, "pnpm test:ct (playwright loads this module as a reporter)");
 
 const ARTIFACT_PATH = reportsPath(process.cwd(), "ct-flaky.json");
 const RULE_WIDTH = 88;

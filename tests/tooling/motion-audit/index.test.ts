@@ -7,6 +7,7 @@
 // half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
 import type { AuditData } from "../../../tooling/src/motion-audit/index.ts";
 import {
+  apparatusGap,
   calibratedDroppedFramePct,
   clsOverBudget,
   clsTotals,
@@ -342,4 +343,36 @@ test("a bare run still has an empty reach queue — entry motion stays the defau
   expect(args.errors).toEqual([]);
   expect(args.reach).toEqual([]);
   expect(args.route).toBe("/");
+});
+
+// ── APPARATUS DIAGNOSIS (#515) — the permanent pin for a WRONG diagnosis printed with confidence ──────
+// motion-audit printed "the __orb dev bridge is ABSENT — this run is not a verdict" against a page that
+// exposes all 21 bridge keys (snap read them on the same URL seconds later). The run had swallowed its
+// data-app-ready timeout with `.catch(() => undefined)` and then asked about the bridge on a page that had
+// not booted, so "no bridge" was true-at-that-instant and false-about-the-app. A lane reading that message
+// goes hunting in the client for a bridge that is fine. The order of the two questions IS the fix.
+const APPARATUS_URL = "http://localhost:5173/";
+const READY_MS = 10_000;
+
+test("READY-TIMEOUT is diagnosed as readiness, NEVER as a missing bridge", () => {
+  // The #515 run, exactly: readiness never arrived, so the bridge answer is meaningless either way.
+  for (const bridge of [false, true]) {
+    const gap = apparatusGap({ url: APPARATUS_URL, ready: false, bridge, readyTimeoutMs: READY_MS });
+    expect(gap?.evidence).toBe("app readiness (data-app-ready)");
+    expect(gap?.detail).toContain("RETRYABLE");
+    // The exact wrong claim, asserted as one that must not be made.
+    expect(gap?.evidence).not.toContain("__orb dev bridge");
+  }
+});
+
+test("BRIDGE-ABSENT is only claimed once the app HAS signalled ready", () => {
+  // The real defect this arm exists for — a built app served without the dev bridge. Keeping it provable
+  // is why the fix is a reordering and not a deletion.
+  const gap = apparatusGap({ url: APPARATUS_URL, ready: true, bridge: false, readyTimeoutMs: READY_MS });
+  expect(gap?.evidence).toBe("the __orb dev bridge");
+  expect(gap?.detail).toContain("signalled data-app-ready and STILL");
+});
+
+test("a ready page WITH the bridge yields no gap — the audit may speak", () => {
+  expect(apparatusGap({ url: APPARATUS_URL, ready: true, bridge: true, readyTimeoutMs: READY_MS })).toBeNull();
 });

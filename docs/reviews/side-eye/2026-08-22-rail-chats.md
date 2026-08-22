@@ -15,7 +15,9 @@ updated: 2026-08-22
 The chat list is the best-engineered list in the app — 896 rows scroll at **CLS 0 / worst blocking
 13ms**, the reading measure holds at **63–71ch across every appearance and pane-state arm**, the
 composer and message rows are properly grouped and labelled, and the empty-search state is a model of
-the genre. Three things must not ship as-is: **quoted dialogue drops to 4.25:1 over room art** in two
+the genre. Three things must not ship as-is: **quoted dialogue drops to 4.25:1 over room art** (⚠ that
+ratio is RETRACTED as an instrument artifact — #508; the underlying missing dim FLOOR was real and is
+fixed by #487 — see the retraction block under P1) in two
 standard appearance arms, **the RPG turn's tool-call disclosure is keyboard-unreachable**, and the
 **first chat open blocks the main thread for 579ms**.
 
@@ -43,7 +45,7 @@ below is the deliverable.)
 
 ## Findings
 
-### P1 — quoted dialogue falls to 4.25:1 over the room's background art
+### P1 — quoted dialogue falls to 4.25:1 over the room's background art *(ratios RETRACTED — #508; the contract finding below stands and is fixed by #487)*
 
 **What.** In a room whose card carries a background (`data-has-bg-image=true`), message prose sits on
 a bubble plate of `oklch(0.12 0.006 60 / 0.65)` + `backdrop-filter: blur(8px)` over an art layer. The
@@ -57,6 +59,22 @@ contrast between the dialogue glyph and its local backdrop, same room (`Example 
 | `--appearance-preset compact` | **4.27:1** | 13.21:1 | **FAIL** (< 4.5) |
 | `--appearance-preset reading` | **4.25:1** | 13.11:1 | **FAIL** (< 4.5) |
 | `--appearance-preset maximal` | 6.89:1 | — | PASS (this arm adds `blurSurfaces: messages`) |
+
+> **⚠ RETRACTED — every ratio in the table above is an INSTRUMENT ARTIFACT (#508, 2026-08-22).** The
+> framebuffer decoder behind them (`reports/px-rail-chats.mjs`, untracked scratch) estimated the plate
+> backdrop as each scanline's **p50**, on the premise that glyphs are a minority of a text row. On a
+> dense line they are not: p50 lands ON A GLYPH. Re-derived on the same shot — row `y=62` read
+> p50 = **0.2392** where the true plate backdrop is **0.0476–0.0504**, a ~5x overstatement of the
+> backdrop, which UNDERSTATES every ratio computed from it. Decoded honestly, the `compact` arm reads
+> **7.83:1 inside the plate**, and the ~4.07:1 scanlines the decode surfaced were the variant strip over
+> RAW ART, outside any plate at all. **Do not quote 5.41 / 4.27 / 4.25 anywhere.**
+>
+> **The FINDING below survives the retraction, and it is a contract finding, not a pixel one:**
+> `BACKGROUND_DIM_MIN = 0` let a legal user value switch off a scrim the code calls "non-negotiable for
+> text legibility". That was real, and it is fixed (#487, dim floor). The corrected estimator now has a
+> durable home with a planted control — `tooling/src/_shared/pixel-backdrop.ts` `scanlineBackdrop`
+> (modal cluster, polarity-free, REFUSES a row with no flat population) + `tests/tooling/_shared/
+> pixel-backdrop.test.ts` — so the next drive that cuts a scanline cannot re-derive this lie.
 
 In the `reading` arm the type is 21.56px — under the 24px WCAG large-text line, so the 4.5:1 floor
 applies, not 3:1.
@@ -391,6 +409,10 @@ beautiful. It is also, measurably, where the prose is fighting the picture — i
 you can see the stone columns and the violet braziers straight through the paragraph, and that is
 exactly the region that measures 4.27:1. My eye forgave this twice before the pixel decode caught it.
 That reconciliation is the single most valuable line in this review.
+**⚠ And it was wrong (#508): the 4.27:1 is a p50-estimator artifact (see the retraction under P1) — the
+plate reads 7.83:1. The eye was right and the instrument was not, which is the opposite lesson and the
+more expensive one. What the decode DID legitimately catch is the variant strip over raw art, outside
+the plate.**
 
 **The list pane is top-heavy and buries the thing it exists to show.** Above the first of 896 rows sit
 a header band, a 3-avatar character filter with a "+10 More" tile, a search field, a "Jump to month"

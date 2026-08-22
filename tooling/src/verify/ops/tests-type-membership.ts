@@ -7,8 +7,11 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:tests-membership");
 
 // The TYPE programs whose import closures collectively must cover every test file. Each is a real tsgo
 // `-p <config>` program; `--listFilesOnly` gives its full resolved file set. (The vitest `types` project's
