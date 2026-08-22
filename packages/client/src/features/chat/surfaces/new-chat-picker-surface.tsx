@@ -26,6 +26,35 @@
 // The modal stays OPEN for the one round-trip, with the confirm item reading its pending state, and closes
 // only on success — a failed create leaves the user's cast picked and the mutation's own toast explaining
 // why, instead of dismissing them into a landing screen with nothing to retry.
+//
+// THE CARET STARTS IN THE SEARCH BOX (#440, side-eye 2026-08-22). This surface used to run
+// `useFocusOnMount` on its own `<Stack tabIndex={-1} className="outline-none">` — a wrapper that is neither
+// the search field nor inside cmdk's key handler, so every keystroke a keyboard user made on arrival was
+// SWALLOWED, with no focus ring on screen to explain why (measured: `activeElement = DIV.relative`,
+// `cmdk-input.value === ""` after typing). The picker now passes `autoFocusSearch` to `CharacterPicker`,
+// whose own `useFocusOnSwap` lands the caret when the ROWS mount — the case Base UI's dialog initial-focus
+// cannot serve, because at open time this body is still the suspense fallback with nothing tabbable in it.
+// The "the two would fight over the caret" note on that prop is retired by the same move: nothing here
+// claims focus any more.
+// @surface-focus-elsewhere(CharacterPicker): the picker body owns arrival focus — its `autoFocusSearch`
+// lands the caret in the search combobox when the rows mount, and a `useFocusOnMount` here is exactly the
+// defect #440 fixed (it parked focus on a dead wrapper and swallowed every keystroke).
+//
+// THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
+// the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
+// overflow goes LEFT — so "Blank chat" painted OUTSIDE the dialog and was clipped by the popup, worse as
+// the Start label grew with the selection count (measured 27px at 1 pick, 35px at 3). Below the `@md`
+// container step the two buttons SHARE the row (`flex-1 min-w-0`) and Start wears a count-abbreviated
+// label; at or above it they return to their natural widths and the full sentence. The step is a CONTAINER
+// query, never a media query (the §0 container rule): this surface is a modal body whose width is the
+// dialog's, not the viewport's. `@md` = 28rem = 448px, chosen with margin over the ~390px where the full
+// labels stop fitting.
+//
+// THE ZERO-SELECTION START IS QUIET (#441). It used to be the loudest thing in the modal — a full primary
+// orange fill that does nothing, with its teaching label composited at 2.64:1 by the primitive's
+// `disabled:opacity-50`. The teaching arm is a low-emphasis `outline` control at FULL opacity instead: the
+// quiet skin is what says "not yet", so the dim (whose only job was to say the same thing) is exactly what
+// made the sentence unreadable. The primary fill is reserved for the state where the button can act.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -34,18 +63,48 @@ import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { useStartChat } from "#data";
-import { useFocusOnMount } from "#lib";
 import { clearNewChatIntent, closeModal, useNewChatIntent } from "#state";
 
 const SKELETON_ROW_COUNT = 6;
 
-export function NewChatPicker(): ReactElement {
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+/** The action buttons SHARE the footer row below the `@md` container step and take their natural widths at
+ *  or above it (#439). Whole literals, never spliced — the Tailwind scanner never assembles a class name. */
+const ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none";
 
+/** …and the teaching arm adds the opacity override. BOTH spellings are needed: Base UI's Button sets the
+ *  native `disabled` attribute AND `data-disabled`, and the primitive dims on each. The dim is a SIGNAL of
+ *  "not yet" that this arm delivers with its quiet `outline` intent instead — keeping it would leave the
+ *  sentence that explains the state as the least legible text on the surface, at 2.64:1 (#441). */
+const TEACHING_ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none disabled:opacity-100 data-disabled:opacity-100";
+
+/** The Start button's full label — also its accessible name at `@md` and up. */
+function startLabelFor(count: number, pending: boolean): string {
+  if (pending) {
+    return "Starting…";
+  }
+  return count === 0 ? "Pick a character to start" : `Start chat with ${count} character${count === 1 ? "" : "s"}`;
+}
+
+/** The narrow-container label. Short enough that the two buttons share a 366px dialog without either
+ *  leaving it, and count-shaped so the width stops breathing on every toggle. */
+function compactStartLabelFor(count: number, pending: boolean): string {
+  if (pending) {
+    return "Starting…";
+  }
+  return count === 0 ? "Pick a character" : `Start (${count})`;
+}
+
+/** The polite announcement of the count (side-eye ARIA rec #2): the Start button's accessible name carries
+ *  it, but a user whose focus is in the search box never hears that name change, so toggling a character
+ *  was silent. Always mounted, so the region exists before it has something to say. */
+function selectionStatusFor(count: number): string {
+  return count === 0 ? "No characters selected" : `${count} character${count === 1 ? "" : "s"} selected`;
+}
+
+export function NewChatPicker(): ReactElement {
   const [selected, setSelected] = useState<ReadonlySet<CharacterId>>(() => new Set<CharacterId>());
   // The creation parameters this open was PRE-ARMED with (the home temp-chat tile's `temporary: true`).
   // Cleared by a real modal dismiss — never component cleanup, which React Strict Mode probes while this
@@ -82,12 +141,15 @@ export function NewChatPicker(): ReactElement {
   };
 
   const selectedCount = selected.size;
-  const pickLabel = selectedCount === 0 ? "Pick a character to start" : `Start chat with ${selectedCount} character${selectedCount === 1 ? "" : "s"}`;
   // Hoisted out of JSX: a ternary between two STRING variables in a JSX child is `noLeakedRender`-shaped.
-  const startLabel = isPending ? "Starting…" : pickLabel;
+  const startLabel = startLabelFor(selectedCount, isPending);
+  const compactStartLabel = compactStartLabelFor(selectedCount, isPending);
+  // The teaching arm — rendered, disabled, and QUIET, so the affordance is discoverable before it is usable
+  // without spending the modal's one focal control on a button that cannot act (#441).
+  const teaching = selectedCount === 0;
 
   return (
-    <Stack ref={surfaceRef} className="outline-none" tabIndex={-1}>
+    <Stack className="@container">
       {/* The temporary flag is a CREATION-ONLY parameter the user can't change later, so the picker states
           it up front rather than surprising them in the room (temp tile → this modal → a room born
           Temporary). */}
@@ -102,6 +164,7 @@ export function NewChatPicker(): ReactElement {
         </Row>
       ) : null}
       <CharacterPicker
+        autoFocusSearch={true}
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
@@ -116,13 +179,25 @@ export function NewChatPicker(): ReactElement {
           list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
       <Row align="center" className="sticky bottom-0 border-border border-t bg-popover" gap="field" justify="end" padding="block">
-        <Button disabled={isPending} intent="ghost" onClick={(): void => found([])}>
+        <Text as="span" className="sr-only" role="status">
+          {selectionStatusFor(selectedCount)}
+        </Text>
+        <Button className={ACTION_BUTTON} disabled={isPending} intent="ghost" onClick={(): void => found([])}>
           <Icon icon={Plus} size="sm" />
           Blank chat
         </Button>
-        <Button disabled={selectedCount === 0 || isPending} intent="primary" onClick={(): void => found([...selected])}>
+        <Button
+          className={teaching ? TEACHING_ACTION_BUTTON : ACTION_BUTTON}
+          disabled={teaching || isPending}
+          intent={teaching ? "outline" : "primary"}
+          onClick={(): void => found([...selected])}
+        >
           <Icon icon={MessagesSquare} size="sm" />
-          {startLabel}
+          {/* Both arms are always in the DOM and the container query shows ONE (the message-row pattern) —
+              a `display: none` arm is out of the a11y tree too, so the accessible name is always the arm
+              on screen. */}
+          <Row className="@md:hidden">{compactStartLabel}</Row>
+          <Row className="hidden @md:flex">{startLabel}</Row>
         </Button>
       </Row>
     </Stack>
