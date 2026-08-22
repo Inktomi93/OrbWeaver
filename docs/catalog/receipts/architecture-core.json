@@ -933,13 +933,13 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "f501f36c790af83a248421c68978f686a24a152fc031342499d3b2785e98416d",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "de8ba707410d93fd888b8f7d5dcb0e5ced1607e4aa45d0b1b5c0493668aae530",
+      "verifiedCommit": "09b8ead41eae4ca5f878202fbc1e5def32644949",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
-        "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
-        "pnpm check:docs (2026-08-15 restamp — receipt sha/commit refresh, #73 red-fixes)"
+        "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-22; 09b8ead41)",
+        "pnpm check:docs (2026-08-22 re-attest after #433 — §3 count correction two -> FOUR composition-tier dir modules: the doc listed agent-nav/ and agent-seed/ only, agent-rpg/ was already unlisted and unwalled before this change, and agent-handles/ is the new DEV-only assembly; §7 gains the boot-chunk law for that arm and the kit/contracts/ui sideEffects declarations)"
       ],
       "claims": [
         {

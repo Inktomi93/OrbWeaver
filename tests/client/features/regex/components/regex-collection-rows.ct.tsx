@@ -16,8 +16,15 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { RegexLibraryGroupStory } from "../_ct-stories.tsx";
 
 const BAND = /Regex scripts/;
-/** The kebab's accessible name is `Actions for <name>`, so only a pattern addresses one row's menu. */
-const STRIP_ACTIONS = /Actions for strip ooc/;
+/** The kebab's accessible name is `Actions for <subject>`, so only a pattern addresses one row's menu — and
+ *  the SUBJECT is the row's name plus its list-resolved qualifier (`"strip ooc" · 4 Sep 2025`, #443), which
+ *  is why these stop at the quoted name rather than spelling a clock-fed stamp. */
+const STRIP_ACTIONS = /Actions for "strip ooc"/;
+/** Every row kebab in the group, whatever it is named — the #443 pin reads the names it finds. */
+const ANY_ROW_ACTIONS = /^Actions for/;
+/** The bulk-mode checkbox that REPLACES the kebab — same subject grammar, same reason. */
+const STRIP_CHECKBOX = /^Select "strip ooc"/;
+const NARRATE_CHECKBOX = /^Select "narrate"/;
 /** The bulk delete confirm's body — the CASCADE, which is the consequence the roster cannot show. */
 const BULK_DELETE_CASCADE = /removes them from every preset, character, and room/;
 /** The single-row kebab delete confirm's body (singular voice) — config-delete #271's converged affordance. */
@@ -163,6 +170,37 @@ test("every library row carries an EDITED stamp, so freshly-added rows are not i
   expect(subtitles[0] ?? "").toMatch(NEW_SCRIPT_SUBTITLE);
 });
 
+// ── #443 · THE KEBAB'S ACCESSIBLE NAME (the defect the SUBTITLE stamp above cannot reach) ─────────────
+
+// X-16 gave the two rows different SUBTITLES. Their kebabs still announced the same string, because a row
+// action names its subject by NAME alone — so a screen-reader walk of the list found two buttons called
+// "Actions for New script" and no way to tell which row either belonged to (side-eye 2026-08-22 P3).
+//
+// The fixture is the WORST case on purpose: same name AND same `updatedAt`, so the shown stamp collides too
+// and `rowQualifiers` has to escalate past it. Two rows minted by two clicks of `Add script` in one minute
+// are exactly that.
+const TWIN_SCRIPTS = [
+  script("regex_script_twin0000001", "New script", { findRegex: "", placement: [] }),
+  script("regex_script_twin0000002", "New script", { findRegex: "", placement: [] }),
+];
+
+test("two identically-named rows announce DISTINCT kebab names", async ({ mount, page }) => {
+  await stub(page, TWIN_SCRIPTS);
+  const group = await mount(<RegexLibraryGroupStory />);
+  await page.getByRole("button", { name: "reset" }).click();
+  await group.getByRole("button", { name: BAND }).click();
+  await expect(group.getByText("New script", { exact: true }).first()).toBeVisible();
+
+  const labels = await group.getByRole("button", { name: ANY_ROW_ACTIONS }).evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""));
+  expect(labels).toHaveLength(2);
+  expect(new Set(labels).size, `two rows, two distinct kebab names — got ${labels.join(" / ")}`).toBe(2);
+  // And the same disambiguation reaches the mode where the kebab is replaced by a checkbox.
+  await group.getByRole("button", { name: "Select scripts" }).click();
+  const checkboxes = await group.getByRole("checkbox").evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""));
+  expect(checkboxes).toHaveLength(2);
+  expect(new Set(checkboxes).size, `two rows, two distinct checkbox names — got ${checkboxes.join(" / ")}`).toBe(2);
+});
+
 // ── BULK MODE ────────────────────────────────────────────────────────────────────────────────────────
 
 test("the band's toggle enters bulk mode, and the rows become checkboxes", async ({ mount, page }) => {
@@ -176,7 +214,7 @@ test("the band's toggle enters bulk mode, and the rows become checkboxes", async
   // makes is unchanged: at rest the row is not in bulk mode.)
   await expect(group.getByRole("button", { name: STRIP_ACTIONS })).toHaveCount(1);
   await expect(group.getByRole("switch"), "no roster row carries a switch any more").toHaveCount(0);
-  await expect(group.getByRole("checkbox", { name: "Select strip ooc" })).toHaveCount(0);
+  await expect(group.getByRole("checkbox", { name: STRIP_CHECKBOX })).toHaveCount(0);
 
   const toggle = group.getByRole("button", { name: "Select scripts" });
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
@@ -185,8 +223,8 @@ test("the band's toggle enters bulk mode, and the rows become checkboxes", async
 
   // Every row is now a checkbox, and the per-row switch is suppressed — a mode where a stray click silently
   // edits a row you meant to check is worse than no mode.
-  await expect(group.getByRole("checkbox", { name: "Select strip ooc" })).toBeVisible();
-  await expect(group.getByRole("checkbox", { name: "Select narrate" })).toBeVisible();
+  await expect(group.getByRole("checkbox", { name: STRIP_CHECKBOX })).toBeVisible();
+  await expect(group.getByRole("checkbox", { name: NARRATE_CHECKBOX })).toBeVisible();
   await expect(group.getByRole("button", { name: STRIP_ACTIONS })).toHaveCount(0);
 });
 
@@ -200,10 +238,10 @@ test("the selection bar appears only once something is checked, and counts what 
   // would be chrome repeating them.
   await expect(group.getByRole("button", { name: "Enable" })).toHaveCount(0);
 
-  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
+  await group.getByRole("checkbox", { name: STRIP_CHECKBOX }).click();
   await expect(group.getByRole("button", { name: "Enable" })).toBeVisible();
   await expect(group.getByText("1 selected")).toBeVisible();
-  await group.getByRole("checkbox", { name: "Select narrate" }).click();
+  await group.getByRole("checkbox", { name: NARRATE_CHECKBOX }).click();
   await expect(group.getByText("2 selected")).toBeVisible();
 });
 
@@ -212,8 +250,8 @@ test("Disable sends ONE batch naming exactly the checked scripts", async ({ moun
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
   await group.getByRole("button", { name: "Select scripts" }).click();
-  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
-  await group.getByRole("checkbox", { name: "Select narrate" }).click();
+  await group.getByRole("checkbox", { name: STRIP_CHECKBOX }).click();
+  await group.getByRole("checkbox", { name: NARRATE_CHECKBOX }).click();
 
   await group.getByRole("button", { name: "Disable" }).click();
   await expect
@@ -229,7 +267,7 @@ test("Run everywhere sends the GLOBAL batch", async ({ mount, page }) => {
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
   await group.getByRole("button", { name: "Select scripts" }).click();
-  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
+  await group.getByRole("checkbox", { name: STRIP_CHECKBOX }).click();
 
   // The GLOBAL pair lives in the bar's kebab — three inline verbs is what the 330px roster column fits (see
   // the geometry pin below), and this pair is the less-frequent, binary one.
@@ -247,7 +285,7 @@ test("every bulk verb is reachable inside the roster column — nothing clips of
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
   await group.getByRole("button", { name: "Select scripts" }).click();
-  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
+  await group.getByRole("checkbox", { name: STRIP_CHECKBOX }).click();
 
   const bar = group.locator('[data-slot="selection-bar-root"]');
   await expect(bar).toBeVisible();
@@ -276,8 +314,8 @@ test("bulk Delete confirms with the CASCADE named, then batches", async ({ mount
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
   await group.getByRole("button", { name: "Select scripts" }).click();
-  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
-  await group.getByRole("checkbox", { name: "Select narrate" }).click();
+  await group.getByRole("checkbox", { name: STRIP_CHECKBOX }).click();
+  await group.getByRole("checkbox", { name: NARRATE_CHECKBOX }).click();
 
   // Delete rides the bar's kebab — the same place the ROW's kebab homes it, and what the 330px roster column
   // actually fits (see the geometry pin above).
@@ -297,7 +335,7 @@ test("Change where they run opens the placement picker, guarding Apply until a s
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
   await group.getByRole("button", { name: "Select scripts" }).click();
-  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
+  await group.getByRole("checkbox", { name: STRIP_CHECKBOX }).click();
 
   // It rides the bar's kebab — its target is a placement SET, so it needs a dialog, not an inline button.
   await group.getByRole("button", { name: "More actions for 1 script" }).click();
@@ -318,7 +356,7 @@ test("applying the picked streams sends ONE bulkSetPlacement — placement only,
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
   await group.getByRole("button", { name: "Select scripts" }).click();
-  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
+  await group.getByRole("checkbox", { name: STRIP_CHECKBOX }).click();
 
   await group.getByRole("button", { name: "More actions for 1 script" }).click();
   await page.getByRole("menuitem", { name: "Change where they run" }).click();
