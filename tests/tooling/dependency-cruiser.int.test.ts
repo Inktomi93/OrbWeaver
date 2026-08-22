@@ -216,6 +216,10 @@ function writeAllFixtures(): void {
   fx("tooling/src/__dc_ta/cli.ts", `import "./x.ts";\n`);
   // tooling-shared-floor: the plumbing floor reaching UP into a tool.
   fx("tooling/src/_shared/__dc_up.ts", `import "../__dc_ta/x.ts";\n`);
+  // tooling-no-provider-families — a tool reaching a provider FAMILY (backends/<x>, where the agent-sdk
+  // credential firewall lives). The rule shipped without this pin, so the anti-drift `test.each(ACTIVE_RULES)`
+  // case had nothing to fire it and the suite was RED on main before the P6 verify move touched it.
+  fx("tooling/src/__dc_ta/families.ts", `import "../../../packages/server/src/infra/providers/backends/__dc_back/i.ts";\n`);
 
   // client-components-tier (G5): components/ never imports UP into features/routes/main.tsx.
   fx("packages/client/src/components/__dc_t/i.ts", VAL);

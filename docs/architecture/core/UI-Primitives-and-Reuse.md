@@ -99,7 +99,7 @@ The §13.2 map is the cold-agent contract: a surface not using its primitive is 
 
 ### 13.7 The `@orb/ui` primitive & CT structural contract (BUILT — gate `ui-primitive-structure`)
 
-`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `scripts/check/gates/ui-primitive-structure.ts`** (8 clauses — the gate file is the enforcer; this § is the WHY a clause exists). `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is load-bearing, do not renumber.
+`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `tooling/src/verify/gates/ui-primitive-structure.ts`** (8 clauses — the gate file is the enforcer; this § is the WHY a clause exists). `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is load-bearing, do not renumber.
 
 - **The primitive trio.** `primitives/<name>/` = `<name>.tsx` (named export, no default) + `index.ts` (the ONLY consumer import) + `variants.ts`, plus optional `handle.ts` (imperative `createHandle`). Variants-exempt allowlist: `icons`, `virtual-list`, `message-list`, `aria-announcer`, `file-trigger` (sealed satellites/barrels with no skin of their own); `code-editor`/`content/*`/`markdown`/`lib` live outside `primitives/`; `layout/` shares one `variants.ts` for the kit.
 - **Variants naming:** exactly one `tv()` export named **`{camelName}Variants`** (greppable, reserved-word-safe — `switch` forced the suffix anyway).

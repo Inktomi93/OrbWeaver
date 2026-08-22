@@ -463,7 +463,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/density-tier.ts:1"
+              "target": "tooling/src/verify/gates/density-tier.ts:1"
             },
             {
               "kind": "issue",
@@ -1543,7 +1543,7 @@
             },
             {
               "kind": "code",
-              "target": "scripts/check/gates/test-presence-client.ts:268"
+              "target": "tooling/src/verify/gates/test-presence-client.ts:268"
             },
             {
               "kind": "issue",

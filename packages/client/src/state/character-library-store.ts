@@ -1,7 +1,7 @@
 // The character-library VIEW-PREFS store: sort mode, flat/categorized view mode, filter chips, bulk-select
 // flag. Does NOT home the selected character (character-selection-store.ts) or the bulk selection set
 // (createCollectionSurface's transient id-set). Device-local, registered in
-// scripts/check/gates/persistence-boundary.ts DEVICE_LOCAL_REGISTRY. `bulkMode` is transient (excluded
+// tooling/src/verify/gates/persistence-boundary.ts DEVICE_LOCAL_REGISTRY. `bulkMode` is transient (excluded
 // from partialize) — a reload landing in bulk mode with an empty selection would be a confusing dead state.
 // `browseOffset` is transient for the same class of reason (see its setter) — it is a within-session browse
 // position, not a preference, so the persisted blob's shape is unchanged and the gate's rationale still holds.

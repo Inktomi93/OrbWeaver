@@ -57,7 +57,7 @@ function hasExpectedEvidenceRoot(kind: string, path: string): boolean {
     return path.startsWith("tests/");
   }
   if (kind === "gate") {
-    return path.startsWith("scripts/check/");
+    return path.startsWith("tooling/src/verify/");
   }
   return path.startsWith("docs/architecture/core/");
 }

@@ -13,7 +13,7 @@ export interface LivenessOptions {
  *  on, and the node a reader of leading comments needs). `starSuppressed` = the declaring file is the
  *  target of an `export *` somewhere, so a namespace consumer we cannot cheaply name MIGHT reach it: the
  *  candidate is reported and NAMED, but never counted as a hit. This is the SHARED substrate — the
- *  `orphans` verb prints it and the push-tier ratchet (`scripts/verify/orphan-export-ratchet.ts`) judges
+ *  `orphans` verb prints it and the push-tier ratchet (`tooling/src/verify/ops/orphan-export-ratchet.ts`) judges
  *  it, so there is exactly one definition of "orphan candidate" in the repo. */
 export interface OrphanCandidate {
   readonly name: string;
@@ -239,7 +239,7 @@ export interface WriteScan {
 // line, so a lens can read clean while blind. Three shapes produce that lie here, all measured on this
 // tree, none visible in the RESULT line:
 //   1. THE TWO CORPORA. The syntactic verbs load `harnessGlobs` (packages/*/src + tests +
-//      scripts/check/gates); only the TYPED verbs load `searchGlobs`, which adds all of scripts/**,
+//      tooling/src/verify/gates); only the TYPED verbs load `searchGlobs`, which adds all of scripts/**,
 //      packages/*/*.ts, *.mts and playwright/**. So `ast ident REPO_ROOT --in scripts/` printed
 //      `no results` against a corpus that never contained one scripts/ file (verified 2026-08-13).
 //   2. A SCOPE THAT ADMITS NOTHING. `resolveScope` has always rejected a zero-file positional scope with

@@ -24,21 +24,24 @@ export interface WorkspaceOptions {
   readonly globs?: readonly string[];
 }
 
-/** The source globs the gate harness loads: the historical `getProject` packages+tests fileset PLUS the
- *  gate corpus itself (`scripts/check/gates/**`, the diagnostic-legibility §2.2 fold-in — that gate now
- *  reads the gate files from the SHARED project via `scanRoot`, instead of its own third `new Project`)
- *  PLUS `tooling/src/**` (the @orb/tooling first-class tree — docs/design/tooling-package.md §3.2: the
- *  widening ran the before/after scanned-count diff; every catch-all gate's delta got an explicit
- *  fence-or-embrace decision in the P1 commit). The whole-project scanners (commented-code,
- *  no-caller-user-id, pd-citation-integrity) pin their `scanRoot` to packages+tests so this addition
- *  does NOT change THEIR findings. */
+/** The source globs the gate harness loads: the historical `getProject` packages+tests fileset PLUS
+ *  `tooling/src/**` (the @orb/tooling first-class tree — docs/design/tooling-package.md §3.2: the widening
+ *  ran the before/after scanned-count diff; every catch-all gate's delta got an explicit fence-or-embrace
+ *  decision in the P1 commit). The whole-project scanners (commented-code, no-caller-user-id,
+ *  pd-citation-integrity) pin their `scanRoot` to packages+tests so this addition does NOT change THEIR
+ *  findings.
+ *
+ *  THE PIN — "never widen it" — SURVIVES; its INPUT changed twice. The gate CORPUS used to need its own
+ *  glob line (`scripts/check/gates/**`, the diagnostic-legibility §2.2 fold-in that let that gate read the
+ *  gate files from the SHARED project instead of its own third `new Project`). At the P6 move the corpus
+ *  became `tooling/src/verify/gates/`, which `tooling/src/**` already sweeps — so the dedicated line was
+ *  DELETED as a second spelling of the same set, not as a narrowing. The candidate set is unchanged. */
 export function harnessGlobs(root: string): readonly string[] {
   return [
     `${root}/packages/*/src/**/*.ts`,
     `${root}/packages/*/src/**/*.tsx`,
     `${root}/tests/**/*.ts`,
     `${root}/tests/**/*.tsx`,
-    `${root}/scripts/check/gates/**/*.ts`,
     `${root}/tooling/src/**/*.ts`,
   ];
 }

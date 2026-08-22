@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Project } from "ts-morph";
-import type { CheckContext } from "../../scripts/check/harness.ts";
+import type { CheckContext } from "../../tooling/src/verify/index.ts";
 
 /** A `CheckContext` whose in-memory project holds `files` (path → source), rooted at `root`. */
 export function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {

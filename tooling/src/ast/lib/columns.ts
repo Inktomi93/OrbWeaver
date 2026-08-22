@@ -137,7 +137,7 @@ function sqlColumnName(init: Node | undefined, jsProp: string): string {
 }
 
 /** Every `sqliteTable("<sql>", { … })` under `packages/db/src/schema/`, as the lens's TableDef. The
- *  "what does this `sqliteTable(...)` declare" READER is NOT re-spelled here — it is `scripts/check/
+ *  "what does this `sqliteTable(...)` declare" READER is NOT re-spelled here — it is `tooling/src/verify/
  *  schema-read.ts`, the ONE home the db gates (`fk-columns-indexed`, `fk-ondelete-stated`,
  *  `table-explicit-primary-key`) already read through. This function adds only what those gates have no use
  *  for and this lens cannot work without: the SQL column NAME (the migration's spelling, so a reader can

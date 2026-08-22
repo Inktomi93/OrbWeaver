@@ -1,0 +1,106 @@
+// `verify`'s CONSOLE presentation — the TRUNCATION-ROBUST output contract: a reader who sees only the
+// first ~15 lines (the head banner) OR only the last ~15 lines (the tail block) can determine PASS/FAIL
+// and that reports/verify.json is authoritative. Split out of ops/run.ts at the @orb/tooling P6 move (size
+// cap §4.3); every byte of the rendered output is unchanged.
+import process from "node:process";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import type { StageResult, Tier, VerifyReport } from "../contract/stage.ts";
+import { manualStages, stagesForTier } from "./registry.ts";
+
+const NAME_PAD = 20; // stage-name column width in `verify --list`.
+
+function stageMark(r: StageResult): string {
+  if (r.mode === "deferred") {
+    return "→";
+  }
+  if (r.mode === "skipped") {
+    return "·";
+  }
+  if (r.ok) {
+    return "✓";
+  }
+  return r.exitCode === EXIT.toolError ? "‼" : "✗";
+}
+
+export function stageLine(r: StageResult): string {
+  if (r.mode === "deferred") {
+    return `${stageMark(r)} ${r.name}  deferred (whole-only at this scope) — runs at ${r.runsAt}`;
+  }
+  if (r.mode === "skipped") {
+    return `${stageMark(r)} ${r.name}  skipped (no files in scope)`;
+  }
+  const scope = r.mode === "scoped" ? " scoped" : "";
+  const tag = !r.ok && r.exitCode === EXIT.toolError ? " [tool-error]" : "";
+  return `${stageMark(r)} ${r.name} (${r.durationMs}ms)${scope}${tag}`;
+}
+
+const FAIL_KIND: Readonly<Record<number, string>> = {
+  [EXIT.toolError]: "TOOL-ERROR",
+  [EXIT.misuse]: "REFUSED (strict-scope)",
+  [EXIT.violations]: "violations",
+};
+
+/** A one-line failure reason for a stage — the classifier verdict + its log path, for the tail block. The
+ *  glyph is `stageMark` (‼ for a tool-error, ✗ for a violation) so a tool-error (exit 2 — a BROKEN checker,
+ *  never a verdict per the §3.3 exit contract) is never presented with the violations glyph. Exported for
+ *  the presentation unit test. */
+export function failReason(r: StageResult): string {
+  const kind = FAIL_KIND[r.exitCode] ?? "violations";
+  const where = r.logFile ?? "(no log — did not run)";
+  return `  ${stageMark(r)} ${r.name} — ${kind} · ${where}`;
+}
+
+/** The TAIL block — the load-bearing truncation-robust output. A reader who sees ONLY the last ~15 lines
+ *  MUST be able to determine PASS/FAIL, which stages failed, and that reports/verify.json is authoritative.
+ *  The verdict + pointer print on BOTH pass and fail; on fail, every failing stage names its log inline. */
+export function printSummary(report: VerifyReport): void {
+  process.stdout.write(`\n=== verify summary (tier: ${report.tier}, scope: ${report.scope}) ===\n`);
+  for (const r of report.stages) {
+    process.stdout.write(`${stageLine(r)}\n`);
+  }
+  const failed = report.stages.filter((s) => !s.ok);
+  process.stdout.write("\n════════════════════════════════════════════════════════════════════\n");
+  if (report.ok) {
+    process.stdout.write("[verify] VERDICT: PASS (exit 0) — all stages clean\n");
+  } else {
+    process.stdout.write(`[verify] VERDICT: FAIL (exit ${report.exitCode}) — ${failed.length} stage(s) failed:\n`);
+    for (const r of failed) {
+      process.stdout.write(`${failReason(r)}\n`);
+    }
+  }
+  // The pointer is printed on BOTH pass and fail — a tailing reader always lands on where to read next.
+  process.stdout.write("[verify] AUTHORITATIVE RESULT → reports/verify.json · per-stage logs → reports/verify/<stage>.log\n");
+  process.stdout.write("════════════════════════════════════════════════════════════════════\n");
+}
+
+export function printList(): void {
+  process.stdout.write("verify — the stage registry (tiers · scope):\n\n");
+  for (const t of ["changed", "static", "push", "full"] as const) {
+    process.stdout.write(`  ${t}:\n`);
+    for (const s of stagesForTier(t)) {
+      const scoped = s.scopedArgv === undefined ? "whole-only" : "scopable";
+      process.stdout.write(`    · ${s.name.padEnd(NAME_PAD)} [${s.group}] ${scoped}\n`);
+    }
+  }
+  process.stdout.write("\n  manual (never auto-run):\n");
+  for (const s of manualStages()) {
+    process.stdout.write(`    · ${s.name.padEnd(NAME_PAD)} — ${s.manualReason ?? "(no reason given)"}\n`);
+  }
+}
+
+/** The HEAD banner — printed before any stage runs, so a reader who sees ONLY the first ~15 lines learns
+ *  (a) a verify run is in progress + its tier/scope, and (b) that the authoritative result is
+ *  reports/verify.json + reports/verify/<stage>.log. The verdict itself lands in the TAIL block. */
+export function printHeadBanner(tier: Tier, scope: string): void {
+  process.stdout.write(
+    [
+      "════════════════════════════════════════════════════════════════════",
+      `[verify] RUNNING · tier=${tier} · scope=${scope}`,
+      "[verify] AUTHORITATIVE RESULT → reports/verify.json (read this file — it has the verdict,",
+      "[verify]   per-stage status, and a failure excerpt) · per-stage logs → reports/verify/<stage>.log",
+      "[verify] verdict + failing stages are repeated at the TAIL of this output.",
+      "════════════════════════════════════════════════════════════════════",
+      "",
+    ].join("\n"),
+  );
+}

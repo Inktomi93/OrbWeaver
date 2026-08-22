@@ -81,8 +81,8 @@ This page never duplicates the ownership map; it names where the machine-checked
 
 | Question | The answer's home |
 | - | - |
-| Which tables may stamp an `ownerId` at all? | `scripts/check/gates/ownerid-registry.ts` — `OWNERID_ALLOWLIST`, every row carrying its D23 justification (true producer · parentless per-user aggregate · sanctioned scope-subject). Two-direction ratchet: a new stamp is RED, a stale row is RED. |
-| Which DOMAIN owns which table? | `scripts/check/gates/own-tables-only.ts` — the map is READ OFF `packages/db/src/schema/<file>.ts` at run time (schema file ↔ same-named domain), TOTAL, with `SCHEMA_OWNERS`/`TABLE_OWNERS` for the non-1:1 rows. A foreign WRITE is unconditionally RED; a foreign READ belongs in `persistence/` or an injected op. |
+| Which tables may stamp an `ownerId` at all? | `tooling/src/verify/gates/ownerid-registry.ts` — `OWNERID_ALLOWLIST`, every row carrying its D23 justification (true producer · parentless per-user aggregate · sanctioned scope-subject). Two-direction ratchet: a new stamp is RED, a stale row is RED. |
+| Which DOMAIN owns which table? | `tooling/src/verify/gates/own-tables-only.ts` — the map is READ OFF `packages/db/src/schema/<file>.ts` at run time (schema file ↔ same-named domain), TOTAL, with `SCHEMA_OWNERS`/`TABLE_OWNERS` for the non-1:1 rows. A foreign WRITE is unconditionally RED; a foreign READ belongs in `persistence/` or an injected op. |
 | Who owns a row with no `ownerId`? | §2b — the FK chain to the owning root, gated at the producer verb. Walk the chain BEFORE flagging "missing scope". |
 | Who owns a CHAT? | Nobody (D18). Membership is the scope, host is the transferable role — see §2c. |
 | Which principal classes exist, and which are enforcement-gated? | The principal-flow census + its gate arms (the class-(a) ownership stamp is already gated by `ownerid-registry`; the membership rung is behavioral-only — the cross-tenant sweep, `cross-tenant-sweep.suite.int.test.ts`, is that proof, by design). |

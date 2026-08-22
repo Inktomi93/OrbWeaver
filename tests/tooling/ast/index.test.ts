@@ -319,7 +319,7 @@ describe("ast liveness identity (aliased re-exports)", () => {
 });
 
 // ── the orphan-candidate substrate (shared by `pnpm ast orphans` and the push-tier ratchet) ──────
-// The ratchet (scripts/verify/orphan-export-ratchet.ts) judges EXACTLY this candidate set, so the two can
+// The ratchet (tooling/src/verify/ops/orphan-export-ratchet.ts) judges EXACTLY this candidate set, so the two can
 // never disagree about what an orphan is. Two properties are load-bearing for it: star-suppressed
 // candidates are FLAGGED as suppressed (never silently dropped, never ratcheted), and `isProdConsumed`
 // answers the stale-`@public` question on the same declaration identity the candidate side keys on.
@@ -1387,7 +1387,7 @@ export const which = (r: { alsoUsed: number }): number => r.alsoUsed;
 
 // ── the DECLARATION-GRANULAR edge must not perturb the liveness sets (the GATE-REGRESSION guard) ──────
 // `buildLiveness` is shared substrate: `pnpm ast orphans` prints its verdict and the PUSH-tier
-// `deps:orphan-ratchet` (scripts/verify/orphan-export-ratchet.ts) gates on the same candidate set. So the
+// `deps:orphan-ratchet` (tooling/src/verify/ops/orphan-export-ratchet.ts) gates on the same candidate set. So the
 // edge map added for `chains` is PARALLEL and OPT-IN, and this is the pin that keeps it that way: over every
 // fixture corpus in this file, the six liveness sets must be IDENTICAL with the flag off and on — the flag's
 // only observable effect is `consumers`. (The same identity was measured on the REAL workspace before and

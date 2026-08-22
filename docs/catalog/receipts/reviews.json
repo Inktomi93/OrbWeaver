@@ -1269,7 +1269,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/ui-skin-fragment-purity.ts:35"
+              "target": "tooling/src/verify/gates/ui-skin-fragment-purity.ts:35"
             }
           ]
         }

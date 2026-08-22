@@ -9,7 +9,7 @@
   // by NO static stage. This config is that missing home: a dom+dom.iterable+es2025 program (the browser
   // lib set, copied from packages/client/tsconfig.json) that OWNS the DOM-coupled `.ts` escapees.
   //
-  // The `tests-type-membership` verify stage (scripts/verify/tests-type-membership.ts) is the permanent
+  // The `tests-type-membership` verify stage (tooling/src/verify/ops/tests-type-membership.ts) is the permanent
   // guard: it reconciles EVERY type-relevant file under tests/** + playwright/** against the import-closure
   // of every type program (this one included), and REDs if any file lands in zero programs. A new
   // DOM-coupled `.ts` test → add it to the `include` here (the stage names it + this file as the fix).

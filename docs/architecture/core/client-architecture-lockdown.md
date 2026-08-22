@@ -522,7 +522,7 @@ design (no durable row, no resume cursor).
 
 Plus `presence-registry.ts`: presence = a ref-count per userId over open SSE connections + a 15s grace window — server-derived, never a client-asserted heartbeat (a spoofable presence is a prompt-composition attack). All process-local, `ASSUMES(single-replica)`.
 
-**Verification of the commissioning read (trust code):** (a) *"the user bus has no coverage gate"* — FALSE: `scripts/check/gates/user-bus-coverage.ts` is active, two-direction ratchet, self-tested. (b) *"is the user-bus apply exhaustive?"* — YES, by a different mechanism: a mapped-type Record over `UserBusEvent["type"]` is compile-time-total exactly like `assertNever`. (c) *"is the fanout as rigorous?"* — the TIERING is deliberate, not a gap: shared-room truth rides the durable seq-stamped chat bus; per-person freshness rides the lossy-but-self-healing user bus (its contract header records the design: a dropped tick costs one reconnect-heal, never divergent canon). The member-fan is real and security-scoped: `entry/compose/emit-chat-changed.ts` derives recipients from the LIVE roster (`kind='human'`, `leftSeq IS NULL`) + pre-captured `extraUserIds` for just-kicked members — never a non-member.
+**Verification of the commissioning read (trust code):** (a) *"the user bus has no coverage gate"* — FALSE: `tooling/src/verify/gates/user-bus-coverage.ts` is active, two-direction ratchet, self-tested. (b) *"is the user-bus apply exhaustive?"* — YES, by a different mechanism: a mapped-type Record over `UserBusEvent["type"]` is compile-time-total exactly like `assertNever`. (c) *"is the fanout as rigorous?"* — the TIERING is deliberate, not a gap: shared-room truth rides the durable seq-stamped chat bus; per-person freshness rides the lossy-but-self-healing user bus (its contract header records the design: a dropped tick costs one reconnect-heal, never divergent canon). The member-fan is real and security-scoped: `entry/compose/emit-chat-changed.ts` derives recipients from the LIVE roster (`kind='human'`, `leftSeq IS NULL`) + pre-captured `extraUserIds` for just-kicked members — never a non-member.
 
 **The laws (each names its enforcer; NEW gates in §16):**
 
@@ -636,7 +636,7 @@ pass; the §12 matrix was replaced outright (F-6).
 
 ## 16. THE GATE SPEC
 
-Bias: machine-enforceable — **the gate is the wall; prose is the why.** `E` = exists (cite) · `N` = new (build) · `A` = amend. Every N/A ts-morph gate lands as a `scripts/check/gates/*.ts` descriptor (loader-discovered, `mustFlag`/`mustPass` self-tested per the house contract). Review-only rows state WHY machine-checking fails and carry the exact checklist.
+Bias: machine-enforceable — **the gate is the wall; prose is the why.** `E` = exists (cite) · `N` = new (build) · `A` = amend. Every N/A ts-morph gate lands as a `tooling/src/verify/gates/*.ts` descriptor (loader-discovered, `mustFlag`/`mustPass` self-tested per the house contract). Review-only rows state WHY machine-checking fails and carry the exact checklist.
 
 | # | | Gate | Mechanism | RED condition |
 | - | - | - | - | - |

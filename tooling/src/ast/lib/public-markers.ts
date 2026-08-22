@@ -11,7 +11,7 @@ const JSDOC_TERMINATOR_RE = /\*\/\s*$/u;
 /** Does this declaration carry `/** @public <reason> *\/` in a LEADING comment, WITH a reason? (the
  *  `isUnwiredExempt` discipline: a bare marker is not a legal exemption.)
  *
- *  ONE HOME, deliberately: the push-tier ratchet (scripts/verify/orphan-export-ratchet.ts) reads this to
+ *  ONE HOME, deliberately: the push-tier ratchet (tooling/src/verify/ops/orphan-export-ratchet.ts) reads this to
  *  decide which orphan candidates it judges, and the `chains` fixpoint reads it to decide which declarations
  *  are ALIVE ROOTS. Two spellings of the predicate would let the two disagree about what "deliberately
  *  unconsumed" means — and the chain lens would then report a whole tree hanging off a head the ratchet has

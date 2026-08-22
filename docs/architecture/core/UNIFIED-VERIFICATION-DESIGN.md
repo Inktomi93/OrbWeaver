@@ -5,7 +5,7 @@ updated: 2026-07-17
 ---
 
 <!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
-     harness (scripts/verify/{run,registry,selection}.ts) — the stage set, tier ladder, exit contract, and
+     harness (tooling/src/verify/{run,registry,selection}.ts) — the stage set, tier ladder, exit contract, and
      the CT-merged-into-`tests:node` lane all still match. ONE stale reference: §2.2's membership resolver
      is `tsgo --listFilesOnly` in this text, but retro moved the CLI type lanes off tsgo/tsc6 to `ts7`
      (`scripts/ts7.cjs`; ts-morph/typescript-eslint keep the TS6 API). Read `ts7` for `tsgo` at that line;
@@ -18,8 +18,8 @@ updated: 2026-07-17
 > convention, one exit contract, one summary artifact, generalized over a self-describing stage registry.
 > AGENTS.md §4 states the doctrine ("iterate on `--changed`, claim done only after `pnpm check`, pre-push is
 > `--push`, the works is `--full`"); this doc is its as-built spec. The CODE is truth on any conflict:
-> `scripts/verify/{run,registry,selection,tests-type-membership,tests-execution-membership}.ts`,
-> `scripts/check/{report,scoped}.ts`, `scripts/check/gates/verify-registry-parity.ts`, `lefthook.yml`,
+> `tooling/src/verify/{run,registry,selection,tests-type-membership,tests-execution-membership}.ts`,
+> `tooling/src/verify/{report,scoped}.ts`, `tooling/src/verify/gates/verify-registry-parity.ts`, `lefthook.yml`,
 > `.github/workflows/ci.yml`.
 
 ## 1. Why ONE surface
@@ -42,7 +42,7 @@ updated: 2026-07-17
 ## 2. The blind spots the design exists to catch
 
 The tsc/editor model is unsound for a monorepo verifier; the registry's stage set + the scope resolver are
-built around these gaps. `scripts/verify/selection.ts` is the code home for §2.1–§2.2.
+built around these gaps. `tooling/src/verify/lib/selection.ts` is the code home for §2.1–§2.2.
 
 ### 2.1 The editor blind spot
 
@@ -79,12 +79,12 @@ Stages are presented in groups (`lint`/`types`/`structure`/`imports`/`deps`/`doc
 
 ## 3. The harness
 
-`scripts/verify/run.ts` is the entry; `registry.ts` is the stage ledger; `selection.ts` is the scope
+`tooling/src/verify/ops/run.ts` is the entry; `registry.ts` is the stage ledger; `selection.ts` is the scope
 resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the retired 8-stage check).
 
 ### 3.1 The stage registry
 
-`scripts/verify/registry.ts` — every verification surface in the repo, self-described as a `StageDef`:
+`tooling/src/verify/lib/registry.ts` — every verification surface in the repo, self-described as a `StageDef`:
 
 - `name` (kebab, unique) · `group` (§2.4) · `tiers` (§3.2 membership) · `argv` (the whole-scope
   `pnpm <script>` form, spawned `shell:false`) · optional `env` (child env; no current consumer) ·
@@ -95,7 +95,7 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the retire
   2 IS a tool-error — the opposite of tsc's 2), `ownScheme` (our 0/1/2/3-speaking tsx scripts pass through;
   an unexpected code is itself a tool-error).
 - Adding a stage is a registry row; `stagesForTier` / `manualStages` derive the run + the list from it.
-  `verify --list` prints every row with its tiers + scope + manual reason. `tests/tooling/verify-run.int.test.ts`
+  `verify --list` prints every row with its tiers + scope + manual reason. `tests/tooling/verify/ops/run.int.test.ts`
   pins the classifiers, the tier composition, and the scope derivations.
 
 ### 3.2 Tier composition (the ladder)
@@ -146,12 +146,12 @@ A HARD contract, spoken by every stage and by the run:
 
 ### 3.4 The scope model
 
-`scripts/verify/selection.ts` is the ONE resolver: a `--changed`/`--file`/`--package`/`--scope` request
+`tooling/src/verify/lib/selection.ts` is the ONE resolver: a `--changed`/`--file`/`--package`/`--scope` request
 resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads from. Each stage decides how
 (if at all) it runs over that selection:
 
 - **The honest per-tool floor:** biome/eslint/docs = the file; tsc = the OWNING PACKAGE (file-scoped tsc is
-  unsound, §2.1); depcruise = the file; structure = the walk scoped via `scripts/check/scoped.ts`.
+  unsound, §2.1); depcruise = the file; structure = the walk scoped via `tooling/src/verify/ops/scoped.ts`.
 - **CT (Playwright component tests) = mirror + declared sweeps — the ONE deliberately-open edge**
   (owner-ratified 2026-07-17). A changed `packages/{ui,client}/src/<p>.<ext>` selects its test-layout
   mirror `tests/{ui,client}/<p>.ct.tsx` IFF it exists on disk (no mirror ⇒ no contribution); a changed
@@ -183,7 +183,7 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
 
 Two live parity gates keep the registry and the scripts honest, both directions:
 
-- **`verify-registry-parity`** (`scripts/check/gates/verify-registry-parity.ts`, docRow cites §3.6):
+- **`verify-registry-parity`** (`tooling/src/verify/gates/verify-registry-parity.ts`, docRow cites §3.6):
   - Arm 1 — every `package.json` script matching the verification shape
     (`check*`/`test*`/`lint*`/`typecheck*`/`depcruise*`/`e2e*`/`cpd*`/`format*`) must be a registry stage's
     `pnpm <script>` argv, OR on the small `NON_STAGE_ALLOWLIST` (the verify host + its check alias, the
@@ -221,14 +221,14 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   per-push browser surface. **`browser:e2e`** (`full`), **`browser:e2e-live`** (`manual` — costs model
   credits), **`tests:parity`** (`full`), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
   - **`tests:coverage`** (`manual` — report-only, no thresholds gate).
-- **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `scripts/verify/tests-execution-membership.ts`)
+- **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
   — `types:tests-membership`'s EXECUTION-lane sibling: BOTH directions of "a test file is run by SOME
   runner, and a runner glob matches SOME file". Asks each runner its own `--list` view (`vitest list --filesOnly --json` for all six node projects; `playwright test --list --reporter=json` for
   `playwright.config.ts` — run with `E2E_LIVE=1` so `@live`-tagged specs, structurally matched but grep-
   skipped at routine run time, still count — and `playwright-ct.config.ts`), never re-parses glob strings
   (drift-proof). A `tests/**` runner-suffixed file in NO view REDs (never executed); a runner view matching
   ZERO files REDs (the marinara silent-no-op disease — its server `pnpm test` globs matched nothing).
-- **`structure:db-baseline`** (`static`/`push`/`full` — `scripts/verify/db-baseline-parity.ts`) — the
+- **`structure:db-baseline`** (`static`/`push`/`full` — `tooling/src/verify/ops/db-baseline-parity.ts`) — the
   committed squashed migration (`packages/db/src/migrations/0000_baseline.sql`) vs what the live
   `@orb/db/schema` generates, statement-set equal after whitespace/semicolon normalization
   (order-insensitive — FK order is proven applicable elsewhere). Pre-launch, schema changes SQUASH into that
@@ -236,7 +236,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   committed file rots: TWICE a bump shipped without a regen and sat \~10 hours until `verify --push` caught
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
   (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
-  `tests/tooling/schema-baseline-parity.int.test.ts` calls (one home, two callers).
+  `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
 - **`structure:drizzle-kit`** (`static`/`push`/`full` — `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its
   sibling above: `structure:db-baseline` compares the schema to the baseline's CONTENT, this one validates
   the `migrations/meta` CHAIN (every `_journal.json` entry has its snapshot; no two snapshots claim the
@@ -245,10 +245,10 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   (owner ruling): the guardrail is built BEFORE the need, so the first post-launch incremental migration
   lands into an armed one rather than minting it under pressure. Whole-only (one migrations dir). The
   post-baseline procedure it guards is `Tier-1-DB.md` §"When we migrate for real".
-- **`deps:orphan-ratchet`** (`push`/`full` — `scripts/verify/orphan-export-ratchet.ts`) — the export-rot
+- **`deps:orphan-ratchet`** (`push`/`full` — `tooling/src/verify/ops/orphan-export-ratchet.ts`) — the export-rot
   lens as a standing verdict: every export of `kit`/`contracts`/`db`/`server`/`client` that NOTHING reaches
   (prod or test) and that is unused in its own file, judged against a checked-in baseline
-  (`scripts/verify/orphan-export-ratchet.baseline.json` — the tree the 2026-08-03 sweep left, one row per
+  (`tooling/src/verify/ops/orphan-export-ratchet.baseline.json` — the tree the 2026-08-03 sweep left, one row per
   deliberately-undecided export). Both directions RED: a NEW orphan, and a baseline row that is no longer
   one (consumed / tagged / deleted ⇒ remove the row). It shares the `pnpm ast orphans` substrate
   (`collectOrphanCandidates`) rather than re-deriving liveness. **It cannot lean on `deps:knip`** — probe-

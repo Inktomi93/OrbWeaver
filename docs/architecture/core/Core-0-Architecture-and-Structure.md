@@ -38,7 +38,7 @@ Agents (the only contributors here) respect only what fails *early*. Push enforc
 | - | - | - | - |
 | 1 Resolve-time | package deps (undeclared import won't resolve) | as written | **yes — physics** |
 | 2 Compile-time | types: branded types, exhaustive unions, `satisfies never` | `tsc` | strong |
-| 3 Lint-time | dependency-cruiser, biome, `scripts/check` | `check` (must be run) | weak |
+| 3 Lint-time | dependency-cruiser, biome, `tooling/src/verify` | `check` (must be run) | weak |
 | 4 Test-time | tests | later | weakest |
 
 The cake → tier 1 (packages). Invariants → tier 2 (types). dependency-cruiser → tier 3 backstop only.
@@ -238,7 +238,7 @@ When these hold, **the structure is the documentation**: a new feature is "copy 
 finding anything is a path derivation, and "where does this go?" has exactly one answer.
 
 > All 13 are IMPLEMENTED (dep-cruiser rules and the ts-morph gates in
-> `scripts/check/gates/`); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
+> `tooling/src/verify/gates/`); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
 > (the single enforcement source of truth; deferred/rejected gates: `Core-Enforcement-Deferred-Dropped.md`).
 

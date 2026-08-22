@@ -9,7 +9,7 @@
 //
 // WHY PER DEVICE: "tags open, regex closed" is a working posture on THIS screen, not a preference that
 // should follow a user to a phone — the `character-library` browse-prefs precedent (§12.1). Registered as
-// device-local in scripts/check/gates/persistence-boundary.ts.
+// device-local in tooling/src/verify/gates/persistence-boundary.ts.
 //
 // The stored shape is a kind LIST, not a total Record: collection kinds are host-opaque strings with no
 // vocabulary tuple to be total over, so an unknown persisted kind is simply a kind that no longer

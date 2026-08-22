@@ -97,7 +97,7 @@ The instant a database exists that we cannot drop, the squash policy INVERTS: re
 would mean destroying live data, so the baseline freezes and every change ships as a forward `000N`.
 
 **Launch day is a two-switch flip, both in the same commit:** `LAUNCHED = true` in
-`scripts/check/gates/baseline-single-migration.ts` (the gate stops demanding a single baseline) AND
+`tooling/src/verify/gates/baseline-single-migration.ts` (the gate stops demanding a single baseline) AND
 `LAUNCHED` in `packages/server/src/entry/boot/migrate.ts` (baseline drift becomes boot-FATAL instead of an
 auto-wipe). Flipping one without the other is the worst state: either the gate refuses every new migration,
 or a launched db silently auto-wipes.
@@ -124,7 +124,7 @@ The per-change procedure after that:
      chain grows past one entry, and precisely why the stage is wired now.
    - `pnpm check:db-baseline` — schema ≡ the CUMULATIVE migrations. It compares the live schema to
      `0000_baseline.sql` alone, so **it must be re-pointed at the applied chain when regime 2 begins**
-     (`scripts/verify/db-baseline-parity.ts` — generate from the last snapshot instead of from `{}`); until
+     (`tooling/src/verify/ops/db-baseline-parity.ts` — generate from the last snapshot instead of from `{}`); until
      then it would red on every legitimate incremental. Left in place for regime 1's benefit; this line is
      the reminder that it is regime-1-shaped.
    - the boot path against a COPY of a real db — `assertReferentialIntegrity` after the run is the belt

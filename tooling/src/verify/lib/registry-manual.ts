@@ -1,0 +1,161 @@
+// The MANUAL-tier registry rows (UNIFIED-VERIFICATION-DESIGN.md §3.6) — stages a run never auto-includes:
+// the CANDIDATE lenses whose output is evidence rather than a verdict, the credit-spending live e2e, the
+// exploratory mutation report, the coverage report, and the two niced scoped-run invocation wrappers. Each
+// carries the `manualReason` `verify --list` prints. Split out of lib/registry.ts at the @orb/tooling P6
+// move (size cap §4.3); the rows and their ORDER are unchanged, and lib/registry.ts concatenates them last
+// exactly where they sat, so `verify --list` output is byte-identical.
+import type { StageDef } from "../contract/stage.ts";
+import { asViolations } from "./exit-classifiers.ts";
+
+export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
+  {
+    name: "tests:scoped",
+    group: "tests",
+    tiers: ["manual"],
+    argv: ["pnpm", "test:scoped"],
+    classify: asViolations,
+    manualReason: "the niced scoped lane-run wrapper (paths + --maxWorkers supplied per call) — an invocation surface, not a verification stage",
+  },
+  {
+    name: "tests:ct-scoped",
+    group: "tests",
+    tiers: ["manual"],
+    argv: ["pnpm", "ct:scoped"],
+    classify: asViolations,
+    manualReason: "the niced scoped CT wrapper (carries the cache-clear; paths + --workers per call) — an invocation surface, not a verification stage",
+  },
+  {
+    name: "browser:e2e-live",
+    group: "browser",
+    tiers: ["manual"],
+    argv: ["pnpm", "e2e:live"],
+    classify: asViolations,
+    manualReason: "costs model credits (E2E_LIVE=1, a real model round-trip)",
+  },
+  {
+    name: "quality:mutation-report",
+    group: "quality",
+    tiers: ["manual"],
+    argv: ["pnpm", "test:mutation"],
+    classify: asViolations,
+    manualReason: "exploratory Stryker report (break:null) — minutes-long, report-only",
+  },
+  {
+    name: "quality:respell",
+    group: "quality",
+    // A CANDIDATE lens, so it is `manual` BY NATURE and not by cost: it reports domain `contract/` shapes
+    // structurally identical to an @orb/contracts shape, which is EVIDENCE of a re-spell, never proof (two
+    // shapes may agree today and be free to diverge tomorrow). Gating a commit on that would train agents to
+    // rename a field to dodge it — worse than the rot. The syntactic half IS enforced, at the
+    // `contract-derives-not-respells` gate; this row keeps the judgment half discoverable in `verify --list`
+    // (and reachable by the parity gate) rather than living only in a lens verb nobody remembers.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:respell"],
+    classify: asViolations,
+    manualReason: "CANDIDATE lens (`pnpm ast respell <domain>`) — structural identity is evidence, not proof; verify each hit before acting, never gate on it",
+  },
+  {
+    name: "quality:swallowed",
+    group: "quality",
+    // The other CANDIDATE lens, `manual` for the same reason as quality:respell — it names exports whose only
+    // liveness is a whole-module `import * as` (db's `drizzle(client, { schema })` swallows the entire schema
+    // barrel), which is EVIDENCE of rot, never proof: the swallowing API may itself read the member (drizzle
+    // does read a `relations()` config it is handed). Gating on it would train agents to delete load-bearing
+    // config. The row exists so the audit is discoverable in `verify --list` instead of living only in a lens
+    // verb nobody remembers. Its `@swallowed-ok:` markers ARE two-sided (a stale one exits 1) — that half is
+    // self-enforcing whenever the lens is run.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:swallowed"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast swallowed <scope>`) — namespace-only liveness is evidence, not proof; a hit may be load-bearing through the swallowing API, so verify before deleting",
+  },
+  {
+    name: "quality:typeonly",
+    group: "quality",
+    // The third CANDIDATE lens, `manual` for the same reason as quality:respell / quality:swallowed — it
+    // names VALUE exports (functions, consts, classes) whose EVERY reference is a TYPE position: `import
+    // type`, `typeof X`, an annotation, an `implements` clause. That is EVIDENCE of runtime-dead code kept
+    // alive structurally, never proof: a `satisfies`-anchor tuple whose only job is to be the source of a
+    // derived union (packages/db's CONSTRAINT_KINDS) is exactly this shape and exactly correct. Gating on it
+    // would train agents to delete the axis tuples the exhaustiveness dispatch is built from. The row exists
+    // so the audit is discoverable in `verify --list` instead of living only in a lens verb nobody remembers.
+    // Its `@typeonly-ok:` markers ARE two-sided (a stale one exits 1) — that half is self-enforcing whenever
+    // the lens is run. Also the SLOWEST lens in the file (one reference resolution per value export).
+    tiers: ["manual"],
+    argv: ["pnpm", "check:typeonly"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast typeonly-alive <scope>`) — type-position-only liveness is evidence, not proof; a hit is often a deliberate conformance seam, so verify before deleting",
+  },
+  {
+    name: "quality:columns",
+    group: "quality",
+    // The fourth CANDIDATE lens, `manual` for the same reason as respell/swallowed/typeonly PLUS a second one
+    // this row must state plainly: its two halves have DIFFERENT confidence. Reads are the union of a
+    // language-service pass and a row-shape pass; writes are purely STRUCTURAL, because drizzle's
+    // `$inferInsert`/`$inferSelect` are mapped types whose properties carry zero declarations — nothing to
+    // resolve. So a table with a whole-row writer (`db.insert(t).values(row)`) marks EVERY column `write?`,
+    // and a `raw?` annotation means only that the column's SQL name appears in some raw `sql` template (v1
+    // cannot attribute an alias-qualified raw query to a table). A WRITE-only hit is the RV-11 class worth a
+    // human's time; it is never proof. Gating on it would train agents to delete audit timestamps. The row
+    // exists so the audit is discoverable in `verify --list` rather than living only in a lens verb nobody
+    // remembers. Its `@column-ok:` markers ARE two-sided (a stale one exits 1) — self-enforcing when run.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:columns"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast columns <table>`) — reads are resolved two ways but writes are structural-only (drizzle's inferred row types are mapped types with no declarations), so an opaque whole-row writer makes the write half UNKNOWN; verify each hit before deleting a column",
+  },
+  {
+    name: "quality:regkeys",
+    group: "quality",
+    // INFORMATIONAL, not merely manual (owner ruling 2026-08-03) — the distinction matters and is the whole
+    // reason this row reads differently from the four lenses above. Those are CANDIDATE lenses: evidence a
+    // human converts to a verdict. This one is a HEURISTIC: it reports registry ROWS whose key literal is
+    // spelled at no dispatch site, and registry dispatch is legitimately dynamic (a key from the DB, a URL
+    // segment, a template literal, an `Object.keys(REG)` iteration). False positives are EXPECTED and
+    // structural, not a defect to tune away — `TOKENS` alone contributes ~138 of them because its keys are
+    // consumed by CSS-variable generation, and that is CORRECT behavior for the lens. It therefore ships with
+    // no exemption marker, no stale arm, and no non-zero exit on findings: there is nothing to keep two-sided
+    // when the tool never claims a verdict. It must NEVER be promoted to a gating tier.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:regkeys"],
+    classify: asViolations,
+    manualReason:
+      "HEURISTIC + INFORMATIONAL (`pnpm ast regkeys <registry>`) — never gates, has no exemption marker by design; dynamic dispatch makes live rows look dead, so every line needs its call sites read before anyone acts",
+  },
+  {
+    name: "quality:chains",
+    group: "quality",
+    // The fifth CANDIDATE lens, `manual` for the same reason as respell/swallowed/typeonly/columns PLUS one
+    // that is specific to a FIXPOINT and makes gating actively dangerous here: this lens does not evaluate
+    // declarations independently, it propagates. A single consumption edge the substrate cannot see — a
+    // registry row dispatched from a DB-sourced key, a `Trpc[…]` proxy read, a template-literal module id —
+    // does not cost one false positive, it kills that declaration AND everything reachable only through it.
+    // One blind spot, a whole false subtree. Gating on that would train agents to delete live code in bulk,
+    // which is strictly worse than the rot the lens exists to find.
+    //
+    // It also, uniquely, has NO exemption marker of its own — deliberately, and the absence is the design
+    // (owner-ratified 2026-08-03). Every chain terminates at an UNCONSUMED HEAD, which is an `orphans`
+    // candidate already governed two-sided by the push-tier `deps:orphan-ratchet` and its `/** @public
+    // <reason> */` tag. This lens READS that same tag (through the ratchet's own predicate, one home in
+    // tooling/src/ast) as an alive root, so tagging or wiring or deleting the head resolves every
+    // link below it by construction. A per-link `@chain-ok:` would let somebody exempt a middle link while
+    // its head stayed dead — an exemption stating nothing true, which is the one thing an exemption may
+    // never be. FIX AT THE HEAD is the whole grammar.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:chains"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast chains <scope>`) — a FIXPOINT: one consumption edge the substrate cannot see kills a whole subtree in the report, so verify the call sites before acting, and fix at the chain's HEAD (wire/delete/`@public` it), never per link",
+  },
+  {
+    name: "tests:coverage",
+    group: "tests",
+    tiers: ["manual"],
+    argv: ["pnpm", "test:coverage"],
+    classify: asViolations,
+    manualReason: "coverage REPORT only — no thresholds gate (vitest.config.ts)",
+  },
+];

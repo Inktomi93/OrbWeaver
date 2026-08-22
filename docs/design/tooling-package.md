@@ -97,7 +97,7 @@ The 27 `#!/usr/bin/env tsx` shebangs across `scripts/` (tsx was shed 2026-08-03;
 | `render-trace/` | `trace-render.ts` (255) + `trace-tail.ts` (111) + `probe-fire.ts` (246) | `trace:render` `trace:tail` `trace:fire` | P3 LANDED: one tool, three ops behind one dispatcher (`cli.ts render\|tail\|fire`); fire's child rides `spawnNicedChild` and spawns `node` (the tsx spawn was launcher rot), its stale FLAG(wiring) headers truth-repaired (`initTracing()` IS wired — entry/lifecycle.ts:169); tail/sse resolve a promise instead of calling process.exit (arm D holds fleet-wide) |
 | `ast/` | `codemods/ast.ts` (6,241) | `ast` + `check:respell/swallowed/typeonly/columns/regkeys/chains` | P4 LANDED: the deepest decomposition — `contract/types.ts` (every exported lens shape, unions tuple-derived), `lib/{root,keys,ledger,emit,resolve,scope,public-markers,liveness,edges,columns,column-reads,fields,field-seeds,usage}.ts`, `ops/{symbols,orphans,prodonly,graph,wiring,swallowed,dead,respell,typeonly,columns,regkeys,fields,chains,stringy,apisurface,rot,verbs,depcruise}.ts`. Exit convergence (stated): unknown verb → EXIT.misuse (it printed usage + exit 0); `exitToolError` THROWS AstToolError (arm D — the cli maps it to EXIT.toolError); depcruise pass-through rides `spawnNiced` (async, streamed — the 64MiB maxBuffer ceiling died with the raw spawnSync). Parity: the four pinned queries byte-identical pre/post, plus a fifth (`columns` full audit — 780 columns/86 tables) byte-identical at 8G; `rot ui` 1:41 new vs 1:51 monolith (warm) with identical 42 matches. One alias VALUE change (names frozen, values free): `check:columns` gains the `ast` script's `--max-old-space-size=8192` — the lens peaks \~5.5GB RSS, and main's MONOLITH also exits 134 at the default heap (4.5GB RSS, measured from main's checkout) — a pre-existing break the move surfaced, not a regression |
 | `codemod/` | `codemod-kit.ts` (3,385) + `codemod.ts` + `migrate-macro-blocks.ts` + `export-rot-cleanup.ts` | `codemod` | P4 LANDED: the kit split by its own §-sections into `lib/{errors,project,run,plans,files,imports,exports,symbols,text,jsx,id-branding,id-casts,diagnostics,kit,example}.ts` + `ops/{manifest,recipes,migrate-macro-blocks}.ts`; index.ts is the ts-morph-pinning re-export surface. THE LOADER CONSOLIDATION: `createCodemodProject` rides `getWorkspace(types:true)` — the kit's own `new Project(` site died (plumbing arm A proves it); `projectOptionsOverride`/`extraGlobs` deleted (zero users — stated clean cut); `tsConfigFilePath`+`replaceGlobs` survive (the int test drives a scratch root). DEVIATION (stated, receipts in the P4 report): `export-rot-cleanup.ts` was DELETED, not moved — it executes at import (top-level `await runCodemod`), its disposition rows are a completed 2026-08-03 one-shot, and the dispositions doc is the durable record; the orchestrator may overrule at merge |
-| `verify/` | `scripts/check/**` (247 files incl. gates/ + GATE-AUTHORING.md) + `scripts/verify/**` (9 files) | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` | one system; moved LAST (P6); the largest coupled surface (§3.3) |
+| `verify/` | `tooling/src/verify/**` ← `scripts/check/**` (226 files incl. the 219-gate corpus + GATE-AUTHORING.md) + `scripts/verify/**` (9 files) | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` | P6 LANDED: one system, one cli — ten pnpm rows became ten VERBS (`run`/`structure`/`show`/`scoped`/`new-gate`/`baseline <kind>`/`tests-membership`/`tests-execution-membership`/`db-baseline`/`orphan-ratchet`), so nothing points into `ops/` any more. `gates/` is the SIXTH SLOT (§4.1's `CORPUS_SLOTS` row — 219 fs-discovered descriptors are neither a command family nor tool-internal helpers), cap-exempt per §4.3. The nine committed-baseline generators stopped executing at import and became `cli.ts baseline <kind>`. `contract/` grew {gate,pass,harness,stage,selection,scoped,baseui,readers}; `lib/` split registry (→ +registry-manual, +exit-classifiers), selection (→ +program-routing, +ct-view, +repo-paths), pass (→ +gate-ignore), baseui-read (→ +baseui-expand) and run (→ +run-argv, +run-render) under the 450-line cap |
 | `workboard/` | `github/work-item.ts` (975) | `work:item` | P5 LANDED: renamed; `lib/{vocab,queries,parse,writes}.ts` + `contract/types.ts` + `ops/{gh,project,lifecycle,report,run}.ts`. `WorkItemUsageError` became `_shared`'s `UsageError` (same exit 3); a guard refusal still prints ONE operator line and exits 2, never a stack |
 | `doc-catalog/` | `docs/catalog.ts` (937) + `docs/format-md.ts` (77) | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` | P5 LANDED: ONE tool, two verbs (`cli.ts catalog --*` / `cli.ts format --*`); rules pure in `lib/{vocab,frontmatter,receipt-rules,debt}.ts`, tree I/O in `ops/{tree,validate,catalog,format,run}.ts`. `registry.ts:308`'s scoped argv repointed AND its dead `tsx` spelling corrected to `node` (tsx was shed 2026-08-03) |
 | `agent-sync/` | `agents/sync-codex-agents.ts` (251) | `agents:sync` `check:agents` | P5 LANDED: renamed; `--check` staleness now exits 1 (VIOLATIONS) instead of throwing — it is a `pnpm check` stage, and a crash-shaped exit read as a tool break |
@@ -139,7 +139,7 @@ The research zone MAY import `@orb/tooling` (plumbing reuse beats respelling; th
 - **dead-class tokenizer — MERGED to `@orb/kit/dead-css`.** The definition of "dead" (the escaped-class-token regex + the marker namespaces that legitimately ship no rule) is one kit module; the live `[css]` flagger calls it, and `snap --dead-css` SERIALIZES the regex sources + marker tables into its `page.evaluate` string (`JSON.stringify` → `new RegExp`), which also retires that op's hand-doubled-backslash hazard. Only the DOM halves stay local — a live MutationObserver vs. a one-shot census — because that is the half the consumers genuinely differ on.
 - **ONE LoAF observer — MERGED.** `motion-stats.ts` installs the app's only `long-animation-frame` PerformanceObserver and publishes each entry through `subscribeLongAnimationFrames`; `long-task-tracer.ts`'s `[frame]`/`[reflow]` channels now subscribe instead of observing (the `[drop]` flagger already did). Channels, budgets, console lines and both checkpoint floors are unchanged — only the frame SOURCE moved.
 - **accname engine → `@orb/ui` — PREMISE DEAD, refused with receipts (P7).** There is no accname engine in `@orb/ui` to sit beside: §13.10 "Namecraft" is the authority and it is homed in `UI-Primitives-and-Reuse.md`, its MECHANICAL half in `tests/support/ct/accessible-names.ts` — whose header carries the opposite ruling, that a hand-rolled in-page name computation is banned ("no browser API computes an accessible name … hand-rolling this in `page.evaluate` would be re-implementing the accname spec"), which is why it reads Playwright's `ariaSnapshot()`. The two tooling sites are not one engine either: `snap/ops/map.ts`'s `accessibleName` resolves a NAME for a selector, while `ui-audit`'s walker emits raw ATTRIBUTES and its node-side check states its own ruling ("the probe doesn't need the browser's exact precedence order since it never computes what the name IS", `ui-audit/lib/checks-a11y.ts:44-45`). Both consumers are in-page raw strings that can import nothing at runtime, and `@orb/ui` has zero app-side consumer — so an `@orb/ui` home would put instrument source in the sealed design system for two TOOLING readers. If the two tool-side resolvers are ever merged, `tooling/src/_shared/` is the home the `tooling-shared-plumbing` gate already guards. Left as a fork for the orchestrator; not built.
-- **trpc/bus devlog merge — PREMISE DEAD (P7).** There is no `lib/devlogs` directory; `trpc-devlog.ts` (a tRPC op formatter + key redaction, NOT dev-only — loggerLink calls it in prod for errors, so it ships) and `bus-devlog.ts` (IS_DEV-gated subscription lifecycle, event ring, duplicate-invalidate burst alarm) share nothing but the house console `%c` palette, which is deliberately identical across all six dev channels ("one dev voice"). Merging them would drag a dev-only ring into the prod bundle.
+- **trpc/bus devlog merge — PREMISE DEAD (P7).** There is no `lib/devlogs` directory; `trpc-devlog.ts` (a tRPC op formatter + key redaction, NOT dev-only — loggerLink calls it in prod for errors, so it ships) and `bus-devlog.ts` (IS\_DEV-gated subscription lifecycle, event ring, duplicate-invalidate burst alarm) share nothing but the house console `%c` palette, which is deliberately identical across all six dev channels ("one dev voice"). Merging them would drag a dev-only ring into the prod bundle.
 
 ## 3. Coupled-site census (recon receipts, 2026-08-21 tree)
 
@@ -189,6 +189,30 @@ Adding `tooling/src/**/*.ts` to the shared walk changes every gate's candidate s
 At P1 the tree under `tooling/src/` is `_shared/` only, so the diff is small and reviewable; that is deliberate — the widening lands BEFORE any tool does.
 
 **P2 amendment (a class this section missed): the protocol is PER-PHASE, not P1-one-time.** The glob was widened once, but every later phase GROWS the population under it — each tool landing re-expands every prefix-keyed `scanRoot`'s candidate set, so each move phase re-runs steps 1-3 over its own delta. Measured at P2: `no-raw-clock` (a negated-predicate scanRoot, the §3.2 hazard class verbatim) started judging snap's ops and flagged 5 legitimate wall-clock reads (watch-series elapsed, stage markers) — fenced with `p.startsWith("tooling/")` + a mustPass row, matching the `scripts/` zone the fleet was promoted from (tools MEASURE real time; the injected-clock law governs app determinism). `no-inline-union-redecl` also grew and correctly bit 3 inline unions (converted to tuple-derivation — an embrace, not a fence). Fence-or-embrace decisions recorded per gate, per phase.
+
+**P6 amendment (the replay over the 219-gate corpus + its 50 machinery files).** The candidate set moved
+5,365 → 5,415: exactly +50, the check/verify MACHINERY joining the walk for the first time (the 219 gate
+files were already in it via the dedicated `scripts/check/gates/**` glob, which the move retired as a second
+spelling of `tooling/src/**` — the "never widen it" pin survives, its INPUT changed). Fence-or-embrace, per
+gate:
+
+- **EMBRACED, green, no fence** — the four gates whose `scanRoot` excluded `scripts/` and now admit the whole
+  tool tree (+269 each: 219 gates + 50 machinery): `no-if-is-group`, `no-loose-id-cast`, `no-mint-via-cast`,
+  `no-raw-random`. Tool code should obey all four and does.
+- **FENCED, with a mustPass row** — `nullable-column-inequality`. Its marker sweep fenced `scripts/`, the
+  corpus's old home; the move re-pointed the fence at `tooling/src/` (a tool issues no drizzle predicate, so
+  every `@nullable-cmp-ok` there is prose about the grammar). Unfenced it read the gate's OWN message strings
+  and reported 10 phantom stale/malformed markers against itself.
+- **RECOGNISER WIDENED** — `diagnostic-legibility`'s pointer vocabulary had no `tooling/` root, so a message
+  that navigated a reader to `tooling/src/verify/gates/` read as a dead end. `tooling` joined the alternation
+  with its own mustPass row.
+- **EMBRACED via conversion** — `no-inline-union-redecl` bit six inline unions in the new `contract/` modules
+  (Tier · StageGroup · StageMode · ExportKind · Disposition · CommentScanMode); all six became `as const`
+  tuples with derived unions, the P2 precedent.
+- **CENSUSED, not exempted** — `tooling-shared-plumbing` arm A met five NON-workspace ts-morph Projects (an
+  in-memory scratch parser, a node\_modules `.d.ts` read, conformance's synthetic mini-projects, two fsBacked
+  gates reading gate SOURCE off real disk). None can be `getWorkspace()`; each is a cited `PROJECT_SITES` row,
+  arm-A-only, with a two-sided stale sweep and a mustPass proving the row is not a blanket pass.
 
 ### 3.2a P1 findings against this census (amended in the P1 commit, per the §9 contract)
 
@@ -328,7 +352,7 @@ One forge lane, one commit per phase; the orchestrator merges + runs the whole-t
 | P3 | ui-audit · motion-audit · cpu-profile · render-trace (3 ops) · wire-tap (sse modernization + the two net-new ops; `sse-tap` alias repointed) · the `record.ts` promotion decision executed | playbook replayed; instrument-proof markers for all five; wire-tap's dev-stack connect/attach smoke receipt (§4.5); the node-26 `EventSource` global verified before the re-exec trim lands |
 | P4 | ast + codemod; loader consolidation onto `_shared/ts-workspace.ts` (the ast/codemod-kit `new Project` sites die; `tooling-shared-plumbing` proves it) | `pnpm ast` cold-run parity spot-check (same refs/callers output pre/post on a pinned query); the 6 `check:*` lens aliases repointed and run once each |
 | P5 | workboard · doc-catalog · agent-sync · seed · stack · model-ab | `registry.ts:308` argv edit; `pnpm work:item --help`, `pnpm check:docs`, `pnpm check:doc-catalog`, `pnpm agents:sync --check`, a stack start-fg smoke — each run once, cold |
-| P6 | verify/check + the whole gate corpus + GATE-AUTHORING.md | the §9 playbook plus GATE-AUTHORING §9's rename sweep over the corpus (old basenames AND `\/`-escaped spellings); `finding-overload-provenance.baseline.json` keys hand-edited; lefthook prose cite; `pnpm check` + `pnpm verify --list` byte-compared against pre-move output; every `UNFIXTURABLE_GATES` + `DORMANT_GATES` row re-verified |
+| P6 LANDED | verify/check + the whole gate corpus + GATE-AUTHORING.md | the §9 playbook plus GATE-AUTHORING §9's rename sweep over the corpus (old basenames AND `\/`-escaped spellings); `finding-overload-provenance.baseline.json` keys hand-edited; lefthook prose cite; `pnpm check` + `pnpm verify --list` byte-compared against pre-move output; every `UNFIXTURABLE_GATES` + `DORMANT_GATES` row re-verified |
 | P7 | one-definition merges + down-migrations (§2.8 carries the landed record + the two premise-kills): dead-CSS tokenizer → `@orb/kit/dead-css`, LANDED; ONE LoAF observer feeding both channels, LANDED; accname engine → ui lib, REFUSED with receipts (no such authority in `@orb/ui`, and two recorded rulings against a hand-rolled engine); trpc/bus devlog merge, REFUSED (no duplication, and opposite bundle postures) | each merge is a shared-value change: run BOTH consumers' suites + the repo-wide literal grep; kit additions pass the `kit-purity` cruiser rule (isomorphic proof) |
 | P8 | instrument-proof CT suite for the client sensors: planted stutter (\[drop] + its re-arm), planted dead class (\[css]), planted long task (\[frame]), planted unreserved box (\[space]), planted CLS | every proof REDs on its planted regression (red-first receipts); CT files named by path in the report |
 | P9 | law docs: Core-0 tooling-tree section · constitution §7 index rows · `scripts/` README declaring the research zone (incl. §2.7's classification + the (d) flag-for-delete list for the owner) · the ruled `useless-fragments.ts` delete · doc-cite sweep | `pnpm check:docs` + `check:doc-catalog` green; `dangling-refs` green; the §2.7(d) owner ruling requested via the orchestrator |
@@ -473,6 +497,36 @@ classes and idioms it minted:
   built from array-literal pairs (`Object.fromEntries`), so seed's ST/OpenAI frames needed no suppression;
   a TYPE cannot, so model-ab joined the existing `infra/providers/**` foreign-vocabulary override row
   rather than minting a new mechanism.
+
+### 9.2c The P6 replay ledger (the verification system itself — what the checklist gained)
+
+The §9.1 checklist was replayed over the thing that RUNS it. New classes and idioms it minted:
+
+- **A ZONE-KEYED FENCE IS A PATH LITERAL TOO (9.1-11 gains an arm).** The rename sweep hunts a moved file's
+  path; it does not hunt a predicate that fenced the ZONE the file used to live in. Three fences read
+  `startsWith("scripts/")` — `nullable-column-inequality`'s marker sweep, `diagnostic-legibility`'s pointer
+  vocabulary (by absence), `no-nul-bytes-in-source`'s SCAN\_ROOTS — and each failed silently in a different
+  direction: two started reporting the corpus's own documentation, one stopped scanning it at all. After any
+  cross-ZONE move, grep the gate corpus for the OLD ZONE PREFIX, not only the old file paths.
+- **A KNIP WORKSPACE BOUNDARY IS A COUPLED SITE.** `scripts/**` is entry-globbed wholesale, so nothing under
+  it was ever analysed for unused exports. Landing in `tooling/` put 269 files under real analysis at once:
+  the fs-discovered gate corpus needed its own `entry` row (the loader IS the registry — without it all 219
+  `export const gate` read as dead AND every helper they alone consume died with them), and eight genuinely
+  consumer-less exports surfaced and were de-exported. Budget both classes on any research-zone → package move.
+- **AN OPS FILE STOPS BEING RUNNABLE, AND ITS SPAWNERS ARE THE COUPLED SITE.** Three callers shelled a
+  now-moved FILE (`check-gates.int` ran `pnpm exec tsx …/structure.ts`; the baseui suite ran the generator by
+  path; `selection.ts` built a `tsx …/scoped.ts` argv). One argv door means a spawner names a VERB — and the
+  conversion also deleted the pnpm hop that existed only to reach tsx.
+- **A GENERATOR THAT EXECUTES AT IMPORT CANNOT JOIN A DISPATCHER.** All nine committed-baseline writers ran
+  their whole body at module scope. Wrapping each as an exported verb is what makes `cli.ts baseline <kind>`
+  possible at all; a dispatcher that imports one un-wrapped generator regenerates a baseline on every run.
+- **THE §9.1-4 DEPTH-DERIVED ROOT BIT FOUR MORE TIMES**, in both directions: three tool-side
+  `join(import.meta.dirname, "..", "..")` walks (show / db-baseline / orphan-ratchet) now take ROOT from the
+  cli, and two relocated suites had to re-count to `"..", "..", "..", ".."`.
+- **A PRE-EXISTING RED SURFACED BY ADJACENCY, and was fixed, not inherited:**
+  `tests/tooling/dependency-cruiser.int.test.ts` was RED on main — the `tooling-no-provider-families` rule
+  shipped without its `__dc` pin, so the derived `test.each(ACTIVE_RULES)` anti-drift case had nothing to fire
+  it. The pin landed here with the receipt that HEAD carries the same red.
 
 ### 9.3 Post-merge ledger (orchestrator steps at every phase merge — P2 barrier receipts)
 

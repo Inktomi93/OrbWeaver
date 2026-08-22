@@ -23,7 +23,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/package-layout.ts:35"
+              "target": "tooling/src/verify/gates/package-layout.ts:35"
             }
           ]
         },
@@ -90,7 +90,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/package-layout.ts:35"
+              "target": "tooling/src/verify/gates/package-layout.ts:35"
             }
           ]
         }
@@ -133,7 +133,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/verify-registry-parity.ts:31"
+              "target": "tooling/src/verify/gates/verify-registry-parity.ts:31"
             }
           ]
         }
@@ -165,7 +165,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/package-layout.ts:35"
+              "target": "tooling/src/verify/gates/package-layout.ts:35"
             }
           ]
         },
@@ -174,7 +174,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/ui-skin-fragment-purity.ts:35"
+              "target": "tooling/src/verify/gates/ui-skin-fragment-purity.ts:35"
             }
           ]
         }
@@ -550,7 +550,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/test-layout.ts:118"
+              "target": "tooling/src/verify/gates/test-layout.ts:118"
             }
           ]
         }
@@ -604,7 +604,7 @@
           "evidence": [
             {
               "kind": "test",
-              "target": "tests/tooling/schema-baseline-parity.int.test.ts:18"
+              "target": "tests/tooling/verify/ops/db-baseline-parity.int.test.ts:18"
             }
           ]
         }
@@ -811,7 +811,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:410"
             }
           ]
         }
@@ -838,7 +838,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:410"
             }
           ]
         }
@@ -907,7 +907,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/verify-registry-parity.ts:31"
+              "target": "tooling/src/verify/gates/verify-registry-parity.ts:31"
             }
           ]
         }

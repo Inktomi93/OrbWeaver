@@ -13,7 +13,7 @@ updated: 2026-08-17
 ## Deferred backlog — neo gates not yet ported, with activation trigger
 
 These are tracked, not dropped. Each turns on when its target code exists; until then it would only
-false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
+false-fire or be vacuous. Numbers reference neo's `tooling/src/verify/`.
 
 | Gate | What it does | Activates when |
 | - | - | - |

@@ -11,7 +11,7 @@ Canonical doc for the testing thread every domain doc defers to (`→ test-time`
 
 ## 0. The principle
 
-The test path is a derivation (prefix-swap mirror), the kind is a suffix, gates force both: `test-layout` (mirror), `test-presence` (§5), `test-determinism` (§3), `test-fixture-imports`/`test-factory-contract` (§4), `test-mock-doctrine` (§3) — all in `scripts/check/gates/`.
+The test path is a derivation (prefix-swap mirror), the kind is a suffix, gates force both: `test-layout` (mirror), `test-presence` (§5), `test-determinism` (§3), `test-fixture-imports`/`test-factory-contract` (§4), `test-mock-doctrine` (§3) — all in `tooling/src/verify/gates/`.
 
 ## 1. The lanes
 
@@ -29,8 +29,8 @@ Node lanes are `test.projects` in the ONE `vitest.config.ts`, selected by suffix
 
 - Node lanes are the six `test.projects` in the ONE `vitest.config.ts`: unit / integration / integration-serial / contract / types / parity. `pnpm test` runs unit + integration + integration-serial + contract; types + parity are opt-in (own scripts). `.int.test.ts` runs PARALLEL by default (`maxWorkers` 14); the explicit `SERIAL_INT` path-set (tree-writing tooling self-tests + heavy full-composition files) is EXCLUDED from `integration` and run one-at-a-time by `integration-serial` — routed by PATH, not a suffix (a `.serial.` rename would trip the structure gates). §Esoterica has the why + how-to-add.
 - **The commit/push split (`lefthook.yml`, both via the one `pnpm verify` entry):** pre-commit = `pnpm check` (= `verify --static`): Biome + per-package `tsgo` + the type lanes + structure gates + dep-cruiser, \~30s. pre-push = `pnpm verify --push`: the static bundle + `pnpm test` (node lanes) + the Playwright CT suite + `pnpm e2e:smoke`. Behavioral + browser tests are deliberately NOT in `pnpm check` — the static tier can't hold browser (vitest-browser hangs, §7).
-- **The types lane is five `verify` stages, not one** (each catches a class the others miss): `types:packages` (per-package `tsgo` — the honest floor: file-scoped tsc never sees consumers), `types:graph` (the DOM-less root program over `tests/`/`scripts/`), `types:testd` (the vitest `.test-d.ts` typecheck project), `types:tests-dom` (`tsconfig.tests-dom.json` — the home for DOM-coupled NON-`.tsx` tests the root graph excludes), and `types:tests-membership`. **`types:tests-membership` makes a silently un-type-checked test file structurally IMPOSSIBLE** (`scripts/verify/tests-type-membership.ts`, landed 2026-07-13): it unions every type program's `tsgo --listFilesOnly` import closure and REDs on any `tests/**`/`playwright/**` TS file that lands in ZERO programs — checked by nothing.
-- **`tests:execution-membership`** (`scripts/verify/tests-execution-membership.ts`, #22) is the EXECUTION-lane sibling, in the `tests` group not `types`: it makes a silently un-EXECUTED test file structurally impossible, both directions. It asks vitest's + both Playwright configs' own `--list` for their file view (never re-parses glob strings — drift-proof) and REDs on a `tests/**` runner-suffixed file matched by NO view, or a runner view matching ZERO files (the marinara disease: its server `pnpm test` globs matched nothing, silently).
+- **The types lane is five `verify` stages, not one** (each catches a class the others miss): `types:packages` (per-package `tsgo` — the honest floor: file-scoped tsc never sees consumers), `types:graph` (the DOM-less root program over `tests/`/`scripts/`), `types:testd` (the vitest `.test-d.ts` typecheck project), `types:tests-dom` (`tsconfig.tests-dom.json` — the home for DOM-coupled NON-`.tsx` tests the root graph excludes), and `types:tests-membership`. **`types:tests-membership` makes a silently un-type-checked test file structurally IMPOSSIBLE** (`tooling/src/verify/ops/tests-type-membership.ts`, landed 2026-07-13): it unions every type program's `tsgo --listFilesOnly` import closure and REDs on any `tests/**`/`playwright/**` TS file that lands in ZERO programs — checked by nothing.
+- **`tests:execution-membership`** (`tooling/src/verify/ops/tests-execution-membership.ts`, #22) is the EXECUTION-lane sibling, in the `tests` group not `types`: it makes a silently un-EXECUTED test file structurally impossible, both directions. It asks vitest's + both Playwright configs' own `--list` for their file view (never re-parses glob strings — drift-proof) and REDs on a `tests/**` runner-suffixed file matched by NO view, or a runner view matching ZERO files (the marinara disease: its server `pnpm test` globs matched nothing, silently).
 - **`.parity` is opt-in**: it stands up an external process (the steady clone) and is slow. The honest caveat travels with the lane: **the oracle validates parity, never memory** — memory is an intentional rewrite and gets `.int` behavioral tests (§6), not a diff.
 - **`.suite.*` — cross-cutting PROPERTY suites.** Not a new lane (the unit/integration/CT globs collect `.suite.test.ts`/`.suite.int.test.ts`/`.suite.ct.tsx`). The suffix marks a **mirror exemption**: a suite validating ONE property spanning MANY modules (the stats drift gate `drift-gate.suite.int.test.ts`, `solo-byte-identical`, the touch-target floor — the former agent-principal containment matrix died with the 2026-07-25 purge) mirrors no single module — the same exemption category as `.parity`. Must still sit under a valid package tree (gate: `test-layout`).
 - Client **pure-logic** (`.test.ts`, no DOM) runs in the node unit project and DOES gate — extract DOM-free logic to a function over reaching for a browser (§7).
@@ -57,7 +57,7 @@ tests/
 └── e2e/                full-stack Playwright .spec.ts (NOT a mirror)
 ```
 
-`support/`, `e2e/`, `tooling/` are the three non-mirror trees; the mirror gate (`scripts/check/gates/test-layout.ts`) exempts exactly those, exempts the `.parity`/`.suite` KINDS (§1), and treats every other path as a strict prefix-swap mirror. The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root — separate runners, not Vitest projects.
+`support/`, `e2e/`, `tooling/` are the three non-mirror trees; the mirror gate (`tooling/src/verify/gates/test-layout.ts`) exempts exactly those, exempts the `.parity`/`.suite` KINDS (§1), and treats every other path as a strict prefix-swap mirror. The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root — separate runners, not Vitest projects.
 
 ## 3. Determinism + mock doctrine
 
@@ -87,7 +87,7 @@ tests/
 
 ## 5. The presence rule — what MUST have a test
 
-`test-layout` enforces *where*; `test-presence` (`scripts/check/gates/`) enforces *that*, on exactly the surfaces where an untested change silently breaks behavior — no blanket per-file coverage (that breeds assertion-free filler):
+`test-layout` enforces *where*; `test-presence` (`tooling/src/verify/gates/`) enforces *that*, on exactly the surfaces where an untested change silently breaks behavior — no blanket per-file coverage (that breeds assertion-free filler):
 
 | Surface | Required test |
 | - | - |
