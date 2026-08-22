@@ -65,8 +65,6 @@ export interface MemoryQueryOptions {
   mode: MemoryRetrievalMode;
   /** Fold keyword-overlap hits into the kept set even below the cosine floor. */
   keywordMatch: boolean;
-  /** Mild score boost toward more-recent digests (0 = off). */
-  recencyBias: number;
   /** Raw-cosine inclusion floor. */
   minScore: number;
   /** The vector candidate pool size for mixB/mixC — the cosine-ranked, floor-passing pool is cut to its top

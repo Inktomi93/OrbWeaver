@@ -7,13 +7,13 @@
 // The embed + rerank carry the digests SCOPE_INSTRUCTIONS (#330 P3) — the SAME conditioning the corpus digest
 // scan uses (`verbs/search.ts` digestScan); an instruction-aware family (Qwen3-VL) sharpens on it, a text-only
 // one drops it (the no-op-knob doctrine), so the within-chat recall path is no longer the weaker sibling.
-// recencyBias (#321 — the owner probe, PD-35) is an EXPERIMENTAL recency boost: `boost = recencyBias ×
-// recencyFactor`, added to the 0..1 cosine relevance and re-sorted, where `recencyFactor ∈ [0,1]` is the
-// candidate's CHRONOLOGICAL position (0 = oldest, 1 = newest) in the tiered bridge `candidates`. `recencyBias 0`
-// (the grounded floor) keeps the CSLS order byte-identically. This is NOT the final blend formula — it ships so
-// the owner can MEASURE the re-ordering effect on the real corpus and rule; see `recencyBoostOrder`.
+// NO RECENCY BOOST LIVES HERE (#321 / PD-35, owner ruling 2026-08-22). An experimental
+// `relevance + recencyBias × recencyFactor` re-order shipped 2026-08-19 purely so the owner could MEASURE it;
+// his 2026-08-20 probe over the real corpus (222-message conversation, biases 0…1) returned the same final
+// top three at every bias in mixC and demonstrated HARM at a smaller retrieveK — a .626 semantic hit displaced
+// by a newer .570 one. So the whole knob was removed rather than blessed with a production blend. Ranking here
+// is CSLS relevance and nothing else; recall tuning returns as a fresh, separately-ruled feature or not at all.
 
-import type { BlockKey } from "@orb/contracts/search";
 import { getLog } from "#foundation/observability";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
@@ -41,35 +41,6 @@ function queryTerms(text: string): Set<string> {
 
 function keywordHit(keywords: readonly string[], terms: ReadonlySet<string>): boolean {
   return keywords.some((k) => terms.has(k.toLowerCase()));
-}
-
-/**
- * #321 — the EXPERIMENTAL recency boost (owner probe, NOT the final blend). Re-rank the CSLS-sorted pool by
- * `relevance + recencyBias × recencyFactor` (descending; a lower raw distance breaks ties), where `relevance`
- * is `1 − distance` (0..1) and `recencyFactor` is the candidate's chronological position in `candidates`
- * (0 = oldest … 1 = newest). The tiered bridge passes `candidates` in chronological coverage order (oldest
- * first — `recall/bridge.ts`), so the index IS the recency rank; a single- or zero-candidate pool has no spread
- * and is returned unchanged. The caller only invokes this when `recencyBias > 0`, so `recencyBias 0` never
- * perturbs the CSLS order (byte-identical). The returned ROW SCORES are untouched — this changes ORDER only,
- * never the `score`/`relevance` a reader sees (the readout-seam doctrine).
- */
-function recencyBoostOrder<T extends { readonly id: string; readonly distance: number }>(
-  ranked: readonly T[],
-  recencyBias: number,
-  candidates: readonly BlockKey[] | undefined,
-): T[] {
-  const n = candidates?.length ?? 0;
-  // recencyBias 0 is the grounded floor (byte-identical CSLS order); recency needs the chronological bridge
-  // `candidates` and a pool with spread. Any of these missing ⇒ no re-order.
-  if (recencyBias <= 0 || candidates === undefined || n <= 1) {
-    return [...ranked];
-  }
-  const factor = new Map<string, number>();
-  candidates.forEach((k, i) => {
-    factor.set(blockKeyStr(k), i / (n - 1));
-  });
-  const goodness = (row: T): number => relevanceOf(row.distance) + recencyBias * (factor.get(row.id) ?? 0);
-  return ranked.toSorted((a, b) => (goodness(b) !== goodness(a) ? goodness(b) - goodness(a) : a.distance - b.distance));
 }
 
 /** mixC's local honest-degrade boundary. `applyRerank` itself stays strict for its other callers; only this
@@ -150,13 +121,9 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
         ),
       );
 
-    // #321 EXPERIMENTAL recency boost (owner probe): re-order the floor-passing pool toward recent digests
-    // BEFORE the cut, so recencyBias steers which candidates survive retrieveK (and, in mixC, feed the rerank).
-    // A no-op at recencyBias 0 / no candidates (the helper returns the CSLS order untouched).
-    const rankedForCut = recencyBoostOrder(ranked, params.recencyBias, params.candidates);
     // The "top retrieveK" retrieval cut: keep the head of the ranked, floor-passing pool. In mixC this is
     // the candidate pool the cross-encoder reranks, then rerankTo caps the reranked result.
-    const retrieved = rankedForCut.slice(0, params.retrieveK);
+    const retrieved = ranked.slice(0, params.retrieveK);
     // Instruction-aware rerankers key off the scope <Instruct> prefix; text-only families ignore it (the same
     // shape the corpus digest scan uses — #330 P3).
     // Retrieval already completed successfully. A failed rerank keeps that exact vector/CSLS order intact

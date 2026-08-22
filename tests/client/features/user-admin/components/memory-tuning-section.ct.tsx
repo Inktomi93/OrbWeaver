@@ -72,15 +72,18 @@ test("all five modes teach benefit + cost in the open picker, with clean accessi
   await expect(page.getByText(RAW_MODE_LABEL)).toHaveCount(0);
 });
 
-test("the recency control states its experimental order-only behavior and zero default truth", async ({ mount, page }) => {
+// #321 / PD-35: the "Recency bias" control was REMOVED (owner ruling 2026-08-22 — his probe measured no recall
+// gain), so the test that pinned its experimental-copy honesty went with it. The fence that replaces it is
+// negative: the retired control must not come back without its ruling.
+test("the retired Recency bias control is absent from the section (#321)", async ({ mount, page }) => {
   await stub(page);
   await mount(<MemoryTuningSectionStory />);
 
-  const info = page.getByRole("button", { name: "More info about Recency bias" });
-  await info.hover();
-  const copy = "Experimental: changes only candidate order before the recall limit. 0 leaves semantic ordering unchanged.";
-  await expect(page.getByText(copy)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Recency bias" })).toHaveValue("0");
+  // Positive control FIRST — prove the section actually rendered its knobs, so the absence below is a
+  // measurement rather than a blank mount reading as a pass.
+  await expect(page.getByRole("textbox", { name: "Minimum match" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Recency bias" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "More info about Recency bias" })).toHaveCount(0);
 });
 
 test("search candidates states the mode-dependent rerank and prompt costs without claiming extra vector-search work", async ({ mount, page }) => {

@@ -31,7 +31,6 @@ export interface MemoryConfig {
   readonly rerankTo?: number | undefined;
   readonly minScore?: number | undefined;
   readonly keywordMatch?: boolean | undefined;
-  readonly recencyBias?: number | undefined;
 }
 
 /** The fully-resolved config every build/recall step reads (no optionals — `resolveCfg` guarantees a value
@@ -47,7 +46,6 @@ export interface ResolvedMemoryConfig {
   readonly rerankTo: number;
   readonly minScore: number;
   readonly keywordMatch: boolean;
-  readonly recencyBias: number;
 }
 
 /** The egocentric memory bucket (§4): which "pile" a build writes / a recall reads. `scopedCharacterId` is
