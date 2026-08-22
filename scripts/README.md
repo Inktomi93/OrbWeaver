@@ -74,15 +74,11 @@ single-child cases are style-tier, and `GATE-AUTHORING.md` §10 bans mirroring a
 **No replacement gate exists or should be built** (`docs/design/tooling-package.md` §7 carries the
 measured receipt).
 
-## PENDING OWNER — flagged for delete, not deleted
+## Deleted by owner ruling (2026-08-22) — git history preserves them
 
-Zero invocations in any visible transcript window; each is a one-shot lens whose output was consumed
-when it ran. **Git preserves every one of them** — deletion costs nothing but the `git log` hop.
-Nothing has been removed; this table is the ruling request.
-
-| path | class | coupled site that dies with it | git preserves |
-| - | - | - | - |
-| `probes/find-react-element-casts.ts` | one-shot lens (a cast census, consumed) | none (no pnpm alias) | yes |
-| `probes/find-shitty-casts.ts` | one-shot lens (a cast census, consumed) | none (no pnpm alias) | yes |
-| `lens/kit-candidates.ts` | one-shot lens (kit-promotion candidates, consumed) | the `lens:kit-candidates` pnpm alias dies with it | yes |
-| `audit/build-repository-audit-manifest.mjs` | one-shot generator for the 2026-08-13 repository audit (its output is committed under `docs/reviews/repository-audit-2026-08-13/`) | none (no pnpm alias) | yes |
+Four one-shot lenses with zero invocations in any visible transcript window, each with its output
+consumed when it ran: `probes/find-react-element-casts.ts`, `probes/find-shitty-casts.ts`,
+`lens/kit-candidates.ts` (+ its `lens:kit-candidates` pnpm alias), and
+`audit/build-repository-audit-manifest.mjs` (its output is committed under
+`docs/reviews/repository-audit-2026-08-13/`). Recover any of them with
+`git log --diff-filter=D --oneline -- scripts/<path>` → `git show <sha>^:scripts/<path>`.
