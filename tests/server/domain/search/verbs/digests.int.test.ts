@@ -21,7 +21,6 @@ function opts(chat: ChatId, scopedCharacterId: CharacterId, over: Partial<Memory
     scopedCharacterId,
     mode: "mixB",
     keywordMatch: false,
-    recencyBias: 0,
     minScore: 0,
     // Wide enough to never cut these small fixtures — the pre-knob "keep all ranked" behaviour these belt
     // assertions were written against (a per-test `over` narrows them when the cut itself is under test).

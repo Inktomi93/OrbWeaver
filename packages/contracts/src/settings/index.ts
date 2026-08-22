@@ -46,14 +46,10 @@ export const logLevelSchema = z.enum(LOG_LEVELS);
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 7;
+export const APP_SETTINGS_SCHEMA_VERSION = 8;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
-const RECENCY_BIAS_FLOOR = 0;
-// recencyBias is a boost ADDED to the 0..1 cosine score — capped at 1 so an admin can't type an absurd 5.0
-// that would swamp similarity entirely (side-eye P3; the schema derives this cap via memoryKnob).
-const RECENCY_BIAS_CEIL = 1;
 const TEMPERATURE_FLOOR = 0;
 const TEMPERATURE_CEIL = 2;
 
@@ -71,7 +67,6 @@ export const MEMORY_DEFAULTS_BOUNDS = {
   retrieveK: { min: 1, max: null, int: true },
   rerankTo: { min: 1, max: null, int: true },
   minScore: { min: SCORE_FLOOR, max: SCORE_CEIL, int: false },
-  recencyBias: { min: RECENCY_BIAS_FLOOR, max: RECENCY_BIAS_CEIL, int: false },
 } as const;
 export type MemoryDefaultsBoundKey = keyof typeof MEMORY_DEFAULTS_BOUNDS;
 
@@ -114,7 +109,6 @@ export const memoryDefaultsSchema = z.object({
   rerankTo: memoryKnob("rerankTo", "Digests kept after cross-encoder rerank in mixC (default 3)."),
   minScore: memoryKnob("minScore", "Minimum cosine similarity for a retrieved digest (default 0.25)."),
   keywordMatch: z.boolean().optional().describe("Also match digest keywords whole-word against recent messages (default true)."),
-  recencyBias: memoryKnob("recencyBias", "Mild score boost toward recent digests in mixB/mixC (default 0 = off)."),
 });
 export type MemoryDefaults = z.infer<typeof memoryDefaultsSchema>;
 
@@ -138,7 +132,6 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
   rerankTo: 3,
   minScore: 0.25,
   keywordMatch: true,
-  recencyBias: 0,
 };
 
 // The memory summarizer's OWN sampler knobs (owner ruling 2026-08-08 — summarize keeps its own gen params,
@@ -437,6 +430,25 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   // its born-in-DB floor (`auto`), which resolves to exactly the vehicle every request used before this
   // knob existed, so no stored blob changes meaning and no wire body moves.
   6: (config) => ({ ...config, schemaVersion: 7 }),
+  // v7→v8: `memoryDefaults.recencyBias` is REMOVED (#321 / PD-35, owner ruling 2026-08-22). Unlike every lift
+  // above this one it DELETES a stored field, so it is the only one that has to be written by hand rather than
+  // stamped: the owner's 2026-08-20 probe measured the experimental boost on the real corpus (222-message
+  // conversation, biases 0…1) and found the final top-three unchanged in mixC and actively WORSE at a smaller
+  // retrieveK, so the knob is retired rather than blessed with a production blend.
+  //
+  // The deletion is SURGICAL — the section is rebuilt minus one key, never replaced. `memoryDefaults` is an
+  // admin's override blob; substituting a default for a section that failed to look right is exactly the #461
+  // wipe class, so a non-object / absent section is passed through UNTOUCHED for the schema to judge rather
+  // than "repaired" here. (The final schema would strip the unknown key on its own; this lift exists so the
+  // stored blob is REWRITTEN clean at the next write and so the removal is legible at the version it happened.)
+  7: (config) => {
+    const memoryDefaults = config["memoryDefaults"];
+    if (isPlainObject(memoryDefaults) && "recencyBias" in memoryDefaults) {
+      const { recencyBias: _drop, ...rest } = memoryDefaults;
+      return { ...config, memoryDefaults: rest, schemaVersion: 8 };
+    }
+    return { ...config, schemaVersion: 8 };
+  },
 };
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({

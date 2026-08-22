@@ -343,8 +343,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 326,
-      "bytes": 69709,
-      "sha256": "7e83f54f68243ae0154d845f3e143bba9f8e6ee29b48bf80b7b1d6a6f0448e28",
+      "bytes": 70736,
+      "sha256": "911e694e6c2e84a3f244469119f3dbbb4f3f76753b03f5651cb35af0a03c8aa2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -361,14 +361,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "7e83f54f68243ae0154d845f3e143bba9f8e6ee29b48bf80b7b1d6a6f0448e28",
-        "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+        "verifiedSha256": "911e694e6c2e84a3f244469119f3dbbb4f3f76753b03f5651cb35af0a03c8aa2",
+        "verifiedCommit": "5c8ae092de2038a9b95c837ac38a1f2caeacbbf1",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "delta re-verify 2026-08-22 (#321, owner ruling): re-read at the removal commit; the ONE changed line is the PD-35 row's new sub-flag-closed note recording recencyBias as CLOSED-REMOVED (probe measured 2026-08-20, removed end-to-end 2026-08-22), re-derived against the tree"
         ],
         "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
       },
@@ -11578,15 +11579,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 446,
-      "bytes": 42156,
-      "sha256": "8ce8d0c8d7c47e8992e231a402f739671775fe326a3c30c8f920021a4ffd0f81",
+      "bytes": 42537,
+      "sha256": "0f3b9fd5b6ccf5eca08f6a9dd66def58eb6b45f5f66402a001478037d475337d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-21"
+          "updated": "2026-08-22"
         },
         "errors": []
       },
@@ -11596,8 +11597,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "8ce8d0c8d7c47e8992e231a402f739671775fe326a3c30c8f920021a4ffd0f81",
-        "verifiedCommit": "b59d7fff93d0248e88402adfcea0cfd323b88c2f",
+        "verifiedSha256": "0f3b9fd5b6ccf5eca08f6a9dd66def58eb6b45f5f66402a001478037d475337d",
+        "verifiedCommit": "5c8ae092de2038a9b95c837ac38a1f2caeacbbf1",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/design/memory-retrieval-graceful-degrade.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
@@ -11610,12 +11611,13 @@
           "tests/client/lib/motion-flaggers.ct.tsx:278 verifies CDP still sees a planted dropped-frame failure while duplicate dev collection is paused",
           "tests/tooling/motion-audit.test.ts:91 proves the first-open allowance cannot renew onto a second app-owned block",
           "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21",
-          "delta re-verify 2026-08-21 (P3 #393): the three motion-audit tool cites repointed scripts/probes/motion-audit.ts -> tooling/src/motion-audit (the tool moved; its verdict surface and ownership claims are unchanged)"
+          "delta re-verify 2026-08-21 (P3 #393): the three motion-audit tool cites repointed scripts/probes/motion-audit.ts -> tooling/src/motion-audit (the tool moved; its verdict surface and ownership claims are unchanged)",
+          "delta re-verify 2026-08-22 (#321, owner ruling): re-read in full at the removal commit; the recency-honesty constraint is marked DEAD (its control no longer exists) and the two coupled sentences repaired — every other section re-derived and unchanged"
         ],
         "summary": "Memory retrieval guidance, graceful rerank fallback, responsive picker behavior, and the sealed Select motion-audit calibration are verified together without changing Base UI or product motion.",
         "claims": [
           {
-            "claim": "Memory retrieval modes use human consequence-first labels and exact experimental recency guidance; mixC rerank failure preserves retrieved order with one turn-scoped warning; the sealed Base UI Select keeps its product behavior while motion-audit classifies only its confirmed entrance lifetime.",
+            "claim": "Memory retrieval modes use human consequence-first labels and no longer expose the retired experimental recency control (#321); mixC rerank failure preserves retrieved order with one turn-scoped warning; the sealed Base UI Select keeps its product behavior while motion-audit classifies only its confirmed entrance lifetime.",
             "evidence": [
               {
                 "kind": "code",
