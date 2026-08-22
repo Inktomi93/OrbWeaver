@@ -59,6 +59,7 @@
 
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { ChatId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
 
@@ -93,9 +94,10 @@ export interface WireCaptureFilter {
 }
 
 // The bounded ring (most-recent-first read). Module singleton — SAFE because writes are gated (see header).
-const ring: (WireCapture | undefined)[] = new Array<WireCapture | undefined>(WIRE_CAPTURE_RING_CAPACITY);
-let head = 0;
-let size = 0;
+// The circular-buffer MECHANISM is @orb/kit/bounded-ring (one engine, every recorder: the log + request
+// rings ride the same one); the retention POLICY — what is worth capturing, and the gate that decides
+// whether anything is written at all — stays here.
+const ring = createBoundedRing<WireCapture>(WIRE_CAPTURE_RING_CAPACITY);
 
 /** True iff the env flag enables capture. Compose ORs this with its force flag to decide whether to wire the
  *  sink into the backends — so with capture off, the sink is absent and the boundaries never write. */
@@ -108,9 +110,7 @@ export function isWireCaptureEnabled(): boolean {
  *  `.cache/wire-capture/captures.jsonl` (see SPILL below) — never a DB table, but not process-memory-only
  *  either. */
 export function recordWireCapture(capture: WireCapture): void {
-  ring[head] = capture;
-  head = (head + 1) % WIRE_CAPTURE_RING_CAPACITY;
-  size = Math.min(size + 1, WIRE_CAPTURE_RING_CAPACITY);
+  ring.push(capture);
   spill("request", capture);
 }
 
@@ -120,11 +120,9 @@ const DEFAULT_READ_LIMIT = 50;
 export function recentWireCaptures(filter: WireCaptureFilter = {}): WireCapture[] {
   const limit = filter.limit ?? DEFAULT_READ_LIMIT;
   const out: WireCapture[] = [];
-  for (let i = 1; i <= size; i += 1) {
-    const capture = ring[(head - i + WIRE_CAPTURE_RING_CAPACITY) % WIRE_CAPTURE_RING_CAPACITY];
-    if (capture === undefined) {
-      continue;
-    }
+  // LAZY newest-first + break at `limit`: the filter has to scan PAST non-matches, so a pre-sliced tail
+  // would silently under-report a filtered read (the reason the primitive exposes an iterator at all).
+  for (const capture of ring.newestFirst()) {
     if (filter.chatId !== undefined && capture.chatId !== filter.chatId) {
       continue;
     }
@@ -142,12 +140,8 @@ export function recentWireCaptures(filter: WireCaptureFilter = {}): WireCapture[
 /** Clear the ring — test isolation (the harness resets between matrix rows so a prior row's wire never bleeds
  *  into the next assertion). No-op cost with the feature off (ring already empty). */
 export function resetWireCaptures(): void {
-  ring.fill(undefined);
-  head = 0;
-  size = 0;
-  outcomeRing.fill(undefined);
-  outcomeHead = 0;
-  outcomeSize = 0;
+  ring.clear();
+  outcomeRing.clear();
 }
 
 // ── OUTCOMES ────────────────────────────────────────────────────────────────────────────────────────────
@@ -200,9 +194,7 @@ export interface WireOutcome {
   readonly toolCalls: readonly WireToolCall[];
 }
 
-const outcomeRing: (WireOutcome | undefined)[] = new Array<WireOutcome | undefined>(WIRE_CAPTURE_RING_CAPACITY);
-let outcomeHead = 0;
-let outcomeSize = 0;
+const outcomeRing = createBoundedRing<WireOutcome>(WIRE_CAPTURE_RING_CAPACITY);
 
 /** Cap on one rendered tool-argument string. */
 const TOOL_ARGS_MAX = 2000;
@@ -220,9 +212,7 @@ export function recordTurnOutcome(outcome: WireOutcome): void {
       args: call.args.length > TOOL_ARGS_MAX ? `${call.args.slice(0, TOOL_ARGS_MAX)}…` : call.args,
     })),
   };
-  outcomeRing[outcomeHead] = bounded;
-  outcomeHead = (outcomeHead + 1) % WIRE_CAPTURE_RING_CAPACITY;
-  outcomeSize = Math.min(outcomeSize + 1, WIRE_CAPTURE_RING_CAPACITY);
+  outcomeRing.push(bounded);
   spill("outcome", bounded);
 }
 
@@ -230,11 +220,7 @@ export function recordTurnOutcome(outcome: WireOutcome): void {
 export function recentTurnOutcomes(filter: { readonly chatId?: ChatId | undefined; readonly limit?: number | undefined } = {}): WireOutcome[] {
   const limit = filter.limit ?? DEFAULT_READ_LIMIT;
   const out: WireOutcome[] = [];
-  for (let i = 1; i <= outcomeSize; i += 1) {
-    const outcome = outcomeRing[(outcomeHead - i + WIRE_CAPTURE_RING_CAPACITY) % WIRE_CAPTURE_RING_CAPACITY];
-    if (outcome === undefined) {
-      continue;
-    }
+  for (const outcome of outcomeRing.newestFirst()) {
     if (filter.chatId !== undefined && outcome.chatId !== filter.chatId) {
       continue;
     }

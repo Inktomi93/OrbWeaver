@@ -5,33 +5,48 @@
 // door DIRECTLY — instead of the factory — re-grows the byte-identical store that drifts (D72). The factory
 // HOME (`create-*`) is excluded (it composes the door on purpose); every OTHER state store is out of scope.
 //
-// TWO-SIDED (gate-hub #10): the NON_DRILL_ALLOWLIST is a scanRoot EXCLUSION, so a rotten row silently
-// un-scans a whole store file. A row is RED when its file has left the project OR when the file no longer
-// mints the raw door (the non-drill sanction is unused — it migrated onto the factory after all). The arm
-// self-guards on a REAL-TREE ANCHOR (gate-hub #11): the raw door's own home.
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the sanctioned files USED to be scanRoot
+// EXCLUSIONS — a name PATTERN (`/create-`) plus a Set — and this header said what that costs: "a rotten row
+// silently un-scans a whole store file". They are now SCANNED, exempted by cited rows, and the pattern is
+// gone: each factory home is its OWN row, so a THIRD `create-*-selection-store.ts` is judged instead of
+// inheriting an exemption from its filename.
+//
+// TWO-SIDED (gate-hub #10) for every row: RED when its file has left the project (mode B) OR when the file
+// no longer mints the raw door (mode A — the sanction is unused; the non-drill migrated onto the factory
+// after all, or the factory stopped composing the door). The arm self-guards on a REAL-TREE ANCHOR
+// (gate-hub #11): the raw door's own home.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const STATE_DIR = "packages/client/src/state/";
 const SELECTION_SUFFIX = "-selection-store.ts";
 const FACTORY_CALLEE = "createGatedStore";
-// The ONE `*-selection-store.ts` that is NOT a single-id drill: message-selection is a bulk multi-select
-// (presence-in-a-Set keyed by message id, PD-119) — a fundamentally different shape the drill factory does
-// not model, so it legitimately mints the raw door. A future NON-drill selection store adds a cited entry.
-const NON_DRILL_ALLOWLIST = new Set([`${STATE_DIR}message-selection-store.ts`]);
+
+/** Every `*-selection-store.ts` that may mint the raw door, and why. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  [`${STATE_DIR}create-drill-selection-store.ts`]: {
+    why: "the drill FACTORY itself — it composes the raw door on purpose; that composition IS the seal every other store mints through. Ends if it stops composing the door (mode A) or moves (mode B)",
+  },
+  [`${STATE_DIR}create-kinded-selection-store.ts`]: {
+    why: "the kinded-selection factory, the same composition one shape over — named as its OWN row rather than inherited from a `/create-` filename pattern, so a third factory is judged rather than auto-exempt. Same end conditions",
+  },
+  [`${STATE_DIR}message-selection-store.ts`]: {
+    why: "the ONE `*-selection-store.ts` that is not a single-id drill: message-selection is a bulk multi-select (presence-in-a-Set keyed by message id, PD-119), a shape the drill factory does not model. Ends when it migrates onto a factory (mode A) or moves (mode B)",
+  },
+};
 
 const GATE_SELF = "tooling/src/verify/gates/selection-store-via-factory.ts";
 /** Real-tree anchor (gate-hub #11): the raw door's own home. Deliberately NOT the drill factory's home —
  *  that file is an example subject here (the `create-*` exclusion has its own mustPass), and an anchor that
  *  doubles as an example subject makes the stale arm misfire inside conformance. */
 const ANCHOR = `${STATE_DIR}create-gated-store.ts`;
-const STALE_GONE = "stale NON_DRILL_ALLOWLIST row — the store file is no longer in the project (ratchet down): ";
+const STALE_GONE = "stale SANCTIONED_HOMES row — the store file is no longer in the project (ratchet down): ";
 const STALE_UNUSED =
-  "stale NON_DRILL_ALLOWLIST row — the store no longer mints the raw `createGatedStore` door, so the " +
-  "non-drill sanction is unused AND the row silently un-scans the whole file (the allowlist is a scanRoot " +
-  "exclusion). Ratchet down: ";
+  "stale SANCTIONED_HOMES row — the file no longer mints the raw `createGatedStore` door, so its sanction " +
+  "(a factory composing the door, or the non-drill bulk store) is unused. Ratchet down: ";
 
 const MESSAGE =
   "a `*-selection-store.ts` calls the raw createGatedStore door directly — the five per-section drill stores are ONE shape. Mint it with `createDrillSelectionStore(name, { secondary? })` (packages/client/src/state/create-drill-selection-store.ts) instead. (derive-modernization-audit.md §W3, G27; D72 — a machine ships WITH its seal.)";
@@ -49,25 +64,27 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "replace the raw `createGatedStore(...)` + its hand actions/selectors with a `createDrillSelectionStore(name, { secondary? })` mint.",
-  // Location-keyed: only the per-section drill `*-selection-store.ts` consumers — never the `create-*`
-  // factory home, never the allowlisted non-drill (message-selection, a bulk multi-select).
-  scanRoot: (p) => p.startsWith(STATE_DIR) && p.endsWith(SELECTION_SUFFIX) && !p.includes("/create-") && !NON_DRILL_ALLOWLIST.has(p),
+  // Location-keyed: every `*-selection-store.ts` under state/, the factories and the non-drill INCLUDED —
+  // their exemption is a cited SANCTIONED_HOMES row.
+  scanRoot: (p) => p.startsWith(STATE_DIR) && p.endsWith(SELECTION_SUFFIX),
   kinds: [SyntaxKind.CallExpression],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
     if (!Node.isCallExpression(node)) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     if (isFactoryDoorCall(node)) {
       ctx.report(node);
     }
   },
-  // The allowlisted store is scanRoot-EXCLUDED, so the walk never sees it — the stale arm reads it off the
-  // shared project directly.
+  // A whole-tree claim about the TABLE, read off the shared project (never off what the walk visited).
   finalize: (ctx) => {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
-    for (const rel of NON_DRILL_ALLOWLIST) {
+    for (const rel of Object.keys(SANCTIONED_HOMES)) {
       const sf = ctx.project.getSourceFile(`${ctx.root}/${rel}`);
       if (sf === undefined) {
         ctx.report({
@@ -99,18 +116,20 @@ export const gate: GateDescriptor = {
     {
       files: {
         [ANCHOR]: "export const createGatedStore = null;\n",
+        [`${STATE_DIR}create-drill-selection-store.ts`]: 'export const make = () => createGatedStore("x", () => ({}));\n',
+        [`${STATE_DIR}create-kinded-selection-store.ts`]: 'export const makeKinded = () => createGatedStore("k", () => ({}));\n',
         [`${STATE_DIR}message-selection-store.ts`]:
           'import { createDrillSelectionStore } from "./create-drill-selection-store";\nexport const useMsgSel = createDrillSelectionStore<string>("message-selection");\n',
       },
       expect: { count: 1, messageIncludes: "no longer mints the raw" },
-      why: "THE STALE ARM: the anchor (the raw door's home) is loaded and the allowlisted non-drill store has migrated onto the factory — its sanction is dead AND the row is silently un-scanning the file, so it ratchets down",
+      why: "MODE A: the anchor (the raw door's home) is loaded, both factories still compose the door, and the allowlisted non-drill store has migrated onto the factory — its sanction is dead and ratchets down",
     },
     {
       files: {
         [ANCHOR]: "export const createGatedStore = null;\n",
       },
-      expect: { count: 1, messageIncludes: "no longer in the project" },
-      why: "the other staleness: the allowlisted store file is gone entirely — path rot ratchets down too",
+      expect: { count: 3, messageIncludes: "no longer in the project" },
+      why: "MODE B, one finding per row: every sanctioned file is gone entirely — path rot ratchets down too, and the count proves the sweep judges EVERY row rather than the first",
     },
   ],
   mustPass: [
@@ -124,7 +143,7 @@ export const gate: GateDescriptor = {
       files:
         'import { createGatedStore } from "./create-gated-store";\nexport function make(name: string): unknown {\n  return createGatedStore(name, () => ({ id: null }));\n}\n',
       at: "packages/client/src/state/create-drill-selection-store.ts",
-      why: "the factory HOME composes the door on purpose — the `create-*` name is scanRoot-excluded",
+      why: "THE ALLOWLIST ITSELF: the factory HOME composes the door on purpose — now SCANNED, and passing on its own cited row rather than on a `/create-` filename pattern that would exempt any future file with that prefix",
     },
     {
       files: 'export const useShellStore = createGatedStore("shell", () => ({ open: false }));\n',
@@ -139,9 +158,11 @@ export const gate: GateDescriptor = {
     {
       files: {
         [ANCHOR]: "export const createGatedStore = null;\n",
+        [`${STATE_DIR}create-drill-selection-store.ts`]: 'export const make = () => createGatedStore("x", () => ({}));\n',
+        [`${STATE_DIR}create-kinded-selection-store.ts`]: 'export const makeKinded = () => createGatedStore("k", () => ({}));\n',
         [`${STATE_DIR}message-selection-store.ts`]: 'export const useMsgSel = createGatedStore("message-selection", () => ({ ids: new Set() }));\n',
       },
-      why: "the row STILL EARNED, judged against the real-tree anchor: the non-drill store does mint the raw door, so its sanction stands and neither arm fires",
+      why: "every row STILL EARNED, judged against the real-tree anchor: each sanctioned file exists AND mints the raw door, so neither arm fires — the pass half of both staleness modes",
     },
   ],
 };

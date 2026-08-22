@@ -3,17 +3,29 @@
 // banned regardless of className — interactivity must come from an @orb/ui primitive. RED: a `.tsx`
 // file whose JSX opens a BANNED_TAG, or an `<a>` carrying `href` (an `<a>` with no `href` stays legal).
 // BURN_DOWN is a both-directions ratchet (no-interactive-role-in-features precedent).
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the shell tier is SCANNED and exempted by a cited
+// row plus the shared RENAME TRIPWIRE, not scoped out of scanRoot. The `.tsx` clause stays a scope decision
+// (a file KIND, not a home).
 import type { JsxOpeningElement, JsxSelfClosingElement, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const BANNED_TAGS: ReadonlySet<string> = new Set(["button", "input", "select", "textarea"]);
 
 /** Current offenders → their fix owner/reason. See the no-interactive-role-in-features precedent for the
  *  ratchet contract (both arms). Empty — all 3 original BURN_DOWN rows (persona avatar, persona-settings
  *  backup restore, character portrait) migrated to `@orb/ui/file-trigger` (rollup-audit C3). */
-const BURN_DOWN: Record<string, string> = {};
+const BURN_DOWN: ExemptionTable = {};
+
+/** The ONE feature dir that may host a raw interactive intrinsic. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/client/src/features/app-shell/": {
+    why: "the SHELL tier — it composes the app frame below the primitive layer (design-enforcement.md §3.2, D62 exempts it). Ends when the shell moves: the rename tripwire reds the row at its dead path instead of exempting a directory that no longer exists",
+  },
+};
 
 const MESSAGE =
   "raw interactive intrinsic in a feature (design-enforcement.md §3.2, D62) — interactivity in " +
@@ -65,7 +77,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "reach for the matching @orb/ui primitive (Button, TextField, Select, TextArea, Link) — never a hand-rolled <button>/<input>/<select>/<textarea>/<a href>.",
-  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx") && !p.includes("packages/client/src/features/app-shell/"),
+  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx"),
   kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
   begin: () => {
     passSeenBurnDown.clear();
@@ -80,9 +92,13 @@ export const gate: GateDescriptor = {
       passSeenBurnDown.add(rel);
       return;
     }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
+      return;
+    }
     ctx.report(node, { token: `<${tag}>`, offset: 0 });
   },
   finalize: (ctx) => {
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "shell tier" });
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
       return;
     }
@@ -125,6 +141,14 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/demo/textarea.tsx",
       why: "a raw <textarea> in a feature — must be an @orb/ui TextArea",
     },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        "packages/client/src/features/demo/ok.tsx": "export const G = null;\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but features/app-shell/ resolves to no file — the shell moved, which the old scanRoot exclusion could not see",
+    },
   ],
   mustPass: [
     {
@@ -140,7 +164,7 @@ export const gate: GateDescriptor = {
     {
       files: 'export const G = <button type="button">Shell</button>;\n',
       at: "packages/client/src/features/app-shell/thing.tsx",
-      why: "app-shell is EXEMPT (shell-tier) — out of scanRoot, so a raw button there passes",
+      why: "THE ALLOWLIST ITSELF: app-shell is the shell tier — now SCANNED, and a raw button there passes only because a cited SANCTIONED_HOMES row covers it",
     },
     {
       files: "export const G = <button>Go</button>;\n",

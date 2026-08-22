@@ -27,19 +27,32 @@
 // re-opening the socket it just closed (the six staged rows were deleted BY HAND; nothing enforced it). The
 // arm self-guards on a REAL-TREE ANCHOR (gate-hub #11) — the multiplex's own `ROOM_SOURCES` registry — so
 // the conformance mini-projects, which hold one router file, never "prove" the exemption had died.
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): stream.ts is SCANNED and exempted by a cited row
+// plus the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home follows its old path into
+// the void the day the one socket's router moves, and nothing would notice.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const ROUTERS_DIR = /\/packages\/server\/src\/transport\/trpc\/routers\//u;
-const STREAM_ROUTER = /\/packages\/server\/src\/transport\/trpc\/routers\/stream\.ts$/u;
 const ROUTER_NAME_RE = /\/routers\/(?<router>[^/]+)\.ts$/u;
 
+/** The ONE router allowed to open the socket. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/server/src/transport/trpc/routers/stream.ts": {
+    why: "THE one-socket home — the multiplex's own `.subscription(` lives here and every room rides it (sse-multiplex-spec.md §11). Ends when the stream router moves: the rename tripwire reds the row at its dead path instead of letting the exemption follow it",
+  },
+};
+
 /** `<router>.<proc>` → the cited reason it is not (yet) a room on the ONE socket. */
-const EXEMPT: Readonly<Record<string, string>> = {
+const EXEMPT: ExemptionTable = {
   // PERMANENT (spec §14 decision 2) — and, since S5, the ONLY exemption. Every STAGED row is gone with the
   // room it named, so re-adding any of the six folded procs goes RED.
-  "chat.impersonateStream": "request-scoped + user-gesture-initiated, at most one at a time; detach would have to mean 'cancel generation' (spec §14.2)",
+  "chat.impersonateStream": {
+    why: "request-scoped + user-gesture-initiated, at most one at a time; detach would have to mean 'cancel generation' (spec §14.2). Ends only by a spec amendment — the stale arm reds the row the day the proc stops declaring a subscription",
+  },
 };
 
 const GATE_SELF = "tooling/src/verify/gates/single-stream-transport.ts";
@@ -72,7 +85,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "make it a ROOM on the multiplexed socket: add the channel to `@orb/contracts/stream` + a `ROOM_SOURCES` entry (transport/trpc/stream/room-sources.ts), and have the client use `useBusRoom`. Only stream.ts may call `.subscription(`.",
-  scanRoot: (p) => ROUTERS_DIR.test(`/${p}`) && !STREAM_ROUTER.test(`/${p}`),
+  scanRoot: (p) => ROUTERS_DIR.test(`/${p}`),
   kinds: [SyntaxKind.CallExpression],
   begin: () => {
     seenKeys.clear();
@@ -92,9 +105,13 @@ export const gate: GateDescriptor = {
         return;
       }
     }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
+      return;
+    }
     ctx.report(callee.getNameNode());
   },
   finalize: (ctx) => {
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "one-socket stream router" });
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
@@ -128,12 +145,22 @@ export const gate: GateDescriptor = {
       expect: { count: 1, messageIncludes: "stale EXEMPT row" },
       why: "THE STALE ARM: the anchor (the room registry) is loaded and `chat.impersonateStream` declares no `.subscription(` any more — the fold shipped, so the ledger row must ratchet down instead of standing as a live licence",
     },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        "packages/server/src/transport/trpc/stream/room-sources.ts": "export const ROOM_SOURCES = {};\n",
+        "packages/server/src/transport/trpc/routers/chat.ts":
+          "export const chatRouter = t.router({\n  impersonateStream: authedProcedure.subscription(() => deltas()),\n});\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded, the EXEMPT ledger row is still earned, but routers/stream.ts resolves to no file — the one-socket home moved and the old scanRoot exclusion followed it into the void",
+    },
   ],
   mustPass: [
     {
       files: "export const streamRouter = t.router({\n  connect: authedProcedure.subscription(() => socket()),\n});\n",
       at: "packages/server/src/transport/trpc/routers/stream.ts",
-      why: "the ONE home — stream.ts is where `.subscription(` is supposed to live",
+      why: "THE ALLOWLIST ITSELF: the ONE home is now SCANNED, and its own `.subscription(` passes only because a cited SANCTIONED_HOMES row covers stream.ts",
     },
     {
       files: "export const chatRouter = t.router({\n  impersonateStream: authedProcedure.subscription(() => deltas()),\n});\n",

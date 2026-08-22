@@ -13,7 +13,7 @@
 // Spine-Config-and-Serialization.md §"Settings / config".
 import type { ObjectLiteralExpression, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 
 // ── the two-map registry (keyed "<arm>:<member>") ───────────────────────────────────────────────────────
@@ -21,36 +21,42 @@ import type { Violation } from "../contract/harness.ts";
 // re-litigated, only stale-checked). DEFERRED = TRACKED DEBT with a remediation cite. Delete an entry the
 // moment its wire lands (the gate REDs the stale entry). Founding set verified against the live tree
 // 2026-07-25 (docs/reviews/stickler/2026-07-25-knob-drift-gates.md §7 "Founding entries").
-const DOORWAY: Record<string, string> = {
+const DOORWAY: ExemptionTable = {
   // F: read-live at entry/compose/chat.ts (meta.providerRouting → RouteChatAssignment) but NO verb/router
   // writes it — domain/connection/verbs/resolve-chat.ts's header says the middle hop is "intentionally NOT
   // wired". A per-chat connection-overlay writer is the intended graft (D107; audit Q2).
-  "F:providerRouting:write": 'resolve-chat.ts "intentionally NOT wired" + D107 (audit Q2) — a per-chat connection-overlay writer is the future graft.',
+  "F:providerRouting:write": { why: 'resolve-chat.ts "intentionally NOT wired" + D107 (audit Q2) — a per-chat connection-overlay writer is the future graft.' },
   // NOTE: `roleDefaults.agent` (the buddy-rebuild seam) needs NO entry — "agent" is a GENERIC leaf name, so
   // arm C's documented name-keyed lenience (a generic name passes on any unrelated `"agent"` occurrence)
   // lets it through; only a distinctively-named dead leaf ever bites. Listing it would be a permanent stale.
 };
 
-const DEFERRED: Record<string, string> = {
+const DEFERRED: ExemptionTable = {
   // A: resolved (env floor ⊕ admin override) but READ by no server behavior outside the resolver.
-  "A:importSkipCharacters":
-    "D107 triage — resolved env-floor list read by no import behavior; remediation = domain/import consumes getEffectiveConfig().importSkipCharacters.",
-  "A:allowNonOwnerLocalCompute":
-    "D107 triage — resolved compute-permission read by no behavior outside the resolver; remediation = the non-owner local-compute gate reads getEffectiveConfig().allowNonOwnerLocalCompute.",
+  "A:importSkipCharacters": {
+    why: "D107 triage — resolved env-floor list read by no import behavior; remediation = domain/import consumes getEffectiveConfig().importSkipCharacters.",
+  },
+  "A:allowNonOwnerLocalCompute": {
+    why: "D107 triage — resolved compute-permission read by no behavior outside the resolver; remediation = the non-owner local-compute gate reads getEffectiveConfig().allowNonOwnerLocalCompute.",
+  },
   // B: a USER_SETTINGS_SECTIONS member with no reachable section-patch write path — its schema defaults are
   // pinned for every user (the memory.enabled class: a master switch nobody can flip). memory + worldInfo
   // WIRED 2026-07-25 (Phase B ①/②, the settings-section contribution seam: features/chat's
   // memory-settings-section writes section:"memory"; features/world-info's world-info-settings-section
   // writes section:"worldInfo") — entries pruned. workloads WIRED 2026-07-26 (Phase B ⑤: features/workloads'
   // workloads-tuning-section writes section:"workloads" — dupThreshold/computeThemesK/maxPairs/hubFraction).
-  "B:profile":
-    "D107 — the settings-wiring remediation program (profile.avatarAssetId is live-read but the section has zero writers; the user's own avatar is unsettable).",
-  "B:groupDefaults":
-    "D107 audit Q1 — READ half wired 2026-07-25 (start-chat seeds metadata.group when the creator's defaults deviate); the section-patch WRITE path (a groupDefaults editor) rides the settings-wiring program.",
+  "B:profile": {
+    why: "D107 — the settings-wiring remediation program (profile.avatarAssetId is live-read but the section has zero writers; the user's own avatar is unsettable).",
+  },
+  "B:groupDefaults": {
+    why: "D107 audit Q1 — READ half wired 2026-07-25 (start-chat seeds metadata.group when the creator's defaults deviate); the section-patch WRITE path (a groupDefaults editor) rides the settings-wiring program.",
+  },
   // B2: an AppSettings admin-editor key with no write field in the admin surfaces. memoryDefaults +
   // memorySummarizer + rateLimits WIRED 2026-07-26 (Phase B ③: features/user-admin's memory-tuning-section +
   // rate-limits-section write them through the admin pane's settings-section seam) — entries pruned.
-  "B2:importSkipCharacters": "D107 — the admin-editor wave of the settings-wiring program (verified UI-less 2026-07-25: zero admin-surface write field).",
+  "B2:importSkipCharacters": {
+    why: "D107 — the admin-editor wave of the settings-wiring program (verified UI-less 2026-07-25: zero admin-surface write field).",
+  },
   // C: a settings schema leaf READ by nothing — dead from the schema down. personaWizardSeen DELETED
   // 2026-07-26 (Phase B ⑥ / D107): the first-run persona gate triggers on zero personas, never a "seen" flag,
   // so the field was removed (the rateLimits.general dead-field precedent) — entry pruned with the field.

@@ -5,14 +5,14 @@
 // Scoped to class-string call sites only (JSX `className=`, or a `cn`/`clsx`/`cva`/`tv` arg) — `shadow`/`rounded-lg` are ordinary English too.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 /** Current legit off-token files → reason. EMPTY: the whole overlay-primitive family (dialog/menu/
  *  popover/tooltip/alert-dialog/drawer/toast/selection-bar/macro-textarea + the chat command-palette
  *  surface) was retuned off `shadow-md`/`shadow-lg` onto the DTCG `--shadow-overlay` token (DC8/§11.3
  *  retrofit wave). No genuinely-valid off-token site remains; a NEW offender is RED on sight. */
-const ALLOWLIST: Record<string, string> = {};
+const ALLOWLIST: ExemptionTable = {};
 
 const MESSAGE =
   "off-token default-scale radius/shadow utility (design-enforcement.md §3, DC8) — resolves against " +
