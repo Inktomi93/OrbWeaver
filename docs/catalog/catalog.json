@@ -22990,6 +22990,65 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 351,
+      "bytes": 28058,
+      "sha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
+        "assignedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
+        "verifiedCommit": "3343705939fe2bc48ed9bb45994e8513a596ed6f",
+        "verifiedAt": "2026-08-22",
+        "claims": [
+          {
+            "claim": "At pointer:coarse the shipped 48x44 Switch reads as a crescent, not a switch; the recommended arm is a coarse-only --spacing-switch-track widening (4rem) that keeps fine/unknown arms byte-identical and auto-scales travel to 32px; tracked as issue #420.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#420"
+              },
+              {
+                "kind": "code",
+                "target": "packages/ui/src/styles/theme.css:183"
+              }
+            ]
+          },
+          {
+            "claim": "The #285 fork's premise is dead on the current tree: the ruled glow carrier landed in 73fda94b3 and renders on all three waiting surfaces; the glow axis is sub-perceptual everywhere (max 3/255 on the flagship carrier) and the visible maximal-preset delta is the colorization axis (0.51% vs glow 0.03%).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#285"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/styles/globals.css:451"
+              }
+            ]
+          }
+        ],
+        "evidence": ["full read at receipt time; screenshots under reports/snaps/se-visual-* (gitignored artifacts)"],
+        "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
       "lane": "reviews",
       "issue": 7,
