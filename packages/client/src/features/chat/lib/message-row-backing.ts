@@ -1,4 +1,4 @@
-// The chat surface's LEGIBILITY BACKINGS — one seam, four constants, split out of message-row-variants.ts
+// The chat surface's LEGIBILITY BACKINGS — one seam, split out of message-row-variants.ts
 // to keep it under the 450-line component-size cap (UI-Architecture §2.1). Named for the message row it was
 // minted from; the over-art rule it carries is the CHAT SURFACE's, and the cast bar takes it too (#229).
 //
@@ -25,17 +25,19 @@
 // ink is the VIEWER's palette while the plate follows the CARRIED one (the #204 two-polarity paragraph).
 // Each plate constant therefore names its ink token beside its fill, gated by the same wallpaper flag.
 //
-// The first three are the background-PHOTO backings (the side-eye P1 + its follow-up, extended by #106
-// and #229) — reading surface, floating CHIP, full-bleed BAND: all self-gated by Tailwind's `in-*`
-// ANCESTOR variant on `data-has-bg-image` (the shell grid stamps it, shell.css) — the declarative way to
-// react to a shell-level flag with NO render-time DOM read — so they are INERT without a bg image (a plain
-// background is byte-identical to pre-fix). They differ ONLY in ink and geometry, never in the plate.
+// The first FOUR are the background-PHOTO backings (the side-eye P1 + its follow-up, extended by #106,
+// #229 and #468) — reading surface, floating CHIP, full-bleed BAND, LOADING block: all self-gated by
+// Tailwind's `in-*` ANCESTOR variant on `data-has-bg-image` (the shell grid stamps it, shell.css) — the
+// declarative way to react to a shell-level flag with NO render-time DOM read — so they are INERT without
+// a bg image (a plain background is byte-identical to pre-fix). They differ ONLY in ink and geometry,
+// never in the plate.
 //
-// The fourth (`STICKY_ATTRIBUTION_CHROME`, #113) is NOT wallpaper-gated, because what it backs the chrome
-// against is the row's own scrolling prose rather than a photo. Read its own note before merging it with
-// the other three — they answer different questions and share only a visual recipe.
+// The two STICKY pins (`STICKY_ATTRIBUTION_CHROME` #113 and its inside-the-container twin #288) are NOT
+// wallpaper-gated, because what they back the chrome against is the row's own scrolling prose rather than
+// a photo. Read their own notes before merging them with the four — they answer different questions and
+// share only a visual recipe.
 //
-// All four are static (no transition) ⇒ reduced-motion-safe.
+// All are static (no transition) ⇒ reduced-motion-safe.
 
 // Reading backing (side-eye live P1, 2026-07-09): flat/hush/document carry NO bubble fill, AND the shell
 // strips their float halo (they stamp `data-slot="message-bubble"`, which shell.css targets to kill the
@@ -127,6 +129,34 @@ export const BG_PHOTO_CHROME_PLATE =
 //
 // Self-gated on `in-data-[has-bg-image]` like both siblings, so a plain background is byte-identical.
 export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:text-foreground";
+
+// LOADING backing (#468) — the same over-art question as the three plates above, answered for the state
+// that comes BEFORE any of them: the transcript's suspense fallback.
+//
+// The defect it closes is a legibility one, not a timing one, and the distinction is the whole finding.
+// The rAF sampler (#454) proves the skeleton paints on the FIRST room frame of a Resume — 22 skeletons at
+// first room paint, every run, both refs — yet the room still read as EMPTY for ~400ms. The reason is that
+// the fallback painted three `bg-muted` bars directly onto the room's wallpaper with nothing behind them:
+// over art a muted bar is a faint band, and three faint bands over a photo is what "nothing happened"
+// looks like. Every settled thing in this column already answers this — a bubble by its fill, a no-fill
+// mode by BG_PHOTO_READING_PLATE, the chrome by its chip, the cast bar by its band. The loading state was
+// the one member of the column that did not, so it is the one member that vanished.
+//
+// It takes the plate + blur and NOTHING ELSE from the family, plus `rounded-card` — it is a floating
+// object in an otherwise empty column, the CHIP geometry rather than the BAND's (BG_PHOTO_BAND_PLATE
+// states the same reasoning from the other side: a strip that spans its column must not take chip
+// corners; a block that floats in one must). It names NO ink, and that is deliberate rather than an
+// omission of the #204 pairing: a skeleton is `aria-hidden` decoration carrying its own `bg-muted` fill
+// (@orb/ui skeleton variants) — there is no text on this plate for an ink to pair with, and `bg-muted`
+// is `base + ramp.muted` (+0.097) against a plate at `base + readingPlate.deltaL` (−0.038), so the bars
+// clear their own backing by a derived ΔL 0.135 in every palette rather than by a hand-picked value.
+//
+// Self-gated on `in-data-[has-bg-image]` like its three siblings, so a plain-background room is
+// byte-identical to before. Static (no transition) ⇒ reduced-motion-safe.
+// Pinned by pixels, not by computed style: a translucent plate over art is a COMPOSITE, and
+// `getComputedStyle` reports the same class list in both arms — message-list-surface.ct.tsx's
+// "LOADING OVER ART" pair samples the framebuffer, with the flag-off arm as its positive control.
+export const BG_PHOTO_LOADING_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card";
 
 // STICKY SPEAKER ATTRIBUTION (#113) — a DIFFERENT backing from the two above, deliberately not merged
 // with them. Those two answer "the chrome is floating on a wallpaper at rest" and are wallpaper-gated.

@@ -26,8 +26,8 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { MessageListStoppingStory, MessageListSurfaceStory, MessageListTabWalkStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { MessageListOverArtStory, MessageListStoppingStory, MessageListSurfaceStory, MessageListTabWalkStory } from "../_ct-stories.tsx";
 import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
 import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -735,6 +735,60 @@ test("EDGE FADE CONTROL: the same probe DOES see the dissolve where the fade is 
 
   // Green pulls far away from the cream card's blue channel long before it reaches the backdrop.
   expect(pixel.b).toBeLessThan(CARD_RGB.b - 24);
+});
+
+// ── THE LOADING STATE MUST BE LEGIBLE OVER ART (#468) ─────────────────────────────────────────────
+// Resume is the most-pressed action in the app, and the transcript's skeleton DOES paint on the first
+// room frame (rAF sampler, #454: skeletonsAtFirstRoomPaint=22 every run). It was still read as an empty
+// room for ~400ms, because the fallback painted three `bg-muted` bars straight onto the room's wallpaper
+// with nothing behind them — the §0 reading-surface defect the transcript's settled rows solved years
+// earlier with `message-row-backing.ts`'s plate family. The loading state now takes the SAME plate, so
+// what the reader sees at frame one is a transcript-shaped object rather than three faint bands.
+//
+// It is a PIXEL assertion for the same reason its edge-fade neighbour above is: what is being asserted is
+// what the framebuffer composites (a translucent plate + `backdrop-blur` over art), and `getComputedStyle`
+// reports the class list either way. The plate is `in-data-[has-bg-image]`-gated, so the flag-off case is
+// this probe's planted positive control — it must still read the raw backdrop.
+
+/** The story's backdrop, restated here (a `_ct-stories` spec import may name COMPONENTS only). */
+const ART_BACKDROP_GREEN = 255;
+
+/** One pixel of the transcript's loading band, sampled just ABOVE the first skeleton bar — inside the
+ *  plate's own block padding, at the horizontal centre so no rounded corner is in play. */
+async function sampleLoadingPlatePixel(page: Page, skeleton: Locator): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
+  await expect(skeleton).toBeVisible();
+  const box = await skeleton.boundingBox();
+  expect(box).not.toBeNull();
+  return await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) - 4));
+}
+
+test("LOADING OVER ART: the transcript's skeleton rides a reading plate, not the raw wallpaper", async ({ mount, page }) => {
+  // A hold that is never released makes the suspense fallback a SETTLED render — the CT never has to
+  // catch a flash, and the state it asserts is the one Resume actually shows for its first frames.
+  const hold = trpcHold();
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": hold });
+  const component = await mount(<MessageListOverArtStory artBackdrop={true} />);
+  await hold.requested;
+
+  const pixel = await sampleLoadingPlatePixel(page, component.locator('[data-slot="skeleton"]').first());
+
+  // The backdrop is pure green. Anything backing the skeleton knocks that channel down hard; the raw
+  // wallpaper leaves it pinned at the top of the range.
+  expect(pixel.g).toBeLessThan(ART_BACKDROP_GREEN - 48);
+});
+
+test("LOADING OVER ART CONTROL: the same probe reads the raw backdrop where no art flag is set", async ({ mount, page }) => {
+  // No `data-has-bg-image` ⇒ the plate is inert by construction (a plain-background room is byte-identical
+  // to before this fix). This is the planted positive control: if the sampler ever stops seeing the naked
+  // backdrop here, the assertion above is measuring nothing.
+  const hold = trpcHold();
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": hold });
+  const component = await mount(<MessageListOverArtStory artBackdrop={false} />);
+  await hold.requested;
+
+  const pixel = await sampleLoadingPlatePixel(page, component.locator('[data-slot="skeleton"]').first());
+
+  expect(pixel.g).toBeGreaterThan(ART_BACKDROP_GREEN - 8);
 });
 
 // ── #107: the transcript's cost to a keyboard reader ──────────────────────────────────────────────
