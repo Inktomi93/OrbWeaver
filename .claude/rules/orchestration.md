@@ -101,7 +101,11 @@ a11y → `side-eye`; both if the change spans both.
   every downstream lane consumes the instrument's output, so a lying tool multiplies its cost by every
   run until fixed. The fix carries the zero-hygiene contract (planted positive controls both directions;
   unsupported query shapes REFUSE loudly instead of printing a clean zero) and a clean-surface re-run
-  distinguishing fixed-false-positives from newly-visible real findings.
+  distinguishing fixed-false-positives from newly-visible real findings. **And the lie must become
+  IMPOSSIBLE TO REINTRODUCE (owner, 2026-08-22):** the planted fixture that reproduced the lie lands
+  as a COMMITTED red-first test in the tooling mirror (`tests/tooling/<tool>/…`) — a permanent pin,
+  never a one-time probe receipt — so any regression goes red in the suite forever. A lying-tool fix
+  without its permanent pin is not done.
 - **Don't delegate:** a single file-read you need right now, a decision, or anything the user asked you
   personally to judge.
 - **Session hygiene:** set up MCP servers / connectors BEFORE starting work — adding or removing one
