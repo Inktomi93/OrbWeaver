@@ -32,6 +32,5 @@ export function resolveCfg(partial?: MemoryConfig | null): ResolvedMemoryConfig 
     rerankTo: partial?.rerankTo ?? DEFAULTS.rerankTo,
     minScore: partial?.minScore ?? DEFAULTS.minScore,
     keywordMatch: partial?.keywordMatch ?? DEFAULTS.keywordMatch,
-    recencyBias: partial?.recencyBias ?? DEFAULTS.recencyBias,
   };
 }

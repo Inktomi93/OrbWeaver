@@ -381,32 +381,13 @@ describe("recall knobs — each proven by a control that FLIPS the outcome (#311
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// #321 — the EXPERIMENTAL recencyBias boost (the owner PROBE, not the final blend). A planted control that
-// FLIPS the ranking proves the knob is wired AND measures its strength: on this fixture the more-recent scene
-// overtakes a stronger but older cosine match only once the boost closes a ~0.63 relevance gap (crossover
-// ≈ 0.79, since relevanceOf(bath) ≈ 0.949 and relevanceOf(storm) ≈ 0.316, recencyFactor(storm) = 0.8).
+// #321 / PD-35 — the experimental recencyBias boost that used to be pinned HERE was REMOVED with the knob
+// (owner ruling 2026-08-22). The probe it existed to enable ran on the real corpus 2026-08-20 and found no
+// human-relevance gain — same final top three at every bias in mixC, and a NET LOSS at a smaller retrieveK —
+// so recall ordering is pure CSLS relevance again and there is no recency axis left to pin. The graded-boost
+// crossover fixture (bath rel ≈0.949 vs the more-recent storm decoy ≈0.316) is preserved in the minScore-floor
+// suite above, which is what it was really measuring.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe("recencyBias — the experimental recency boost re-orders recall (#321 probe)", () => {
-  test("a graded boost promotes the more-recent lower-scoring scene once it outweighs the cosine gap", async () => {
-    // "shared bathing" → bath (block 0, rel ≈0.949) first, storm decoy (block 4, rel ≈0.316) second. Block 4 is
-    // the MORE RECENT scene (recencyFactor 0.8 vs 0.0), so recencyBias competes recency against cosine.
-    const recent = [msg(100, "shared bathing")];
-    const off = admitted(await traceFor({ recent, config: { ...BASE_CFG, recencyBias: 0 } }));
-    const mild = admitted(await traceFor({ recent, config: { ...BASE_CFG, recencyBias: 0.5 } }));
-    const strong = admitted(await traceFor({ recent, config: { ...BASE_CFG, recencyBias: 1 } }));
-
-    expect(off).toEqual([0, 4]); // no recency → pure cosine: the bath scene wins
-    expect(mild).toEqual([0, 4]); // +0.5×0.8 = 0.40 boost is short of the 0.63 gap — bath still leads
-    expect(strong).toEqual([4, 0]); // +1.0×0.8 = 0.80 boost clears the gap — the recent storm scene wins
-  });
-
-  test("recencyBias 0 is the floor — identical to a config that omits the knob (never perturbs CSLS)", async () => {
-    const recent = [msg(100, "the fight on the bridge")];
-    const explicitZero = admitted(await traceFor({ recent, config: { ...BASE_CFG, recencyBias: 0 } }));
-    const omitted = admitted(await traceFor({ recent, config: BASE_CFG }));
-    expect(explicitZero).toEqual(omitted);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 // #330 P7 — the {{memory}} TEXT injects in CHRONOLOGICAL order for the embedding modes, while the trace keeps
