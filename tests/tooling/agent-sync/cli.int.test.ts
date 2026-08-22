@@ -5,12 +5,12 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 
 test("agent-sync --check reports the mirror as current on a synced tree", async ({ runCli }) => {
   const res = await runCli("agent-sync", ["--check"]);
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
   expect(res.stdout).toContain("Codex agent manifests: current");
 });
 
 test("agent-sync refuses an unknown flag as misuse, writing nothing", async ({ runCli }) => {
   const res = await runCli("agent-sync", ["--rewrite-everything"]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
   expect(res.stderr).toContain("usage: pnpm agents:sync");
 });

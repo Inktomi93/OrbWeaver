@@ -76,7 +76,7 @@ test("the tap reports the planted frames frame-for-frame and exits clean on `ret
     expect(res.stdout).toContain("connection closed");
     // The denominator (#409): the clean exit is only a receipt if frames were actually delivered.
     expect(res.stdout).toContain("frames=2");
-    expect(res).toExitWith(0);
+    await expect(res).toExitWith(0);
   } finally {
     server.close();
   }
@@ -97,7 +97,7 @@ test("a stream that delivered NO frames reports an empty population, never a bar
     });
     expect(res.stdout).toContain("frames=0");
     expect(res.stdout).toContain("NO frames");
-    expect(res).toExitWith(0);
+    await expect(res).toExitWith(0);
   } finally {
     server.close();
   }
@@ -106,17 +106,17 @@ test("a stream that delivered NO frames reports an empty population, never a bar
 test("without the EventSource flag the guard fail-louds as misuse, never a bare crash", async ({ runCli }) => {
   const res = await runCli("wire-tap", ["sse", "chat-proof-2"]);
   expect(res.stderr).toContain("EventSource");
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
 });
 
 test("a missing chatId is CLI misuse", async ({ runCli }) => {
   const res = await runCli("wire-tap", ["sse"], { env: NODE_FLAG_ENV });
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
 });
 
 test("an unknown subcommand is CLI misuse", async ({ runCli }) => {
   const res = await runCli("wire-tap", ["tcpdump"]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
 });
 
 // ── the captures op's RECORDER-STATE arms (#412) ────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ test("recorder OFF is apparatus absence — exit 2, whatever the row count says"
   const res = await runCaptures(runCli, { enabled: false, count: 0, captures: [] });
   expect(res.stderr).toContain("recorder is OFF");
   expect(res.stdout).toContain("recorder=off");
-  expect(res).toExitWith(2);
+  await expect(res).toExitWith(2);
 });
 
 test("recorder ON with zero rows is an HONEST empty — exit 0 with the count", async ({ runCli }) => {
@@ -166,12 +166,12 @@ test("recorder ON with zero rows is an HONEST empty — exit 0 with the count", 
   expect(res.stdout).toContain("recorder=on");
   expect(res.stdout).toContain("rows=0");
   expect(res.stderr).not.toContain("recorder is OFF");
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
 });
 
 test("a server that publishes NO enabled field cannot be interpreted — exit 2, named as such", async ({ runCli }) => {
   const res = await runCaptures(runCli, { count: 0, captures: [] });
   expect(res.stderr).toContain("no `enabled` field");
   expect(res.stdout).toContain("recorder=unreported");
-  expect(res).toExitWith(2);
+  await expect(res).toExitWith(2);
 });

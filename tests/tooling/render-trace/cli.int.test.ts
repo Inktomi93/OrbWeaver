@@ -48,7 +48,7 @@ test("a planted error trace REDs the waterfall through the real cli", async ({ r
   const res = await runCli("render-trace", ["render", file]);
   expect(res.stdout).toContain("✗ error");
   expect(res.stdout).toContain("⚠");
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
 });
 
 test("the clean twin renders ● ok with no red badge and no slow flag", async ({ runCli, scratch }) => {
@@ -58,19 +58,19 @@ test("the clean twin renders ● ok with no red badge and no slow flag", async (
   expect(res.stdout).toContain("● ok");
   expect(res.stdout).not.toContain("✗");
   expect(res.stdout).not.toContain("⚠");
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
 });
 
 test("a non-trace input is CLI misuse, never a silent empty render", async ({ runCli, scratch }) => {
   const file = join(scratch, "not-a-trace.json");
   await writeFile(file, JSON.stringify({ hello: "world" }));
   const res = await runCli("render-trace", ["render", file]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
 });
 
 test("an unknown subcommand is CLI misuse", async ({ runCli }) => {
   const res = await runCli("render-trace", ["waterfall"]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
 });
 
 // ── ZERO HYGIENE (#409): a trace with nothing in it is absent evidence, not a clean waterfall ──
@@ -84,7 +84,7 @@ test("a trace whose SPAN population is empty is an INSTRUMENT ERROR, never a cle
   await writeFile(file, JSON.stringify({ ...trace("ok", 1), spans: [], totals: { spanCount: 0, dbSpanCount: 0, dbDurationMs: 0, providerDurationMs: 0 } }));
   const res = await runCli("render-trace", ["render", file]);
   expect(res.stdout + res.stderr).toContain("INSTRUMENT ERROR");
-  expect(res).toExitWith(2);
+  await expect(res).toExitWith(2);
 });
 
 test("an EMPTY traces list says so out loud and stays clean — an empty ring is a real answer", async ({ runCli, scratch }) => {
@@ -94,5 +94,5 @@ test("an EMPTY traces list says so out loud and stays clean — an empty ring is
   await writeFile(file, JSON.stringify({ traces: [] }));
   const res = await runCli("render-trace", ["render", file]);
   expect(res.stdout).toContain("0 traces");
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
 });

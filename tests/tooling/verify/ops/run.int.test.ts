@@ -179,6 +179,23 @@ test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the sc
   expect(push.has("tests:node")).toBe(true);
 });
 
+test("the boot-chunk ratchet is a push/full stage, whole-only, speaking the OWN 0/1/2/3 scheme (#460)", () => {
+  // #433 (-20.4%) + #448 (-19.0%) cut the entry chunk 1,146,760 -> 740,339 B and NOTHING defended either
+  // win: one new barrel import in main.tsx's static graph re-pays it while every other stage stays green.
+  // Pinned here because all three properties are load-bearing and each fails silently if it drifts.
+  const boot = stage("quality:boot-chunk");
+  // PUSH, never static: the stage runs a real vite production build (15.45s warm, 2026-08-22) and the
+  // static tier is the structural-fast commit bar. A static row would put a bundler in every commit.
+  expect(boot.tiers).toEqual(["push", "full"]);
+  expect(new Set(stagesForTier("static").map((s) => s.name)).has("quality:boot-chunk")).toBe(false);
+  // ownScheme, not asViolations: an UNMEASURABLE dist (no entry chunk / two / a failed build) must reach
+  // the runner as a TOOL ERROR (2), never collapse to a violation or — worse — a clean pass.
+  expect(boot.classify).toBe(ownScheme);
+  // Whole-only: the boot chunk is a property of the ENTIRE static graph reachable from main.tsx, so no
+  // changed-file subset is an honest partial. An absent scopedArgv is how a stage declares that.
+  expect(boot.scopedArgv).toBeUndefined();
+});
+
 test("the push tier carries the behavioral suites the static tier omits (the `bots run check and miss` fix)", () => {
   const push = new Set(stagesForTier("push").map((s) => s.name));
   expect(push.has("tests:node")).toBe(true);
@@ -326,8 +343,37 @@ test("types:testd + types:tests-* + browser:e2e* are whole-only (no scopedArgv) 
 });
 
 test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface", () => {
-  const sel = resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts"] });
+  // A docs file is outside every eslint `files` pattern AND outside the script's argv — the honest
+  // no-op. (This pin USED to use a `tooling/src/**` path; tooling joined the eslint surface on
+  // 2026-08-22 (#459), so that path now correctly RESOLVES — see the pin directly below.)
+  const sel = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
   expect(stage("lint:eslint").scopedArgv?.(sel)).toBe("skip-empty");
+});
+
+test("lint:eslint scopedArgv: a tooling file IS in the eslint surface (#459)", () => {
+  // The surface has two halves that must agree or the coverage is a lie: the `lint:eslint` SCRIPT argv
+  // (package.json) and this selection regex. Before #459 NEITHER named tooling — eslint answered "File
+  // ignored because no matching configuration" and the scoped lane silently linted nothing there, which
+  // is how 36 un-awaited async matchers (assertions that could not fail their own test) survived.
+  const sel = resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts"] });
+  expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual([
+    "eslint",
+    "--max-warnings",
+    "0",
+    "--no-warn-ignored",
+    "--cache",
+    "--cache-strategy",
+    "content",
+    "tooling/src/verify/lib/registry.ts",
+  ]);
+  const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
+  expect(testSel.eslintPaths).toEqual(["tests/tooling/verify/ops/run.int.test.ts"]);
+  // ...and the SCRIPT half, pinned against package.json itself - a regex that agreed with nothing would
+  // read exactly like coverage.
+  const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
+    readonly scripts: Record<string, string>;
+  };
+  expect(eslintPkg.scripts["lint:eslint"]).toContain("tooling/src tests/tooling");
 });
 
 test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", () => {

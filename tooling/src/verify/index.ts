@@ -32,7 +32,7 @@ export type { Check, CheckContext, GateResult, Violation } from "./contract/harn
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
-export type { ConformanceFailure, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
+export type { BootChunkVerdict, ConformanceFailure, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
 export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, VerifyReport } from "./contract/stage.ts";
 
@@ -67,6 +67,7 @@ export { parse } from "./lib/run-argv.ts";
 export { failReason } from "./lib/run-render.ts";
 export { resolveSelection } from "./lib/selection.ts";
 
+export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
 export { verifyGateProofs } from "./ops/conformance.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
