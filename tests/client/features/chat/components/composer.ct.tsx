@@ -347,7 +347,9 @@ test("#206: all eight icon controls expose plain-language names and tooltips on 
     { name: "Try another reply", tooltip: `Try another reply — ${ENGINE_OFF_REASON}` },
     { name: "Generate reply", tooltip: `Generate reply — ${ENGINE_OFF_REASON}` },
     { name: "Continue the reply", tooltip: `Continue the reply — ${ENGINE_OFF_REASON}` },
-    { name: "Speak as a character", tooltip: "Choose who speaks next" },
+    // #406 (owner ruling #397): speak-as fires a turn, so the send gate reaches it too — it no longer reads as
+    // an open invitation while every sibling in its own row is refusing.
+    { name: "Speak as a character", tooltip: `Choose who speaks next — ${ENGINE_OFF_REASON}` },
     { name: "Message tools", tooltip: "More message actions" },
     { name: "Send message", tooltip: ENGINE_OFF_REASON },
   ] as const;
