@@ -279,6 +279,19 @@ test("derives a non-trivial set of active rules from the config (the list isn't 
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
 });
 
+// THE CACHE TRIPWIRE (#393 P6). `.dependency-cruiser.cjs` carried `cache: { strategy: "content" }`, and a
+// WARM cruise is BLIND TO A NEWLY-ADDED FILE — which is what every fixture here is, and what a new
+// boundary-violating source file is in the `imports:depcruise` COMMIT stage. Measured: with the cache, this
+// whole suite reported 0 violations (59/60 red) whenever any earlier cruise had warmed it, and a planted
+// `import "node:fs"` under packages/kit went unseen. The cache bought 0.03s (4.25s warm vs 4.28s cold) and
+// was removed. This assertion is the tripwire: `runCruise` plants files that did not exist a moment ago, so
+// a non-empty fired set IS the proof that a fresh file reaches the cruiser. If someone re-adds a result
+// cache, this reds first and names the reason.
+test("a cruise SEES files that did not exist when any previous cruise ran (the result-cache tripwire)", () => {
+  expect(firedRules.size).toBeGreaterThan(20);
+  expect(fixtureFiles.size).toBeGreaterThan(20);
+});
+
 test.each(ACTIVE_RULES)("config rule %s fires on its fixture", (rule) => {
   expect(firedRules).toContain(rule);
 });
