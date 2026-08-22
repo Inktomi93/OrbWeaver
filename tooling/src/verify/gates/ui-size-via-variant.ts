@@ -100,7 +100,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
-/** UNSIZED-BOX @orb/ui modules — components with NO size of their own, whose geometry IS the call
+/** UNSIZED-BOX `@orb/ui` modules — components with NO size of their own, whose geometry IS the call
  *  site's datum, so a call-site box utility cannot fight a variant (there is none) and is the intended
  *  API: the layout kit (`Stack`/`Row`/… — the ONLY box a feature may size, since raw-HTML className is
  *  banned in features), `Skeleton` (mimics the content it stands in for), `ThemeScope` (a token-scope
@@ -111,7 +111,7 @@ import { fileLoaded } from "../lib/pass.ts";
 // CrossfadeImage (its sibling in the composer's attachment-preview thumbs).
 const UNSIZED_BOX_SPECIFIERS = new Set(["@orb/ui/layout", "@orb/ui/skeleton", "@orb/ui/theme-scope", "@orb/ui/crossfade-image", "@orb/ui/background-video"]);
 
-/** Sanctioned survivors: file → reason a call-site size utility on a @orb/ui element is CORRECT there
+/** Sanctioned survivors: file → reason a call-site size utility on a `@orb/ui` element is CORRECT there
  *  (not debt). Both-directions ratchet — a stale row (no scoped hit left in the file) is itself RED
  *  (the no-arbitrary-tw-values ALLOWLIST contract). */
 const ALLOWLIST: ExemptionTable = {
@@ -137,9 +137,10 @@ const STALE_ENTRY_MESSAGE_PREFIX =
   "ALLOWLIST entry has NO scoped size utility on a @orb/ui element any more — the survivor was reworked " +
   "onto a variant (ratchet down): delete the stale row in ui-size-via-variant.ts: ";
 
-/** Real-tree anchor (GATE-AUTHORING.md §4.5, the `no-hover-display-swap` precedent): `ctx.scope.kind ===
- *  "project"` is TRUE inside gate-conformance's synthetic mini-projects too, so scope alone cannot gate
- *  the stale arms. A permanent file that no example ever declares proves this is a REAL project run.
+/** Real-tree anchor (GATE-AUTHORING.md §4.5, the `no-hover-display-swap` precedent):
+ *  `ctx.scope.kind === "project"` is TRUE inside gate-conformance's synthetic mini-projects too, so
+ *  scope alone cannot gate the stale arms. A permanent file that no example ever declares proves this
+ *  is a REAL project run.
  *  Deliberately NOT any ALLOWLIST/DEBT_BASELINE row's own path — gating a row's staleness on THAT row's
  *  own file being loaded is exactly the mode-(B) blind spot this anchor exists to close: a deleted
  *  survivor is never loaded, so a self-referential guard would skip it forever instead of flagging it. */

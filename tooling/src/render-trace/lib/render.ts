@@ -96,7 +96,8 @@ const ATTR_VALUE_MAX = 40;
  */
 export function renderTrace(trace: RequestTrace): string {
   const rows = buildRows(trace);
-  const cols = Math.max(MIN_COLS, process.stdout.columns ?? FALLBACK_COLS);
+  // `columns` is typed non-optional but only EXISTS on a tty stream — `tty` (above) is the honest read.
+  const cols = Math.max(MIN_COLS, tty ? process.stdout.columns : FALLBACK_COLS);
   const barCols = Math.max(BAR_MIN, Math.min(BAR_MAX, cols - MIN_COLS));
   const totalMs = Math.max(trace.durationMs, 1);
   const lines: string[] = [];

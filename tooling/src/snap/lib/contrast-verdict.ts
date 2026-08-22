@@ -29,14 +29,16 @@ const RGB_STRING_RE = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/u;
 
 export function parseRgbString(s: string): Rgb | null {
   const m = RGB_STRING_RE.exec(s);
-  if (!(m?.[1] && m[2] && m[3])) {
+  // Each group is `(\d+)`, so a match always carries three NON-EMPTY captures — presence is the
+  // whole condition (the old truthiness also excluded a `""` this pattern cannot produce).
+  if (m?.[1] === undefined || m[2] === undefined || m[3] === undefined) {
     return null;
   }
   return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) };
 }
 
 /** Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of
- *  a glyph painted inside an opacity<1 group. opacity 1 is a no-op; opacity 0 is the pure backdrop. */
+ *  a glyph painted inside an `opacity<1` group. opacity 1 is a no-op; opacity 0 is the pure backdrop. */
 export function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
   const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
   return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };

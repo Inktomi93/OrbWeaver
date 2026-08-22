@@ -117,8 +117,9 @@ const TYPE_ARG_RE = /\$type<([\s\S]*?)>\(\)/u;
 const SQLITE_TABLE_RE = /sqliteTable\(\s*"([^"]+)"/u;
 const RECORD_STRING_RE = /^Record<\s*string\s*,/u;
 
-/** OPEN = no type crosses the seam. A union is open when ANY arm is (the `RefineryStagePayload |
- *  Record<string, unknown>` durability escape hatch is still an open door for a key the typed arm lacks). */
+/** OPEN = no type crosses the seam. A union is open when ANY arm is (the
+ *  `RefineryStagePayload | Record<string, unknown>` durability escape hatch is still an open door for a
+ *  key the typed arm lacks). */
 function isOpenTypeText(text: string | undefined): boolean {
   if (text === undefined) {
     return true; // an un-$type'd json column is the most open shape there is

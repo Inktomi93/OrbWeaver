@@ -17,7 +17,7 @@ export const gate: GateDescriptor = {
   kinds: [SyntaxKind.JsxAttribute],
   visit: (node, _sf, ctx) => {
     const name = node.getFirstChildByKind(SyntaxKind.Identifier)?.getText();
-    if (name && BANNED_PROPS.has(name)) {
+    if (name !== undefined && BANNED_PROPS.has(name)) {
       ctx.report(node);
     }
   },

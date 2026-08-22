@@ -245,7 +245,7 @@ function isDeferredCapture(node: Node): boolean {
     if (!lhs.isKind(SyntaxKind.Identifier)) {
       return true; // `ref.current = resolve` / `obj.slot = resolve` — a property target is always outside
     }
-    const decl = lhs.getSymbol()?.getDeclarations()?.[0];
+    const decl = lhs.getSymbol()?.getDeclarations()[0];
     return decl === undefined || !decl.getAncestors().includes(executor);
   });
 }
@@ -327,7 +327,7 @@ function provablyArray(node: Node, hops: number): boolean {
  *  array proof off it (annotation, initializer, or the destructured-prop TypeLiteral member). A cross-file
  *  declaration is UNRESOLVED in the pure-AST harness (see the header), so it answers "not proven". */
 function identifierProvablyArray(node: Node, hops: number): boolean {
-  const decl = node.getSymbol()?.getDeclarations()?.[0];
+  const decl = node.getSymbol()?.getDeclarations()[0];
   if (decl === undefined || decl.getSourceFile() !== node.getSourceFile()) {
     return false;
   }

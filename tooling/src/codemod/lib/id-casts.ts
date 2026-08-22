@@ -16,7 +16,7 @@ function insertTargetTable(pa: Node): string | undefined {
   // optional array literal so both forms resolve to the same `insert(<table>)` call.
   const wrapper = objLit.getParent();
   const valuesCall =
-    wrapper !== undefined && wrapper.getKind() === SyntaxKind.ArrayLiteralExpression
+    wrapper.getKind() === SyntaxKind.ArrayLiteralExpression
       ? wrapper.getParentIfKind(SyntaxKind.CallExpression)
       : objLit.getParentIfKind(SyntaxKind.CallExpression);
   if (valuesCall === undefined) {
@@ -77,7 +77,7 @@ function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOption
   if (literal !== undefined) {
     return literal;
   }
-  if (!opts.includeStringVars) {
+  if (opts.includeStringVars !== true) {
     return;
   }
   // Non-literal initializer (`id: charId`, `characterId: opts.id`): cast ONLY when its type is

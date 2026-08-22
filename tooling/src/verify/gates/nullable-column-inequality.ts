@@ -33,7 +33,7 @@ const LINE_COMMENT_RE = /^\s*(?:\/\/|\*|\/\*)/u;
 /** Where the marker vocabulary is DOCUMENTED rather than USED. A tool issues no drizzle predicate, so every
  *  `@nullable-cmp-ok` under `tooling/src/` is prose about the grammar — this gate's own message strings and
  *  conformance examples most of all, which is why a mention there must never be swept as a live marker.
- *  (Pre-@orb/tooling the same fence read `scripts/`, the corpus's old home; the move re-pointed it, and the
+ *  (Pre-`@orb/tooling` the same fence read `scripts/`, the corpus's old home; the move re-pointed it, and the
  *  mustPass row below is the written proof it still holds.) */
 function isVocabularyHome(rel: string): boolean {
   return rel.startsWith("tooling/src/");

@@ -78,7 +78,7 @@ function staticImporterHits(sf: SourceFile, spec: string): Hit[] {
     const rawHit = raw?.includes(spec);
     const resolved = d.getModuleSpecifierSourceFile()?.getFilePath();
     const resolvedHit = resolved?.includes(spec);
-    if (rawHit || resolvedHit) {
+    if (rawHit === true || resolvedHit === true) {
       out.push(hitOf(d, "import"));
     }
   }

@@ -94,7 +94,7 @@ function parseStrict(argv: readonly string[]): { readonly values: ParsedValues; 
   }
 }
 
-/** Which single scope selector is present (0 ⇒ whole scope; >1 ⇒ misuse). */
+/** Which single scope selector is present (0 ⇒ whole scope; \>1 ⇒ misuse). */
 function scopeSelectorCount(v: ParsedValues): number {
   return [v.file, v.changed, v.package !== undefined, v.scope !== undefined].filter(Boolean).length;
 }

@@ -81,7 +81,10 @@ export interface MeterData {
 }
 
 export interface MeterWindow {
-  __perfMeter: MeterData & { markStep: (i: number, l: string) => void };
+  /** OPTIONAL on purpose (#409): the meter rides an init script, and a page can outlive or replace
+   *  it. A non-optional field here typed the apparatus gap out of existence — the read in ops/run.ts
+   *  then looked like a dead check while the runtime hole stayed open. */
+  __perfMeter?: MeterData & { markStep: (i: number, l: string) => void };
 }
 
 export interface StepReport {

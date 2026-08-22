@@ -108,7 +108,7 @@ export const gate: GateDescriptor = {
     // VariableDeclaration — the export keyword lives on the enclosing VariableStatement.
     if (Node.isVariableDeclaration(node) && isZodSchema(node)) {
       const statement = node.getVariableStatement();
-      if (statement?.hasExportKeyword()) {
+      if (statement !== undefined && statement.hasExportKeyword()) {
         ctx.report(statement);
       }
     }

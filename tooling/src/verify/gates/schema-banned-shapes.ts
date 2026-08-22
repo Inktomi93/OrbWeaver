@@ -153,7 +153,7 @@ function tablesIn(sf: SourceFile): Table[] {
       continue;
     }
     const [nameArg, colsArg] = call.getArguments();
-    if (nameArg?.isKind(SyntaxKind.StringLiteral) && colsArg !== undefined) {
+    if (nameArg !== undefined && nameArg.isKind(SyntaxKind.StringLiteral) && colsArg !== undefined) {
       out.push({ sqlName: nameArg.getLiteralText(), colsObj: colsArg });
     }
   }
@@ -246,7 +246,7 @@ function schemaFieldViolations(sf: SourceFile, rel: string, shape: SchemaFieldBa
   ];
 }
 
-/** Import-ban rules (the @orb/contracts/sessions namespace), over any source file. */
+/** Import-ban rules (the `@orb/contracts/sessions` namespace), over any source file. */
 function importViolations(sf: SourceFile, rel: string): Violation[] {
   const out: Violation[] = [];
   for (const shape of BANNED_SHAPES) {

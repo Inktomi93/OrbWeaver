@@ -79,8 +79,9 @@ function initializerObjectLiteral(call: Node): ObjectLiteralExpression | undefin
 // Does an initializer expression wrap (possibly through the `create<T>()(...)` application form) a
 // store-minting call? Walks the callee spine.
 function initWrapsMint(init: Node): boolean {
-  let cursor: Node | undefined = init;
-  while (cursor !== undefined && Node.isCallExpression(cursor)) {
+  // `.getExpression()` of a CallExpression is never undefined — the kind test is the only exit.
+  let cursor: Node = init;
+  while (Node.isCallExpression(cursor)) {
     if (isMintCall(cursor)) {
       return true;
     }

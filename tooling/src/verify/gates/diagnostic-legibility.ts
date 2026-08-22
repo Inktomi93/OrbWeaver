@@ -76,7 +76,7 @@ function resolveMessageText(init: Node): string | undefined {
   if (!Node.isIdentifier(init)) {
     return;
   }
-  const decl = init.getSymbol()?.getDeclarations()?.[0];
+  const decl = init.getSymbol()?.getDeclarations()[0];
   if (decl === undefined || !Node.isVariableDeclaration(decl)) {
     return;
   }

@@ -364,10 +364,10 @@ function tableRef(receiver: Node, sf: SourceFile, depth: number): ChainVerdict |
   return isTableIdentifier(named.getText(), sf) ? "ours" : "other";
 }
 
-/** `makeUpdate(db).set(…)` — a function that RETURNS a builder, resolved for the same reason the `const q =
- *  db.update(…)` hoist is: an indirection is not an escape hatch. Three ways in, cheapest first: the
- *  corpus-derived builder-name net, the same-module declaration, and an IMPORTED declaration followed through
- *  its module. The call's own arguments are scanned too, so `run(db.update(mv))` is seen. */
+/** `makeUpdate(db).set(…)` — a function that RETURNS a builder, resolved for the same reason the
+ *  `const q = db.update(…)` hoist is: an indirection is not an escape hatch. Three ways in, cheapest
+ *  first: the corpus-derived builder-name net, the same-module declaration, and an IMPORTED declaration
+ *  followed through its module. The call's own arguments are scanned too, so `run(db.update(mv))` is seen. */
 function builderFactoryRef(name: string, args: readonly Node[], sf: SourceFile, depth: number): ChainVerdict | undefined {
   if (derivedBuilders.has(name)) {
     return "ours";

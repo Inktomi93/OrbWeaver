@@ -81,7 +81,7 @@ function resolveInvocation(verb: string, arg: string | undefined, rest: readonly
     print(USAGE);
     throw new UsageError(`verb ${verb} requires an argument — see the usage above`);
   }
-  const flagTokens = argIsFlag && arg !== undefined ? [arg, ...rest] : rest;
+  const flagTokens = argIsFlag ? [arg, ...rest] : rest;
   return { verb, effectiveArg, flagTokens };
 }
 

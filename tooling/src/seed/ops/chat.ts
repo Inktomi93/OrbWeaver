@@ -134,10 +134,10 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   const chatId = await findSeededChatId(db, ownerId, filename);
-  if (chatId !== null && outcome.created) {
+  if (chatId !== null && outcome.created === true) {
     await built.services.chat.updateTitle({ principal: owner, chatId: castId<ChatId>(chatId), title: args.title });
   }
-  log(outcome.created ? "imported a fresh chat" : "chat already present (idempotent skip — same bytes)");
+  log(outcome.created === true ? "imported a fresh chat" : "chat already present (idempotent skip — same bytes)");
   print(
     `\n[seed-chat] DONE.\n  chatId: ${chatId ?? "(not found)"}\n  title:  ${args.title}\n  messages: ${args.messages}\n  cast: ${cast.map((c) => c.name).join(", ")}\n  verify: curl -s "$BASE/api/_debug/db/chat/${chatId ?? "<id>"}" -H "x-debug-token: $DEBUG_TOKEN" | jq '.messages | length'`,
   );

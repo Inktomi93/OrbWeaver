@@ -11,7 +11,7 @@ import { CodemodError } from "./errors.ts";
 import { addReExport } from "./exports.ts";
 import { deleteFiles, moveFiles } from "./files.ts";
 import { repointAliasPaths, routeSymbolsByMap } from "./imports.ts";
-import { absolutePath, assert, repoRelative } from "./plans.ts";
+import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 import { runCodemod } from "./run.ts";
 
 /**
@@ -86,14 +86,15 @@ export function assertDirectoryExists(dir: string, repoRoot = process.cwd()): vo
 }
 
 /** Helper to `rm -rf` a directory after a codemod that moves everything out
- *  of it (covers the "remove the now-empty substrate/" pattern). Refuses
- *  unless `confirm: true` and the directory is empty after the moves
+ *  of it (covers the "remove the now-empty substrate/" pattern). The
+ *  `confirm: true` LITERAL in the signature is the refusal — a caller that
+ *  passes `false` fails tsc, which is stricter than any runtime assert could
+ *  be. The transform still requires the directory to be empty after the moves
  *  finished (so we can't accidentally delete a populated dir). */
 export function removeEmptyDirectory(ctx: CodemodContext, dir: string, opts: OperationOptions & { confirm: true }): Plan {
-  assert(opts.confirm === true, "removeEmptyDirectory requires { confirm: true }");
   const abs = absolutePath(dir, ctx.repoRoot);
   return {
-    description: `Remove empty directory ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Remove empty directory ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [],
     transform(innerCtx): void {
       if (innerCtx.isDryRun) {

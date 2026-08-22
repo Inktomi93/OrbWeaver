@@ -55,7 +55,7 @@ export interface ProbeLaunchOptions {
   readonly pages?: number;
   /** How many ISOLATED browser contexts to open (`--contexts N`) — each gets its OWN cookies/localStorage,
    *  so N different logged-in users can be driven in one browser process. Default 1 (a single context,
-   *  byte-identical to the old API). Mutually exclusive with a >1 `pages` in practice (each context still
+   *  byte-identical to the old API). Mutually exclusive with a \>1 `pages` in practice (each context still
    *  gets `pages` tabs, but multi-context + multi-tab-per-context is an unexercised combination — snap.ts
    *  refuses it rather than silently under-testing it). */
   readonly contexts?: number;

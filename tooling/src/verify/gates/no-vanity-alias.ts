@@ -128,7 +128,7 @@ function checkRenameImportSpecifier(named: ImportSpecifier, scan: ImportScan, ct
 }
 
 /** Rule (a): a workspace rename-IMPORT whose original name is not otherwise present in the module — the
- *  `as` alias is cosmetic. Exempt: @orb/ui, the db/wire suffix convention, and genuine collisions. */
+ *  `as` alias is cosmetic. Exempt: `@orb/ui`, the db/wire suffix convention, and genuine collisions. */
 function checkRenameImports(sf: SourceFile, ctx: GateRunCtx, rel: string): void {
   const freq = identifierFreq(sf);
   for (const imp of sf.getImportDeclarations()) {

@@ -86,7 +86,7 @@ function offenceLines(text: string): number[] {
     const value = stripTokenGroups(m.groups?.["value"] ?? "");
     if (hasRawTime(value) || hasRawEase(value)) {
       // Anchor at the property name, not the match start (which includes the leading `;`/`{`).
-      const propIdx = (m.index ?? 0) + m[0].indexOf(m.groups?.["prop"] ?? "");
+      const propIdx = m.index + m[0].indexOf(m.groups?.["prop"] ?? "");
       lines.push(lineOf(text, propIdx));
     }
   }

@@ -123,9 +123,10 @@ const DOMAIN_CONTRACT_DIR_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+
  *  ultimately points at. Empty for anything else (an object-literal type, a generic instantiation, an indexed
  *  access): those are not derives.
  *
- *  WHY (2026-08-03): the lens used to flag the very fix it recommends. `export type MemoryBackfillCounts =
- *  MemoryBackfillResult` IS the derive, and it is of course mutually assignable with its own RHS — so the
- *  steady state was "3 hits, all already resolved", which trains a reader to ignore the lens. A hit is only
+ *  WHY (2026-08-03): the lens used to flag the very fix it recommends.
+ *  `export type MemoryBackfillCounts = MemoryBackfillResult` IS the derive, and it is of course mutually
+ *  assignable with its own RHS — so the steady state was "3 hits, all already resolved", which trains a
+ *  reader to ignore the lens. A hit is only
  *  meaningful when the domain shape RE-DECLARES the body; an alias that names the contracts symbol is the
  *  destination, not the defect. */
 function bareAliasTargetKeys(decl: Node): Set<string> {

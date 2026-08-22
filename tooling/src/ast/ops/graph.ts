@@ -6,7 +6,7 @@ import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus } from "../lib/ledger.ts";
 
 /** RESOLVED intra-package file graph: edges via getModuleSpecifierSourceFile (relative, #alias,
- *  @orb subpath all resolve) — needs the types:true arm. */
+ *  `@orb` subpath all resolve) — needs the types:true arm. */
 function resolvedGraph(project: Project, prefix: string): Map<string, string[]> {
   const graph = new Map<string, string[]>();
   for (const sf of project.getSourceFiles()) {
@@ -17,7 +17,7 @@ function resolvedGraph(project: Project, prefix: string): Map<string, string[]> 
     const edges: string[] = [];
     for (const d of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
       const target = d.getModuleSpecifierSourceFile()?.getFilePath();
-      if (target?.includes(prefix) && target !== from) {
+      if (target?.includes(prefix) === true && target !== from) {
         edges.push(target);
       }
     }

@@ -81,7 +81,7 @@ function checkChromeEntry(def: ChromeDef, ctx: GateRunCtx, seenIds: Map<string, 
   // It stays OPTIONAL on topbar.*: the default (stay on the row) is the right one for a section's own
   // controls, and forcing every trail widget to spell it would be ceremony, not a decision.
   const hasMobile = def.init.getProperty("mobile") !== undefined;
-  if (zone?.startsWith("rail.") && !hasMobile) {
+  if (zone !== undefined && zone.startsWith("rail.") && !hasMobile) {
     ctx.report(def.init, { token: `missing mobile (${def.name}, zone "${zone}")`, offset: 0 });
   }
 }

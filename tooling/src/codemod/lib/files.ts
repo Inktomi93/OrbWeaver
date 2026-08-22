@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
-import { absolutePath, assert, repoRelative } from "./plans.ts";
+import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
  * Move source files. Wraps `SourceFile.move()` (which auto-recomputes
@@ -56,7 +56,7 @@ export function moveFiles(ctx: CodemodContext, moves: ReadonlyArray<readonly [fr
   }
 
   return {
-    description: `Move ${moves.length} file(s)${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Move ${moves.length} file(s)${noteSuffix(opts)}`,
     touchedFiles: [...touched],
     transform(innerCtx): void {
       for (const { sf, toAbs } of resolved) {
@@ -103,7 +103,7 @@ export function deleteFiles(ctx: CodemodContext, paths: readonly string[], opts:
   });
 
   return {
-    description: `Delete ${paths.length} file(s)${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Delete ${paths.length} file(s)${noteSuffix(opts)}`,
     touchedFiles: resolved.map((r) => r.abs),
     transform(): void {
       for (const { sf } of resolved) {
@@ -127,7 +127,7 @@ export function createSourceFile(ctx: CodemodContext, filePath: string, text: st
   }
 
   return {
-    description: `Create ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Create ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(innerCtx): void {
       // Make sure the parent dir exists in-memory (ts-morph handles this on

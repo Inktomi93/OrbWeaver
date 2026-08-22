@@ -30,7 +30,7 @@ export interface ContrastMeasured {
   inactive: boolean;
   role: string;
   tag: string;
-  /** Product of `opacity` over the element + ancestors — <1 means the foreground is painted dimmed and
+  /** Product of `opacity` over the element + ancestors — `<1` means the foreground is painted dimmed and
    *  must be composited at this alpha over the backdrop before measuring. */
   foregroundOpacity: number;
   box: { x: number; y: number; width: number; height: number };
