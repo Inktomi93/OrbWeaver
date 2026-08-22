@@ -14,7 +14,15 @@ export const sliderVariants = tv({
     // inside the CLIPPING track they rendered as 6px slivers), and Base UI positions each thumb
     // `position:absolute` against its nearest positioned ancestor. The Control's content box is the
     // track's box, so the thumb lands where it always did — now unclipped.
-    control: "relative flex h-control-sm w-full touch-none select-none items-center",
+    // THE CONTROL IS INSET BY HALF A THUMB ON BOTH SIDES (side-eye 2026-08-22 P2-8). Base UI centres a
+    // thumb ON its value position, so at `min` and `max` the knob hangs half its width outside this box.
+    // Measured at a 430px coarse viewport: the max thumb ran 406→430 and the min thumb 0→24 — flush with
+    // the screen edge, its grabbable half on the OS edge-swipe bezel. `mx-slider-inset` is exactly that
+    // half (`--spacing-slider-inset`), and the `w-full` is GONE with it: the Control is a stretch item of
+    // the column-flex root, so `width:auto` fills the row MINUS the margins, where `w-full` + margins
+    // would overflow. Percentages resolve against this box, so both extremes move inboard together and
+    // the rail simply shortens by one thumb width.
+    control: "relative mx-slider-inset flex h-control-sm touch-none select-none items-center",
     // Base UI sets data-invalid on Track (and Control/Thumb) when wrapped in an invalid <Field>
     // (FieldRootState) — the track fill is the visible surface, so it carries the destructive skin.
     track: "relative h-field w-full grow overflow-hidden rounded-full bg-input data-invalid:bg-destructive/20",
@@ -45,13 +53,23 @@ export const sliderVariants = tv({
   //    not by accent; twelve ember fills in one column was the CD3 budget break the review measured.
   //  · `ghost` = INHERITED, and it paints NO FILL AT ALL. A dimmed fill still draws a bar from the rail's
   //    start to the thumb, so an unset Top-P at its 1.00 model default rendered a FULL grey meter and read
-  //    as MORE set than the explicit rows beside it. Bare rail + a muted thumb sitting at the resolved
+  //    as MORE set than the explicit rows beside it. Bare rail + a HOLLOW thumb sitting at the resolved
   //    effective value keeps the datum legible while carrying no magnitude claim.
+  //
+  //    THE THUMB IS HOLLOW, NOT MERELY MUTED (side-eye 2026-08-22 P2-3). A tint was the whole distinction,
+  //    and it does not survive the state that matters most: an EXPLICIT knob at its minimum draws a
+  //    zero-width fill, so at the left rail an unset knob and a true-minimum one differed by nothing but
+  //    `muted-foreground` vs `foreground` on a 24px disc — and on a brand-new preset all eight sampling
+  //    thumbs sit there at once, reading "everything is turned all the way down" when the truth is
+  //    "nothing is set". A RING is a different SHAPE, legible at any position and at any track fill: an
+  //    unfilled knob for an unfilled value. The box is untouched (the `tone` axis stays geometry-free —
+  //    a 2px border on a `border-box` disc changes no measurement), so a row does not jitter when a value
+  //    is promoted from inherited to explicit.
   variants: {
     tone: {
       default: { indicator: "bg-primary", thumb: "bg-foreground" },
       neutral: { indicator: "bg-foreground/45", thumb: "bg-foreground" },
-      ghost: { indicator: "bg-transparent", thumb: "bg-muted-foreground" },
+      ghost: { indicator: "bg-transparent", thumb: "border-2 border-muted-foreground bg-transparent" },
     },
   },
   defaultVariants: { tone: "default" },

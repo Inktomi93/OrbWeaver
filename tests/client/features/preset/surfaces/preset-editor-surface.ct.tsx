@@ -67,6 +67,8 @@ const ACTIVATE_NAME_RE = /use this preset for generation/i;
 /** A band flush to the pane is ~one padding step in; a band sharing a capped column at 1520px is >300px in.
  *  Stated as a floor well clear of any padding so the pin cannot pass on chrome alone. */
 const MIN_COLUMN_INSET_PX = 100;
+/** The view strip's own accessible name (P3-4) — the surface's last DOM-fallback selector. */
+const TABLIST_NAME = "Preset sections";
 // The G7 provenance chip, matched loosely so its ABSENCE can be asserted without naming a model. The
 // grammar is the READOUT's (crunch-list O-2): "resolved for <model>", never the bare "for <model>" that
 // read as "this preset is FOR anthropic/…" — a claim about the preset instead of a statement about which
@@ -1154,6 +1156,55 @@ test("P1-1 the header band shares the BODY's content column — capped and cente
 
   expect(leftInset, "the band is inset from the pane's leading edge, not flush to it").toBeGreaterThan(MIN_COLUMN_INSET_PX);
   expect(Math.abs(leftInset - rightInset), `the band is centered (left ${String(leftInset)} vs right ${String(rightInset)})`).toBeLessThanOrEqual(2);
+});
+
+// P2-1 (side-eye 2026-08-22) read the header as 176px wider than the body and asked for the `@5xl` arm to
+// be added or dropped. RE-DERIVED on the live tree: the two columns already carry the identical class pair
+// and measure x=220 w=896 on every tab — what that report measured was the Params DECK's own 720px
+// instrument cap one level deeper (`params-deck.tsx`, side-eye 2026-08-19 P2), which is why the offset
+// showed on Params and no other tab. This is a FENCE, not a defect proof: it passes pre-change, and its job
+// is to make the pair fail loudly if one side ever gains a breakpoint arm the other does not.
+test("P2-1 FENCE — the header column and the view's content column are the SAME column above the wide breakpoint", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(null),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorWidePaneStory />);
+  // SETTLED barrier: the first tab is the header column's own content, so its presence means the band has
+  // painted at its final width. Located by the TAB and not by the tablist's name, deliberately — this fence
+  // must be able to run against a tree that predates P3-4's `aria-label`, or its red says "the name is
+  // missing" instead of "the columns disagree".
+  await expect(component.getByRole("tab", { name: "Params" })).toBeVisible();
+
+  const columns = await component.evaluate((root: HTMLElement) => {
+    const capped = [...root.querySelectorAll<HTMLElement>(".mx-auto")].filter((el) => el.closest("[role=tablist]") === null);
+    const header = capped.find((el) => el.querySelector("[role=tablist]") !== null);
+    const panel = capped.find((el) => el.closest("[role=tabpanel]") !== null);
+    const read = (el: HTMLElement | undefined): { x: number; w: number } | null =>
+      el === undefined ? null : { x: Math.round(el.getBoundingClientRect().x), w: Math.round(el.getBoundingClientRect().width) };
+    return { header: read(header), panel: read(panel) };
+  });
+
+  expect(columns.header, "the header's capped column resolved").not.toBeNull();
+  expect(columns.panel, "the view body's capped column resolved").not.toBeNull();
+  expect(columns.panel?.x).toBe(columns.header?.x);
+  expect(columns.panel?.w).toBe(columns.header?.w);
+});
+
+// P3-4 (side-eye 2026-08-22): the tablist was the ONE element of 112 mapped controls on this surface with
+// no stable accessible identity — its name computed from its own contents (`ParamsPromptActionsDataTransforms`)
+// and `snap --map` resolved it by DOM path. Pinned by NAME, which is exactly the affordance that was missing.
+test("P3-4: the view strip has an accessible name of its own, not one computed from its tabs", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(null),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorWidePaneStory />);
+  await expect(component.getByRole("tablist", { name: TABLIST_NAME })).toHaveAccessibleName(TABLIST_NAME);
 });
 
 test("G7 the ACTIVE preset's header wears the chip and offers NO Activate", async ({ mount, page }) => {

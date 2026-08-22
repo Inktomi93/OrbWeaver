@@ -57,6 +57,9 @@ const FAILURE_RE = /couldn't be resolved/i;
 const ROUTING_FAULT = "incoherent routing (agent-sdk × local-light)";
 /** The failure arm's two remaining sentences, as a reader meets them — the diagnosis and the routing verdict. */
 const ROUTING_VERDICT_RE = /routing problem, not a missing connection/i;
+/** P3-3: the staleness line as a USER reads it, and the internal noun it must never carry again. */
+const STALE_IN_PARAMS_RE = /this model ignores — clear them in Params/;
+const THE_DECK_RE = /the deck/i;
 /** The NOT_FOUND arm's headline — it names the PRESET, which is what actually failed to read. */
 const MISSING_PRESET_RE = /preset couldn't be read/i;
 /** The causeless arm's headline — it names the READ and nothing about which half of it broke. */
@@ -237,6 +240,12 @@ function settledResolve(): unknown {
   return { presetId: PRESET, model: "qwen3-32b", knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } }, stale: [], qualityMapping: null };
 }
 
+/** A settled resolve carrying a STALE knob — the one arm that renders the "…this model ignores…" sentence
+ *  P3-3 is about. `top_k` is a real knob name; the readout only counts the array. */
+function staleResolve(): unknown {
+  return { presetId: PRESET, model: "qwen3-32b", knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } }, stale: ["topK"], qualityMapping: null };
+}
+
 function readoutRoutes(effective: () => unknown): Record<string, unknown> {
   return {
     "preset.get": () => PRESET_DETAIL,
@@ -270,6 +279,18 @@ test("WIRING — a SETTLED resolve renders the funnel's rows through the real re
   await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
   await expect(probe.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
   await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
+});
+
+// P3-3 (side-eye 2026-08-22): the staleness line was the ONE piece of jargon on an otherwise jargon-free
+// surface — it reported a problem and then sent the reader to "the deck", this feature's internal name for
+// the Params tab (`params-deck.tsx` + ~14 comment sites), a place that appears nowhere in the UI. The pin
+// reads the sentence a user reads, and refuses the internal noun by name.
+test("P3-3: the staleness line names the TAB, never the module's own word for it", async ({ mount, page }) => {
+  await routeTrpc(page, readoutRoutes(staleResolve));
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await expect(probe.getByText(STALE_IN_PARAMS_RE)).toBeVisible();
+  await expect(probe.getByText(THE_DECK_RE)).toHaveCount(0);
 });
 
 test("WIRING — Retry fires a REAL re-read: the click issues a second resolve that RECOVERS the panel", async ({ mount, page }) => {
