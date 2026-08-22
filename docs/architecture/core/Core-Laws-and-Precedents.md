@@ -16,7 +16,7 @@ updated: 2026-08-14
 4. One central `tests/` tree mirroring `src` 1:1.
 5. "unwired ≠ worthless" — evaluate intent, don't auto-delete.
 6. **kit-purity ruling:** `@orb/kit` MAY use isomorphic npm (zod/typeid-js/luxon/remend); may NOT use `node:*` / contracts / db / domain / I/O. Node-only-pure → `@orb/server/kit`.
-7. **Parity is proven, not assumed:** chat + memory are gated by a cross-repo differential oracle against the neo-tavern reference clone (diff SEND/ASSEMBLE/RECEIVE + cache-token counts). The clone is the reference, not deleted.
+7. **Parity was proven, not assumed — and the floor is now EXCEEDED (owner ruling 2026-08-22, #428).** For the port, chat + memory were gated by a cross-repo differential oracle against the neo-tavern reference clone (diff SEND/ASSEMBLE/RECEIVE + cache-token counts); the principle held and the port cleared it. The oracle was RIPPED OUT 2026-08-22 — the suite, its driver, its captured fixture and the `tests:parity` verify stage are gone (git preserves them; the campaign record is `../history/neo-orb-parity-audit.md`). The principle survives as PROVENANCE, not as a live gate: nothing here is measured against neo any more, and a new behaviour is proven by its own tests, never by a neo diff.
 
 ## 1. Code-grounded reconciliation resolutions (R1–R12)
 

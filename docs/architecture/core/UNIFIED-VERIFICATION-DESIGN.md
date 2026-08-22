@@ -111,7 +111,7 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
 | `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) | pre-push bar; `verify --push` |
-| `full` | push + `quality:cpd` + `browser:e2e` + `tests:parity` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
+| `full` | push + `quality:cpd` + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
 types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:db-baseline,
@@ -219,11 +219,11 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   lane, not a same-named `browser:ct` row.
 - **`browser:e2e-smoke`** (`push`/`full`) — the fast `@smoke` model-free subset; the only automated
   per-push browser surface. **`browser:e2e`** (`full`), **`browser:e2e-live`** (`manual` — costs model
-  credits), **`tests:parity`** (`full`), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
+  credits), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
   - **`tests:coverage`** (`manual` — report-only, no thresholds gate).
 - **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
   — `types:tests-membership`'s EXECUTION-lane sibling: BOTH directions of "a test file is run by SOME
-  runner, and a runner glob matches SOME file". Asks each runner its own `--list` view (`vitest list --filesOnly --json` for all six node projects; `playwright test --list --reporter=json` for
+  runner, and a runner glob matches SOME file". Asks each runner its own `--list` view (`vitest list --filesOnly --json` for all five node projects; `playwright test --list --reporter=json` for
   `playwright.config.ts` — run with `E2E_LIVE=1` so `@live`-tagged specs, structurally matched but grep-
   skipped at routine run time, still count — and `playwright-ct.config.ts`), never re-parses glob strings
   (drift-proof). A `tests/**` runner-suffixed file in NO view REDs (never executed); a runner view matching

@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 // ONE config, lanes by SUFFIX via test.projects (the modern "workspace" — vitest.workspace.ts was
 // deprecated in 3.2). NODE lanes only; BROWSER is Playwright (vitest browser-mode hangs — Spine-Testing.md §7).
-// `test` (the fast lane) = unit + integration + contract; types + parity are opt-in (own scripts).
+// `test` (the fast lane) = unit + integration + contract; types is opt-in (own script).
 //
 // CRITICAL: shared defaults live in the root `test` block, and EVERY project sets `extends: true` to
 // inherit them. Per-runner options (cleanup/determinism/expect) do NOT reach a project without it —
@@ -124,7 +124,7 @@ export default defineConfig({
     allowOnly: false, // a stray `.only` FAILS the run (not just in CI)
     expect: { requireAssertions: true }, // every test must assert ≥1 — kills silent no-op tests
     chaiConfig: { truncateThreshold: 0 }, // full, untruncated diffs (branded ids / large frozen objects)
-    // false (PD-115): every lane (unit/integration/contract/types/parity) has matching files now, so a
+    // false (PD-115): every lane (unit/integration/contract/types) has matching files now, so a
     // lane whose include glob matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of passing.
     passWithNoTests: false,
 
@@ -148,7 +148,7 @@ export default defineConfig({
         test: {
           name: "unit",
           include: ["tests/**/*.test.ts"],
-          exclude: [...IGNORE, "tests/**/*.{int,contract,parity}.test.ts"],
+          exclude: [...IGNORE, "tests/**/*.{int,contract}.test.ts"],
         },
       },
       {
@@ -203,12 +203,6 @@ export default defineConfig({
             checker: "node_modules/ts7/bin/tsc",
           },
         },
-      },
-      {
-        // parity: `.parity.test.ts` — the differential oracle vs the steady clone. OPT-IN (own script),
-        // excluded from the fast lane (slow; runs the cross-repo driver).
-        extends: true,
-        test: { name: "parity", include: ["tests/**/*.parity.test.ts"] },
       },
     ],
   },
