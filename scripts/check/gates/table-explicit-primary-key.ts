@@ -19,9 +19,10 @@
 // DECLARED LIMIT (shared with its two siblings): the reader keys on the literal drizzle call shape, so a
 // table assembled through a column-factory helper reads as keyless and REDs — fail-CLOSED, which for a
 // primary key is the right direction.
+
+import { hasPrimaryKey, isSchemaFile, schemaTables } from "@orb/tooling/_shared/schema-read";
 import type { SourceFile } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import { hasPrimaryKey, isSchemaFile, schemaTables } from "@orb/tooling/_shared/schema-read";
 
 const MESSAGE =
   "a `sqliteTable` with no PRIMARY KEY — SQLite falls back to the hidden `rowid`, which is unstable " +

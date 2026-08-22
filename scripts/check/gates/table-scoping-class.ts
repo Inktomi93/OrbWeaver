@@ -5,11 +5,12 @@
 // `membership` class with no chatId) is RED. DECLARED LIMIT: this gate proves the DECLARATION is coherent
 // with the schema — it does NOT prove any read actually applies the class's predicate (the membership rung
 // is control-flow-dependent; the cross-tenant behavioral sweep stays that proof).
+
+import { schemaTables } from "@orb/tooling/_shared/schema-read";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionRow, GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
-import { schemaTables } from "@orb/tooling/_shared/schema-read";
 
 const SCHEMA_DIR = "packages/db/src/schema/";
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
