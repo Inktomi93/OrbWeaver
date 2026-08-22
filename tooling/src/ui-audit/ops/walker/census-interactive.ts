@@ -195,6 +195,43 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     }
   }
 
+  // ── control silhouette (#430): the rendered box of every EXPLICITLY-ROLED visible element ──
+  // Facts only. WHICH roles owe a directional silhouette is a Node-side table (lib/checks-a11y.ts
+  // CONTROL_SILHOUETTES) — censusing on the bare presence of a role attribute is what keeps the two from
+  // drifting: adding a role to the verdict table needs no edit here, so the walker can never be silently
+  // blind to a role the checks think they cover.
+  // The offered-control filters are the tap-target census's own vocabulary (aria-hidden Base UI twins,
+  // dev chrome, sr-only stubs, 1-2px plumbing, off-viewport phantoms) — two vocabularies would let a
+  // phantom mint a shape finding nobody can see.
+  var controlAspects = [];
+  var roledEls = document.querySelectorAll("[role]");
+  for (var ca = 0; ca < roledEls.length; ca += 1) {
+    var cel = roledEls[ca];
+    if (!isVisible(cel) || isDevChrome(cel)) continue;
+    if (cel.closest("[aria-hidden='true']")) continue;
+    if (isVisuallyHidden(cel)) continue;
+    var crect = cel.getBoundingClientRect();
+    if (Math.min(crect.width, crect.height) <= 2) continue;
+    if (!inVisualViewport(crect)) continue;
+    // A box read while something is animating is a frame, not a design. getAnimations() covers CSS
+    // transitions and animations alike; a finished transition is removed from the list, so this reports
+    // in-flight only. Guarded for the (headless-old / jsdom) case where the API is absent.
+    var running = false;
+    if (typeof cel.getAnimations === "function") {
+      var anims = cel.getAnimations();
+      for (var cn = 0; cn < anims.length; cn += 1) {
+        if (anims[cn].playState === "running") { running = true; break; }
+      }
+    }
+    controlAspects.push({
+      selector: describe(cel),
+      role: String(cel.getAttribute("role") || "").trim().toLowerCase(),
+      width: crect.width,
+      height: crect.height,
+      animating: running,
+    });
+  }
+
   var mainLandmarkPresent = document.querySelector("main, [role='main']") !== null;
 
   // Which target-size floor applies is pointer-conditional (see design-audit-checks.ts checkTapTarget):

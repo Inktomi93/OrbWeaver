@@ -19,7 +19,8 @@ export function censusTotal(samples: RawSamples): number {
     samples.headings.length +
     samples.tabIndexes.length +
     samples.zIndexes.length +
-    (samples.actionDoors?.length ?? 0)
+    (samples.actionDoors?.length ?? 0) +
+    (samples.controlAspects?.length ?? 0)
   );
 }
 
