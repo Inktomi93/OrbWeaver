@@ -7,7 +7,7 @@ import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefersReducedMotion } from "#lib";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import type { MessageListRowMeta } from "./list-window.ts";
-import { composeRangeExtractor, updateEdgeFades } from "./list-window.ts";
+import { anchorToEnd, composeRangeExtractor, estimatedEndOffset, updateEdgeFades } from "./list-window.ts";
 import { pinSpacerActive } from "./pin-spacer.ts";
 import type { MessageListRowNavigation } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
@@ -182,6 +182,7 @@ export function MessageList<T>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
     estimateSize,
+    initialOffset: (): number => estimatedEndOffset(items.length, estimateSize, gapPxFor(gapToken), gapPxFor(blockPaddingToken)),
     overscan,
     gap: gapPxFor(gapToken),
     paddingStart: gapPxFor(blockPaddingToken),
@@ -260,10 +261,9 @@ export function MessageList<T>({
         });
   }, []);
 
-  // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
-  useLayoutEffect(() => {
-    virtualizer.scrollToEnd({ behavior: "auto" });
-  }, [virtualizer]);
+  // Explicit anchor on mount — anchorTo/followOnAppend govern post-mount behavior ONLY, and the seeded
+  // `initialOffset` above needs reconciling to the real scrollTop (`anchorToEnd`/`estimatedEndOffset`, #469).
+  useLayoutEffect((): void => anchorToEnd(virtualizer, scrollRef.current), [virtualizer]);
 
   // followOnAppend only re-pins on a count change, never on an existing row growing taller — so a
   // just-sent message + streaming ghost re-measuring past their estimate can strand the reader above
