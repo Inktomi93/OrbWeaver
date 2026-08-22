@@ -66,7 +66,20 @@ const ESTIMATED_ROW_PX = 44;
 // scrolling); "Show chats from" is what a bound actually is, and it makes the one-way behaviour the copy's
 // own statement rather than a surprise. The BOUND is not the defect and does not move: it is what makes the
 // keyset page cheap, and re-rooting a 896-row virtualized list is the only honest way to reach 2024.
+//
+// THE MONTH CONTROL IS DELIBERATELY THE NATIVE PICKER (#500 item 2, side-eye 2026-08-22 rail-chats P3 —
+// "polish, or accept-and-record in the component header"; this is the RECORD). `input[type=month]` renders
+// its interior as UA chrome (`--------- ----` plus the browser's calendar glyph on an empty value), which
+// reads unlike its two house-styled siblings in this column. Accepted, because every alternative is worse
+// for the one job this control does: the native control already types (`2024-06` straight from the
+// keyboard), already localizes its own display, already opens the OS wheel picker on a phone, is already
+// correctly labelled (`aria-labelledby` → the visible label below) and already passes contrast at 13.29:1.
+// A house-built month picker would be a NEW @orb/ui primitive carrying its own popup, roving keyboard model
+// and locale table, minted for a single secondary filter — and it would be the only date affordance in the
+// app that is not the platform's. The `Input` primitive's box (border, radius, focus ring, instrument-tier
+// font step) is applied, so the control's OUTSIDE is house voice; only its interior is the UA's.
 const MONTH_LABEL = "Show chats from";
+const SKIP_TO_LIST_LABEL = "Skip to chats";
 const CLEAR_MONTH_LABEL = "Clear the month";
 const SEARCH_LABEL = "Search chats";
 const CLEAR_SEARCH_LABEL = "Clear the search";
@@ -99,6 +112,28 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
     // subtree without adding a box to the height chain.
     <Surface tier="instrument">
       <Stack className="h-full min-h-0 outline-none" gap="row" ref={surfaceRef} tabIndex={-1}>
+        {/* SKIP THE PANE CHROME (#500 item 4, side-eye 2026-08-22 rail-chats P3). The app-shell's own
+            "Skip to content" lands in `<main>` — it skips PAST this pane, and on the Chats surface the work
+            starts in the LIST. Measured Tab order from the top of the boot: 13 stops (the rail's eight
+            sections, the theme + settings + persona controls, Import) before the list's first control, and
+            the ONLY skip target was CONTENT. This lands directly on the first chat row.
+            The exact posture + spelling of the landed characters twin (#491,
+            `character/surfaces/character-library-surface.tsx`): `not-focus-visible:sr-only`, never
+            `sr-only focus-visible:not-sr-only` — `not-sr-only` is a RESET whose `padding:0; height:auto`
+            lands in the Button's own layer and wins, rendering the revealed control under the WCAG 2.5.8
+            floor. FIRST IN DOM ORDER inside the surface is the whole contract: a skip control that is not
+            the first focusable is a second tab stop, not a skip.
+            Spelled INLINE rather than extracted beside it: the client-shared composite bar is recorded as
+            "3+ sites AND changing together" (`#components/list-pane-header.tsx`), and this is site two. */}
+        <Button
+          className="not-focus-visible:sr-only focus-visible:self-start"
+          intent="secondary"
+          onClick={(): void => surfaceRef.current?.querySelector<HTMLElement>('[data-slot="list-row-body"]')?.focus()}
+          size="sm"
+          type="button"
+        >
+          {SKIP_TO_LIST_LABEL}
+        </Button>
         {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
           shortcut you arrive for, and burying them under the search box made them read as a filter widget. */}
         <ChatListFacesStrip characterFilter={characterFilter} />
