@@ -12,7 +12,23 @@ type KindOf<T> = T extends { readonly kind: infer K } ? K : never;
 
 test("WorkCommand is closed over exactly the verbs the dispatcher handles", () => {
   expectTypeOf<KindOf<WorkCommand>>().toEqualTypeOf<
-    "help" | "overview" | "show" | "list" | "create" | "claim" | "ready" | "review" | "needs-owner" | "set" | "verify" | "reverify" | "done" | "park" | "block" | "unblock"
+    | "help"
+    | "overview"
+    | "show"
+    | "list"
+    | "create"
+    | "claim"
+    | "ready"
+    | "review"
+    | "needs-owner"
+    | "set"
+    | "verify"
+    | "reverify"
+    | "done"
+    | "refute"
+    | "park"
+    | "block"
+    | "unblock"
   >();
   // Every lifecycle arm is also a WorkCommand arm — runLifecycle's switch is total over the same set.
   expectTypeOf<LifecycleCommand>().toMatchTypeOf<WorkCommand>();
