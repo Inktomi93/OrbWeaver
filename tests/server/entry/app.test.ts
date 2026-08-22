@@ -507,3 +507,49 @@ describe("createApp: the tRPC mount refuses a non-JSON mutation (CSRF content-ty
     expect(calls).toEqual(["listTags"]);
   });
 });
+
+// Spine invariant #9's OTHER half — the unenforced negative the content-type belt above rests on. That
+// belt leaves tRPC's CSRF gate keyed on `via === "cookie"`, which is safe only because `application/json`
+// is not a CORS-simple content-type — and that only protects while this app answers no preflight. Mounting
+// `cors()` with credentials for some future integration would grant the preflight, and every
+// `AUTH_FALLBACK=owner` box (single-user deployments, dev stacks, break-glass sessions) is back to
+// cross-site owner mutations. The spine states the absence "so it can be re-checked"; these pins re-check
+// it mechanically, against the ASSEMBLED app, on both request shapes a browser uses to ask for a grant.
+describe("createApp: the assembled app grants no CORS (spine invariant #9)", () => {
+  const foreignOrigin = "https://cross-site.example";
+
+  /** The `Access-Control-Allow-*` headers on a response — the grant a browser requires before it will send
+   *  a preflighted cross-site request at all, or hand a cross-site page a response body. */
+  function corsGrantHeaders(res: Response): readonly string[] {
+    return Array.from(res.headers.keys()).filter((name) => name.toLowerCase().startsWith("access-control-allow-"));
+  }
+
+  test("a cross-origin preflight (OPTIONS) on the tRPC mount is answered with NO Access-Control-Allow-* header", async () => {
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    const res = await hit(
+      app,
+      new Request(PRUNE_URL, {
+        method: "OPTIONS",
+        headers: {
+          origin: foreignOrigin,
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type",
+        },
+      }),
+    );
+    // Non-vacuity: the assembled chain really produced this response (its own security headers are on it),
+    // so an empty grant list is "the app answered and granted nothing", not "nothing answered". The
+    // X-Request-Id stamp is NOT the anchor here — tRPC's handler returns its own Response, which the
+    // observability middleware's pre-`next()` `c.header` never reaches.
+    expect(res.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(corsGrantHeaders(res)).toEqual([]);
+  });
+
+  test("a cross-origin GET on the tRPC mount answers 200 with NO Access-Control-Allow-* header", async () => {
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    const res = await hit(app, new Request("http://localhost/api/trpc/health", { headers: { origin: foreignOrigin } }));
+    // A real served payload: the response a cross-site page would want to read, and cannot without a grant.
+    expect(res.status).toBe(OK);
+    expect(corsGrantHeaders(res)).toEqual([]);
+  });
+});
