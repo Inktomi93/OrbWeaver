@@ -131,8 +131,17 @@ describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
       embedModel,
     });
     const ctx = makeChatContext(db, {
+      // #405 F3 — the eval binds a THROWING observer. On the LIVE tier this is the one that actually bites:
+      // a real reranker that is down makes `digests` keep the vector order silently, and the run publishes
+      // mixB numbers under a mixC label. An eval measures what it says it measures or it fails loudly.
       searchDigests: (query: MemoryQueryOptions): Promise<readonly ScoredBlock[]> =>
-        search.digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
+        search
+          .digests(query, {
+            onRerankUnavailable: (): never => {
+              throw new Error("eval: the rerank degraded to vector order — this run would report mixB numbers as mixC");
+            },
+          })
+          .then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
     });
     const recent: MsgRow[] = [{ seq: 1, role: "user", kind: "standard", characterId: null, authorUserId: null, personaId: null, content: queryText }];
     const { trace } = await recallMemory(ctx, {

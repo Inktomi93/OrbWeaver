@@ -14,6 +14,10 @@ export { createRpgChatOps } from "./chat-ops/index.ts";
 // the compose walk that builds the model's WRITE surface. Two spellings of that rule is exactly the §1.4
 // read/write drift the R2 reshape dissolved.
 export { actorCarrier } from "./chat-ops/tracker-view.ts";
+// The cheap-mode tools' two OUTWARD-crossing shapes (`entry/compose/rpg.ts` names both). Re-homed to the
+// domain's `contract/` on 2026-08-22 (#408) — they were declared in `tools/apply.ts` only because the
+// `no-inline-types` gate's `/tools/` clause exempted that subsystem by string accident.
+export type { ExtractionMints, RosterRefIndex } from "./contract/params.ts";
 // PORTABILITY R6 — the chat-anchored campaign's read-whole/write-whole pair, wired at the composition root as
 // injected ops on the chat-bundle export/import verbs. A campaign was unportable BY CONSTRUCTION while the
 // bundle's chat arm was the ST jsonl interchange (F9); these are the fidelity arm's rpg half.
@@ -60,7 +64,6 @@ export { createRpgStagingStore } from "./staging.ts";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the
 // `RpgResolveStateDelivery` injected op (the mode→axis mapping stays rpg's law).
 export { deriveTrackersReadOnly, hasStructuredWriter, hasToolWriter } from "./substrate/readonly-axis.ts";
-export type { ExtractionMints, RosterRefIndex } from "./tools/apply.ts";
 // The extraction fold (§4.6) — converts a parsed `RpgExtraction` (arrays of cheap-mode tool args)
 // into the `RpgStateDelta` the accumulator flushes. Every vehicle's impl consumes it; the SAME appliers
 // the cheap-mode tools use (the shared-plane proof). Deterministic — the caller injects the id mints.

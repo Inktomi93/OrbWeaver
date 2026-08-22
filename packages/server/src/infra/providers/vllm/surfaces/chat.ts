@@ -156,7 +156,7 @@ interface SamplerDefaults {
 // PROVENANCE OF THE FIELD NAMES (they are DERIVED FROM THIS REPO'S OWN SOURCES, not guessed at an API, and
 // NOT yet confirmed by a live probe — the gen engine was down through this lane's window, mid owner-ordered
 // model swap): both names are read straight out of the two files that already own them —
-//   • `scripts/dev/qwen3_gen_thinking_serve.jinja` (the template WE vendor and serve) branches on the
+//   • `packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja` (the template WE vendor and serve) branches on the
 //     template variables `enable_thinking` (:6, :18) and `reasoning_effort` (:43-52);
 //   • `engine/build-argv.ts` (:286) passes those exact two names through
 //     `--default-chat-template-kwargs '{"enable_thinking": false, "preserve_thinking": true}'`, which is the
@@ -165,7 +165,7 @@ interface SamplerDefaults {
 // A live `/tokenize` differential (low vs xhigh render DIFFERENT instruction strings, so the token counts
 // must differ) is the outstanding confirmation; the probe bodies are staged and named in this lane's report.
 //
-// Our vendored fixed chat template (`scripts/dev/qwen3_gen_thinking_serve.jinja`, passed by `genArgv`) reads
+// Our vendored fixed chat template (`packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja`, passed by `genArgv`) reads
 // TWO template variables: `enable_thinking` (the on/off) and `reasoning_effort` (the depth). The launch bakes
 // `--default-chat-template-kwargs {"enable_thinking": false}`, so the checkpoint reasons only when a REQUEST
 // overrides that default — and the override door for a chat-template VARIABLE is `chat_template_kwargs`, the
@@ -213,7 +213,7 @@ function reasoningFields(reasoning: ResolvedReasoning, prefill: PrefillMode, war
 // ── THE PREFILL DOOR ON THIS WIRE — `continue_final_message` + `add_generation_prompt`.
 //
 // On an array wire like Anthropic's, prefill IS the array shape: deliver a trailing assistant row and the
-// model continues it. Not here. Our vendored template (`scripts/dev/qwen3_gen_thinking_serve.jinja`, served by
+// model continues it. Not here. Our vendored template (`packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja`, served by
 // `genArgv`) decides per RENDER, and its default arm closes the last assistant block and appends a fresh
 // `<|im_start|>assistant` header — so a delivered prefill row silently becomes a completed prior turn. Nothing
 // errors; the prefill just stops existing. The template's continuation arm (:240) fires on
