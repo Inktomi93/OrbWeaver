@@ -1,10 +1,12 @@
 // ECharts renders to Canvas, where `var(--token)` does not resolve — chart chrome colors (axis
 // labels, grid lines, palette) must be CONCRETE values. This hook resolves each DTCG chrome token
 // through the shared live-token-resolver seam (`#lib`'s `createLiveTokenStore`/`resolveCssVar`) — a
-// getComputedStyle read on the document root, re-read via the seam's MutationObserver on every root
-// attribute that moves a token (`TOKEN_MOVING_ROOT_ATTRIBUTES` — the list and its coverage audit are the
-// seam's, not this consumer's), so a Light/Dark flip OR a colorization flip (#503, which re-declares
-// `--color-border` — this hook's `axisLine`) repaints the chart instead of baking a stale literal.
+// getComputedStyle read on the app's marked resolution root (`LIVE_TOKEN_ROOT_ATTRIBUTE`, the shell grid a
+// chart paints inside — NOT `documentElement`, whose palette a custom theme never touches, #504), re-read
+// via the seam's MutationObserver over the three channels that can move a token (the list and its coverage
+// audit are the seam's, not this consumer's), so a Light/Dark flip, a colorization flip (#503, which
+// re-declares `--color-border` — this hook's `axisLine`) OR a custom-theme flip repaints the chart instead
+// of baking a stale literal.
 import { useSyncExternalStore } from "react";
 import { createLiveTokenStore, resolveCssColor, resolveCssVar } from "#lib";
 import { TOKENS } from "#tokens";

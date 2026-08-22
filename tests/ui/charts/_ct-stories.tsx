@@ -10,6 +10,9 @@
 // Components only — playwright-ct rewrites this module's named imports into generated component consts, so
 // a mixed import (component + constant) fails to parse in the consuming CT.
 import { BarList } from "@orb/ui/bar-list";
+import { LIVE_TOKEN_ROOT_ATTRIBUTE } from "@orb/ui/lib";
+import { ThemeScope } from "@orb/ui/theme-scope";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useChartTheme } from "../../../packages/ui/src/charts/chart/use-chart-theme.ts";
@@ -30,10 +33,42 @@ export function ChartThemeAxisLineReadoutStory(): ReactElement {
     mountSequence += 1;
     return `mount-${mountSequence}`;
   });
+  // `seriesPositive` rides along because it is the OTHER resolution path — the attached-probe read that
+  // makes the cascade resolve a `light-dark()` intent token (#504 moved that probe's host into the marked
+  // resolution root, so a green here is also the receipt that the probe still resolves where it now lands).
   return (
-    <p data-axis-line={colors.axisLine} data-mount-id={mountId}>
+    <p data-axis-line={colors.axisLine} data-mount-id={mountId} data-series-positive={colors.seriesPositive}>
       {colors.axisLine}
     </p>
+  );
+}
+
+/**
+ * #504 — the same readout, mounted the way the APP mounts a chart: inside a `<ThemeScope>` carrying a CUSTOM
+ * theme's palette, under the element the shell marks as the live-token root. A custom theme sets no
+ * `[data-theme]`, so nothing about it is visible from `documentElement` — with the store resolving there,
+ * this readout painted the BASE `color.border` while every DOM hairline around it painted the custom one.
+ *
+ * The three arms are the flips that must repaint: custom → a DIFFERENT custom (which moves no attribute
+ * anywhere except ThemeScope's inline `style`) → seed/no-override (the palette falls back to the base
+ * cascade). `borderColor` is the one override key that lands on `--color-border` BYTE-IDENTICALLY
+ * (`clamp.ts` puts it with no derivation), so each arm's expected value is exactly its token value — two
+ * ramp stops nothing else in this story declares, standing in for a custom theme's picked hairline.
+ */
+const CUSTOM_BORDER_ARMS = [TOKENS["color.chart-3"].value, TOKENS["color.chart-4"].value] as const;
+
+export function CustomThemeChartAxisLineStory(): ReactElement {
+  const [arm, setArm] = useState(0);
+  const borderColor = CUSTOM_BORDER_ARMS[arm];
+  return (
+    <ThemeScope tokens={borderColor === undefined ? {} : { borderColor }} ambientBackground={TOKENS["color.background"].value}>
+      <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}>
+        <button onClick={(): void => setArm((current): number => current + 1)} type="button">
+          Next theme
+        </button>
+        <ChartThemeAxisLineReadoutStory />
+      </div>
+    </ThemeScope>
   );
 }
 
