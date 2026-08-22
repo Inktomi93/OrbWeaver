@@ -2,10 +2,11 @@
 // (same wall ECharts' canvas hits — see charts/use-chart-theme.ts, and the shared live-token-resolver
 // seam both ride, `#lib`'s `createLiveTokenStore`/`resolveCssVar`): the card body must be injected with
 // CONCRETE token values. This hook resolves the surface/text/font tokens the base body rule needs via
-// `getComputedStyle` on the document root and re-resolves on every root attribute that moves a token
-// (`TOKEN_MOVING_ROOT_ATTRIBUTES`, the seam's list + coverage audit — this hook does not carry its own
-// filter, #503: which attributes move a token is a property of the cascade, not of the consumer), so a
-// Light/Dark switch recolors the card instead of baking a stale literal. Color values ride `themeTokens`
+// `getComputedStyle` on the app's marked resolution root (`LIVE_TOKEN_ROOT_ATTRIBUTE` — the shell grid the
+// card frame paints inside, not `documentElement`, #504) and re-resolves on every channel that moves a
+// token (the seam's list + coverage audit — this hook does not carry its own filter, #503: what moves a
+// token is a property of the cascade, not of the consumer), so a Light/Dark switch OR a custom-theme flip
+// recolors the card instead of baking a stale literal. Color values ride `themeTokens`
 // (re-clamped by `isSafeColor` at the frame boundary); the font value is a family LIST (`isSafeColor`
 // rejects it), so it rides its own `fontFamily` slot behind the kit font-list shape check.
 import { clampCardFrameFontFamily } from "@orb/kit/card-frame";
