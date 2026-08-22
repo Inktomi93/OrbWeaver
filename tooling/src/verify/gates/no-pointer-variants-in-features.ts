@@ -1,15 +1,26 @@
 // Gate: no-pointer-variants-in-features — axis-3 device CAPABILITY (`pointer-coarse:`/`pointer-fine:` and
 // raw `@media (pointer/hover)`) is TOKEN/SHELL-layer, never a feature className (UI-Architecture §4b, owner
 // ruling 2026-08-07). The sibling `no-media-queries-in-features` bans viewport WIDTH variants the same way;
-// this bans the pointer/hover ones its `MEDIA_QUERY_RE` never matched. Sanctioned homes (all OUT of scanRoot):
-// a pointer-conditional TOKEN (`min-w-touch-target`) or a shared component-layer const (`#components`).
+// this bans the pointer/hover ones its `MEDIA_QUERY_RE` never matched. The sanctioned SHAPES are a
+// pointer-conditional TOKEN (`min-w-touch-target`) or a shared component-layer const (`#components`).
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the shell tier is SCANNED and exempted by a cited
+// row plus the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home carries its exemption
+// silently through a rename, which for a feature DIRECTORY is the likeliest move on this tree.
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const FEATURES_ROOT = "packages/client/src/features/";
-const APP_SHELL = "packages/client/src/features/app-shell/";
+
+/** The ONE feature dir that may spell a device-capability query. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/client/src/features/app-shell/": {
+    why: "the SHELL tier — §4b axis 2 makes it the one legal viewport-@media site, and by the same shell-layer logic the legal home for a raw pointer/hover capability query (`no-media-queries-in-features` exempts it identically). Ends when the shell moves: the rename tripwire reds the row at its dead path",
+  },
+};
 // The real-tree sentinel: the client entry, present on every full run, never a feature and never in an
 // example. Its presence means "this is a real project pass" — so the blindness arm below can distinguish a
 // features tree that MOVED (anchor loaded, zero feature files scanned ⇒ RED) from a conformance mini-project
@@ -72,9 +83,8 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe", // per-file verdicts; the blindness arm self-guards in finalize
   message: MESSAGE,
   fix: FIX,
-  // features/** minus app-shell (the shell tier — the sole legal viewport-@media site, §4b axis 2, and by the
-  // same shell-layer logic the legal home for a raw pointer capability query).
-  scanRoot: (p) => p.includes(FEATURES_ROOT) && !p.includes(APP_SHELL),
+  // features/**, the shell INCLUDED — the shell's exemption is the cited SANCTIONED_HOMES row below.
+  scanRoot: (p) => p.includes(FEATURES_ROOT),
   kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
 
   begin: () => {
@@ -87,7 +97,10 @@ export const gate: GateDescriptor = {
     featureFilesScanned.add(sf.getFilePath());
   },
 
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
+      return;
+    }
     for (const hit of bannedTokens(node.getText())) {
       ctx.report(node, hit); // token-anchored ⇒ honours @orb-gate-ignore
     }
@@ -97,6 +110,7 @@ export const gate: GateDescriptor = {
   // project run (never a scoped run, never a conformance mini-project — both detected by the anchor being
   // absent), if the anchor is loaded but ZERO feature files were scanned, the scan root died — RED.
   finalize: (ctx) => {
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "shell tier" });
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
@@ -137,6 +151,14 @@ export const gate: GateDescriptor = {
       expect: { count: 1, messageIncludes: "BLIND" },
       why: "the §4.6 blindness tripwire — the anchor loads but NOT one feature file, i.e. the features root vanished; the gate must RED rather than pass silently",
     },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        "packages/client/src/features/rpg/components/x.tsx": "export const G = null;\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded, the features root is alive (so the blindness arm is quiet — its own anchor is absent here), but features/app-shell/ resolves to no file — the shell moved and its exemption must not follow it",
+    },
   ],
   mustPass: [
     {
@@ -157,7 +179,7 @@ export const gate: GateDescriptor = {
     {
       files: 'export const G = <div className="pointer-coarse:hidden" />;\n',
       at: "packages/client/src/features/app-shell/x.tsx",
-      why: "app-shell is the SHELL tier (the one legal viewport-@media site, §4b axis 2) — scoped out, exactly as `no-media-queries-in-features` exempts it",
+      why: "THE ALLOWLIST ITSELF: app-shell is the SHELL tier (the one legal viewport-@media site, §4b axis 2) — now SCANNED, and passing only because a cited SANCTIONED_HOMES row covers it",
     },
   ],
 };

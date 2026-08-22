@@ -295,3 +295,77 @@ and proving the new isolation needs a deliberate concurrent run.
 | F4 | 19 `scanRoot` predicates ≥3 clauses (§A2c) | each owes the §3 receipt: run the predicate over the real file list and READ what it drops |
 | F5 | `verify-registry-parity` triple-pinned in `run.int.test.ts` (§C) | delete the standalone cases; conformance is the home |
 | F6 | per-suite `__g_` sentinel segments, and drop the two `SERIAL_INT` tree-writer rows | test-infra change + a concurrent-run proof |
+
+## LANDED RECORD — the remediation (lane tool-verify, #417, 2026-08-22)
+
+The rows above are the flag-only census as delivered. This section is what actually landed against them, and
+what was REFUTED on re-derivation. Every count below is a receipt, not a plan.
+
+**F2 — 24 of 27 converted to scan-and-allowlist; 3 refuted.** The converted gates SCAN their sanctioned home
+and exempt it with a cited `ExemptionTable` row, swept by ONE shared RENAME TRIPWIRE
+(`tooling/src/verify/lib/sanctioned-home.ts` — mode B of §4.4a: a row resolving to no file is RED). The
+receipt that the homes are genuinely scanned now is each gate's own scan denominator: `scrubber-home`
+2878→2880, `no-direct-useform` 5392→5420, `sole-env-reader` 1331→1335, `ui-skin-fragment-purity` 317→337,
+`single-stream-transport` 25→26, `bus-channel-primitive` 55→56, `no-effect-on-shared-selection` 719→773,
+`client-cache-surgery-only-in-data` 965→1017, `no-pointer-variants-in-features` 719→773,
+`no-raw-interactive-intrinsics` 442→477, `no-raw-clock` 2808→2880, `no-raw-random` 3328→3402,
+`no-direct-users-read` 975→1018, `render-error-via-battery` 1012→1017, `selection-store-via-factory` 9→12,
+the spacing/typography/z-index triplet 1332→1354 each, `theme-override-only-via-scope` 1345→1354,
+`no-untrusted-html-in-main-dom` 1339→1354, `owner-role-split` 1334→1335 (`pnpm check:structure`, before/after).
+
+**THE HAZARD WAS LIVE, and the conversion found it:** `no-raw-random`'s exclusion list carried
+`packages/kit/src/prng/` and `packages/kit/src/random/` — NEITHER DIRECTORY EXISTS on this tree. Two
+exemptions for nothing, unfalsifiable by construction, exactly what §3 predicts an excluded home becomes.
+Both were deleted (not re-keyed as rows), and the tripwire is what makes the next one impossible.
+
+**The 3 refuted F2 rows are SCOPE, not exemptions** (each already carries a written declared limit naming a
+different enforcer, which is F2's own alternate disposition):
+
+- `assumes-single-replica` excludes `/persistence/` — and `persistence-no-in-memory-state`'s `scanRoot` is
+  exactly `p.includes("/persistence/")`. The two gates PARTITION the tree; nothing is unjudged, and the
+  excluded zone is judged more strictly, not less.
+- `own-tables-only` excludes `/persistence/` as its documented sanctioned CROSS-DOMAIN READ home (its header
+  §"DECLARED LIMITS" already names `no-direct-users-read` + `discovery-no-stats-rollups` as the enforcers
+  there). The exclusion is a CONVENTION over every domain's `persistence/`, not a path — enumerating it as
+  rows would fight the convention, and a renamed convention makes this gate scan MORE, never less.
+- `no-handwritten-wire-json-schema`'s clauses are `.test.` / `.test-d.` / `scripts/` — test and research
+  ZONES with the reason written above the predicate. No sanctioned home is involved (an A2b row filed as
+  A2a).
+
+**F3 — 23 tables migrated; 4 rows REFUTED as fixture maps, not exemption tables.** `macro-resolution-home`'s
+`DECLARATIONS`, `baseui-derives-not-respells`'s + `baseui-state-data-attributes`'s `MANIFEST_FILE`, and
+`baseui-surface-manifest`'s `INSTALLED_ONE_PART` are conformance FIXTURE MAPS (path → mini-project SOURCE)
+spread into `files:` blocks. The census keyed A3 on the `Record<string, string>` SHAPE, and for these four
+the shape is a coincidence — migrating them handed `writeFileSync` an object (caught by the conformance
+suite, reverted, and each now carries a why-line saying so). Two more (`no-raw-interactive-intrinsics`'s
+`BURN_DOWN`, `single-stream-transport`'s `EXEMPT`) rode the F2 conversion of the same file. Two migrated
+tables were also carrying DATA in the value slot rather than a reason — `db-structure`'s producer paths and
+`list-row-adoption`'s allowed JSX root — and became `ExemptionRow` INTERSECTIONS (`{ producer, why }` /
+`{ root, why }`), which is the §4.1 widening rule and is the exact failure the legacy spelling hides.
+
+**F5 — landed.** The three standalone `verify-registry-parity` cases and the `runParityGate` helper are gone
+from `tests/tooling/verify/ops/run.int.test.ts`; the one behavior conformance did not carry (the
+`check:show` INSPECTOR half of the allowlist) moved into the gate's first `mustPass` row in the same commit,
+so the deletion dropped nothing.
+
+**F4 — NOT a code change, and the census's own framing is why.** "Each owes the §3 receipt: run the
+predicate over the real file list and READ what it drops" is satisfied for the 19 by the SCAN DENOMINATOR
+the harness already prints per gate (`scanned N/M files`, `gates[].scan` in `reports/check-structure.json`)
+plus the zero-scan alarm. Of the 19, the 11 that were also A2a rows lost clauses in the F2 conversion above.
+The remainder are unions of roots and test/tool-zone negations whose drop-set is the printed denominator.
+
+**F6 — REFUSED, with the receipt.** The recommendation ("per-suite sentinel segments … `SERIAL_INT`'s two
+tree-writer rows could then drop their mutual exclusion") does not hold on re-derivation: per-suite segments
+fix the TEARDOWN collision but not the one that forces seriality. `check-gates.int` runs a whole-tree
+`node tooling/src/verify/cli.ts structure` child under `ORB_GATE_FIXTURES=1`, and that opt-out is
+ALL-OR-NOTHING — it disables `stripProbeFindings` for every `__g_*` path, not for one segment — so a
+concurrent sibling's fixtures land inside the anti-drift `fired` set this suite asserts on. Segments alone
+therefore cannot decouple the two suites; the opt-out would have to become segment-VALUED first. And even
+then both files independently satisfy `SERIAL_INT` reason #2 (whole-tree scanners; each spawns a ~2-minute
+full-corpus scan), so dropping their rows trades one serial scan for two concurrent ones plus the parallel
+lane — a LOAD decision on a co-hosted box, not a sentinel decision. The sentinel-segment work's only stated
+benefit was the row drop, so it was not done either. Both halves are the orchestrator's call with this
+receipt in hand.
+
+**F1 — not landed.** Unchanged from the census: `diagnostic-legibility` still judges only the descriptor's
+group `message`. The candidate written in §A4 stands.

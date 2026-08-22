@@ -4,7 +4,7 @@
 // factories. Two arms: (1) RAW-STORAGE — a bare localStorage/sessionStorage/indexedDB identifier in
 // packages/client/src outside ALLOWLIST is RED. (2) REGISTRY — a ratchet: every persist-factory call site must name a DEVICE_LOCAL_REGISTRY entry.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
@@ -35,64 +35,85 @@ const STORAGE_IDENTIFIER_RE = /^(?:localStorage|sessionStorage|indexedDB)$/u;
  *  `createPersistedStore`/`createEntityDraftStore` name lands here IN THE SAME COMMIT, with the
  *  rationale reviewed against §12.1 (would a user expect this to follow them across devices? then
  *  it belongs in the synced `user_settings` blob instead, and this is the wrong tool). */
-const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
-  shell: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)",
-  "active-chat":
-    "the room currently open in this browser — per-device navigation continuity across reloads, never " +
-    "shared chat state or a preference that should move another device's screen",
-  "composer-draft":
-    "unsent composer text per room, so a refresh/crash/tab-restore does not eat a message the user typed " +
-    "(owner pick 2026-08-09). DEVICE-local on purpose: a half-written line is a THIS-tab artifact, and " +
-    "syncing it would make two open devices fight over one composer — the user_settings blob is for " +
-    "settled preferences, not for keystrokes (it also writes on every keypress, traffic that blob must " +
-    "never carry). Bounded + sanitized at the persist seam (empty drafts dropped, MRU-capped) because a " +
-    "scopeKey→text map is unbounded by construction",
-  "character-library":
-    "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
-    "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +
-    "screen-share spoiler-blur to follow; FINAL-Character §4/§6.1/§12.1)",
-  "surface-box":
-    "the last SETTLED body height of each SURFACE (home's tiles first, the rpg HUD's waystone band since " +
-    "#149 — it was keyed `home-tile-box` until #258 renamed it to what it holds), so a loading skeleton " +
-    "reserves the box its content will occupy on the next boot (F14 boot-CLS: the tiles grew out of a " +
-    "fixed 3-row skeleton and pushed the grid down +189px). A measurement of THIS device's viewport, " +
-    "never a user preference — syncing one device's pixel heights to another would reserve the wrong " +
-    "box (§12.1)",
-  "appearance-boot":
-    "the BOOT HINT for the four synced appearance axes a first paint needs — `appearance.reducedMotion` " +
-    "(#188 N-1), `appearance.fontScale`, `appearance.density` and the selected theme's `[data-theme]` value " +
-    "(#231). A CACHE over the confirmed server rows, the `character-card`/`preset-config` precedent, never " +
-    "their home: the prefs stay in the user_settings blob and the server value always wins. It exists only " +
-    "because none of them can be stamped until `getUserSettings` (and, for the theme, the CHAINED " +
-    "`getTheme`) resolves, while the boot veil animates (two over-budget frames) and the shell takes its " +
-    "first layout ~1.2s earlier — measured: the veil drops frames the motion pref would have silenced, " +
-    "`--font-scale` re-flows every rem-derived shell dimension for a boot CLS of 0.20-0.34 at scale 1.25, " +
-    "and a Light user cold-loads the dark palette then swaps. Read synchronously before React mounts, " +
-    "written back only from the authoritative read, and an axis this device has never been told stamps " +
-    "NOTHING (a fresh device boots exactly as it does today)",
-  "config-group-open":
-    "which Configuration-roster GROUPS are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
-  "tag-library":
-    "the tag roster's SORT MODE (most-used / A–Z / manual) in the Configuration workspace — a browse " +
-    "posture on THIS screen, the `character-library` browse-prefs precedent (§12.1). It is not a synced " +
-    "preference: 'I'm scanning alphabetically right now' does not follow a user to another device, and it " +
-    "writes on every dropdown change, which is traffic the user_settings blob should not carry",
-  "recent-models":
-    "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
-    "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +
-    "server-side via the routing autosave form; CONNECTIONS-BUILD-SPEC §3 / §12.1)",
-  "character-card":
-    "the character-card editor's crash-survival draft (#73, CRITICAL tier) — an in-progress edit to " +
-    "long free-text prose is THIS device's unsaved keystrokes, never a synced preference; it is CACHE " +
-    "over the confirmed server row (baseline-hash-gated, cleared on save), not settled state",
-  "preset-config":
-    "the preset editor's crash-survival draft (#73, HIGH tier) — an in-progress multi-section prompt " +
-    "edit is THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed " +
-    "server row (baseline-hash-gated, cleared on save), not settled state",
-  "world-info-entry":
-    "the lorebook entry editor's crash-survival draft (#73, HIGH tier) — an in-progress entry edit is " +
-    "THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed server row " +
-    "(baseline-hash-gated, cleared on save), not settled state",
+const DEVICE_LOCAL_REGISTRY: ExemptionTable = {
+  shell: { why: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)" },
+  "active-chat": {
+    why:
+      "the room currently open in this browser — per-device navigation continuity across reloads, never " +
+      "shared chat state or a preference that should move another device's screen",
+  },
+  "composer-draft": {
+    why:
+      "unsent composer text per room, so a refresh/crash/tab-restore does not eat a message the user typed " +
+      "(owner pick 2026-08-09). DEVICE-local on purpose: a half-written line is a THIS-tab artifact, and " +
+      "syncing it would make two open devices fight over one composer — the user_settings blob is for " +
+      "settled preferences, not for keystrokes (it also writes on every keypress, traffic that blob must " +
+      "never carry). Bounded + sanitized at the persist seam (empty drafts dropped, MRU-capped) because a " +
+      "scopeKey→text map is unbounded by construction",
+  },
+  "character-library": {
+    why:
+      "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
+      "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +
+      "screen-share spoiler-blur to follow; FINAL-Character §4/§6.1/§12.1)",
+  },
+  "surface-box": {
+    why:
+      "the last SETTLED body height of each SURFACE (home's tiles first, the rpg HUD's waystone band since " +
+      "#149 — it was keyed `home-tile-box` until #258 renamed it to what it holds), so a loading skeleton " +
+      "reserves the box its content will occupy on the next boot (F14 boot-CLS: the tiles grew out of a " +
+      "fixed 3-row skeleton and pushed the grid down +189px). A measurement of THIS device's viewport, " +
+      "never a user preference — syncing one device's pixel heights to another would reserve the wrong " +
+      "box (§12.1)",
+  },
+  "appearance-boot": {
+    why:
+      "the BOOT HINT for the four synced appearance axes a first paint needs — `appearance.reducedMotion` " +
+      "(#188 N-1), `appearance.fontScale`, `appearance.density` and the selected theme's `[data-theme]` value " +
+      "(#231). A CACHE over the confirmed server rows, the `character-card`/`preset-config` precedent, never " +
+      "their home: the prefs stay in the user_settings blob and the server value always wins. It exists only " +
+      "because none of them can be stamped until `getUserSettings` (and, for the theme, the CHAINED " +
+      "`getTheme`) resolves, while the boot veil animates (two over-budget frames) and the shell takes its " +
+      "first layout ~1.2s earlier — measured: the veil drops frames the motion pref would have silenced, " +
+      "`--font-scale` re-flows every rem-derived shell dimension for a boot CLS of 0.20-0.34 at scale 1.25, " +
+      "and a Light user cold-loads the dark palette then swaps. Read synchronously before React mounts, " +
+      "written back only from the authoritative read, and an axis this device has never been told stamps " +
+      "NOTHING (a fresh device boots exactly as it does today)",
+  },
+  "config-group-open": {
+    why: "which Configuration-roster GROUPS are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
+  },
+  "tag-library": {
+    why:
+      "the tag roster's SORT MODE (most-used / A–Z / manual) in the Configuration workspace — a browse " +
+      "posture on THIS screen, the `character-library` browse-prefs precedent (§12.1). It is not a synced " +
+      "preference: 'I'm scanning alphabetically right now' does not follow a user to another device, and it " +
+      "writes on every dropdown change, which is traffic the user_settings blob should not carry",
+  },
+  "recent-models": {
+    why:
+      "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
+      "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +
+      "server-side via the routing autosave form; CONNECTIONS-BUILD-SPEC §3 / §12.1)",
+  },
+  "character-card": {
+    why:
+      "the character-card editor's crash-survival draft (#73, CRITICAL tier) — an in-progress edit to " +
+      "long free-text prose is THIS device's unsaved keystrokes, never a synced preference; it is CACHE " +
+      "over the confirmed server row (baseline-hash-gated, cleared on save), not settled state",
+  },
+  "preset-config": {
+    why:
+      "the preset editor's crash-survival draft (#73, HIGH tier) — an in-progress multi-section prompt " +
+      "edit is THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed " +
+      "server row (baseline-hash-gated, cleared on save), not settled state",
+  },
+  "world-info-entry": {
+    why:
+      "the lorebook entry editor's crash-survival draft (#73, HIGH tier) — an in-progress entry edit is " +
+      "THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed server row " +
+      "(baseline-hash-gated, cleared on save), not settled state",
+  },
 };
 
 // THE ONE REASON, carrying BOTH source arms by token. The REGISTRY arm's own message folded in here when it

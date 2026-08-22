@@ -9,19 +9,24 @@
 // their permission is structural, not a burn-down list. The arm self-guards on a REAL-TREE ANCHOR
 // (gate-hub #11) — the token vocabulary — because a conformance mini-project would "prove" both had vanished.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { repoRel } from "../lib/pass.ts";
+import { reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const SCOPE = /\/packages\/(?:client|ui)\/src\//u;
-/** The clamp homes, one regex each so the stale arm can name the dead one. */
-const EXEMPT_ZONES: readonly RegExp[] = [/\/packages\/ui\/src\/content\/theme-scope\//u, /\/packages\/ui\/src\/content\/sandbox-frame\//u];
+/** The clamp homes — SCANNED, exempted by a cited row, swept by the shared rename tripwire. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/ui/src/content/theme-scope/": {
+    why: "the ThemeScope clamp IS the sanctioned override boundary (D44, UI-Theming-and-Content.md §12.1) — it is where a --color-* override is parsed and clamped. Ends when the clamp moves: the rename tripwire reds the row at its dead path",
+  },
+  "packages/ui/src/content/sandbox-frame/": {
+    why: "the null-origin srcdoc host must inject COMPUTED values (a srcdoc cannot resolve var()) — a structural permission, not a burn-down row, with the same end condition",
+  },
+};
 
 const GATE_SELF = "tooling/src/verify/gates/theme-override-only-via-scope.ts";
 /** Real-tree anchor (gate-hub #11): the generated token vocabulary the clamp governs. */
 const ANCHOR = "packages/ui/src/tokens/index.ts";
-const STALE_PREFIX =
-  "stale EXEMPT zone — the pattern matches NO file in the project (ratchet down): the clamp home it named " +
-  "was renamed or deleted, so the row exempts nothing while reading as live law. Re-point or delete it: ";
 
 export const gate: GateDescriptor = {
   name: "theme-override-only-via-scope",
@@ -31,13 +36,13 @@ export const gate: GateDescriptor = {
   message:
     "inline style overriding a --color-* design token — token overrides go through <ThemeScope> (values clamped at the boundary: parse-as-color, reject url()/expression()/@import; D44 — UI-Theming-and-Content.md §12.1). Never set --color-* in a raw style prop.",
   fix: "use <ThemeScope> to override color tokens",
-  scanRoot: (p) => {
-    const full = `/${p}`;
-    return SCOPE.test(full) && !EXEMPT_ZONES.some((zone) => zone.test(full));
-  },
+  scanRoot: (p) => SCOPE.test(`/${p}`),
   kinds: [SyntaxKind.JsxAttribute],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
     if (!Node.isJsxAttribute(node)) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     if (node.getNameNode().getText() === "style" && node.getText().includes("--color-")) {
@@ -45,20 +50,7 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    const paths = ctx.project.getSourceFiles().map((sf) => sf.getFilePath() as string);
-    for (const zone of EXEMPT_ZONES) {
-      if (!paths.some((p) => zone.test(p))) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_PREFIX}${zone.source} — the zone list lives in tooling/src/verify/gates/theme-override-only-via-scope.ts`,
-        });
-      }
-    }
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "token-override clamp", anchor: ANCHOR });
   },
   mustFlag: [
     {
@@ -71,8 +63,8 @@ export const gate: GateDescriptor = {
         [ANCHOR]: "export const tokens = {};\n",
         "packages/ui/src/content/theme-scope/index.tsx": "export const T = null;\n",
       },
-      expect: { count: 1, messageIncludes: "stale EXEMPT zone" },
-      why: "THE STALE ARM: the anchor is loaded and the theme-scope clamp still matches a file, but the sandbox-frame zone matches none — that row exempts nothing and ratchets down",
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the anchor is loaded and the theme-scope clamp still resolves, but the sandbox-frame home resolves to no file — that row exempts nothing and ratchets down",
     },
   ],
   mustPass: [
@@ -84,7 +76,7 @@ export const gate: GateDescriptor = {
     {
       files: "export const A = () => <div style={{ '--color-primary': 'red' }} />;\n",
       at: "packages/ui/src/content/theme-scope/index.tsx",
-      why: "exempt theme scope clamp — and with no anchor in this project the stale arm stays silent (THE ANCHOR GUARD)",
+      why: "THE ALLOWLIST ITSELF: the clamp is now SCANNED and its own --color-* override passes on a cited SANCTIONED_HOMES row — and with no anchor in this project the tripwire stays silent (THE ANCHOR GUARD)",
     },
     {
       files: {
@@ -92,7 +84,7 @@ export const gate: GateDescriptor = {
         "packages/ui/src/content/theme-scope/index.tsx": "export const T = null;\n",
         "packages/ui/src/content/sandbox-frame/frame.tsx": "export const F = null;\n",
       },
-      why: "both clamp homes STILL EARNED, judged against the real-tree anchor: each matches a live file, so the stale arm stays quiet",
+      why: "both clamp homes STILL EARNED, judged against the real-tree anchor: each resolves to a live file, so the tripwire stays quiet",
     },
   ],
 };

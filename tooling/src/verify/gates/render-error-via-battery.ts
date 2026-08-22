@@ -8,16 +8,23 @@
 // custom error surface (a Composer fallback, an avatar placeholder, a silent null) earns an allowlist
 // entry with a cited reason; post-migration the set is the four below.
 //
-// TWO-SIDED (gate-hub #10): the ALLOWLIST is scanRoot-EXCLUSION, so a rotten row is worse than noise — it
-// silently un-scans a whole file. A row is RED when its file is gone from the project OR when the file
-// carries no `renderError` arm any more (the sanction is unused: ratchet down). Its first live catch was
-// its own `chat-room-surface.tsx` row, deleted at the retrofit. The arm self-guards on a REAL-TREE ANCHOR
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the allowlisted files USED to be a scanRoot
+// EXCLUSION, and this header said so in as many words — "a rotten row is worse than noise, it silently
+// un-scans a whole file". They are now SCANNED and their `renderError` arm alone is exempted by a cited row,
+// so a second, un-reasoned custom arm in an allowlisted file is RED like anywhere else.
+//
+// TWO-SIDED (gate-hub #10), unchanged and NOT delegated to lib/sanctioned-home.ts (this gate's own arms
+// already carry both modes with tailored messages — re-spelling them through the shared sweep would double
+// the vocabulary): a row is RED when its file is gone from the project (mode B) OR when the file carries no
+// `renderError` arm any more (mode A — the sanction is unused: ratchet down). Its first live catch was its
+// own `chat-room-surface.tsx` row, deleted at the retrofit. The arm self-guards on a REAL-TREE ANCHOR
 // (gate-hub #11) — the battery's own source file — so the conformance mini-projects, which hold 1-2 files,
 // never "prove" the whole allowlist had vanished.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const CLIENT_SRC = "packages/client/src/";
 const ATTR = "renderError";
@@ -32,9 +39,13 @@ const BATTERY_HOME = `${CLIENT_SRC}data/query-boundary.tsx`;
 // stay tiny. (`features/chat/surfaces/chat-room-surface.tsx` used to sit here for the composer-fallback
 // arm; the file carries no `renderError` at all any more, so the stale arm caught it at birth and the row
 // was deleted.)
-const ALLOWLIST = new Set([
-  `${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`,
-  `${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`,
+const ALLOWLIST: ExemptionTable = {
+  [`${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`]: {
+    why: "the threads group goes SILENTLY empty on a failed read — CommandEmpty already covers the palette's empty state, so a Couldn't-load card would be a second, contradictory surface. Ends when the arm stops being custom (mode A reds it) or the file moves (mode B)",
+  },
+  [`${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`]: {
+    why: "the persona avatar degrades to its own loading placeholder rather than a Retry card — a decorative slot, not a read the user retries. Same two end conditions",
+  },
   // The rpg CONTEXT pane suspends on TWO seams (the HUD's BAND + the game-tab BODY) and needs a
   // CONSOLIDATED, ANNOUNCED failure (Context-Panel-Program §4.4; the side-eye a11y finding): the panel's own
   // live region reports "Loaded chat." on success, so an unannounced error tells an SR user the opposite of
@@ -43,9 +54,22 @@ const ALLOWLIST = new Set([
   // to `() => null` so there is exactly one announced surface. Both arms are the sanctioned custom species —
   // and they are two ENTRIES because HUD-1 moved the band out of the tab contribution into the HUD's own
   // composition (the pane claimant paints its own band now).
-  `${CLIENT_SRC}features/rpg/lib/rpg-context-section.tsx`,
-  `${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`,
-]);
+  [`${CLIENT_SRC}features/rpg/lib/rpg-context-section.tsx`]: {
+    why: "the game-tab BODY renders `RpgErrorState`, the pane's SINGLE role=alert region — QueryErrorState has no live region and would leave the failure unannounced against a panel that announces success. Ends if the pane drops its announced-failure intent, or the file moves",
+  },
+  [`${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`]: {
+    why: "the decorative BAND collapses to `() => null` so the pane has exactly one announced error surface (the BODY's). Same end conditions",
+  },
+};
+
+/** The mint + the sanctioned custom surfaces, as ONE scan-and-allowlist table: the mint plumbs the prop
+ *  through and the four surfaces render a genuinely non-battery arm. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  [BATTERY_HOME]: {
+    why: "QueryBoundary's own home plumbs `renderError={renderError}` through to its internal catch — the prop passthrough AT the machine's source, never a consumer arm. Ends when the boundary moves",
+  },
+  ...ALLOWLIST,
+};
 
 const GATE_SELF = "tooling/src/verify/gates/render-error-via-battery.ts";
 /** Real-tree anchor (gate-hub #11): the battery's own source. Loaded on every real run; an example only has
@@ -103,12 +127,14 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "render `<QueryErrorState label=… onRetry={retry} />` from the arm (or omit the prop for the default); a genuine custom error surface earns a cited ALLOWLIST entry in render-error-via-battery.ts.",
-  // Every client file except the allowlisted custom-error surfaces (scanRoot-excluded so their sanctioned
-  // custom arms never flag — a plain-Set allowlist, the G27 shape).
-  scanRoot: (p) => p.startsWith(CLIENT_SRC) && p !== BATTERY_HOME && !ALLOWLIST.has(p),
+  // EVERY client file is scanned, the sanctioned ones included — their exemption is a cited row.
+  scanRoot: (p) => p.startsWith(CLIENT_SRC),
   kinds: [SyntaxKind.JsxAttribute],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
     if (!Node.isJsxAttribute(node) || node.getNameNode().getText() !== ATTR) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     const init = node.getInitializer();
@@ -121,13 +147,13 @@ export const gate: GateDescriptor = {
     }
     ctx.report(node, { token: ATTR, offset: 0 });
   },
-  // The allowlisted files are scanRoot-EXCLUDED, so the walk never sees them — the stale arm reads them off
-  // the shared project directly.
+  // The allowlisted files are SCANNED now, but the stale arm still reads them off the shared project: it is
+  // a whole-tree claim about the TABLE, not about what the walk happened to visit.
   finalize: (ctx) => {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
-    for (const rel of ALLOWLIST) {
+    for (const rel of Object.keys(ALLOWLIST)) {
       const sf = ctx.project.getSourceFile(`${ctx.root}/${rel}`);
       if (sf === undefined) {
         ctx.report({

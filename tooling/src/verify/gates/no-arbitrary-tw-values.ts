@@ -4,7 +4,7 @@
 // if a value is worth using it's worth a token. Walks class tokens (terminal `:`-segment) and flags
 // `<utility>-[<body>]` unless token-driven. ALLOWLIST is a both-directions ratchet.
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 /** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
@@ -16,16 +16,18 @@ const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
 
 /** Current legit arbitrary-value files → reason (no token exists). See no-raw-interactive-intrinsics.ts
  *  for the ratchet contract (both arms). */
-const ALLOWLIST: Record<string, string> = {
-  "packages/ui/src/markdown/markdown.tsx": "`max-h-[60cqh]` — container-query height unit; no Tailwind token exists for cqh.",
-  "packages/ui/src/layout/variants.ts":
-    "`grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]` (and its `wide` " +
-    "`minmax(min(22rem,100%),1fr)` variant) — responsive auto-fit grid; no token equivalent. " +
-    "Since 2026-08-16 (#102) also the two NON-auto-fit track templates: `lead` " +
-    "(`1.55fr_1fr` / `1.5fr_1.05fr` at `@min-[100rem]`) — a deliberately UNEQUAL lead-plus-rail split, " +
-    "which is a ratio and not a length, so no token can express it — and `cellFixed` " +
-    "(`repeat(auto-fill,8.5rem)`), a fixed-track auto-fill; both are grid track templates, the same " +
-    "class of value as the rows above.",
+const ALLOWLIST: ExemptionTable = {
+  "packages/ui/src/markdown/markdown.tsx": { why: "`max-h-[60cqh]` — container-query height unit; no Tailwind token exists for cqh." },
+  "packages/ui/src/layout/variants.ts": {
+    why:
+      "`grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]` (and its `wide` " +
+      "`minmax(min(22rem,100%),1fr)` variant) — responsive auto-fit grid; no token equivalent. " +
+      "Since 2026-08-16 (#102) also the two NON-auto-fit track templates: `lead` " +
+      "(`1.55fr_1fr` / `1.5fr_1.05fr` at `@min-[100rem]`) — a deliberately UNEQUAL lead-plus-rail split, " +
+      "which is a ratio and not a length, so no token can express it — and `cellFixed` " +
+      "(`repeat(auto-fill,8.5rem)`), a fixed-track auto-fill; both are grid track templates, the same " +
+      "class of value as the rows above.",
+  },
 };
 
 const MESSAGE =
