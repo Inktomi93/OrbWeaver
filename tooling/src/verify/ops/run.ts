@@ -5,7 +5,7 @@
 //   pnpm verify --changed    → the inner loop (scoped, related tests)
 //   pnpm verify --static     → the pre-commit bundle (= `pnpm check`)
 //   pnpm verify --push       → static + node tests + CT + e2e-smoke (the pre-push bar)
-//   pnpm verify --full       → push + cpd + full e2e + parity + mutation-gate
+//   pnpm verify --full       → push + cpd + full e2e + mutation-gate
 //   pnpm verify --list       → print every registry row (incl. manual) with its tiers/reason
 //   pnpm verify --json       → mirror reports/verify.json to stdout
 //   pnpm verify --file <p…>  → scoped to explicit paths (the check:file muscle memory)

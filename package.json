@@ -78,7 +78,6 @@
     "check:show": "node tooling/src/verify/cli.ts show",
     "test": "nice -n 19 vitest run --project unit --project integration --project integration-serial --project contract --reporter=default --reporter=json --outputFile.json=reports/test-report.json && pnpm test:ct --retries=2",
     "test:types": "nice -n 19 vitest run --project types",
-    "test:parity": "nice -n 19 vitest run --project parity",
     "test:coverage": "nice -n 19 vitest run --coverage",
     "test:ct": "rm -rf playwright/.cache && nice -n 19 playwright test -c playwright-ct.config.ts",
     "test:scoped": "nice -n 19 vitest run",

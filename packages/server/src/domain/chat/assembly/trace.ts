@@ -3,7 +3,8 @@
 // "why did SHAPE produce this history + (not) place a cache breakpoint?" WITHOUT dumping RP content.
 //
 // Distinct consumers from shape()'s content-bearing `stages`: those feed the engine (the wire history)
-// and the differential oracle (byte-diff). THIS is the content-FREE projection safe to log / show in the
+// and this builder's own counts/decision derivation (they also fed the neo differential oracle's byte-diff
+// until #428 ripped it out 2026-08-22). THIS is the content-FREE projection safe to log / show in the
 // inspector — counts, roles, the squash-merge count, and the breakpoint decision + abort reason.
 //
 // CONSUMER (PD-132): the host/admin assembly inspector reads this on demand — `chat.getShapeTrace` re-runs
