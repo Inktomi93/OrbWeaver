@@ -4,36 +4,6 @@
   "issue": 7,
   "entries": [
     {
-      "path": "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
-      "assignedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md:1-233 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md",
-      "assignedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md:1-54 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
       "path": "docs/reviews/misc/2026-08-03-archive-rescue-audit.md",
       "assignedSha256": "926e1b5d15ef1624b77688cd9226b65ec369dec72609b9cbe6f409afe973ae5c",
       "disposition": "needs-owner",
@@ -62,36 +32,6 @@
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-03-export-rot-dispositions.md",
-      "assignedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
-      "verifiedCommit": "1f8d727c1417c732fa45eac0b54e424bfec8f6a9",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/misc/2026-08-03-export-rot-dispositions.md:1-261 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-03-registry-map.md",
-      "assignedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/misc/2026-08-03-registry-map.md:1-77 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
     {
       "path": "docs/reviews/misc/2026-08-08-import-fidelity-audit.md",
@@ -152,36 +92,6 @@
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-09-api-surface-classification.md",
-      "assignedSha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/reviews/misc/2026-08-09-api-surface-classification.md:1-687 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md",
-      "assignedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md:1-76 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
     {
       "path": "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md",
@@ -395,39 +305,6 @@
       ]
     },
     {
-      "path": "docs/reviews/misc/2026-08-18-silent-reader-audit.md",
-      "assignedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
-      "verifiedCommit": "6491b9522f35a5b70643e53fb0603cbe35b571ed",
-      "verifiedAt": "2026-08-18",
-      "evidence": [
-        "docs/reviews/misc/2026-08-18-silent-reader-audit.md authored+full-read this session (owner-ordered #183 reader-no-producer hunt; 754 cols/297 typed fields/2296 contract fields/207 regkeys swept, probe-validated instruments)",
-        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-silent-reader-audit.md: 0efa54de9 (lane silent-readers)"
-      ],
-      "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-19-lan-auth-unification.md",
-      "assignedSha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "b695f52c891c13c63d07da77322032a2f79a1b57d716f1f9cf5017eab92d102e",
-      "verifiedCommit": "f4733a44bd01726a3cd3c3fb31ae5f9116940fb9",
-      "verifiedAt": "2026-08-22",
-      "evidence": [
-        "docs/reviews/misc/2026-08-19-lan-auth-unification.md:1-260 read in full (line 1 to END), then every present-tense claim re-derived against the current tree rather than accepted from the prose",
-        "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) — packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
-        "Truth-repaired at f4733a44b BEFORE archiving (a stale security doc reads as live truth): a STATUS block naming what shipped, plus PRE-FIX markers on the three superseded sections (the bypass mechanism, the CSRF corollary, the TODAY matrix)",
-        "Re-verified STILL TRUE and named as such in the repair: the OIDC-on-LAN blockers (the redirect-URI proto defaults to https in entry/http/auth-routes.ts; the session cookie is __Host- + Secure), so the analysis half of the document remains usable",
-        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent"
-      ],
-      "summary": "Historical review evidence: the pre-fix LAN owner-bypass analysis whose recommended arm shipped on 2026-08-19. Truth-repaired and marked PRE-FIX before archiving; no mutable work state is duplicated in this archive receipt."
-    },
-    {
       "path": "docs/reviews/misc/2026-08-19-lens-triage-210.md",
       "assignedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
       "disposition": "current",
@@ -572,81 +449,6 @@
       ]
     },
     {
-      "path": "docs/reviews/security/2026-08-07-fork-host-plane-strip.md",
-      "assignedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/security/2026-08-07-fork-host-plane-strip.md:1-195 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md",
-      "assignedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md:1-283 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/security/2026-08-08-containerize-surface-review.md",
-      "assignedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/security/2026-08-08-containerize-surface-review.md:1-195 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md",
-      "assignedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md:1-414 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md",
-      "assignedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md:1-201 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
       "assignedSha256": "bd7620c756de2bf28747aac6421c8c9f93e51376744dd94c351622916f16aced",
       "disposition": "needs-owner",
@@ -733,40 +535,6 @@
       ]
     },
     {
-      "path": "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
-      "assignedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md:1-308 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/security/2026-08-19-lan-auth-impl-review.md",
-      "assignedSha256": "d884d66054b0f936ec737fc2271ab9702b6ce4e6b4624688402e39104bea508f",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
-      "verifiedCommit": "f4733a44bd01726a3cd3c3fb31ae5f9116940fb9",
-      "verifiedAt": "2026-08-22",
-      "evidence": [
-        "docs/reviews/security/2026-08-19-lan-auth-impl-review.md:1-284 read in full (line 1 to END); each of its three findings and its eight SOUND verdicts re-derived against the current tree",
-        "P1 CLOSED: d6886c5ec (ancestor of HEAD) changed packages/server/src/entry/http/import.ts to gate the /api/import/bundle CSRF check on via !== \"header\", with a red-first via:\"fallback\" regression case in tests/server/entry/http/portability-routes.suite.int.test.ts",
-        "P2 doc CLOSED: the same commit added the STOP/BYPASS-the-front-proxy instruction to the break-glass docblock in packages/server/src/entry/auth/seam.ts and to the Break-glass section of docs/design/containerize-prod-image-spec.md",
-        "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk — the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
-        "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight — SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
-        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning"
-      ],
-      "summary": "Historical security-review evidence: all three findings closed (two fixed, one owner-ruled) and one of its own verdicts since REFUTED and corrected in the document before archiving; no mutable work state is duplicated in this archive receipt."
-    },
-    {
       "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
       "assignedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
       "disposition": "current",
@@ -806,112 +574,6 @@
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-03-combined-nightly.md",
-      "assignedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-03-combined-nightly.md:1-311 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md",
-      "assignedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:1-493 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-03-scoped-recheck.md",
-      "assignedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-03-scoped-recheck.md:1-413 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md",
-      "assignedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md:1-321 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-09-refinery-graduation.md",
-      "assignedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-09-refinery-graduation.md:1-103 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
-      "assignedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
-      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-      "verifiedAt": "2026-08-21",
-      "evidence": [
-        "full read 1-77 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "receipts are Codex's gitignored snap artifacts; not re-verified here"
-      ],
-      "summary": "Codex's command-palette canonical graduation: palette passes all visual/state/semantic/geometry rows (160 matrix rows); HOLD is #363 only; earlier compact no-results P2 retracted post-#355."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
-      "assignedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
-      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-      "verifiedAt": "2026-08-21",
-      "evidence": [
-        "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
-        "#363 confirmed live on the board at recovery"
-      ],
-      "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
     },
     {
       "path": "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md",
@@ -964,21 +626,6 @@
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
-      "assignedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
-      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-      "verifiedAt": "2026-08-21",
-      "evidence": [
-        "full read 1-88 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
-      ],
-      "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
     },
     {
       "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
@@ -1243,246 +890,6 @@
       ]
     },
     {
-      "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
-      "assignedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md:1-265 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md",
-      "assignedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md:1-434 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-07-25-knob-drift-gates.md",
-      "assignedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-07-25-knob-drift-gates.md:1-485 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-01-visual-blech-audit.md",
-      "assignedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-01-visual-blech-audit.md:1-276 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md",
-      "assignedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md:1-412 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-client-architecture.md",
-      "assignedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-03-client-architecture.md:1-361 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-collection-contribution.md",
-      "assignedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-03-collection-contribution.md:1-427 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md",
-      "assignedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md:1-340 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md",
-      "assignedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md:1-428 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-persona-model.md",
-      "assignedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-03-persona-model.md:1-465 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-regex-model.md",
-      "assignedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-03-regex-model.md:1-515 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-role-authority-model.md",
-      "assignedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-03-role-authority-model.md:1-512 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-canon-message-identity.md",
-      "assignedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-08-canon-message-identity.md:1-931 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md",
-      "assignedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md:1-500 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md",
-      "assignedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md:1-467 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-group-chat-coherence.md",
-      "assignedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-08-group-chat-coherence.md:1-470 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-      ],
-      "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-    },
-    {
       "path": "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md",
       "assignedSha256": "449c44910c887265f569af68ed2504b73a527cc7e35916dee6c4b4c668b4720b",
       "disposition": "needs-owner",
@@ -1511,21 +918,6 @@
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-16-home-hearth-room.md",
-      "assignedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
-      "verifiedCommit": "fdfac09d59aa50f733dfe44c4bd969750015b0a1",
-      "verifiedAt": "2026-08-16",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-16-home-hearth-room.md:1-282 authored+full-read this session (fresh-context frontier review of 96d458324+861de3e58+db242f066)",
-        "git log --oneline -1 -- docs/reviews/stickler/2026-08-16-home-hearth-room.md: fdfac09d5 docs(reviews): stickler frontier review of the Hearth Room home build"
-      ],
-      "summary": "Completed frontier review of the Hearth Room home rebuild (point-in-time evidence, no mutable work state duplicated); 7 findings ceiling P2, none merge-blocking, routed to fixes/follow-ups."
     },
     {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
@@ -1595,36 +987,6 @@
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-19-memory-system-verify.md",
-      "assignedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
-      "verifiedCommit": "af41b36499646bb1cc1c05d8b877cc84ab1bf0ed",
-      "verifiedAt": "2026-08-19",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-19-memory-system-verify.md:1-192 full read; all five modes, the 222-message live/scratch probe, and the 172-test behavioral floor were rechecked",
-        "git:af41b36499646bb1cc1c05d8b877cc84ab1bf0ed contains the exact review blob; follow-up implementation landed separately under #320 and #321"
-      ],
-      "summary": "Completed point-in-time memory-system verification retained as review evidence; findings and follow-up implementation live in GitHub rather than this archived receipt."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md",
-      "assignedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
-      "verifiedCommit": "3a3ffccba8013268f3ee5a9153f1dac4c6540b70",
-      "verifiedAt": "2026-08-20",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md:1-149 full read on integrated main",
-        "git:3a3ffccba8013268f3ee5a9153f1dac4c6540b70 contains the exact review blob; reviewed commits are integrated as 4a6c54cdf and 6cdeb23df"
-      ],
-      "summary": "Completed point-in-time merge-train review: PanelChrome deferral and amended tooling instruments were mergeable with zero confirmed findings; exact integrated behavioral and static receipts are recorded in the report."
     },
     {
       "path": "docs/reviews/stickler/2026-08-20-server-usage-settlement-repair.md",
