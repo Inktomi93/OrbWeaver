@@ -32,8 +32,14 @@ import { __resetBootReads, setBootReadPending } from "../../../packages/client/s
 import { installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
 import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
 import { motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
-import { __resetMotionFlags, installMotionFlaggers } from "../../../packages/client/src/lib/motion-flaggers.ts";
-import { __resetMotionStats, installMotionObservers, markAgentNavigation, motionSnapshot } from "../../../packages/client/src/lib/motion-stats.ts";
+import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS } from "../../../packages/client/src/lib/motion-flaggers.ts";
+import {
+  __resetMotionStats,
+  installMotionObservers,
+  markAgentNavigation,
+  motionSnapshot,
+  subscribeLongAnimationFrames,
+} from "../../../packages/client/src/lib/motion-stats.ts";
 import { blockMainThread } from "../../support/ct/block-main-thread.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
@@ -423,13 +429,43 @@ export function MotionFlaggersAuditPauseStory(): ReactElement {
 
 /** The app's sortable drop settle uses WAAPI, which has no CSS animation lifecycle events. Exercise the
  * dev-only Element.animate boundary directly: one arm proves finish/cancel retire both effects; the other
- * keeps an effect live across a blocked frame so `[drop]` must still fire. */
+ * keeps an effect live across a blocked frame so `[drop]` must still fire.
+ *
+ * THE RETIRED ARM'S STAGING IS LAW, NOT DECORATION (#422). `motion-animation-state.ts` releases a WAAPI
+ * target SYNCHRONOUSLY inside the `finish`/`cancel` listener it registers at `Element.animate()` time
+ * (`retireTarget`), and from then on attributes an ended lifetime by EXACT interval overlap: a frame is
+ * blamed iff `endTime >= frame.startTime` (`targetsOverlapping`). So a blocked frame that STARTED before
+ * the animation ended is an HONEST `[drop]`, and this story only tests retirement when its blocked frame
+ * begins strictly after the retirement instant. Two things buy that determinism:
+ *   1. The block is scheduled as a TASK from inside a rendering update (`requestAnimationFrame` →
+ *      `setTimeout`). WAAPI finish/cancel events dispatch during the rendering update's "update
+ *      animations and send events" step; a timer task cannot run inside that same update, so the blocked
+ *      frame's first task — i.e. its LoAF `startTime` — is strictly later than the retirement instant.
+ *      The nested-rAF wait this replaced left a MEASURED 0.1ms margin (probe, 2026-08-22: retire 663.8,
+ *      blocked frame start 663.9), which is a coin flip, and collapsing the hop reproduced the issue's
+ *      verbatim line with a frame starting 13.5ms BEFORE the retirement.
+ *   2. The ordering verdict is rendered from THE app's single LoAF observer
+ *      (`subscribeLongAnimationFrames` — never a second PerformanceObserver), so the test can barrier on
+ *      a SETTLED state: the blocked frame observed AND classified. Without it `expect(lines).toEqual([])`
+ *      ran before the observer delivered and passed vacuously — verified: the planted overlap above went
+ *      green under the old assertion while the console carried the accusing line. */
 export function MotionFlaggersWaapiDropStory(): ReactElement {
   const targetRef = useRef<HTMLDivElement>(null);
   const [retired, setRetired] = useState(false);
+  const [blockedFrameOrder, setBlockedFrameOrder] = useState<string | null>(null);
+  const retiredAtRef = useRef<number | null>(null);
   useEffect(() => {
     installMotionObservers();
     installMotionFlaggers();
+    return subscribeLongAnimationFrames((frame) => {
+      const retiredAt = retiredAtRef.current;
+      // Frames that ended before the retirement (this story's own mount work) carry no verdict; the
+      // first over-budget frame that REACHES the retirement instant is the plant.
+      if (retiredAt === null || frame.duration <= MOTION_BUDGETS.frameGapMs || frame.startTime + frame.duration < retiredAt) {
+        return;
+      }
+      setBlockedFrameOrder((current) => current ?? (frame.startTime > retiredAt ? "after" : "overlap"));
+    });
   }, []);
   return (
     <div>
@@ -447,11 +483,15 @@ export function MotionFlaggersWaapiDropStory(): ReactElement {
           finished.finish();
           canceled.cancel();
           void Promise.all([finishEvent, cancelEvent]).then(() => {
+            // Both flagger listeners were registered inside the `Element.animate` wrapper, so they ran
+            // BEFORE these — this stamp is at or after the bookkeeping's own `endTime`, which is the
+            // conservative direction for the ordering verdict.
+            retiredAtRef.current = performance.now();
             requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
+              setTimeout(() => {
                 blockMainThread(80);
                 setRetired(true);
-              });
+              }, 0);
             });
           });
         }}
@@ -470,6 +510,7 @@ export function MotionFlaggersWaapiDropStory(): ReactElement {
       <div ref={targetRef} data-testid="waapi-animation">
         moving target
       </div>
+      <div data-testid="waapi-blocked-frame-order">{blockedFrameOrder ?? "pending"}</div>
       {retired ? <div data-testid="waapi-effects-retired">retired</div> : null}
     </div>
   );
