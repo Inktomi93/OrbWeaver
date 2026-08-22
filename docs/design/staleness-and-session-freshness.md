@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-14
+updated: 2026-08-22
 ---
 
 # Staleness & session freshness — diagnosis + design + game plan
@@ -314,14 +314,20 @@ built, A5) + **live socket eviction on revoke**. The missing four are this secti
      stays for every other code;
    - a **visibility probe**: on `visibilitychange → visible`, if the last confirmed-fresh timestamp is
      older than a floor (proposal: 5 min — the slide throttle, so a probe also refreshes the cookie),
-     `fetchAuthMe()` once. No hidden-tab polling, no data refetch, D54 untouched.
+     ONE continuity check. No hidden-tab polling, no data refetch, D54 untouched. **As built (#387) the
+     check is `probeSessionContinuity()`, not a bare `fetchAuthMe()`** — this is the ONE sensor that can
+     see a swapped identity (that cookie is valid, so the tab never 401s), so its verdict is "alive AND
+     still ours", not "alive". §5d.
 2. **The recovery ladder** (single-flight via §4.3; replaces the bare hard redirect in
    `recoverIfStaleSession`):
-   - **Rung 0 — probe.** `GET /api/auth/me`. If `authenticated: true` (single-user/forward-header
-     re-admission; or another tab already recovered; or the 401 was a blip): NO navigation — invalidate
-     all user roots + the identity triple (`sessions.me` + viewer composites), force-re-announce the
-     socket rooms, broadcast `session-recovered`. The warm tab resumes seamlessly. This rung alone
-     converts the majority of today's hard reloads into invisible recoveries.
+   - **Rung 0 — probe.** `GET /api/auth/me`. If `authenticated: true` **AND the handle is still this
+     tab's** (single-user/forward-header re-admission; or another tab already recovered; or the 401 was a
+     blip): NO navigation — invalidate all user roots + the identity triple (`sessions.me` + viewer
+     composites), force-re-announce the socket rooms, broadcast `session-recovered`. The warm tab resumes
+     seamlessly. This rung alone converts the majority of today's hard reloads into invisible recoveries.
+     **As built (#387), `authenticated: true` ALONE is not the resume condition** — this rung crosses the
+     same identity boundary rung 1 always did, and a DIFFERENT handle broadcasts the new identity and then
+     hard-reloads. `authenticated` answers "is there a live session", never "is it ours". §5d.
    - **Rung 1 — same-user re-auth, in place.** Cookie modes, `authenticated: false`:
      - `local`: an auth-feature-owned re-auth MODAL (registered via the modal registry like every
        modal) over the frozen shell — password → `/api/auth/login` → on success as the SAME handle:
@@ -614,6 +620,51 @@ Where the implementation deviated from §5's letter, and why. Each was forced by
    dead-wire belt permanently green. Moving the const beside the union it derives from fixes the gate AND is
    the better home (one home: "the id-less form of member X" is a fact about the union). Worth generalizing:
    **any exhaustive table over a bus union belongs below the emit scope, or it blinds that bus's ratchet.**
+
+## 5d. AS-BUILT delta — the identity boundary at EVERY resume path (#387, 2026-08-21)
+
+Landed in `8d94ccf6f`. Kept in its own dated section rather than folded into §5a: §5a is lane 1's
+2026-08-14 record, and back-dating a later lane's delta into it would make the provenance a lie.
+
+1. **§4.2.1 bound only ONE resume path as written; it now binds four.** §4.4's rung-1 bullet was the only
+   place the design said "A DIFFERENT handle: hard reload (identity boundary, §4.2.1)". Rung 0 said the
+   opposite in the same breath — "If `authenticated: true` … NO navigation" — and two more resume paths
+   existed by the time the ladder was built. `authenticated: true` answers "is there a live session", NOT
+   "is it ours": the cookie is per-BROWSER, so a session that comes back can belong to a different human
+   (a shared browser; a re-minted dev identity), and resuming there leaves the previous human's chats,
+   characters and drafts rendered while every later read and write runs as the new one. All four paths now
+   run the same compare through `identityBoundaryCrossed`
+   (`packages/client/src/data/stale-session.ts`): rung 0's probe verdict, a rung-1 re-auth's verdict, the
+   §4.4.1 freshness probe, and a SIBLING TAB's `session-recovered` broadcast (the receiver in
+   `bindSessionRecovery` compares `message.handle`, which is why §5a.1's handle-not-userId choice is
+   load-bearing rather than incidental). §4.4's rung-0 bullet is corrected in place above.
+2. **The crossing arm is BROADCAST-THEN-RELOAD, and its target is `/`, not `/login`.** `resetOntoNewIdentity`
+   posts `session-recovered {handle}` FIRST — a sibling tab still holding the old identity must reload
+   itself too, and after the call this document is on its way out — then orders a whole-document load of
+   the app root. `/login` would be wrong on its own terms: the session is VALID, it is just somebody
+   else's, so the login route would bounce straight back. A whole-document load is the only leak-free
+   reset (every warm cache entry and every durable-local blob belongs to the previous human).
+3. **The compare FAILS CLOSED, by construction rather than by a branch.** `identityBoundaryCrossed`
+   is `handle !== host?.currentHandle()`, so an UNBOUND host compares against `undefined` and every
+   handle crosses — the belt lives in `query-client.ts` and is constructed before React mounts, so an
+   unbound host can prove nothing and takes the hard-reload arm. A bound host whose viewer has not
+   resolved reports `null`, which matches only the equally identity-less absent-principal answer
+   (`/api/auth/me` serves `principal?.handle ?? null`, so a live principal always names one).
+4. **The §4.4.1 sensor became a CONTINUITY check: `probeSessionContinuity`, not `fetchAuthMe().authenticated`.**
+   A liveness-only probe is structurally blind to the exact state this sensor exists for — when another
+   human signs in on this browser the cookie is valid, so the tab never 401s into the ladder and a
+   liveness probe keeps marking it fresh forever. The verdict is computed in the LADDER
+   (`stale-session.ts`) rather than in the sensor, so the boundary keeps one home; `use-session-recovery.ts`
+   passes the function as its `probe` dep. A REJECTED probe still means "server unreachable" and is
+   ignored — that is not the same verdict as `false`, and #387 did not change it.
+5. **Citation honesty: "§4.2.1" names §4.2 ITEM 1; this document has no such heading.** The rule is §4.2's
+   first item ("Identity CHANGE (different user logs in) keeps the existing hard-reload boundary" — and,
+   for `durable-local.ts`, the per-user namespace in the same item). The spelling is left alone rather
+   than swept: it is already carried by 13 sites across five client source files (`data/stale-session.ts`,
+   `data/session-freshness.ts`, `data/use-session-recovery.ts`, `lib/session-channel.ts`,
+   `state/durable-local.ts`), five sites across three test files, and three sites in THIS document
+   (§4.4 rung 1, §5a.2, and §5d.1 above). Recorded here so the next reader resolves it in one hop
+   instead of hunting a heading that never existed.
 
 ## 6. Instrumentation directives (confirm the live apportionment before W5/W6 land)
 

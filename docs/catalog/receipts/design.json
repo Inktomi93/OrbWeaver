@@ -1434,14 +1434,15 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "cb79a5406af1a02647ea2fd38328084fc8e15157fdc8f6a5f2a0e82760f7ef3e",
-      "verifiedCommit": "b59d7fff93d0248e88402adfcea0cfd323b88c2f",
+      "verifiedSha256": "2b3e5942ae616fdc2b8e73fbef162a0ddc3d55ee073f72744da5271039efeb3a",
+      "verifiedCommit": "f2abe368329e3212dcfdce59f9c83ac2541bb4c1",
       "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/design/staleness-and-session-freshness.md:1 (design; active)",
         "git log --oneline -1 -- docs/design/staleness-and-session-freshness.md: 786fe372c feat(bridge): chatDeleted goes live-only — R1-4a closed, quiet coalescer spans both planes, SEATED-red gate arm",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green"
+        "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
+        "re-attested 2026-08-22 (#392, lane chat-client): §4.4 rung-0 + §4.4.1 corrected against the as-built ladder and §5d added for #387 (8d94ccf6f); receipted at f2abe368329e3212dcfdce59f9c83ac2541bb4c1; scoped check:docs green"
       ],
       "summary": "Staleness & session freshness — diagnosis + design + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },
