@@ -77,9 +77,26 @@ export function DatabankDetailSurface(): ReactElement {
   );
 }
 
+/** What this pane will show once a document is open — the instruction, on a populated bank.
+ *
+ *  SIDE-AGNOSTIC (side-eye 2026-08-19 N-10, the chat landing's own correction carried here): the LIST pane is
+ *  a docked column, a slide-over, or collapsed — "on the left" is wrong in three of those and wrong on every
+ *  phone, where the panes stack. */
+const PICK_A_DOCUMENT = "Pick a document from the list to see what was extracted, how much of it is indexed, and where it fires.";
+
+/** The footnote appended ONLY while the LIST is off screen — the Presets welcome's sentence, verbatim, because
+ *  it is the same fact about the same shell control and this app says one thing one way. */
+const LIST_OFF_SCREEN = " The list isn't on screen right now — Show list panel in the top bar brings it back.";
+
 /**
  * The no-selection arm — what this PANE will show once a document is open, and NOTHING AT ALL while the bank
  * is empty and the LIST is on screen (#434, the #430 IA proposal).
+ *
+ * #445 — THE POPULATED ARM NAMES THE DOOR TOO. "Pick a document from the list" presupposes a list on screen,
+ * which is false in the same three regimes the empty arm handles (narrow-desktop auto-collapse, focus mode, a
+ * hand-collapsed pane) — the F-28 defect the Presets welcome was fixed for, left standing here by #434
+ * because that lane's scope was the empty bank. Same signal, same conditional shape, same verbatim
+ * affordance name; the instruction is unchanged for the reader who can see the list.
  *
  * THE EMPTY-BANK STAND-DOWN extends the ruling below one notch rather than reversing it. "An empty CONTENT
  * pane reads as unbuilt" still holds — it is why the two arms under it exist — but on an EMPTY bank the pane
@@ -131,10 +148,7 @@ function DatabankWelcome(): ReactElement | null {
   }
   return (
     <EmptyState
-      // SIDE-AGNOSTIC (side-eye 2026-08-19 N-10, the chat landing's own correction carried here): the LIST
-      // pane is a docked column, a slide-over, or collapsed — "on the left" is wrong in three of those and
-      // wrong on every phone, where the panes stack.
-      description="Pick a document from the list to see what was extracted, how much of it is indexed, and where it fires."
+      description={listMode === "collapsed" ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN}` : PICK_A_DOCUMENT}
       icon={<Icon icon={FileText} size="lg" />}
       title="Your databank"
     />

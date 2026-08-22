@@ -111,13 +111,31 @@ test("#434 on an empty bank the CONTENT pane stands down — unless the LIST is 
   await expect(content.getByText("Your databank")).toHaveCount(0);
 });
 
-// The POPULATED arm is untouched: with rows in the bank and nothing open, the pane still teaches what it
-// will show — an empty CONTENT pane reads as unbuilt, and that ruling is extended above, not reversed.
-test("#434 with documents in the bank and nothing selected, the CONTENT welcome still teaches", async ({ mount, page }) => {
+// The POPULATED arm still teaches: with rows in the bank and nothing open, the pane says what it will show —
+// an empty CONTENT pane reads as unbuilt, and that ruling is extended above, not reversed.
+//
+// #445 — AND IT NAMES THE DOOR WHEN THE LIST IS OFF SCREEN. "Pick a document from the list" presupposes a
+// list on screen, which is false in the narrow-desktop auto-collapse, in focus mode and after a hand
+// collapse — the F-28 class the Presets welcome was fixed for, left standing here by #434's empty-bank
+// scope. The instruction is unchanged for the reader who can see the list; the footnote is an addition.
+test("#434/#445 with documents in the bank and nothing selected, the welcome teaches — and names the list door only while the list is off screen", async ({
+  mount,
+  page,
+}) => {
   await stubDatabank(page);
   const content = await mount(<DatabankDetailListModeStory />);
   await expect(content.getByText("Your databank")).toBeVisible();
   await expect(content.getByText(FROM_THE_LIST)).toBeVisible();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
+
+  await content.getByRole("button", { name: "take the list off screen" }).click();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toBeVisible();
+  // The instruction survives beside it, and no Add door is minted here (the two-Add-doors refusal holds).
+  await expect(content.getByText(FROM_THE_LIST)).toBeVisible();
+  await expect(content.getByRole("button", { name: "Add a document" })).toHaveCount(0);
+
+  await content.getByRole("button", { name: "put the list back" }).click();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
 });
 
 // ARRIVAL FOCUS BELONGS TO THE PANE THE READER CAME FOR (side-eye 2026-08-19 ARIA) — the config workspace's
