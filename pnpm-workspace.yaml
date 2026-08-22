@@ -289,7 +289,6 @@ catalog:
   # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
   #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
   "@tanstack/react-query": ^5.101.4
-  "@tanstack/react-query-devtools": ^5.101.2
   "@tanstack/react-form": ^1.33.2
   zustand: ^5.0.14
   # @trpc/client + the tanstack-react-query bridge track @trpc/server's major (^11.18.0) — the
@@ -304,15 +303,6 @@ catalog:
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
   # NOT wire tanstackRouter(). See proposed/client-tooling-setup.md §4.
   "@tanstack/react-router": ^1.170.16
-  # --- dev-only instrumentation (T5, scratch/dev-tooling-support-kit-plan.md): the unified TanStack
-  #     Devtools shell + panels. Shell + vite strip-plugin are PRE-1.0 → EXACT pins (bump = read the
-  #     changelog); router-devtools panel is stable (peer @tanstack/react-router ^1.170.16 satisfies).
-  #     Runtime panels live in client `dependencies` (dep-cruiser not-to-dev-dep — they're imported
-  #     from src/, DEV-gated + build-stripped); devtools-vite is config-only → devDependencies.
-  "@tanstack/react-devtools": 0.10.8
-  "@tanstack/react-router-devtools": ^1.167.0
-  "@tanstack/devtools-vite": 0.8.1
-
 # There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
 # force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the
 # vite 8 / vitest 4 bump killed BOTH halves of that premise. Re-derived from source, not from the comment:
