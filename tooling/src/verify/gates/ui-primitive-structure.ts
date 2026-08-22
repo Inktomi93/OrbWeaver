@@ -1,12 +1,13 @@
 // Gate: ui-primitive-structure (core/UI-Primitives-and-Reuse.md §13.7) — the
 // structure gate @orb/ui shipped without, which is why it drifted. Eight clauses (5 AST, 3
 // filesystem) turning each measured divergence into a build failure. See the contract for the WHY
-// of each; this file is the enforcer. DECLARED LIMIT: clause 5 (and its stale arm) skip COMMENT spans —
-// a `#103` issue citation is not a color (issue #117, 2026-08-16); STRING literals (a test title) still
-// scan, so cite an issue in a title as `issue 103`.
+// of each; this file is the enforcer. DECLARED LIMIT: clause 5 (and its stale arm) skip COMMENT spans
+// (issue #117) and NARRATION spans — a test title / an expect() message is prose, so `#483` there is an
+// issue citation, not a color (issue #507) — and its color-function arm needs a channel DIGIT, so a
+// format-only `/^oklch\(/` passes. Every other string scans, interpolated titles included.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { SourceFile, VariableDeclaration } from "ts-morph";
+import type { CallExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { CheckContext, Violation } from "../contract/harness.ts";
@@ -53,7 +54,11 @@ const CT_OR_FIXTURE_RE = /\/tests\/ui\/.*\.(?:ct|fixtures)\.tsx$/u;
 const VARIANTS_SPEC_RE = /(?:^|\/)variants$/u;
 // The `\\?` before each `\(` also catches the REGEX form `oklch\(…\)` (an escaped paren in a regex
 // literal) — diff.ct.tsx once smuggled color literals as match-regexes that the bare `oklch(` missed.
-const COLOR_LITERAL_RE = /oklch\\?\(|\brgba?\\?\(|#[0-9a-fA-F]{3,8}\b/u;
+// The VALUE LOOKAHEAD (issue #507) keeps that mechanism while narrowing it to what the clause is for: a
+// color FUNCTION carrying no channel digits at all (`/^oklch\(/`, asserting the computed FORMAT an arm
+// produces) is not a hardcoded color — it cannot go stale on a palette change. A smuggled
+// `/^oklch\(0\.5/` still carries digits and still fires.
+const COLOR_LITERAL_RE = /(?:oklch|\brgba?)\\?\((?=[^)\n]*\d)|#[0-9a-fA-F]{3,8}\b/u;
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
@@ -188,6 +193,62 @@ function clauseNoLeak(ctx: CheckContext): Violation[] {
 // same literal-hex/url() rejection inputs.
 const COLOR_LITERAL_TEST_EXEMPT = new Set(["theme-scope.ct.tsx", "color-field.ct.tsx", "sandbox-frame.ct.tsx"]);
 
+// Clause 5's POSITION FENCE (issue #507). The color scan is a TEXT scan, so it judges a string by its
+// spelling alone — and `#483` in `test("#483 …")` is an issue citation the whole repo writes, read as a
+// 3-digit hex. Two lanes routed around it by rewording titles. The fence is a POSITION predicate, not a
+// looser regex: a string literal sitting in a test's own NARRATION — the title argument of a test-like
+// call, or `expect()`'s message argument — is prose, never a style value. Everything else still scans,
+// including a bare `const c = "#abc"` and a color in a toHaveCSS/style argument.
+const NARRATION_CALLEES = new Set(["test", "it", "describe", "suite", "bench"]);
+const EXPECT_CALLEE = "expect";
+
+/** The ROOT identifier of a (possibly chained) callee — `test.describe.serial` → `test`, `expect.soft` →
+ *  `expect`. Modifier chains are how both runners spell every variant, so keying on the root covers
+ *  `.skip`/`.only`/`.each`/`.step`/`.poll` without enumerating them. */
+function rootCalleeName(call: CallExpression): string | undefined {
+  let expr: Node = call.getExpression();
+  while (Node.isPropertyAccessExpression(expr)) {
+    expr = expr.getExpression();
+  }
+  return Node.isIdentifier(expr) ? expr.getText() : undefined;
+}
+
+/** Which argument of this call (if any) is authored PROSE about the test itself. */
+function narrationArgIndex(call: CallExpression): number | undefined {
+  const root = rootCalleeName(call);
+  if (root === EXPECT_CALLEE) {
+    return 1; // expect(actual, "message") — the soft-assert message both runners take.
+  }
+  return root !== undefined && NARRATION_CALLEES.has(root) ? 0 : undefined;
+}
+
+/** DECLARED LIMIT: only quote-shaped literals are fenced. A TemplateExpression title — a backticked one
+ *  carrying an interpolation — keeps scanning, because blanking its span would blank that too, and an
+ *  interpolation is CODE: hiding it is the permissive direction this gate must never take. */
+function narrationSpans(sf: SourceFile): { readonly pos: number; readonly end: number }[] {
+  const out: { readonly pos: number; readonly end: number }[] = [];
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const index = narrationArgIndex(call);
+    const arg = index === undefined ? undefined : call.getArguments()[index];
+    if (arg !== undefined && (Node.isStringLiteral(arg) || Node.isNoSubstitutionTemplateLiteral(arg))) {
+      out.push({ pos: arg.getStart(), end: arg.getEnd() });
+    }
+  }
+  return out;
+}
+
+/** The text clause 5 and its stale arm BOTH judge: comments blanked (issue #117) then narration blanked
+ *  (issue #507). Blanking is length-preserving, so `i + 1` stays the real line. */
+function colorScanText(sf: SourceFile): string {
+  let text = blankTsComments(sf);
+  // Descending, so an earlier blank can never move a later span's offsets.
+  for (const span of narrationSpans(sf).sort((a, b) => b.pos - a.pos)) {
+    const blanked = text.slice(span.pos, span.end).replace(/[^\n]/gu, " ");
+    text = text.slice(0, span.pos) + blanked + text.slice(span.end);
+  }
+  return text;
+}
+
 /** Clause 5 — no token-color literals in any .ct.tsx (§4.2); the exempt set tests the mechanism. */
 function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
   const out: Violation[] = [];
@@ -199,9 +260,7 @@ function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
     if ([...COLOR_LITERAL_TEST_EXEMPT].some((name) => path.endsWith(`/${name}`))) {
       continue;
     }
-    // Comments are blanked first (issue #117, 2026-08-16): a `#103` issue citation is the house comment
-    // idiom and read as a 3-digit hex. Blanking is length-preserving, so `i + 1` stays the real line.
-    blankTsComments(sf)
+    colorScanText(sf)
       .split("\n")
       .forEach((text, i) => {
         if (COLOR_LITERAL_RE.test(text)) {
@@ -406,8 +465,9 @@ function staleExemptionRows(ctx: CheckContext): Violation[] {
       continue;
     }
     // The SAME blanked text clause 5 judges: a row kept alive only by a color spelling quoted in a
-    // comment would be a promise about a file that no longer exercises hostile values.
-    const lines = blankTsComments(sf).split("\n");
+    // comment — or in a test TITLE — would be a promise about a file that no longer exercises hostile
+    // values.
+    const lines = colorScanText(sf).split("\n");
     if (!lines.some((line) => COLOR_LITERAL_RE.test(line))) {
       out.push(row(STALE_COLOR(name, "carries no color literal any more")));
     }
@@ -492,6 +552,34 @@ export const gate: GateDescriptor = {
       },
       expect: { count: 1, line: 2 },
       why: "issue #117 — comment blanking must not blunt clause 5: the authored `#abc` still REDs, attributed to line 2 (the value), not line 1 (the citation)",
+    },
+    {
+      files: {
+        // Issue #507, the PERMISSIVE half of the narration fence: the fence blanks the TITLE, and only the
+        // title — the toHaveCSS argument on the next line is a real style value and still REDs.
+        "tests/ui/primitives/thing/thing.ct.tsx":
+          'test("#483 the band paints the muted pair", async () => {\n  await expect(el).toHaveCSS("color", "#abc");\n});\n',
+      },
+      expect: { count: 1, line: 2 },
+      why: "issue #507 — the position fence must not become a regex loosening: a `#abc` in a toHaveCSS argument is exactly what clause 5 exists for, and it fires even when the same file's TITLE carries a citation",
+    },
+    {
+      files: {
+        // Issue #507 DECLARED LIMIT: an INTERPOLATED title keeps scanning, because blanking a
+        // TemplateExpression's span would also blank its interpolations — and those are CODE.
+        "tests/ui/primitives/thing/thing.ct.tsx": "test(`the band ${1} is #abc`, () => {});\n",
+      },
+      expect: { count: 1, line: 1 },
+      why: "issue #507 — the fence covers quote-shaped literals only; a template-expression title is not blanked, so this row writes that limit down instead of leaving it assumed",
+    },
+    {
+      files: {
+        // The founding REGEX-SMUGGLING shape (diff.ct.tsx) re-proven under the #507 value lookahead: a
+        // match-regex carrying channel digits is a hardcoded color wearing a regex literal's clothes.
+        "tests/ui/primitives/thing/thing.ct.tsx": "const arm = /^oklch\\(0\\.5 0\\.1 200/;\nexport const a = arm;\n",
+      },
+      expect: { count: 1, line: 1 },
+      why: "clause 5's regex arm — the value lookahead narrows the color-function match to VALUE-bearing ones without releasing the smuggled-literal shape the arm was minted for",
     },
     {
       files: {
@@ -593,6 +681,24 @@ export const gate: GateDescriptor = {
           "// ── issue #103: the monogram hue band ──\n/* the old spelling was rgb(1, 2, 3) — quoted here, not authored */\nexport const t = 1;\n",
       },
       why: "issue #117 (the FP class this gate fired on twice in one day): an issue-number citation and a quoted color spelling live in COMMENTS — trivia the pure-AST harness skips — so a .ct.tsx citing #103 passes",
+    },
+    {
+      files: {
+        // Issue #507 — the same FP class in a STRING, which #117 never covered: three live sites
+        // (empty-state, switch, use-chart-theme) cited an issue in a test TITLE and were reworded to route
+        // around the gate. A title and an expect() message are the test's own NARRATION, never a style value.
+        "tests/ui/primitives/thing/thing.ct.tsx":
+          'test.describe("#469 the seal", () => {\n  test("#483 the landing is a real welcome", () => {\n    expect(1, "unchanged by #424").toBe(1);\n  });\n});\n',
+      },
+      why: "issue #507 — the narration position fence: a `#nnn` issue citation in a test title (any test/it/describe/suite form, including a modifier chain) or in an expect() message is prose the color scan must skip, so a CT may cite its issue the way every other test file in the repo does",
+    },
+    {
+      files: {
+        // Issue #507's second half (a live site, use-chart-theme.ct.tsx): a color FUNCTION with no channel
+        // digits asserts the computed FORMAT an arm produces — it cannot go stale on a palette change.
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const BASE_ARM = /^oklch\\(/;\nexport const MIX = /^color-mix\\(/;\n",
+      },
+      why: "issue #507 — the value lookahead: a format-only `oklch(`/`rgb(` match carries no color VALUE, so it is not the hardcoded literal clause 5 bans (the mustFlag row above keeps the value-bearing regex red)",
     },
   ],
 };

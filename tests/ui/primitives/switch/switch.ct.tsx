@@ -92,9 +92,7 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
 // token and pushes the checked knob one border-width PAST the right rim (measured −1 at both pointers
 // before the fix; side-eye #420 P3). Asserted as a RELATION against the root's own rendered
 // border-width, so a border-width retune moves the expectation with the design instead of pinning 1.
-// (Issue numbers stay OUT of the strings below: `#424` reads as a 3-digit hex to the ui-primitive-structure
-// gate's hardcoded-colour arm, which is comment-safe but scans literals.)
-test("the thumb sits INSIDE the root's border at both ends of its travel (issue 424)", async ({ mount, page }) => {
+test("the thumb sits INSIDE the root's border at both ends of its travel (#424)", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" />);
   const control = page.getByRole("switch");
   const parked = await thumbRims(control);
@@ -102,8 +100,8 @@ test("the thumb sits INSIDE the root's border at both ends of its travel (issue 
   // The RESIDUAL this fix deliberately leaves (measured, so a later change to it is visible here): the
   // thumb is exactly as tall as the root at a fine pointer, so it stays flush with the root's OUTER box
   // vertically. Inset-ing it would mean shrinking the display thumb — a size decision, not this defect.
-  expect(parked.top, "the thumb stays vertically flush with the root's OUTER box (unchanged by issue 424)").toBe(0);
-  expect(parked.bottom, "the thumb stays vertically flush with the root's OUTER box (unchanged by issue 424)").toBe(0);
+  expect(parked.top, "the thumb stays vertically flush with the root's OUTER box (unchanged by #424)").toBe(0);
+  expect(parked.bottom, "the thumb stays vertically flush with the root's OUTER box (unchanged by #424)").toBe(0);
   expect(parked.left, "unchecked: the thumb starts at the content box's left edge, not on the border").toBe(parked.border);
   await control.click();
   await expect(control).toHaveAttribute("aria-checked", "true");
@@ -174,7 +172,7 @@ test.describe("at a COARSE pointer", () => {
 
   // #424 is pointer-INDEPENDENT (the overhang is the border-box arithmetic, not a token value), so the
   // rim pin runs in the coarse context too — the wider track must not put the knob back over the rim.
-  test("the thumb sits INSIDE the root's border here too (issue 424)", async ({ mount, page }) => {
+  test("the thumb sits INSIDE the root's border here too (#424)", async ({ mount, page }) => {
     await mount(<Switch aria-label="Streaming" />);
     const control = page.getByRole("switch");
     const parked = await thumbRims(control);
