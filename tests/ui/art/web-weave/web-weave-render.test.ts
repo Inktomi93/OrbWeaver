@@ -12,7 +12,7 @@ import type { WeavePoint, WovenWeb } from "@orb/ui/web-weave";
 import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import { WEAVE_CHARACTER_PRESETS } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
-import { glintSegmentLit, glintSweepAngle } from "../../../../packages/ui/src/art/web-weave/web-weave-glint.ts";
+import { buildGlintIndex, glintSegmentLit, glintSweepAngle } from "../../../../packages/ui/src/art/web-weave/web-weave-glint.ts";
 import type { WeavePalette } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import { renderWeaveFrame } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import type { WeavePluckMap } from "../../../../packages/ui/src/art/web-weave/web-weave-sway.ts";
@@ -136,6 +136,10 @@ function recordSettledFrame(over?: { plucks?: WeavePluckMap; wind?: number; web?
       dt: FRAME_MS,
       character: WEAVE_CHARACTER_PRESETS.calm,
       prey: null,
+      // The glint's bearing index — the real one, so these recordings keep exercising the path the
+      // component actually paints (this frame's sway is a per-point FIELD, so the painter takes the
+      // full scan; the index's own exactness is pinned in web-weave-glint.test.ts).
+      glint: buildGlintIndex(web),
     },
     { prev: null },
   );
