@@ -11,6 +11,31 @@
 // a mixed import (component + constant) fails to parse in the consuming CT.
 import { BarList } from "@orb/ui/bar-list";
 import type { ReactElement } from "react";
+import { useState } from "react";
+import { useChartTheme } from "../../../packages/ui/src/charts/chart/use-chart-theme.ts";
+
+/** Distinguishes a RE-RENDER from a REMOUNT: the id is minted once per mounted instance, so a repaint
+ *  proven with an unchanged id is the live store re-resolving, not React throwing the subtree away. */
+let mountSequence = 0;
+
+/**
+ * #503 — the live-token store's repaint contract, read out as DOM. `useChartTheme().axisLine` is the token
+ * every chart's axis + split lines paint from (`color.border`), and `color.border` is exactly what the
+ * colorization axis re-declares on `<html>`. The value rides a `data-*` attribute rather than the canvas
+ * because a canvas repaint is only provable in pixels; this reads the same value the option builders get.
+ */
+export function ChartThemeAxisLineReadoutStory(): ReactElement {
+  const colors = useChartTheme();
+  const [mountId] = useState((): string => {
+    mountSequence += 1;
+    return `mount-${mountSequence}`;
+  });
+  return (
+    <p data-axis-line={colors.axisLine} data-mount-id={mountId}>
+      {colors.axisLine}
+    </p>
+  );
+}
 
 /** A momentum column at its production floor: `MomentumColumn` is `min-w-48` (192px) inside a wrapping Row,
  *  so ~240px is the width the owner's two-column Momentum band actually renders at on a laptop. */

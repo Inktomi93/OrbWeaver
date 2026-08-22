@@ -1,6 +1,7 @@
 // The live-token-resolver seam (§14, 2026-08-09 report card): canvas/iframe realms can't resolve
 // `var(--token)` — chart chrome (ECharts canvas) and the sandbox card frame (a null-origin srcdoc) both
-// need CONCRETE token values, re-resolved on a `data-theme` flip via a MutationObserver, served through
+// need CONCRETE token values, re-resolved via a MutationObserver on the root attributes that move a token
+// (`TOKEN_MOVING_ROOT_ATTRIBUTES` below — its comment is the coverage audit), served through
 // `useSyncExternalStore` so a Light/Dark switch repaints instead of baking a stale literal. Was three
 // near-identical spellings (charts/use-chart-theme.ts, sandbox-frame/use-sandbox-theme.ts, web-weave's
 // probe-element variant); this module is the ONE mechanics home — each consumer keeps its own token
@@ -85,6 +86,41 @@ export function resolveCssColor(cssVar: string, fallback: string): string {
   return resolved === "" ? fallback : resolved;
 }
 
+/**
+ * THE ROOT ATTRIBUTES WHOSE FLIP MOVES A RESOLVED TOKEN — one home for every consumer of this seam, and
+ * A COUPLED SITE FOR EVERY FUTURE APPEARANCE AXIS: an axis that redeclares a custom property at
+ * `<html>` scope and is NOT listed here is invisible to every canvas/foreign realm on the page until it
+ * remounts. That is not hypothetical — it is #503, measured (side-eye colorization pass, 2026-08-22):
+ * this list was `["data-theme"]`, so toggling `appearance.enableThemeColorization` moved every DOM
+ * hairline instantly while the analytics histograms stayed BYTE-IDENTICAL.
+ *
+ * The list is deliberately NOT a per-consumer parameter. "Which attributes move a token" is a property of
+ * the CASCADE, not of who is reading it, so a consumer that watched a narrower set would simply be wrong.
+ *
+ * THE AUDIT, against every root attribute the shell writes
+ * (`client/features/app-shell/hooks/use-appearance-root-effects.ts` + the pre-mount replay in
+ * `state/appearance-boot-hint.ts`) — the unwatched ones are unwatched because they provably cannot move a
+ * token, not because nobody checked:
+ *   • `data-theme` — WATCHED. The generated `[data-theme="…"]` blocks (`styles/theme.css`) redeclare the
+ *     whole `--color-*` set at root scope.
+ *   • `data-theme-colorization` — WATCHED (#503). `html[data-theme-colorization]` redeclares
+ *     `--color-border` / `--color-sidebar-border` (`client/src/styles/globals.css`).
+ *   • `data-blur-{panels,composer,messages,modals}` · `data-shadow` · `data-texture` ·
+ *     `data-justify-body-text` · `data-reduced-motion` — every rule keyed on these is a DESCENDANT
+ *     selector applying a paint/layout/motion property (`backdrop-filter`, `box-shadow`,
+ *     `background-image`, `text-align`, `animation-duration`) to a non-root element. None declares a
+ *     custom property, so no resolved token moves.
+ *   • the root `style` attribute — carries `--font-scale`, `--blur-strength` and the `--reading-*` vars:
+ *     numbers and lengths, never a colour or a font-family token.
+ *   • `class` — nothing writes a class onto `<html>`; the Tailwind `dark` variant is `[data-theme]`-keyed.
+ *
+ * OUT OF AN ATTRIBUTE OBSERVER'S REACH BY CONSTRUCTION (stated so the next reader does not mistake this
+ * list for total coverage): a CUSTOM theme sets no `[data-theme]` at all — its tokens ride `<ThemeScope>`
+ * on `.shell-grid` plus an injected `<head>` `<style>` (`custom-theme-style.tsx`), neither of which is a
+ * root attribute, and neither of which this resolver's `documentElement` read can even see.
+ */
+const TOKEN_MOVING_ROOT_ATTRIBUTES: readonly string[] = ["data-theme", "data-theme-colorization"];
+
 export interface LiveTokenStore<T> {
   readonly subscribe: (onChange: () => void) => () => void;
   readonly getSnapshot: () => T;
@@ -96,11 +132,11 @@ const NO_UNSUBSCRIBE = (): void => undefined;
 /**
  * A `useSyncExternalStore` triple for a live, theme-reactive resolved value. `resolve` computes the
  * concrete value from the current cascade; `fallback` is the SSR / no-DOM snapshot (also identity-stable,
- * per useSyncExternalStore's contract). Re-resolves on any `documentElement` attribute in
- * `attributeFilter` (chart/sandbox watch `["data-theme"]` only) — caches the resolved value between
- * notifications and drops the cache on each observed mutation so the next read re-resolves fresh.
+ * per useSyncExternalStore's contract). Re-resolves on any `TOKEN_MOVING_ROOT_ATTRIBUTES` mutation of
+ * `documentElement` — caches the resolved value between notifications and drops the cache on each observed
+ * mutation so the next read re-resolves fresh.
  */
-export function createLiveTokenStore<T>(resolve: () => T, fallback: T, attributeFilter: readonly string[]): LiveTokenStore<T> {
+export function createLiveTokenStore<T>(resolve: () => T, fallback: T): LiveTokenStore<T> {
   let cached: T | null = null;
 
   function getSnapshot(): T {
@@ -124,7 +160,7 @@ export function createLiveTokenStore<T>(resolve: () => T, fallback: T, attribute
       cached = null;
       onChange();
     });
-    observer.observe(root, { attributes: true, attributeFilter: [...attributeFilter] });
+    observer.observe(root, { attributes: true, attributeFilter: [...TOKEN_MOVING_ROOT_ATTRIBUTES] });
     return (): void => observer.disconnect();
   }
 
