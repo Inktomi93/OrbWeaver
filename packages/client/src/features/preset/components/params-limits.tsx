@@ -278,8 +278,18 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
 function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Collapsible>
-      <CollapsibleTrigger>
-        <Text voice="kicker">Advanced</Text>
+      {/* IT IS A CONTROL, NOT A KICKER (side-eye 2026-08-22 P2-4). `voice="kicker"` is the 10.5px SECTION
+          EYEBROW — right for a label that names a group, wrong for the only thing you can press to reach
+          this one: measured 544×16 with a 10.5px label, below both WCAG 2.5.8's 24×24 floor on any pointer
+          and the 11px functional-text floor `design-audit` reds, and the primitive's `::after` touch pseudo
+          is not in play here (it resolves `content: none`). `voice="label"` is the 13px control step the
+          `CollapsibleTrigger` primitive already defaults to — the kicker was overriding it DOWN — and
+          `size="control"` is the primitive's own ≥44px coarse row box (a VARIANT, not a call-site `min-h-*`
+          — tailwind-merge cannot classify a custom-token utility, so an override wins or loses by
+          stylesheet order; gate `ui-size-via-variant`). The trigger is `inline-flex`, so the box grows
+          around the word rather than claiming the row's width. */}
+      <CollapsibleTrigger size="control">
+        <Text voice="label">Advanced</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="field">

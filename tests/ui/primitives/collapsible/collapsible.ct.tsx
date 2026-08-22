@@ -111,6 +111,42 @@ test("chevron={false} suppresses the baked chevron (a consumer renders its own)"
   await expect(page.locator('[data-slot="collapsible-trigger"] svg')).toHaveCount(0);
 });
 
+// The `size` axis (side-eye 2026-08-22 P2-4). A disclosure that IS a row of its own — the thing you press to
+// reach a whole section — has to clear the pointer floor, and the shipped trigger is text-height by design
+// (right for a disclosure sitting in running content, wrong for a row). `inline` stays the default so no
+// existing consumer moves; `control` pins `--spacing-control-sm`, read LIVE off the token because it is
+// pointer-conditional (44px coarse / 32px fine) and a literal here would be wrong on one of the two.
+test("size: `control` clears the pointer's control floor and `inline` (the default) does not claim it", async ({ mount, page }) => {
+  await mount(
+    <>
+      <Collapsible>
+        <CollapsibleTrigger>Running text</CollapsibleTrigger>
+        <CollapsiblePanel>Hidden details</CollapsiblePanel>
+      </Collapsible>
+      <Collapsible>
+        <CollapsibleTrigger size="control">Its own row</CollapsibleTrigger>
+        <CollapsiblePanel>Hidden details</CollapsiblePanel>
+      </Collapsible>
+    </>,
+  );
+
+  const floor = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.height = "var(--spacing-control-sm)";
+    document.body.append(probe);
+    const resolved = Number.parseFloat(getComputedStyle(probe).height);
+    probe.remove();
+    return resolved;
+  });
+  expect(floor, "the control-sm token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
+
+  const inlineBox = await page.getByRole("button", { name: "Running text" }).boundingBox();
+  const controlBox = await page.getByRole("button", { name: "Its own row" }).boundingBox();
+  expect(controlBox?.height).toBeGreaterThanOrEqual(floor);
+  // The default is UNCHANGED — this variant may not silently re-box every disclosure already shipped.
+  expect(inlineBox?.height).toBeLessThan(floor);
+});
+
 test("disabled on the root disables the trigger and blocks toggling", async ({ mount, page }) => {
   await mount(
     <Collapsible disabled={true}>

@@ -173,13 +173,20 @@ export function regexRowScent(
  *  scope is not what its rows are choosing between. The roster row's own case is argued in
  *  `regex-collection-rows.tsx`'s header, where the switch used to be.)
  *
- *  The enable state rides in front because an `off` row's presence in a list is otherwise unexplained. */
+ *  THE ENABLE STATE LEFT THIS LINE (side-eye 2026-08-22 P2-2). It used to ride in front as a bare `off ·`,
+ *  and on the picker that word sat ~500px from a switch named `Attach <name>` — so one row said "off" at one
+ *  end and showed an ON switch at the other, about two DIFFERENT facts, with neither labelled. The bare
+ *  token also never named its own subject: the fact that matters is "attached, but disabled in your library,
+ *  so it will not run", and a user flipping the switch on and seeing nothing happen had no path to the cause.
+ *  A word cannot carry that; a NAMED state can, so the picker row renders it as a `Disabled in your library`
+ *  badge beside the name (`regex-script-picker.tsx`) and the scent stays purely descriptive. The roster row's
+ *  own projection ({@link regexRowScent}) keeps its `off ·` — its list has no attach switch to collide with,
+ *  and an `off` row's presence in the LIBRARY is otherwise unexplained. */
 export function regexScriptScent(
-  script: { readonly enabled: boolean; readonly findRegex: string; readonly placement: readonly RegexPlacement[]; readonly updatedAt: number },
+  script: { readonly findRegex: string; readonly placement: readonly RegexPlacement[]; readonly updatedAt: number },
   formatRelative: (epochMs: number) => string,
 ): string {
-  const scent = `${placementPhrase(script.placement)} · ${patternHead(script.findRegex)} · edited ${formatRelative(script.updatedAt)}`;
-  return script.enabled ? scent : `off · ${scent}`;
+  return `${placementPhrase(script.placement)} · ${patternHead(script.findRegex)} · edited ${formatRelative(script.updatedAt)}`;
 }
 
 /** A script's NAME, with the empty-name arm spelled ONCE. Shared home for the same reason the scent is:

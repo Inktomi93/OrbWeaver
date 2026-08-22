@@ -18,6 +18,7 @@
 
 import type { RegexPickerScope, RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -264,11 +265,27 @@ function PickerRow({
     <Row gap="field" align="center" justify="between">
       {/* The rank rides INSIDE the identity cluster (the `GlobalOrderRow` anatomy), not as a third
           `justify-between` child — a bare sibling would push the name to the row's centre. */}
-      <Row align="center" className="min-w-0" gap="field">
+      {/* THE INERT ARM (side-eye 2026-08-22 P2-2). A row that is ATTACHED but disabled in the library will
+          not run, and the surface said so nowhere: the scent's bare `off ·` sat ~500px from an ON switch
+          named `Attach <name>`, two state words about two different facts with neither labelled. So the
+          fact is now a NAMED badge (below) and the identity cluster goes visibly inert on the one
+          combination where the row is claimed and still dead. Only the identity dims — the switch keeps
+          full weight, because it is still live and it is the control that got you here. */}
+      <Row align="center" className={attached && !script.enabled ? "min-w-0 opacity-60" : "min-w-0"} gap="field">
         {reserveGrip ? <Row aria-hidden={true} className="size-control-sm shrink-0" /> : null}
         <RankCell position={position} reserve={reserveRank} />
         <Stack gap="tight" className="min-w-0">
-          <Text>{name}</Text>
+          <Row align="center" className="min-w-0" gap="field">
+            <Text className="truncate">{name}</Text>
+            {/* IT NAMES ITS OWN SUBJECT. "off" said which of the row's two switches it meant only to
+                someone who already knew; this says the whole fact — the script is disabled in the LIBRARY,
+                so attaching it here changes nothing until you enable it there. */}
+            {script.enabled ? null : (
+              <Badge className="shrink-0" intent="neutral" size="sm" tone="soft">
+                Disabled in your library
+              </Badge>
+            )}
+          </Row>
           <Text voice="gloss">{regexScriptScent(script, timeLib.formatRelative)}</Text>
         </Stack>
       </Row>
