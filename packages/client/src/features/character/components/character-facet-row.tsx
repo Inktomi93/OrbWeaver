@@ -1,13 +1,14 @@
 // CharacterFacetRow — one row in the CONTENT facet master list. A domain composition of Row + a ghost
 // Button (not ListRow — two-line button). Anatomy left→right: button that drills into the facet (line 1 =
-// label; line 2 = a content preview when filled, else the subtitle) · a muted "Add…" invite on EMPTY rows
-// only. ZERO ember: no primary action badge (P5/ember ration); the selected facet reads as a 2px left ember
-// bar + a 10% primary tint (the chats-lane selection pattern), never a full accent border/fill.
+// label; line 2 = a content preview when filled, else the subtitle) · a muted "Empty" state word on EMPTY
+// rows only (the house word for a value slot with nothing in it — #502; it used to be "Add…"). ZERO ember:
+// no primary action badge (P5/ember ration); the selected facet reads as a 2px left ember bar + a 10%
+// primary tint (the chats-lane selection pattern), never a full accent border/fill.
 //
 // NO ICON TILE (2026-08-01 side-eye P2): the row used to lead with a filled `Badge` holding the facet
 // glyph, `intent="info"` once filled — a stack of saturated cold-blue squares down the Voice/Extras/
 // Advanced groups, in a hue this surface uses nowhere else, carrying no datum the label doesn't already
-// say. The label + its gloss + "Add…" ARE the row's content; the glyph survives where it identifies a
+// say. The label + its gloss + the state word ARE the row's content; the glyph survives where it identifies a
 // single thing, on the facet drill-in header (character-facet-editor.tsx).
 
 import { Button } from "@orb/ui/button";
@@ -21,9 +22,9 @@ export interface CharacterFacetRowProps {
   readonly facet: CharacterCardFacet;
   /** This facet is the CONTENT-drilled / CONTEXT-inspected one (accent border + fill). */
   readonly selected: boolean;
-  /** Whether the facet currently holds authored content (drives the preview vs "Add…" affordance). */
+  /** Whether the facet currently holds authored content (drives the preview vs the "Empty" state word). */
   readonly filled: boolean;
-  /** A short preview of the authored content for a filled row, or `null` when empty (shows "Add…"). */
+  /** A short preview of the authored content for a filled row, or `null` when empty (shows "Empty"). */
   readonly preview: string | null;
   /** The TERSE fill state this row announces ("Empty" / "Filled, 1283 characters"), computed by the list.
    *  It exists because the visible fill cues are both out of the accessible tree — see the describedby
@@ -94,21 +95,24 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
 
       {/* THE FILL STATE, SPOKEN (#254). Both cues that tell a SIGHTED user filled from empty are out of the
           accessible tree: the filled row's preview line is `aria-hidden` (above — it is a 1283-character
-          body, not a name), and the empty row's "Add…" is inert `Text` beside the button. So the two states
+          body, not a name), and the empty row's state word is inert `Text` beside the button. So the two states
           announced identically ("Description, button" either way) — the a11y half of the decorative-preview
           fix, not a regression of it. This span restores the DISTINCTION without restoring the wall: a
           terse state + a magnitude ("Empty" / "Filled, 44 characters"), never the body. It rides
           `aria-describedby` rather than the name so voice control still matches the visible label (WCAG
           2.5.3), and it leads the description so the state is heard before the empty row's gloss. */}
-      <Text as="span" className="sr-only" id={fillSummaryId}>
+      {/* ONE NODE, TWO AUDIENCES (#502, side-eye 2026-08-22 rail-characters P3-1). The empty row used to
+          print a muted "Add…" beside this span — an ACTION word standing in a VALUE slot, which reads as a
+          truncated label until you measure it (the review's own retraction: `scrollWidth === clientWidth`,
+          the ellipsis is literal), and the third of three words this one editor used for "nothing here"
+          ("No tags" · "None" · "Add…", Nielsen #4). The state word is the vocabulary now, everywhere: the
+          tags row says it, the CONTEXT card says it, and here the visible word IS the `fillSummary` a screen
+          reader already heard — so the two audiences stop being told different things and the empty row
+          stops carrying a duplicate node. A FILLED row's summary ("Filled, 44 characters") stays sr-only:
+          its magnitude is a11y repair for an `aria-hidden` preview, never a second visible datum. */}
+      <Text as="span" className={filled ? "sr-only" : "shrink-0"} id={fillSummaryId} size="micro" tone="muted">
         {fillSummary}
       </Text>
-
-      {filled ? null : (
-        <Text size="micro" tone="muted">
-          Add…
-        </Text>
-      )}
     </Row>
   );
 }

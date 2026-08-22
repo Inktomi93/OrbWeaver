@@ -1,19 +1,23 @@
-// The ONE home for the character screen's two chat INTENTS. Both used to
-// live inline in the editor hero; the LIST band now fires the same "New chat" and the hero's "N chats ›"
-// points at the pane instead of jumping sections, so they are shared writers rather than two hero closures.
+// The ONE home for the character screen's two chat INTENTS. Both used to live inline in the editor hero;
+// they are shared writers now — "New chat" is fired by the hero AND by the chats pane's empty state, and
+// "N chats ›" reveals the CONTEXT tab that holds her history rather than jumping to the Chats section.
 //
 // `useStartChatWithCharacter` IS A HOOK NOW (chat-creation-draft-mode-replacement.md §4.1, R1). It used to be
 // a plain store write: `startNewChat({characterIds})` handed the chat surface a rowless DRAFT and the row
 // appeared at the first send. Creation is a real `chat.startChat` call, so the intent rides the ONE shared
 // creation seam in `#data` (`useStartChat` — a feature may never import another feature, and `#state` cannot
-// fire a mutation). `revealChatsProjection` stays a plain function: it is pure navigation.
+// fire a mutation). `revealCharacterChats` stays a plain function: it is pure navigation.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { useStartChat } from "#data";
-import { clearChatListCharacterFilter, dockListPanel, setActiveSection, setOpenOverlayPanel } from "#state";
+import { clearChatListCharacterFilter, revealContextPanel, setActiveSection } from "#state";
 
-/** The projection pane's container slot — the one string the shell stamps and the hero focuses. */
+/** The projection pane's container slot — the one string the shell stamps. */
 export const CHARACTER_CHATS_PROJECTION_SLOT = "character-chats-projection";
+
+/** The CONTEXT tab her chats live on (#501). One home for the id: the section DECLARES the tab with it and
+ *  the hero's "N chats ›" REVEALS it by it, so the two cannot drift into a tab nothing can resolve. */
+export const CHARACTER_CHATS_TAB_ID = "chats";
 
 /** Always a FRESH chat with this character, landed in the room. Clears any per-character chats-pane filter
  *  so the new room isn't shown behind a stale scope chip. `useStartChat` owns the navigation (it seeds the
@@ -28,28 +32,18 @@ export function useStartChatWithCharacter(): (characterId: CharacterId) => void 
 }
 
 /**
- * Bring her chats into view (the hero's "N chats ›", D8 — re-pointed IN PLACE rather than jumping to the
- * Chats section: with her selected, the LIST pane already IS her history).
+ * Bring her chats into view (the hero's "N chats ›", D8).
  *
- * NARROW: the LIST is a sheet, so open it — that reveals the pane AND moves focus into it.
- * WIDE: the pane is beside the editor, but it may be collapsed, so un-collapse it and move focus there —
- * a link that scrolls nothing and focuses nothing is a dead end (rule 1).
+ * IT REVEALS THE **CONTEXT** TAB NOW (#501). It used to dock the LIST pane, because with her selected the
+ * LIST *was* her history; under the owner's "library stays docked" ruling the list is the library and her
+ * chats are a CONTEXT tab, so the one intent points at the one home.
  *
- * THE WIDE ARM GOES THROUGH `dockListPanel`, NOT `setPanelMode` (#391). Docking the LIST can move CONTEXT
- * between the two channels that carry its visibility, and #383 made every list flip pay the carry that
- * bridges them — but it installed that carry inside `useShellLayout`, which this module cannot reach (a
- * feature may never import another feature). A raw `setPanelMode("list","docked")` here therefore went
- * BEHIND the carry and silently vanished an open detail pane, the same orphan on a narrower trigger. The
- * shell registers its carry into `#state`; `dockListPanel` is the door that pays it.
+ * `revealContextPanel` is the right door of the two: it writes BOTH visibility channels unconditionally, so
+ * the phone gets the sheet and the desktop gets the dock. Its sibling `revealContextPanelBesideContent`
+ * deliberately FOLDS the phone arm — but only because that sibling's body is already in CONTENT (a facet),
+ * and a full-screen sheet would cover the thing the tap just opened. Her chats are nowhere in CONTENT, so
+ * here the sheet IS the navigation (the rpg Scene→Quests shape).
  */
-export function revealChatsProjection(narrow: boolean): void {
-  if (narrow) {
-    setOpenOverlayPanel("list");
-    return;
-  }
-  dockListPanel();
-  const pane = (globalThis as { document?: { querySelector: (s: string) => { focus?: () => void } | null } }).document?.querySelector(
-    `[data-slot="${CHARACTER_CHATS_PROJECTION_SLOT}"]`,
-  );
-  pane?.focus?.();
+export function revealCharacterChats(): void {
+  revealContextPanel(CHARACTER_CHATS_TAB_ID);
 }

@@ -44,11 +44,6 @@ export interface CharacterLibraryBodyProps {
    *  WIDER than the `CharacterCardItem` this body renders, so importing the whole slot would flip the
    *  callback's variance and fail to assign. The list keys by `item.id` below, which is the same key. */
   readonly listProps: Pick<CollectionSurface<CharacterCardItem>["listProps"], "endApproachRows" | "onEndApproach">;
-  /** Where the FLAT virtual list starts scrolled, in px — the browse position the surface captured when the
-   *  user last opened somebody (#255). Only the flat arm restores: the categorized arm is a grouped
-   *  accordion, not one windowed scroller, so a px offset taken under the other view does not name a
-   *  position in it. */
-  readonly initialScrollOffset: number;
   /** "30 of 327 loaded" — the loaded-vs-census progress line, `null` once the whole matched set is in
    *  (#493). It renders at the FOOT of the list, beside the tail-fetch sentinel: that is where "how much of
    *  it have I got" is the question, and it is the number the pane's top status line had to stop printing
@@ -73,7 +68,6 @@ export function CharacterLibraryBody({
   hasNextPage,
   isFetchingNextPage,
   listProps,
-  initialScrollOffset,
   loadedProgress,
   partialNotice,
   onClearSearch,
@@ -162,7 +156,6 @@ export function CharacterLibraryBody({
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="row"
         getItemKey={(item): string => item.id}
-        initialScrollOffset={initialScrollOffset}
         items={filtered}
         onEndApproach={listProps.onEndApproach}
         renderItem={renderRow}
