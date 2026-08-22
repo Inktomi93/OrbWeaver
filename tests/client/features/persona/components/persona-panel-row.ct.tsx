@@ -6,6 +6,12 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PersonaPanelRowDenseStory, PersonaPanelRowStory } from "../_ct-stories.tsx";
 
+/** The inline favorite VERB, in any spelling. The absence claims below are about that CONTROL being gone
+ *  (`display:none` at coarse), not about a particular wording — the row's verbs now carry their row's subject
+ *  (#463: "Unfavorite Traveler"), and an absence pinned to one exact string would go quietly vacuous the next
+ *  time the vocabulary moves. */
+const ANY_UNFAVORITE = /Unfavorite/;
+
 // ── The shared-cell width fence (side-eye 2026-08-06 P1) ────────────────────────────────────────────
 // The row's two trailing clusters — the rest-visible MARKERS and the hover-revealed ACTIONS — are never
 // both painted, but as flow siblings they both RESERVED width, so a 358px rail row spent 188px on a strip
@@ -67,9 +73,13 @@ test("both trailing clusters occupy the same cell — the strip is as wide as th
 // The a11y half of the same finding: at rest the row announced "Favorited" (the marker) AND "Unfavorite"
 // (the always-mounted reveal button) — one fact, twice. The marker is now ornament; the verb is the one
 // statement. The DEFAULT crown keeps its name, because its verb disappears exactly when the state is true.
+//
+// THE RULING SURVIVES — ITS INPUT CHANGED (#463): the verb now names its row ("Unfavorite Traveler"), so the
+// pin spells the whole subject-bearing name with `exact` rather than a bare verb. What it proves is unchanged:
+// ONE telling of "favorited" per row, by the VERB at a fine pointer.
 test("a favorited row states 'favorited' ONCE; the default crown keeps its own name", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowDenseStory />);
-  await expect(component.getByRole("button", { name: "Unfavorite" })).toBeAttached();
+  await expect(component.getByRole("button", { name: "Unfavorite Traveler", exact: true })).toBeAttached();
   await expect(component.getByRole("img", { name: "Favorited" })).toHaveCount(0);
   await expect(component.getByRole("img", { name: "Your default" })).toBeVisible();
 });
@@ -111,8 +121,11 @@ test("the stretched overlay is wired to onSetCurrent", async ({ mount }) => {
 
 test("the chevron fires onToggleExpand only — a disjoint sibling, never 'set current'", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
-  await component.getByRole("button", { name: "Show details" }).click();
+  await component.getByRole("button", { name: "Show details for Nova", exact: true }).click();
   await expect(component.getByTestId("fired")).toHaveText("expand");
+  // BOTH ARMS NAME THE ROW (#463) — the expanded arm is the one the surface CT's collapsed list cannot reach,
+  // and a disclosure that drops its subject halfway through the interaction is the same defect, later.
+  await expect(component.getByRole("button", { name: "Hide details for Nova", exact: true })).toBeVisible();
 });
 
 // The create-on-click escape hatch (side-eye P3-2): "New persona" persists a row instantly, so the
@@ -121,7 +134,7 @@ test("the chevron fires onToggleExpand only — a disjoint sibling, never 'set c
 // the same remove mutation the panel wires, so create-then-discard leaves no row.
 test("the expanded editor's Delete opens the confirm; confirming fires onDelete", async ({ mount, page }) => {
   const component = await mount(<PersonaPanelRowStory />);
-  await component.getByRole("button", { name: "Show details" }).click();
+  await component.getByRole("button", { name: "Show details for Nova", exact: true }).click();
 
   // The editor mounts inside a Collapsible that reveals with a HEIGHT animation under `overflow-hidden`
   // (variants.ts: h-0 → h-(--collapsible-panel-height)). Until that animation settles, the editor's
@@ -142,7 +155,7 @@ test("the expanded editor's Delete opens the confirm; confirming fires onDelete"
 
 test("the name control enters inline rename — it does NOT fire 'set current'", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
-  await component.getByRole("button", { name: "Rename persona" }).click();
+  await component.getByRole("button", { name: "Rename Nova", exact: true }).click();
   // The name became an inline input (rename edit), and 'set current' did NOT fire (disjoint sibling).
   await expect(component.getByRole("textbox", { name: "Persona name" })).toBeVisible();
   await expect(component.getByTestId("fired")).toHaveText("none");
@@ -233,7 +246,7 @@ test.describe("coarse pointer", () => {
 
       // ONE control in the trailing cell — the kebab. The two collapsed verbs are not rendered controls
       // here at all (`display:none`, so they are out of the a11y tree too, not merely invisible).
-      await expect(component.getByRole("button", { name: "Unfavorite" })).toHaveCount(0);
+      await expect(component.getByRole("button", { name: ANY_UNFAVORITE })).toHaveCount(0);
       await expect(component.getByRole("button", { name: "Actions for Traveler" })).toBeVisible();
 
       // GEOMETRY, not classes: the cluster is now about one touch box wide instead of three.
@@ -275,7 +288,7 @@ test.describe("coarse pointer", () => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<PersonaPanelRowDenseStory width={width} />);
       await expect(component.getByRole("img", { name: "Favorited" })).toHaveCount(1);
-      await expect(component.getByRole("button", { name: "Unfavorite" })).toHaveCount(0);
+      await expect(component.getByRole("button", { name: ANY_UNFAVORITE })).toHaveCount(0);
     });
 
     // The markers must be READABLE, not merely painted: they moved onto the title line, so the thing to prove
@@ -304,7 +317,7 @@ test.describe("coarse pointer", () => {
       await expect(menu.getByRole("menuitem", { name: "Unfavorite" })).toBeVisible();
       await expect(menu.getByRole("menuitem", { name: "Set as default" })).toHaveCount(0);
       // ONE telling: the inline control and its menu twin are never both live.
-      await expect(component.getByRole("button", { name: "Unfavorite" })).toHaveCount(0);
+      await expect(component.getByRole("button", { name: ANY_UNFAVORITE })).toHaveCount(0);
     });
   }
 });
@@ -314,7 +327,7 @@ test.describe("coarse pointer", () => {
 test("a fine pointer keeps the inline verbs and drops their menu twins — exactly one telling per pointer", async ({ mount, page }) => {
   const component = await mount(<PersonaPanelRowDenseStory />);
 
-  await expect(component.getByRole("button", { name: "Unfavorite" })).toBeAttached();
+  await expect(component.getByRole("button", { name: "Unfavorite Traveler", exact: true })).toBeAttached();
   // The fine-pointer cluster is deliberately INERT at rest (`pointer-fine:pointer-events-none` — a click
   // in that strip means "switch to this persona", never "unfavorite"), so the kebab is only hit-testable
   // once the row is hovered. That IS the shipped interaction; hovering is the real user path to it.
@@ -322,7 +335,7 @@ test("a fine pointer keeps the inline verbs and drops their menu twins — exact
   // markers now share the first line, so the lane's centre point resolves to the stretched select-Button
   // underneath and Playwright's actionability check refuses. `:hover` on the row is true either way (the
   // stretched button is inside `group/row`), so this is the same interaction, aimed at a live target.
-  await component.getByRole("button", { name: "Rename persona" }).hover();
+  await component.getByRole("button", { name: "Rename Traveler", exact: true }).hover();
   await component.getByRole("button", { name: "Actions for Traveler" }).click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
