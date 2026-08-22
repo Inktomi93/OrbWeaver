@@ -31,6 +31,7 @@ import {
   MotionFlaggersDropRearmStory,
   MotionFlaggersDropStory,
   MotionFlaggersExternalDevtoolsStory,
+  MotionFlaggersInteractiveColourStory,
   MotionFlaggersReducedMotionStory,
   MotionFlaggersSettleStory,
   MotionFlaggersSlowInputStory,
@@ -207,6 +208,63 @@ test("a visible non-compositor transition is flagged", async ({ mount, page }) =
   const component = await mount(<MotionFlaggersReducedMotionStory />);
   await component.getByRole("button", { name: "change color" }).click();
   await expect.poll(() => lines.length).toBeGreaterThan(0);
+});
+
+/** Read the story's own transitionstart tally — the receipt that the exempted transition really ran. */
+function colourTransitionStarts(page: Page): Promise<number> {
+  return page.evaluate(() => (document.documentElement as HTMLElement & { __orbColourTransitionStarts?: number }).__orbColourTransitionStarts ?? 0);
+}
+
+// PERMANENT PIN for the §3.7 interactive-state colour carve-out (owner ruling 2026-08-22, #456). The
+// flagger was accusing RATIFIED behaviour — the core Card primitive's `hover:bg-accent` printed
+// `[anim] … backgroundColor … OVER BUDGET` on every interactive-card hover, app-wide
+// (docs/reviews/side-eye/2026-08-22-rail-home.md P3-2). A lying instrument's fix owes a pin that REDs
+// forever in BOTH directions, so this test carries its own positive control: the identical `:hover`
+// driving `width` must still fire. Silence alone would pass on a channel that had simply gone dead.
+test("a :hover colour transition is NOT flagged while the same :hover driving width still is (§3.7 carve-out)", async ({ mount, page }) => {
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[anim]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersInteractiveColourStory />);
+
+  // CONTROL FIRST: geometry under the exact trigger the carve-out names. If this does not fire, every
+  // assertion below is vacuous.
+  await component.getByTestId("carve-out-geometry-card").hover();
+  await expect.poll(() => lines.length).toBeGreaterThan(0);
+  expect(lines.join("\n"), "an interactive state never exempts a property that moves geometry").toContain("width");
+  const afterControl = lines.length;
+
+  // Count the exempted transition's OWN start events: the carve-out must be a deliberate silence on a
+  // transition that ran, never the absence of a transition.
+  await page.evaluate(() => {
+    const root = document.documentElement as HTMLElement & { __orbColourTransitionStarts?: number };
+    root.__orbColourTransitionStarts = 0;
+    document.addEventListener(
+      "transitionstart",
+      (event) => {
+        const target = event.target;
+        if (target instanceof Element && target.matches('[data-testid="carve-out-colour-card"]')) {
+          root.__orbColourTransitionStarts = (root.__orbColourTransitionStarts ?? 0) + 1;
+        }
+      },
+      { capture: true },
+    );
+  });
+
+  await component.getByTestId("carve-out-colour-card").hover();
+  await expect.poll(() => colourTransitionStarts(page)).toBeGreaterThan(0);
+  // …and the EXIT leg: the pointer has already left when the hover-out transition starts, so a bare
+  // state read would flag every unhover. The latch is what makes this half silent too.
+  // Well clear of both 120×40 cards — (0,0) is INSIDE the first one (the mount root sits at the
+  // viewport origin), so it leaves the hover-out leg unfired and the exit assertion vacuous.
+  await page.mouse.move(500, 400);
+  await expect.poll(() => colourTransitionStarts(page), "the hover-out colour transition must also run").toBeGreaterThan(1);
+
+  expect(lines.length, "neither the hover-in nor the hover-out colour leg may raise [anim]").toBe(afterControl);
+  expect(lines.join("\n")).not.toContain("carve-out-colour-card");
 });
 
 test("the reduced-motion floor does not raise dirty-animation or dropped-frame flags", async ({ mount, page }) => {
