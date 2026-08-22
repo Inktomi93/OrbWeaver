@@ -112,6 +112,15 @@ function reverify(work: WorkItemContext, evidence: string): void {
   writeFields(work.item, [{ name: "Evidence", value: evidence }], "WorkItemFields");
 }
 
+/** A verification that FAILED: the row's outcome stands, but its implementation is claimable for
+ *  rework. Status returns to Ready (not Triage/Running — the row keeps its Ready metadata) and
+ *  Evidence is replaced with the refutation receipt. Rerunnable: a retry after landing in Ready
+ *  with the same evidence converges without complaint. */
+function refute(work: WorkItemContext, evidence: string): void {
+  requireStatus(work, ["Verify", "Ready"], "work item must be Verify before refute");
+  transitionStatusLast(work.item, "Ready", [{ name: "Evidence", value: evidence }]);
+}
+
 function done(work: WorkItemContext, evidence: string): void {
   requireStatus(work, ["Verify", "Done"], "work item must be Verify before Done");
   requireUnblocked(work.target, "work item cannot be Done while blocked");
@@ -180,6 +189,9 @@ export function runLifecycle(command: LifecycleCommand): number {
       break;
     case "done":
       done(work, command.evidence);
+      break;
+    case "refute":
+      refute(work, command.evidence);
       break;
     case "park":
       transitionStatusLast(work.item, "Parked", [

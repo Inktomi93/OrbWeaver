@@ -159,6 +159,7 @@ create <work|bug|decision|program|evidence> --title <title> --body-file <file>
 ready <issue> | claim <issue> --lane <lane> | review <issue> | needs-owner <issue> | set <issue> <field> <value>
 block <issue> --by <blocker> | unblock <issue> --by <blocker> | park <issue> --wake <condition>
 verify <issue> --evidence <receipt> | reverify <issue> --evidence <replacement-receipt> | done <issue> --evidence <same-receipt>
+refute <issue> --evidence <refutation-receipt> — Verify only; returns the row to Ready with Evidence replaced (outcome stands, rework is claimable)
 
 Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.`);
 }

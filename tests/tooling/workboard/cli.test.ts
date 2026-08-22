@@ -504,6 +504,35 @@ defineTest("reverify repairs stale Verify evidence without weakening the normal 
   expect(review.stderr).toContain("must already be Verify");
 });
 
+defineTest("refute returns a failed verification to Ready and replaces Evidence, but refuses any other source status", () => {
+  const state = createState("Verify");
+  const item = state.items[0];
+  if (item !== undefined) {
+    item[EVIDENCE_FIELD] = "passing receipt";
+  }
+
+  expect(drive(state, "refute", "11", "--evidence", "failed under load").status).toBe(0);
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Ready");
+  expect(fieldValue(state, EVIDENCE_FIELD)).toBe("failed under load");
+
+  const running = createState("Running");
+  const wrongStatus = drive(running, "refute", "11", "--evidence", "irrelevant");
+  expect(wrongStatus.status).toBe(TOOL_ERROR_EXIT);
+  expect(wrongStatus.stderr).toContain("must be Verify before refute");
+
+  const review = createState("Review");
+  const fromReview = drive(review, "refute", "11", "--evidence", "irrelevant");
+  expect(fromReview.status).toBe(TOOL_ERROR_EXIT);
+  expect(fromReview.stderr).toContain("must be Verify before refute");
+});
+
+defineTest("refute requires evidence", () => {
+  expect(() => parseWorkCommand(["refute", "11"])).toThrow("--evidence requires a value");
+  const state = createState("Verify");
+  const missingEvidence = drive(state, "refute", "11");
+  expect(missingEvidence.status).toBe(MISUSE_EXIT);
+});
+
 defineTest("set compares field names case-insensitively before writing", () => {
   const state = createState("Running");
   expect(drive(state, "set", "11", "priority", "High").status).toBe(0);
