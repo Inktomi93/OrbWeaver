@@ -1597,16 +1597,12 @@
           "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 — SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
           "evidence": [
             {
-              "kind": "code",
-              "target": "tests/support/parity-runner.ts:111"
-            },
-            {
-              "kind": "doc",
-              "target": "docs/design/rpg-extraction-one-call-spike.md"
+              "kind": "issue",
+              "target": "#428"
             },
             {
               "kind": "issue",
-              "target": "#428"
+              "target": "#426"
             }
           ]
         }
