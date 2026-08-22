@@ -1,5 +1,5 @@
 // Pins that EVERY ts-morph/fs structural gate actually fires on a violation — the gate self-test the
-// dep-cruiser suite has, now for scripts/check/gates/*. A gate with a broken regex / AST query silently
+// dep-cruiser suite has, now for tooling/src/verify/gates/*. A gate with a broken regex / AST query silently
 // matches nothing and passes green (the exact failure the dep-cruiser test was built to catch); this is
 // its structural-gate twin. The gate registry is DERIVED from `report.ts`'s own output — the LIVE
 // single-pass run (loadGates → runPass → renderPass); every ACTIVE gate it prints must fire on some
@@ -30,7 +30,7 @@ const ROOT = join(import.meta.dirname, "..", "..");
 // (UI-Gates-and-Lessons.md §8/§11.1), so the capture class allows uppercase too.
 //
 // Both patterns are ANCHORED to renderPass's EXACT line shapes (`  ✓ <name>` / `  ✗ <name> (<n>)`,
-// scripts/check/render.ts) — two-space indent, whole line. An unanchored `✓\s+(\w+)` scraped ANY ✓ on
+// tooling/src/verify/lib/render.ts) — two-space indent, whole line. An unanchored `✓\s+(\w+)` scraped ANY ✓ on
 // the child's stdout, and `pnpm exec` interleaves its own: after a deps-state invalidation (a sibling
 // worktree install, a lockfile mtime bump) pnpm 11 runs an implicit install and prints
 // `✓ Lockfile passes supply-chain policies (…)` ONCE, on the next `pnpm` invocation in that tree. If
@@ -51,7 +51,7 @@ const OK_RE = new RegExp(`^ {2}✓ (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, 
 const FIRED_RE = new RegExp(String.raw`^ {2}✗ (?<gate>[a-zA-Z0-9-]+) \(\d+\)(?:${SCAN_SUFFIX})?$`, "gmu");
 const BLIND_RE = new RegExp(`^ {2}⚠ (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
 const TS_EXT_RE = /\.ts$/u;
-const GATE_DIR = join(ROOT, "scripts", "check", "gates");
+const GATE_DIR = join(ROOT, "tooling", "src", "verify", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist". `__g_*` are THIS suite's
 // throwaway probe fixtures, excluded so a fixture LEAKED by a killed prior run (readdir happens at module
 // load, BEFORE beforeAll's cleanFixtures) can't poison the anti-drift list into a one-run flake.
@@ -82,15 +82,15 @@ function cleanFixtures(): void {
 function runStructure(): string {
   try {
     // `--config.verify-deps-before-run=false`: pnpm 11 re-runs an implicit INSTALL whenever the tree's
-    // deps-state is stale (any package.json/lockfile mtime past `lastValidatedTimestamp` — routine when
-    // sibling worktree lanes install concurrently). Inside this suite that install both mutates
-    // node_modules underneath the running vitest process and prepends its banner to the stdout we parse.
-    // The child only needs the already-resolved tsx that vitest itself is running from, so skip it.
-    return execFileSync("pnpm", ["--config.verify-deps-before-run=false", "exec", "tsx", "scripts/check/report.ts"], {
+    // The child is `node <cli> structure` — the tool's ONE argv front door (an ops/ file is not
+    // self-executing). Spawning node DIRECTLY also drops the pnpm hop this used to need to reach tsx, and
+    // with it pnpm's deps-state revalidation, which inside this suite both mutated node_modules underneath
+    // the running vitest process and prepended its banner to the stdout we parse.
+    return execFileSync("node", ["tooling/src/verify/cli.ts", "structure"], {
       cwd: ROOT,
       // THIS suite's child runs must SEE the __g_ fixtures it plants — the real-tree entrypoints strip
       // probe-artifact findings by default (a concurrent battery's transient fixtures must not red an
-      // independent structure run; scripts/check/pass.ts stripProbeFindings). The env opts this run out.
+      // independent structure run; tooling/src/verify/lib/pass.ts stripProbeFindings). The env opts this run out.
       // biome-ignore lint/style/noProcessEnv: passthrough env for the child run — harness plumbing, not app config.
       // biome-ignore lint/correctness/noProcessGlobal: same passthrough — this test file is node-run tooling.
       // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
@@ -426,7 +426,7 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_qfresh/components/__g_qfresh.tsx", "export const g = trpc.__g_ghost.frozenRead.queryOptions({});\n");
   // dangling-refs arm 1: a gates-dir stub whose `gate` object cites a ghost doc. NOT exported — the loader
   // skips it as un-ported (the __g_diaglegi precedent); the arm-1 scanner reads the local `gate` variable.
-  fx("scripts/check/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');
+  fx("tooling/src/verify/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');
   // suppressions: a marker in a file with NO baseline entry (budget 0) — the exceed arm fires.
   fx(`${D}/hub/__g_suppr.ts`, "// biome-ignore lint/suspicious/noExplicitAny: fixture probe\nexport const g = 1;\n");
   // monotonic-tests tooth 1: an unconditional skip with no escape marker at all.
@@ -501,9 +501,9 @@ function writeFixtures(): void {
   // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
   fx(`${D}/character/__g_mcv.ts`, "export interface MemberCardView {\n  readonly name: string;\n}\n");
   // diagnostic-legibility: a gate-corpus `message:` string carrying no doc/code-home pointer (the
-  // meta-gate reads scripts/check/gates from the shared project, so its fixture lives there, not under
+  // meta-gate reads tooling/src/verify/gates from the shared project, so its fixture lives there, not under
   // packages/; no `gate` export, so the loader skips it as un-ported).
-  fx("scripts/check/gates/__g_diaglegi.ts", 'export const stub = { message: "a bare diagnostic with no home" };\n');
+  fx("tooling/src/verify/gates/__g_diaglegi.ts", 'export const stub = { message: "a bare diagnostic with no home" };\n');
   // finding-overload-provenance: a NEW gate-corpus module building a node-anchored `Finding` literal (a
   // derived column) with no marker and no baseline row — the authoring-time red this gate exists for. Like
   // the diagnostic-legibility fixture above it lives in the gate corpus (that is this gate's scanRoot) and
@@ -511,8 +511,8 @@ function writeFixtures(): void {
   // diagnostic-legibility, and it is deliberately absent from finding-overload-provenance.baseline.json —
   // a `__g_` path can never earn a budget, which is exactly what makes it prove the unbaselined case.
   fx(
-    "scripts/check/gates/__g_findprov.ts",
-    'export function gFindProv(node: N, ctx: C): void {\n  ctx.report({ file: rel, line: node.getStartLineNumber(), column: 7, message: "see scripts/check/GATE-AUTHORING.md" });\n}\n',
+    "tooling/src/verify/gates/__g_findprov.ts",
+    'export function gFindProv(node: N, ctx: C): void {\n  ctx.report({ file: rel, line: node.getStartLineNumber(), column: 7, message: "see tooling/src/verify/gates/GATE-AUTHORING.md" });\n}\n',
   );
   // test-presence-client: a client data/ file with a callable export and no tests/client mirror.
   fx("packages/client/src/data/__g_presclient.ts", "export function gPresClient(): number {\n  return 1;\n}\n");
@@ -996,7 +996,7 @@ function writeFixtures(): void {
     "packages/server/src/domain/chat/persistence/__g_freezeprov.ts",
     'import { messageVariants } from "@orb/db";\nexport const gStmt = db.update(messageVariants).set({ content: "replaced" }).where(eq(messageVariants.id, id));\n',
   );
-  fx("scripts/check/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
+  fx("tooling/src/verify/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
   // bounded-list-limit: an inline `limit: z.number()…` with no `.max()` in the router tree (the #45/#46
   // ceiling). The path is inside the gate's scanRoot (transport/trpc/routers); the fixture leaves every real
   // bounded schema untouched, so the added finding is this gate's bite alone.
@@ -1136,7 +1136,7 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
 // sanctioned exemption from the file-vs-registry anti-drift check below.
 const DORMANT_GATES = new Set<string>([]);
 
-test("every ACTIVE gate file in scripts/check/gates is run by report.ts (anti-drift)", () => {
+test("every ACTIVE gate file in tooling/src/verify/gates is run by report.ts (anti-drift)", () => {
   // A gate file whose descriptor is status:"active" but that report.ts's live pass never prints would be
   // silently doing nothing. The loader IS the registry — an invalid/unwired gate file is a load-time RED —
   // so this closes the residual hole: every gate-file basename (kebab) must equal a gate name report.ts

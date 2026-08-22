@@ -2,7 +2,7 @@
 // `// @orb-gate-ignore <gate>[(<position>)]: <reason>` — made permanent.
 //
 // Why this exists and why gate-conformance cannot replace it: conformance runs ONE gate standalone
-// (scripts/check/conformance.ts `runGateStandalone`), so in a mini-project no SIBLING gate can ever consume
+// (tooling/src/verify/ops/conformance.ts `runGateStandalone`), so in a mini-project no SIBLING gate can ever consume
 // a marker — every suppression-consumption verdict (STALE, OVER-EXEMPT) is unobservable there. This suite
 // runs the REAL loaded gate corpus over the REAL workspace with planted `__g_` fixtures, which is the only
 // substrate where "did the marker actually suppress, and how many things did it suppress" is answerable.
@@ -15,15 +15,13 @@
 // `no-raw-intl-time`, whose scanRoot admits it — plus the MENTION FENCE both ways: a quoted marker in
 // prose neither suppresses (the closed bypass) nor gets inventoried (what made the corpus scannable).
 // Fixtures use the reserved `__g_` sentinel so every other tree consumer excludes them and a crashed run
-// leaves nothing that can red an independent pass (scripts/check/pass.ts PROBE_ARTIFACT_RE).
+// leaves nothing that can red an independent pass (tooling/src/verify/lib/pass.ts PROBE_ARTIFACT_RE).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
-import type { Finding } from "../../scripts/check/contract.ts";
-import { loadGates } from "../../scripts/check/loader.ts";
-import type { PassResult } from "../../scripts/check/pass.ts";
-import { projectCtx, runPass } from "../../scripts/check/pass.ts";
+import type { Finding, PassResult } from "../../tooling/src/verify/index.ts";
+import { loadGates, projectCtx, runPass } from "../../tooling/src/verify/index.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
@@ -35,9 +33,9 @@ const VIOLATION = "bg-black";
 /** The §4.3a sibling on the SAME line — a different token of the SAME gate. */
 const SIBLING = "text-[#abc]";
 /** The SCRIPTS-side fixture dir (the 2026-08-08 scanRoot extension): a SUBDIR of the gate corpus, so the
- *  workspace walk loads the fixtures (`scripts/check/gates/**` glob) while the loader's flat `*.ts` glob
+ *  workspace walk loads the fixtures (`tooling/src/verify/gates/**` glob) while the loader's flat `*.ts` glob
  *  and `discoverGateNames`'s flat readdir never see them — no import side effects, no name pollution. */
-const SCRIPTS_DIR = "scripts/check/gates/__g_gi";
+const SCRIPTS_DIR = "tooling/src/verify/gates/__g_gi";
 /** The scripts-side carrier: node-anchored, token-carrying, and its scanRoot ADMITS the gate corpus
  *  (`(p) => !p.startsWith("packages/kit/src/time/")`), so a marker in a gate file is LIVE vocabulary. */
 const SCRIPTS_CARRIER = "no-raw-intl-time";

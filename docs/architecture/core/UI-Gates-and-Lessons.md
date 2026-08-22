@@ -74,7 +74,7 @@ The UI enforcement families:
   the lib→group map lives in that rule + §11.3). "client ⇏ raw satellite libs" is RESOLVER physics (the
   libs aren't in client's `package.json`), a deliberate NON-rule — not a dep-cruiser rule.
   `client ⇏ @orb/server` (wire types come from `@orb/contracts`).
-- **Token gates (ts-morph, `scripts/check/gates/`).** `no-color-literals` (incl. named non-token colors +
+- **Token gates (ts-morph, `tooling/src/verify/gates/`).** `no-color-literals` (incl. named non-token colors +
   the theme-aware `--scrim`), `no-raw-spacing-in-features`, `no-raw-typography-in-features`,
   `no-raw-z-index`, `no-arbitrary-tw-values` — over ALL feature + ui TSX (the `-in-features` suffix is
   historical; scanRoot = client + ui src, only `ui/layout` + `ui/markdown` allowlisted), no
@@ -87,7 +87,7 @@ The UI enforcement families:
   escape-hatch ban, the react-hooks v7 React-Compiler diagnostics (`exhaustive-deps` +
   `unsupported-syntax` at error), the `@tanstack/query` + `@tanstack/router` discipline, and
   better-tailwindcss compiled-class validation on ui.
-- **Structural (ts-morph, `scripts/check/gates/`).** The UI structural family: `ui-primitive-structure`
+- **Structural (ts-morph, `tooling/src/verify/gates/`).** The UI structural family: `ui-primitive-structure`
   (the §13.7 primitive/CT contract), `client-structure`/`feature-structure` (the §2.1 slice shape),
   `state-files` (the §5 Zustand discipline), the two selector-stability gates
   (`zustand-selector-stability.ts` = the fast narrow literal belt; `zustand-selector-derived.ts` = the
@@ -316,11 +316,11 @@ The 2026-06 re-verification write-up is the archaeology record; the standing dec
 
 ## 12. Authoring a gate — the full ritual (a gate is NOT just the gate file)
 
-SUPERSEDED IN DETAIL by `scripts/check/GATE-AUTHORING.md` (THE gate-authoring law: the descriptor contract,
+SUPERSEDED IN DETAIL by `tooling/src/verify/gates/GATE-AUTHORING.md` (THE gate-authoring law: the descriptor contract,
 the complete coupled-sites list, the exemption grammar, `scanRoot` formats, harness mechanics, exemplars).
 Scaffold with `pnpm gate:new <name>`. What follows is the short form; where the two differ, that doc wins.
 
-To ship a `scripts/check/gates/<name>.ts` gate GREEN you must ALSO do all three, or `pnpm check` reds:
+To ship a `tooling/src/verify/gates/<name>.ts` gate GREEN you must ALSO do all three, or `pnpm check` reds:
 
 1. **Inline proof (always):** the descriptor exports `gate: GateDescriptor` with `name` == filename, a real
    `docRow`, `status`, `scopeSafety`, a `visit`/`visitFile`/`run` body, and ≥1 `mustFlag` + ≥1 `mustPass`. The

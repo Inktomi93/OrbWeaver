@@ -49,7 +49,7 @@ never auto-touched).
 
 ## Enforcement
 
-Live gate: `docs:format` in the verify registry (`scripts/verify/registry.ts`) runs `check:docs` at the
+Live gate: `docs:format` in the verify registry (`tooling/src/verify/lib/registry.ts`) runs `check:docs` at the
 `changed` + static tiers, so `pnpm check` (and lefthook, which inherits it) FAILS on an unformatted doc.
 Scope: `docs/architecture/**/*.md` excluding `proposed/`. (History — it shipped advisory before the
 corpus-wide sweep landed: `history/misc-core-archaeology-record.md`.)

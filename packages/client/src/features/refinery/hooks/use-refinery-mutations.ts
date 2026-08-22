@@ -4,7 +4,7 @@
 // FRESHNESS IS THE BUS NOW, and that is a REVERSAL of this file's founding note — the event-bus coverage
 // survey's H1 (docs/design/event-bus-coverage-survey.md §2.2) is closed. Refinery used to emit nothing on any
 // plane, so every write here carried its own `invalidates` and the reads carried cited STATIC rows in
-// `scripts/check/gates/query-freshness-coverage.ts`. That was writer-local freshness: it reconciled the tab
+// `tooling/src/verify/gates/query-freshness-coverage.ts`. That was writer-local freshness: it reconciled the tab
 // that wrote and NOTHING else, so at `staleTime: Infinity` a second tab or device sat on the pre-write
 // roster/session/ledger forever. Every persisting refinery verb now emits the `refineryChanged` user-bus
 // member (contracts `user-bus`), the seam maps it to `trpc.refinery` + `trpc.character.get`

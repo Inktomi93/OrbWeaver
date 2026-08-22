@@ -132,7 +132,7 @@
           "evidence": [
             {
               "kind": "code",
-              "target": "scripts/verify/registry.ts:293"
+              "target": "tooling/src/verify/lib/registry.ts:228"
             }
           ]
         }

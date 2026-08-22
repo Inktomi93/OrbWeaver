@@ -5,7 +5,7 @@
 // timeout — the runCli shape), runNicedSync (sync, collect or stdio passthrough — the imperative-orchestration
 // shape), execNicedSync (sync, THROWS on non-zero, returns stdout — the git-helper shape).
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { closeSync, openSync } from "node:fs";
+import { closeSync, existsSync, openSync } from "node:fs";
 import process from "node:process";
 
 /** Signal a child's whole process GROUP. Both child doors share it: signalling only the direct child
@@ -44,6 +44,10 @@ export interface RunNicedSyncOptions {
   /** "collect" (default) captures utf8 stdout/stderr; "inherit" streams to the operator's terminal
    *  (the stack-boot / rsync shape); "ignore" discards. */
   readonly stdio?: "collect" | "inherit" | "ignore";
+  /** Raise node's ~1MiB capture ceiling. spawnSync does NOT truncate at the ceiling, it TERMINATES the
+   *  child (SIGTERM + ENOBUFS) — so a caller whose payload is genuinely large (ts7 `--listFilesOnly` over
+   *  the whole graph is ~5,400 paths / ~0.5MB) must raise it or its verdict silently becomes a kill. */
+  readonly maxBuffer?: number;
 }
 
 export interface RunNicedSyncResult {
@@ -58,6 +62,7 @@ export function runNicedSync(cmd: string, args: readonly string[], opts: RunNice
   const res = spawnSync("nice", ["-n", "19", cmd, ...args], {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
+    ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     ...(stdio === undefined ? { encoding: "utf8" as const } : { stdio }),
   });
   return { status: res.status, stdout: typeof res.stdout === "string" ? res.stdout : "", stderr: typeof res.stderr === "string" ? res.stderr : "" };
@@ -252,6 +257,62 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
     hasExited: (): boolean => child.exitCode !== null || child.signalCode !== null,
     killGroup: (signal): void => killPidGroup(child.pid, signal),
   };
+}
+
+export interface TranscriptOptions {
+  readonly cwd: string;
+  readonly env: NodeJS.ProcessEnv;
+  /** Called with every stdout/stderr chunk AS IT ARRIVES, tagged by stream, so a caller can mirror the
+   *  child live (the verify runner's `--verbose`) without giving up the captured transcript. */
+  readonly onChunk?: (chunk: string, stream: "stdout" | "stderr") => void;
+}
+
+export interface TranscriptResult {
+  /** null = killed by signal — ALWAYS a tool error, never a verdict. */
+  readonly code: number | null;
+  /** stdout+stderr as ONE transcript in ARRIVAL order — so the TAIL of the transcript is the tail of the
+   *  RUN. Whole-stream CONCATENATION (`stdout + stderr`) put the tail of STDERR last, which for a compound
+   *  stage (vitest && playwright-ct) meant pnpm's banner and node warnings, while the real verdict sat
+   *  mid-file — a CT failure read as a silent death for three diagnoses (#259, 2026-08-18). */
+  readonly transcript: string;
+}
+
+/** Long-running child under `nice -n 19` whose OUTPUT ORDER is load-bearing: stdout and stderr are captured
+ *  INTERLEAVED in arrival order, with no maxBuffer ceiling (spawnSync's ~1MiB does not truncate — it KILLS
+ *  the child) and no timeout (the caller IS the timeout policy). The verify runner's stage door. */
+export function spawnNicedTranscript(cmd: string, args: readonly string[], opts: TranscriptOptions): Promise<TranscriptResult> {
+  return new Promise<TranscriptResult>((resolvePromise) => {
+    const chunks: string[] = [];
+    // EXIT HONESTY vs the nice wrapper: `nice` EXECS the target, so a MISSING target is nice's own exit
+    // 127 — a number a classifier would read as a VERDICT — where a direct spawn raises `error` and yields
+    // status null (always a tool error). A path-shaped command is therefore existence-checked first, so a
+    // vanished bin stays "the checker is broken", never "your code has violations".
+    if (cmd.includes("/") && !existsSync(cmd)) {
+      resolvePromise({ code: null, transcript: `\n[proc] spawn failed: ${cmd} does not exist\n` });
+      return;
+    }
+    const child = spawn("nice", ["-n", "19", cmd, ...args], { cwd: opts.cwd, shell: false, env: opts.env });
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      chunks.push(chunk);
+      opts.onChunk?.(chunk, "stdout");
+    });
+    child.stderr.on("data", (chunk: string) => {
+      chunks.push(chunk);
+      opts.onChunk?.(chunk, "stderr");
+    });
+    // A spawn failure (ENOENT on the bin) never emits `close` with a status — surface it AS a tool error
+    // (status null ⇒ every classifier returns 2) with the reason in the transcript, never a silent 0.
+    child.on("error", (err: Error) => {
+      chunks.push(`\n[proc] spawn failed: ${err.message}\n`);
+      resolvePromise({ code: null, transcript: chunks.join("") });
+    });
+    // `close` (not `exit`) — it fires after BOTH pipes are drained, so no tail chunk is lost.
+    child.on("close", (code: number | null) => {
+      resolvePromise({ code, transcript: chunks.join("") });
+    });
+  });
 }
 
 /** Spawn `cmd args…` under `nice -n 19`, collect utf8 output, resolve on exit (never rejects on a

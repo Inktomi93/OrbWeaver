@@ -31,7 +31,7 @@ export default defineConfig({
   // config decodes (the CT_GATE env retired 2026-07-17 with the lefthook-step era that needed it).
   // `trace: on-first-retry` (below) still captures a failing retried run.
   retries: 0,
-  // The flake announcer (scripts/verify/ct-flaky-reporter.ts): the gate runs with `--retries=2`, so a
+  // The flake announcer (tooling/src/verify/ops/ct-flaky-reporter.ts): the gate runs with `--retries=2`, so a
   // failed-then-passed test scores green and hides. This reporter surfaces every retry-masked pass — a loud
   // end-of-run block + reports/ct-flaky.json. DEFAULT = WARN (suite stays green on transient infra);
   // `CT_NO_FLAKES=1` (this config owns env-decode) flips it STRICT → nonzero exit on any retried test, for
@@ -41,7 +41,7 @@ export default defineConfig({
     // cost two full re-runs (2026-07-24); the custom flake announcer stays the human-facing summary.
     ["json", { outputFile: "reports/ct-report.json" }],
     ["html", { outputFolder: "reports/ct-report", open: "never" }],
-    ["./scripts/verify/ct-flaky-reporter.ts", { strict: process.env.CT_NO_FLAKES === "1" }],
+    ["./tooling/src/verify/ops/ct-flaky-reporter.ts", { strict: process.env.CT_NO_FLAKES === "1" }],
   ],
   use: {
     // trace stays on-first-retry for CTs (NOT retain-on-failure): always-on trace RECORDING (retention is

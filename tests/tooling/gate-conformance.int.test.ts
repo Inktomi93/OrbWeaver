@@ -7,8 +7,7 @@
 // During the migration this covers only the ported gates (currently `no-off-token-radius-shadow`); each
 // future port adds its proofs to its descriptor and this net verifies them with no per-gate test file.
 import { join } from "node:path";
-import { verifyGateProofs } from "../../scripts/check/conformance.ts";
-import { loadGates } from "../../scripts/check/loader.ts";
+import { loadGates, verifyGateProofs } from "../../tooling/src/verify/index.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");

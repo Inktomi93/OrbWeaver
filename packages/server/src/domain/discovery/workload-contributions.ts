@@ -13,7 +13,7 @@
 //
 // WHY IT IS NEEDED AT ALL: these writers are WORKLOADS, so there is no mutation for a client to hang an
 // `invalidates` on — not even the tab that started the run. The 27 `discovery.*` + `search.similarArt`
-// STATIC citations in `scripts/check/gates/query-freshness-coverage.ts` documented exactly this, and their
+// STATIC citations in `tooling/src/verify/gates/query-freshness-coverage.ts` documented exactly this, and their
 // own prose said a seam row "becomes POSSIBLE only once a corpus-recompute event exists (then these entries
 // go stale-RED and get deleted, which is the point)". This is that event.
 

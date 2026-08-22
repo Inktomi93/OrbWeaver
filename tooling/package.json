@@ -21,6 +21,7 @@
     "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
     "@trpc/client": "catalog:",
+    "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "remark": "catalog:",
     "remark-frontmatter": "catalog:",

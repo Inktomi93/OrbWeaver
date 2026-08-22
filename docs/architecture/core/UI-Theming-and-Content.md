@@ -105,11 +105,11 @@ The **provider-send model** — what is transmitted *to the model as input* — 
 
 ### 12.6 Gates (machine-enforceable — the rigor)
 
-- **`no-untrusted-html-in-main-dom`** (`scripts/check/gates/`) — a raw/untrusted HTML string may reach ONLY `@orb/ui/sandbox-frame`; never `dangerouslySetInnerHTML` or main-DOM injection.
-- **`no-external-media-without-gate`** (`scripts/check/gates/`) — any raw `<img>`/`<audio>`/`<video>` in a feature must route through `MessageMedia`.
-- **`theme-override-only-via-scope`** (`scripts/check/gates/`) — a `--color-*` override applies only via `<ThemeScope>` (values clamped at the boundary), never spread as a raw `style` prop.
+- **`no-untrusted-html-in-main-dom`** (`tooling/src/verify/gates/`) — a raw/untrusted HTML string may reach ONLY `@orb/ui/sandbox-frame`; never `dangerouslySetInnerHTML` or main-DOM injection.
+- **`no-external-media-without-gate`** (`tooling/src/verify/gates/`) — any raw `<img>`/`<audio>`/`<video>` in a feature must route through `MessageMedia`.
+- **`theme-override-only-via-scope`** (`tooling/src/verify/gates/`) — a `--color-*` override applies only via `<ThemeScope>` (values clamped at the boundary), never spread as a raw `style` prop.
 - **`persistence-boundary`** — synced prefs go in the `user_settings` blob, not raw browser storage (§12.1 PERSISTENCE).
-- **CSP-headers-present** — the app-document CSP exists + is tight (`security-headers.ts`); enforced as a TEST (`tests/server/entry/http/security-headers.test.ts`, per-directive pins), not a `scripts/check/gates/` gate.
+- **CSP-headers-present** — the app-document CSP exists + is tight (`security-headers.ts`); enforced as a TEST (`tests/server/entry/http/security-headers.test.ts`, per-directive pins), not a `tooling/src/verify/gates/` gate.
 
 The `@orb/ui` halves ship as CT containment tests (the sandbox/CSP attrs are string-asserted, hostile `ThemeScope` values rejected). The lint/route halves that need message-render code activate with the Phase-5/6 chat wiring.
 

@@ -11,14 +11,14 @@
 // of `tests/tooling/<name>.int.test.ts` does not take it; the vitest `unit` lane's `tests/**/*.test.ts`
 // glob still collects it. (The no-manifest-on-a-non-real-tree no-op arm is already covered by every
 // tooth-1 conformance example, which runs tooth 2 against a virtual `/repo` root with no anchor either.)
-import { monotonicTests } from "../../scripts/check/gates/monotonic-tests.ts";
+import { monotonicTests } from "../../tooling/src/verify/gates/monotonic-tests.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { ctxAt, withTree } from "./_support.ts";
 
 const NO_LONGER_EXISTS_RE = /no longer exists/u;
 const MISSING_MANIFEST_RE = /manifest is missing/u;
 const STALE_ENTRY_RE = /stale `deletions` ledger entry/u;
-const REGEN_COMMAND_RE = /gen-test-baseline-manifest\.ts/u;
+const REGEN_COMMAND_RE = /cli\.ts baseline test-baseline-manifest/u;
 // Present on every real checkout; a withTree fixture must plant it to simulate "this is the real repo" for
 // the fail-loud/stale arms (mirrors the gate's own REAL_TREE_ANCHOR).
 const ANCHOR_FILES = { "packages/db/src/schema/index.ts": "export const anchor = 1;\n" };

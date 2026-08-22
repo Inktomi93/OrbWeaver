@@ -49,6 +49,8 @@ test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }
 
 // ── ZERO HYGIENE (#409): an empty node census is absent evidence, never "no findings — clean" ──
 
+// @instrument-absence-proof: an EMPTY node census (a blank mount / swallowed error boundary) must report
+// INSTRUMENT ERROR naming the census, never "no findings — clean".
 test("a page the walk censused NOTHING on is an INSTRUMENT ERROR, never a clean audit", async ({ runCli, scratch }) => {
   // The defect class this stands for: a blank mount / swallowed error boundary renders an empty shell,
   // every check family receives an empty list, and the audit reports "no findings — clean".

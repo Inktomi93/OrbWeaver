@@ -463,7 +463,7 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "scripts/check/gates/density-tier.ts:1"
+              "target": "tooling/src/verify/gates/density-tier.ts:1"
             },
             {
               "kind": "issue",
@@ -1524,9 +1524,9 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "1ff42a08e572401e5499576ef72acc0028bcfb40a09c0d4acaa63b899012736e",
-      "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "9a1faf786f2628cfdaad27c1602e17572a4e916ee7d33a79f7524076ecf29060",
+      "verifiedCommit": "e3ff0f3af4b915ef119026ef71f371f369d9a5a9",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
@@ -1543,7 +1543,7 @@
             },
             {
               "kind": "code",
-              "target": "scripts/check/gates/test-presence-client.ts:268"
+              "target": "tooling/src/verify/gates/test-presence-client.ts:268"
             },
             {
               "kind": "issue",

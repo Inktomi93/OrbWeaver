@@ -44,6 +44,8 @@ test("the idle twin reports zero breach steps over a REAL step population — th
 
 // ── ZERO HYGIENE (#409): absent apparatus / an empty measurement population is never a clean meter ──
 
+// @instrument-absence-proof: an empty measurement window (no steps) and, below, the in-page meter DELETED —
+// both must name the missing apparatus/population as an INSTRUMENT ERROR, never a clean zero-breach meter.
 test("a run with NO steps metered nothing and must not report clean", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "nosteps.html"), page(""));
   const res = await runCli("cpu-profile", ["/nosteps.html", "--base", `file://${scratch}`, "--settle", "300", "--out", "proof-nosteps"], {

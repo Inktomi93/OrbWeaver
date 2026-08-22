@@ -109,7 +109,7 @@ packages/ui/
   There is deliberately **no root barrel** — importing `@orb/ui` flat would defeat tree-shaking and
   blur the seal boundaries. `styles` are exported as `"./styles/globals.css"` (the client's one CSS
   import) — the generated `@theme` rides inside it.
-- **`package-layout` gate:** `ui` is added to `scripts/check/gates/package-layout.ts` (no loose
+- **`package-layout` gate:** `ui` is added to `tooling/src/verify/gates/package-layout.ts` (no loose
   `.ts` at `src/` root except nothing — even `index.ts` doesn't exist here) and `test-layout.ts`
   gains the `tests/ui` mirror.
 
@@ -282,7 +282,7 @@ and the CT tests assert the CONTAINMENT properties, not just rendering:
 | resolver | ui's `package.json` omits contracts/db/server/client + client's omits the satellites | scaffold (done at package birth) |
 | lint (biome) | `noUndeclaredDependencies` / `noUnresolvedImports` on ui | free (repo-wide already) |
 | dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list\|media-grid` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`). Client's "no raw satellites" is a DELIBERATE non-rule (resolver physics + biome `noUndeclaredDependencies` — a dep-cruiser twin would be unfireable-by-construction), not a wired rule. | scaffold |
-| token gates (ts-morph, `scripts/check/gates/`) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing-in-features` / `no-raw-typography-in-features` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
+| token gates (ts-morph, `tooling/src/verify/gates/`) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing-in-features` / `no-raw-typography-in-features` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
 | test | tokens **freshness** test (§4) — the derived-theme invariant; the CT containment tests (§7) | per chunk |
 | runner split | Playwright CT (`.ct.tsx` under `tests/ui/**` mirror) on its OWN runner (`pnpm test:ct`) — **NOT in `pnpm check`** (browser tests never gate check; Spine-Testing §7) | scaffold |
 | deferred | `no-media-queries-in-features` as a gate (viewport-variant `sm:`/`md:`… prefixes + `@media` outside app-shell) — lands with the client-foundation wave where app-shell exists to allowlist; ui ships ZERO `@media` meanwhile (reviewable by grep until then) | Phase 6 |
@@ -321,7 +321,7 @@ of `markdown/policy.ts` — no doc copy needed.
 
 ## 11. Gate coverage — the active-gate registry is the truth
 
-The LIVE gate set (which grit/dep-cruiser/`scripts/check/gates` rules are wired) is standing law in
+The LIVE gate set (which grit/dep-cruiser/`tooling/src/verify/gates` rules are wired) is standing law in
 `../core/Core-Enforcement-Active-Gates.md` — read it there, not here (one home). The load-bearing
 ui-side belts: the cake/seal rules of §8; the `no-raw-value` token family widened to `packages/ui/src`
 
