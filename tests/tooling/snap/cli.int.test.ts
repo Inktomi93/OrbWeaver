@@ -27,6 +27,20 @@ test("the contrast instrument REDs on a planted WCAG failure (and stays green on
   await expect(good).toExitWith(EXIT.clean);
 });
 
+// @instrument-absence-proof: the --contrast SELECTOR matches NOTHING (the measurement population is empty),
+// which must report NOT FOUND and FAIL — never "0 contrast failures, PASS". snap was the ONE instrument the
+// #409 sweep left without this proof: the refusal lives in ops/contrast.ts (`NOT FOUND`, failed: true) and
+// nothing pinned it, so a selector that silently stopped matching after a rename would have read as clean.
+test("a --contrast selector that matches NOTHING is a refusal, never a clean zero", { timeout: BROWSER_TIMEOUT_MS }, async ({ plantedTree, runCli }) => {
+  const root = await plantedTree({ "good.html": GOOD_HTML });
+  const res = await runCli("snap", ["--file", `${root}/good.html`, "--contrast", "section.does-not-exist", "--text", "--no-failure-evidence"], {
+    timeoutMs: BROWSER_TIMEOUT_MS,
+  });
+  expect(res.stdout).toContain("NOT FOUND");
+  expect(res.stdout).not.toContain("PASS");
+  await expect(res).toExitWith(EXIT.violations);
+});
+
 test("CLI misuse refuses before any browser boots (exit 3 posture is the parse contract)", async ({ runCli }) => {
   const res = await runCli("snap", ["--viewport", "banana", "--no-failure-evidence"]);
   expect(res.stdout).toContain("ARG ERROR");
