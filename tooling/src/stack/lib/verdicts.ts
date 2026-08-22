@@ -68,6 +68,11 @@ export function classifyDebugPosture(status: number | null): DebugPosture {
       return "token";
     case HTTP_OK:
       return "open";
+    // `null` = the probe never got an answer. Spelled as its own case (not folded into `default:`) so the
+    // "no live instance" arm is legible; `default:` still covers every OTHER status the server could
+    // return — this switch is over `number | null`, so it is not a closed union.
+    case null:
+      return "unknown";
     default:
       return "unknown";
   }
@@ -81,7 +86,7 @@ export function debugPostureText(posture: DebugPosture, tokenPath: string): stri
       return "⚠ reachable with NO credential — expected 401/404 since AUTHFIX-2; investigate the debug gate";
     case "off":
       return "off (DEBUG_TOKEN unset and no admin session — /api/_debug/* 404s)";
-    default:
+    case "unknown":
       return "unknown (no live instance answering)";
   }
 }

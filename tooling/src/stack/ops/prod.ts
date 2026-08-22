@@ -102,8 +102,12 @@ export async function runStackProd(argv: readonly string[]): Promise<ExitCode> {
     case "logs":
       print(tailLog(Number(invocation.rest[0] ?? DEFAULT_LOG_LINES)).trimEnd());
       return EXIT.clean;
-    default:
-      warn("stack[prod]: unreachable verb");
+    // `_leader` is the DEV-ONLY setsid re-exec target (argv.ts `DEV_ONLY_VERBS`) — prod's supervisor is
+    // its own, so `parseStackArgv` rejects it before this switch and it is unreachable HERE, not
+    // undefined. Spelled as its own case rather than left to `default:` so a NEW verb fails the compile
+    // (§5.5) instead of silently landing on the misuse arm.
+    case "_leader":
+      warn("stack[prod]: `_leader` is a dev-only verb — prod has no setsid leader");
       return EXIT.misuse;
   }
 }
