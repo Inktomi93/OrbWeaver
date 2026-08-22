@@ -144,6 +144,12 @@ export interface TextStyleInput {
   readonly textAlign: string;
   readonly hyphens: string;
   readonly rectWidth: number;
+  /** The MEASURED advance of one `0` in this element's own font — the CSS `ch` unit, from an in-page
+   *  canvas `measureText` (#464). It replaces a guessed `fontSize × 0.5`: Geist's real ratio is 0.573,
+   *  so the guess over-estimated every measure by ~15% and the rule indicted the house's own ratified
+   *  `--reading-measure: 75ch`. `0` means the measurement did not happen — read as NO VERDICT, never as
+   *  a narrow line. Optional because this type also describes samples from an older walker string. */
+  readonly chWidthPx?: number;
   /** p/li/td/th/dd/blockquote/figcaption — the prose tags line-length judges. */
   readonly isProseTag: boolean;
   readonly isHeading: boolean;

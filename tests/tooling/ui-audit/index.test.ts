@@ -115,6 +115,27 @@ test("text at full opacity over a near-black backdrop passes; the SAME color at 
   expect(dimmed?.value, "the value must name the dimming the way snap's --contrast does").toContain("dimmed α0.60");
 });
 
+// #466: below the measurable floor the composite IS the backdrop whatever the authored color is, so the
+// ratio can only come out ~1.00:1 — arithmetic, not evidence. Measured live: a design-audit home run
+// caught mid boot-animation filed TWO P1s reading `1.00:1 · dimmed α0.00` against the weave veil and the
+// brand wordmark, which paint nothing at that instant. `isVisible` drops EXACTLY zero; this is the
+// mid-fade window it cannot see.
+test("text below the measurable-opacity floor gets NO verdict — a ratio that can only come out 1.00:1 is not a measurement", () => {
+  const midFade = checkContrast({ selector: ".veil", color: WHITE, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 0.004 });
+  expect(midFade, "the pre-fix instrument filed this as a P1 contrast finding at 1.00:1").toBeNull();
+  expect(
+    checkContrast({ selector: ".veil", color: BLACK, backdrop: FLAT_WHITE, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 0.02 }),
+    "the same tautology in the other direction — a black glyph at α0.02 on white is also just the backdrop",
+  ).toBeNull();
+});
+
+test("the floor is FAR below the dimming the rule judges — α0.5/α0.6 text still fails on its composite", () => {
+  const dimmed = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 0.6 });
+  expect(dimmed?.rule, "issue #188's case must survive the #466 floor untouched").toBe("contrast");
+  const halved = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 0.05 });
+  expect(halved?.rule, "AT the floor the verdict still stands — the refusal is strictly below it").toBe("contrast");
+});
+
 test("an absent foregroundOpacity reads as 1 — an older walker's samples keep their verdict", () => {
   const withoutField = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400 });
   const explicitOne = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 1 });
@@ -589,12 +610,61 @@ test("code contexts and sr-only text are exempt from the type floors", () => {
   expect(checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 8, srOnly: true })).toEqual([]);
 });
 
+// #464: this rule used to divide by a GUESSED character width (fontSize × 0.5). Geist's real '0'
+// advance is 0.573em, so every measure came out ~15% long and the rule filed an "86 chars" P3 against
+// the home resume snippet, which is 75.0 REAL characters — the house's own ratified
+// `--reading-measure: 75ch`. The denominator is now the MEASURED ch advance, and the arms below are
+// pinned in real characters at the real Geist ratio (15px × 0.573 = 8.6px/ch).
+const GEIST_CH_15PX = 8.6;
+
 test("an over-wide prose block fires line-length; a normal measure passes", () => {
-  // 15px font × 0.5 = 7.5px/char estimate; 900px ≈ 120 chars/line — far past the 85 gate.
-  const wide = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 900 });
+  // 900px / 8.6px ≈ 105 real chars — past the 85 gate.
+  const wide = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 900, chWidthPx: GEIST_CH_15PX });
   expect(wide.map((f) => f.rule)).toContain("line-length");
-  const normal = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 500 });
+  // 500px / 8.6px ≈ 58 real chars.
+  const normal = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 500, chWidthPx: GEIST_CH_15PX });
   expect(normal.map((f) => f.rule)).not.toContain("line-length");
+});
+
+test("a line AT the ratified 75ch reading measure is clean — the instrument may not indict the house measure", () => {
+  const atMeasure = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 75 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX });
+  const reported = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 75 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX }).find(
+    (f) => f.rule === "line-length",
+  );
+
+  expect(
+    atMeasure.map((f) => f.rule),
+    `75ch is the ratified measure; the old 0.5 guess reported it as ~86 chars and filed it. got ${JSON.stringify(reported)}`,
+  ).not.toContain("line-length");
+  // The pre-fix arithmetic, kept as the explicit regression this test exists for: the same box under
+  // the guessed ratio reads 86 chars and fires.
+  expect(Math.round((75 * GEIST_CH_15PX) / (TEXT_STYLE_BASE.fontSizePx * 0.5))).toBe(86);
+});
+
+test("line-length reports REAL characters, and refuses a verdict when the advance was not measured", () => {
+  const measured = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 100 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX }).find(
+    (f) => f.rule === "line-length",
+  );
+  expect(measured?.value).toBe("100 chars/line");
+
+  // A zero advance is "the canvas refused", not "a narrow line" — a bare number from an unmeasured
+  // instrument is exactly the class of lie this fix exists to stop.
+  const unmeasured = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 5000, chWidthPx: 0 });
+  expect(unmeasured.map((f) => f.rule)).not.toContain("line-length");
+});
+
+test("tracking counts toward the measure — a tracked line fits fewer characters than its ch count", () => {
+  const tracked = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 90 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX, letterSpacingPx: 2 });
+  const untracked = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 90 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX });
+
+  expect(
+    untracked.map((f) => f.rule),
+    "90 bare ch is past the gate",
+  ).toContain("line-length");
+  expect(
+    tracked.map((f) => f.rule),
+    "the same box with 2px tracking fits ~73 glyphs — not an over-long line",
+  ).not.toContain("line-length");
 });
 
 test("leading below the ratified floor fires tight-leading; AT the floor (leading.label) it is legal", () => {
