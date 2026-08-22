@@ -212,7 +212,7 @@ function flagDirtyAnimationsOn(el: Element): void {
       tag: "anim",
       key: `${label}|${dirty.join(",")}`,
       offender: label,
-      detail: `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter only)`,
+      detail: `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter, plus paint-only colour on an interactive state)`,
       overBudget: true,
     });
   }
