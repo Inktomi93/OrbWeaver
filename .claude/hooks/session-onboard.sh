@@ -5,7 +5,7 @@
 set -uo pipefail
 cd "${CLAUDE_PROJECT_DIR:-/home/inktomi/inktomi-stack/development/orbweaver}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then act; no need to re-derive any of this) ==="
-echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded) · cold-start snapshot: docs/retro-workboard.md (read its LAST posture block)"
+echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded; the board below IS the mutable state — no snapshot doc exists)"
 echo "--- board (pnpm work:item overview):"
 timeout 45 pnpm work:item overview 2>/dev/null | /usr/bin/grep -v "^\$" || echo "(overview unavailable — run it manually)"
 echo "--- bridge inbox (claude-b → primary):"

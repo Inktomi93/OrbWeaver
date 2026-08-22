@@ -1,10 +1,14 @@
 ---
 kind: runbook
-status: active
-updated: 2026-08-21
+status: archived
+updated: 2026-08-22
 ---
 
-# Orbweaver recovery index
+# Orbweaver recovery index (RETIRED 2026-08-22)
+
+> **RETIRED by owner ruling**: the recovery path is now `.claude/rules/orchestration.md` (auto-loads,
+> carries the standing posture) + `pnpm work:item overview` (the board is the mutable state) + the
+> SessionStart auto-onboard hook. Everything below is frozen archaeology of the pre-retirement eras.
 
 ## Current-state snapshot — 2026-08-21 midday (supersedes any earlier snapshot block)
 

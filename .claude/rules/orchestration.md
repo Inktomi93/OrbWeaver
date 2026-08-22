@@ -10,7 +10,7 @@
          merge, overnight, and push posture).
        · docs/architecture/core/AGENTS.md §L = worktree-lane discipline.
        · GitHub Project 1 = mutable CURRENT STATE (what is ready/running/blocked/verified).
-     docs/retro-workboard.md is a cold-start INDEX only; its dated 2026-08-14 predecessor is history.
+     docs/retro-workboard.md is RETIRED (owner, 2026-08-22) — the board + this file are the recovery path; its history is archaeology.
      If these homes disagree, the constitution/D-ledger wins on law and Project wins on lifecycle. -->
 
 # Orchestration (multi-model delegation)
@@ -144,6 +144,15 @@ a11y → `side-eye`; both if the change spans both.
   session REGISTRY — read it before any claude-b spawn; the standing session there is RESUMED
   (`--resume <id>`), never re-minted (endless fresh spawns lose its accumulated context); a live
   process check is `ps ax | grep -F 'CLAUDE_CONFIG_DIR=/home/inktomi/.claude-b'`.
+- **POST-COMPACT / SESSION-START: the AUTO-ONBOARD hook does the ritual** (owner, 2026-08-22 —
+  `.claude/hooks/session-onboard.sh`, a SessionStart hook for startup/resume/compact/clear): it
+  injects the board overview, the bridge inbox, the claude-b registry pointer and the live worktree
+  list as session context automatically. Your half on seeing it: ACT on that context instead of
+  re-deriving it — re-arm the bridge Monitor, resume (never respawn) any live lanes/worktrees it
+  lists, and never track the board from memory:
+  `pnpm work:item overview` before EVERY refill decision — Triage, Verify, Parked and Needs-owner
+  are queues too (Triage needs triaging, Verify rows need verification lanes, Parked
+  wake-conditions get re-derived when their subject changes).
 - **Local `main` is the worktree base.** The owner pushes manually, so `origin/main` can be far behind.
   Spawn and rebase from the latest local `main`; never "refresh" a lane onto the remote branch.
 - **Never push `origin` without fresh owner authorization for that exact push.** A prior or conditional
