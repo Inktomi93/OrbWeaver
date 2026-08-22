@@ -113,7 +113,7 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
     **Much of ST's UI hides in TEMPLATE HTML** (`public/scripts/templates/`, inline `<template>`), so a
     JS-only sweep misses whole capabilities; its locale/string tables are a cheap high-recall index of
     every user-facing option.
-  - **`scripts/codemods/codemod-kit.ts` BEFORE you hand-edit a repeated shape or write your own
+  - **`tooling/src/codemod/` (`pnpm codemod`; the ts-morph kit, ex-scripts/codemods/codemod-kit.ts) BEFORE you hand-edit a repeated shape or write your own
     codemod.** It is a ts-morph toolkit with a documented index (search `── §`), and it already carries
     the helpers for campaigns this repo has run: `retypeIdAnnotations` (retype every `chatId: string`
     → `chatId: ChatId` AND insert the type-only import, preserving `| null` / `?`, idempotent),
@@ -233,7 +233,7 @@ don't write memory yourself.
   orphan waiting to be deleted.
 - **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides** (grep counts
   comments/strings; battery summaries count runtime skips; three instrument-error retractions 08-03).
-- **Gate-touching work reads `scripts/check/GATE-AUTHORING.md` first** — it is the gate law
+- **Gate-touching work reads `tooling/src/verify/gates/GATE-AUTHORING.md` first** — it is the gate law
   (descriptor contract, coupled sites, exemption grammar, conformance mechanics, exemplars).
 - **Marker-gate laws (paid for by the BRAND gate, 08-03) — a gate whose escape hatch is an in-source
   marker owes all three:** (1) the marker NAMES ITS POSITION (`@foreign-id-ok(<positionName>):
