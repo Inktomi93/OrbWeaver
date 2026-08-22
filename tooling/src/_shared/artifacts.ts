@@ -1,6 +1,7 @@
 // Tool output lands under `<repo>/reports/<kind>/` (root-anchor gitignored) + the RESULT-line
 // convention: report lines to stdout via `print`; the LAST line is a stable `RESULT <tool> key=value …`
 // machine line (`tail -1` / `grep ^RESULT`). Exit codes are the CALLER's (_shared/exit-contract.ts).
+import { mkdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import process from "node:process";
@@ -25,6 +26,33 @@ export function printResult(tool: string, pairs: readonly ResultPair[]): void {
 export async function artifactDir(kind: string): Promise<string> {
   const dir = join(REPO_ROOT, "reports", kind);
   await mkdir(dir, { recursive: true });
+  return dir;
+}
+
+// ── the verify harness's ROOT-LEVEL artifacts ────────────────────────────────────────────────────────
+// A handful of artifacts are files AT `reports/` rather than under a `reports/<kind>/` dir, because the
+// constitution names them by exactly those paths as the read-don't-rerun surfaces (AGENTS.md §4:
+// `reports/verify.json`, `reports/check-structure.json`, `reports/verify/<stage>.log`,
+// `reports/ct-flaky.json`). They ride the SAME home as every other artifact — the `reports` literal has one
+// spelling in this repo and it is here (gate: tooling-shared-plumbing arm C).
+
+/** The ABSOLUTE path of a report artifact under `<root>/reports/…`. `root` is explicit (never REPO_ROOT)
+ *  because the verify harness runs against the caller's cwd, which is the worktree it is judging. */
+export function reportsPath(root: string, ...segments: readonly string[]): string {
+  return join(root, "reports", ...segments);
+}
+
+/** The REPO-RELATIVE spelling of the same path — what an artifact records about itself so a reader can
+ *  open it from anywhere in the repo (`reports/verify/lint-biome.log`). */
+export function reportsRelPath(...segments: readonly string[]): string {
+  return join("reports", ...segments);
+}
+
+/** `reportsPath`, with the directory created. Sync because its callers are inside a synchronous run
+ *  entrypoint whose next statement writes the file. */
+export function ensureReportsDir(root: string, ...segments: readonly string[]): string {
+  const dir = reportsPath(root, ...segments);
+  mkdirSync(dir, { recursive: true });
   return dir;
 }
 

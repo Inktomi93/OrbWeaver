@@ -6,7 +6,7 @@
 // project has no suppressions.baseline.json on disk, so every example runs at budget 0), so the ratchet is
 // un-expressible as a gate example. NAMED `.residual.test.ts` (not `.int.test.ts`) per the no-test-fabrication
 // precedent (test-support-dry-punchlist.md Phase 1/2 burndown), but still collected by the vitest `unit` lane.
-import { reconcileSuppressions } from "../../scripts/check/gates/suppressions.ts";
+import { reconcileSuppressions } from "../../tooling/src/verify/gates/suppressions.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { ctxFor } from "./_support.ts";
 

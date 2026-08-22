@@ -280,7 +280,7 @@ export interface EdgeFlushInput {
 }
 
 // ── Duplicate action doors — the RUNTIME half of issue #252 ─────────────────────────────────────────
-// "New chat lives in three places." The STATIC gate (`duplicate-action-doors`, scripts/check/gates) censuses
+// "New chat lives in three places." The STATIC gate (`duplicate-action-doors`, tooling/src/verify/gates) censuses
 // tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action — one call site
 // behind N rendered slots, which is precisely how the founding complaint escapes it (its three doors all
 // call one shared state action). This lens is the other half: the same (role, accessible name) OFFERED more

@@ -113,7 +113,7 @@ pre-push:
     #     gate. A current run takes roughly 72 minutes, though; it belongs in `full`, not in every push.
     #   • the full `browser:e2e` — the 2026-07-12 anti-rot ruling: the `@smoke` SUBSET gates every push,
     #     the full suite stays manual (`pnpm e2e`). Changing that is an owner call, not a drift.
-    # Anything else claiming a different tier list is folklore — `scripts/verify/registry.ts` is the
+    # Anything else claiming a different tier list is folklore — `tooling/src/verify/lib/registry.ts` is the
     # authority, and `pnpm verify --list` prints every stage with its tier.
     verify:push:
       run: pnpm verify --push

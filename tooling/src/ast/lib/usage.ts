@@ -50,7 +50,7 @@ export const USAGE = [
   "  verdict. `--json` carries the same fields as an additive `meta` object (no existing key changes).",
   "  scanned=0 prints `SCOPE ENTERED NOTHING` and exits 2 — nothing was searched, so nothing could be found.",
   "  THREE CORPORA, and the epilogue names yours: syntactic verbs load packages/*/src + tests +",
-  "  scripts/check/gates; the TYPED verbs (refs/dead/cycles/orphans/testonly/prodonly/unwired/clientgap/",
+  "  tooling/src/verify/gates; the TYPED verbs (refs/dead/cycles/orphans/testonly/prodonly/unwired/clientgap/",
   "  swallowed/respell/typeonly-alive/columns/chains/stringy/apisurface/rot) also load scripts/**,",
   "  packages/*/*.ts, *.mts and playwright/** — WITH the type graph. `literal` loads the SAME wide file set",
   "  WITHOUT the type graph (a syntactic text match needs no language service), at the cheap load.",

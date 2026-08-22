@@ -327,7 +327,7 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
 // ── THE SINGLE-ENTITY DOOR (REGX2 · D121-D `band=Import · kebab=Export`) ─────────────────────────────
 //
 // The owner's REGX2 ruling ENDED the exemption that had kept regex bundle-only ("no evidenced demand for
-// sharing one script standalone" — `scripts/check/gates/lifecycle-portability.ts`). What the ruling did NOT
+// sharing one script standalone" — `tooling/src/verify/gates/lifecycle-portability.ts`). What the ruling did NOT
 // end is the law that table encodes: a single-entity door is a THIN ARM over the family's bundle verbs,
 // never a second serialization path. So the properties pinned here are structural, not cosmetic — the door's
 // bytes are the BUNDLE's bytes, and its import IS the bundle's import.

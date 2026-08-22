@@ -8,7 +8,7 @@
 // budget 0), so the ratchet is un-expressible as a gate example. It is retained here, deliberately NAMED
 // `.residual.test.ts` (NOT `.int.test.ts`) so the Phase-2 deletion sweep of `tests/tooling/<name>.int.test.ts`
 // does not take it; the vitest `unit` lane's `tests/**/*.test.ts` glob still collects it.
-import { createNoTestFabrication } from "../../scripts/check/gates/no-test-fabrication.ts";
+import { createNoTestFabrication } from "../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { ctxFor } from "./_support.ts";
 
