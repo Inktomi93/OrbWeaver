@@ -22,9 +22,12 @@
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import type { BootChunkVerdict } from "../contract/scoped.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:boot-chunk");
 
 const ASSETS_REL = "packages/client/dist/assets";
 /** vite's default `entryFileNames` for the client entry: `index-<8-char base64url hash>.js`. Anchored —

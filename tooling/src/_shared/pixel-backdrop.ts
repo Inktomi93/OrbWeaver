@@ -17,6 +17,8 @@
  * the ring cannot drag the number.
  */
 
+import { relativeLuminance } from "./wcag.ts";
+
 /** Ring thickness as a fraction of the box's short side (capped by SAMPLE_RING_MAX_PX). */
 export const SAMPLE_RING_FRAC = 0.15;
 export const SAMPLE_RING_MAX_PX = 6;
@@ -71,6 +73,101 @@ export function ringBackdropOfRegion(
 /** The whole-buffer arm: the buffer IS the element's shot (snap's per-element `clip` screenshot). */
 export function ringBackdrop(data: Buffer | Uint8Array, width: number, height: number, channels: number): Rgb {
   return ringBackdropOfRegion(data, width, channels, { left: 0, top: 0, width, height });
+}
+
+// ── SCANLINE backdrop (issue #508) ───────────────────────────────────────────────────────────────────
+//
+// THE LIE THIS REPLACES. A review drive that decodes a framebuffer ROW BY ROW cannot use the ring: it has
+// no box, only a horizontal cut through one. The scratch decoders reached for the obvious stand-in —
+// "the backdrop is the scanline's p50, text glyphs are a minority of a text row" — and that premise is
+// FALSE on a dense line: glyph + anti-aliasing pixels exceed half the row, so p50 lands ON A GLYPH.
+// Measured 2026-08-22 on the rail-chats plate (reports/px-rail-chats.mjs, untracked): row y=62 read
+// p50 = 0.2392 against a true plate backdrop of 0.0476–0.0504 — a ~5x overstatement, which UNDERSTATES
+// every contrast ratio computed from it (the review's "compact 4.27:1" re-derives to 7.83:1 inside the
+// plate). An instrument that can only err toward FAILING is not a measurement.
+//
+// WHAT IS TRUE INSTEAD: a plate is FLAT and glyph pixels are SPREAD (every AA ramp between backdrop and
+// ink), so the backdrop is the row's MODAL luminance, not its median — and that holds at any glyph
+// coverage, which is exactly the property a percentile does not have.
+//
+// DECLARED LIMIT, and it is why this refuses rather than guessing: the mode argument rests on the plate
+// being the row's single largest FLAT population. A row with no dominant cluster (a gradient, a photo, a
+// crop that straddles two surfaces) gets `null` — "I could not measure", never a number.
+
+/** Luminance bins across [0,1]. 64 keeps a near-black plate (0.0476 and 0.0504 both land in bin 3) in ONE
+ *  bucket while still separating it from the first AA step. */
+export const SCANLINE_BINS = 64;
+/** The share of the row the modal bin must hold before it can be called the backdrop. */
+export const SCANLINE_MIN_CLUSTER_SHARE = 0.2;
+/** Below this a "distribution" is a handful of pixels — no population to be modal about. */
+export const SCANLINE_MIN_PIXELS = 8;
+
+export interface ScanlineBackdrop {
+  /** The estimate: median of the modal bin's members. */
+  readonly luminance: number;
+  /** Fraction of the row in that bin — the confidence, and what the refusal floor is measured against. */
+  readonly share: number;
+  /** The NAIVE estimator this exists to replace. Carry it in the receipt: a large `p50 - luminance` gap is
+   *  the tell that the row is glyph-dense and that any p50-derived number in an older report is wrong. */
+  readonly p50: number;
+  /** The cheap low-percentile stand-in, for the same comparison. Correct only when ink is BRIGHTER than
+   *  the plate; the modal estimate is polarity-free, which is why it is the one returned as `luminance`. */
+  readonly p10: number;
+}
+
+/** The two comparison quantiles the receipt carries — the naive median, and the low stand-in. */
+const MEDIAN_QUANTILE = 0.5;
+const LOW_QUANTILE = 0.1;
+
+function percentile(sorted: readonly number[], q: number): number {
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0;
+}
+
+/**
+ * The backdrop luminance of ONE scanline, by modal cluster — or `null` when the row has no dominant flat
+ * population and the caller must REFUSE a verdict (see the DECLARED LIMIT above).
+ *
+ * Ties go to the DARKER bin (the first index wins) purely for determinism; a tie means two equal flat
+ * populations, which is already below the honesty floor in every case that matters.
+ */
+export function scanlineBackdrop(luminances: readonly number[]): ScanlineBackdrop | null {
+  if (luminances.length < SCANLINE_MIN_PIXELS) {
+    return null;
+  }
+  const bins: number[][] = Array.from({ length: SCANLINE_BINS }, () => []);
+  for (const value of luminances) {
+    const index = Math.min(SCANLINE_BINS - 1, Math.max(0, Math.floor(value * SCANLINE_BINS)));
+    (bins[index] ?? []).push(value);
+  }
+  let modal: readonly number[] = [];
+  for (const bin of bins) {
+    if (bin.length > modal.length) {
+      modal = bin;
+    }
+  }
+  const share = modal.length / luminances.length;
+  if (share < SCANLINE_MIN_CLUSTER_SHARE) {
+    return null;
+  }
+  const sorted = [...luminances].sort((a, b) => a - b);
+  return {
+    luminance: medianChannel([...modal]),
+    share,
+    p50: percentile(sorted, MEDIAN_QUANTILE),
+    p10: percentile(sorted, LOW_QUANTILE),
+  };
+}
+
+/** The luminances of one horizontal cut through a raw RGB(A) buffer — the input `scanlineBackdrop` reads.
+ *  `y`/`left`/`width` are buffer pixel coordinates and MUST already sit inside the image (the caller
+ *  clamps — `clampBoxToImage`). Luminance is the ONE WCAG kernel, never a re-spelled sRGB curve. */
+export function scanlineLuminances(data: Buffer | Uint8Array, imageWidth: number, channels: number, cut: { y: number; left: number; width: number }): number[] {
+  const out: number[] = [];
+  for (let x = 0; x < cut.width; x += 1) {
+    const i = (cut.y * imageWidth + (cut.left + x)) * channels;
+    out.push(relativeLuminance({ r: data[i] ?? 0, g: data[i + 1] ?? 0, b: data[i + 2] ?? 0 }));
+  }
+  return out;
 }
 
 /** Clamp a viewport-coordinate CSS box into an image of `imageWidth`x`imageHeight` pixels, integer-aligned.

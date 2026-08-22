@@ -20,8 +20,11 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:tests-execution-membership");
 
 // Most-specific suffix first (so `.int.test.ts` isn't mis-stripped as `.test.ts`) — mirrors test-layout.ts's
 // KIND list (the ONE canonical suffix taxonomy; `.suite.*` files are covered by their base suffix's runner,
