@@ -119,7 +119,12 @@ buzzwords, aphorisms) apply to UI CHROME COPY only — never to model/user prose
 9. **Error recovery** — plain-language errors, specific problem + actionable fix, near the source.
 10. **Help & documentation** — findable, contextual, task-focused, concise.
 
-Bands: 36–40 excellent · 28–35 good · 20–27 acceptable · 12–19 poor · 0–11 critical.
+Bands (CALIBRATION VOCABULARY ONLY): 36–40 excellent · 28–35 good · 20–27 mid · 12–19 poor ·
+0–11 critical. **The band NEVER gates action (owner ruling 2026-08-22): a score is calibration, not
+acceptance — every issue the walkthrough IDENTIFIES gets fixed or filed with a receipt regardless of
+the band, and a "mid" surface with unfixed identified issues is not done.** The inverse also holds:
+do not score-chase — no re-review loops hunting points, no inventing findings to justify a number.
+The FINDING LIST is the deliverable; the score is a one-line summary of it.
 
 ## §8 Cognitive-load checklist (Miller/Cowan: working memory ≤ 4)
 

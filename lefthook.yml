@@ -100,13 +100,13 @@ post-checkout:
 pre-push:
   commands:
     # The ONE push-tier command (V3 repoint): static + deps:orphan-ratchet + tests:node (`pnpm test` =
-    # the 4 vitest RUNTIME projects + the CT suite, merged 2026-07-17) + e2e-smoke + `quality:cpd` +
-    # `tests:parity`, with the unified summary + max-severity exit. Replaces the 4-command piped pipe —
+    # the 4 vitest RUNTIME projects + the CT suite, merged 2026-07-17) + e2e-smoke + `quality:cpd`,
+    # with the unified summary + max-severity exit. Replaces the 4-command piped pipe —
     # verify runs ALL stages and reports ALL failures, then exits max-severity.
     #
-    # cpd + parity PROMOTED here 2026-08-03 (measured 0.86s and 1.65s): they sat in `full` for historical
-    # reasons, not cost, and a tier nobody invokes gates nothing. Parity in particular is a LOCKED
-    # PRINCIPLE (Core-Laws §0.7 — "parity is proven, not assumed").
+    # cpd PROMOTED here 2026-08-03 (measured 0.86s): it sat in `full` for historical reasons, not cost,
+    # and a tier nobody invokes gates nothing. `tests:parity` rode here on the same promotion and was
+    # REMOVED 2026-08-22 with the neo parity suite (#428 — the neo floor was exceeded; git preserves it).
     #
     # STILL NOT at push, both deliberately:
     #   • `quality:mutation-gate` — calibrated to `break: 50` on 2026-08-14, so it is a real regression

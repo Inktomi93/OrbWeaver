@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 /**
  * pnpm sdk:injection-cache-probe [--scenario d2-user-volatile,g-d2,…] [--mode sub|or] [--model <id>]
  *                                [--verbose] [--dry-run]

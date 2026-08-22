@@ -302,7 +302,7 @@ test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSE
   }
 });
 
-test("types:testd + types:tests-* + browser:e2e* + tests:parity are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
+test("types:testd + types:tests-* + browser:e2e* are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
   for (const name of [
     "types:testd",
     // The type-membership floor stages: tests-dom is one tiny program, tests-membership is a whole-tree
@@ -320,7 +320,6 @@ test("types:testd + types:tests-* + browser:e2e* + tests:parity are whole-only (
     // e2e suites stay whole-only (cross-cutting by nature).
     "browser:e2e-smoke",
     "browser:e2e",
-    "tests:parity",
   ]) {
     expect(stage(name).scopedArgv).toBeUndefined();
   }

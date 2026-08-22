@@ -9,6 +9,7 @@ export const WALKER_RETURNS = `  return {
     tapTargets: tapTargets,
     accessibleNames: accessibleNames,
     actionDoors: actionDoors,
+    controlAspects: controlAspects,
     mainLandmarkPresent: mainLandmarkPresent,
     tabIndexes: tabIndexes,
     zIndexes: zIndexes,
