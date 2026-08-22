@@ -4,6 +4,8 @@
 // is never honored). Returns the total + the individual faces, or `null` on unparseable notation (the handler
 // maps that to an errors-as-data denial). Bounds keep a hostile notation from minting a huge roll loop.
 
+import type { DiceRoll } from "../contract/results.ts";
+
 /** Max dice per roll + max faces per die — a pathological `9999d9999` is rejected (bounded parse, not a loop). */
 const MAX_DICE = 100;
 const MAX_FACES = 1000;
@@ -31,12 +33,6 @@ function parseNotation(notation: string): ParsedNotation | null {
     return null;
   }
   return { count, faces, modifier };
-}
-
-/** The result of a roll — the per-die faces (before the modifier) + the summed total (with it). */
-export interface DiceRoll {
-  readonly faces: readonly number[];
-  readonly total: number;
 }
 
 /** Roll `notation` via `randomInt` (a uniform int in `[0, max)`). Returns `null` on unparseable notation. */
