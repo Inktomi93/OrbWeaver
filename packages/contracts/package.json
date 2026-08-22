@@ -6,6 +6,7 @@
   "engines": {
     "node": ">=26"
   },
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*/index.ts"

@@ -32,20 +32,32 @@ import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { AppToaster, BootVeil } from "#features/app-shell";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
-import { activeChatId, activeDurableLocalUserId, stampAppearanceBootHint } from "#state";
-import { buildAgentNav } from "./agent-nav/index.ts";
-import { buildAgentRpg } from "./agent-rpg/index.ts";
-import { buildAgentSeed } from "./agent-seed/index.ts";
+import { stampAppearanceBootHint } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
-import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge.ts";
+import { installAppReadySignal } from "./lib/agent-bridge.ts";
 import { routeResolution, router } from "./routes/router.tsx";
 import "./styles/globals.css";
 
-// Both arms behind the literal import.meta.env.DEV, which the bundler constant-folds so neither
-// module lands in the prod output. Dynamic import keeps the tracer out of the entry chunk in dev too.
+// EVERY dev-only instrument install, behind the literal import.meta.env.DEV the bundler constant-folds —
+// so none of these modules (nor anything only they reach) lands in the production output at all. Both are
+// dynamic imports rather than static ones for the same reason: a static import would put the graph back in
+// the entry chunk in dev, and — for the agent handles — in prod too.
+//
+// THE AGENT HANDLES ARE HERE, NOT AT THE END OF THIS FILE (#433). `installAgentDebugHandle` always no-op'd
+// outside dev, but its three implementations were BUILT at that call site — so `agent-nav`/`agent-seed`/
+// `agent-rpg` were live STATIC imports of the boot chunk, dragging @orb/contracts `preset`/`rpg`/`refinery`
+// and, through `contracts/preset` → `@orb/kit/macro` → `@orb/kit/cel`, the cel-js evaluator and luxon into
+// the module script every visitor evaluates before the login form can paint. The assembly moved to the
+// `agent-handles/` composition-tier sibling so this arm can be dynamic. It fires HERE, at the top, so
+// `globalThis.__orb` and the motion observers land as early as the fetch allows — the singletons it needs
+// are module-scope consts that already exist, and nothing about the handle wants to wait for the first
+// render (only `installAppReadySignal` below does, and for its own reason).
 if (import.meta.env.DEV) {
   void import("./lib/long-task-tracer.ts").then(({ installLongTaskTracer }) => {
     installLongTaskTracer();
+  });
+  void import("./agent-handles/index.ts").then(({ installAgentHandles }) => {
+    installAgentHandles(queryClient, trpcClient, trpcProxy);
   });
 }
 // A redeploy rotates hashed chunk names; an old tab that lazy-imports a chunk with a stale hash
@@ -136,9 +148,3 @@ createRoot(rootEl).render(
 // route that owns the initial reads has actually mounted — on a cold stage `/`'s lazy chunk outlives the
 // readiness grace, and without this the flag went up on the boot glyph.
 installAppReadySignal(queryClient, routeResolution);
-installAgentDebugHandle(queryClient, {
-  nav: buildAgentNav(trpcProxy, queryClient),
-  seed: buildAgentSeed(trpcClient),
-  rpg: buildAgentRpg(trpcClient, activeChatId),
-  durableLocalUserId: activeDurableLocalUserId,
-});
