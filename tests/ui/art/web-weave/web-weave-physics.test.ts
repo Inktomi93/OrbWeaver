@@ -123,6 +123,20 @@ describe("shiver + wind — the web-wide amplitude", () => {
     expect(decayShiver(1, 0)).toBe(1);
   });
 
+  test("…and REACHES ZERO — an asymptote here is a perf bug, not a rounding curiosity (#467)", () => {
+    // A nonzero shiver un-statics the frame, so a web that never returns to exactly 0 is a web held
+    // off its offscreen cache — re-stroking every strand every frame — long after the touch that rang
+    // it is imperceptible. Five seconds of 60Hz frames after a full-strength pluck is generous: the
+    // sway boost is three orders below a pixel well before then.
+    let shiver = raiseShiver(raiseShiver(0));
+    for (let frame = 0; frame < 300; frame++) {
+      shiver = decayShiver(shiver, 1000 / 60);
+    }
+    expect(shiver).toBe(0);
+    // …and the floor is a FLOOR, not a truncation of the live decay: a fresh ring still rings.
+    expect(decayShiver(raiseShiver(0), 1000 / 60)).toBeGreaterThan(0.4);
+  });
+
   test("INERT at zero: no wind and no shiver leaves the ambient sway exactly as it shipped", () => {
     for (const now of [0, 1234.5, 98_765]) {
       for (const x of [0, 640, 1280]) {

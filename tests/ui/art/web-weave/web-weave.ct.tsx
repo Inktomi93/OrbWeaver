@@ -247,6 +247,58 @@ test("settled ANIMATED runs off the offscreen cache — the loop advances AND th
   expect(flip, "a whole-palette re-bake must dwarf the web's own ambient beat").toBeGreaterThan(ceiling * CHANGE_FACTOR);
 });
 
+/** The ambient-budget window: long enough that a 2:1 cadence is unambiguous, short enough to stay
+ *  inside a rung strand's 1500ms life for the un-throttle arm. */
+const CADENCE_FRAMES = 60;
+/** A quiet web must paint well under the browser's refresh… */
+const QUIET_CEILING = CADENCE_FRAMES * 0.7;
+/** …but must still be ANIMATING (the budget is a cadence, not a freeze — reduced motion is the freeze). */
+const QUIET_FLOOR = CADENCE_FRAMES * 0.2;
+/** …and a rung web must be back at (near) 1:1. */
+const RUNG_FLOOR = CADENCE_FRAMES * 0.85;
+
+/** Weave frames painted across `frames` real browser frames. */
+async function paintedOver(page: Page, canvas: Locator, frames: number): Promise<number> {
+  const before = Number(await canvas.getAttribute("data-orb-weave-frames"));
+  await waitFrames(page, frames);
+  return Number(await canvas.getAttribute("data-orb-weave-frames")) - before;
+}
+
+test("the QUIET settled web paints on an AMBIENT BUDGET — and a rung strand puts it straight back to full refresh", async ({ mount, page }) => {
+  // #467 (owner-reported): the pre-auth login web idled at the display's refresh rate forever, re-running
+  // the whole live-layer pass for sub-pixel deltas. Nothing on a resting web moves faster than ~2Hz, so
+  // the quiet phase is budgeted — and this pins BOTH halves, because a budget that never lifts would be
+  // a "reduced mode" (banned) rather than a phase.
+  await mount(<WeaveTouchBox state="settled" />);
+  const canvas = page.locator('[data-slot="web-weave-canvas"]');
+  await expect.poll(async () => paintedPixels(canvas)).toBeGreaterThan(2000);
+  // Let her finish placing herself and settle to rest before reading the quiet cadence.
+  await waitFrames(page, 30);
+
+  const quiet = await paintedOver(page, canvas, CADENCE_FRAMES);
+  expect(quiet, "an idle web must not paint every browser frame").toBeLessThan(QUIET_CEILING);
+  expect(quiet, "…but it must still be breathing, not frozen").toBeGreaterThan(QUIET_FLOOR);
+
+  // Ring the silk where the capture spiral is dense — a live pluck is a per-point deformation the
+  // budget must yield to instantly.
+  const box = await canvas.boundingBox();
+  const cx = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+  const cy = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+  await page.mouse.move(cx - 140, cy - 60);
+  await page.mouse.move(cx - 40, cy - 20, { steps: 8 });
+  await page.mouse.down();
+  await page.mouse.up();
+  const rung = await paintedOver(page, canvas, CADENCE_FRAMES);
+  expect(rung, "a rung / hunted web must paint at the browser's own refresh").toBeGreaterThan(RUNG_FLOOR);
+
+  // …and it COMES BACK. The ring dies at 1500ms and the shiver it raised decays exponentially — an
+  // exponential that never reached zero would hold the web at full refresh (and off its offscreen
+  // cache) for minutes after an idle mouse pass, which is most of what #467 actually was.
+  await expect
+    .poll(async () => paintedOver(page, canvas, CADENCE_FRAMES), { timeout: 20_000, message: "the budget must return once the silk stops ringing" })
+    .toBeLessThan(QUIET_CEILING);
+});
+
 test("decoration by default: pointer-transparent AND hidden from assistive tech", async ({ mount, page }) => {
   await mount(<WeaveBox state="settled" />);
   const root = page.locator('[data-slot="web-weave"]');
