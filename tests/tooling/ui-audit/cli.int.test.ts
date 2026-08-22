@@ -24,7 +24,7 @@ test("a planted contrast defect REDs the audit through the real cli", async ({ r
   await writeFile(file, page("background:#000;color:#000"));
   const res = await runCli("ui-audit", ["/bad.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("contrast");
-  expect(res).toExitWith(1);
+  await expect(res).toExitWith(1);
 });
 
 test("the passing twin exits clean — the red above is the plant, not the harness", async ({ runCli, scratch }) => {
@@ -36,7 +36,7 @@ test("the passing twin exits clean — the red above is the plant, not the harne
   // verdict correctly ignores at the default --fail-on P1.
   expect(res.stdout).not.toContain("contrast");
   expect(res.stdout).toContain("p1=0");
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
   // ZERO HYGIENE (#409): "no P1s" is only a verdict when the walk actually censused nodes.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
@@ -59,7 +59,7 @@ test("a planted near-square role=switch REDs the audit through the real cli", as
   const res = await runCli("ui-audit", ["/crescent.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("control-aspect");
   expect(res.stdout, "the finding must name the measured aspect, not just the rule").toContain("1.09");
-  expect(res).toExitWith(1);
+  await expect(res).toExitWith(1);
 });
 
 test("the shipped 64x44 twin carries no control-aspect finding — the red above is the plant", async ({ runCli, scratch }) => {
@@ -74,7 +74,7 @@ test("the shipped 64x44 twin carries no control-aspect finding — the red above
 
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
 });
 
 // ── ZERO HYGIENE (#409): an empty node census is absent evidence, never "no findings — clean" ──
@@ -89,5 +89,5 @@ test("a page the walk censused NOTHING on is an INSTRUMENT ERROR, never a clean 
   const res = await runCli("ui-audit", ["/empty.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("census");
-  expect(res).toExitWith(2);
+  await expect(res).toExitWith(2);
 });

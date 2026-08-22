@@ -9,6 +9,7 @@ import {
   BlockPaddedStickyList,
   CachedMeasurementsList,
   DerivedItemsMessageList,
+  FirstMountRenderLogList,
   HandleExposingList,
   KeepMountedStateList,
   PinPromptList,
@@ -69,6 +70,29 @@ test("bottom-anchored: mounts scrolled to the last item, not the first", async (
   const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
   await expect(component.getByText("Message 0", { exact: true })).toHaveCount(0);
+});
+
+// ── #469 FIRST-MOUNT WORK: the bottom-anchored list must never BUILD rows from the head ─────────────
+// `anchorTo: "end"` governs post-mount anchoring only (virtual-core 3.17.3 reads it on a count change
+// and on a resize adjustment) — the initial offset is 0, so the very first render computes its window
+// from the TOP of the list and React COMMITS those head rows before the mount layout effect's
+// `scrollToEnd` ever runs. Every settled assertion above is blind to it: the head rows are gone by the
+// time the list is readable. In a chat room each of those rows is a multi-kilobyte Markdown tree, so the
+// waste is paid in tokenizing on the one frame a Resume click is being judged by.
+// (The issue number stays in this comment, not in the test title: a `#469` inside a string literal reads
+// as a 3-digit hex COLOUR to the ui-primitive-structure gate's no-hardcoded-colour clause.)
+test("first mount BUILDS no head rows — the window is at the tail from the first commit", async ({ mount }) => {
+  const component = await mount(<FirstMountRenderLogList itemCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
+  await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
+
+  await component.getByTestId("dump").click();
+  const log = ((await component.getByTestId("render-log").textContent()) ?? "").split(",").filter((s) => s.length > 0);
+  const indexes = log.map(Number);
+
+  // The probe must have SEEN something (a silent empty log would pass the real assertion vacuously).
+  expect(indexes.length).toBeGreaterThan(0);
+  // Nothing from the head was ever built. The tail window of a 500-row list starts far past index 20.
+  expect(Math.min(...indexes)).toBeGreaterThan(MAX_WINDOWED_ROWS);
 });
 
 test("stick-to-bottom: appending while pinned at the end follows the new item into view", async ({ mount }) => {

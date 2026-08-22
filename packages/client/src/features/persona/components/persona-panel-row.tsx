@@ -84,8 +84,18 @@ export function PersonaPanelRow({
     }
   };
 
-  // ONE ANNOUNCED IDENTITY PER ROW (#443/#458): the subject the surface resolved, spelled once here so the
-  // stretched select target and the kebab can never name the same row two different ways.
+  // ONE ANNOUNCED IDENTITY PER ROW (#443/#458/#463): the subject the surface resolved, spelled ONCE here and
+  // handed to every control on the row — the stretched select target, the avatar, the name column's rename
+  // button, both reveal verbs, the chevron and the kebab — so a row can never name itself two different ways.
+  //
+  // EVERY CONTROL CARRIES IT, not just the ones whose name already held a persona (#463). #458 disambiguated
+  // the two name-embedding controls and left the other five GENERIC — "Change avatar", "Rename persona",
+  // "Favorite"/"Unfavorite", "Set as default", "Show details" were byte-identical on every row in the list, so
+  // the collision did not even need two personas to share a name: a reader tabbing the list heard the same
+  // five controls N times with nothing to bind them to a row. So the subject is NOT collision-gated here the
+  // way the #458 qualifier is — it is unconditional, and the qualifier (when the surface spent one) composes
+  // into it exactly once. The grammar is the house one (`Duplicate X` / `Actions for X`, library-row.tsx):
+  // verb first, subject inside.
   const subject = rowActionSubject(persona.name, qualifier);
   const selectLabel = selectTargetLabel(subject, isCurrent);
 
@@ -135,7 +145,7 @@ export function PersonaPanelRow({
           }}
         >
           {({ open }): ReactElement => (
-            <Button aria-label="Change avatar" className="relative shrink-0" intent="ghost" onClick={open} size="icon">
+            <Button aria-label={`Change avatar for ${subject}`} className="relative shrink-0" intent="ghost" onClick={open} size="icon">
               <Avatar fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
                 {initialsFor(persona.name)}
               </Avatar>
@@ -151,7 +161,12 @@ export function PersonaPanelRow({
             name ran under the orange "PLAYING AS"). A floor on one side of a two-item row is a squeeze on
             the other. What actually bounds this row is the MARKERS reserving their content (below) while the
             name shrinks and truncates — one shrinker, one reserver. */}
-        <PersonaRowNameColumn isDefault={isDefault} onRename={(name): void => update.mutate({ personaId: persona.id, input: { name } })} persona={persona} />
+        <PersonaRowNameColumn
+          isDefault={isDefault}
+          onRename={(name): void => update.mutate({ personaId: persona.id, input: { name } })}
+          persona={persona}
+          subject={subject}
+        />
 
         {/* MARKERS ⇄ ACTIONS is a PAINT swap, never a display swap: both clusters are permanently in flow, so
             the row's geometry is byte-identical at rest and on hover. A `hidden`/`flex` swap here reflowed the
@@ -215,7 +230,7 @@ export function PersonaPanelRow({
               <IconAction
                 {...(persona.starred ? { className: "text-destructive" } : {})}
                 icon={Heart}
-                label={persona.starred ? "Unfavorite" : "Favorite"}
+                label={persona.starred ? `Unfavorite ${subject}` : `Favorite ${subject}`}
                 onClick={onToggleFavorite}
               />
               {/* ONE FACT, ONE PLACE (side-eye 2026-08-03 P2). "Your default" used to be said three times on
@@ -223,7 +238,7 @@ export function PersonaPanelRow({
                   subtitle. The reveal cluster is for VERBS; a disabled button whose name is a STATE is neither
                   a verb nor a state a reader can act on, and it was the third telling. The crown marker (in the
                   a11y tree, tooltipped) keeps the state; the verb only exists while it is available. */}
-              {isDefault ? null : <IconAction icon={Star} label="Set as default" onClick={onSetDefault} />}
+              {isDefault ? null : <IconAction icon={Star} label={`Set ${subject} as default`} onClick={onSetDefault} />}
             </Row>
             <PersonaRowMenu
               isDefault={isDefault}
@@ -241,7 +256,7 @@ export function PersonaPanelRow({
         <IconAction
           className="relative shrink-0"
           icon={expanded ? ChevronDown : ChevronRight}
-          label={expanded ? "Hide details" : "Show details"}
+          label={expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}
           onClick={onToggleExpand}
         />
       </Row>
@@ -269,6 +284,11 @@ export function PersonaPanelRow({
 /**
  * The row's kebab — §12.2 caps the trailing cluster at three (state · state · kebab), and Export + Delete
  * ride here because this is the ruled lifecycle home for a low-frequency row verb.
+ *
+ * ITS ITEMS STAY BARE VERBS (#463): a menu item is announced inside a menu whose own name already carries the
+ * row's subject (the trigger's "Actions for …"), so the row is named for the reader who opened it — repeating
+ * the subject on every item would be the double-telling this row's rulings ban. The row's LOOSE controls have
+ * no such container, which is why they carry the subject themselves.
  *
  * AT A COARSE POINTER IT IS THE CLUSTER'S ONLY CONTROL, so it also carries the two collapsed verbs
  * (`ROW_ACTION_OVERFLOW` = `pointer-fine:hidden`). Exactly ONE of each pair is in layout — and, since

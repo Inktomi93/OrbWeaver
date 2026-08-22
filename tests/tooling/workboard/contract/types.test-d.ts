@@ -31,7 +31,7 @@ test("WorkCommand is closed over exactly the verbs the dispatcher handles", () =
     | "unblock"
   >();
   // Every lifecycle arm is also a WorkCommand arm — runLifecycle's switch is total over the same set.
-  expectTypeOf<LifecycleCommand>().toMatchTypeOf<WorkCommand>();
+  expectTypeOf<LifecycleCommand>().toExtend<WorkCommand>();
 });
 
 test("each lifecycle verb carries its OWN payload, never a bag of optionals", () => {

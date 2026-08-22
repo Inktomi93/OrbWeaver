@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-17
+updated: 2026-08-22
 ---
 
 <!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
@@ -110,12 +110,13 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
 | `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
-| `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) | pre-push bar; `verify --push` |
-| `full` | push + `quality:cpd` + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
+| `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
+| `full` | push + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
 types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:db-baseline,
-structure:drizzle-kit, structure:full, imports:depcruise, deps:knip, docs:format` (pinned in the int test) — so `pnpm check` stays
+structure:drizzle-kit, structure:agent-config, structure:full, imports:depcruise, deps:knip, docs:format,
+docs:catalog` (pinned in the int test) — so `pnpm check` stays
 byte-compatible with the retired orchestrator, modulo the two membership-floor additions and the
 db-baseline promotion.
 `.github/workflows/ci.yml` runs the full tier (§3.2, V4 — the "nothing omitted" bar).
@@ -245,6 +246,22 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   (owner ruling): the guardrail is built BEFORE the need, so the first post-launch incremental migration
   lands into an armed one rather than minting it under pressure. Whole-only (one migrations dir). The
   post-baseline procedure it guards is `Tier-1-DB.md` §"When we migrate for real".
+- **`quality:boot-chunk`** (`push`/`full`, #460 — `tooling/src/verify/ops/boot-chunk-ratchet.ts`) — builds
+  `@orb/client` for production and REDs when the emitted entry chunk
+  (`packages/client/dist/assets/index-<hash>.js`) exceeds a committed byte ceiling. It defends a win nothing
+  else on the ladder can see: #433 (−20.4%) and #448 (−19.0%) took the boot chunk 1,146,760 → 740,339 B, and
+  the regression mechanism is ONE new barrel import inside `main.tsx`'s static graph — every other stage
+  stays green while it re-pays the whole cost. A byte ceiling catches every mechanism (a barrel, a fat dep,
+  a lost `import type`, a route that stopped being lazy) instead of enumerating the ones already seen. PUSH,
+  not static: the build is 15.45s warm (measured 2026-08-22) — cheap by build standards, but a bundler
+  invocation is not the structural-fast commit bar. The ceiling (777,000 B = the measured 740,339 + 4.95%)
+  carries the `stryker.gate.config.json` `_thresholds_comment` calibration discipline in its own header:
+  measured value, headroom arithmetic, re-calibrate conditions. UNMEASURABLE IS EXIT 2, never a pass — zero
+  matching chunks or more than one (a vite output-naming or chunking change, or a failed build) is "I could
+  not measure", so a blind `0 bytes` can never read as under budget (#409 zero-hygiene). Whole-only: the
+  boot chunk is a property of the entire static graph reachable from the entry, so no changed-file subset is
+  an honest partial. Pinned by `tests/tooling/verify/ops/boot-chunk-ratchet.test.ts` (all four measurement
+  arms over planted asset trees) + the registry pin in `run.int.test.ts`.
 - **`deps:orphan-ratchet`** (`push`/`full` — `tooling/src/verify/ops/orphan-export-ratchet.ts`) — the export-rot
   lens as a standing verdict: every export of `kit`/`contracts`/`db`/`server`/`client` that NOTHING reaches
   (prod or test) and that is unused in its own file, judged against a checked-in baseline

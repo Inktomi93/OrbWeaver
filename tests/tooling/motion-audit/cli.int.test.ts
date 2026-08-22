@@ -61,14 +61,14 @@ test("a planted breaching motion snapshot REDs the audit through the real cli", 
   await writeFile(join(scratch, "jank.html"), page(BREACHING));
   const res = await runCli("motion-audit", args(scratch, "jank.html"), { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("FAIL");
-  expect(res).toExitWith(1);
+  await expect(res).toExitWith(1);
 });
 
 test("the in-budget twin passes on a REAL frame population — the red above is the plant, not the harness", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "smooth.html"), page(CLEAN));
   const res = await runCli("motion-audit", args(scratch, "smooth.html"), { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("PASS");
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
   // The denominator is the whole point: a 0% over an EMPTY population is absent evidence, not smoothness.
   const denominator = FRAME_LINE_RE.exec(res.stdout)?.[1];
   expect(Number(denominator)).toBeGreaterThan(0);
@@ -82,7 +82,7 @@ test("a page with no __orb bridge is an INSTRUMENT ERROR, never a clean audit", 
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("__orb");
   expect(res.stdout).not.toContain("verdict=PASS");
-  expect(res).toExitWith(2);
+  await expect(res).toExitWith(2);
 });
 
 test("a measured window that composited NO frame is an INSTRUMENT ERROR, never 0% dropped", async ({ runCli, scratch }) => {
@@ -92,7 +92,7 @@ test("a measured window that composited NO frame is an INSTRUMENT ERROR, never 0
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("frame population");
   expect(res.stdout).not.toContain("verdict=PASS");
-  expect(res).toExitWith(2);
+  await expect(res).toExitWith(2);
 });
 
 test(
@@ -102,12 +102,12 @@ test(
     const res = await runCli("motion-audit", args(scratch, "target.html", ["--selector", "[data-slot=nope]"]), { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toContain("STEP FAILED");
     expect(res.stdout).toContain("step-failed=1");
-    expect(res).toExitWith(1);
+    await expect(res).toExitWith(1);
   },
   SLOW_TEST_MS,
 );
 
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("motion-audit", ["--open-caht", "latest"]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
 });

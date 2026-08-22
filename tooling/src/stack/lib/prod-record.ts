@@ -67,7 +67,9 @@ export function decideSpawnLock(holder: LockHolder, holderAlive: boolean): Spawn
       return "retake";
     case "unparseable":
       return "break-stale";
-    default:
+    // Enumerated, not `default:` (§5.5) — a new holder kind must fail the compile here, not inherit
+    // the live-pid arm.
+    case "pid":
       return holderAlive ? "refuse" : "break-stale";
   }
 }
@@ -79,7 +81,7 @@ export function lockHolderText(holder: LockHolder): string {
       return "none (the lock file vanished mid-read)";
     case "unparseable":
       return `unparseable content ${JSON.stringify(holder.raw)}`;
-    default:
+    case "pid":
       return `pid ${holder.pid}`;
   }
 }
