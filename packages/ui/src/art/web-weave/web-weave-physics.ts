@@ -77,11 +77,20 @@ const ORIGIN: WeaveXY = { x: 0, y: 0 };
 const SHIVER_PER_PLUCK = 0.5;
 /** Shiver e-fold time (ms). */
 const SHIVER_DECAY_MS = 650;
+/** …and the floor it SNAPS to zero at (#467). An exponential never reaches zero, and a nonzero shiver
+ *  is not a rounding curiosity here: it un-statics the frame, so a single mouse pass over the silk
+ *  used to hold the web off its offscreen cache — re-stroking every strand, every frame — for the
+ *  ~8 minutes the value took to underflow. At this floor the shiver's sway boost is 0.005px of a
+ *  2.1px breath: three orders below a pixel, and reached ~4s after the last touch. */
+const SHIVER_FLOOR = 1e-3;
 
 /** Register a pluck on the web-wide shiver. */
 export const raiseShiver = (shiver: number): number => Math.min(1, shiver + SHIVER_PER_PLUCK);
-/** Decay the shiver across a frame's `dt` (ms). */
-export const decayShiver = (shiver: number, dt: number): number => shiver * Math.exp(-dt / SHIVER_DECAY_MS);
+/** Decay the shiver across a frame's `dt` (ms) — to EXACTLY zero once it is imperceptible. */
+export const decayShiver = (shiver: number, dt: number): number => {
+  const next = shiver * Math.exp(-dt / SHIVER_DECAY_MS);
+  return next < SHIVER_FLOOR ? 0 : next;
+};
 
 /** Sway multiplier at full wind — a stiff breeze roughly triples the ambient breath. */
 const WIND_SWAY_GAIN = 2.6;

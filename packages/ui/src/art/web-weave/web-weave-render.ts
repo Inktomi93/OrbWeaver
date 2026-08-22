@@ -9,7 +9,8 @@
 import type { CharacterPreset } from "./web-weave-character.ts";
 import { REST_GAIT_AMP, SPRINT_GAIT } from "./web-weave-character.ts";
 import type { WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
-import { glintSegmentLit, glintSweepAngle } from "./web-weave-glint.ts";
+import type { WeaveGlintSegment } from "./web-weave-glint.ts";
+import { forEachGlintCandidate, glintSegmentLit, glintSweepAngle } from "./web-weave-glint.ts";
 import { clamp01, easeOutCubic } from "./web-weave-math.ts";
 import type { PreyState } from "./web-weave-prey.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
@@ -54,6 +55,9 @@ export interface WeaveFrameInput {
   /** Live plucks, by strand — null for every non-interactive host (the overwhelming majority), and
    *  the per-strand lookup is what keeps physics off the strands nobody touched. */
   readonly plucks: WeavePluckMap;
+  /** The web's bearing-sorted glint index (built once per web) — what lets an UNDEFORMED frame light
+   *  the sweep window without testing all ~850 segments (web-weave-glint.ts). */
+  readonly glint: readonly WeaveGlintSegment[];
 }
 
 const TAU = Math.PI * 2;
@@ -222,34 +226,60 @@ function strokeSegment(ctx: CanvasRenderingContext2D, a: WeavePoint, b: WeavePoi
   ctx.stroke();
 }
 
+/** What one lit-segment test needs, hoisted out of the loop so the indexed and full passes share it. */
+interface GlintPass {
+  readonly ctx: CanvasRenderingContext2D;
+  readonly input: WeaveFrameInput;
+  readonly glow: GlowMode;
+  readonly sway: WeaveSway;
+  readonly hub: WeavePoint;
+  readonly sweep: number;
+}
+
+/** Light ONE segment if the sweep is over it. */
+function litSegment({ ctx, input, glow, sway, hub, sweep }: GlintPass, strand: WeaveStrand, i: number): void {
+  const { palette, dim, plucks } = input;
+  // The highlight rides the SWAYING (and ringing) silk — the strand is drawn through the same field.
+  const a = strandPoint(strand, i, sway, plucks);
+  const b = strandPoint(strand, i + 1, sway, plucks);
+  const lit = glintSegmentLit(a, b, hub, sweep);
+  if (lit === 0) {
+    return;
+  }
+  // `soft`: a wide, faint glow-color under-stroke fakes the blur halo without the gaussian.
+  if (glow === "soft") {
+    ctx.strokeStyle = palette.glow;
+    ctx.lineWidth = GLINT_GLOW_WIDTH;
+    ctx.globalAlpha = GLINT_ALPHA * lit * dim * GLINT_GLOW_ALPHA;
+    strokeSegment(ctx, a, b);
+  }
+  ctx.strokeStyle = palette.silkBright;
+  ctx.lineWidth = GLINT_WIDTH;
+  ctx.globalAlpha = GLINT_ALPHA * lit * dim;
+  strokeSegment(ctx, a, b);
+}
+
 function drawGlint(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, glow: GlowMode, sway: WeaveSway): void {
-  const { web, now, palette, dim, plucks } = input;
+  const { web, now, palette, plucks } = input;
   const sweep = glintSweepAngle(now);
   const hub = swayPt(web.hub, sway);
   if (glow === "blur") {
     ctx.shadowColor = palette.glow;
     ctx.shadowBlur = GLINT_BLUR;
   }
+  const pass: GlintPass = { ctx, input, glow, sway, hub, sweep };
+  // UNDEFORMED frame (rigid, or the resting blit's whole-canvas translate, and no strand ringing):
+  // every point and the hub moved by the same vector, so the build-time bearings still hold and the
+  // sweep window is a binary search instead of an ~850-segment scan (#467 — the measured idle top
+  // frame). A per-point field sway or a live pluck moves points relative to the hub: full scan.
+  if ((sway === null || sway.kind === "offset") && (plucks === null || plucks.size === 0)) {
+    forEachGlintCandidate(input.glint, sweep, (segment) => litSegment(pass, segment.strand, segment.i));
+    ctx.shadowBlur = 0;
+    return;
+  }
   for (const strand of [web.capture, ...web.radii]) {
     for (let i = 0; i < strand.pts.length - 1; i++) {
-      // The highlight rides the SWAYING (and ringing) silk — the strand is drawn through the same field.
-      const a = strandPoint(strand, i, sway, plucks);
-      const b = strandPoint(strand, i + 1, sway, plucks);
-      const lit = glintSegmentLit(a, b, hub, sweep);
-      if (lit === 0) {
-        continue;
-      }
-      // `soft`: a wide, faint glow-color under-stroke fakes the blur halo without the gaussian.
-      if (glow === "soft") {
-        ctx.strokeStyle = palette.glow;
-        ctx.lineWidth = GLINT_GLOW_WIDTH;
-        ctx.globalAlpha = GLINT_ALPHA * lit * dim * GLINT_GLOW_ALPHA;
-        strokeSegment(ctx, a, b);
-      }
-      ctx.strokeStyle = palette.silkBright;
-      ctx.lineWidth = GLINT_WIDTH;
-      ctx.globalAlpha = GLINT_ALPHA * lit * dim;
-      strokeSegment(ctx, a, b);
+      litSegment(pass, strand, i);
     }
   }
   ctx.shadowBlur = 0;

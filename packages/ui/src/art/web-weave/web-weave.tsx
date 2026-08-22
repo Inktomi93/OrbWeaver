@@ -12,6 +12,16 @@
 // dew twinkle, glint sweep, spider — painted live on top. The ACTIVE build (weaving, t < settle) still
 // paints live via renderWeaveFrame. The cache re-bakes on resize/seed/dim (rebuild) and theme (palette).
 //
+// PERF, the IDLE half (#467 — the owner's pre-auth login web burned CPU continuously and stuttered):
+//   · the loop runs on an AMBIENT BUDGET while nothing is happening (web-weave-cadence.ts owns the
+//     "is anything happening?" question) — a PHASE, never a reduced mode: one pluck, one hunt, one gust
+//     and the same painters are back at the display's full refresh on the very next frame;
+//   · the glint's per-frame hunt for lit segments goes through the web's BEARING INDEX
+//     (web-weave-glint.ts), built once per web here in `rebuild` — an exact skip, same lit set.
+// Measured on the login backdrop's own props (1440×900, settled, interactive): main-thread busy
+// 26.1% → 10.4% of a 5s idle window; the scan's own self-time (swayPt + drawGlint + glintSegmentLit +
+// strandPoint) 110ms → 19ms.
+//
 // Reduced motion is REMOVE, not shorten (guide §3.9): no rAF loop at all — one static paint of the
 // state's resting frame (settled web, dew at rest, spider resting head-down at the hub), via the same
 // untouched renderWeaveFrame(still) path (the cache is loop-only). The frame counter rides
@@ -23,14 +33,18 @@ import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { webWeaveVariants } from "./variants.ts";
+import { AMBIENT_FRAME_MS, PREY_SETTLE_TAIL_MS, weaveIsQuiet } from "./web-weave-cadence.ts";
 import type { CharacterPreset, WeaveCharacter } from "./web-weave-character.ts";
 import { WEAVE_CHARACTER_PRESETS } from "./web-weave-character.ts";
 import type { WeaveState, WovenWeb } from "./web-weave-geometry.ts";
 import { buildStrandOut, buildWeb } from "./web-weave-geometry.ts";
+import type { WeaveGlintSegment } from "./web-weave-glint.ts";
+import { buildGlintIndex } from "./web-weave-glint.ts";
 import { createPreyState } from "./web-weave-prey.ts";
 import type { WeavePalette } from "./web-weave-render.ts";
 import { bakeStaticWeb, drawLiveLayers, renderWeaveFrame } from "./web-weave-render.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
+import { STRAND_OUT_MS } from "./web-weave-spider.ts";
 import type { WeavePluckMap, WeaveWeather } from "./web-weave-sway.ts";
 import { weaveSwayOffset } from "./web-weave-sway.ts";
 import type { WeavePhase } from "./web-weave-timeline.ts";
@@ -179,6 +193,7 @@ export function WebWeave({
 
     let palette = resolvePalette(probe);
     let web: WovenWeb | null = null;
+    let glint: readonly WeaveGlintSegment[] = [];
     let width = 0;
     let height = 0;
     let dpr = 1;
@@ -194,6 +209,10 @@ export function WebWeave({
     let shiver = 0;
     let ringing = false;
     let lastNow = performance.now();
+    // The ambient budget's cursors: when the last frame was PAINTED (not merely offered), and how long
+    // the weaver's activity keeps the full refresh alive past her last un-resting frame.
+    let lastPaint = Number.NEGATIVE_INFINITY;
+    let preyBusyUntil = 0;
     // The offscreen cache (design §1.2): the static settled web + baked glow, drawn ONCE and blitted
     // each resting frame. A detached canvas (drawImage from it is as fast as OffscreenCanvas and needs
     // no feature-detect). `baked` invalidates on rebuild (size/web) and theme (palette) — re-baked lazily.
@@ -215,6 +234,7 @@ export function WebWeave({
       buffer.width = canvas.width;
       buffer.height = canvas.height;
       web = buildWeb({ width, height, hub: { x: hubX, y: hubY }, seed });
+      glint = buildGlintIndex(web);
       strandOut = state === "strand-out" && !reduced ? { pts: buildStrandOut(web, width, height), t0: performance.now() + STRAND_OUT_DELAY_MS } : null;
       baked = false;
     };
@@ -283,6 +303,7 @@ export function WebWeave({
         dt: 0,
         character: characterPreset,
         prey: null,
+        glint,
       });
       baked = true;
     };
@@ -303,7 +324,7 @@ export function WebWeave({
       ctx.globalAlpha = 1;
       // …then paint only the live layers on top, in CSS-px space.
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawLiveLayers(ctx, { web, state, t, now, palette, dim, still: false, spider, strandOut, ...frame }, tracker);
+      drawLiveLayers(ctx, { web, state, t, now, palette, dim, still: false, spider, strandOut, glint, ...frame }, tracker);
     };
 
     const paint = (now: number): void => {
@@ -325,16 +346,41 @@ export function WebWeave({
       } else {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
-        renderWeaveFrame(ctx, { web, state, t, now, palette, dim, still: reduced, spider, strandOut, ...frame }, tracker);
+        renderWeaveFrame(ctx, { web, state, t, now, palette, dim, still: reduced, spider, strandOut, glint, ...frame }, tracker);
       }
       notify(t);
       frames += 1;
       canvas.dataset["orbWeaveFrames"] = String(frames);
     };
 
+    // Is the web merely BREATHING right now? Everything here is something a person is doing or
+    // watching happen — the build, the A9 ride, wind, a rung strand, the weaver off her hub (plus the
+    // tail her per-frame turn-home ease needs). Any of them and the ambient budget is off for the
+    // frame. `plucks.size` is read straight from the pointer seam rather than from the previous
+    // frame's verdict: a skipped frame never ran `touch.step`, so last frame's `ringing` is stale
+    // exactly when a fresh pluck must un-throttle us.
+    const quiet = (now: number): boolean => {
+      if (prey !== null && prey.mode !== "rest") {
+        preyBusyUntil = now + PREY_SETTLE_TAIL_MS;
+      }
+      return weaveIsQuiet({
+        building: state === "weaving" && timelineAt(now) < WEAVE_TIMELINE.settle,
+        riding: strandOut !== null && now - strandOut.t0 < STRAND_OUT_MS,
+        hunting: now < preyBusyUntil,
+        wind,
+        shiver,
+        ringing,
+        plucks,
+      });
+    };
+
     const loop = (now: number): void => {
-      paint(now);
       rafId = requestAnimationFrame(loop);
+      if (quiet(now) && now - lastPaint < AMBIENT_FRAME_MS) {
+        return;
+      }
+      lastPaint = now;
+      paint(now);
     };
 
     touch?.attach();
