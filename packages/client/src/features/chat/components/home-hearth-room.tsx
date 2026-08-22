@@ -103,6 +103,14 @@ export function HomeHearthRoom({
       // working (WCAG 2.5.3: the spoken name contains the read label).
       aria-describedby={`${scentId} ${castId}`}
       aria-label={`Resume ${title}`}
+      // A REAL BUTTON, not a `div[role=button]` (side-eye rail-home P3-4, 2026-08-22). The synthesized pair
+      // was VERIFIED WORKING before the finding was filed — Enter and Space both resumed the room — so this
+      // is not a repair, it is the arm that makes the behaviour unregressable: `Card interactive` gets
+      // activation from three props (`role`/`tabIndex`/`onKeyDown`) that any future caller override can
+      // quietly break, while every sibling row on this surface is already a native `<button>` and gets it
+      // from the platform. The accessible name and the `aria-describedby` pair are UNCHANGED — that is the
+      // ruling this must not disturb (the name is the VERB, side-eye 2026-08-16 F5).
+      as="button"
       className={`group ${GLOW}`}
       data-home-hearth={chat.id}
       // THE ELEVATED ISLAND (rail sweep P2-11). The hero is the ONE thing home wants a cold eye to land
