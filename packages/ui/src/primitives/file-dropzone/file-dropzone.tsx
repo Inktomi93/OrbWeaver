@@ -6,22 +6,28 @@ import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from
 import { useState } from "react";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
+import { matchesAccept } from "./accept.ts";
 import { fileDropzoneVariants } from "./variants.ts";
 
-/** A file dropped by the client-side `maxSizeBytes` pre-check (the only rejection reason today). */
+/** A file dropped by a client-side pre-check: outside the `accept` vocabulary, or over `maxSizeBytes`. */
 export interface FileDropzoneRejection {
   file: File;
-  reason: "size";
+  reason: "size" | "type";
 }
 
-/** The outcome of one selection/drop batch, split by the size pre-check. */
+/** The outcome of one selection/drop batch, split by the `accept` + size pre-checks. */
 export interface FileDropzoneResult {
   accepted: File[];
   rejected: FileDropzoneRejection[];
 }
 
 export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, "type" | "onChange" | "value" | "defaultValue"> {
-  /** Native `accept` filter for the file-picker dialog — does not gate a drop (browser behavior). */
+  /**
+   * The accepted-file vocabulary, in HTML `accept` grammar (suffix tokens, `family/*`, exact MIMEs). It is
+   * BOTH the native picker-dialog filter and this primitive's own per-file gate: the attribute alone only
+   * narrows the OS dialog, so a drop — or a dialog switched to "All files" — would otherwise hand the
+   * consumer bytes its `accept` excludes (#423). Omit to take anything.
+   */
   accept?: string;
   multiple?: boolean;
   disabled?: boolean;
@@ -43,16 +49,35 @@ export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, 
   className?: string;
 }
 
-function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: number | undefined): string | undefined {
-  if (rejected.length === 0) {
+/** The oversize half of a batch's refusal line (undefined when nothing was refused for size). */
+function sizeRejectionMessage(oversize: FileDropzoneRejection[], maxSizeBytes: number | undefined): string | undefined {
+  const limit = formatBytes(maxSizeBytes ?? 0);
+  const [first] = oversize;
+  if (first === undefined) {
     return;
   }
-  const limit = formatBytes(maxSizeBytes ?? 0);
-  const [first] = rejected;
-  if (rejected.length === 1 && first !== undefined) {
-    return `${first.file.name} exceeds the ${limit} limit`;
+  return oversize.length === 1 ? `${first.file.name} exceeds the ${limit} limit` : `${oversize.length} files exceed the ${limit} limit`;
+}
+
+/** The wrong-type half. The accepted vocabulary itself is the consumer's `hint` line, rendered directly above. */
+function typeRejectionMessage(wrongType: FileDropzoneRejection[]): string | undefined {
+  const [first] = wrongType;
+  if (first === undefined) {
+    return;
   }
-  return `${rejected.length} files exceed the ${limit} limit`;
+  return wrongType.length === 1 ? `${first.file.name} isn't an accepted file type` : `${wrongType.length} files aren't an accepted file type`;
+}
+
+/** One announced line per batch — both refusal reasons, so a mixed batch reports each rather than the louder one. */
+function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: number | undefined): string | undefined {
+  const parts = [
+    typeRejectionMessage(rejected.filter((entry) => entry.reason === "type")),
+    sizeRejectionMessage(
+      rejected.filter((entry) => entry.reason === "size"),
+      maxSizeBytes,
+    ),
+  ].filter((part): part is string => part !== undefined);
+  return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
 interface FileDropzoneGlyphProps {
@@ -78,8 +103,14 @@ function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps):
  * Enter/Space/click opens the native OS file dialog. Drag-and-drop is progressive enhancement
  * on top, but it is handled EXPLICITLY (`handleDrop` reads `dataTransfer.files`) — never delegated to
  * the input's native file-accept, which the mandatory `preventDefault` cancels. Both feeders converge
- * on the one `processFiles` seam. `maxSizeBytes` is an injected ceiling checked client-side;
- * oversized files are reported via `rejected`, never silently dropped.
+ * on the one `processFiles` seam, which applies BOTH pre-checks per file: the `accept` vocabulary
+ * (`accept.ts` — the attribute alone only filters the OS dialog, so the drop feeder used to take
+ * arbitrary bytes, #423) and the injected `maxSizeBytes` ceiling. Every refused file is reported via
+ * `rejected` with its reason and announced inline — never silently dropped, and never as a wholesale
+ * rejection of a mixed batch.
+ *
+ * This is a UX boundary, not a trust boundary: the upload routes re-check size and verify the claimed
+ * mime against the byte signature server-side (`assets.store({ enforceMagic })`).
  */
 export function FileDropzone({
   accept,
@@ -101,7 +132,9 @@ export function FileDropzone({
   const inert = disabled || loading;
 
   // The ONE entry seam: both feeders (the native picker's `change` and an explicit drop) land here, so
-  // the two paths cannot drift in what they accept or report.
+  // the two paths cannot drift in what they accept or report. Both pre-checks are PER FILE — a mixed batch
+  // (a multi-select, a folder's worth of files) keeps everything admissible instead of being refused
+  // wholesale, and each refusal is reported with its reason rather than silently dropped.
   const processFiles = (files: readonly File[]): void => {
     if (files.length === 0) {
       return;
@@ -109,14 +142,20 @@ export function FileDropzone({
     const accepted: File[] = [];
     const rejectedNow: FileDropzoneRejection[] = [];
     for (const file of files) {
-      if (maxSizeBytes !== undefined && file.size > maxSizeBytes) {
+      if (!matchesAccept(file, accept)) {
+        rejectedNow.push({ file, reason: "type" });
+      } else if (maxSizeBytes !== undefined && file.size > maxSizeBytes) {
         rejectedNow.push({ file, reason: "size" });
       } else {
         accepted.push(file);
       }
     }
     setRejected(rejectedNow);
-    onFilesSelected?.({ accepted, rejected: rejectedNow });
+    // A single-file zone takes the first ADMISSIBLE file of a batch — the native picker can't hand back more
+    // than one either, so the consumer's contract is identical on both feeders. Truncating here (after the
+    // per-file checks) rather than at the drop is what keeps a `[readme.txt, backup.zip]` drop from being
+    // decided by whichever file the file manager happened to list first.
+    onFilesSelected?.({ accepted: multiple ? accepted : accepted.slice(0, 1), rejected: rejectedNow });
   };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -145,10 +184,7 @@ export function FileDropzone({
   const handleDrop = (event: DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
     setDragOver(false);
-    const dropped = Array.from(event.dataTransfer.files);
-    // A single-file zone takes the first of a multi-file drop — the native picker can't hand back more
-    // than one either, so the consumer's contract is identical on both feeders.
-    processFiles(multiple ? dropped : dropped.slice(0, 1));
+    processFiles(Array.from(event.dataTransfer.files));
   };
 
   const resolvedHint = hint ?? (maxSizeBytes === undefined ? undefined : `Up to ${formatBytes(maxSizeBytes)} per file`);

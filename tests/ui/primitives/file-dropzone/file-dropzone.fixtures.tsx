@@ -11,9 +11,11 @@ import { useState } from "react";
 export interface FileDropzoneHarnessProps {
   maxSizeBytes?: number;
   multiple?: boolean;
+  /** The consumer-supplied accept vocabulary under test — the drop feeder must honour it, not just the picker dialog. */
+  accept?: string;
 }
 
-export function FileDropzoneHarness({ maxSizeBytes, multiple = false }: FileDropzoneHarnessProps): ReactElement {
+export function FileDropzoneHarness({ maxSizeBytes, multiple = false, accept }: FileDropzoneHarnessProps): ReactElement {
   const [acceptedNames, setAcceptedNames] = useState<string[]>([]);
 
   return (
@@ -26,6 +28,7 @@ export function FileDropzoneHarness({ maxSizeBytes, multiple = false }: FileDrop
       <FileDropzone
         aria-label="Upload"
         multiple={multiple}
+        {...(accept === undefined ? {} : { accept })}
         {...(maxSizeBytes === undefined ? {} : { maxSizeBytes })}
         onFilesSelected={({ accepted }): void => {
           setAcceptedNames(accepted.map((file) => file.name));

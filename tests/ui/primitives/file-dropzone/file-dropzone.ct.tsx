@@ -12,6 +12,12 @@ const TWENTY_MEBIBYTES = 20 * 1024 * 1024;
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
 const A_SECOND_CARD = { name: "hero.png", mimeType: "image/png", content: "PNG2" };
+// The character-import dialog's real vocabulary (`CARD_ACCEPT`) — suffix AND exact-MIME tokens in one list.
+const CARD_ACCEPT = ".png,.json,image/png,application/json";
+const A_SCRIPT = { name: "payload.exe", mimeType: "application/x-msdownload", content: "MZ" };
+// A transcript the browser recognizes no MIME for (the common `.jsonl`/`.orb.json` case) — only a suffix
+// token can admit it, and the double extension is why suffix matching is a TAIL test, not a split-on-dot.
+const A_TRANSCRIPT = { name: "session.orb.json", mimeType: "", content: "{}" };
 
 test("inside a <Field>, the label associates with the real file input (Field.Control registration)", async ({ mount, page }) => {
   await mount(
@@ -118,6 +124,62 @@ test("a DROPPED file over maxSizeBytes hits the same size pre-check as a picked 
   await expect(error).toBeVisible();
   await expect(error).toContainText("villain.png");
   await expect(page.getByTestId("accepted-names")).not.toContainText("villain.png");
+});
+
+// ── The ACCEPT gate (#423) ─────────────────────────────────────────────────────────────────────────
+// `accept` filters the OS DIALOG and nothing else, so before this the drop feeder took arbitrary bytes and
+// every consumer's vocabulary (character cards, transcripts, presets, databank documents, avatars) was
+// advisory on the gesture users actually reach for. The gate is PER FILE on both feeders: a mixed batch
+// keeps its matching files instead of being refused wholesale, and a refusal is announced, never silent.
+
+test("a DROPPED file outside accept is refused and announced (the picker dialog is not the gate)", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness accept={CARD_ACCEPT} />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_SCRIPT]);
+  const error = page.getByRole("alert");
+  await expect(error).toBeVisible();
+  await expect(error).toContainText("payload.exe");
+  await expect(page.getByTestId("accepted-names")).not.toContainText("payload.exe");
+});
+
+test("a MIXED drop keeps every accepted file and refuses only the rest (never a wholesale rejection)", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness accept={CARD_ACCEPT} multiple={true} />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_CARD, A_SCRIPT, A_SECOND_CARD]);
+  const names = page.getByTestId("accepted-names");
+  await expect(names).toContainText("villain.png");
+  await expect(names).toContainText("hero.png");
+  await expect(names).not.toContainText("payload.exe");
+  await expect(page.getByRole("alert")).toContainText("payload.exe");
+});
+
+test("a suffix token matches a file the browser gave no MIME (a .json transcript drop still lands)", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness accept=".jsonl,.json,application/x-ndjson,application/json" />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_TRANSCRIPT]);
+  await expect(page.getByTestId("accepted-names")).toContainText("session.orb.json");
+  await expect(page.getByRole("alert")).toBeHidden();
+});
+
+test("a family wildcard admits the whole MIME family and refuses outside it", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness accept="image/*" multiple={true} />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_CARD, A_TRANSCRIPT]);
+  const names = page.getByTestId("accepted-names");
+  await expect(names).toContainText("villain.png");
+  await expect(names).not.toContainText("session.orb.json");
+});
+
+test("the PICKER feeder obeys accept too — the two feeders take the same vocabulary", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness accept={CARD_ACCEPT} />);
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.locator(DROPZONE_ROOT).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({ buffer: Buffer.from("MZ"), mimeType: "application/x-msdownload", name: "payload.exe" });
+  await expect(page.getByRole("alert")).toContainText("payload.exe");
+  await expect(page.getByTestId("accepted-names")).not.toContainText("payload.exe");
+});
+
+test("a zone with no accept still takes anything (the attribute's own contract)", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_SCRIPT]);
+  await expect(page.getByTestId("accepted-names")).toContainText("payload.exe");
 });
 
 test("disabled: the native input is disabled and the root carries data-disabled", async ({ mount, page }) => {

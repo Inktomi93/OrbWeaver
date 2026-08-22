@@ -7,6 +7,7 @@ import type { UploadCaps } from "@orb/contracts/uploads";
 import { describe } from "vitest";
 import {
   ATTACH_MEDIA_ACCEPT,
+  dropzoneRefusalMessage,
   isAttachableMedia,
   triageAttachFiles,
   unsupportedAttachMessage,
@@ -86,6 +87,16 @@ describe("triageAttachFiles", () => {
     const { refusals } = triageAttachFiles([fileOf("archive.zip", "application/zip", 900 * KIB)], CAPS);
     expect(refusals).toEqual([unsupportedAttachMessage(fileOf("archive.zip", "application/zip", 0))]);
     expect(refusals[0]).not.toContain("exceeds");
+  });
+
+  test("dropzoneRefusalMessage speaks the SAME refusal the drop/paste gestures do (#423)", () => {
+    // The ✨ picker's zone gates on `accept` itself now, so its type refusal must not degrade into a vaguer
+    // line than the one the identical file earns when dropped.
+    const wrongType = fileOf("resume.pdf", "application/pdf", KIB);
+    expect(dropzoneRefusalMessage({ file: wrongType, reason: "type" }, CAPS.image)).toBe(unsupportedAttachMessage(wrongType));
+    const oversize = fileOf("huge.png", "image/png", 90 * KIB);
+    expect(dropzoneRefusalMessage({ file: oversize, reason: "size" }, CAPS.image)).toContain("huge.png");
+    expect(dropzoneRefusalMessage({ file: oversize, reason: "size" }, CAPS.image)).toContain("exceeds");
   });
 
   test("never silently drops: every input file lands in exactly one of the two buckets", () => {
