@@ -27,6 +27,7 @@ import {
   WalkerNeighbourButtonsStory,
   WalkerPaintLayerStory,
   WalkerProgrammaticFocusDoorStory,
+  WalkerReadingMeasureStory,
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
   WalkerTranslucentTintStory,
@@ -460,6 +461,38 @@ test("an in-flow control cut by its clipping container is a P1 finding naming th
   const finding = collectFindings(samples).find((f) => f.rule === "clipped-overflow" && f.selector.includes("clip-dialog"));
   expect(finding?.severity, "a mangled half-visible control is a P1; an escape-seeking tooltip stays P2").toBe("P1");
   expect(finding?.value).toContain("left by");
+});
+
+// ── The READING MEASURE is measured, not guessed (issue #464) ──────────────────────────────────────
+// line-length divided the box width by `fontSize × 0.5` and called the quotient "chars". Geist's real
+// '0' advance is 0.573em, so every measure came out ~15% long and the rule filed an "~86 chars" P3
+// against the home resume snippet — a paragraph that is 75.0 REAL characters, i.e. exactly
+// `--reading-measure: 75ch`. The instrument was indicting the house's own ratified measure. The boxes
+// below are sized in `ch`, so the browser itself supplies the ground truth in whatever font resolves.
+test("the walker measures a real character advance — a 75ch box reads as 75 characters, not 86", async ({ mount, page }) => {
+  await mount(<WalkerReadingMeasureStory />);
+  const samples = await samplesOf(page);
+  const sample = samples.textStyles.find((s) => s.selector.includes("measure-75ch"));
+
+  expect(sample, `censused: ${samples.textStyles.map((s) => s.selector).join(" | ")}`).toBeDefined();
+  const chWidthPx = sample?.chWidthPx ?? 0;
+  expect(chWidthPx, "a zero advance means the canvas measurement never happened").toBeGreaterThan(0);
+  // The whole defect in one number: the real advance is WIDER than the guessed half-em, so the guess
+  // over-counted characters. Geist measures 0.573em.
+  expect(chWidthPx / (sample?.fontSizePx ?? 1), `measured advance ratio was ${chWidthPx / (sample?.fontSizePx ?? 1)}`).toBeGreaterThan(0.5);
+  expect(Math.round((sample?.rectWidth ?? 0) / chWidthPx), "the box is 75ch by construction").toBe(75);
+});
+
+test("a line at the ratified 75ch measure is clean while a genuinely over-long one still fires", async ({ mount, page }) => {
+  await mount(<WalkerReadingMeasureStory />);
+  const findings = collectFindings(await samplesOf(page)).filter((f) => f.rule === "line-length");
+
+  expect(findings.map((f) => f.selector).join(" | "), "the ratified reading measure must never be a finding — that was the #464 defect").not.toContain(
+    "measure-75ch",
+  );
+  const long = findings.find((f) => f.selector.includes("measure-110ch"));
+  expect(long, `the rule must stay alive: got ${JSON.stringify(findings)}`).toBeDefined();
+  expect(long?.value, "and it reports REAL characters now").toBe("110 chars/line");
 });
 
 test("the healthy twin produces no clipped-overflow finding — scroll panes, sr-only stubs and padded badges are not cuts", async ({ mount, page }) => {

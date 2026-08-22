@@ -60,3 +60,17 @@ export function isLargeText(fontSizePx: number, fontWeight: number): boolean {
 
 export const NORMAL_MIN_RATIO = 4.5;
 export const LARGE_MIN_RATIO = 3;
+
+/** The effective (accumulated) foreground opacity below which a contrast ratio stops being EVIDENCE
+ *  (#466). Compositing a glyph at α over its backdrop moves each channel by α·(fg−bg), so under 0.05
+ *  the painted color is within ~13/255 of the backdrop WHATEVER the authored color is — the ratio
+ *  collapses toward 1.00:1 by arithmetic, not by anything the surface did wrong. Measured live: a
+ *  design-audit home run mid boot-animation filed two P1 contrasts reading `1.00:1 · dimmed α0.00`
+ *  against the weave veil and the brand wordmark, which paint nothing at that instant. A verdict that
+ *  can only come out one way is not a measurement, so both instruments REFUSE below this floor and say
+ *  so, rather than emitting a finding the reviewer has to learn to ignore.
+ *
+ *  Deliberately far below the dimming the contrast rules DO judge: α0.5-0.6 text (issue #188) still
+ *  gets composited and still fails, because at that alpha a different authored color genuinely could
+ *  have passed. */
+export const MEASURABLE_OPACITY_MIN = 0.05;

@@ -396,6 +396,26 @@ export function WalkerProgrammaticFocusDoorStory(): ReactElement {
   );
 }
 
+/** The READING-MEASURE stage (issue #464). The boxes are sized in `ch` — the CSS unit for one `0`
+ *  advance — so the walker's measured character width can be checked against a ground truth the browser
+ *  itself computes, in whatever font the harness resolves. `measure-75ch` is the house's ratified
+ *  `--reading-measure: 75ch`: the line-length rule filed it as "~86 chars" while it divided by a guessed
+ *  `fontSize × 0.5`, i.e. the instrument indicted the measure the design system ratified. */
+export function WalkerReadingMeasureStory(): ReactElement {
+  const prose =
+    "The narrator leans in and keeps talking, because a line-length rule needs more than eighty characters of running text before it will judge the measure at all.";
+  return (
+    <div style={{ padding: 16, backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)", fontSize: 15 }}>
+      <p data-testid="measure-75ch" style={{ width: "75ch" }}>
+        {prose}
+      </p>
+      <p data-testid="measure-110ch" style={{ width: "110ch" }}>
+        {prose}
+      </p>
+    </div>
+  );
+}
+
 /** The NEGATIVE-OVERFLOW stage (issue #444), a reconstruction of the #439 frame both overflow
  *  instruments were blind to. `clip-dialog` is an overflow-hidden box whose footer is a `nowrap`
  *  `justify-end` row wider than the content box, so the FIRST button is pushed past the container's
