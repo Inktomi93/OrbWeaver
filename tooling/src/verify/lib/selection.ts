@@ -9,8 +9,10 @@ import { BROWSER_PACKAGES, distinctTsconfigs, graphMembership, touchesGraph } fr
 import { existsRel, gitChangedPaths, packageDir, toRepoRel } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
-// Mirrors the lint:eslint script's path list in package.json.
-const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests\/ui|tests\/client)\/.*\.tsx?$/u;
+// Mirrors the lint:eslint script's path list in package.json. THE TOOLING ARMS ARE LOAD-BEARING (#459):
+// `tooling/src` + `tests/tooling` joined the eslint surface on 2026-08-22, and a scoped lane that lints
+// a changed tooling file only sees the rules if this regex agrees with that script's argv.
+const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests\/ui|tests\/client|tooling\/src|tests\/tooling)\/.*\.tsx?$/u;
 const DEPCRUISE_RE = /^(?:packages|tooling)\/.*\.(?:ts|tsx|js|jsx|mts|cts)$/u;
 const DOCS_MD_RE = /^docs\/architecture\/.*\.md$/u;
 const DOCS_PROPOSED_RE = /^docs\/architecture\/proposed\//u;
