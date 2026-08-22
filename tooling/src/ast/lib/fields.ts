@@ -9,7 +9,7 @@ import { isTestPath } from "./root.ts";
 // ── contract-field-liveness: contracts fields DECLARED but never POPULATED (INFORMATIONAL) ─────────────
 // The caption class one tier up from a db column, and the shape no other lens in this file can see:
 // `orphans`/`apisurface`/knip all work on EXPORTS, and a dead FIELD lives inside a very much alive export.
-// The silent-reader audit (docs/reviews/misc/2026-08-18-silent-reader-audit.md §5) swept 2,296 contract
+// The silent-reader audit (docs/history/reviews/misc/2026-08-18-silent-reader-audit.md §5) swept 2,296 contract
 // fields with this method and found two real ones: `RepetitionDetection.maxPatternSize` — declared,
 // plumbed through five hops, read on the vLLM wire, and NEVER constructed outside a test, so the loop guard
 // its header advertised did not run — and `AssembleContext.activeSpeakerCharacterId`, which occurred exactly
