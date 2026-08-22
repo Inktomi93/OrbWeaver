@@ -40,7 +40,7 @@ import {
   tableCounts,
   userSettingsRows,
 } from "./inspect/index.ts";
-import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
+import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
 const ERROR_LEVEL = 50; // pino numeric level for "error"
 const MAX_RING_READ = 2000;
@@ -234,6 +234,16 @@ export interface DebugRoutesOptions {
    *  render-policy probes report the stored tri-states with a `null` resolved verdict rather than guessing a
    *  floor — an absent answer beats a wrong one on the surface whose whole job is removing that inference. */
   effectiveConfig?: () => EffectiveAppConfig;
+  /** #412 — whether the provider wire-capture REQUEST sink is actually wired into the backends. Compose owns
+   *  that decision (`env.WIRE_CAPTURE === "on"` OR its `wireCapture` force flag), so it must be injected: this
+   *  tier cannot see the force flag. Absent ⇒ `isWireCaptureEnabled()` (the env half), which is the right
+   *  answer for a hand-built app that never forced the sink on.
+   *
+   *  It is a GETTER rather than a boolean so a reader always sees the live decision, and it feeds ONLY the
+   *  `/wire/captures` arm — `/wire/outcomes` publishes `isWireCaptureEnabled()` because the outcome recorder
+   *  self-gates on exactly that (the gating asymmetry stated in `wire-capture.ts`). Two arms, two truths; one
+   *  shared flag here would be a lie on whichever arm it did not describe. */
+  wireCaptureEnabled?: () => boolean;
   auth?: DebugAuthOptions | string;
 }
 
@@ -263,7 +273,17 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
-  const { db, assets, rpgTrace, memoryRecall, sockets, vllmMetrics, effectiveConfig, auth = env.DEBUG_TOKEN } = options;
+  const {
+    db,
+    assets,
+    rpgTrace,
+    memoryRecall,
+    sockets,
+    vllmMetrics,
+    effectiveConfig,
+    wireCaptureEnabled = isWireCaptureEnabled,
+    auth = env.DEBUG_TOKEN,
+  } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) => {
@@ -319,6 +339,11 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   // The WIRE-CAPTURE read (TASK-24): the final provider request body each chat backend sent, filterable by
   // `chatId` (the harness's correlation key) or `backend`. Host-only (this debug gate); read-only, no table.
   // Returns `[]` when capture is off (the ring is never written) — prod-safe by construction.
+  //
+  // `enabled` (#412) is what makes that empty read LEGIBLE: without it a reader cannot tell "the recorder is
+  // off" (apparatus absent — a run that is not a verdict) from "the recorder is on and nothing was sent"
+  // (an honest zero), and `wire-tap captures` could only print a caveat and exit clean either way. It is the
+  // REQUEST-SINK decision (compose: env OR the force flag), not a re-derivation — see `wireCaptureEnabled`.
   app.get("/api/_debug/wire/captures", (c) => {
     const chatId = c.req.query("chatId");
     const backend = c.req.query("backend");
@@ -327,20 +352,24 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       ...(backend !== undefined ? { backend } : {}),
       limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
-    return c.json({ count: captures.length, captures });
+    return c.json({ enabled: wireCaptureEnabled(), count: captures.length, captures });
   });
 
   // The RESPONSE half of the same picture: what each turn actually returned (finish/stop reason, token counts,
   // tool-call names + raw args, content/reasoning lengths). The request ring alone cannot tell a tool-only
   // completion apart from a provider that returned nothing — this is what closes that. Metadata only, never
   // reply text. Empty when capture is off.
+  //
+  // `enabled` (#412) is `isWireCaptureEnabled()` — the env flag ALONE — because that is the outcome arm's own
+  // self-gate (`recordTurnOutcome` returns early on it; it has no compose seam). A forced-on int test therefore
+  // records requests with `enabled: true` here and outcomes with `enabled: false`, which is the truth.
   app.get("/api/_debug/wire/outcomes", (c) => {
     const chatId = c.req.query("chatId");
     const outcomes = recentTurnOutcomes({
       ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
       limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
-    return c.json({ count: outcomes.length, outcomes });
+    return c.json({ enabled: isWireCaptureEnabled(), count: outcomes.length, outcomes });
   });
 
   app.get("/api/_debug/requests", (c) => {

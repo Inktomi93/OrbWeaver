@@ -4,13 +4,16 @@
 // dev stack); an empty read with capture off is about the RECORDER, not the traffic — the report says
 // so instead of printing a bare zero.
 //
-// ZERO HYGIENE (#409) — ALREADY GUARDED, and deliberately NOT an EXIT.toolError: printRows() below
-// names the recorder as the likely cause of an empty read, which is the whole rule here. The exit stays
-// clean because this op cannot tell "recorder off" (apparatus absent) from "recorder on, no traffic
-// yet" (a real, quiet answer): `/api/_debug/wire/captures` returns `{count, captures}` and publishes
-// NO enabled flag (foundation/observability/debug/routes.ts:322 — "Returns [] when capture is off").
-// Making the distinction exit 2 requires that endpoint to report its own state; that is server
-// territory, filed rather than guessed at from this side.
+// ZERO HYGIENE (#409, closed by #412) — the distinction is now KEYED, not caveated. Both wire probes
+// publish `enabled`: the recorder's own state, per arm (`captures` = compose's request-sink decision,
+// `outcomes` = the env self-gate — the gating asymmetry is real and the server reports it per route).
+// So:
+//   • `enabled: false` ⇒ APPARATUS ABSENT. The ring is never written; a zero here says nothing about the
+//     traffic. EXIT.toolError (2) — "the run is NOT a verdict", the house contract.
+//   • `enabled: true`, zero rows ⇒ an HONEST empty. EXIT.clean (0) with the count, and the caveat drops
+//     (the recorder is on, so silence really is silence).
+//   • the field ABSENT ⇒ the server predates #412 and CANNOT be asked. Same class as off: exit 2, because
+//     the op still cannot render a verdict — it just cannot say which way.
 //
 // AUTH: the same two-tier debug gate as the trace endpoints (admin session, else x-debug-token; bare
 // single-user dev needs neither). Hits the server DIRECTLY on PORT (default 8788), not the vite proxy.
@@ -110,26 +113,51 @@ export async function capturesOp(argv: readonly string[]): Promise<number> {
     );
     return EXIT.toolError;
   }
-  const payload = (await res.json()) as { count: number; captures?: WireCapture[]; outcomes?: WireOutcome[] };
+  const payload = (await res.json()) as { enabled?: boolean; count: number; captures?: WireCapture[]; outcomes?: WireOutcome[] };
+  // The recorder-state key (#412) is read BEFORE the --json short-circuit so a machine-readable run carries
+  // the same verdict a human one does — the payload still prints in full, the exit is what differs.
+  const recorder = payload.enabled;
+  const rows = args.outcomes ? (payload.outcomes ?? []) : (payload.captures ?? []);
   if (args.json) {
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-    return EXIT.clean;
+    return recorderExit(recorder, kind, url);
   }
-  const rows = args.outcomes ? (payload.outcomes ?? []) : (payload.captures ?? []);
   printRows(args.outcomes, kind, rows);
   printResult("wire-tap", [
     ["op", kind],
+    ["recorder", describeRecorder(recorder)],
     ["rows", rows.length],
     ["url", url],
   ]);
-  return EXIT.clean;
+  return recorderExit(recorder, kind, url);
+}
+
+/** The three recorder states as one word for the result line — `unreported` is the pre-#412 server, and is
+ *  deliberately NOT folded into "off": they exit the same, but they are different facts. */
+function describeRecorder(recorder: boolean | undefined): string {
+  if (recorder === undefined) {
+    return "unreported";
+  }
+  return recorder ? "on" : "off";
+}
+
+/** The exit half of the #412 rule (see the header). A read taken with the recorder OFF — or against a server
+ *  that will not say — is APPARATUS ABSENCE, so it exits 2 whatever the row count was. */
+function recorderExit(recorder: boolean | undefined, kind: string, url: string): number {
+  if (recorder === true) {
+    return EXIT.clean;
+  }
+  process.stderr.write(
+    recorder === false
+      ? `wire-tap: the wire-capture recorder is OFF — this ${kind} read is about the RECORDER, not the traffic (the ring is never written). Start the stack with WIRE_CAPTURE=on and re-run.\n`
+      : `wire-tap: ${url} published no \`enabled\` field — this server predates the recorder-state probe (#412), so an empty ${kind} read cannot be told apart from an off recorder.\n`,
+  );
+  return EXIT.toolError;
 }
 
 function printRows(outcomes: boolean, kind: string, rows: readonly (WireCapture | WireOutcome)[]): void {
   if (rows.length === 0) {
-    print(
-      `no ${kind} — the ring is EMPTY. Capture is off by default: start the stack with WIRE_CAPTURE=on (an empty read here is about the recorder, not the traffic).`,
-    );
+    print(`no ${kind} — the ring is EMPTY (see the recorder state on the result line below).`);
     return;
   }
   for (const row of rows) {

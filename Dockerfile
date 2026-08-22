@@ -177,18 +177,20 @@ ENV NODE_ENV=production \
     HF_HOME=/models/hf \
     VLLM_CACHE_ROOT=/models/vllm-cache
 COPY --link --chown=node:node --from=app-files /app /app
-# The fleet front door + its TS halves + the serve chat-templates, workspace-shaped at the runtime cwd
-# (the supervisor runs `bash <cwd>/tooling/src/stack/engines.sh start`). ONLY the fleet files — the rest
-# of the stack tool is dev tooling. Two destinations because the two sets live in two trees now (#393 P5):
-# the fleet launcher is @orb/tooling's `stack` tool; the vLLM serve chat-templates are packages/server
-# RUNTIME data resolved by `infra/providers/vllm/engine/build-argv.ts` and stay under scripts/dev/.
+# The fleet front door + its TS halves, workspace-shaped at the runtime cwd (the supervisor runs
+# `bash <cwd>/tooling/src/stack/engines.sh start`). ONLY the fleet files — the rest of the stack tool is
+# dev tooling.
+#
+# The vLLM serve chat-templates are NOT listed here any more (#415): they moved to
+# `packages/server/src/infra/providers/vllm/engine/templates/`, which the app-files stage already copies
+# wholesale — so the image can no longer ship an engine without its template because someone forgot a
+# COPY line. `scripts/dev/vllm-setup.sh` stays: it IS a script, and nothing else copies it.
 COPY --chown=node:node tooling/src/stack/engines.sh tooling/src/stack/ops/engines.ts \
      tooling/src/stack/ops/engines-ctl.ts /app/tooling/src/stack/
 COPY --chown=node:node tooling/src/stack/lib/spawn-lock.ts /app/tooling/src/stack/lib/
 COPY --chown=node:node tooling/src/_shared/artifacts.ts tooling/src/_shared/exit-contract.ts \
      tooling/src/_shared/log.ts tooling/src/_shared/proc.ts tooling/src/_shared/run-tool.ts /app/tooling/src/_shared/
-COPY --chown=node:node scripts/dev/vllm-setup.sh scripts/dev/qwen3_vl_embedding_serve.jinja \
-     scripts/dev/qwen3_vl_reranker_serve.jinja /app/scripts/dev/
+COPY --chown=node:node scripts/dev/vllm-setup.sh /app/scripts/dev/
 # @orb/* resolve through SYMLINKS to the tree sources (the node-26 type-stripping constraint — build
 # plan §2); the server symlink additionally serves engines.ts/engines-ctl.ts, which import
 # `@orb/server/...` by package name. /app/.cache/stack is the fleet's pidfile/log home; /models is the

@@ -57,14 +57,15 @@
 D69 capability measurement) · `mutation/arid-ignorer.ts` (the Stryker `PluginKind.Ignore` plugin —
 `Spine-Testing.md` §"An ARID mutant is not a test failure").
 
-### Server runtime data that lives here for a reason
+### Server runtime data that USED to live here
 
 `dev/qwen3_gen_thinking_serve.jinja` · `dev/qwen3_vl_embedding_serve.jinja` ·
-`dev/qwen3_vl_reranker_serve.jinja` — these are `packages/server` RUNTIME data, not tool data:
-`infra/providers/vllm/engine/build-argv.ts` resolves them by path and the `Dockerfile` bakes them into
-the prod image. No tool reads one. Moving them into `tooling/` would make the cake read a runtime file
-out of the tool tree through an unguarded path string. Their right long-term home is a server-owned
-data dir — an owner decision, not the tooling program's.
+`dev/qwen3_vl_reranker_serve.jinja` moved to
+`packages/server/src/infra/providers/vllm/engine/templates/` on 2026-08-22 (#415). They were always
+`packages/server` RUNTIME data, not tool data — `infra/providers/vllm/engine/build-argv.ts` is their
+only consumer and the prod image serves with them — and the #393 P5 fork deliberately took the
+reversible arm of leaving them here. The durable home is the package that owns them; nothing under
+`scripts/` reads or ships a chat template any more.
 
 ## Deleted here, with no successor
 

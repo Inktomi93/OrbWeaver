@@ -96,9 +96,11 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
      PACKAGE NAME — `pnpm deploy` output contains the server's deps but not `@orb/server` itself. Fix:
      the gpu image adds `node_modules/@orb/server -> ../../packages/server` (one symlink; the package's
      exports map `"./*": "./src/*/index.ts"` then resolves both).
-   - `build-argv.ts:167-168` references `scripts/dev/qwen3_vl_{embedding,reranker}_serve.jinja` relative
-     to repoRoot — the two templates are server RUNTIME data and deliberately stayed in `scripts/dev/`
-     when the tool fleet moved (#393 P5), so the gpu image must carry them from there, plus the stack
+   - `build-argv.ts` references the three `qwen3_*_serve.jinja` chat templates relative to repoRoot.
+     They are server RUNTIME data; they stayed in `scripts/dev/` when the tool fleet moved (#393 P5) and
+     were RE-HOMED under `packages/server/src/infra/providers/vllm/engine/templates/` on 2026-08-22
+     (#415), so the gpu image now gets them for free from the app-files `packages/server/src` copy and
+     the Dockerfile carries no per-template line. What the gpu image still copies by hand: the stack
      tool's `engines.sh`/`ops/engines.ts`/`ops/engines-ctl.ts` from `tooling/src/stack/` and
      `scripts/dev/vllm-setup.sh`; the rest of both trees stays out.
    - Related env arrangement (no code change): `tooling/src/stack/engines.sh:41,82` checks the venv at

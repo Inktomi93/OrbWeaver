@@ -163,9 +163,20 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
 }
 
 /** The chat-template / classifier files the pooling engines serve with — relative to the repo root the
- *  caller resolves (DEPLOYMENT fact). Kept beside the arms that use them. */
-const EMBED_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_vl_embedding_serve.jinja";
-const RERANK_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_vl_reranker_serve.jinja";
+ *  caller resolves (DEPLOYMENT fact). Kept beside the arms that use them.
+ *
+ *  THEY LIVE IN THIS PACKAGE (#415, moved 2026-08-22 out of `scripts/dev/`): they are `packages/server`
+ *  RUNTIME data — this file is their ONLY consumer and the prod image serves with them — so a `scripts/`
+ *  home meant the cake read a runtime file out of the dev-tooling tree through an unguarded path string.
+ *  Under `packages/server/src/**` they also ride the image's existing `packages/server/src` COPY instead
+ *  of a hand-maintained Dockerfile line (same shape as `entry/boot/seed-assets/`).
+ *
+ *  Still REPO-ROOT-relative rather than `import.meta.dirname`-resolved: the engine argv is a DEPLOYMENT
+ *  fact the caller owns (`EngineArgvContext.repoRoot`), and the container lays the workspace out at the
+ *  same shape, so one resolution rule covers dev and prod. */
+const TEMPLATE_DIR_REL = "packages/server/src/infra/providers/vllm/engine/templates";
+const EMBED_CHAT_TEMPLATE_REL = `${TEMPLATE_DIR_REL}/qwen3_vl_embedding_serve.jinja`;
+const RERANK_CHAT_TEMPLATE_REL = `${TEMPLATE_DIR_REL}/qwen3_vl_reranker_serve.jinja`;
 // The gen engine's FIXED chat template (vendored 2026-08-13 from froggeric/Qwen-Fixed-Chat-Templates,
 // original sha256 398edf5b…f78dc — since 2026-08-18 it carries a LOCAL continue/prefill arm on top
 // (assistant + thinking prefill via continue_final_message OR chat_template_kwargs
@@ -178,7 +189,7 @@ const RERANK_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_vl_reranker_serve.jinja";
 // the SAME kwargs we already emit below (`enable_thinking`, `preserve_thinking`) plus per-request
 // `reasoning_effort` (xhigh|medium|low, default xhigh), and preserves prior thoughts chronologically so
 // rendered history matches cached tokens (the 100%-prefix-hit property).
-const GEN_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_gen_thinking_serve.jinja";
+const GEN_CHAT_TEMPLATE_REL = `${TEMPLATE_DIR_REL}/qwen3_gen_thinking_serve.jinja`;
 
 const LOOPBACK_HOST = "127.0.0.1";
 const MULTI_GPU_THRESHOLD = 2;

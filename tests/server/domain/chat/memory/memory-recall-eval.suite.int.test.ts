@@ -129,8 +129,18 @@ function labeledEmbedder(input: string): Float32Array<ArrayBuffer> | null {
 function contextFor(controls: FakeRoleClientControls): ChatContext {
   const search = makeSearch(db, controls);
   return makeChatContext(db, {
+    // #405 F3 — the eval binds a THROWING observer. `digests` degrades mixC→mixB honestly for production
+    // (it keeps the vector order and fires this), but for an EVAL that silent fallback is the worst failure
+    // mode there is: a dead reranker makes the run report mixB numbers under a mixC label with no tell.
+    // An eval measures what it says it measures or it fails loudly.
     searchDigests: (query: MemoryQueryOptions): Promise<readonly ScoredBlock[]> =>
-      search.digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
+      search
+        .digests(query, {
+          onRerankUnavailable: (): never => {
+            throw new Error("eval: the rerank degraded to vector order — this run would report mixB numbers as mixC");
+          },
+        })
+        .then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
   });
 }
 
