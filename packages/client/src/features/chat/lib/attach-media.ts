@@ -15,6 +15,7 @@
 // The server re-caps and magic-byte checks regardless; this is fail-fast honesty, never the trust boundary.
 
 import type { UploadCaps } from "@orb/contracts/uploads";
+import type { FileDropzoneRejection } from "@orb/ui/file-dropzone";
 import { oversizeUploadMessage } from "#lib";
 
 const IMAGE_MIME_PREFIX = "image/";
@@ -28,6 +29,19 @@ export const ATTACH_MEDIA_ACCEPT = [`${IMAGE_MIME_PREFIX}*`, ...ATTACHABLE_VIDEO
 /** The refusal a non-media file earns — names the file and the formats that WOULD work (never a silent drop). */
 export function unsupportedAttachMessage(file: File): string {
   return `${file.name} isn't an image or video — attach a PNG, JPG, WEBP, GIF, MP4 or WEBM`;
+}
+
+/**
+ * The refusal line one `FileDropzone` rejection earns, in the SAME voice the drop and paste gestures use.
+ * The ✨ picker's zone gates on `accept` and on the route cap itself (#423), so its rejections never reach
+ * `triageAttachFiles` — without this mapping the picker would speak a different, vaguer refusal for the same
+ * file, and its own inline error line is invisible (the zone renders `hidden` inside the menu).
+ */
+export function dropzoneRefusalMessage(rejection: FileDropzoneRejection, sizeCeiling: number): string {
+  if (rejection.reason === "type") {
+    return unsupportedAttachMessage(rejection.file);
+  }
+  return oversizeUploadMessage(rejection.file, sizeCeiling) ?? `${rejection.file.name} couldn't be attached`;
 }
 
 /** The refusal a drop/paste earns while the previous message is still in flight (the picker row is disabled
