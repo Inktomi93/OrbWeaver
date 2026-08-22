@@ -304,7 +304,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | doc/comment law + markdown mechanics | `Documentation-Law.md` (this dir) · `Core-Docs-Formatting-Law.md` |
 | mission | `../../Mission.md` |
 | the neo→orb parity-audit record (campaign complete, protocol retired) | `../history/neo-orb-parity-audit.md` |
-| structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (scripts/codemods/ast.ts — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `scripts/codemods/codemod-kit.ts`. Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
+| structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (tooling/src/ast — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `tooling/src/codemod` (`pnpm codemod`). Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
 | task → reading-set router (backend + frontend) | §0.3 above |
 | mutable work state | [GitHub Project 1](https://github.com/users/Inktomi93/projects/1) (status · priority · dependencies · disposition · lane · verification); issue ingress: `../../../.github/ISSUE_TEMPLATE/` |
 | session recovery + agent operations | `docs/retro-workboard.md` (cold-start index) · `.claude/rules/orchestration.md` (machine-loaded source; root `AGENTS.md` imports every Claude Markdown rule for Codex) · `../history/retro-workboard-2026-08-14.md` (frozen provenance); committed programs live at `../proposed/`, mapped by `../proposed/INDEX.md` and Project 1 |

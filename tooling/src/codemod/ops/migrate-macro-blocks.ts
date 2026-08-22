@@ -9,13 +9,13 @@
 //     content-as-arg blocks (dropping `#` would newly apply the trim/dedent), close-less `{{#x}}` tags,
 //     and multi-flag runs (`{{#~x}}`) — each reported so the owner can judge by hand.
 // Idempotent (a migrated file yields 0 rewrites) with a `--dry-run` mode. Usage:
-//   pnpm tsx scripts/codemods/migrate-macro-blocks.ts [--dry-run] <file...>
+//   pnpm codemod migrate-macro-blocks [--dry-run] <file...>
 
 import { readFileSync, writeFileSync } from "node:fs";
-import process from "node:process";
-import { pathToFileURL } from "node:url";
 import type { MacroAST, MacroBlockNode, MacroRegistry } from "@orb/kit/macro";
 import { createDefaultRegistry, parseMacros } from "@orb/kit/macro";
+import { print } from "../../_shared/artifacts.ts";
+import { UsageError } from "../../_shared/run-tool.ts";
 
 // The children-mode registrations (registry.ts `blockChildren: true`) — the ONLY names whose rendering
 // is provably identical with or without the `#` flag (the handler owns its body verbatim either way).
@@ -29,9 +29,8 @@ const REGISTRY: MacroRegistry = createDefaultRegistry();
 // Byte length of the `{{` opener before the `#` being deleted.
 const OPENER_LEN = 2;
 // node argv prefix (`node`/`tsx` + the script path).
-const ARGV_PREFIX_LEN = 2;
 
-export interface SkippedBlock {
+interface SkippedBlock {
   readonly name: string;
   readonly offset: number;
   readonly reason: "unknown-name" | "content-arg-semantics";
@@ -87,27 +86,19 @@ export function migrateMacroBlocks(text: string): MigrationResult {
   return { text: out, rewrites: hashOffsets.length, skipped };
 }
 
-function main(): void {
-  const argv = process.argv.slice(ARGV_PREFIX_LEN);
+export function migrateMacroBlocksOp(argv: readonly string[]): void {
   const dryRun = argv.includes("--dry-run");
   const files = argv.filter((a) => a !== "--dry-run");
   if (files.length === 0) {
-    console.error("usage: pnpm tsx scripts/codemods/migrate-macro-blocks.ts [--dry-run] <file...>");
-    process.exitCode = 1;
-    return;
+    throw new UsageError("usage: pnpm codemod migrate-macro-blocks [--dry-run] <file...>");
   }
   for (const file of files) {
     const original = readFileSync(file, "utf8");
     const { text, rewrites, skipped } = migrateMacroBlocks(original);
     const skippedNote = skipped.length > 0 ? ` — SKIPPED ${skipped.map((s) => `{{#${s.name}}}@${s.offset} (${s.reason})`).join(", ")}` : "";
-    console.log(`${file}: ${rewrites} rewrite(s)${dryRun ? " [dry-run]" : ""}${skippedNote}`);
+    print(`${file}: ${rewrites} rewrite(s)${dryRun ? " [dry-run]" : ""}${skippedNote}`);
     if (!dryRun && rewrites > 0) {
       writeFileSync(file, text);
     }
   }
-}
-
-// Run only when executed directly (the CLI) — importing the module (the tooling test) must not touch disk.
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
 }

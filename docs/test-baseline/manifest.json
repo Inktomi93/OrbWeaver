@@ -1568,10 +1568,14 @@
     "tests/tooling/_shared/browser.int.test.ts",
     "tests/tooling/ast-lens.test.ts",
     "tests/tooling/ast-observability.int.test.ts",
+    "tests/tooling/ast/cli.int.test.ts",
+    "tests/tooling/ast/index.test.ts",
     "tests/tooling/baseui-surface-reader.int.test.ts",
     "tests/tooling/chat-component-presence.test.ts",
     "tests/tooling/check-gates.int.test.ts",
     "tests/tooling/codemod-kit.int.test.ts",
+    "tests/tooling/codemod/index.int.test.ts",
+    "tests/tooling/codemod/ops/migrate-macro-blocks.test.ts",
     "tests/tooling/cpu-profile/index.test.ts",
     "tests/tooling/dependency-cruiser.int.test.ts",
     "tests/tooling/design-audit-walker.ct.tsx",
@@ -1832,6 +1836,18 @@
     },
     "tests/tooling/trace-render.test.ts": {
       "why": "relocated to tests/tooling/render-trace/index.test.ts with its subject (scripts/probes/trace-render.ts -> tooling/src/render-trace/**, the @orb/tooling P3 move, #393); renderTrace + the type-only server shapes import through the tool's index.ts. Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/ast-lens.test.ts": {
+      "why": "relocated to tests/tooling/ast/index.test.ts with its subject (scripts/codemods/ast.ts -> tooling/src/ast/**, the @orb/tooling P4 move, #393); the pure collectors import through the tool's index.ts front door. Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/ast-observability.int.test.ts": {
+      "why": "relocated to tests/tooling/ast/cli.int.test.ts with its subject (the epilogue contract now proves tooling/src/ast/cli.ts, spawned at the new path). Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/codemod-kit.int.test.ts": {
+      "why": "relocated to tests/tooling/codemod/index.int.test.ts with its subject (scripts/codemods/codemod-kit.ts -> tooling/src/codemod/**, the @orb/tooling P4 move, #393); the kit surface imports through the tool's index.ts. Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/migrate-macro-blocks.test.ts": {
+      "why": "relocated to tests/tooling/codemod/ops/migrate-macro-blocks.test.ts with its subject (scripts/codemods/migrate-macro-blocks.ts -> tooling/src/codemod/ops/, the @orb/tooling P4 move, #393); the golden imports migrateMacroBlocks through the tool's index.ts. Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
     }
   }
 }

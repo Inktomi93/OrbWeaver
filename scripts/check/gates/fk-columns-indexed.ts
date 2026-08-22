@@ -36,7 +36,7 @@
 // structural belts around it.
 import type { SourceFile } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import { isSchemaFile, leadingIndexedColumns, referencingColumns, schemaTables } from "../schema-read.ts";
+import { isSchemaFile, leadingIndexedColumns, referencingColumns, schemaTables } from "@orb/tooling/_shared/schema-read";
 
 const MESSAGE =
   "a foreign-key column that does not LEAD any index — SQLite auto-indexes only the PARENT side of an FK, " +
