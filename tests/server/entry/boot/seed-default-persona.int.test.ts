@@ -28,10 +28,12 @@ interface MarkCall {
 }
 
 /** In-memory settings latch + recorder for the seeded persona id (the real settings wiring is a compose
- *  concern; here we only need one-run + the mark id). */
+ *  concern; here we only need one-run + the mark id). `forget` reproduces the #461 incident: the persisted
+ *  latch vanished from the settings blob between two boots while the seeded persona stayed in the library. */
 function fakeLatch(): {
   readonly isSeeded: (p: Principal) => Promise<boolean>;
   readonly markSeeded: (p: Principal, id: PersonaId | null) => Promise<void>;
+  readonly forget: (p: Principal) => void;
   readonly marks: MarkCall[];
 } {
   const seeded = new Set<UserId>();
@@ -44,6 +46,9 @@ function fakeLatch(): {
       marks.push({ userId: p.userId, seededPersonaId });
       return Promise.resolve();
     },
+    forget: (p): void => {
+      seeded.delete(p.userId);
+    },
   };
 }
 
@@ -53,6 +58,8 @@ async function makeHarness(autoSeedEnabled = true): Promise<{
   readonly persona: ReturnType<typeof createPersonaService>;
   readonly latch: ReturnType<typeof fakeLatch>;
   readonly runSeed: () => Promise<void>;
+  /** A COLD seeder over the same db + latch — a server respawn (the in-process `settled` memo is gone). */
+  readonly runSeedCold: () => Promise<void>;
 }> {
   const db = await freshDb();
   const assetsHarness = await makeAssetsHarness(db);
@@ -63,30 +70,35 @@ async function makeHarness(autoSeedEnabled = true): Promise<{
   const actor = principal(owner);
   const latch = fakeLatch();
 
-  const seeder = createDefaultPersonaSeeder({
-    autoSeedEnabled: (): boolean => autoSeedEnabled,
-    createPersona: async ({ principal: p, input }): Promise<{ id: PersonaId }> => {
-      const detail = await persona.create({ principal: p, input });
-      return { id: detail.id };
-    },
-    storeAvatar: async (p): Promise<AssetId | null> => {
-      const art = await readSeedAvatar(castId<CharacterHandle>("persona-you"));
-      if (art === null) {
-        return null;
-      }
-      const stored = await assets.store({
-        principal: p,
-        bytes: art.bytes,
-        kind: "avatar",
-        mime: art.mime,
-        enforceMagic: true,
-      });
-      return stored.assetId;
-    },
-    ...latch,
-  });
+  const makeSeeder = (): ReturnType<typeof createDefaultPersonaSeeder> =>
+    createDefaultPersonaSeeder({
+      autoSeedEnabled: (): boolean => autoSeedEnabled,
+      createPersona: async ({ principal: p, input }): Promise<{ id: PersonaId }> => {
+        const detail = await persona.create({ principal: p, input });
+        return { id: detail.id };
+      },
+      storeAvatar: async (p): Promise<AssetId | null> => {
+        const art = await readSeedAvatar(castId<CharacterHandle>("persona-you"));
+        if (art === null) {
+          return null;
+        }
+        const stored = await assets.store({
+          principal: p,
+          bytes: art.bytes,
+          kind: "avatar",
+          mime: art.mime,
+          enforceMagic: true,
+        });
+        return stored.assetId;
+      },
+      // The SECOND idempotency layer (the character seeder's handle-conflict tolerance, in persona terms):
+      // the seeder's own artifact is self-identifying through `metadata.seededDefault`.
+      ownsSeededDefault: async (p): Promise<boolean> => (await persona.list({ principal: p })).some((row) => row.metadata?.seededDefault === true),
+      ...latch,
+    });
 
-  return { owner, actor, persona, latch, runSeed: () => seeder.ensureSeeded(actor) };
+  const seeder = makeSeeder();
+  return { owner, actor, persona, latch, runSeed: () => seeder.ensureSeeded(actor), runSeedCold: () => makeSeeder().ensureSeeded(actor) };
 }
 
 describe("createDefaultPersonaSeeder", () => {
@@ -122,6 +134,7 @@ describe("createDefaultPersonaSeeder", () => {
       autoSeedEnabled: (): boolean => true,
       createPersona: (): Promise<{ id: PersonaId }> => Promise.reject(new Error("db is on fire")),
       storeAvatar: (): Promise<AssetId | null> => Promise.resolve(null),
+      ownsSeededDefault: (): Promise<boolean> => Promise.resolve(false),
       ...latch,
     });
     const actor = principal("user_fresh" as UserId);
@@ -141,6 +154,7 @@ describe("createDefaultPersonaSeeder", () => {
         return Promise.resolve({ id: "persona_seeded" as PersonaId });
       },
       storeAvatar: (): Promise<AssetId | null> => Promise.resolve(null),
+      ownsSeededDefault: (): Promise<boolean> => Promise.resolve(false),
       ...latch,
     });
     await seeder.ensureSeeded(principal("user_x" as UserId));
@@ -149,6 +163,8 @@ describe("createDefaultPersonaSeeder", () => {
     const seededInput = captured[0];
     expect(seededInput?.name).toBe("Traveler");
     expect((seededInput?.description ?? "").length).toBeGreaterThan(0);
+    // …and the layer-2 artifact marker rides the SAME authored input (never a post-create patch).
+    expect(seededInput?.metadata).toEqual({ seededDefault: true });
   });
 
   // ── The rename's GATING arms. The gate is the persisted `onboarding.defaultPersonaSeeded` latch itself —
@@ -183,6 +199,40 @@ describe("createDefaultPersonaSeeder", () => {
     const names = (await h.persona.list({ principal: h.actor })).map((p) => p.name);
     expect(names).toContain("Sarah");
     expect(names).toContain("Traveler");
+  });
+
+  // ── #461: THE LATCH IS NOT THE ONLY LAYER. Live receipt (dev db, 2026-08-22): the whole `user_settings`
+  // config blob came back at schema defaults 19.4h after a good seed — every section byte-identical to
+  // DEFAULT_USER_SETTINGS, with ZERO audited settings writes in between — so `isSeeded` answered false and
+  // the seeder minted a second byte-identical "Traveler". The character seeder survived the same boot
+  // untouched because it carries a SECOND layer (per-card handle-conflict tolerance against the db's own
+  // uniqueness). Personas have no unique key by design (same-named personas are supported, #458), so the
+  // seeder stamps its own artifact — `metadata.seededDefault` — and refuses to mint a second one.
+
+  test("a LOST latch does not mint a second default persona (the seeder recognises its own artifact)", async () => {
+    const h = await makeHarness();
+    await h.runSeed();
+    const first = (await h.persona.list({ principal: h.actor }))[0]?.id;
+
+    // The incident: the persisted latch is gone at the next boot, the library is not.
+    h.latch.forget(h.actor);
+    await h.runSeedCold();
+
+    const list = await h.persona.list({ principal: h.actor });
+    expect(list).toHaveLength(1);
+    expect(list[0]?.id).toBe(first);
+    // …and the latch is HEALED without a repoint: the second mark carries `null`, so the composition root's
+    // `markSeeded` has no id to point `seeds.defaultPersonaId`/`currentPersonaId` at.
+    expect(h.latch.marks).toHaveLength(2);
+    expect(h.latch.marks[1]?.seededPersonaId).toBeNull();
+  });
+
+  test("the seeded persona carries the artifact marker (what the second layer keys on)", async () => {
+    const h = await makeHarness();
+    await h.runSeed();
+
+    const list = await h.persona.list({ principal: h.actor });
+    expect(list[0]?.metadata?.seededDefault).toBe(true);
   });
 
   // ── THE FIRST-RUN DISCRIMINATOR (owner ruling 2026-08-03). Auto-creation is what made the shipped forced
