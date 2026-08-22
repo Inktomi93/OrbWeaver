@@ -77,7 +77,32 @@ const ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none";
 /** …and the teaching arm adds the opacity override. BOTH spellings are needed: Base UI's Button sets the
  *  native `disabled` attribute AND `data-disabled`, and the primitive dims on each. The dim is a SIGNAL of
  *  "not yet" that this arm delivers with its quiet `outline` intent instead — keeping it would leave the
- *  sentence that explains the state as the least legible text on the surface, at 2.64:1 (#441). */
+ *  sentence that explains the state as the least legible text on the surface, at 2.64:1 (#441).
+ *
+ *  A RECORDED SITE-LEVEL EXEMPTION, adjudicated at #449 — this is a feature overriding a sealed primitive
+ *  state, which is normally the review flag, and it stays here on three receipts:
+ *    · It is the SANCTIONED channel, not an escape from one. `ui-package-design.md` §15 (owner-ratified):
+ *      `className` is narrowed to `string` on every seal precisely so tailwind-merge can resolve it, and
+ *      "a caller who genuinely needs state-driven classes uses data attributes" — which is exactly these
+ *      two. Unlike the `size` axis (the `media`/`wrap`/`inline`/`glyph-*` arms in the Button variants, all
+ *      minted because a custom-token utility was OPAQUE to tailwind-merge and resolved by stylesheet order
+ *      or an `!important`), `opacity-*` is a stock utility in the merger's own group, so the seal's
+ *      `data-disabled:opacity-50` and this arm's `data-disabled:opacity-100` collide inside one
+ *      tailwind-merge group and resolve LAST-WINS deterministically. There is nothing here a variant
+ *      would make expressible that a class does not already say.
+ *    · ONE consumer. Surveyed at #449 across `packages/client/src` + `packages/ui/src`: this is the only
+ *      override of the disabled dim in the tree (66 files mount a disabled `<Button>`; every other one is a
+ *      submit-until-valid control with a short label, where the dim is correct and legibility is not the
+ *      point). `UI-Primitives-and-Reuse.md` §13.9's litmus wants a committed consumer before API lands in
+ *      the sealed package — the CapabilityGrantList precedent is "compose at feature level when one appears".
+ *    · It has an ENFORCER, so the exemption is not prose. The `#441` case in
+ *      `tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx` polls the COMPUTED opacity of
+ *      the disabled Start to `"1"` (computed, because `snap --contrast` ignores an element's own opacity and
+ *      reported a false 7.56:1 pass on the dimmed original).
+ *  GRADUATION CONDITION: the SECOND consumer mints the variant. A second surface wanting a legible-disabled
+ *  teaching control turns this into a skin decided in two features — the drift the seal exists to stop — and
+ *  the fix then is a Button variant (a `quietDisabled` arm on the state axis, beside `selection`), with both
+ *  sites repointed and this constant deleted. Do not mint it for one site. */
 const TEACHING_ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none disabled:opacity-100 data-disabled:opacity-100";
 
 /** The Start button's full label — also its accessible name at `@md` and up. */
