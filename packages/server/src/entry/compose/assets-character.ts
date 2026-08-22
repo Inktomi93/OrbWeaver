@@ -45,7 +45,7 @@ import type { ImageAdapter } from "#infra/image";
 import type { RoleClientsWithSignal } from "#infra/providers";
 import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
-import type { DefaultPersonaSeeder } from "../boot/index.ts";
+import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
 import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets/index.ts";
 import { createMaterializeBackground } from "./materialize-background.ts";
@@ -75,8 +75,9 @@ export interface AssetsCharacterComposeDeps {
   readonly getPreset: () => Pick<PresetService, "get">;
   /** The caller's default-preset generation params (the side-gen sampling ladder's TOP rung). */
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
-  /** Request-time forward-ref: the persona service (composes after this seam) — the persona seeder's create. */
-  readonly getPersona: () => Pick<PersonaService, "create">;
+  /** Request-time forward-ref: the persona service (composes after this seam) — the persona seeder's create
+   *  plus the `list` its layer-2 artifact probe reads (`createPersonaSeedLatch`). */
+  readonly getPersona: () => Pick<PersonaService, "create" | "list">;
 }
 
 /** The assets/character compose product. `materializeBackgroundOp` is the constructed op the keystone rebinds
@@ -89,6 +90,51 @@ export interface AssetsCharacterComposeResult {
   readonly characterSeeder: DefaultCharacterSeeder;
   readonly personaSeeder: DefaultPersonaSeeder;
   readonly materializeBackgroundOp: MaterializeBackgroundOp;
+}
+
+/** The default-persona seeder's three SETTINGS/LIBRARY-backed ops: the persisted latch (layer 1), the
+ *  artifact probe (layer 2 — `metadata.seededDefault`, #461), and the mark.
+ *
+ *  THE PICK LAW, which is why this is a named factory and not an inline literal: `markSeeded` may point
+ *  `seeds.defaultPersonaId`/`currentPersonaId` at the freshly-seeded row ONLY while they are still null. An
+ *  explicit pick — the first-run dialog's, the picker's, an import's — outranks the seeder permanently, and
+ *  the two pointers are decided INDEPENDENTLY (a user who pinned a default but never switched their current
+ *  gets the current filled and the default left alone). Extracted so that law is provable over the real
+ *  settings + persona services; the seeder itself never imports a domain, so it cannot own this.
+ *
+ * @public Test-anchored module surface; the pick law is pinned at `tests/server/entry/compose/assets-character.int.test.ts`.
+ */
+export function createPersonaSeedLatch(deps: {
+  readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
+  readonly getPersona: () => Pick<PersonaService, "list">;
+}): Pick<DefaultPersonaSeederDeps, "isSeeded" | "ownsSeededDefault" | "markSeeded"> {
+  return {
+    isSeeded: async (principal): Promise<boolean> => (await deps.settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
+    ownsSeededDefault: async (principal): Promise<boolean> => (await deps.getPersona().list({ principal })).some((row) => row.metadata?.seededDefault === true),
+    markSeeded: async (principal, seededPersonaId): Promise<void> => {
+      await deps.settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { defaultPersonaSeeded: true } },
+      });
+      if (seededPersonaId === null) {
+        return;
+      }
+      const current = (await deps.settings.getUserSettings({ principal })).config;
+      const patch: { defaultPersonaId?: PersonaId; currentPersonaId?: PersonaId } = {};
+      if (current.seeds.defaultPersonaId === null) {
+        patch.defaultPersonaId = seededPersonaId;
+      }
+      if (current.seeds.currentPersonaId === null) {
+        patch.currentPersonaId = seededPersonaId;
+      }
+      if (Object.keys(patch).length > 0) {
+        await deps.settings.updateUserSettingsSection({
+          principal,
+          input: { section: "seeds", patch },
+        });
+      }
+    },
+  };
 }
 
 export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCharacterComposeResult {
@@ -383,29 +429,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
       });
       return stored.assetId;
     },
-    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
-    markSeeded: async (principal, seededPersonaId): Promise<void> => {
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { defaultPersonaSeeded: true } },
-      });
-      if (seededPersonaId !== null) {
-        const current = (await settings.getUserSettings({ principal })).config;
-        const patch: { defaultPersonaId?: PersonaId; currentPersonaId?: PersonaId } = {};
-        if (current.seeds.defaultPersonaId === null) {
-          patch.defaultPersonaId = seededPersonaId;
-        }
-        if (current.seeds.currentPersonaId === null) {
-          patch.currentPersonaId = seededPersonaId;
-        }
-        if (Object.keys(patch).length > 0) {
-          await settings.updateUserSettingsSection({
-            principal,
-            input: { section: "seeds", patch },
-          });
-        }
-      }
-    },
+    ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),
   });
 
   return { assetsCtx, assets, character, galleryCtx, characterSeeder, personaSeeder, materializeBackgroundOp };
