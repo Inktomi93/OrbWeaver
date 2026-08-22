@@ -9,10 +9,13 @@ import { BROWSER_PACKAGES, distinctTsconfigs, graphMembership, touchesGraph } fr
 import { existsRel, gitChangedPaths, packageDir, toRepoRel } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
-// Mirrors the lint:eslint script's path list in package.json. THE TOOLING ARMS ARE LOAD-BEARING (#459):
-// `tooling/src` + `tests/tooling` joined the eslint surface on 2026-08-22, and a scoped lane that lints
-// a changed tooling file only sees the rules if this regex agrees with that script's argv.
-const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests\/ui|tests\/client|tooling\/src|tests\/tooling)\/.*\.tsx?$/u;
+// Mirrors the lint:eslint script's path list in package.json — and the mirroring is LOAD-BEARING, not
+// cosmetic: a scoped lane linting a changed file only sees the rules if this regex agrees with that
+// script's argv. `tooling/src` + `tests/tooling` joined on 2026-08-22 (#459); the WHOLE `tests/` tree
+// joined the same day (#473), which is why the tests arm is a bare `tests` rather than a per-dir
+// alternation — the alternation is exactly what went stale twice. Both halves are pinned against each
+// other in tests/tooling/verify/ops/run.int.test.ts ("a tooling file IS in the eslint surface").
+const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests|tooling\/src)\/.*\.tsx?$/u;
 const DEPCRUISE_RE = /^(?:packages|tooling)\/.*\.(?:ts|tsx|js|jsx|mts|cts)$/u;
 const DOCS_MD_RE = /^docs\/architecture\/.*\.md$/u;
 const DOCS_PROPOSED_RE = /^docs\/architecture\/proposed\//u;

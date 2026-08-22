@@ -140,7 +140,6 @@ const inertChatPortability: PortableEntity = {
   kind: "chat",
   dir: "chats/",
   ext: ".jsonl",
-  // eslint-disable-next-line @typescript-eslint/require-await
   async *exportAll(): AsyncIterable<PortableFile> {
     // inert: this suite never streams an export.
   },

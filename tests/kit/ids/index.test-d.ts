@@ -15,9 +15,9 @@ test("distinct entity brands are mutually non-assignable", () => {
 
 test("a branded id is assignable TO string, but a plain string is NOT a brand", () => {
   // Branded<B> = string & {…} → widens to string freely.
-  expectTypeOf<ChatId>().toMatchTypeOf<string>();
+  expectTypeOf<ChatId>().toExtend<string>();
   // …but the reverse is blocked: a raw string cannot satisfy the brand.
-  expectTypeOf<string>().not.toMatchTypeOf<ChatId>();
+  expectTypeOf<string>().not.toExtend<ChatId>();
 });
 
 test("castId produces exactly the requested brand", () => {

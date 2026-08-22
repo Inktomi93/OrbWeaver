@@ -10,5 +10,5 @@ import { expectTypeOf, test } from "vitest";
 // contracts, so the persisted `RegexScriptRow` must structurally MATCH it. A field drift (rename/retype/
 // widen) makes this assertion tsc-red — that is the whole point of the seam.
 test("RegexScriptRow structurally satisfies the kit executor's RegexScriptInput", () => {
-  expectTypeOf<RegexScriptRow>().toMatchTypeOf<RegexScriptInput>();
+  expectTypeOf<RegexScriptRow>().toExtend<RegexScriptInput>();
 });
