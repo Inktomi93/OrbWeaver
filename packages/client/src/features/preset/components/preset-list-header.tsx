@@ -46,6 +46,14 @@ export function PresetListHeader(): ReactElement {
   // (`filterPresetsByName`), so the two can't drift into two answers about one list.
   const needle = presetSearchNeedle(usePresetSearchQuery());
   const shown = filterPresetsByName(presets ?? [], needle);
+  // …AND THE TOTAL SURVIVES THE ZERO (side-eye 2026-08-22 P3-2). The ruling above SURVIVES — its input
+  // changed. `ListPaneHeader` omits a `0` census on purpose ("a zero census is noise, not information"),
+  // which is true of an empty library and false of a FILTERED one: there the band went from `PRESETS 5` to
+  // a bare `PRESETS` exactly when the number would have said "your presets are still there, this search
+  // just missed them". The band still prints what the pane SHOWS — that is the leading number — and the
+  // string arm (the caller decides, the band prints) carries the total beside it. Every other filter is
+  // untouched: `1 of 5` would be re-stating a total the rows below already make obvious.
+  const census = shown.length === 0 && (presets ?? []).length > 0 ? `0 of ${String(presets?.length ?? 0)}` : shown.length;
   const create = useCreatePreset({ trpc, invalidation });
   const importFile = useImportPresetFile({ trpc, invalidation });
   const [importOpen, setImportOpen] = useState(false);
@@ -88,7 +96,7 @@ export function PresetListHeader(): ReactElement {
             </Button>
           </Row>
         }
-        count={shown.length}
+        count={census}
         title="Presets"
       />
       <PresetImportDialog
