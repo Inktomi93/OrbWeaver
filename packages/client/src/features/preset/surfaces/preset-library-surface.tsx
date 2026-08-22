@@ -27,6 +27,7 @@ import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPr
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { PresetRenameDialog } from "../components/preset-rename-dialog.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
+import { notifyActivePreset } from "../lib/active-preset-notice.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 const NEW_PRESET_NAME = "New preset";
@@ -86,12 +87,23 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
     void create.mutateAsync({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }).then((created) => onSelectPreset(created.id));
   };
 
-  // §16 row 3: the ONE activation writer every path (row toggle, kebab item, editor header) funnels through.
-  // The BUILT-IN row is the null pick — the seed stores "no explicit preset", not the system row's sentinel
-  // id, so the runner keeps resolving the shared default even if that row is ever re-seeded.
+  // §16 row 3: the ONE activation writer this pane has (the row toggle) — the kebab's echo of it is GONE
+  // (#481, see `preset-library-row.tsx`) and the editor header owns the other door. The BUILT-IN row is the
+  // null pick — the seed stores "no explicit preset", not the system row's sentinel id, so the runner keeps
+  // resolving the shared default even if that row is ever re-seeded.
+  //
+  // IT ANNOUNCES ON SUCCESS (#481): the write is what changes every future generation, so the confirmation
+  // rides the SETTLED write, never the intent. `notifyActivePreset` is the one home for the sentence — the
+  // editor header's Activate calls the same function.
   const onActivate = (id: PresetId): void => {
     const preset = presets.find((p) => p.id === id);
-    setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset?.isSystemDefault === true ? null : id } });
+    if (preset === undefined) {
+      return;
+    }
+    setDefault.mutate(
+      { section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : id } },
+      { onSuccess: (): void => notifyActivePreset(preset.name) },
+    );
   };
 
   // G6 export: the CACHED detail row → `buildPresetFile` → a browser download. Same bytes as the bundle arm.

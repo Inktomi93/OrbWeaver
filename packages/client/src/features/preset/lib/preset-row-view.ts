@@ -15,22 +15,23 @@
  *  caller already has), null when the row is not a fork OR when its source is not among them — a packaged
  *  template never is. Null prints NOTHING: no name-matching heuristic ever invents lineage.
  *
- *  `active` LEADS when set (#99 item 3). The row's active state was carried by a filled dot in the trailing
- *  cluster and by nothing else in words, while the context panel 400px away said it with an "Active" chip —
- *  one fact, two vocabularies, and the row's half was a mute glyph. The word goes in the SUBTITLE, which is
- *  a flexible truncating text column, so the state gains a reading without any element entering or leaving
- *  the row's layout. See `preset-library-row.tsx`'s O-1 header for why it is emphatically NOT a title-line
- *  chip: that exact shape was a measured P0 (a reveal-swapped Badge reflowing the title line under a
- *  stationary pointer, ~85 hover crossings/sec). The dot stays; it is the AFFORDANCE. This is the DATUM. */
+ *  THE SUBTITLE CARRIES NO ACTIVE MARKER (side-eye 2026-08-22 P3-5, issue #481). It briefly did: #99 item 3
+ *  put a leading "Active · " here on the grounds that the state was otherwise a mute glyph, and that the
+ *  subtitle is "a flexible truncating text column, so the state gains a reading without any element entering
+ *  or leaving the row's layout". THE RULING SURVIVES; ITS INPUT CHANGED — the column is not flexible at the
+ *  width the pane actually gives it. Measured at the docked list: a 155px subtitle cell, where the active
+ *  row rendered `Active · roleplay · edite…` while every INACTIVE row showed `roleplay · edited 43m` whole.
+ *  The prefix spent its width on the one row whose metadata the reader most wants, so the marker cost the
+ *  datum. #99's real mechanism is preserved intact: the state is still NOT a title-line chip (that exact
+ *  shape was a measured P0 — a reveal-swapped Badge reflowing the title line under a stationary pointer,
+ *  ~85 hover crossings/sec, `preset-library-row.tsx`'s O-1 header), and nothing enters or leaves the row's
+ *  layout. The state's readout is the filled dot plus its `role="radio"`/`aria-checked` pair, which is a
+ *  reading AT gets in words; and activation now ANNOUNCES itself (`active-preset-notice.ts`), which is where
+ *  the words the eye needs went. */
 export function presetRowSubtitle(
-  { kind, updatedAt, forkedFromName, active = false }: { kind: string; updatedAt: number; forkedFromName: string | null; active?: boolean },
+  { kind, updatedAt, forkedFromName }: { kind: string; updatedAt: number; forkedFromName: string | null },
   formatRelative: (epochMs: number) => string,
 ): string {
-  const parts = [
-    ...(active ? ["Active"] : []),
-    kind,
-    ...(forkedFromName === null ? [] : [`forked from ${forkedFromName}`]),
-    `edited ${formatRelative(updatedAt)}`,
-  ];
+  const parts = [kind, ...(forkedFromName === null ? [] : [`forked from ${forkedFromName}`]), `edited ${formatRelative(updatedAt)}`];
   return parts.join(" · ");
 }

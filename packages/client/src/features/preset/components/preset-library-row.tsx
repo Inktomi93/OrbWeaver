@@ -30,9 +30,19 @@
 // STATE IS THE TOGGLE (O-1): pressed = a FILLED lucide dot (the seal's `fill` axis on the `Circle`
 // FillableIcon), unpressed = a hollow ring that reveals with the row. One element carries both the datum
 // and the affordance, so the row cannot paint the state twice — and the pressed dot NEVER hides.
+//
+// ACTIVATE HAS ONE HOME ON THIS ROW: the radio (side-eye 2026-08-22 P2-6, issue #481). Both kebabs used to
+// carry an `Activate` menuitem — the ordinary row's and the built-in's — sitting 40px from the radio that
+// does the same thing. THE RULING SURVIVES; ITS INPUT CHANGED: the echo was minted as "§16 row 3 echo (a):
+// the kebab mirrors the inline toggle for KEYBOARD/discoverability parity", and the keyboard half of that
+// premise is now served properly by the radio itself — `use-roving-radio-group` gives the group Arrow/Home/
+// End navigation with a Space/Enter commit, so the menuitem is no longer anyone's only keyboard door. What
+// remains is duplication, and `preset-editor-surface.tsx:362-365` already ruled the same shape for Export:
+// "ONE home — the list-row kebab, matching the characters/chats precedent". The same test kills this echo.
+// The two doors that survive are the row radio (list-side commitment) and the editor header's Activate.
 
 import type { PresetId } from "@orb/kit/ids";
-import { Circle, Download, Icon, Lock, Zap } from "@orb/ui/icons";
+import { Circle, Download, Icon, Lock } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
@@ -152,22 +162,12 @@ export function PresetLibraryRow({
             // so the Duplicate that has nothing to do with either went with them. The only copy path was
             // "edit something and the server forks it for you" — a copy you cannot ask for by name, and the
             // starting point every fork workflow actually wants. The menu carries what the row OFFERS and
-            // nothing it would refuse: Duplicate (+ the Activate mirror, §16 row 3 echo a), never Rename,
-            // Delete or Export.
+            // nothing it would refuse: Duplicate, never Rename, Delete or Export — and no Activate either
+            // (#481: activation's one list-side home is the row's radio, see the file header).
             actions: {
               name: preset.name,
               qualifier,
               onDuplicate: (): void => onDuplicate(preset.id),
-              ...(active
-                ? {}
-                : {
-                    menuItemsBefore: (
-                      <MenuItem onClick={activate}>
-                        <Icon icon={Zap} size="sm" />
-                        Activate
-                      </MenuItem>
-                    ),
-                  }),
             },
           }
         : {
@@ -179,7 +179,7 @@ export function PresetLibraryRow({
             // them stacked in a 296px rail, each spending a clause on "about two hours ago" where "2h"
             // says it. `presetRowSubtitle` takes the formatter, so this is a call-site decision, not a
             // second derivation.
-            subtitle: presetRowSubtitle({ kind: preset.kind, updatedAt: preset.updatedAt, forkedFromName, active }, timeLib.formatRelativeCompact),
+            subtitle: presetRowSubtitle({ kind: preset.kind, updatedAt: preset.updatedAt, forkedFromName }, timeLib.formatRelativeCompact),
             actions: {
               // §12.2 per-list assignment: this list declares NO inline verb. Duplicate is the frequent verb
               // and it lives in the kebab ONLY — see PRESET_CLUSTER_SLOTS for the measurement that killed the
@@ -192,19 +192,6 @@ export function PresetLibraryRow({
               onRename: (): void => onRename(preset.id),
               onDuplicate: (): void => onDuplicate(preset.id),
               onDelete: (): void => onDelete(preset.id),
-              // §16 row 3 echo (a): the kebab mirrors the inline toggle for keyboard/discoverability parity,
-              // through the SAME activate call. Already-active ⇒ the item is absent, not disabled: the menu
-              // offers no act it would refuse.
-              ...(active
-                ? {}
-                : {
-                    menuItemsBefore: (
-                      <MenuItem onClick={activate}>
-                        <Icon icon={Zap} size="sm" />
-                        Activate
-                      </MenuItem>
-                    ),
-                  }),
               // G6: the single-preset export door. Its bytes are `buildPresetFile`'s — the same serde the
               // whole-profile bundle writes (the surface owns the download; this is just its home).
               menuItemsAfter: (

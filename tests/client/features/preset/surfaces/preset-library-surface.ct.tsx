@@ -27,6 +27,7 @@ import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import {
+  PresetLibraryAnnouncedStory,
   PresetLibraryDockedStory,
   PresetLibrarySurfaceStory,
   PresetLibraryWelcomeListModeStory,
@@ -542,11 +543,11 @@ test("P3a two forks with the SAME name expose distinct action names (the stamp d
   expect(names.every((name) => name.startsWith(`Actions for "${EDITED_ONE_NAME}" · `))).toBe(true);
 });
 
-test("P3 the built-in row IS duplicable — a kebab holding Duplicate (+ the Activate mirror) and nothing it would refuse", async ({ mount, page }) => {
+test("P3 the built-in row IS duplicable — a kebab holding Duplicate and nothing else it can do", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "preset.list": () => PRESETS,
-    // ANOTHER row holds the pick, deliberately: the built-in IS the null pick, so with nothing chosen it is
-    // already active and its kebab correctly offers no Activate (the menu carries no act it would refuse).
+    // ANOTHER row holds the pick, deliberately: the built-in IS the null pick, so this mounts the row in its
+    // NOT-active state — the arm that used to carry the Activate echo (#481 killed it).
     "settings.getUserSettings": () => ({
       userId: "user_ct_preset",
       schemaVersion: 1,
@@ -561,13 +562,14 @@ test("P3 the built-in row IS duplicable — a kebab holding Duplicate (+ the Act
 
   await component.locator(LIST_ROW_ROOT, { hasText: "Built-in default" }).first().hover();
   await page.getByRole("button", { name: menuFor("Default") }).click();
-  // The two acts the packaged row CAN do…
+  // The one act the packaged row CAN do…
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Activate" })).toBeVisible();
-  // …and none of the three the server would refuse (items are OMITTED, never disabled).
+  // …none of the three the server would refuse (items are OMITTED, never disabled)…
   await expect(page.getByRole("menuitem", { name: "Rename" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Delete" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
+  // …and NOT the Activate echo: this row's activation door is its own radio, 40px away (#481, P2-6).
+  await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
 
   await page.getByRole("menuitem", { name: "Duplicate" }).click();
   await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual(["Copy of Default"]);
@@ -657,6 +659,79 @@ test("§9/D1 with nothing chosen, the BUILT-IN row wears the pressed state", asy
   expect(checked).toHaveLength(1);
 });
 
+// ── #481 / P1-1: BROWSING IS NOT COMMITTING ──────────────────────────────────────────────────────
+// The live receipt: two ArrowDowns through this list produced two `settings.updateUserSettingsSection`
+// writes — the key you press to READ the next row rewrote which preset every future generation runs with,
+// silently. The group keyboard contract is the APG's selection-with-side-effect arm now (arrows move focus,
+// Space/Enter commits — the contract itself is pinned in `tests/client/components/library-surface.ct.tsx`);
+// these two pin it end-to-end on the REAL surface, against the real mutation.
+//
+// The presses go through `page.keyboard`, never `locator.press()`: a locator press FOCUSES its target
+// first, which would silently undo the very movement under test on every press after the first.
+
+// ONE test for the whole receipt, deliberately: a bare "the arrows wrote nothing" assertion is UNSETTLED —
+// a request the walk fired may simply not have arrived at the recorder yet, so the zero can be true of the
+// instant and false of the run (it passed vacuously against the OLD code, which writes on every arrow). The
+// settle-safe form is the report's own: walk, commit ONCE, and assert the ENTIRE write log is that single
+// commit. Under the old behaviour the same run logs three.
+test("#481 P1-1 a keyboard walk writes NOTHING, and Space on the row the user CHOSE writes exactly once", async ({ mount, page }) => {
+  const trpc = await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const start = page.getByRole("radio", { name: activateFor("Default"), exact: true });
+  await start.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+
+  // Barrier on the SETTLED rendered arm — focus landed two rows down, and the PICK did not follow it.
+  const walked = page.getByRole("radio", { name: activateFor(EDITED_TWO_NAME), exact: true });
+  await expect(walked).toBeFocused();
+  await expect(walked).toHaveAttribute("aria-checked", "false");
+  await expect(start).toHaveAttribute("aria-checked", "true");
+
+  await page.keyboard.press(" ");
+  // The WHOLE log is one write, and it names the row the user stopped on — never a row they passed through.
+  await expect
+    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
+    .toEqual([EDITED_TWO]);
+});
+
+test("#481 P1-1 activating ANNOUNCES the new pick in the app's polite live region", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibraryAnnouncedStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
+  await page.getByRole("radio", { name: activateFor(EDITED_ONE_NAME), exact: true }).click();
+
+  // ONE mechanism for both readings: the toast is the pixels, and its viewport is the live region — so the
+  // sentence is announced and painted by the same act. Asserted on the viewport that CARRIES the notice,
+  // never a bare slot selector.
+  const viewport = page.locator('[data-slot="toast-viewport"]');
+  await expect(viewport).toHaveAttribute("aria-live", "polite");
+  await expect(viewport.getByText(`${EDITED_ONE_NAME} is now the active preset`, { exact: true })).toBeVisible();
+});
+
+test("#481 P3-5 the ACTIVE row's subtitle is the same shape as an inactive row's, and its stamp survives", async ({ mount, page }) => {
+  await page.clock.setFixedTime(FROZEN_NOW);
+  await routeLibrary(page, IMPORTED);
+  // The DOCKED width (272px) is where the defect lived: the "Active · " prefix pushed the active row's own
+  // timestamp into an ellipsis in a 155px subtitle cell, while every inactive row printed its metadata whole.
+  const component = await mount(<PresetLibraryDockedStory />);
+  await expect(component.getByText(IMPORTED_NAME, { exact: true })).toBeVisible();
+
+  const activeRow = component.locator(LIST_ROW_ROOT, { hasText: IMPORTED_NAME }).first();
+  const subtitle = activeRow.locator('[data-slot="list-row-subtitle"]');
+  // The row IS the pick (so this is the arm that used to wear the prefix)…
+  await expect(page.getByRole("radio", { name: activateFor(IMPORTED_NAME), exact: true })).toHaveAttribute("aria-checked", "true");
+  // …and its subtitle is exactly what the same row prints when it is not.
+  await expect(subtitle).toHaveText("roleplay · edited 5m");
+  // Rendered, not just derived: the cell is not clipping (the P3-5 symptom was `Active · roleplay · edite…`).
+  const clipped = await subtitle.evaluate((el) => el.scrollWidth > el.clientWidth);
+  expect(clipped).toBe(false);
+});
+
 test("§12 enforcement: the pane-level 'Active for generation' Select is DELETED, not kept beside the toggle", async ({ mount, page }) => {
   await routeLibrary(page, EDITED_ONE);
   const component = await mount(<PresetLibrarySurfaceStory />);
@@ -673,17 +748,28 @@ test("§12 enforcement: the pane-level 'Active for generation' Select is DELETED
   await expect(page.getByRole("listbox")).toHaveCount(0);
 });
 
-test("§16 row 3 echo (a): the kebab Activate item fires the SAME mutation as the toggle", async ({ mount, page }) => {
-  const trpc = await routeLibrary(page, EDITED_ONE);
+// ── #481 / P2-6: ACTIVATE HAS ONE LIST-SIDE HOME — the row's radio ───────────────────────────────
+// The kebab used to mirror it ("§16 row 3 echo (a)", for keyboard parity). The radio is properly
+// keyboard-operable now (arrows move focus, Space commits — pinned below), so the echo was pure
+// duplication sitting 40px from the control it copied, which is exactly the test
+// `preset-editor-surface.tsx:362-365` applied to the Export echo: "ONE home".
+
+test("#481 the row kebab offers NO Activate — the radio is the list's one activation door", async ({ mount, page }) => {
+  await routeLibrary(page, EDITED_ONE);
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
+  // The NOT-active row: the arm that used to render the echo.
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_TWO_NAME }).first().hover();
   await page.getByRole("button", { name: menuFor(EDITED_TWO_NAME) }).click();
-  await page.getByRole("menuitem", { name: "Activate" }).click();
-  await expect
-    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
-    .toEqual([EDITED_TWO]);
+  // The menu IS open (its own items are there) — the absence is real, not an unopened popup.
+  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
+  // …and the menu is FOUR items now (Rename · Duplicate · Delete · Export), the report's own closing bar.
+  await expect(page.getByRole("menuitem")).toHaveCount(4);
+
+  // The door that survives, on the same row: its radio, unchecked and ready.
+  await expect(page.getByRole("radio", { name: activateFor(EDITED_TWO_NAME), exact: true })).toHaveAttribute("aria-checked", "false");
 });
 
 // ── G6: the single-preset EXPORT door (§16.1) ────────────────────────────────────────────────────
@@ -732,16 +818,19 @@ test("G6 the BUILT-IN row offers no Export — the bundle excludes the system de
   await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
 });
 
-test("§16 row 3 echo (a): the ACTIVE row's kebab offers no Activate — the menu carries no act it would refuse", async ({ mount, page }) => {
+// A FENCE, not a defect proof: the ACTIVE row's kebab already omitted Activate before #481 (the item was
+// conditional on `!active`). It is kept because the echo's absence must now be UNCONDITIONAL — a future
+// re-introduction would most plausibly come back through this arm.
+test("#481 the ACTIVE row's kebab is the same four items — the echo's absence is not state-dependent", async ({ mount, page }) => {
   await routeLibrary(page, EDITED_ONE);
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
   await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
-  // The menu IS open (its own Rename item is there) — the Activate absence is real, not an unopened popup.
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem")).toHaveCount(4);
 });
 
 // ── G6: the ONE band IMPORT door, two sniffed arms (§16.1 / §16 row 2) ───────────────────────────

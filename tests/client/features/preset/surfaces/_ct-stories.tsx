@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 
 // The three fixed ids (kept module-local — biome forbids non-component exports beside components; the CT
 // mirrors these literals for its save-spy filters). BUILT_IN is the real seeded system-default id.
@@ -97,6 +98,26 @@ export function PresetLibrarySurfaceStory(): ReactElement {
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
+  );
+}
+
+/** The library WITH the production toast outlet mounted (#481). Activation's confirmation is a `notify`
+ *  notice — the toast viewport is `aria-live="polite"`, so one mechanism serves both the eye and AT — and
+ *  `notify` is a MODULE-GLOBAL bind: without `CtToastSurface` (the one owner of that bind + `AppToaster`) the
+ *  call degrades to a console line and the pixels a spec is asserting on never exist. Only the stories that
+ *  expect a toast mount the outlet — the harness deliberately does not (#247). */
+export function PresetLibraryAnnouncedStory(): ReactElement {
+  return (
+    <CtToastSurface>
+      <CtDataProviders>
+        <CtRealSectionRegistry>
+          <div style={{ height: 720, width: 420 }}>
+            <PresetListBand />
+            <PresetLibrarySurface />
+          </div>
+        </CtRealSectionRegistry>
+      </CtDataProviders>
+    </CtToastSurface>
   );
 }
 

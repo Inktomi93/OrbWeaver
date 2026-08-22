@@ -61,6 +61,7 @@ import { setPresetEditorView, usePresetEditorView } from "#state";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.tsx";
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
+import { notifyActivePreset } from "../lib/active-preset-notice.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
 import { seedConfig, validatePresetConfig } from "../lib/preset-editor-model.ts";
@@ -156,8 +157,13 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // G7: the built-in IS the null pick, exactly as the LIST row reads it — the two surfaces must not
   // disagree about which preset the next turn runs with.
   const active = preset.isSystemDefault ? activePresetId === null : presetId === activePresetId;
+  // ACTIVATION ANNOUNCES on success, through the same one home as the LIST row's radio (#481): it is the act
+  // with global reach on this surface, and it used to change every future generation in silence.
   const onActivate = (): void => {
-    setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } });
+    setDefault.mutate(
+      { section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } },
+      { onSuccess: (): void => notifyActivePreset(preset.name) },
+    );
   };
   // isError ≠ no-model (F-02): a FAILED read must not render as "connect a chat model" to someone who has one.
   // The ERROR goes down WHOLE (2026-08-08) so the gate discriminates on `data.code` — the routing verdict is
