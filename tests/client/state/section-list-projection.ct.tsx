@@ -1,6 +1,6 @@
 // section-list-projection CT — the two `#state` answers a feature is allowed to ask about its LIST pane:
 // "is this section in the mobile LIST-AS-SCREEN arm?" (`useSectionListIsScreen`) and "is my list docked?"
-// (`useListDocked`). Both are driven here over the REAL config selection seam and the REAL registry, so the
+// (`useSectionListMode`). Both are driven here over the REAL config selection seam and the REAL registry, so the
 // projection is proven against the production store — the M10 lesson is that a hand-copied mirror of this
 // answer is exactly how the tiers drift.
 
@@ -24,7 +24,9 @@ test("useSectionListIsScreen: a section that DECLARES a list with nothing select
   await expect(state).toContainText("config-screen=true");
 });
 
-test("useListDocked agrees with the shell on mobile: the roster IS docked while nothing is selected, and is not once a member is open", async ({ mount }) => {
+test("useSectionListMode agrees with the shell on mobile: the roster IS docked while nothing is selected, and is not once a member is open", async ({
+  mount,
+}) => {
   const probe = await mount(<SectionListProjectionProbe />);
   const state = probe.locator("output");
   await expect(state).toContainText("config-docked=true");
