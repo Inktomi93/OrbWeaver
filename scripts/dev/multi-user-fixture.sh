@@ -3,9 +3,9 @@
 #
 # Boots orb as a REAL multi-human deployment so the invite / bell-inbox / People-panel / `/join`
 # surfaces render LIVE — no client-side fetch-mocking. It is a thin ENV RECIPE over the existing
-# `scripts/dev/stack.sh` (NOT a parallel stack system): it exports AUTH_MODE=local + a SEPARATE DB /
+# `tooling/src/stack/stack.sh` (NOT a parallel stack system): it exports AUTH_MODE=local + a SEPARATE DB /
 # ASSETS dir under .cache/ (so the normal single-user dev DB is never touched), starts the stack, then
-# runs `multi-user-seed.ts` to flip the `LOCAL_MULTI_USER` AppSetting on and mint a second account.
+# runs `seed multi-user` (@orb/tooling) to flip the `LOCAL_MULTI_USER` AppSetting on and mint a second account.
 #
 #   bash scripts/dev/multi-user-fixture.sh up       boot the fixture + seed (owner + member, LOCAL_MULTI_USER on)
 #   bash scripts/dev/multi-user-fixture.sh down      stop the stack (leaves the fixture DB on disk)
@@ -35,7 +35,7 @@
 
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-STACK="$REPO/scripts/dev/stack.sh"
+STACK="$REPO/tooling/src/stack/stack.sh"
 FIXTURE_DIR="$REPO/.cache/multi-user-fixture"
 
 # ── the offset port pair (see PORTS above) — exported so stack.sh + its vite child bind THESE ────────
@@ -73,7 +73,7 @@ export FIXTURE_OWNER_PASSWORD="$LOCAL_INITIAL_PASSWORD"
 export FIXTURE_MEMBER_HANDLE=member
 export FIXTURE_MEMBER_PASSWORD="member-dev-pass"
 
-exec_seed() { "$REPO/node_modules/.bin/tsx" "$REPO/scripts/dev/multi-user-seed.ts"; }
+exec_seed() { node "$REPO/tooling/src/seed/cli.ts" multi-user; }
 
 do_up() {
   mkdir -p "$FIXTURE_DIR/assets" "$STACK_RUN_DIR"

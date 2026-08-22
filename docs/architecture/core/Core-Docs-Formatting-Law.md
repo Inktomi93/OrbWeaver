@@ -14,7 +14,7 @@ updated: 2026-07-13
 
 ## The formatter
 
-`scripts/docs/format-md.ts` (remark + remark-gfm + remark-frontmatter) is the ONE writer of markdown
+`tooling/src/doc-catalog/ops/format.ts` (remark + remark-gfm + remark-frontmatter) is the ONE writer of markdown
 style. Nothing else formats these docs — **prettier is banned from markdown** (it alignment-pads tables;
 `.vscode/settings.json` disables markdown format-on-save so an editor can't silently re-pad). The bloat
 that got it banned: `history/misc-core-archaeology-record.md`.
@@ -34,7 +34,7 @@ never auto-touched).
 2. **YAML frontmatter passes through verbatim.** Authored docs carry the minimal
    `kind:` / `status:` / `supersedes:` / `updated:` header; vendor mirrors retain upstream metadata
    (schema owned by `Documentation-Law.md`). The formatter parses the fence and never reformats its
-   contents. `scripts/docs/catalog.ts` owns flat-schema validation and the migration ratchet; the
+   contents. `tooling/src/doc-catalog/lib/receipt-rules.ts` owns flat-schema validation and the migration ratchet; the
    formatter owns bytes only.
 3. **No prose reflow.** The formatter preserves existing line breaks and does not wrap long lines
    (markdownlint MD013 is off). Write new prose however you like — unwrapped paragraphs are fine and

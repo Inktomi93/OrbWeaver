@@ -14,11 +14,17 @@
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
+    "@orb/contracts": "workspace:*",
+    "@orb/db": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
     "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
     "@trpc/client": "catalog:",
+    "drizzle-orm": "catalog:",
+    "remark": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
     "sharp": "catalog:",
     "ts-morph": "catalog:"
   }

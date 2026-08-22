@@ -16,7 +16,7 @@
 
 import type { ModeProject } from "./modes.ts";
 
-/** The canonical dev-stack ports (`scripts/dev/stack.sh` defaults: server 8788, vite 5173). A harness target
+/** The canonical dev-stack ports (`tooling/src/stack/stack.sh` defaults: server 8788, vite 5173). A harness target
  *  holding either is refused — that stack is the operator's, and its DB is their real data. */
 export const DEV_STACK_PORTS: readonly string[] = ["8788", "5173"];
 

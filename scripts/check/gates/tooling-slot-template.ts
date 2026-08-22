@@ -12,10 +12,13 @@ const SHARED = "_shared";
 const TOOL_ROOT_FILES = new Set(["cli.ts", "index.ts"]);
 const TOOL_SLOT_DIRS = new Set(["contract", "ops", "lib"]);
 
-/** Tools whose ENTRYPOINT is bash (`.sh` at the tool root, no cli.ts required). Armed-empty at P1;
- *  `stack` joins at its P5 move (tooling-package.md §2.6). Stale arm E reds a row naming a dead dir or
- *  a dir that has grown a cli.ts (the row then exempts nothing and must go). */
-const BASH_FRONTED_TOOLS: ExemptionTable = {};
+/** Tools whose ENTRYPOINT is bash (`.sh` at the tool root, no cli.ts required). Stale arm E reds a row
+ *  naming a dead dir or a dir that has grown a cli.ts (the row then exempts nothing and must go). */
+const BASH_FRONTED_TOOLS: ExemptionTable = {
+  stack: {
+    why: "the pgid/setsid/process-group choreography IS the tool (stack.sh · dev.sh · engines.sh); the TS half under ops/ holds only the decisions the shell asks for. Ends if stack grows a cli.ts or the shells leave the tool root",
+  },
+};
 
 interface FsViolation {
   readonly file: string;

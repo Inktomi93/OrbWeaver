@@ -1109,7 +1109,7 @@
           "evidence": [
             {
               "kind": "code",
-              "target": "scripts/dev/stack-prod.ts:15"
+              "target": "tooling/src/stack/ops/prod.ts:12"
             },
             {
               "kind": "issue",

@@ -243,7 +243,7 @@ async function probeEngine(engine: VllmEngine, sleepMode: boolean): Promise<Prob
  *  verb OWNS the process topology (the engines are nobody's child, surviving the server's death). Injected in
  *  tests so no real fleet is launched. */
 function realTriggerSpawn(repoRoot: string): void {
-  execFile("bash", [path.join(repoRoot, "scripts", "dev", "engines.sh"), "start"], () => undefined);
+  execFile("bash", [path.join(repoRoot, "tooling", "src", "stack", "engines.sh"), "start"], () => undefined);
 }
 
 /** Start the supervisor; returns a graceful-drain closer. `now`/`sleep` are injected for determinism (tests

@@ -4,7 +4,7 @@
 // outside _shared/artifacts.ts; (D) `process.exit(` outside _shared/run-tool.ts (a bare exit drops the
 // pipe AND dodges the exit-honesty runner); (E) a tool cli.ts that does not enter through runTool;
 // (F) a `node:child_process` import outside _shared/proc.ts (a direct spawn bypasses the nice -19
-// homelab floor), with spawnFullPrioritySync callers allowlisted in FULL_PRIORITY_CALLERS.
+// homelab floor), with full-priority-door callers allowlisted in FULL_PRIORITY_CALLERS.
 // Scan-and-allowlist: the HOMES are SCANNED and carried as cited rows with a stale sweep (GATE-AUTHORING §4). Comment posture: comment-SAFE (node kinds + literal args).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
@@ -26,12 +26,22 @@ const HOMES: ExemptionTable & Readonly<Record<string, { readonly why: string }>>
   "tooling/src/_shared/proc.ts": { why: "the ONE child_process door (nice -19 floor) — same end condition" },
 };
 
-/** spawnFullPrioritySync callers — the census'd un-niced exceptions (proc.ts's loud door). Every row
- *  states why nice is WRONG there; a call outside these rows is RED, and a row whose file no longer
- *  calls it is stale. */
+/** The un-niced spawn doors proc.ts exposes — the SYNC one (a boot a human waits on) and the DETACHED
+ *  CHILD one (a long-lived server that IS the workload). Both are loud by name so their callers form a
+ *  census; adding a third door means adding it here or the gate stops seeing it. */
+const FULL_PRIORITY_DOORS = new Set(["spawnFullPrioritySync", "spawnFullPriorityChild"]);
+
+/** Full-priority-door callers — the census'd un-niced exceptions. Every row states why nice is WRONG
+ *  there; a call outside these rows is RED, and a row whose file no longer calls one is stale. */
 const FULL_PRIORITY_CALLERS: ExemptionTable = {
   "tooling/src/snap/ops/stage.ts": {
     why: "the stage stack BOOT serves interactive snap navigations — a -19 staged app times out captures under load; ends if the stage boot moves or drops the exception",
+  },
+  "tooling/src/stack/ops/engines.ts": {
+    why: "the vLLM engines ARE the inference workload the operator waits on — a -19 engine degrades the interactive token latency the fleet exists to provide; ends if the fleet launcher moves or stops spawning",
+  },
+  "tooling/src/stack/ops/prod-up.ts": {
+    why: "the child it spawns IS the production server answering the operator's requests — a -19 app is the thing the launcher exists to run, degraded; ends if the prod spawn moves or drops the exception",
   },
 };
 
@@ -112,12 +122,12 @@ export const gate: GateDescriptor = {
       return;
     }
     // Arm F2: an un-niced spawn door call — legal only for a census'd row.
-    if (node.isKind(SyntaxKind.CallExpression) && node.getExpression().getText() === "spawnFullPrioritySync") {
+    if (node.isKind(SyntaxKind.CallExpression) && FULL_PRIORITY_DOORS.has(node.getExpression().getText())) {
       if (rel in FULL_PRIORITY_CALLERS || rel === "tooling/src/_shared/proc.ts") {
         seenFullPriorityCallers.add(rel);
         return;
       }
-      ctx.report(node, { token: "spawnFullPrioritySync(", offset: 0 });
+      ctx.report(node, { token: `${node.getExpression().getText()}(`, offset: 0 });
       return;
     }
     const cap = capability(node) ?? childProcessImport(node);
@@ -169,7 +179,7 @@ export const gate: GateDescriptor = {
           file: caller,
           line: 0,
           column: 0,
-          message: `stale FULL_PRIORITY_CALLERS row — "${caller}" no longer calls spawnFullPrioritySync (row why: ${row.why}). Delete the row (docs/design/tooling-package.md §4.4).`,
+          message: `stale FULL_PRIORITY_CALLERS row — "${caller}" no longer calls a full-priority door (row why: ${row.why}). Delete the row (docs/design/tooling-package.md §4.4).`,
         });
       }
     }
@@ -210,6 +220,12 @@ export const gate: GateDescriptor = {
       at: "tooling/src/seed/ops/hot.ts",
       expect: { count: 1, token: "spawnFullPrioritySync(" },
       why: "an un-census'd full-priority spawn — the exception is allowlisted by row, never ambient (arm F2)",
+    },
+    {
+      files: 'declare function spawnFullPriorityChild(c: string, a: string[]): void;\nexport const x = (): void => spawnFullPriorityChild("x", []);\n',
+      at: "tooling/src/seed/ops/warm.ts",
+      expect: { count: 1, token: "spawnFullPriorityChild(" },
+      why: "the DETACHED full-priority door is censused identically — a second door must not be a second loophole (arm F2)",
     },
     {
       files: { "tooling/src/badcli/cli.ts": "export const c = 1;\n" },

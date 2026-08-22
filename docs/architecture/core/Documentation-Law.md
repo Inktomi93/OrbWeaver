@@ -150,7 +150,7 @@ Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `
   updated: YYYY-MM-DD
   ---
   ```
-  Vendor mirrors retain upstream frontmatter verbatim; their catalog receipt carries Orbweaver lifecycle/provenance. Do NOT grow the authored schema casually — every field is corpus-wide maintenance. `tags:`/`owner:`/`toc:` stay rejected: retrieval uses headings/catalog search, ownership uses CODEOWNERS + GitHub, and mutable state belongs in Project 1. A new field enters only through `scripts/docs/catalog.ts` validation with a ledgered reason.
+  Vendor mirrors retain upstream frontmatter verbatim; their catalog receipt carries Orbweaver lifecycle/provenance. Do NOT grow the authored schema casually — every field is corpus-wide maintenance. `tags:`/`owner:`/`toc:` stay rejected: retrieval uses headings/catalog search, ownership uses CODEOWNERS + GitHub, and mutable state belongs in Project 1. A new field enters only through `tooling/src/doc-catalog/lib/frontmatter.ts` validation with a ledgered reason.
 
 ### Catalog and fact-check receipts (D139)
 
