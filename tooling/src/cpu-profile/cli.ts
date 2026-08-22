@@ -12,7 +12,8 @@
 // This is a METER, not a gate: breaches are reported (breach-steps in the RESULT line), and the exit
 // reddens only when the interaction itself broke (step failures / page errors).
 //
-// Exit: 0 clean · 1 step failure / page error · EXIT.misuse on a bad CLI.
+// Exit: 0 clean · 1 step failure / page error · EXIT.toolError when NOTHING was metered (absent
+// in-page meter, an empty step tape, no long-task observer — #409) · EXIT.misuse on a bad CLI.
 import process from "node:process";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";

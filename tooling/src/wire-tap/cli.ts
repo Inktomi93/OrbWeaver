@@ -5,6 +5,11 @@
 // Argv parse + dispatch ONLY (the five-slot cap); the programmatic surface is ./index.ts.
 // Incident instrument, idle-by-design (docs/design/tooling-package.md §4.5): the CI proof is a
 // loopback fixture server, never the dev stack.
+// ZERO HYGIENE (#409): a tap's empty population is a LEGITIMATE outcome (a quiet-but-healthy room, a
+// recorder that is simply off), so this tool does NOT exit 2 on one — it SAYS so instead: `sse` prints
+// its frame census plus the withhold-not-throw caveat, and `captures` names the recorder. See
+// ops/captures.ts's header for the one distinction the server does not expose to us.
+//
 // Exit: 0 clean · 1 stream error / non-OK harvest · EXIT.misuse on a bad subcommand/flag.
 import process from "node:process";
 import { runTool, UsageError } from "../_shared/run-tool.ts";

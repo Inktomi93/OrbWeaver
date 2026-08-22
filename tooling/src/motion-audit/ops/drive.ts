@@ -10,6 +10,12 @@ import type { Page } from "@playwright/test";
 import type { AnimationRecord, MeasuredClick, MotionSnapshot, ReachAction } from "../contract/types.ts";
 import { REACH_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
 
+/** Is the app's in-page instrument present at all? Checked BEFORE anything is measured: without it every
+ *  `__orb` read below answers null/[] and each budget arm reads that as a clean zero (#409). */
+export async function hasOrbBridge(page: Page): Promise<boolean> {
+  return (await page.evaluate("globalThis.__orb !== undefined && globalThis.__orb !== null")) as boolean;
+}
+
 export async function readMotion(page: Page): Promise<MotionSnapshot | null> {
   return (await page.evaluate("globalThis.__orb ? globalThis.__orb.motion() : null")) as MotionSnapshot | null;
 }

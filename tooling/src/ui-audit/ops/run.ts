@@ -12,9 +12,11 @@
 import { writeFile } from "node:fs/promises";
 import { artifactFile, print, printResult, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession } from "@orb/tooling/_shared/browser";
+import { instrumentError } from "@orb/tooling/_shared/evidence";
 import type { Args, BackdropRefusal } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectFindings } from "../lib/collect.ts";
+import { censusGap, censusTotal, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
@@ -38,10 +40,24 @@ export async function runUiAudit(opts: Args): Promise<number> {
   });
 
   const { navError, actionsFailed, samples } = await navigateAndReveal(session.page, opts, url);
+  // ZERO HYGIENE (#409), the apparatus arm: the WALK failing is an instrument failure, not a finding.
+  // An HTTP nav error stays a violation below — that one IS a fact about the page.
+  if (navError?.startsWith(SAMPLE_COLLECTION_PREFIX) === true) {
+    await session.browser.close();
+    print(`URL          ${url}`);
+    return instrumentError(walkFailureGap(navError));
+  }
   // Backdrops the DOM walk could not resolve are settled from real pixels BEFORE the browser closes —
   // the sampler needs the page still on screen at the scroll position the samples were read at.
   const pixels = samples === null ? { samples: null, sampled: 0, refusals: [] as BackdropRefusal[] } : await resolvePixelBackdrops(session.page, samples);
   await session.browser.close();
+  const census = samples === null ? 0 : censusTotal(samples);
+  // The evidence arm: a walk that saw nothing folds every check family to zero and prints
+  // "no findings — clean". Guarded only where the page LOADED — a nav error is reported as itself.
+  if (navError === null && census === 0) {
+    print(`URL          ${url}`);
+    return instrumentError(censusGap(url));
+  }
 
   // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
   // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage).
@@ -93,6 +109,9 @@ export async function runUiAudit(opts: Args): Promise<number> {
     ["actions", opts.actions.length],
     ["actions-failed", actionsFailed],
     ["pointer", opts.device === null ? "fine" : "coarse"],
+    // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
+    // this is non-zero, and a reader of the machine line is entitled to see it.
+    ["census", census],
     ["px-backdrops", pixels.sampled],
     ["no-verdict", pixels.refusals.length],
     ["nav", navVerdict(navError, actionsFailed)],

@@ -5,6 +5,7 @@
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2); the browser
 // half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
+import type { AuditData } from "../../../tooling/src/motion-audit/index.ts";
 import {
   calibratedDroppedFramePct,
   clsOverBudget,
@@ -12,9 +13,24 @@ import {
   droppedFramePct,
   loafOverBudget,
   loafTotals,
+  motionEvidenceGaps,
   parseMotionArgs,
 } from "../../../tooling/src/motion-audit/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+
+/** A collected run with EVERYTHING present, so each gap test plants exactly one absence. */
+function auditData(over: Partial<AuditData> = {}): AuditData {
+  return {
+    motion: { loafs: [], cls: 0, virtualizedCls: 0, nonVirtualizedCls: 0, worstBlocking: 0, worstShift: 0 },
+    animations: [],
+    frames: { raw: { total: 12, dropped: 0, pct: 0 }, classified: { total: 0, dropped: 0 }, budgeted: { total: 12, dropped: 0, pct: 0 } },
+    pageErrors: [],
+    traceEventCount: 900,
+    stepFailed: false,
+    reachFailures: 0,
+    ...over,
+  };
+}
 
 /** The in-page snapshot fields the verdict reads. Typed off the probe's own parameter so the fixture can
  *  never drift from the shape `clsTotals` actually parses (a probe the reader can't read is a lying proof). */
@@ -150,9 +166,12 @@ test("a page bundle predating the split (no virtualized fields) keeps the OLD ve
   expect(clsOverBudget(legacy)).toBe(true);
 });
 
-test("no snapshot at all (no __orb bridge) is zeros, not NaN", () => {
+test("no snapshot at all (no __orb bridge) is zeros, not NaN — and those zeros are NOT a verdict", () => {
+  // The totals stay total (a reader that NaNs is worse), but #409 moved the consequence: the run that
+  // produced no snapshot is an INSTRUMENT ERROR at the verdict seam, never a clean CLS of 0.
   expect(clsTotals(null)).toEqual({ raw: 0, virtualized: 0, budgeted: 0 });
   expect(clsOverBudget(null)).toBe(false);
+  expect(motionEvidenceGaps(auditData({ motion: null }), 2500).map((g) => g.evidence)).toContain("the __orb motion snapshot");
 });
 
 test("PipelineReporter reads Chrome's nested frame_reporter payload and ignores paired end events", () => {
@@ -164,6 +183,45 @@ test("PipelineReporter reads Chrome's nested frame_reporter payload and ignores 
   ];
 
   expect(droppedFramePct(events)).toEqual({ total: 2, dropped: 1, pct: 50 });
+});
+
+// ── ZERO HYGIENE (#409): absent evidence is never a clean number ────────────────────────────────────
+
+test("an EMPTY frame population has no percentage — null, never 0%", () => {
+  // The defect: `total === 0 ? 0 : …` printed "0% dropped" for a window in which nothing composited,
+  // which reads exactly like perfect smoothness.
+  expect(droppedFramePct([])).toEqual({ total: 0, dropped: 0, pct: null });
+  expect(calibratedDroppedFramePct([])).toEqual({
+    raw: { total: 0, dropped: 0, pct: null },
+    classified: { total: 0, dropped: 0 },
+    budgeted: { total: 0, dropped: 0, pct: null },
+  });
+});
+
+test("an empty RAW frame population is an evidence gap; an empty BUDGETED one (all classified) is not", () => {
+  // The exemption legitimately consumes the whole population — the raw evidence still exists, so that
+  // run is honestly clean. Only an empty RAW population means nothing was observed at all.
+  const allClassified = auditData({
+    frames: { raw: { total: 4, dropped: 4, pct: 100 }, classified: { total: 4, dropped: 4 }, budgeted: { total: 0, dropped: 0, pct: null } },
+  });
+  expect(motionEvidenceGaps(allClassified, 2500)).toEqual([]);
+
+  const nothingObserved = auditData({
+    frames: { raw: { total: 0, dropped: 0, pct: null }, classified: { total: 0, dropped: 0 }, budgeted: { total: 0, dropped: 0, pct: null } },
+  });
+  expect(motionEvidenceGaps(nothingObserved, 2500).map((g) => g.evidence)).toEqual(["the frame population"]);
+});
+
+test("the frame-population gap separates a quiet window from tracing that never ran", () => {
+  // Measured (#409): the live app at --window 100 reproducibly composites ZERO frames while the trace
+  // still delivers ~1000 events — so an empty population is not proof the instrument broke, and the
+  // message must send the operator to the right remedy.
+  const empty = { raw: { total: 0, dropped: 0, pct: null }, classified: { total: 0, dropped: 0 }, budgeted: { total: 0, dropped: 0, pct: null } };
+  const quiet = motionEvidenceGaps(auditData({ frames: empty, traceEventCount: 966 }), 100);
+  const noTrace = motionEvidenceGaps(auditData({ frames: empty, traceEventCount: 0 }), 100);
+
+  expect(quiet[0]?.detail).toContain("966 events but 0 PipelineReporter frames");
+  expect(noTrace[0]?.detail).toContain("NO events at all");
 });
 
 test("a dropped frame that does not affect smoothness stays outside the motion budget", () => {

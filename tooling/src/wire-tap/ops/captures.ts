@@ -4,6 +4,14 @@
 // dev stack); an empty read with capture off is about the RECORDER, not the traffic — the report says
 // so instead of printing a bare zero.
 //
+// ZERO HYGIENE (#409) — ALREADY GUARDED, and deliberately NOT an EXIT.toolError: printRows() below
+// names the recorder as the likely cause of an empty read, which is the whole rule here. The exit stays
+// clean because this op cannot tell "recorder off" (apparatus absent) from "recorder on, no traffic
+// yet" (a real, quiet answer): `/api/_debug/wire/captures` returns `{count, captures}` and publishes
+// NO enabled flag (foundation/observability/debug/routes.ts:322 — "Returns [] when capture is off").
+// Making the distinction exit 2 requires that endpoint to report its own state; that is server
+// territory, filed rather than guessed at from this side.
+//
 // AUTH: the same two-tier debug gate as the trace endpoints (admin session, else x-debug-token; bare
 // single-user dev needs neither). Hits the server DIRECTLY on PORT (default 8788), not the vite proxy.
 import process from "node:process";

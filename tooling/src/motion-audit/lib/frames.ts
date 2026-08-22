@@ -5,18 +5,20 @@ import type { CalibratedFrames, FrameTotals, TraceEvent } from "../contract/type
 
 const PCT = 100;
 
-export function droppedFramePct(events: readonly TraceEvent[]): {
-  total: number;
-  dropped: number;
-  pct: number;
-} {
+/** `dropped/total` as a percentage, or NULL when the population is empty — `0%` over zero frames is a
+ *  smoothness claim nothing observed (#409). The caller decides what an absent population means;
+ *  lib/evidence.ts turns an absent RAW one into EXIT.toolError. */
+function pctOf(dropped: number, total: number): number | null {
+  return total === 0 ? null : Number(((dropped / total) * PCT).toFixed(2));
+}
+
+export function droppedFramePct(events: readonly TraceEvent[]): FrameTotals {
   const frames = events.filter((event) => event.name === "PipelineReporter" && event.args?.frame_reporter !== undefined);
   const dropped = frames.filter(
     (event) => event.args?.frame_reporter?.state === "STATE_DROPPED" && event.args.frame_reporter.affects_smoothness === true,
   ).length;
   const total = frames.length;
-  const pct = total === 0 ? 0 : Number(((dropped / total) * PCT).toFixed(2));
-  return { total, dropped, pct };
+  return { total, dropped, pct: pctOf(dropped, total) };
 }
 
 interface PairedFrame {
@@ -93,7 +95,7 @@ function frameIsDropped(event: TraceEvent): boolean {
 function totalsForFrames(frames: readonly TraceEvent[]): FrameTotals {
   const dropped = frames.filter(frameIsDropped).length;
   const total = frames.length;
-  return { total, dropped, pct: total === 0 ? 0 : Number(((dropped / total) * PCT).toFixed(2)) };
+  return { total, dropped, pct: pctOf(dropped, total) };
 }
 
 /** Preserve #389's raw nested-payload read, then remove only complete PipelineReporter intervals that

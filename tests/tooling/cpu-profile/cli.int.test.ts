@@ -31,13 +31,39 @@ test("a planted 300ms click handler surfaces as a breach step through the real c
   expect(res).toExitWith(0);
 });
 
-test("the idle twin reports zero breach steps — the breach above is the plant", async ({ runCli, scratch }) => {
+test("the idle twin reports zero breach steps over a REAL step population — the breach above is the plant", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "idle.html"), page(""));
   const res = await runCli("cpu-profile", ["/idle.html", "--base", `file://${scratch}`, "--settle", "300", "--click", "#target", "--out", "proof-idle"], {
     timeoutMs: CLI_TIMEOUT_MS,
   });
   expect(res.stdout).toContain("breach-steps=0");
+  // ZERO HYGIENE (#409): `breach-steps=0` is only a clean result if a step was actually METERED.
+  expect(res.stdout).toContain("steps=1");
   expect(res).toExitWith(0);
+});
+
+// ── ZERO HYGIENE (#409): absent apparatus / an empty measurement population is never a clean meter ──
+
+test("a run with NO steps metered nothing and must not report clean", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "nosteps.html"), page(""));
+  const res = await runCli("cpu-profile", ["/nosteps.html", "--base", `file://${scratch}`, "--settle", "300", "--out", "proof-nosteps"], {
+    timeoutMs: CLI_TIMEOUT_MS,
+  });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("measurement window");
+  expect(res).toExitWith(2);
+});
+
+test("a page that removes the in-page meter is an INSTRUMENT ERROR that NAMES the apparatus", async ({ runCli, scratch }) => {
+  // The meter rides an init script; a page can outlive/replace it. Before #409 this ended as a bare
+  // TypeError stack from inside the bucketer — an exit code with no diagnosis.
+  await writeFile(join(scratch, "nometer.html"), `${page("")}<script>delete window.__perfMeter;</script>`);
+  const res = await runCli("cpu-profile", ["/nometer.html", "--base", `file://${scratch}`, "--settle", "300", "--click", "#target", "--out", "proof-nometer"], {
+    timeoutMs: CLI_TIMEOUT_MS,
+  });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("__perfMeter");
+  expect(res).toExitWith(2);
 });
 
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {

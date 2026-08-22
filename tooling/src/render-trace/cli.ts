@@ -3,7 +3,9 @@
 //   tail    (`pnpm trace:tail [--token=…]`)   poll /api/_debug/traces, print each NEW trace
 //   fire    (`pnpm trace:fire [<path> ...]`)  ephemeral server + one-shot requests → waterfalls
 // Argv parse + dispatch ONLY (the five-slot cap); the programmatic surface is ./index.ts.
-// Exit: 0 clean · 1 a fired request failed · EXIT.misuse on a bad subcommand/input.
+// Exit: 0 clean · 1 a fired request failed · EXIT.toolError when the run recorded NOTHING (a spanless
+// trace, an unmounted observability middleware, requests whose traces never appeared — #409, and note
+// an EMPTY traces list is a real answer that stays clean) · EXIT.misuse on a bad subcommand/input.
 import process from "node:process";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
 import { fireOp, renderOp, tailOp } from "./index.ts";

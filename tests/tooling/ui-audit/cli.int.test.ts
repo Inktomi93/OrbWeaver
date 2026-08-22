@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CLI_TIMEOUT_MS = 90_000;
+/** The RESULT line's node-census total — the denominator every "clean" verdict here rests on (#409). */
+const CENSUS_RE = /census=(\d+)/u;
 
 function page(bodyStyle: string): string {
   return `<!doctype html>
@@ -35,9 +37,25 @@ test("the passing twin exits clean — the red above is the plant, not the harne
   expect(res.stdout).not.toContain("contrast");
   expect(res.stdout).toContain("p1=0");
   expect(res).toExitWith(0);
+  // ZERO HYGIENE (#409): "no P1s" is only a verdict when the walk actually censused nodes.
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
 });
 
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
   expect(res).toExitWith(3);
+});
+
+// ── ZERO HYGIENE (#409): an empty node census is absent evidence, never "no findings — clean" ──
+
+test("a page the walk censused NOTHING on is an INSTRUMENT ERROR, never a clean audit", async ({ runCli, scratch }) => {
+  // The defect class this stands for: a blank mount / swallowed error boundary renders an empty shell,
+  // every check family receives an empty list, and the audit reports "no findings — clean".
+  const file = join(scratch, "empty.html");
+  await writeFile(file, `<!doctype html>\n<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main></main></body></html>`);
+  const res = await runCli("ui-audit", ["/empty.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("census");
+  expect(res).toExitWith(2);
 });

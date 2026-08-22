@@ -22,6 +22,7 @@ import type { ChatId, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
+import { print, printResult } from "../../_shared/artifacts.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 
@@ -75,6 +76,19 @@ function buildClient(env: SseEnv): ReturnType<typeof createTRPCClient<AppRouter>
   });
 }
 
+/** The tap's closing census (#409). An empty population is reported, never implied: a bare
+ *  "connection closed" after zero frames looks identical to a successful tap of a busy room, and the
+ *  withhold-not-throw gate means silence can also mean "you are not a member of this chat". */
+function reportFrames(frames: number): void {
+  if (frames === 0) {
+    print("· NO frames delivered — silence here can mean you are NOT A MEMBER of that chat (the withhold-not-throw gate), not only that the room was quiet");
+  }
+  printResult("wire-tap", [
+    ["op", "sse"],
+    ["frames", frames],
+  ]);
+}
+
 export async function sseOp(argv: readonly string[]): Promise<number> {
   if (typeof globalThis.EventSource === "undefined") {
     throw new UsageError(
@@ -93,6 +107,12 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
 
   const socketId = castId<SocketId>(globalThis.crypto.randomUUID());
   const chatId = castId<ChatId>(chatIdArg);
+  // ZERO HYGIENE (#409): the frame POPULATION this tap observed. A silent room is a legitimate outcome
+  // here — unlike a budget probe, a tap has no apparatus-absence signal to key on (the withhold-not-
+  // throw gate above means a non-member gets an OPEN, SILENT stream) — so an empty population stays a
+  // CLEAN exit. What it must never do is end with a bare "connection closed" that reads as a receipt
+  // for events: the count and the withhold caveat are printed instead.
+  let frames = 0;
 
   // Attach FIRST: the cell is created by whichever of attach/connect arrives first, so an
   // attach-then-connect tap re-hydrates the room the instant the socket goes live (spec §5.1).
@@ -104,6 +124,7 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
       {
         onStarted: () => process.stdout.write("· connection open\n"),
         onData: (envelope) => {
+          frames += 1;
           const ts = new Date().toISOString().slice(TS_START, TS_END);
           const { data } = envelope;
           // Narrow on the `__subscriptionError` sentinel before touching the frame, which only
@@ -122,10 +143,12 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
         },
         onError: (err) => {
           process.stderr.write(`! error: ${err.message}\n`);
+          reportFrames(frames);
           resolve(EXIT.violations);
         },
         onComplete: () => {
           process.stdout.write("· connection closed\n");
+          reportFrames(frames);
           resolve(EXIT.clean);
         },
       },
@@ -133,6 +156,7 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
     process.on("SIGINT", () => {
       sub.unsubscribe();
       process.stdout.write("\n· interrupted\n");
+      reportFrames(frames);
       resolve(EXIT.clean);
     });
   });

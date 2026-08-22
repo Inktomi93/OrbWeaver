@@ -135,7 +135,7 @@ Verdict:
   --out <name|path>         reports/design-audit/<name>.json — or, path-shaped (absolute / ./ ../),
                             that exact file
 
-Exit: 0 clean · 1 findings or nav error · 3 CLI misuse.`;
+Exit: 0 clean · 1 findings or nav error · 2 nothing was censused (empty walk) · 3 CLI misuse.`;
 
 /** Argv is scanned for misuse BEFORE anything runs. An unknown flag used to print
  *  `UNKNOWN FLAG --goto (ignored)` and exit 0 — so a typo'd audit scanned home, reported clean, and the
