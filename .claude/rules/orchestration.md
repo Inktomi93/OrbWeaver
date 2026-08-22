@@ -258,6 +258,16 @@ linked Project issue — no lane touches `work:item`.
 - **Under load:** merge with `--no-verify` on branch-side green receipts and run ONE consolidated check
   when lanes drain. Track the debt on the board. Never chain board edits behind a possibly-conflicting
   merge in one command — a conflict mid-chain bakes markers into committed files.
+- **Worktree lifecycle rides the CUSTOM hook pair — know it, use it (owner reminder 2026-08-22):**
+  `WorktreeCreate` → `.claude/hooks/worktree-setup.sh` REPLACES built-in creation (it creates the
+  worktree AND runs the per-worktree `pnpm install` — 2s/48MiB via CAS hardlinks — plus env linking;
+  its stdout IS the worktree path). `WorktreeRemove` → `.claude/hooks/worktree-remove.sh` is the
+  paired teardown. Consequences: `isolation: "worktree"` dispatches get a WORKING tree for free —
+  never add "run pnpm install" to those briefs; a MANUAL `git worktree add` bypasses the hook and
+  MUST run `pnpm worktree:bootstrap` (§L.5) or every gate lies; teardown of hook-created trees goes
+  through the harness's remove (or replicates the remove hook's steps) — a bare `rm -rf` strands
+  registered worktree metadata. Do NOT "solve" installs with enableGlobalVirtualStore (breaks tsc +
+  type-aware lint).
 - **Worktree teardown does NOT fire on agent completion** (probed live 2026-08-13). Worktrees accumulate;
   sweep them by hand at end of session. A worktree dir with no `.git` resolves `git -C` **up to MAIN** —
   hand-run commands there hit the main checkout. Sweep: `git worktree list` → `git worktree remove --force`
