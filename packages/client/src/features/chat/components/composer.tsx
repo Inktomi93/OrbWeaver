@@ -35,7 +35,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
-import { IMAGE_GEN_NEEDS_TEXT, notify, oversizeUploadMessage, testId } from "#lib";
+import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
 import { setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
@@ -47,7 +47,7 @@ import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
-import { ATTACH_BUSY_MESSAGE, triageAttachFiles } from "../lib/attach-media.ts";
+import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashCompletionAria } from "../lib/slash-command.ts";
@@ -341,12 +341,12 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
       addFiles({ accepted: [...accepted], rejected: [] });
     }
   };
-  // The picker's adapter: the dropzone already split its batch on the route cap, so its rejections are
-  // reported here and its accepted half re-enters the shared triage (idempotent for size, load-bearing for
-  // the image cap).
+  // The picker's adapter: the dropzone already split its batch on the accept vocabulary AND the route cap
+  // (#423), so its rejections are toasted here in the shared voice, and its accepted half re-enters the shared
+  // triage (idempotent for size, load-bearing for the image cap).
   const addAttachmentFiles = (result: FileDropzoneResult): void => {
     for (const rejection of result.rejected) {
-      notify.warn(oversizeUploadMessage(rejection.file, maxAttachmentBytes) ?? `${rejection.file.name} couldn't be attached`);
+      notify.warn(dropzoneRefusalMessage(rejection, maxAttachmentBytes));
     }
     receiveAttachFiles(result.accepted);
   };
