@@ -38,7 +38,16 @@ export function recordRender(id: string, phase: string, actualDuration: number):
   renderStats.set(id, stat);
 }
 
-/** The render heatmap, hottest-first (by total commit time) — `{ id, count, mounts, updates, ...ms }`. */
+/** The render heatmap, hottest-first (by total commit time) — `{ id, count, mounts, updates, ...ms }`.
+ *
+ *  READ `count` AS "COMMITS THAT TOUCHED THIS SUBTREE", NEVER AS "THIS WRAPPER RE-RENDERED" (#454,
+ *  2026-08-22 — a review filed `region:content count=19` as "the whole content region re-renders 19x to
+ *  paint a static page"). React's `<Profiler>` fires `onRender` for EVERY commit anywhere inside it, so a
+ *  surface that correctly isolates N independent reads behind N suspense boundaries reports ~N commits
+ *  BECAUSE it is isolated — the count goes UP as the isolation gets better. `avgMs` is the number that
+ *  separates the two readings: a whole-subtree re-render costs about what its mount cost (`maxMs`), so
+ *  updates averaging a small fraction of `maxMs` are per-boundary commits, not region-wide ones. Home
+ *  measured 1 mount at 15-21ms against 18 updates averaging ~1.3ms. */
 export function renderHeatmap(): ReadonlyArray<{
   id: string;
   count: number;

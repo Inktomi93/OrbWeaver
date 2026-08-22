@@ -37,9 +37,28 @@
 //   • NOT dev-transform-only, so there is nothing to "accept away": a production `vite build` served
 //     from `dist` pays the same frame at 100-103ms / blocking 51-55ms, same `module-script` invoker on
 //     the 1.15 MB boot chunk. Vite's dev pipeline is the ~40ms delta on top, not the body.
-// So there is no splash-side fix: no synchronous layout here, no oversized filter, and the glyph is
-// four vector ops at 26px. The real cost is the boot chunk's evaluation, which is a bundle-size
-// question for the boot-split, not an animation one.
+// So there is no splash-side fix for THAT frame: no synchronous layout here, and the glyph is four
+// vector ops at 26px. The real cost is the boot chunk's evaluation, which is a bundle-size question
+// for the boot-split, not an animation one.
+//
+// …AND THE VEIL DOES CARRY ONE REAL PAINT TAX — MEASURED, AND KEPT (#454, 2026-08-22). The clause above
+// used to read "no oversized filter", and that was wrong about this component even though it was right
+// about the frame it adjudicates: `weaveVeilVariants.root` transitions `filter` between
+// `blur(--blur-strength)` (14px, resolved live) and `none` over `--motion-layout` (360ms), on a
+// `fixed inset-0` layer, twice per boot — the enter beat and the dissolve — with the rAF-driven
+// `<WebWeave>` repainting underneath it the whole time. A blur is PAINT: it cannot be a compositor-only
+// animation and stay a blur, so the review's "make the veil entry compositor-only" has no arm that
+// preserves the design (the dissolve's opacity+blur is the ST hideOverlay quality the owner approved,
+// login-loading-screen.md §9.4 tweak 1).
+// PRICED, so the trade is not a guess — a standalone control on this box (a fullscreen layer over 300
+// per-frame-transformed strands, same 14px→none / 360ms beat, with and without the filter):
+// steady-state frames 17ms WITHOUT the filter vs 25-28ms WITH it, and NEITHER arm produced a >50ms
+// frame on its own. So the blur is a ~+10ms/frame tax for ~22 frames, not a frame-dropper; the
+// `[drop] 53-108ms` entries the console prints against `[data-slot=weave-veil]` are still the boot
+// contention above, named by animation-lifetime OVERLAP (motion-animation-state.ts `targetsOverlapping`)
+// rather than by cause. The #429 ruling stands; only its "no oversized filter" premise was retired.
+// While ENTERED the root computes `filter: none` (measured), so the tax is bounded to the two beats and
+// nothing filters the weave during the hold.
 
 import { Row, Stack } from "@orb/ui/layout";
 import { usePrefersReducedMotion } from "@orb/ui/lib";
