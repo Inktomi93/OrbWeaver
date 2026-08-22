@@ -10,7 +10,9 @@ import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { DEPLOYMENT_FLOOR } from "#lib";
+import { rememberMultiHumanCapable, useMultiHumanCapableHint } from "#state";
 
 /** The `/api/auth/config` wire shape (mirrors `entry/http/auth-meta.ts` — mode-derived flags). */
 export interface AuthConfig {
@@ -91,6 +93,35 @@ export function useAuthConfig(): UseQueryResult<AuthConfig> {
  *  ONE read every upload pre-check + dropzone hint uses — never an invented per-widget number. */
 export function useUploadCaps(): UploadCaps {
   return useAuthConfig().data?.uploads ?? DEFAULT_UPLOAD_CAPS;
+}
+
+/**
+ * Can this deployment seat ≥2 humans — answered at FIRST PAINT (#476). The multi-human client surfaces gate
+ * on this, and `/api/auth/config` is fetched at app-root mount, so a plain `data?.multiHumanCapable === true`
+ * is FALSE for the first frames of every shell life: the topbar bell then mounts INTO the trail and shifts it
+ * (measured 0.00015 — under the `[cls]` flagger's own reporting floor, so nothing ever named it).
+ *
+ * So while the read is unresolved the answer is this DEVICE's remembered one (`#state` deployment-boot-hint,
+ * localStorage, rehydrated at module init — the `appearance-boot-hint` pattern, same store class); the
+ * instant the read lands, the server value is BOTH what the app renders and what is written back to the hint.
+ * The server always wins, so a deployment that flipped its capability corrects the UI in the same commit
+ * rather than being masked. A device that has never been told falls back to FALSE — the pre-existing floor,
+ * and the honest first-ever-visit arm.
+ *
+ * A RENDER hint, never an authorization input: it decides whether a slot is drawn. Every read and verb behind
+ * that slot still answers to the real config and the server's own gates, so the worst a stale hint buys is a
+ * bell that empties and un-draws itself milliseconds later.
+ */
+export function useMultiHumanCapable(): boolean {
+  const capable = useAuthConfig().data?.multiHumanCapable;
+  const hinted = useMultiHumanCapableHint();
+  // Written back from the one seam that knows the read has landed (the `useAppearance` precedent).
+  useEffect((): void => {
+    if (capable !== undefined) {
+      rememberMultiHumanCapable(capable);
+    }
+  }, [capable]);
+  return capable ?? hinted ?? false;
 }
 
 /** Does this deployment block external media outright? TRUE ⇒ every lower-tier "allow external media"

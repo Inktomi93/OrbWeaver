@@ -80,6 +80,21 @@ const DEVICE_LOCAL_REGISTRY: ExemptionTable = {
       "written back only from the authoritative read, and an axis this device has never been told stamps " +
       "NOTHING (a fresh device boots exactly as it does today)",
   },
+  "deployment-boot": {
+    why:
+      "the BOOT HINT for the deployment CAPABILITIES a first paint must answer — `multiHumanCapable` today " +
+      "(#476). Device-local because it is not a preference at all: it is this browser's memory of what THIS " +
+      "deployment last served at `/api/auth/config`, a CACHE over a server-derived per-request value (the " +
+      "`appearance-boot` precedent), and it could not live in the synced user_settings blob even in " +
+      "principle — that blob is read through tRPC, strictly later than the fetch this hint exists to cover. " +
+      "It exists because `/api/auth/config` is fetched at app-root MOUNT, so the topbar-trail bell's gate " +
+      "reads FALSE for the first frames of every boot and the bell then mounts INTO the trail (measured " +
+      "0.00015 layout shift, under the `[cls]` flagger's own reporting floor). A RENDER hint only, never an " +
+      "authorization input: it decides whether a slot is drawn, while every read and verb behind that slot " +
+      "still answers to the real config and the server's gates. The server value always wins the instant it " +
+      "lands (so a capability flip corrects rather than being masked), and a device that has never been told " +
+      "holds null — the pre-existing floor, i.e. exactly today's first-ever-visit behavior",
+  },
   "config-group-open": {
     why: "which Configuration-roster GROUPS are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
   },
