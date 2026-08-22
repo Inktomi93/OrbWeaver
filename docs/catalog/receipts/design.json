@@ -89,7 +89,7 @@
       "fullRead": true,
       "verifiedSha256": "0038e3c676cf1ebaf2568fc4cbc4726c2d90d7aaf6120d578c6c822148e6489d",
       "verifiedCommit": "4cc29f609a1ece0daf95693d0c9c20af9e469180",
-      "verifiedAt": "2026-08-21",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/design/chat-date-navigation-207.md:1-63 (design; full read at 4cc29f609a1ece0daf95693d0c9c20af9e469180 — the truth-repair commit; the pre-repair prose described a keyed-REMOUNT the shipped code rejects)",
         "packages/server/src/domain/chat/persistence/queries.ts:349 (exclusive displayed-recency scope)",
@@ -116,7 +116,7 @@
             },
             {
               "kind": "code",
-              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:341"
+              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:331"
             },
             {
               "kind": "issue",

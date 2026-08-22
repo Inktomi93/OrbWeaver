@@ -605,8 +605,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 246581,
-      "sha256": "3dda2faac8ef63d0ef42af9c64107ebdb0b147ff174ac7b8d3ee9abab512e6e3",
+      "bytes": 248517,
+      "sha256": "93f5a9ef0878282f2b988e18ec2c85867525f580f8020078275fa37fed11b570",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -619,12 +619,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "3dda2faac8ef63d0ef42af9c64107ebdb0b147ff174ac7b8d3ee9abab512e6e3",
+        "assignedSha256": "93f5a9ef0878282f2b988e18ec2c85867525f580f8020078275fa37fed11b570",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "3dda2faac8ef63d0ef42af9c64107ebdb0b147ff174ac7b8d3ee9abab512e6e3",
-        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedSha256": "93f5a9ef0878282f2b988e18ec2c85867525f580f8020078275fa37fed11b570",
+        "verifiedCommit": "05725390ebe0e2fa24662054a9677a970558d1c1",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -639,7 +639,8 @@
           "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed",
           "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
           "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the macro-model row drops the oracle half of its evidence pair; the S1–S4 matrix test still stands. No other claim in this document moved.",
-          "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed."
+          "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed.",
+          "D144 #487 rider (BACKGROUND_DIM_MIN floor) delta re-derived against packages/contracts/src/settings/appearance.ts + tests/ui/content/theme-scope/palette-contrast.suite.test.ts; standing full-read receipt of 09cd25525 carried forward over the 4-line rider delta"
         ],
         "claims": [
           {
@@ -10629,7 +10630,7 @@
         "fullRead": true,
         "verifiedSha256": "0038e3c676cf1ebaf2568fc4cbc4726c2d90d7aaf6120d578c6c822148e6489d",
         "verifiedCommit": "4cc29f609a1ece0daf95693d0c9c20af9e469180",
-        "verifiedAt": "2026-08-21",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/design/chat-date-navigation-207.md:1-63 (design; full read at 4cc29f609a1ece0daf95693d0c9c20af9e469180 — the truth-repair commit; the pre-repair prose described a keyed-REMOUNT the shipped code rejects)",
           "packages/server/src/domain/chat/persistence/queries.ts:349 (exclusive displayed-recency scope)",
@@ -10656,7 +10657,7 @@
               },
               {
                 "kind": "code",
-                "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:341"
+                "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:331"
               },
               {
                 "kind": "issue",
