@@ -2,8 +2,25 @@
 // semantics (commit 36d0b128: F1 rewrite fire · F2 undo/revert exposure · F3 input-restore · F5
 // steer+speaker · F4 WI-scan). Guided had ZERO e2e coverage before this file; the kit resolvers +
 // steer routing are exhaustively unit/int-tested server-side (kit/guided, assembly/context.int,
-// read.int, turn.int) — this spec tests the OTHER half: that the composer wand + message ⋯ menu
-// actually DRIVE those seams end-to-end and land the improved semantics in committed canon.
+// read.int, turn.int) — this spec tests the OTHER half: that the composer's guided controls + the
+// message ⋯ menu actually DRIVE those seams end-to-end and land the improved semantics in committed canon.
+//
+// THE COMPOSER ANATOMY IT DRIVES (rewritten #388). The nested `ComposerWand` menu this spec was written
+// against is GONE — `composer-guided-cluster.tsx` replaced it with four ALWAYS-VISIBLE DUAL-MODE icons
+// (Impersonate · Swipe · Response · Continue) plus a ✨ utility menu. There is no "Guided generations"
+// trigger and no "Guided response"/"Guided continue" menu item to click; the interaction model changed,
+// so this is a rewrite against the live affordances, not a label swap:
+//   • DUAL MODE is the steer: an empty composer fires the plain action, a composer with TEXT fires the
+//     guided one, and the icon's own accessible name flips with it ("Generate reply" → "Guided generate
+//     reply"). So typing the steer IS arming the guided fire — nothing opens a menu first.
+//   • Guided response = the ▶ icon. SOLO room ⇒ a plain button that fires on click. MULTI-character room
+//     ⇒ the same-named MenuTrigger whose popup is "Auto (arbitrate)" + one FLAT item per member (leg 4's
+//     speaker pick; it is no longer a hover-submenu under a "Guided response" parent).
+//   • Guided continue = the ⏩ icon, whose guided name is "Continue the reply with this direction".
+//   • Rewrite moved INTO the ✨ menu ("Message tools") as "Corrections…" — the modal it opens, and the
+//     modal's own "Correction instruction" textbox and "Rewrite" submit, are unchanged.
+//   • The icons stay in the tab order while REFUSING (`focusableWhenDisabled`), so a refusing control
+//     carries `aria-disabled="true"` instead of the `disabled` attribute — see `armedIcon`.
 //
 // THE INSTRUMENT IS SERVER TRUTH, always. Every leg reads canon / the assembly preview through the
 // tRPC support client (support/trpc.ts) as ground truth; the DOM is only ever the second witness, and
@@ -50,13 +67,13 @@ import {
 } from "./support/trpc.ts";
 
 /** The stateless openai-compat local wire — the arm that keeps a UI-fired turn bounded (the group-modes
- *  precedent). The wand fires without an output-ceiling intent, so this pin is what caps the spend. */
+ *  precedent). A guided icon fires without an output-ceiling intent, so this pin is what caps the spend. */
 const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 
 /** A greeting long enough that a CONTINUE's appended content is a legible delta. */
 const SOLO = { handle: castId<CharacterHandle>("e2e-guided-solo"), name: "Guidedspec Solo", greeting: "The lantern flickered in the dark hall." } as const;
 
-/** A two-character room for the steer+speaker leg — unique display names so the wand's speaker submenu
+/** A two-character room for the steer+speaker leg — unique display names so the Response icon's member
  *  item and the committed row's characterId are both unambiguous. */
 const DUO = [
   { handle: castId<CharacterHandle>("e2e-guided-duo-a"), name: "Guidedspec Duo Alpha", greeting: "Alpha greeting." },
@@ -76,29 +93,51 @@ const STEER_CONTINUE = "keep going with the next beat";
 /** The ⋯ menu's continue-restore disabled reason names the unlock ("continue this reply first"). */
 const CONTINUE_UNLOCK_REASON = /continu/iu;
 
+/** The guided arm of the ▶ Response icon's accessible name — the composer has text, so the icon IS the
+ *  guided fire (`resolveGuidedName`, composer-guided-buttons.tsx). Same name on the solo BUTTON and the
+ *  multi-member MENU TRIGGER; only what the click does differs. */
+const GUIDED_RESPONSE = "Guided generate reply";
+
+/** The guided arm of the ⏩ Continue icon (its label composes the direction, it has no "Guided" prefix). */
+const GUIDED_CONTINUE = "Continue the reply with this direction";
+
+/** The ✨ utility menu and the Rewrite modal's door inside it (both moved off the top row). */
+const UTILITY_MENU = "Message tools";
+const CORRECTIONS_ITEM = "Corrections…";
+
 function composer(page: Page): ReturnType<Page["getByRole"]> {
   return page.getByRole("textbox", { name: "Message" });
 }
 
-/** Type a steer into the composer and OPEN the wand menu (the trigger unlocks only with non-empty,
- *  non-busy text). Returns with the menu open, ready to click an item. */
-async function typeSteerAndOpenWand(page: Page, steer: string): Promise<void> {
+/** Type a steer into the composer. That is the whole arming step now: with text present each guided icon
+ *  flips to its guided arm and fires on ONE click — no menu, no submenu, no first-click-eaten trigger. */
+async function typeSteer(page: Page, steer: string): Promise<void> {
   const box = composer(page);
   await box.click();
   await box.fill(steer);
   // `fill` bypasses React onChange for a CONTROLLED textarea — verify the value stuck; if a room-settle
   // remount ate it, retype (chat-room.ts typeAndSend documents this remount hazard).
   await expect(box).toHaveValue(steer, { timeout: 10_000 });
-  const wand = page.getByRole("button", { name: "Guided generations" });
-  await expect(wand).toBeEnabled({ timeout: 10_000 });
-  await wand.click();
 }
 
-/** Fire ONE UI-driven Guided response and wait for its committed assistant row — the tail-seeding helper
- *  every variant/continue leg needs (startGroupChat's opening:"none" leaves the canon empty). */
+/** A composer icon that is present AND willing to fire. Both assertions are load-bearing: a guided icon
+ *  refuses by going `aria-disabled` while STAYING focusable (`focusableWhenDisabled`, so its reason is
+ *  reachable), which `toBeEnabled()` alone reads as ready; the ✨ menu trigger and the modal's controls
+ *  refuse the native way, which the aria check alone would miss. */
+async function armedIcon(page: Page, name: string): Promise<ReturnType<Page["getByRole"]>> {
+  const icon = page.getByRole("button", { name, exact: true });
+  await expect(icon).toBeVisible({ timeout: 10_000 });
+  await expect(icon).toBeEnabled({ timeout: 10_000 });
+  await expect(icon).not.toHaveAttribute("aria-disabled", "true", { timeout: 10_000 });
+  return icon;
+}
+
+/** Fire ONE UI-driven guided response in a SOLO room (the ▶ icon is a plain button below the roster-of-2
+ *  floor) and wait for its committed assistant row — the tail-seeding helper every variant/continue leg
+ *  needs (startGroupChat's opening:"none" leaves the canon empty). */
 async function seedAssistantTail(page: Page, chatId: ChatId, steer: string): Promise<MessageId> {
-  await typeSteerAndOpenWand(page, steer);
-  await page.getByRole("menuitem", { name: "Guided response" }).click();
+  await typeSteer(page, steer);
+  await (await armedIcon(page, GUIDED_RESPONSE)).click();
   await pollAssistantCount(chatId, 1);
   const tail = await tailAssistant(chatId);
   expect(tail).toBeDefined();
@@ -152,8 +191,8 @@ test.describe("guided generations on the live local stack", () => {
   // ── LEG 1 — STEER SHAPES THE TURN ────────────────────────────────────────────────────────────────
   // The honest pre-turn instrument: previewAssembly routes the steer through the SAME gather→build a real
   // turn gets, so the steer INSTRUCTION is assertable in the assembled prompt BEFORE any generation (and a
-  // plain preview must NOT carry it — the isolation proof). Then fire the same steer via the wand's Guided
-  // response and assert a NEW assistant row commits. App fidelity (steer reached assembly + a row landed),
+  // plain preview must NOT carry it — the isolation proof). Then fire the same steer via the composer's
+  // guided Response icon and assert a NEW assistant row commits. App fidelity (steer reached assembly + a row landed),
   // never model obedience (we do not read the reply's prose).
   test("steer shapes the turn: the instruction reaches the assembly and a guided response commits", { tag: "@live" }, async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
@@ -174,10 +213,11 @@ test.describe("guided generations on the live local stack", () => {
       expect(plain.trace.guidedInstructionIncluded).toBe(false);
       expect(assembledPromptText(plain)).not.toContain(STEER_RESPONSE);
 
-      // FIRE via the wand: opening:"none" ⇒ empty canon, so the guided response commits the FIRST assistant.
+      // FIRE from the composer: opening:"none" ⇒ empty canon, so the guided response commits the FIRST
+      // assistant. Solo room ⇒ the ▶ icon is a plain button and the typed steer is what makes it guided.
       await openChatByTitle(page, title);
-      await typeSteerAndOpenWand(page, STEER_RESPONSE);
-      await page.getByRole("menuitem", { name: "Guided response" }).click();
+      await typeSteer(page, STEER_RESPONSE);
+      await (await armedIcon(page, GUIDED_RESPONSE)).click();
 
       // SERVER TRUTH: an assistant row committed — the guided turn ran end-to-end.
       await pollAssistantCount(chat.id, 1);
@@ -209,13 +249,18 @@ test.describe("guided generations on the live local stack", () => {
       const originalContent = before?.content ?? null;
       const originalVariantId = await firstVariantId(chat.id, tailId);
 
-      // FIRE REWRITE — the out-of-character correction, landing as swipe+guided{action:"rewrite"}. The
-      // Rewrite item OPENS the modal (owner ruling 2026-07-25: toggle options to guide it), pre-seeded from
-      // the composer draft; Apply fires. No toggles selected here — the pinned contract is variant landing,
-      // not toggle composition (that's CT-covered against trpc.lastInput). The composed steer is the
-      // instruction terminated with a period; the app-fidelity contract (a variant landed) is unchanged.
-      await typeSteerAndOpenWand(page, STEER_REWRITE);
-      await page.getByRole("menuitem", { name: "Rewrite" }).click();
+      // FIRE REWRITE — the out-of-character correction, landing as swipe+guided{action:"rewrite"}. Its door
+      // is now the ✨ menu's "Corrections…" row (it left the top row with the wand, #388), and that row is
+      // itself disabled-with-reason until a tail reply exists — which the seeded tail above supplies. It
+      // OPENS the modal (owner ruling 2026-07-25: toggle options to guide it), pre-seeded from the composer
+      // draft; Apply fires. No toggles selected here — the pinned contract is variant landing, not toggle
+      // composition (that's CT-covered against trpc.lastInput). The composed steer is the instruction
+      // terminated with a period; the app-fidelity contract (a variant landed) is unchanged.
+      await typeSteer(page, STEER_REWRITE);
+      await (await armedIcon(page, UTILITY_MENU)).click();
+      const corrections = page.getByRole("menuitem", { name: CORRECTIONS_ITEM });
+      await expect(corrections).not.toHaveAttribute("aria-disabled", "true", { timeout: 10_000 });
+      await corrections.click();
       await page.getByRole("textbox", { name: "Correction instruction" }).waitFor({ state: "visible" });
       await page.getByRole("button", { name: "Rewrite" }).click();
 
@@ -269,9 +314,10 @@ test.describe("guided generations on the live local stack", () => {
       const preContinue = (await canonMessage(chat.id, tailId))?.content ?? "";
       expect((await canonMessage(chat.id, tailId))?.hasContinuation).toBe(false);
 
-      // CONTINUE via the wand — content grows (continue appends onto the existing reply).
-      await typeSteerAndOpenWand(page, STEER_CONTINUE);
-      await page.getByRole("menuitem", { name: "Guided continue" }).click();
+      // CONTINUE via the ⏩ icon — content grows (continue appends onto the existing reply). Its guided name
+      // names the direction the typed steer supplies, which is the whole dual-mode contract.
+      await typeSteer(page, STEER_CONTINUE);
+      await (await armedIcon(page, GUIDED_CONTINUE)).click();
       await expect.poll(async () => (await canonMessage(chat.id, tailId))?.hasContinuation ?? false, { timeout: LIVE_TIMEOUT_MS }).toBe(true);
       const continued = (await canonMessage(chat.id, tailId))?.content ?? "";
       expect(continued.length).toBeGreaterThan(preContinue.length);
@@ -295,7 +341,7 @@ test.describe("guided generations on the live local stack", () => {
   });
 
   // ── LEG 4 — STEER + SPEAKER (F5) ──────────────────────────────────────────────────────────────────
-  // In a group room, fire Guided response choosing a SPECIFIC speaker via the wand's speaker submenu; the
+  // In a group room, fire the guided Response icon choosing a SPECIFIC speaker from its member menu; the
   // steer + the chosen speaker ride ONE chat.generate, and the next committed assistant row's characterId
   // IS the chosen speaker. Server truth = the committed row's characterId.
   test("steer + speaker: the guided response commits a row authored by the chosen speaker", { tag: "@live" }, async ({ page }) => {
@@ -309,13 +355,17 @@ test.describe("guided generations on the live local stack", () => {
     const title = `e2e-guided-speaker-${Date.now()}`;
     const chat = await startGroupChat({ characterIds: [alphaId, bravoId], title });
     try {
-      // Sanity: the room really has both seats server-side (so the wand renders a 2-member submenu).
+      // Sanity: the room really has both seats server-side (so the Response icon is above the roster-of-2
+      // floor and renders its member menu rather than firing Auto directly).
       expect((await characterSeats(chat.id)).map((s) => s.characterId)).toEqual(expect.arrayContaining([alphaId, bravoId]));
 
       await openChatByTitle(page, title);
-      await typeSteerAndOpenWand(page, "greet the party");
-      // In a multi-room "Guided response" is a submenu (Auto + one item per member). Choose BRAVO.
-      await page.getByRole("menuitem", { name: "Guided response" }).hover();
+      await typeSteer(page, "greet the party");
+      // Above the roster-of-2 floor the ▶ icon IS a menu trigger, and its popup is FLAT: "Auto (arbitrate)"
+      // plus one item per member. One click opens it, one click picks BRAVO — the old hover-into-a-submenu
+      // step is gone with the wand.
+      await (await armedIcon(page, GUIDED_RESPONSE)).click();
+      await expect(page.getByRole("menuitem", { name: "Auto (arbitrate)" })).toBeVisible({ timeout: 10_000 });
       await page.getByRole("menuitem", { name: DUO[1].name }).click();
 
       // SERVER TRUTH: exactly one assistant row committed and it is authored by the CHOSEN speaker (bravo),
@@ -331,8 +381,9 @@ test.describe("guided generations on the live local stack", () => {
   });
 
   // ── LEG 5 — INPUT SURVIVES FAILURE — DEFERRED (see the report note) ────────────────────────────────
-  // The restore-on-error path (F3) is CT-covered (composer-wand.tsx onFireError → onChange restores the
-  // draft). Inducing a FAILING guided fire in e2e without contortion is not cheaply reachable: the wand
+  // The restore-on-error path (F3) is CT-covered (composer-guided-cluster.tsx's `onFireError` → `onChange`
+  // restores the draft; the wand that used to own that seam is gone, the seam is not). Inducing a FAILING
+  // guided fire in e2e without contortion is not cheaply reachable: an icon
   // fires against the current tail with a valid steer, and the only levers to force a non-abort mutation
   // error are stack-global (drop the backend / corrupt the route), which would poison the shared route the
   // other legs and the whole suite depend on (and racing that restore back is brittle). Per the leg-5

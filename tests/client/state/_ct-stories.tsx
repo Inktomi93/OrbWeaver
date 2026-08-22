@@ -36,6 +36,7 @@ import {
   clearWorldEntrySelection,
   closeModal,
   cycleTagFilter,
+  dockListPanel,
   enterCreatedChat,
   getAvailableContextTabIds,
   getAvailableContextTabs,
@@ -51,6 +52,7 @@ import {
   publishContextTabs,
   publishNoticeBand,
   readComposerDraft,
+  registerListFlipCarry,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
   reportSectionSaveStatus,
@@ -1197,5 +1199,47 @@ export function NoticeBandProbe(): ReactElement {
         </button>
       </div>
     </CtToastSurface>
+  );
+}
+
+/** THE LIST-FLIP CARRY SEAM (#391, state/list-flip-carry.ts) — a stand-in for `useShellLayout`, which is
+ *  the only production registrant. It registers through an EFFECT WITH NO DEP ARRAY on purpose: that is
+ *  exactly what the hook does, so the registered closure is re-published every commit and always sees the
+ *  CURRENT override. A closure captured once (in a click handler) would go stale and could not witness the
+ *  ordering the CT is here to pin. The carry records what it was HANDED and what the store still SAID at
+ *  that moment — the two halves of "the carry runs before the write". */
+export function ListFlipCarryProbe(): ReactElement {
+  const section = useActiveSection();
+  const listOverride = usePanelOverride(section, "list");
+  const [carryOn, setCarryOn] = useState(false);
+  const [log, setLog] = useState<readonly string[]>([]);
+  useEffect(() => {
+    if (!carryOn) {
+      return;
+    }
+    registerListFlipCarry((next): void => {
+      setLog((prev) => [...prev, `${next}@${listOverride ?? "none"}`]);
+    });
+    return (): void => {
+      registerListFlipCarry(null);
+    };
+  });
+  return (
+    <div>
+      <p data-testid="list-override">{listOverride ?? "none"}</p>
+      <p data-testid="carry-log">{log.length === 0 ? "none" : log.join(" | ")}</p>
+      <button type="button" onClick={(): void => setCarryOn(true)}>
+        mount the carry
+      </button>
+      <button type="button" onClick={(): void => setCarryOn(false)}>
+        unmount the carry
+      </button>
+      <button type="button" onClick={(): void => dockListPanel()}>
+        dock the list
+      </button>
+      <button type="button" onClick={(): void => setPanelMode("list", "collapsed")}>
+        collapse the list
+      </button>
+    </div>
   );
 }
