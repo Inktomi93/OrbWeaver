@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-19
+updated: 2026-08-22
 ---
 
 # Documentation & Comments Law
@@ -134,7 +134,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `FLAG[PD-n]`, which cites the debt REGISTRY, not a path) — so doc moves are a docs-tree concern plus two hard anchors:
 
-1. **The two hard anchors, checked first:** (a) the `pd-citation-integrity` gate reads `Core-Audits-and-Debt.md` + `history/Core-Debt-Cleared-Ledger.md` by PATH — those two files never move without updating the gate in the same commit; (b) sweep `scripts/` for any other tool that reads a doc path (`/usr/bin/grep -rn 'docs/architecture' scripts/`).
+1. **The two hard anchors, checked first:** (a) the `pd-citation-integrity` gate reads `Core-Audits-and-Debt.md` + `history/Core-Debt-Cleared-Ledger.md` by PATH — those two files never move without updating the gate in the same commit; (b) sweep the tool fleet + research zone for any other tool that reads a doc path (`/usr/bin/grep -rn 'docs/architecture' tooling/src scripts/`).
 2. **Doc-side sweep:** repoint every citation in the docs tree + `AGENTS.md`/`CLAUDE.md`, re-fix the moved file's OWN relative links (depth changed), update `proposed/README.md` if tracked there, `pnpm check:docs`, then re-run the sweep and prove zero references to the old path. One commit.
 3. **§-numbers of law docs stay stable** (`ui-package-design.md` is the canonical example) — other docs and future doc text cite them; renumbering is drift by another name.
 4. **Retirement paths:** SUBSUMED → `git rm` + repoint to the subsuming doc (never a tombstone) · CLOSED record / landed program → `git mv` to `history/` · BUILT → delete per the built-code rule, promoting cross-cutting WHY to `core/` first · NOT-YET → park in `proposed/` with an INDEX.md disposition row (the 2026-07-13 amendment; the out-of-repo eviction pattern is retired).

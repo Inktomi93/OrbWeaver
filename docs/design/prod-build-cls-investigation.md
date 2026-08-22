@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-14
+updated: 2026-08-22
 ---
 
 # Prod-build CLS lead — investigation only, no fix
@@ -18,23 +18,24 @@ or refute that against a PROD build, if the check is cheap.
 
 ## Does the prod launcher exist?
 
-Yes. `scripts/dev/stack.sh` mode-dispatches to `scripts/dev/stack-prod.ts` for
+Yes. `tooling/src/stack/stack.sh` mode-dispatches to the stack tool's prod half
+(`tooling/src/stack/ops/prod-entry.ts` → `ops/prod*.ts`) for
 `pnpm stack up|down|restart|status prod`:
 
-- `scripts/dev/stack.sh:2` — "PROD routes to stack-prod.ts"
-- `scripts/dev/stack.sh:8` — `pnpm stack up|down|restart|status [dev|prod] [--debug]`
-- `scripts/dev/stack.sh:112-114` — "PROD routes the WHOLE invocation to scripts/dev/stack-prod.ts and
-  never returns... nothing below this block runs in prod mode, because prod has no vite, no engines
-  management, and no \[dev machinery]"
-- `scripts/dev/stack-prod.ts:15` — "detached production server, no vite, no build step" at the
-  supervisor level — i.e. `stack-prod.ts` ADOPTS/manages a running server but does not itself run the
+- `tooling/src/stack/stack.sh:2` — "PROD routes to stack-prod.ts"
+- `tooling/src/stack/stack.sh:6` — `pnpm stack up|start-fg|down|restart|status [dev|prod] [--debug]`
+- `tooling/src/stack/stack.sh:116` — "PROD routes the WHOLE invocation to
+  tooling/src/stack/ops/prod-entry.ts and never returns... nothing below this block runs in prod mode,
+  because prod has no vite, no engines management, and no \[dev machinery]"
+- `tooling/src/stack/stack.sh:8` — "detached production server, no vite, no build step" at the
+  supervisor level — i.e. the prod supervisor ADOPTS/manages a running server but does not itself run the
   client build; a client-dist preflight is a documented precondition, so a prod run needs a pre-built
   `packages/client` dist staged before the supervisor starts.
 
 ## Is the check cheap right now? No — port collision with the live dev stack
 
-`scripts/dev/stack-prod.ts:64` — `DEFAULT_PORT = 8788`, the SAME default backend port
-`scripts/dev/stack.sh:81` uses for dev (`BACKEND_PORT="${PORT:-8788}"`). Prod serves the built client
+`tooling/src/stack/ops/prod-state.ts:15` — `DEFAULT_PORT = 8788`, the SAME default backend port
+`tooling/src/stack/stack.sh:83` uses for dev (`BACKEND_PORT="${PORT:-8788}"`). Prod serves the built client
 dist off the same server process/port (no separate vite port in prod).
 
 Live-port check at investigation time (`ss -ltnp` / `lsof`):
@@ -46,7 +47,7 @@ LISTEN  *:8788           node-MainThread pid=3377495   (dev server — live)
 
 The dev stack is live and answering on :8788/:5173 right now (other lanes' work depends on it — this
 batch was explicitly scoped "collision-free with the live client lanes"). Standing up `pnpm stack up prod`
-would either refuse (port already held — `scripts/dev/stack-prod.ts:379`, "is also the ... port ... Stop
+would either refuse (port already held — `tooling/src/stack/ops/prod-up.ts:127`, "is also the ... port ... Stop
 that first, or point PORT elsewhere") or require overriding `PORT` to a second port, which still needs a
 FULL client production build staged first (no build step in the supervisor itself — that has to happen
 out-of-band) and a second full server boot standing beside the live one. That's not a bounded/cheap step;

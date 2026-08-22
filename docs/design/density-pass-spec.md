@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-08-17
+updated: 2026-08-22
 ---
 
 # The density pass — tier map, mechanism, enforcement
@@ -244,7 +244,7 @@ draws it.
 
 ## 5. Enforcement
 
-### 5.1 The `density-tier` gate (ts-morph, `scripts/check/gates/density-tier.ts`)
+### 5.1 The `density-tier` gate (ts-morph, `tooling/src/verify/gates/density-tier.ts`)
 
 `scanRoot`: `p.includes("packages/client/src/") || p.includes("packages/ui/src/")` — the
 `no-off-token-radius-shadow` form, which makes no assumption about a leading slash (the two existing
@@ -276,7 +276,7 @@ registry count, and the conformance fixtures — a half-registration is how a ga
 
 ### 5.2 The transition ratchet
 
-`scripts/check/gates/density-tier.baseline.json` — `path → count`, the `no-test-fabrication` idiom: a
+`tooling/src/verify/gates/density-tier.baseline.json` — `path → count`, the `no-test-fabrication` idiom: a
 file violates only when its LIVE count EXCEEDS its committed baseline, and only the excess is
 reported. Consequences:
 

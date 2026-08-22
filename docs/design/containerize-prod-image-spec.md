@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-19
+updated: 2026-08-22
 ---
 
 # Production container image + deployment spec (all auth modes)
@@ -267,9 +267,10 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 #### Profile 1 — the fleet lives IN the container (owner's default)
 
 orb and the three engines (`gen`/`embed`/`rerank`) run in ONE container, one PID + network namespace, one
-GPU passthrough. This replicates the bare-host `pnpm stack up prod` topology, which is: `stack-prod.ts` spawns
+GPU passthrough. This replicates the bare-host `pnpm stack up prod` topology, which is: the stack tool's prod
+half (`tooling/src/stack/ops/prod-up.ts`) spawns
 the SERVER detached (`node entry/index.ts`, NODE\_ENV=production — the plan is built by
-`buildProdSpawnPlan`, `scripts/dev/_kit/stack-mode.ts:364`), and the SERVER — under
+`buildProdSpawnPlan`, `tooling/src/stack/lib/spawn-plan.ts:27`), and the SERVER — under
 `ENGINES_POSTURE=adopt-or-start` — runs the in-process supervisor that triggers a **detached `setsid` fleet
 spawn** when an engine is down (`supervisor.ts:1-5`). The container inherits that exact flow.
 
