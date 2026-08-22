@@ -1087,8 +1087,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 230,
-      "bytes": 25979,
-      "sha256": "57935611c36212763ae4245dfcf409055f4a2fe8f1edc927a954650ecb474ddb",
+      "bytes": 25960,
+      "sha256": "33b12c0b0d219f497f6c58caf6813a22b46aa578ae27963a3f6f9dd5de35f42d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1105,15 +1105,15 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "57935611c36212763ae4245dfcf409055f4a2fe8f1edc927a954650ecb474ddb",
-        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
+        "verifiedSha256": "33b12c0b0d219f497f6c58caf6813a22b46aa578ae27963a3f6f9dd5de35f42d",
+        "verifiedCommit": "e92204f687661423caabc1f3e2cc6da9d32b4615",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
           "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the `.parity` lane row, its tree entry, its two §1 bullets, the §6 obligation and the Esoterica bullet retired. No other claim in this document moved."
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commits bd1f126f6 + e92204f68): re-read at the ripped bytes — the `.parity` lane row, its tree entry, its two §1 bullets, the §6 obligation and the Esoterica bullet retired, and §2's test-layout sentence follows the gate's KIND removal in e92204f68. No other claim in this document moved."
         ],
         "claims": [
           {
