@@ -98,12 +98,12 @@ The 27 `#!/usr/bin/env tsx` shebangs across `scripts/` (tsx was shed 2026-08-03;
 | `ast/` | `codemods/ast.ts` (6,241) | `ast` + `check:respell/swallowed/typeonly/columns/regkeys/chains` | P4 LANDED: the deepest decomposition — `contract/types.ts` (every exported lens shape, unions tuple-derived), `lib/{root,keys,ledger,emit,resolve,scope,public-markers,liveness,edges,columns,column-reads,fields,field-seeds,usage}.ts`, `ops/{symbols,orphans,prodonly,graph,wiring,swallowed,dead,respell,typeonly,columns,regkeys,fields,chains,stringy,apisurface,rot,verbs,depcruise}.ts`. Exit convergence (stated): unknown verb → EXIT.misuse (it printed usage + exit 0); `exitToolError` THROWS AstToolError (arm D — the cli maps it to EXIT.toolError); depcruise pass-through rides `spawnNiced` (async, streamed — the 64MiB maxBuffer ceiling died with the raw spawnSync). Parity: the four pinned queries byte-identical pre/post, plus a fifth (`columns` full audit — 780 columns/86 tables) byte-identical at 8G; `rot ui` 1:41 new vs 1:51 monolith (warm) with identical 42 matches. One alias VALUE change (names frozen, values free): `check:columns` gains the `ast` script's `--max-old-space-size=8192` — the lens peaks \~5.5GB RSS, and main's MONOLITH also exits 134 at the default heap (4.5GB RSS, measured from main's checkout) — a pre-existing break the move surfaced, not a regression |
 | `codemod/` | `codemod-kit.ts` (3,385) + `codemod.ts` + `migrate-macro-blocks.ts` + `export-rot-cleanup.ts` | `codemod` | P4 LANDED: the kit split by its own §-sections into `lib/{errors,project,run,plans,files,imports,exports,symbols,text,jsx,id-branding,id-casts,diagnostics,kit,example}.ts` + `ops/{manifest,recipes,migrate-macro-blocks}.ts`; index.ts is the ts-morph-pinning re-export surface. THE LOADER CONSOLIDATION: `createCodemodProject` rides `getWorkspace(types:true)` — the kit's own `new Project(` site died (plumbing arm A proves it); `projectOptionsOverride`/`extraGlobs` deleted (zero users — stated clean cut); `tsConfigFilePath`+`replaceGlobs` survive (the int test drives a scratch root). DEVIATION (stated, receipts in the P4 report): `export-rot-cleanup.ts` was DELETED, not moved — it executes at import (top-level `await runCodemod`), its disposition rows are a completed 2026-08-03 one-shot, and the dispositions doc is the durable record; the orchestrator may overrule at merge |
 | `verify/` | `scripts/check/**` (247 files incl. gates/ + GATE-AUTHORING.md) + `scripts/verify/**` (9 files) | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` | one system; moved LAST (P6); the largest coupled surface (§3.3) |
-| `workboard/` | `github/work-item.ts` (975) | `work:item` | renamed |
-| `doc-catalog/` | `docs/catalog.ts` (937) + `docs/format-md.ts` (77) | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` | |
-| `agent-sync/` | `agents/sync-codex-agents.ts` (251) | `agents:sync` `check:agents` | renamed |
-| `seed/` | `seed/seed-demo.ts` (443) + `dev/seed-chat.ts` + `dev/multi-user-seed.ts` | `seed:demo` | |
-| `stack/` | `dev/{stack.sh,dev.sh,stack-prod.ts,engines.sh,engines.ts,engines-ctl.ts}` + `dev/_kit/{stack-mode,spawn-lock}.ts` + `pino-pretty.json` + `*.jinja` | `stack` `engines*` | bash rides along at tool root (§4.1 exemption row); no tsconfig involvement for `.sh` |
-| `model-ab/` | `dev/model-ab.ts` (769) + `model-ab.variants.json` | (none today) | |
+| `workboard/` | `github/work-item.ts` (975) | `work:item` | P5 LANDED: renamed; `lib/{vocab,queries,parse,writes}.ts` + `contract/types.ts` + `ops/{gh,project,lifecycle,report,run}.ts`. `WorkItemUsageError` became `_shared`'s `UsageError` (same exit 3); a guard refusal still prints ONE operator line and exits 2, never a stack |
+| `doc-catalog/` | `docs/catalog.ts` (937) + `docs/format-md.ts` (77) | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` | P5 LANDED: ONE tool, two verbs (`cli.ts catalog --*` / `cli.ts format --*`); rules pure in `lib/{vocab,frontmatter,receipt-rules,debt}.ts`, tree I/O in `ops/{tree,validate,catalog,format,run}.ts`. `registry.ts:308`'s scoped argv repointed AND its dead `tsx` spelling corrected to `node` (tsx was shed 2026-08-03) |
+| `agent-sync/` | `agents/sync-codex-agents.ts` (251) | `agents:sync` `check:agents` | P5 LANDED: renamed; `--check` staleness now exits 1 (VIOLATIONS) instead of throwing — it is a `pnpm check` stage, and a crash-shaped exit read as a tool break |
+| `seed/` | `seed/seed-demo.ts` (443) + `dev/seed-chat.ts` + `dev/multi-user-seed.ts` | `seed:demo` | P5 LANDED: three verbs behind one dispatcher (`cli.ts demo\|chat\|multi-user`); the two non-aliased callers repointed (`scripts/dev/multi-user-fixture.sh`, `tests/e2e/support/global-setup.ts` — both dropped a tsx hop). The ST/OpenAI wire keys are spelled as array-literal pairs, so only the mulberry32 PRNG needed a scoped biome row |
+| `stack/` | `dev/{stack.sh,dev.sh,stack-prod.ts,engines.sh,engines.ts,engines-ctl.ts}` + `dev/_kit/{stack-mode,spawn-lock}.ts` + `pino-pretty.json` | `stack` `engines*` | P5 LANDED: bash rides at tool root under the §4.1 `BASH_FRONTED_TOOLS` row; `stack-mode.ts` split by nature into `contract/types.ts` + `lib/{spawners,argv,debug-env,spawn-plan,prod-record,identity,verdicts,proc-parse}.ts`; `stack-prod.ts` into `ops/{prod-state,prod-verbs,prod}.ts` + `ops/prod-entry.ts` (the node half stack.sh execs — a bash-fronted tool may not carry a `cli.ts`, arm E). **P5 TRUTH-REPAIR: the `*.jinja` files do NOT move.** They are packages/server RUNTIME data — `infra/providers/vllm/engine/build-argv.ts:167-181` resolves them and `Dockerfile:183-185` bakes them into the prod image; no stack-tool code reads one. Moving them would make the cake read a runtime file out of `tooling/` through an unguarded path string. They stay at `scripts/dev/`; their right long-term home is a server-owned data dir (an owner decision, not this phase's) |
+| `model-ab/` | `dev/model-ab.ts` (769) + `model-ab.variants.json` (→ `ops/variants.json`) | (none today) | P5 LANDED: `lib/{scene,verify}.ts` + `ops/{probes,probe,serve,report,run}.ts`. The whole tool speaks the OpenAI wire, so it joins the existing `useNamingConvention: off` foreign-vocabulary row beside `infra/providers/**`. The variant engine rides `spawnNicedChild`, NOT a full-priority row: the harness REFUSES to boot while anything else holds the GPUs, and its published measurement is the DELTA between columns |
 | `wire-tap/` | `probes/sse-tap.ts` (modernized) + two net-new ops | `sse-tap` (→ `cli.ts sse`) | the server-wire incident toolkit (orchestrator input 2026-08-21): `ops/sse.ts` = sse-tap with the tsx shebang + `--experimental-eventsource` self-re-exec (lines 39-42) DROPPED — `EventSource` is a stable global on node 26, verified at the move; `ops/captures.ts` = a reader for the `/api/_debug/wire` captures+outcomes rings; `ops/trpc.ts` = the uncookied dev tRPC harvest — both promoted from orchestrator-memory-only curl recipes. Incident instrument, idle-by-design (§4.5). P3 TRUTH-REPAIR (measured node v26.5.0): `EventSource` is NOT a stable global — still behind `--experimental-eventsource` — so the re-exec died but the FLAG lives in the `pnpm sse-tap` script VALUE, and the sse op fail-louds without it |
 
 Root-shim survivors (neither research nor tooling — launcher shims, named in the `scripts/` README at P9): `scripts/ts7.cjs` (the TS7 wrapper — `package.json:45-47`, `registry.ts:101`, and every brief's `types:graph` spelling depend on the path; a `.cjs` launcher, not a tool) and `scripts/worktree-bootstrap.sh` (`package.json:14`). Owner-visible default: they stay put.
@@ -444,6 +444,35 @@ wire-tap · screen-record. New classes and idioms it minted:
 - **process.exit stayed single-homed without exceptions:** tail/sse/fire re-shaped as promise-resolving
   ops (SIGINT resolves; fire's `process.on("exit")` SIGKILL belt survives) — arm D needed no new
   allowlist row at P3.
+
+### 9.2b The P5 replay ledger (the six operator tools — what the checklist gained)
+
+The §9.1 checklist was replayed over workboard · doc-catalog · agent-sync · seed · stack · model-ab. New
+classes and idioms it minted:
+
+- **A ROSTER ROW IS A HYPOTHESIS TOO (9.1-2 generalizes beyond modules).** The importer census kills a
+  file's classification, not just a module's: the `stack` row listed `*.jinja`, but the only consumers are
+  `packages/server`'s `build-argv.ts` + the Dockerfile — the files are server RUNTIME data, and moving them
+  would invert the cake through a path string no resolver guards. Owner-ruled: they stay. Run the consumer
+  census over DATA files, not only over code.
+- **`execFileSync` FORWARDS the child's stderr even while capturing it.** A tool that translates a failure
+  into an operator instruction printed BOTH — the raw `GraphQL: …` dump and its own message — and the
+  workboard suite caught it because it asserts the raw text is absent. `_shared/proc.ts`'s doors now pin
+  `stdio: ["ignore","pipe","pipe"]` and fold the captured stderr into the thrown message instead.
+- **A second full-priority DOOR needs the gate widened, not just an allowlist row.** Arm F2 matched one
+  callee NAME (`spawnFullPrioritySync`); adding the detached twin `spawnFullPriorityChild` for the vLLM
+  fleet would have been an unguarded loophole. The arm now matches a DOOR SET, with its own mustFlag.
+- **A bash-fronted tool's node half is an `ops/*-entry.ts`, never a `cli.ts`.** Arm E requires every
+  `cli.ts` to enter through `runTool`, and the slot template's stale arm REDs a `BASH_FRONTED_TOOLS` row
+  whose dir grew one — so the spawn target stack.sh execs is `ops/prod-entry.ts`, and it still enters
+  through `runTool` (a launcher needs crash≠verdict at least as much as a checker does).
+- **A launcher's `process.exit` becomes a promise-resolving signal handler (the P3 tail/sse idiom,
+  re-applied).** The engines foreground owner held the loop open forever and exited from inside SIGINT;
+  it now resolves a hold-promise, tears the children down, and returns an ExitCode.
+- **Foreign wire vocabularies split two ways.** An OBJECT LITERAL can dodge `useNamingConvention` by being
+  built from array-literal pairs (`Object.fromEntries`), so seed's ST/OpenAI frames needed no suppression;
+  a TYPE cannot, so model-ab joined the existing `infra/providers/**` foreign-vocabulary override row
+  rather than minting a new mechanism.
 
 ### 9.3 Post-merge ledger (orchestrator steps at every phase merge — P2 barrier receipts)
 

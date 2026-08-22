@@ -178,10 +178,16 @@ ENV NODE_ENV=production \
     VLLM_CACHE_ROOT=/models/vllm-cache
 COPY --link --chown=node:node --from=app-files /app /app
 # The fleet front door + its TS halves + the serve chat-templates, workspace-shaped at the runtime cwd
-# (the supervisor runs `bash <cwd>/scripts/dev/engines.sh start`). ONLY the fleet files — the rest of
-# scripts/dev is dev tooling.
-COPY --chown=node:node scripts/dev/engines.sh scripts/dev/engines.ts scripts/dev/engines-ctl.ts \
-     scripts/dev/vllm-setup.sh scripts/dev/qwen3_vl_embedding_serve.jinja \
+# (the supervisor runs `bash <cwd>/tooling/src/stack/engines.sh start`). ONLY the fleet files — the rest
+# of the stack tool is dev tooling. Two destinations because the two sets live in two trees now (#393 P5):
+# the fleet launcher is @orb/tooling's `stack` tool; the vLLM serve chat-templates are packages/server
+# RUNTIME data resolved by `infra/providers/vllm/engine/build-argv.ts` and stay under scripts/dev/.
+COPY --chown=node:node tooling/src/stack/engines.sh tooling/src/stack/ops/engines.ts \
+     tooling/src/stack/ops/engines-ctl.ts /app/tooling/src/stack/
+COPY --chown=node:node tooling/src/stack/lib/spawn-lock.ts /app/tooling/src/stack/lib/
+COPY --chown=node:node tooling/src/_shared/artifacts.ts tooling/src/_shared/exit-contract.ts \
+     tooling/src/_shared/log.ts tooling/src/_shared/proc.ts tooling/src/_shared/run-tool.ts /app/tooling/src/_shared/
+COPY --chown=node:node scripts/dev/vllm-setup.sh scripts/dev/qwen3_vl_embedding_serve.jinja \
      scripts/dev/qwen3_vl_reranker_serve.jinja /app/scripts/dev/
 # @orb/* resolve through SYMLINKS to the tree sources (the node-26 type-stripping constraint — build
 # plan §2); the server symlink additionally serves engines.ts/engines-ctl.ts, which import

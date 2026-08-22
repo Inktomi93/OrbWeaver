@@ -1741,7 +1741,22 @@
     "tests/ui/tokens/index.test.ts",
     "tests/ui/tokens/near-duplicate.suite.test.ts",
     "tests/ui/tokens/theme-emit-pairing.suite.test.ts",
-    "tests/ui/touch-target-floor.suite.ct.tsx"
+    "tests/ui/touch-target-floor.suite.ct.tsx",
+    "tests/tooling/agent-sync/cli.int.test.ts",
+    "tests/tooling/agent-sync/contract/types.test-d.ts",
+    "tests/tooling/agent-sync/ops/sync.int.test.ts",
+    "tests/tooling/doc-catalog/cli.int.test.ts",
+    "tests/tooling/doc-catalog/contract/types.test-d.ts",
+    "tests/tooling/doc-catalog/index.test.ts",
+    "tests/tooling/model-ab/contract/types.test-d.ts",
+    "tests/tooling/seed/contract/types.test-d.ts",
+    "tests/tooling/seed/ops/demo.int.test.ts",
+    "tests/tooling/stack/contract/types.test-d.ts",
+    "tests/tooling/stack/index.int.test.ts",
+    "tests/tooling/stack/index.test.ts",
+    "tests/tooling/stack/lib/spawn-lock.int.test.ts",
+    "tests/tooling/workboard/cli.test.ts",
+    "tests/tooling/workboard/contract/types.test-d.ts"
   ],
   "deletions": {
     "tests/client/state/home-tile-box-store.test.ts": {
@@ -1848,6 +1863,24 @@
     },
     "tests/tooling/migrate-macro-blocks.test.ts": {
       "why": "relocated to tests/tooling/codemod/ops/migrate-macro-blocks.test.ts with its subject (scripts/codemods/migrate-macro-blocks.ts -> tooling/src/codemod/ops/, the @orb/tooling P4 move, #393); the golden imports migrateMacroBlocks through the tool's index.ts. Every case moved verbatim; nothing was dropped. Un-deletes only if the module moves back."
+    },
+    "tests/tooling/docs-catalog.test.ts": {
+      "why": "RELOCATED, not dropped: the #393 P5 move promoted its subject into @orb/tooling, and the tooling test mirror (tooling-package.md §4.7) requires tests/tooling/<tool>/<path> to prefix-swap to tooling/src/<tool>/<path>. Every case moved verbatim to tests/tooling/doc-catalog/index.test.ts; nothing was weakened or dropped. Un-deletes only if the subject is ever re-homed back outside tooling/src/."
+    },
+    "tests/tooling/work-item-cli.test.ts": {
+      "why": "RELOCATED, not dropped: the #393 P5 move promoted its subject into @orb/tooling, and the tooling test mirror (tooling-package.md §4.7) requires tests/tooling/<tool>/<path> to prefix-swap to tooling/src/<tool>/<path>. Every case moved verbatim to tests/tooling/workboard/cli.test.ts; nothing was weakened or dropped. Un-deletes only if the subject is ever re-homed back outside tooling/src/."
+    },
+    "tests/tooling/seed-demo.int.test.ts": {
+      "why": "RELOCATED, not dropped: the #393 P5 move promoted its subject into @orb/tooling, and the tooling test mirror (tooling-package.md §4.7) requires tests/tooling/<tool>/<path> to prefix-swap to tooling/src/<tool>/<path>. Every case moved verbatim to tests/tooling/seed/ops/demo.int.test.ts; nothing was weakened or dropped. Un-deletes only if the subject is ever re-homed back outside tooling/src/."
+    },
+    "tests/tooling/stack-mode.test.ts": {
+      "why": "RELOCATED, not dropped: the #393 P5 move promoted its subject into @orb/tooling, and the tooling test mirror (tooling-package.md §4.7) requires tests/tooling/<tool>/<path> to prefix-swap to tooling/src/<tool>/<path>. Every case moved verbatim to tests/tooling/stack/index.test.ts; nothing was weakened or dropped. Un-deletes only if the subject is ever re-homed back outside tooling/src/."
+    },
+    "tests/tooling/stack-dispatch.int.test.ts": {
+      "why": "RELOCATED, not dropped: the #393 P5 move promoted its subject into @orb/tooling, and the tooling test mirror (tooling-package.md §4.7) requires tests/tooling/<tool>/<path> to prefix-swap to tooling/src/<tool>/<path>. Every case moved verbatim to tests/tooling/stack/index.int.test.ts; nothing was weakened or dropped. Un-deletes only if the subject is ever re-homed back outside tooling/src/."
+    },
+    "tests/tooling/spawn-lock.int.test.ts": {
+      "why": "RELOCATED, not dropped: the #393 P5 move promoted its subject into @orb/tooling, and the tooling test mirror (tooling-package.md §4.7) requires tests/tooling/<tool>/<path> to prefix-swap to tooling/src/<tool>/<path>. Every case moved verbatim to tests/tooling/stack/lib/spawn-lock.int.test.ts; nothing was weakened or dropped. Un-deletes only if the subject is ever re-homed back outside tooling/src/."
     }
   }
 }

@@ -250,7 +250,7 @@ function reasoningFields(reasoning: ResolvedReasoning, prefill: PrefillMode, war
  *    • thinking off ⇒ `content: ". It was cold. It was wet. It ended."`, reasoning null — a true continuation.
  *    • thinking on  ⇒ `content: null`, the identical prose sitting in the reasoning channel. An empty reply.
  *  A prefill that leaves a `<think>` OPEN is the other door the vendored template was built for (the thinking
- *  steer — `scripts/dev/model-ab.ts`'s `prefill-thinking-kwarg` probe): there the parser's reasoning-first
+ *  steer — `tooling/src/model-ab/ops/probes.ts`'s `prefill-thinking-kwarg` probe): there the parser's reasoning-first
  *  assumption is CORRECT, the model closes the block itself, and the kwargs must ride. */
 const PREFILL_MODES = ["none", "content", "open-think"] as const;
 type PrefillMode = (typeof PREFILL_MODES)[number];

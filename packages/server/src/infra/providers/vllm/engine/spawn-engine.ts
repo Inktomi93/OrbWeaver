@@ -1,6 +1,6 @@
 // The DEPLOYMENT-fact resolver + spawn-spec builder — the I/O half of what scripts/dev/vllm-engine.sh used
 // to do in bash, now shared by BOTH engine owners (the in-server supervisor's spawnOwned + the standalone
-// scripts/dev/engines.ts launcher) so they can never drift. Resolves: STORE_ROOT (git-common-dir worktree
+// tooling/src/stack/ops/engines.ts launcher) so they can never drift. Resolves: STORE_ROOT (git-common-dir worktree
 // sharing), the vllm binary + its python interpreter, the in-repo HF/vLLM caches, the rerank model's
 // snapshot path (a huggingface_hub call — the `hf` CLI's stdout format is version-unstable), and the
 // per-engine CUDA_VISIBLE_DEVICES. Then defers the FLAG half to the pure buildEngineArgv.

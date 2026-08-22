@@ -5,18 +5,17 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
+      "assignedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
-      "verifiedCommit": "8931a886cb03a6d2eb10bb6f015beae015465e6e",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "ba69dcd2a3cdf0581af6b5d2fefab81f1fe1aae14dd3700b6ad18c230383aa2c",
+      "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
+      "verifiedAt": "2026-08-19",
       "evidence": [
         "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
         "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
-        "git:8931a886cb03a6d2eb10bb6f015beae015465e6e contains the exact constitution blob",
-        "P4 re-attest (2026-08-21): §7 structural-search + codemod cites repointed to tooling/src/ast + tooling/src/codemod (P4 of #393); no other change — bound to P4 commit 8931a886cb03a6d2eb10bb6f015beae015465e6e"
+        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact constitution blob"
       ],
       "claims": [
         {
@@ -116,13 +115,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
-      "assignedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
+      "assignedSha256": "4ae302b9c1a0bafaae70d90dca309fa2f3ba104169f40eddc256c753f127f1f6",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "4ae302b9c1a0bafaae70d90dca309fa2f3ba104169f40eddc256c753f127f1f6",
+      "verifiedCommit": "b4fbd25d75ad63f7bb8eae2304ea771a02b8a51c",
+      "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/architecture/core/Core-Docs-Formatting-Law.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -143,23 +142,22 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
+      "assignedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
-      "verifiedCommit": "8931a886cb03a6d2eb10bb6f015beae015465e6e",
+      "verifiedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
+      "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
       "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) — orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits",
+        "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) \u2014 orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits",
         "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
         "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green",
         "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)",
-        "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree",
-        "P4 re-attest (2026-08-21): tooling-front-door row gains ROOT_CONFIG_IMPORTS typed exemption + two-sided stale sweep; schema-read cite repointed to tooling/src/_shared/schema-read.ts — bound to P4 commit 8931a886cb03a6d2eb10bb6f015beae015465e6e"
+        "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS \u2014 arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree"
       ],
       "claims": [
         {
@@ -193,7 +191,7 @@
       "verifiedCommit": "6ec3f22de10b5d2a2acfe5b84edde0c9e0d2187a",
       "verifiedAt": "2026-08-17",
       "evidence": [
-        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; the §PREBUILT table re-derived row by row)",
+        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; the \u00a7PREBUILT table re-derived row by row)",
         "pnpm ast importers on each sealed barrel (scanned=4924): charts/meter + @orb/ui/diff have live consumers and lost their markers; stream/stream-text + primitives/status-chip have none outside their own CT and keep theirs",
         "pnpm check:docs + pnpm doc-catalog:check (2026-08-17)"
       ],
@@ -219,7 +217,7 @@
           "evidence": [
             {
               "kind": "law",
-              "target": "docs/architecture/core/Core-Laws-and-Precedents.md §7"
+              "target": "docs/architecture/core/Core-Laws-and-Precedents.md \u00a77"
             }
           ]
         }
@@ -244,24 +242,24 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "bf49c42a17f793f23f3353a719e214cf7e9cee0bc36d9dd8688e66a2af756181",
+      "assignedSha256": "f9b05abf330cc3ac14a0a8ed09c5fea394da92784f5c5efdc932cf7d36588f4e",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "90bf4d38f4b7f827f980de9947d87cedc4ac538ca207eb33781a0ee6d68a0b44",
-      "verifiedCommit": "bac364265989dddcefb0c9dbe0165cb7440d100c",
+      "verifiedSha256": "f9b05abf330cc3ac14a0a8ed09c5fea394da92784f5c5efdc932cf7d36588f4e",
+      "verifiedCommit": "b4fbd25d75ad63f7bb8eae2304ea771a02b8a51c",
       "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
         "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
         "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact registry blob",
-        "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) — orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses",
+        "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) \u2014 orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses",
         "D142 minted (born chat default = vllm x chat-completions, #196/28731d4f4) + D135(B) present-tense clause truth-repaired",
         "D143 minted (vllm errs-open posture + customParameters amendment, #197)",
         "D143 rider: VLLM_TURNS measured cell (#200/#201, 56a979d44)",
         "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)",
         "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)",
-        "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed"
+        "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance \u2014 a cite repair, no ruling text changed"
       ],
       "claims": [
         {
@@ -371,13 +369,13 @@
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
-      "assignedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
+      "assignedSha256": "d247631e0c55cf74585da41488995e897b1a6a739eb89c4ec8fb275a816a0436",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "ac16884613a2aecae1652708e69d7c2e55606c74ff55d0e8e3e4727174f7f85f",
-      "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
-      "verifiedAt": "2026-08-19",
+      "verifiedSha256": "d247631e0c55cf74585da41488995e897b1a6a739eb89c4ec8fb275a816a0436",
+      "verifiedCommit": "b4fbd25d75ad63f7bb8eae2304ea771a02b8a51c",
+      "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, source-comment, and direct rule-import routing reconciled",
         "docs/architecture/core/Core-Path-Registry.md:523-533 carries the standing D139-D141 rulings",
@@ -463,9 +461,9 @@
       "verifiedCommit": "621ac2218f767d8cb3b4313276b20199740465ad",
       "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
-        "invariant #9 re-derived: the tRPC CSRF gate keys on via==='cookie' only (packages/server/src/transport/trpc/trpc.ts:141), legitimate ONLY because of the load-bearing content-type belt at the mount (entry/app.ts trpcJsonOnly — refuses any /api/trpc/* POST not selecting tRPC's JSON handler); the four CORS-simple byte-ingest registrars gate via!=='header' (upload.ts:88 for /api/assets/upload+/api/databank/upload+/api/import, import-tree.ts:101, import-chat.ts:142, import.ts /api/import/bundle)",
-        "ENFORCER verified live: tests/server/entry/app.test.ts — 'the tRPC mount refuses a non-JSON mutation (CSRF content-type belt)' describe (multipart/form-data + application/octet-stream POST on the via:fallback arm -> 415, resolver never runs; the pre-belt tag.pruneUnusedTags 200 is the recorded proof)",
+        "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check \u2014 not the authoring lane \u2014 after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
+        "invariant #9 re-derived: the tRPC CSRF gate keys on via==='cookie' only (packages/server/src/transport/trpc/trpc.ts:141), legitimate ONLY because of the load-bearing content-type belt at the mount (entry/app.ts trpcJsonOnly \u2014 refuses any /api/trpc/* POST not selecting tRPC's JSON handler); the four CORS-simple byte-ingest registrars gate via!=='header' (upload.ts:88 for /api/assets/upload+/api/databank/upload+/api/import, import-tree.ts:101, import-chat.ts:142, import.ts /api/import/bundle)",
+        "ENFORCER verified live: tests/server/entry/app.test.ts \u2014 'the tRPC mount refuses a non-JSON mutation (CSRF content-type belt)' describe (multipart/form-data + application/octet-stream POST on the via:fallback arm -> 415, resolver never runs; the pre-belt tag.pruneUnusedTags 200 is the recorded proof)",
         "invariants #4/#7/#8/#10 re-confirmed unchanged/accurate: MODE_RESOLVERS exhaustive over the four AuthModes, the loopback-peer owner fallback (#298 f2, infra/auth peer gate + entry/auth/seam.ts), the three enabled gates, and the two provisionIdentity callers (auth-routes.ts:642 oidc, seam.ts forward-header)",
         "OPEN finding from fd71a395d is now CLOSED in-doc: invariant #9's tRPC preflight premise (FALSE for @trpc/server 11.18) and the short-by-one multipart census are both resolved by the belt; the doc reads CLOSED and matches the tree"
       ],
@@ -857,10 +855,10 @@
       "verifiedCommit": "e3efc08baf7601f1be23694babcbb2eeba94bf32",
       "verifiedAt": "2026-08-16",
       "evidence": [
-        "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); §12.2 truth-repaired against the tree",
+        "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); \u00a712.2 truth-repaired against the tree",
         "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
-        "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings — carried from the 2026-08-14 verification)",
-        "packages/kit/src/card-frame/index.ts:45 the sandbox/CSP engine §12.2 now cites (the grant moved out of srcdoc.ts)",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings \u2014 carried from the 2026-08-14 verification)",
+        "packages/kit/src/card-frame/index.ts:45 the sandbox/CSP engine \u00a712.2 now cites (the grant moved out of srcdoc.ts)",
         "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156 browser receipt that a card-authored script is refused by hash"
       ],
       "claims": [
@@ -887,7 +885,7 @@
           ]
         }
       ],
-      "summary": "Full-read current current-reference document reverified during the tier-B card-frame pass (#91): §12.2 restated to name @orb/kit/card-frame as the sandbox/CSP home, source-checked (not origin-checked) auto-height, and the routed-only hash-pinned allow-scripts grant; existing typed implementation evidence remains current."
+      "summary": "Full-read current current-reference document reverified during the tier-B card-frame pass (#91): \u00a712.2 restated to name @orb/kit/card-frame as the sandbox/CSP home, source-checked (not origin-checked) auto-height, and the routed-only hash-pinned allow-scripts grant; existing typed implementation evidence remains current."
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
@@ -928,7 +926,7 @@
       "evidence": [
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
         "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
-        "pnpm check:docs (2026-08-15 restamp — receipt sha/commit refresh, #73 red-fixes)"
+        "pnpm check:docs (2026-08-15 restamp \u2014 receipt sha/commit refresh, #73 red-fixes)"
       ],
       "claims": [
         {

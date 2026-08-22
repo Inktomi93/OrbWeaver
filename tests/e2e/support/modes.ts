@@ -24,7 +24,7 @@
 // omits it — that path WANTS the operator's stack + `.env`, verbatim.
 //
 // The secrets here are DEV-ONLY deterministic literals (insecure by design — never a real deploy), matching
-// `scripts/dev/stack.sh` / `multi-user-fixture.sh`. `SESSION_SECRET` is ≥32 chars (the local-mode
+// `tooling/src/stack/stack.sh` / `multi-user-fixture.sh`. `SESSION_SECRET` is ≥32 chars (the local-mode
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
 import process from "node:process";
