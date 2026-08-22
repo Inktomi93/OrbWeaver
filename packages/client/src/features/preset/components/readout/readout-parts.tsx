@@ -21,6 +21,7 @@ import { SkeletonRows } from "#data";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
 import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
 import { formatCount } from "../../lib/format-count.ts";
+import { PARAMS_VIEW_LABEL } from "../../lib/preset-nav.ts";
 import { resolveFailureCopy, resolveFailureMessage } from "../../lib/resolve-failure.ts";
 
 /** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
@@ -152,7 +153,11 @@ export function EffectiveProfile({
         {resolvedForLabel(effective.model)} · chat role
         {effective.stale.length === 0
           ? ""
-          : ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores — clear them in the deck`}
+          : /* IT NAMES THE TAB, NOT THE MODULE (side-eye 2026-08-22 P3-3). "the deck" is this feature's
+               internal name for the Params view and appears nowhere in the UI, so the one sentence on the
+               surface that reports a problem sent the reader to a place that does not exist on screen.
+               `PARAMS_VIEW_LABEL` is the strip's own word, read from the view tuple. */
+            ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores — clear them in ${PARAMS_VIEW_LABEL}`}
       </Text>
     </Section>
   );
@@ -227,7 +232,10 @@ export function CapabilityCard({
         <DatumRow label="output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
       </Stack>
       <Text voice="gloss">
-        {honored.length === 0 ? "This model honors no sampling knobs — that is why the deck shows none." : `honors ${honored.join(" · ")}`}
+        {/* SECOND SITE of the same leak (side-eye 2026-08-22 P3-3 — found by that finding's own pin, which
+            the report had scoped to the staleness line alone): "the deck" again, in the one sentence that
+            explains an EMPTY Sampling cluster to someone looking straight at it. */}
+        {honored.length === 0 ? `This model honors no sampling knobs — that is why ${PARAMS_VIEW_LABEL} shows none.` : `honors ${honored.join(" · ")}`}
       </Text>
     </Section>
   );

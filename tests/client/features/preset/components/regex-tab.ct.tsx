@@ -38,6 +38,9 @@ const LIBRARY_SCRIPT = {
 // Regex literals hoisted to module scope (biome `useTopLevelRegex`).
 const RE_CANT_HOLD = /The built-in default can't hold regex scripts/;
 const RE_COULDNT_LOAD = /Couldn't load/;
+/** The retired bare token (P2-2) — anchored at the start of a subtitle so it cannot match a word inside a
+ *  script name or a pattern. */
+const RE_BARE_OFF = /^off · /;
 
 test("the BUILT-IN default asks for nothing and says WHY — never a failure with a Retry that can't work", async ({ mount, page }) => {
   // Both reads are stubbed to the REAL refusal shape. If the tab asked, it would get exactly this — and the
@@ -75,4 +78,27 @@ test("an OWNED preset still gets the real picker — the gate blocks the refused
   // The library row and its attach switch — the picker, not the explanation.
   await expect(component.getByRole("switch", { name: "Attach Strip OOC" })).toBeVisible();
   await expect(component.getByText(RE_CANT_HOLD)).toHaveCount(0);
+});
+
+// P2-2 (side-eye 2026-08-22): the row's own scent led with a bare `off ·` while the switch ~500px away was
+// named `Attach <name>` and read ON — two state words, two different facts, neither labelled, and the fact
+// that actually matters ("attached, but disabled in your library, so it will not run") was said nowhere. A
+// user who flips the switch and sees nothing happen has no path to the cause. The pin is the NAMED state,
+// asserted through what a user reads; `off` returning to that line is the collision coming back.
+test("P2-2: an attached-but-disabled script names its own state instead of a bare `off`", async ({ mount, page }) => {
+  const disabled = { ...LIBRARY_SCRIPT, enabled: false };
+  await routeTrpc(page, {
+    "regex.listForPreset": () => [disabled],
+    "regex.listScripts": () => [disabled],
+  });
+
+  const component = await mount(<RegexTabAttachableStory />);
+
+  // SETTLED barrier: the attached row's switch is ON, which is the state the finding is about.
+  const attach = component.getByRole("switch", { name: "Attach Strip OOC" });
+  await expect(attach).toBeVisible();
+  await expect(attach).toBeChecked();
+
+  await expect(component.getByText("Disabled in your library", { exact: true }).first()).toBeVisible();
+  await expect(component.getByText(RE_BARE_OFF)).toHaveCount(0);
 });

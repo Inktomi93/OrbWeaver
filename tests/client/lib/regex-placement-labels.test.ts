@@ -26,7 +26,10 @@ const relative = (epochMs: number): string => `T${String(epochMs)}`;
 
 const BORN = 1_760_000_000_000;
 
-function script(over: Partial<Parameters<typeof regexScriptScent>[0]> = {}): Parameters<typeof regexScriptScent>[0] {
+// Typed off the ROSTER projection, which is the wider of the two shapes: `regexScriptScent` dropped
+// `enabled` from its input when the picker moved that state onto a named badge (side-eye 2026-08-22 P2-2),
+// and one factory still has to feed both.
+function script(over: Partial<Parameters<typeof regexRowScent>[0]> = {}): Parameters<typeof regexRowScent>[0] {
   return { enabled: true, findRegex: "\\(ooc\\)", placement: ["AI_OUTPUT"], updatedAt: BORN, ...over };
 }
 
@@ -35,8 +38,15 @@ describe("regexScriptScent", () => {
     expect(regexScriptScent(script(), relative)).toBe(`model output · \\(ooc\\) · edited T${String(BORN)}`);
   });
 
-  test("a disabled row leads with `off` — its presence in the list is otherwise unexplained", () => {
-    expect(regexScriptScent(script({ enabled: false }), relative)).toBe(`off · model output · \\(ooc\\) · edited T${String(BORN)}`);
+  // THE PICKER'S SCENT NO LONGER SPEAKS THE ENABLE STATE (side-eye 2026-08-22 P2-2). It rode in front as a
+  // bare `off ·` ~500px from a switch named `Attach <name>`, so one row read "off" at one end and showed an
+  // ON switch at the other, about two different facts. The state is a NAMED badge on the row now
+  // (`Disabled in your library` — pinned in regex-tab.ct.tsx), so the same script must produce the SAME
+  // descriptive line either way: any `off` leaking back in is the collision returning.
+  test("the enable state is NOT in the picker's line — it is the row's named badge", () => {
+    const disabled = regexScriptScent(script({ enabled: false }), relative);
+    expect(disabled).toBe(`model output · \\(ooc\\) · edited T${String(BORN)}`);
+    expect(disabled).toBe(regexScriptScent(script(), relative));
   });
 
   test("X-16: two just-added rows differ ONLY by their stamp — which is why the stamp is on the line", () => {

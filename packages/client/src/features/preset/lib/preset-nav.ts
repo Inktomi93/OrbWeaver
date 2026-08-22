@@ -60,6 +60,14 @@ export const PRESET_EDITOR_VIEWS: readonly PresetEditorView[] = PRESET_EDITOR_VI
  *  drift from the strip's own vocabulary. */
 const PROMPT_VIEW: PresetEditorViewId = "prompt";
 
+/** The sampling view BY ITS VISIBLE LABEL, for prose that sends the reader to it (side-eye 2026-08-22
+ *  P3-3). The effective readout's staleness line said "clear them in the deck" — "the deck" is this
+ *  codebase's own name for that view (`params-deck.tsx` and ~14 comment sites) and appears nowhere in the
+ *  UI, so the one sentence on the surface that names a problem then named a place the reader cannot find.
+ *  Read from the tuple for the same reason `PROMPT_VIEW` is: a sentence that points at a tab must print
+ *  the strip's own word, and re-spelling it is how the two drift. */
+export const PARAMS_VIEW_LABEL: string = PRESET_EDITOR_VIEW_TUPLE[0].label;
+
 // ── The static enum→label select vocabularies (the non-descriptor knobs) ────────────────────────────
 
 const THINKING_DISPLAY_LABELS: Record<ThinkingDisplay, string> = {
@@ -75,11 +83,20 @@ export const THINKING_DISPLAY_ITEMS: SelectItems<string> = THINKING_DISPLAYS.map
  *  than a fabricated label — the read stays the authority on its own vocabulary. */
 export const thinkingDisplayLabel = (value: string): string => (value in THINKING_DISPLAY_LABELS ? THINKING_DISPLAY_LABELS[value as ThinkingDisplay] : value);
 
+// THE MODE NAME IS THE LABEL (owner ruling O-4, applied here by side-eye 2026-08-22 P2-5). These carried
+// the same "<Mode> — <what it does>" shape O-4 already killed on the compaction select below, and it broke
+// the same way: the trigger renders the picked option inline inside `--width-control-col`, a FIXED 200px
+// column (UIP-404 — the fixed column is what makes every settings row's control share one edge), so
+// "Content — always prefix “Name: ”" measured scrollWidth 236 against clientWidth 154 and rendered
+// `Content — always p…` — indistinguishable from the sibling option that also starts "Content — always",
+// with ~240px of empty gutter beside it. A closed select exists to state its current setting; this one
+// required opening it to find out what it said. The teaching moves to the field's hint, where it costs no
+// width (§4.1), and the fixed control column is left alone.
 const NAMES_BEHAVIOR_LABELS: Record<NamesBehavior, string> = {
-  none: "None — never include speaker names",
-  default: "Default — prefix on persona switch",
-  content: "Content — always prefix “Name: ”",
-  completion: "Completion — the API `name` field",
+  none: "None",
+  default: "Default",
+  content: "Content",
+  completion: "Completion",
 };
 export const NAMES_BEHAVIOR_ITEMS: SelectItems<string> = NAMES_BEHAVIOR.map((value) => ({
   value,
