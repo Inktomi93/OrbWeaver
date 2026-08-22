@@ -42,6 +42,36 @@ test("the passing twin exits clean — the red above is the plant, not the harne
   expect(Number(census)).toBeGreaterThan(0);
 });
 
+// ── control silhouette (#430, from side-eye #420) ────────────────────────────
+
+// @instrument-proof: a planted near-square `role="switch"` (48x44 — the exact pre-#420 coarse geometry,
+// aspect 1.091) driven through the REAL cli must exit 1 with a `control-aspect` finding at --fail-on P2;
+// the shipped 64x44 twin (aspect 1.455) must not carry the class at all. Before this rule the detector
+// was structurally blind to a control collapsing toward square, and a green audit read as a verdict.
+function switchPage(trackWidthPx: number): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000"><main><span role="switch" aria-checked="true" aria-label="Color quoted speech" tabindex="0" style="display:inline-block;width:${trackWidthPx}px;height:44px;border-radius:9999px;background:#f77f20"></span></main></body></html>`;
+}
+
+test("a planted near-square role=switch REDs the audit through the real cli", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "crescent.html"), switchPage(48));
+  const res = await runCli("ui-audit", ["/crescent.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("control-aspect");
+  expect(res.stdout, "the finding must name the measured aspect, not just the rule").toContain("1.09");
+  expect(res).toExitWith(1);
+});
+
+test("the shipped 64x44 twin carries no control-aspect finding — the red above is the plant", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "pill.html"), switchPage(64));
+  const res = await runCli("ui-audit", ["/pill.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("control-aspect");
+  // The twin still legitimately trips the P2 font census (a bare fixture page's default face is off the
+  // token ramp), so the exit code is not the discriminator here — the ABSENCE of the planted class is.
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
   expect(res).toExitWith(3);

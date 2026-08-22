@@ -12,6 +12,7 @@ export type {
   BrokenImageInput,
   ClippedOverflowInput,
   ContrastInput,
+  ControlAspectInput,
   EdgeFlushInput,
   FontCensusInput,
   GlowShadowInput,
@@ -32,7 +33,7 @@ export type {
   ZIndexInput,
 } from "./contract/samples.ts";
 export type { Args, AuditAction, BackdropRefusal, CaptureOutcome, PixelPass } from "./contract/types.ts";
-export { checkAccessibleName, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, checkTapTarget } from "./lib/checks-a11y.ts";
+export { checkAccessibleName, checkControlAspect, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, checkTapTarget } from "./lib/checks-a11y.ts";
 export { checkContrast, checkGrayOnColor } from "./lib/checks-color.ts";
 export { checkAccentBorder, checkGlowShadow } from "./lib/checks-decor.ts";
 export { checkBrokenImage, checkImageDistortion } from "./lib/checks-media.ts";

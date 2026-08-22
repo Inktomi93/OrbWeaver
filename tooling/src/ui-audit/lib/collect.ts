@@ -12,7 +12,7 @@
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
 import type { Finding } from "../contract/findings.ts";
 import type { RawSamples } from "../contract/samples.ts";
-import { checkAccessibleName, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, checkTapTarget } from "./checks-a11y.ts";
+import { checkAccessibleName, checkControlAspect, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, checkTapTarget } from "./checks-a11y.ts";
 import { checkContrast, checkGrayOnColor } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
 import { checkBrokenImage, checkImageDistortion } from "./checks-media.ts";
@@ -45,6 +45,7 @@ export function collectFindings(samples: RawSamples): Finding[] {
   pushFindings(findings, samples.texts, checkGrayOnColor);
   pushFindings(findings, samples.images, checkImageDistortion);
   pushFindings(findings, samples.tapTargets, (t) => checkTapTarget(t, samples.pointerCoarse));
+  pushFindings(findings, samples.controlAspects ?? [], checkControlAspect);
   pushFindings(findings, samples.accessibleNames, checkAccessibleName);
   findings.push(...checkDuplicateDoors(samples.actionDoors ?? []));
   const landmark = checkMainLandmark({ main: samples.mainLandmarkPresent });

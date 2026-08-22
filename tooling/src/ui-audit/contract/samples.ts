@@ -308,6 +308,28 @@ export interface ActionDoorInput {
   readonly path: string;
 }
 
+// ── Control silhouette (orbweaver; #430, from the side-eye #420 receipts) ────────────────────────────
+// A track control's SHAPE is an affordance: a switch reads as a switch because the track is a lane long
+// enough for the thumb to travel in. When the box collapses toward square the lane disappears and the
+// control reads as a glyph — measured live at 48x44 (aspect 1.091), which a reviewer read as a crescent
+// moon rather than a toggle (docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md).
+//
+// The walker censuses EVERY explicitly-roled visible element and hands the raw box over; which roles owe
+// a directional silhouette is a Node-side decision (lib/checks-a11y.ts) so the two cannot drift — a role
+// added to the verdict table needs no walker edit, which is the coupled site this shape exists to avoid.
+export interface ControlAspectInput {
+  readonly selector: string;
+  /** The element's explicit `role` attribute, trimmed and case-folded. Explicit only: an implicit role is
+   *  not a claim the author made about the control's silhouette. */
+  readonly role: string;
+  readonly width: number;
+  readonly height: number;
+  /** An animation or transition was RUNNING on this element when the box was read. A mid-flight box is a
+   *  measurement of a moment, not of a design — the check declines rather than judging it (the same
+   *  mid-transition trap that produced a retracted "widening does not restore travel" reading in #420). */
+  readonly animating: boolean;
+}
+
 // ── Aggregation ──────────────────────────────────────────────────────────────
 export interface RawSamples {
   readonly texts: readonly ContrastInput[];
@@ -323,6 +345,9 @@ export interface RawSamples {
   readonly nestedCards: readonly NestedCardInput[];
   readonly gradientTexts: readonly GradientTextInput[];
   readonly animatedImgHovers: readonly AnimatedImgHoverInput[];
+  /** Every explicitly-roled visible element's rendered box — the silhouette lens (#430). Optional: absent
+   *  from the fixture sample sets that predate it, where it reads as "no roled controls censused". */
+  readonly controlAspects?: readonly ControlAspectInput[];
   /** Whether the page was measured under `(pointer: coarse)` — selects the tap-target floor. */
   readonly pointerCoarse: boolean;
   readonly textStyles: readonly TextStyleInput[];
