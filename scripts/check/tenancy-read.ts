@@ -2,7 +2,7 @@
 // — ONE home for the questions all three must answer IDENTICALLY: what does this drizzle statement PREDICATE
 // on (`.where` for a read/write, the `onConflictDoUpdate` config for an upsert), and which function does a
 // two-sided `@owner-scope…-ok:` marker hang off. Re-spelled per gate they would drift on exactly the question
-// they exist to enforce (`schema-read.ts` is the same call for what a `sqliteTable(...)` DECLARES). The
+// they exist to enforce (`tooling/src/_shared/schema-read.ts` is the same call for what a `sqliteTable(...)` DECLARES). The
 // (a)-class table set they cross this with is derived by `gates/table-scoping-class.ts`.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";

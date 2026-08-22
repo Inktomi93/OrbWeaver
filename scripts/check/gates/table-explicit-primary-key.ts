@@ -21,7 +21,7 @@
 // primary key is the right direction.
 import type { SourceFile } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import { hasPrimaryKey, isSchemaFile, schemaTables } from "../schema-read.ts";
+import { hasPrimaryKey, isSchemaFile, schemaTables } from "@orb/tooling/_shared/schema-read";
 
 const MESSAGE =
   "a `sqliteTable` with no PRIMARY KEY — SQLite falls back to the hidden `rowid`, which is unstable " +

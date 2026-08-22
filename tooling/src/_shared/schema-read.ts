@@ -3,7 +3,7 @@
 // `ast-read.ts` is the one home for the value-unwrap readers.
 //
 // The shape every reader keys on is the drizzle SQLite table call:
-//   export const messages = sqliteTable("messages", { id: text("id").primaryKey(), … }, (t) => [ … ]);
+//   a `sqliteTable("messages", { id: text("id").primaryKey(), … }, (t) => [ … ])` initializer on an exported const;
 // arg 0 = the SQL name · arg 1 = the columns object · arg 2 (optional) = the extras callback returning an
 // ARRAY of index()/uniqueIndex()/primaryKey()/check() builders (the array form is the tree's only form;
 // drizzle's legacy object-returning form would read here as zero extras, which fails CLOSED — the gates

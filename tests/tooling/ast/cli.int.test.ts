@@ -1,5 +1,5 @@
-// The `pnpm ast` AUDIT EPILOGUE's proof (scripts/codemods/ast.ts, "THE SCAN LEDGER"). Driven through the
-// REAL CLI entry point — a spawned `node scripts/codemods/ast.ts …` over the REAL tree — because the whole
+// The `pnpm ast` AUDIT EPILOGUE's proof (tooling/src/ast/lib/ledger.ts — "THE SCAN LEDGER"). Driven through the
+// REAL CLI entry point — a spawned `node tooling/src/ast/cli.ts …` over the REAL tree — because the whole
 // property under test is "what the corpus/scope resolution actually did", and an in-memory project would
 // re-implement precisely the thing that can lie.
 //
@@ -20,10 +20,10 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
-const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const AST_CLI = fileURLToPath(new URL("../../scripts/codemods/ast.ts", import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+const AST_CLI = fileURLToPath(new URL("../../../tooling/src/ast/cli.ts", import.meta.url));
 const SPAWN_TIMEOUT_MS = 120_000;
 
 interface AstRun {

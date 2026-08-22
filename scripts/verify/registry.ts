@@ -535,7 +535,7 @@ export const REGISTRY: readonly StageDef[] = [
     // (owner-ratified 2026-08-03). Every chain terminates at an UNCONSUMED HEAD, which is an `orphans`
     // candidate already governed two-sided by the push-tier `deps:orphan-ratchet` and its `/** @public
     // <reason> */` tag. This lens READS that same tag (through the ratchet's own predicate, one home in
-    // scripts/codemods/ast.ts) as an alive root, so tagging or wiring or deleting the head resolves every
+    // tooling/src/ast) as an alive root, so tagging or wiring or deleting the head resolves every
     // link below it by construction. A per-link `@chain-ok:` would let somebody exempt a middle link while
     // its head stayed dead — an exemption stating nothing true, which is the one thing an exemption may
     // never be. FIX AT THE HEAD is the whole grammar.

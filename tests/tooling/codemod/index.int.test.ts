@@ -1,4 +1,4 @@
-// Self-test for the codemod harness's PREVIEW INTEGRITY (scripts/codemods/codemod-kit.ts §4/§5).
+// Self-test for the codemod harness's PREVIEW INTEGRITY (tooling/src/codemod/lib/run.ts — kit §4/§5).
 //
 // The defect this pins (hit live 2026-08-03): a Plan that under-declares its `touchedFiles` had its
 // edits to the undeclared files captured as the "original" snapshot — so those edits rendered as
@@ -22,9 +22,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { describe, vi } from "vitest";
-import type { CodemodContext, CodemodResult, Plan, RunCodemodOptions } from "../../scripts/codemods/codemod-kit.ts";
-import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol, runCodemod } from "../../scripts/codemods/codemod-kit.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+import type { CodemodContext, CodemodResult, Plan, RunCodemodOptions } from "../../../tooling/src/codemod/index.ts";
+import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol, runCodemod } from "../../../tooling/src/codemod/index.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
+
+const TRAILING_NEWLINE_RE = /\n$/u;
 
 const TSCONFIG = JSON.stringify({
   compilerOptions: { target: "es2022", module: "esnext", moduleResolution: "bundler", strict: true, noEmit: true },
@@ -67,11 +69,14 @@ async function withTree(files: Record<string, string>, fn: (h: Harness) => Promi
       read: (rel) => readFileSync(join(root, rel), "utf-8"),
       async run(codemod, runOpts = {}) {
         const lines: string[] = [];
-        const collect = (...args: unknown[]): void => {
-          lines.push(args.map(String).join(" "));
+        // The kit's output door is _shared/artifacts print (process.stdout.write) + _shared/log warn
+        // (process.stderr.write) since the P4 move — the capture spies the REAL sink, not console.
+        const collect = (chunk: unknown): boolean => {
+          lines.push(String(chunk).replace(TRAILING_NEWLINE_RE, ""));
+          return true;
         };
-        const log = vi.spyOn(console, "log").mockImplementation(collect);
-        const error = vi.spyOn(console, "error").mockImplementation(collect);
+        const out = vi.spyOn(process.stdout, "write").mockImplementation(collect as never);
+        const err = vi.spyOn(process.stderr, "write").mockImplementation(collect as never);
         try {
           const result = await runCodemod("preview-integrity-fixture", codemod, {
             ...options,
@@ -79,8 +84,8 @@ async function withTree(files: Record<string, string>, fn: (h: Harness) => Promi
           });
           return { result, output: lines.join("\n") };
         } finally {
-          log.mockRestore();
-          error.mockRestore();
+          out.mockRestore();
+          err.mockRestore();
         }
       },
     });
@@ -311,22 +316,28 @@ describe("the kit's own helpers declare their real blast radius", () => {
   });
 });
 
-describe("direct-run guard (the library is not a runnable codemod)", () => {
-  // Running the LIBRARY file directly used to exit 0 in silence — indistinguishable from "the codemod
-  // ran and did nothing". The guard orients through the kit's own help system and exits 3 (misuse);
-  // the informational subcommands answer their question and exit 0. Spawned like an operator would.
-  const kitPath = join(process.cwd(), "scripts/codemods/codemod-kit.ts");
+describe("the cli front door (`pnpm codemod`)", () => {
+  // The pre-move kit carried a direct-run guard (running the LIBRARY file printed the overview and
+  // exited 3) — the library is now lib/* modules with no entry at all, and the ONE runnable is cli.ts.
+  // Converged on the fleet exit contract at the move (stated): bare = the help door (overview, exit 0 —
+  // the snap/ast posture); an UNKNOWN subcommand is EXIT.misuse (the typo'd-subcommand class); the
+  // informational subcommands answer their question and exit 0. Spawned like an operator would.
+  const cliPath = join(process.cwd(), "tooling/src/codemod/cli.ts");
 
-  test("bare direct run prints the overview and exits 3", () => {
-    const res = spawnSync("node", [kitPath], { encoding: "utf8", timeout: 60_000 });
-    expect(res.status).toBe(3);
-    // The kit's own help system prints on STDOUT; the guard's library note rides STDERR.
+  test("bare run prints the overview and exits 0 (the help door)", () => {
+    const res = spawnSync("node", [cliPath], { encoding: "utf8", timeout: 60_000 });
+    expect(res.status).toBe(0);
     expect(res.stdout).toContain("quick reference");
-    expect(res.stderr).toContain("codemod-kit is a LIBRARY");
+  });
+
+  test("an unknown subcommand is CLI misuse (exit 3), never a silent overview", () => {
+    const res = spawnSync("node", [cliPath, "refactorize"], { encoding: "utf8", timeout: 60_000 });
+    expect(res.status).toBe(3);
+    expect(res.stderr).toContain("unknown subcommand");
   });
 
   test("`search <q>` answers and exits 0", () => {
-    const res = spawnSync("node", [kitPath, "search", "rename"], { encoding: "utf8", timeout: 60_000 });
+    const res = spawnSync("node", [cliPath, "search", "rename"], { encoding: "utf8", timeout: 60_000 });
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("renameNamedImport");
   });

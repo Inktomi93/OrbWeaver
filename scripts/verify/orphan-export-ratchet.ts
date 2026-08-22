@@ -20,7 +20,7 @@
 // consults apisurface's PUBLIC/INTERNAL/UNUSED classification to adjudicate them.
 //
 // THE MARKER GRAMMAR (the 2026-08-09 two-marker split — the parking-permit close; grammar + rationale at the
-// ONE home, scripts/codemods/ast.ts::publicMarkerOf). A bare `@public` ONLY ever lands on an UNUSED export
+// ONE home, tooling/src/ast/lib/public-markers.ts::publicMarkerOf). A bare `@public` ONLY ever lands on an UNUSED export
 // (a consumed export is not an orphan candidate at all), so it was never certifying "cross-package API" — it
 // certified "intended-but-unconsumed" behind a prose reason a barrels lane writes for genuine rot as easily
 // as for a real future surface. The split forces the claim to name a target the gate can CHECK:
@@ -64,8 +64,8 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, Project } from "ts-morph";
-import type { ApiSurfaceEntry } from "../codemods/ast.ts";
-import { buildLiveness, collectApiSurface, isProdConsumed, isPublicTagged, ownExports, publicMarkerOf } from "../codemods/ast.ts";
+import type { ApiSurfaceEntry } from "@orb/tooling/ast";
+import { buildLiveness, collectApiSurface, isProdConsumed, isPublicTagged, ownExports, publicMarkerOf } from "@orb/tooling/ast";
 
 const EXIT_CLEAN = 0;
 const EXIT_VIOLATIONS = 1;
@@ -77,7 +77,7 @@ const RATCHETED_PACKAGES = ["kit", "contracts", "db", "server", "client"] as con
 /** The R2-sealed package, exempt as a whole; named here so the exemption is legible, not implicit. */
 const SEALED_PACKAGE_REASON = "packages/ui — the R2 sealed surface (docs/architecture/core/ui-package-design.md R2): every export exists to be available";
 // The `@public`-family READER (`publicMarkerOf`) + the PUBLIC/INTERNAL/UNUSED classifier (`collectApiSurface`)
-// both live in scripts/codemods/ast.ts beside the orphan substrate this stage shares, and are IMPORTED here —
+// both live in tooling/src/ast (the @orb/tooling front door) beside the orphan substrate this stage shares, and are IMPORTED here —
 // never re-spelled. `publicMarkerOf` is the same grammar the `chains` fixpoint reads to decide alive roots;
 // two spellings would let the two disagree about what "deliberately unconsumed" means. Its footgun (a naive
 // `/@public\s+\S/` is satisfied by the `*/` of a BARE `/** @public */`) is handled at that one home.
