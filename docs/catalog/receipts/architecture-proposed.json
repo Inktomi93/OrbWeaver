@@ -2373,9 +2373,9 @@
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "477dfa4960be27540ec10ca46cca21b35b7f70a23fc36b5ae7d11424223f4573",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "f7b1d5793b8c5a20e05541385c0cf8800ab83080325fed637aeabc0d044523e3",
+      "verifiedCommit": "b59d7fff93d0248e88402adfcea0cfd323b88c2f",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/proposed/hub-browse-design/01-network-guard.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
