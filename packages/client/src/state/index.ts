@@ -80,7 +80,11 @@ export type { ChatListCharacterFilter } from "./chat-list-filter-store.ts";
 export {
   clearChatListCharacterFilter,
   setChatListCharacterFilter,
+  setChatListMonth,
+  setChatListSearch,
   useChatListCharacterFilter,
+  useChatListMonth,
+  useChatListSearch,
 } from "./chat-list-filter-store.ts";
 export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream.ts";
 export {

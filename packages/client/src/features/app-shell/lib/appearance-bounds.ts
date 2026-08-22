@@ -7,7 +7,14 @@
 // the same test collides in Playwright's component-test bundler (two inclusions of the same JSX-bearing
 // module raise "Identifier already declared"). These mirror the contracts schema bounds — the schema is
 // the hard clamp; these are just the input affordances.
-export const BACKGROUND_DIM_MIN = 0;
+import { BACKGROUND_DIM_MIN as SCHEMA_BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
+
+// THE ONE BOUND THAT IS NOT A MIRROR (#487). Every other constant here re-spells an input affordance; the
+// wallpaper dim floor is a DERIVED legibility guarantee (the derivation, and the plate-alpha arm D144(d)
+// refuses, live on the contract), so it is ALIASED off the schema's own constant rather than re-spelled —
+// a slider offering a dim the schema clamps away is exactly the drift this binding makes impossible.
+// (An `export … from` re-export would be a barrel; biome's `noBarrelFile` owns that call.)
+export const BACKGROUND_DIM_MIN = SCHEMA_BACKGROUND_DIM_MIN;
 export const BACKGROUND_DIM_MAX = 1;
 export const BACKGROUND_DIM_STEP = 0.05;
 export const BACKGROUND_BLUR_MIN = 0;

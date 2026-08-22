@@ -18,7 +18,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
-import { ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
+import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
 const RAW_MONTH_COPY = /2020-06/u;
@@ -196,7 +196,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
     }, evictionPoll())
     .toBeGreaterThan(0);
 
-  const month = component.getByLabel("Jump to month");
+  const month = component.getByLabel("Show chats from");
   await month.fill("2020-06");
 
   await expect(component.getByText("June 2020 anchor")).toBeVisible();
@@ -205,7 +205,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
     .poll(() => trpc.inputs("chat.listChats").some((input) => (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt === Date.UTC(2020, 6, 1)))
     .toBe(true);
 
-  const clear = component.getByRole("button", { name: "Clear month jump" });
+  const clear = component.getByRole("button", { name: "Clear the month" });
   await expect
     .poll(
       async () => {
@@ -228,9 +228,9 @@ test.describe("date jump coarse pointer", () => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<ChatListSurfaceStory width={320} />);
 
-    const month = component.getByLabel("Jump to month");
+    const month = component.getByLabel("Show chats from");
     await month.fill("2020-06");
-    const clear = component.getByRole("button", { name: "Clear month jump" });
+    const clear = component.getByRole("button", { name: "Clear the month" });
     const floor = await resolvedPx(page, "--spacing-touch-target");
     const [searchBox, monthBox, clearBox] = await Promise.all([
       component.getByRole("textbox", { name: "Search chats" }).boundingBox(),
@@ -264,7 +264,7 @@ test.describe("date jump coarse pointer", () => {
     const scroll = component.locator('[data-slot="virtual-list-scroll"]');
     await scroll.evaluate((node) => node.setAttribute("data-remount-probe", "preserved"));
 
-    await component.getByLabel("Jump to month").fill("2020-06");
+    await component.getByLabel("Show chats from").fill("2020-06");
     await expect(component.getByText("Compact old 00")).toBeVisible();
     await expect(scroll).toHaveAttribute("data-remount-probe", "preserved");
 
@@ -361,20 +361,20 @@ for (const trigger of ["hover", "focus"] as const) {
 test("the icon-only month clear exposes pointer copy byte-equal to its accessible name", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
-  await component.getByLabel("Jump to month").fill("2020-06");
+  await component.getByLabel("Show chats from").fill("2020-06");
 
-  const clear = component.getByRole("button", { name: "Clear month jump" });
-  await expect(clear).toHaveAttribute("aria-label", "Clear month jump");
-  await expect(clear).toHaveAttribute("title", "Clear month jump");
+  const clear = component.getByRole("button", { name: "Clear the month" });
+  await expect(clear).toHaveAttribute("aria-label", "Clear the month");
+  await expect(clear).toHaveAttribute("title", "Clear the month");
 });
 
 for (const width of [1280, 720, 430, 390, 320] as const) {
   test(`@${String(width)}: the month clear aligns to the input control rather than the label-and-field block`, async ({ mount, page }) => {
     await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={width} />);
-    const month = component.getByLabel("Jump to month");
+    const month = component.getByLabel("Show chats from");
     await month.fill("2020-06");
-    const clear = component.getByRole("button", { name: "Clear month jump" });
+    const clear = component.getByRole("button", { name: "Clear the month" });
     const [monthBox, clearBox] = await Promise.all([month.boundingBox(), clear.boundingBox()]);
 
     expect(monthBox).not.toBeNull();
@@ -386,7 +386,7 @@ for (const width of [1280, 720, 430, 390, 320] as const) {
 test("month-scoped empty copy names the localized human month and year", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": datedChatListResponder([]), "character.list": { items: [], nextCursor: null } });
   const component = await mount(<ChatListSurfaceStory />);
-  await component.getByLabel("Jump to month").fill("2020-06");
+  await component.getByLabel("Show chats from").fill("2020-06");
 
   await expect(component.getByText("No chats found by June 2020.")).toBeVisible();
   await expect(component.getByText(RAW_MONTH_COPY)).toHaveCount(0);
@@ -1107,7 +1107,7 @@ test("#385 a December jump rolls the exclusive bound into the following January 
   const trpc = await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
 
-  await component.getByLabel("Jump to month").fill("2020-12");
+  await component.getByLabel("Show chats from").fill("2020-12");
 
   await expect
     .poll(() => trpc.inputs("chat.listChats").some((input) => (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt === Date.UTC(2021, 0, 1)))
@@ -1152,4 +1152,58 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
       return head.count();
     }, evictionPoll())
     .toBeGreaterThan(0);
+});
+
+// ── #490: the two filter-honesty defects, pinned at the mount that can see both ──────────────────────
+// (1) THE SEARCH FIELD HAD NO WAY OUT. Its sibling month control grew a ✕ the moment it held a value; the
+//     search box never did, and the only "Clear search" in the app lived inside the ZERO-RESULTS empty
+//     state — so leaving a filter that RETURNED rows meant select-all-delete. Two sibling filters, two
+//     reset contracts, one 290px column.
+// (2) THE BAND'S CENSUS IGNORED THE FILTERS UNDER IT. `CHATS 896` printed unchanged over twelve narrowed
+//     rows and over "No matches". The band feeds a DIFFERENT shell slot, so this is the only mount that
+//     can catch it — a header-only story and a surface-only story each pass while the pair lies, which is
+//     why `ChatListBandAndSurfaceStory` exists.
+const NARROW_TERM = "grand";
+
+test("#490 the search field grows a clear affordance the moment it holds a value", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+  const search = component.getByRole("textbox", { name: "Search chats" });
+  const clear = component.getByRole("button", { name: "Clear the search" });
+
+  // At rest there is nothing to reset, so nothing is offered (the month control's own contract).
+  await expect(clear).toHaveCount(0);
+  await search.fill(NARROW_TERM);
+  await expect(clear).toBeVisible();
+
+  await clear.click();
+  await expect(search).toHaveValue("");
+  await expect(clear).toHaveCount(0);
+});
+
+test("#490 the chrome band's count reflects the pane's filters, and returns to the library census", async ({ mount, page }) => {
+  const library = [ADVENTURE, UNTITLED, GAME];
+  await routeTrpc(page, {
+    "chat.listChats": (input: unknown): unknown => {
+      const search = (input as { search?: string } | undefined)?.search;
+      const scoped = search === undefined ? library : library.filter((chat) => (chat.title ?? "").toLowerCase().includes(search.toLowerCase()));
+      // The band reads `totalCount` off the SCOPED page, so the responder must narrow it honestly.
+      return chatListResponder(scoped)(input);
+    },
+    "character.list": CHARACTERS,
+  });
+  const component = await mount(<ChatListBandAndSurfaceStory />);
+  const band = component.locator(".shell-panel-header");
+
+  // Unnarrowed: the library census, bare — byte-identical to the pre-#490 band.
+  await expect(band).toContainText(String(library.length));
+  await expect(band).not.toContainText(" of ");
+
+  await component.getByRole("textbox", { name: "Search chats" }).fill(NARROW_TERM);
+  // Narrowed: "N of TOTAL" — the number the reader can count on screen, beside the one they cannot.
+  await expect(band).toContainText(`1 of ${String(library.length)}`);
+
+  await component.getByRole("button", { name: "Clear the search" }).click();
+  await expect(band).not.toContainText(" of ");
+  await expect(band).toContainText(String(library.length));
 });

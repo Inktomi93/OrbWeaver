@@ -161,6 +161,22 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // the thing `--reading-paragraph-spacing` exists to own. Pinned by the two `#238:` cases in
   // tests/ui/markdown/markdown.ct.tsx (rendered geometry, not class strings).
   //
+  // #490 — #238's INLINE-CODE HALF WAS ONLY HALF PAID. The paragraph above names inline code beside the
+  // blockquote, but only the horizontal padding was ever compensated (`px-tight`). The vendor also spells
+  // a SIZE and a VERTICAL padding on that element, and both were dropping on the floor: measured in a room
+  // (side-eye 2026-08-22) an inline chip rendered at `fontSize 15px` (= body — its `text-sm` never
+  // compiled) with `padding: 0px 4px` (its `py-0.5` never compiled) and an 18px box inside a 23.25px
+  // line — a muted bar hugging the glyphs rather than the chip the design system draws everywhere else
+  // (`font-mono text-code` is the house inline-code voice, kbd/tool-call/option-strip). Same technique,
+  // same reason: `text-code` (13px, the token) and `py-tight` (4px, matching the `px-tight` already here),
+  // never the vendor's `text-sm`/`0.125rem`.
+  //
+  // WHAT THIS DOES *NOT* DO: it does not move `snap --deadcss`, which still reports the vendor's three
+  // uncompiled literals (`text-sm`/`py-0.5`/`px-1.5`) because they stay in the class attribute — the
+  // element is Streamdown's, and taking it over would mean re-implementing its whole fenced-code branch
+  // (Shiki plugin dispatch, mermaid, the control cluster) to own one inline span. Those three are the
+  // ruled-and-permanent cost of the unscanned dist, not a defect: the RENDER is what this fixes.
+  //
   // `break-words` (overflow-wrap: break-word, inherited by every rendered block) is the ONE reading-surface
   // guard against a long unbroken token — a pasted URL/hash/run-on word — overflowing its column and
   // dragging a horizontal scrollbar onto the whole surface. Inert for normal prose (only breaks a word
@@ -182,7 +198,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
           cn(
             "space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration",
             "[&_blockquote]:border-l-4 [&_blockquote]:border-muted-foreground/50 [&_blockquote]:py-row [&_blockquote]:pl-block",
-            "[&_:not(pre)>code]:px-tight",
+            "[&_:not(pre)>code]:px-tight [&_:not(pre)>code]:py-tight [&_:not(pre)>code]:text-code",
             className,
           ) ?? ""
         }

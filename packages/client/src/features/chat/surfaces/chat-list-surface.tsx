@@ -20,34 +20,35 @@
 // more = an AvatarStack). Reads its OWN selection (`useActiveChatId`) so the chats-section definition
 // composing it stays a pure data object (the character/preset/world-info library-surface precedent); writes
 // the choice out via onSelect/onNewChat/onDeletedChat.
+//
+// THE THREE NARROWING AXES ARE STORE STATE, NOT LOCAL STATE (#490 — `state/chat-list-filter-store.ts`). The
+// per-character filter always was; search and month joined it, because the LIST CHROME BAND that prints the
+// census (`components/chat-list-header.tsx`) feeds a different shell slot and could not see a `useState`
+// here — which is how `CHATS 896` came to sit above twelve filtered rows. The faces strip + "Filtered: X ✕"
+// chip live in `components/chat-list-character-filter.tsx` (the 450-line cap; this file composes them).
 
-import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Field } from "@orb/ui/field";
 import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useRef, useState } from "react";
-import { CharacterPicker, FaceStrip } from "#components";
+import { useRef } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
-import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
+import { setChatListMonth, setChatListSearch, useActiveChatId, useChatListCharacterFilter, useChatListMonth, useChatListSearch } from "#state";
+import { ChatListFacesStrip, ChatListFilterChip } from "../components/chat-list-character-filter.tsx";
 import { ChatListRow } from "../components/chat-list-row.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
-import { chatListScopeKey, formatMonthLabel, monthExclusiveUpperBound } from "../lib/chat-list-scope.ts";
+import { CHAT_LIST_SEARCH_DEBOUNCE_MS, chatListScopeKey, formatMonthLabel, monthExclusiveUpperBound } from "../lib/chat-list-scope.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
-import { recentFaces } from "../lib/recent-faces.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
  *  collection hook deliberately exports no second name for it. */
@@ -58,17 +59,17 @@ const SKELETON_ROW_COUNT = 5;
 /** Row-height guess for the virtualizer; every row re-measures itself after mount. */
 const ESTIMATED_ROW_PX = 44;
 
-/** Keystroke→request damper for the server-side search. Long enough that typing a name is one query rather
- *  than eight, short enough that the list answers while the user is still looking at the box. */
-const SEARCH_DEBOUNCE_MS = 250;
-
-/** How many recent chats the FACES curation reads. The strip answers "who was I just with", so a bounded
- *  recents page IS its question — and it must stay UNFILTERED (it is the thing you pick the filter from), so
- *  it cannot ride the scoped collection below. Thirty covers the narrow-pane fold contract; the overflow
- *  picker reaches the whole character library without enriching another 70 chat summaries. */
-const FACES_SOURCE_LIMIT = 30;
-
-const CLEAR_MONTH_LABEL = "Clear month jump";
+// THE MONTH CONTROL SAYS WHAT IT DOES (#490). It read "Jump to month", and the verb was a promise the
+// mechanism does not keep: `beforeRecencyAt` is an EXCLUSIVE UPPER BOUND, so picking a month RE-ROOTS the
+// list at that month and pages OLDER from there — measured, nothing newer than the anchor is reachable by
+// scrolling, and the ✕ is the only way back. "Jump" means move-within (a scroll target you can leave by
+// scrolling); "Show chats from" is what a bound actually is, and it makes the one-way behaviour the copy's
+// own statement rather than a surprise. The BOUND is not the defect and does not move: it is what makes the
+// keyset page cheap, and re-rooting a 896-row virtualized list is the only honest way to reach 2024.
+const MONTH_LABEL = "Show chats from";
+const CLEAR_MONTH_LABEL = "Clear the month";
+const SEARCH_LABEL = "Search chats";
+const CLEAR_SEARCH_LABEL = "Clear the search";
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -78,13 +79,16 @@ export interface ChatListSurfaceProps {
 
 export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatListSurfaceProps): ReactElement {
   const activeChatId = useActiveChatId();
-  const [query, setQuery] = useState("");
-  const [month, setMonth] = useState("");
+  // BOTH NARROWING AXES ARE STORE STATE NOW (#490) — see `chat-list-filter-store.ts` for why: the chrome
+  // band is a sibling shell region and cannot read this component's `useState`, which is how `CHATS 896`
+  // came to sit above twelve rows.
+  const query = useChatListSearch();
+  const month = useChatListMonth();
   const beforeRecencyAt = monthExclusiveUpperBound(month);
   const monthLabel = formatMonthLabel(month);
-  const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
-  const clearSearch = (): void => setQuery("");
-  const clearMonth = (): void => setMonth("");
+  const settledQuery = useDebouncedValue(query.trim(), CHAT_LIST_SEARCH_DEBOUNCE_MS);
+  const clearSearch = (): void => setChatListSearch("");
+  const clearMonth = (): void => setChatListMonth("");
   const characterFilter = useChatListCharacterFilter();
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -97,8 +101,8 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
       <Stack className="h-full min-h-0 outline-none" gap="row" ref={surfaceRef} tabIndex={-1}>
         {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
           shortcut you arrive for, and burying them under the search box made them read as a filter widget. */}
-        <FacesStrip characterFilter={characterFilter} />
-        {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
+        <ChatListFacesStrip characterFilter={characterFilter} />
+        {characterFilter !== null ? <ChatListFilterChip filter={characterFilter} /> : null}
         {/* ONE SEARCH VOICE (#99 item 2). Every other search box on the app says what it searches —
             "Search characters…", "Search presets", "Search your documents", "Search characters, scenes,
             memories…" — and this one said "Search the weave…", a brand phrase that names no noun and does
@@ -106,10 +110,25 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             and a reader could not tell whether it searched chats, characters or the whole library. The
             weave is the product's word for itself, which is a fine thing for a hero line and the wrong
             thing on a filter field. */}
-        <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search chats…" value={query} />
-        <Field label="Jump to month">
+        {/* ONE RESET CONTRACT FOR BOTH FILTERS (#490). The month control grew a ✕ the moment it held a
+            value and the search field beside it never did — two sibling filters, two different ways out,
+            in one 290px column, and the only "Clear search" in the app lived inside the ZERO-RESULTS empty
+            state. So leaving a 12-of-896 result meant select-all-delete. Same affordance, same gate
+            (non-empty), same glyph, same voice — spelled as the identical Row/Button pair below rather
+            than a shared local component, because the two differ in their field chrome (the month owes a
+            visible `Field` label; a search box's placeholder IS its label) and a wrapper hiding that
+            difference would be the abstraction, not the fix. */}
+        <Row align="center" gap="field">
+          <Input aria-label={SEARCH_LABEL} className="min-w-0 flex-1" onValueChange={setChatListSearch} placeholder="Search chats…" value={query} />
+          {query === "" ? null : (
+            <Button aria-label={CLEAR_SEARCH_LABEL} intent="ghost" onClick={clearSearch} size="icon" title={CLEAR_SEARCH_LABEL} type="button">
+              <Icon icon={X} size="sm" />
+            </Button>
+          )}
+        </Row>
+        <Field label={MONTH_LABEL}>
           <Row align="center" gap="field">
-            <Input className="min-w-0 flex-1" onValueChange={setMonth} type="month" value={month} />
+            <Input className="min-w-0 flex-1" onValueChange={setChatListMonth} type="month" value={month} />
             {month === "" ? null : (
               <Button aria-label={CLEAR_MONTH_LABEL} intent="ghost" onClick={clearMonth} size="icon" title={CLEAR_MONTH_LABEL} type="button">
                 <Icon icon={X} size="sm" />
@@ -133,121 +152,6 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
         </Stack>
       </Stack>
     </Surface>
-  );
-}
-
-/** Arm B — the faces strip: the pane learns FACES without the rail learning a new section. Tapping a face
- *  sets the LANDED per-character filter chip, so the same pane instantly becomes her threads, visibly
- *  "filtered by" (a chip you can clear) rather than a second list that owns her chats.
- *
- *  A plain bounded `useQuery`, NOT the scoped collection below: a shortcut row must not gate the pane's
- *  chrome on a fetch, and the strip is what you pick the filter FROM — reading the character-scoped page
- *  would collapse it to the one face already selected. An unresolved read RESERVES the strip's box
- *  (`pending` — measured: rendering nothing shoved the search field and the whole row list 74px on
- *  arrival); a resolved-but-faceless one still renders nothing, which is the strip's own data-driven
- *  empty posture.
- *
- *  The curation hands over the characters you have chatted with MOST RECENTLY, in recency order — the
- *  strip's own fold (FACEFILT) decides how many of them the pane can hold, so a cap here would only be a
- *  second, blinder answer to the same question. What the curation cannot know is the character you scoped
- *  the pane to from the picker: she may have no chats at all yet (that is the "No chats with X yet" arm), so
- *  she is prepended as a face — the strip must never be filtering by someone who is not in it. */
-function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
-  const trpc = useTRPC();
-  const { data: page, isPending: chatsPending } = useQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
-  // ONE read decides a face now (#192): the chat rows carry their own seats, so there is no second
-  // `character.list` landing for the strip to pop in on — which is what the reservation used to have to
-  // wait for as well. The scoped character still comes from the FILTER (she may have no chats at all yet,
-  // and a row-sourced strip knows nothing about a character with no rows), so her face rides it too.
-  const recent = recentFaces(page?.items ?? []);
-  const scopedFace =
-    characterFilter !== null && !recent.some((face) => face.id === characterFilter.id)
-      ? [{ avatarHash: characterFilter.avatarHash, id: characterFilter.id, name: characterFilter.name }]
-      : [];
-  const faces = [...scopedFace, ...recent];
-  const scopeToFace = (id: string): void => {
-    const face = faces.find((candidate) => candidate.id === id);
-    if (face === undefined) {
-      return;
-    }
-    // Re-tapping the scoping face clears it — the same toggle its `aria-current` announces (the chip's ✕
-    // stays the other way out).
-    if (characterFilter?.id === id) {
-      clearChatListCharacterFilter();
-      return;
-    }
-    setChatListCharacterFilter({ avatarHash: face.avatarHash, id: castId<CharacterId>(id), name: face.name });
-  };
-  // Captions on: this strip is a NAMED shortcut list (the library's favorites strip stays portraits-only),
-  // so a face you haven't opened in a week is still identifiable without hovering it. The kicker is the
-  // mock's group label (side-eye P2b) — without it the row of portraits reads as decoration, and a cold user
-  // never learns that tapping one scopes the list below.
-  //
-  // It names the VERB, not the contents (home side-eye): a clickable character face LAUNCHES a chat
-  // everywhere else in the app — on home, one rail click away — so a bare "Faces" left the same picture
-  // carrying opposite verbs. "Filter by character" is the line that disambiguates before the click (owner: name the thing, not the cuteness), and the
-  // selected face's accent caption + the "Filtered: X" chip below confirm it after.
-  //
-  // AND IT IS THE STRIP'S ACCESSIBLE NAME TOO (#208). This call passed a SECOND string — the list announced
-  // "Recent characters" while the kicker printed "Filter by character" — so AT and the eye were told about
-  // different lists, and a speech-input user saying the words on screen addressed nothing. `kicker` is a
-  // boolean now: `label` is the one name, printed and announced.
-  //
-  // The strip FOLDS to the pane (FACEFILT — the owner's nine scrolling faces on a six-character library):
-  // the faces that fit stay a one-tap shortcut, and the rest of the cast lives behind the tile, which opens
-  // the house character picker over the WHOLE library — so it also reaches someone you have never opened a
-  // chat with, which no amount of scrolling ever could.
-  return (
-    <FaceStrip
-      caption={true}
-      items={faces}
-      kicker={true}
-      label="Filter by character"
-      onSelect={scopeToFace}
-      // RESERVE THE BOX WHILE THE READ IS IN FLIGHT (measured 2026-08-09: the pane shifted 74px on data
-      // arrival — the strip mounted above the search field and pushed the field + the whole row list down,
-      // §4.3 rule 7). `isPending` is "no answer yet", never "no faces": a settled empty answer still renders
-      // nothing, which is this strip's own ruling.
-      pending={chatsPending}
-      overflow={{
-        label: "Filter by another character",
-        // EXCLUDE THE FACES ALREADY ON THE ROW (side-eye 2026-08-03 P3): the tile says `+N More` and then
-        // listed all ten, including the four visible beside it — so the number on the tile and the number
-        // behind it disagreed. The strip hands down what it is currently showing; the picker drops those.
-        render: ({ close, shownIds }): ReactElement => (
-          <CharacterPicker
-            autoFocusSearch={true}
-            emptyText="No other characters to filter by."
-            excludeIds={shownIds.map((id) => castId<CharacterId>(id))}
-            label="Filter by another character"
-            onSelect={(id, name, avatarHash): void => {
-              setChatListCharacterFilter({ avatarHash, id, name });
-              close();
-            }}
-            placeholder="Search characters…"
-          />
-        ),
-      }}
-      // Tapping a face SETS a filter and re-tapping CLEARS it (`scopeToFace` above) — a toggle, so the tile
-      // owes `aria-pressed`, not `aria-current`.
-      selectMode="toggle"
-      selectedId={characterFilter?.id ?? null}
-      verb="Show chats with"
-    />
-  );
-}
-
-function FilterChip({ filter }: { readonly filter: ChatListCharacterFilter }): ReactElement {
-  return (
-    <Row align="center" gap="field">
-      <Text voice="kicker">Filtered:</Text>
-      <Badge intent="info" size="sm" tone="soft">
-        {filter.name}
-      </Badge>
-      <Button aria-label={`Clear the ${filter.name} filter`} intent="ghost" onClick={clearChatListCharacterFilter} size="icon" type="button">
-        <Icon icon={X} size="sm" />
-      </Button>
-    </Row>
   );
 }
 

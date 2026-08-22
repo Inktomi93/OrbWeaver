@@ -82,22 +82,28 @@ test("a muted member's chip is marked (dimmed)", async ({ mount, page }) => {
   await expect(component.locator('[data-slot="cast-chip"][data-muted]')).toHaveCount(1);
 });
 
-test("a member behind a host seat sees NO add-member '+' (server viewerIsHost wins over the seat)", async ({ mount, page }) => {
-  // The FIRST human seat is a host, so the retired first-seat proxy would return TRUE and show the "+".
-  // The server-resolved `viewerIsHost:false` says THIS viewer is a member — no add affordance.
+// ── #490: THE STRIP CARRIES NO MUTATION AT ALL, HOST OR NOT ───────────────────────────────────────
+// INVERTED, deliberately. The two cases here used to be "a member sees NO '+'" / "a host sees the '+'" —
+// a host-gate pin on a door that should never have been on this strip: it made "add a character" a
+// SIMULTANEOUSLY VISIBLE second door beside the CONTEXT panel's CAST header (`design-audit`
+// `duplicate-action-door`, side-eye 2026-08-22), and this component's own header declares it
+// "presence-at-a-glance only, no mutations". The host GATE is not what moved — the door's ONE home is
+// `committed-members-tab.tsx`, where `members-panel.ct.tsx` pins exactly this host/member pair. Half a
+// migration is the rot, so the old pins are re-aimed rather than left asserting a door that is gone.
+test("#490 neither a host nor a member gets an add-member door on the strip (its ONE home is CONTEXT)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.getChat": () => castWithHost(false) });
-  const component = await mount(<ChatCastBarStory />);
+  const asMember = await mount(<ChatCastBarStory />);
+  await expect(asMember.getByTestId("chat-cast-bar")).toBeVisible();
+  await expect(asMember.getByRole("button", { name: "Add a character" })).toHaveCount(0);
+  await asMember.unmount();
 
-  // The bar rendered (2+ cast), but the host-only add-member trigger is absent.
-  await expect(component.getByTestId("chat-cast-bar")).toBeVisible();
-  await expect(component.getByRole("button", { name: "Add a character" })).toHaveCount(0);
-});
-
-test("a host sees the add-member '+'", async ({ mount, page }) => {
+  // The arm that would silently come back if someone re-mounted the popover behind the host gate.
   await routeTrpc(page, { "chat.getChat": () => castWithHost(true) });
-  const component = await mount(<ChatCastBarStory />);
-
-  await expect(component.getByRole("button", { name: "Add a character" })).toBeVisible();
+  const asHost = await mount(<ChatCastBarStory />);
+  await expect(asHost.getByTestId("chat-cast-bar")).toBeVisible();
+  await expect(asHost.getByRole("button", { name: "Add a character" })).toHaveCount(0);
+  // …and the strip is still the strip: it is not empty, it just does not mutate.
+  await expect(asHost.locator('[data-slot="cast-chip"]')).not.toHaveCount(0);
 });
 
 // ── #229/#237: the strip's OVER-ART legibility backing ────────────────────────────────────────────

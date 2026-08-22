@@ -31,7 +31,32 @@ const CHAT_WIDTH_PCT_DEFAULT = 60;
 const FONT_SCALE_MIN = 0.8;
 const FONT_SCALE_MAX = 1.5;
 const FONT_SCALE_DEFAULT = 1;
-const BACKGROUND_DIM_MIN = 0;
+// THE WALLPAPER SCRIM HAS A FLOOR, AND THE FLOOR IS DERIVED (#487). `theme-background-layer.tsx` calls the
+// scrim "mandatory … non-negotiable for text legibility"; a MIN of 0 made that sentence false — a legal
+// setting rendered the guard at `opacity: 0` and handed the transcript's reading contrast to the user's
+// picture (measured live pre-fix on `misty-highlands`: the plate's worst backdrop over its bright band
+// read Y 0.0874 at dim 0 vs Y 0.0476 at 0.45).
+//
+// WHY A DIM FLOOR AND NOT A HEAVIER PLATE. D144(d) + the #217 rider rule the other arm OUT: "Inks are
+// guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark rooms
+// (owner-adjacent, refused)", and the dark plate's alpha is pinned at 0.65 because closing the same hole
+// there needs 0.86. That ruling SURVIVES — its INPUT changed. `readingPlateAlpha` solves the plate against
+// the worst LEGAL art, and until now raw art was legal; with a scrim floor the worst legal art is
+// scrimmed art, so the guarantee lands without a pixel of the plate moving.
+//
+// THE NUMBER. Composite (worst legal art → `--color-backdrop` at `0.6 × dim` → `--color-reading-plate` at
+// its palette alpha) and solve for the smallest dim at which each shipped palette's prose inks clear AA
+// 4.5:1. Binding constraint: mocha `narration` over WHITE art at 0.442 (hearth narration 0.384, mocha
+// dialogue 0.107); the light palette passes at every dim on both extremes, so nothing there moves. Stated
+// at 0.45 because that is already `BACKGROUND_DIM_DEFAULT` — floor and default coincide, so an
+// out-of-bounds stored value `.catch`es straight onto the floor and no lift migration exists to get wrong.
+// `speaker` (the accent ink) is NOT in the guaranteed set: it needs dim 0.714, which is the same
+// sacred-room move D144(d) refuses. Pinned by `tests/ui/content/theme-scope/palette-contrast.suite.test.ts`.
+//
+// EXPORTED (unlike its sibling bounds) because it is the one bound that carries a proven guarantee: the
+// appearance panel's slider mirror (`client/features/app-shell/lib/appearance-bounds.ts`) takes THIS value
+// rather than re-spelling it, so the control can never offer a dim the schema would clamp away.
+export const BACKGROUND_DIM_MIN = 0.45;
 const BACKGROUND_DIM_MAX = 1;
 const BACKGROUND_DIM_DEFAULT = 0.45;
 const BACKGROUND_BLUR_MIN = 0;

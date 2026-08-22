@@ -22,8 +22,11 @@ const KICK_RE = /Kick…/u;
 const REMOVE_ARIA_RE = /Remove Aria from chat/u;
 // The chip's name carries the visible word "talks" (WCAG 2.5.3 — UI-Primitives-and-Reuse §13.10); the
 // stable `Talkativeness: <who>` identity still LEADS, which is why every other lookup here is unaffected.
-const CHIP_50_RE = /Talkativeness: Aria — talks 50%/u;
-const CHIP_80_RE = /Talkativeness: Aria — talks 80%/u;
+// #490 dropped the PERCENT SIGN: the value is a relative sampling weight (`select-speakers.ts`), not a
+// share, and three seats at "50%" summed to 150 in the panel. The name still carries the visible word
+// "talks" and the visible number; the unit it names is the dial, not a percentage.
+const CHIP_50_RE = /Talkativeness: Aria — talks at level 50 of 100/u;
+const CHIP_80_RE = /Talkativeness: Aria — talks at level 80 of 100/u;
 
 test("People + Cast render in one list with identity+state accessible names and chips", async ({ mount }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
@@ -348,13 +351,15 @@ test("Talkativeness… opens the anchored popover; the slider commits on release
 test("the weight chip RE-SEEDS from the prop on a value-only change (bus/other-device echo)", async ({ mount }) => {
   const component = await mount(<MembersReseedStory />);
   const chip = component.getByRole("button", { name: CHIP_50_RE });
-  // The chip is a labeled value now (CP-1 ride-along): the "Talks" label names WHAT the number is; the
-  // percent stays the glance readout. `toContainText` tolerates the label + the mono span split.
-  await expect(chip).toContainText("50%");
+  // The chip is a labeled value (CP-1 ride-along): the "Talks" label names WHAT the number is; the dial
+  // level stays the glance readout. `toContainText` tolerates the label + the mono span split. #490 took
+  // the PERCENT SIGN off that readout — the value is a relative sampling weight, not a share, and three
+  // seats reading "50%" summed to 150 — so the visible text is the bare level.
+  await expect(chip).toContainText("50");
 
   // A value-only prop change (the row's key is unchanged, so React never remounts it).
   await component.getByTestId("bump-aria").click();
-  await expect(component.getByRole("button", { name: CHIP_80_RE })).toContainText("80%");
+  await expect(component.getByRole("button", { name: CHIP_80_RE })).toContainText("80");
 });
 
 test("the popover thumb SNAPS BACK to the prop after a failed write (no stale local value)", async ({ mount, page }) => {
