@@ -423,10 +423,19 @@ html[data-theme-colorization] .shell-grid {
   --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
 }
 
-/* appearance.surfaceTexture=grain — opt-in film-grain overlay on shell chrome + cards only, never
- * message-bubble (grain over scrolling prose hurts legibility). A static same-origin SVG noise tile
+/* appearance.surfaceTexture=grain — the opt-in film-grain overlay. A static same-origin SVG noise tile
  * (`public/grain.svg`), low opacity. NOT an inline `data:` URL — see the CSP note on the rule below,
- * which is why this line no longer claims one. */
+ * which is why this line no longer claims one.
+ *
+ * THE HOST IS THE WHOLE SHELL, reading column included — RATIFIED by the owner 2026-08-22 (#435).
+ * These two lines used to claim "shell chrome + cards only, never message-bubble", which the shipped
+ * `.shell-grid::after` selector has never done: one `::after` on the grid covers every descendant,
+ * prose among them. The ruling kept the selector and repaired the text, on measurement: the grain's
+ * peak contribution over prose is sub-12/255 at this opacity under `soft-light` — below the legibility
+ * threshold the old claim was protecting — and the `prefers-contrast: more` block ~160 lines above
+ * DROPS the overlay outright, so the stated-preference user gets no noise at all. The rejected arm was
+ * narrowing the selector to per-surface chrome carriers: it turns one even film into patchy noise with
+ * seams at every chrome boundary and makes every future chrome slot a coupled site. */
 html[data-texture="grain"] .shell-grid::after,
 html[data-texture="grain"] [data-slot="card-root"]::after {
   content: "";
@@ -446,6 +455,19 @@ html[data-texture="grain"] [data-slot="card-root"]::after {
 /* The card slot needs a positioning context for its ::after. */
 html[data-texture="grain"] [data-slot="card-root"] {
   position: relative;
+}
+/* ONE grain layer per pixel (#435). Inside the shell grid the whole-shell `::after` above already covers
+   every card, so the card's OWN arm composed a second 0.04 soft-light pass over exactly those pixels —
+   the cards read as double-grained against their surroundings (2x0.04, the defect the ratification
+   ruling named). `content: none` suppresses the pseudo entirely rather than zeroing its opacity: no
+   generated box at all, so nothing joins the stacking context or the paint.
+   THE CARD ARM SURVIVES OUTSIDE THE GRID, which is where its only real job is: Dialog/AlertDialog
+   portal to `document.body` (app-shell.tsx stamps appearance state on the DOCUMENT ROOT precisely
+   because of this), so a portalled card is not a `.shell-grid` descendant and its own `::after` is the
+   ONLY grain carrier it has. Narrowing by scope instead of deleting the arm is what keeps both true.
+   Pinned by the grain-double-paint block in tests/client/features/app-shell/surfaces/app-shell.ct.tsx. */
+html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
+  content: none;
 }
 
 /* Instrument surfaces deliberately carry no card box (CD1), but elevation is an appearance axis rather
