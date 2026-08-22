@@ -279,8 +279,10 @@ Every lane, without being told per-brief:
   2026-08-21; ts7/depcruise/lens OOMs were being shrugged off for weeks).** Exit 134/137, a heap
   abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means THE RUN IS
   NOT A VERDICT: no green may be claimed from it, and "probably contention" is a hypothesis you
-  prove by a quiet re-run, not a dismissal. The 24 heavy entrypoints carry
-  --max-old-space-size=16384 (node's default self-cap is ~4GB even on the 128GB box) — an OOM
+  prove by a quiet re-run, not a dismissal. The heap floor is WORKSPACE-WIDE: pnpm-workspace.yaml `nodeOptions: --max-old-space-size=16384`
+  reaches every pnpm-run script (node's default self-cap is ~4GB even on the 128GB box); ts7.cjs
+  carries the flag internally so bare `node scripts/ts7.cjs` gets it too. Bare `npx depcruise`/`npx
+  knip` spellings BYPASS the floor — invoke the pnpm rows — an OOM
   under THAT ceiling is a real finding to report, never to rerun-until-green. Run-completeness
   enforcement is #410. A search,
   gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
