@@ -2,7 +2,7 @@
 // threshold cited. Provenance/attribution: lib/collect.ts header.
 
 import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
+import { contrastRatio, isLargeText, LARGE_MIN_RATIO, MEASURABLE_OPACITY_MIN, NORMAL_MIN_RATIO, relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
 import type { Finding } from "../contract/findings.ts";
 import type { ContrastInput } from "../contract/samples.ts";
 import { OPAQUE_STOP_MIN_ALPHA } from "./ramp.ts";
@@ -34,6 +34,14 @@ export function checkContrast(input: ContrastInput): Finding | null {
   // Measuring the authored color is a false PASS the eye can see through (issue #188 — two live lines
   // read 3.68:1 at α0.60 while this check reported nothing). The BACKDROP half needs no adjustment: the
   // walker resolves it from the ancestor chain, which is what shows through.
+  // NO VERDICT below the measurable-opacity floor (#466): at that alpha the composite is the backdrop
+  // whatever the authored color is, so the ratio is arithmetic, not evidence. Measured live: a home run
+  // caught mid boot-animation filed two P1s reading `1.00:1 · dimmed α0.00` against the weave veil and
+  // the brand wordmark — text that paints nothing at that instant. `isVisible` already drops EXACTLY
+  // zero; this closes the mid-fade window it cannot see.
+  if (opacity < MEASURABLE_OPACITY_MIN) {
+    return null;
+  }
   const dimmed = opacity < FOREGROUND_OPACITY_EPS;
   const dimNote = dimmed ? ` · dimmed α${opacity.toFixed(2)}` : "";
   const dimmedMessage = dimmed

@@ -6,6 +6,8 @@ import type { Args, Assertion, AssertionOutcome, EvalOutcome, PerfEvidence } fro
 import { WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../lib/eval-text.ts";
 import { HTTP_URL_RE } from "../lib/out-names.ts";
+import { overflowAssertionLine } from "../lib/overflow-line.ts";
+import { probeOverflow } from "./overflow.ts";
 
 interface AriaOutcome {
   readonly text: string | null;
@@ -103,15 +105,7 @@ async function runMatchedAssertion(
     const pass = await first.evaluate((element) => (element as unknown as { matches: (selector: string) => boolean }).matches(":focus"));
     return { line: `ASSERT focus ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, failed: !pass };
   }
-  const overflow = await first.evaluate((element) => {
-    const box = element as unknown as { scrollWidth: number; clientWidth: number; scrollHeight: number; clientHeight: number };
-    return { x: box.scrollWidth - box.clientWidth, y: box.scrollHeight - box.clientHeight };
-  });
-  const pass = overflow.x <= 1 && overflow.y <= 1;
-  return {
-    line: `ASSERT no-overflow ${assertion.selector}: ${pass ? "PASS" : "FAIL"} overflow=${overflow.x}x${overflow.y}`,
-    failed: !pass,
-  };
+  return overflowAssertionLine(assertion.selector, await probeOverflow(first));
 }
 
 async function runAssertion(page: Page, assertion: Assertion, includeHidden: boolean): Promise<AssertionOutcome> {

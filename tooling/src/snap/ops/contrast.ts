@@ -8,20 +8,18 @@ import type { Viewport } from "../../_shared/argv.ts";
 import { ringBackdrop } from "../../_shared/pixel-backdrop.ts";
 import type { Rgb } from "../../_shared/wcag.ts";
 import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
+import type { ContrastBox, ContrastFacts, ContrastMeasured } from "../contract/contrast.ts";
 import type { ContrastOutcome } from "../contract/types.ts";
-
-const BOLD_WEIGHT = 700;
-// WCAG 1.4.11 non-text contrast floor (a graphical/control boundary) — applied to a --contrast target
-// that renders NO text (an icon button, a graphical control), so a 4.5:1 text ratio isn't FALSE-flagged
-// against it. Numerically 3:1 like large-text, but a distinct concept, hence its own name.
-const UI_COMPONENT_MIN_RATIO = 3;
-// Roles whose contrast is a two-STATE signal (the track's on/off colors), NOT track-vs-page — measuring
-// the latter is meaningless and produced the 1.71:1 Switch false-FAIL. --contrast SKIPS these with a
-// stated reason (the WCAG 1.4.11 state boundary is a separate measurement this axis can't make).
-const CONTROL_TRACK_ROLES = new Set(["switch", "slider", "progressbar", "scrollbar"]);
-// Below this accumulated ancestor opacity, composite the (dimmed) foreground over the backdrop before
-// measuring. Just under 1 so sub-pixel float noise (0.999…) never triggers a pointless composite.
-const FOREGROUND_OPACITY_EPS = 0.999;
+import {
+  BOLD_WEIGHT,
+  compositeForeground,
+  contrastExemption,
+  FOREGROUND_OPACITY_EPS,
+  isContrastMeasured,
+  parseRgbString,
+  refuseContrastVerdict,
+  UI_COMPONENT_MIN_RATIO,
+} from "../lib/contrast-verdict.ts";
 
 // ── --contrast: WCAG AA text/background contrast of the first selector match ─
 
@@ -236,77 +234,10 @@ function buildContrastScript(selector: string): string {
 
 /** No match anywhere in the DOM is `null`; matches that ALL sit outside the viewport are this — a
  *  distinct outcome, because "I can't see it" is not "it fails contrast". */
-interface ContrastOffscreen {
-  offscreen: true;
-  total: number;
-}
-
-/** Matches that ARE in the viewport but every one of them is painted over by something else (#211) — a
- *  third distinct outcome, because measuring one samples the OCCLUDER's pixels, and "I can only see the
- *  topbar there" is not "it fails contrast" either. */
-interface ContrastOccluded {
-  occluded: true;
-  total: number;
-  inViewport: number;
-  occluder: string | null;
-}
-
-interface ContrastMeasured {
-  color: string;
-  fontSizePx: number;
-  fontWeight: number;
-  // "flat" = a trustworthy opaque ancestor bg (css-resolve path); "transparent"/"indeterminate" = the
-  // ancestor walk couldn't see the real backdrop (a fixed sibling layer / a background-image) — Node
-  // pixel-samples the composite instead of trusting a fabricated baseline.
-  backdrop: { kind: "flat"; color: string } | { kind: "transparent" } | { kind: "indeterminate" };
-  hasText: boolean;
-  inactive: boolean;
-  role: string;
-  tag: string;
-  /** Product of `opacity` over the element + ancestors — <1 means the foreground is painted dimmed and
-   *  must be composited at this alpha over the backdrop before measuring. */
-  foregroundOpacity: number;
-  box: { x: number; y: number; width: number; height: number };
-  /** Which querySelectorAll index actually got measured, and how many matched — a non-zero index means
-   *  earlier matches were skipped as off-viewport OR as occluded, which the report states so nobody
-   *  assumes "the first one". */
-  matchIndex: number;
-  total: number;
-}
-
-type ContrastFacts = ContrastMeasured | ContrastOffscreen | ContrastOccluded | null;
-
-// buildContrastScript's toRgbString ALWAYS emits this exact "rgb(r, g, b)" shape (it composites
-// to a canvas pixel and reads the bytes back itself, sidestepping getComputedStyle's oklch()
-// passthrough) — so this is the only shape parseRgbString ever needs to handle.
-const RGB_STRING_RE = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/u;
-
-function parseRgbString(s: string): Rgb | null {
-  const m = RGB_STRING_RE.exec(s);
-  if (!(m?.[1] && m[2] && m[3])) {
-    return null;
-  }
-  return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) };
-}
-
-interface Box {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-// Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
-// glyph painted inside an opacity<1 group. opacity 1 is a no-op; opacity 0 is the pure backdrop.
-function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
-  const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
-  return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
-}
-
 // Screenshot the element's box (clamped into the viewport — an overflowing clip makes Playwright throw)
 // and read the composited backdrop from real pixels. Returns an error (never a fabricated color) when the
 // box is empty/off-screen or the shot/decode fails — the caller reports UNRESOLVED loudly.
-async function pixelSampleBackdrop(page: Page, box: Box, viewport: Viewport): Promise<{ rgb: Rgb } | { error: string }> {
+async function pixelSampleBackdrop(page: Page, box: ContrastBox, viewport: Viewport): Promise<{ rgb: Rgb } | { error: string }> {
   const x = Math.max(0, Math.floor(box.x));
   const y = Math.max(0, Math.floor(box.y));
   const width = Math.min(Math.ceil(box.width), viewport.width - x);
@@ -350,28 +281,6 @@ async function resolveContrastBackdrop(
   return { rgb: sampled.rgb, method: "pixel-sample" };
 }
 
-/** The two "there is nothing I may measure" outcomes. A requested measurement that produced NO EVIDENCE is
- *  red — same posture as a failed pixel sample or a --diff with no baseline. What it must never do is emit
- *  PASS/FAIL: the two retracted P0s of 2026-08-16 were verdicts on a node scrolled out of the transcript,
- *  and #211's were verdicts on the topbar painted over the target. */
-function refuseContrastVerdict(selector: string, facts: ContrastOffscreen | ContrastOccluded): ContrastOutcome {
-  if ("offscreen" in facts) {
-    return {
-      line: `CONTRAST ${selector}: OFF-SCREEN  ${facts.total} match(es), none rendered in the viewport — NO VERDICT (scroll it into view, or target the visible match)`,
-      failed: true,
-    };
-  }
-  const by = facts.occluder === null ? "" : `, behind ${facts.occluder}`;
-  return {
-    line: `CONTRAST ${selector}: OCCLUDED  ${facts.inViewport} in-viewport match(es) of ${facts.total}, all painted over${by} — NO VERDICT (measuring one samples the occluder's pixels; scroll it clear, dismiss the chrome, or target the visible match)`,
-    failed: true,
-  };
-}
-
-function isContrastMeasured(facts: NonNullable<ContrastFacts>): facts is ContrastMeasured {
-  return !("offscreen" in facts || "occluded" in facts);
-}
-
 async function checkContrast(page: Page, selector: string, forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome> {
   let facts: ContrastFacts;
   try {
@@ -385,19 +294,9 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
   if (!isContrastMeasured(facts)) {
     return refuseContrastVerdict(selector, facts);
   }
-  // WCAG contrast criteria exempt inactive controls. Reporting their deliberate dimming as a defect
-  // trains reviewers to ignore the instrument, so state the exemption and leave the run green.
-  if (facts.inactive) {
-    return { line: `CONTRAST ${selector}: SKIPPED  inactive control (WCAG contrast exemption)`, failed: false };
-  }
-  // (2) Control-track roles: text-vs-page contrast is meaningless here — the two STATES are the signal,
-  // and WCAG 1.4.11 governs the state boundary (a separate measurement). Skip with a reason rather than
-  // emit the bogus 1.71:1 text-math FAIL reviewers had to learn to ignore.
-  if (CONTROL_TRACK_ROLES.has(facts.role)) {
-    return {
-      line: `CONTRAST ${selector}: SKIPPED  ${facts.role} track — two-state control; text-vs-page contrast N/A (WCAG 1.4.11 boundary unmeasured here)`,
-      failed: false,
-    };
+  const exempt = contrastExemption(selector, facts);
+  if (exempt !== null) {
+    return exempt;
   }
   const backdrop = await resolveContrastBackdrop(page, facts, forcePixel, viewport);
   if ("error" in backdrop) {
