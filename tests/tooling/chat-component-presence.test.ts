@@ -92,7 +92,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "the row-2 Send/Stop control renders only inside Composer; composer.ct drives it end-to-end — the #54 honest-refusal gate (aria-disabled + title, no chat.send fires), the disabled/empty send arms, and Stop/stopping/second-click.",
   },
   "rename-chat-dialog": { coveredBy: "chat-options-menu", why: "the rename dialog opens from the options menu; chat-options-menu.ct drives it." },
-  "add-member-popover": { coveredBy: "chat-cast-bar", why: "the add-member popover anchors on the cast bar; chat-cast-bar.ct drives it." },
+  "add-member-popover": {
+    coveredBy: "members-panel",
+    why: "#490 gave the add-member door ONE home: it anchors on the CONTEXT panel's CAST header (the cast-bar twin is gone — two simultaneously-visible doors for one action), and members-panel.ct drives it.",
+  },
   "chat-content": { coveredBy: "chat-room-surface", why: "ChatContent is the room-surface body; chat-room-surface.ct mounts it." },
   "tool-recurse-control": {
     coveredBy: "settings-context-tab",
@@ -103,6 +106,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "the host-only 'share my display scripts' switch (D121-E) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setHostDisplayScripts fires; member sees no control), the tool-recurse-control precedent.",
   },
   "chat-list-header": { coveredBy: "chat-list-surface", why: "the list header renders inside the list surface; chat-list-surface.ct covers it." },
+  "chat-list-character-filter": {
+    coveredBy: "chat-list-surface",
+    why: "#490 split the faces strip + 'Filtered: X ✕' chip out of the list SURFACE under the 450-line cap; they render inside it and chat-list-surface.ct drives both (face tap scopes the list, the chip clears it).",
+  },
   "chat-list-row-menu": { coveredBy: "chat-list-surface", why: "the per-row menu is driven through the real list rows in chat-list-surface.ct." },
 
   // chat-summary-row has a dedicated logic test (the row's derivation), not a CT — named here so the

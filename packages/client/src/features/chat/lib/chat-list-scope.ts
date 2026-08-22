@@ -5,6 +5,13 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { timeLib } from "#lib";
 
+/** Keystroke→request damper for the server-side search. Long enough that typing a name is one query rather
+ *  than eight, short enough that the list answers while the user is still looking at the box. It lives HERE
+ *  rather than in the pane because the pane is no longer the only consumer: the chats chrome band derives its
+ *  narrowed census from the SAME stored search (#490), and two dampers that could drift would let the band's
+ *  number and the pane's rows disagree for a quarter second on every keystroke. */
+export const CHAT_LIST_SEARCH_DEBOUNCE_MS = 250;
+
 const MONTH_VALUE_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/u;
 const MID_MONTH_DAY = 15;
 const MIDDAY_UTC_HOUR = 12;

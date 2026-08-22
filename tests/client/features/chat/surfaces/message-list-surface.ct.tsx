@@ -27,7 +27,13 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { MessageListOverArtStory, MessageListStoppingStory, MessageListSurfaceStory, MessageListTabWalkStory } from "../_ct-stories.tsx";
+import {
+  MessageListFooterDisclosureStory,
+  MessageListOverArtStory,
+  MessageListStoppingStory,
+  MessageListSurfaceStory,
+  MessageListTabWalkStory,
+} from "../_ct-stories.tsx";
 import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
 import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -899,6 +905,48 @@ test("ROVING: the edit-in-place path survives suppression — reached by MOUSE, 
   await expect(page.locator(":focus")).toHaveAttribute("aria-label", "Cancel edit");
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus")).toHaveAttribute("aria-label", "Save edit");
+});
+
+// ── #488 (REFUTED, and pinned so it stays refuted): a FEATURE-CONTRIBUTED disclosure IS in the walk ──
+// A review filed the rpg turn-tool-calls trigger as keyboard-unreachable on the evidence that it carries
+// `tabindex="-1"` while enabled, and attributed the attribute to Base UI. Both halves are wrong and the
+// second is why the first looked true: `row-roving.ts` writes that -1 — every control in an unentered row
+// wears it, `Edit message` included — and it is RESTORED the moment focus enters the row. Re-derived live
+// on :5173 (2026-08-22, row 39 of "Example — The Ashen Spire"): focus the row, then Tab →
+// `Edit message → Fork chat here → More message actions → "Game actions on this turn — 1" → composer`.
+// The review's own walk is that list MINUS the disclosure because it was taken on a row that has none.
+//
+// This is a FENCE, not a defect proof — it passes at pre-fix HEAD, deliberately. What it protects is the
+// property that made the report wrong: the sweep is a DOM sweep, so a control contributed through the
+// `message-footer` anchor — one the row's React tree never declares — is suppressed and restored exactly
+// like a first-party button. Forcing `tabIndex={0}` on it (the review's prescribed fix) would put every
+// thread's disclosures back in the document tab order and re-break the #107 budget above.
+test("#488 a message-footer CONTRIBUTED disclosure is a Tab stop inside the entered row", async ({ mount, page }) => {
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(4)) });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+  const component = await mount(<MessageListFooterDisclosureStory />);
+  await expect(component.getByText("Walk row 3")).toBeVisible();
+
+  const trigger = component.getByRole("button", { name: "What this turn did" }).last();
+  await expect(trigger).toBeVisible();
+  // At REST it is out of the sequential order — the #107 budget, and the exact observation the review read
+  // as the defect.
+  await expect(trigger).toHaveAttribute("tabindex", "-1");
+
+  // Enter the row the way a reader does, then Tab until the disclosure holds focus.
+  const row = component.locator('[data-slot="message-list-row"]').last();
+  await row.focus();
+  for (let pressed = 0; pressed < TAB_WALK_CAP; pressed += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: a Tab walk is sequential — each landing decides whether the next press happens.
+    const landed = await trigger.evaluate((el) => el === document.activeElement);
+    if (landed) {
+      break;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: same walk.
+    await page.keyboard.press("Tab");
+  }
+  await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveAttribute("tabindex", "0");
 });
 
 // ── #113: sticky speaker attribution inside a turn taller than the screen ─────────────────────────

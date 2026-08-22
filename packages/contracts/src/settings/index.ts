@@ -28,6 +28,7 @@ export type { AppearanceBackgroundFit, AppearanceSettings, BackgroundLibraryEntr
 export {
   APPEARANCE_BACKGROUND_FITS,
   appearanceSettingsSchema,
+  BACKGROUND_DIM_MIN,
   BLUR_SURFACES,
   backgroundLibraryEntrySchema,
   DEFAULT_BLUR_SURFACES,

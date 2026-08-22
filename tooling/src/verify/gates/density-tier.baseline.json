@@ -24,7 +24,6 @@
   "packages/client/src/features/chat/components/chat-cast-bar.tsx": 7,
   "packages/client/src/features/chat/components/chat-header.tsx": 5,
   "packages/client/src/features/chat/components/home-temp-chat-tile-body.tsx": 3,
-  "packages/client/src/features/chat/components/talkativeness-popover.tsx": 4,
   "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx": 2,
   "packages/client/src/features/notifications/components/notification-bell.tsx": 3,
   "packages/client/src/features/persona/components/persona-editor.tsx": 4,

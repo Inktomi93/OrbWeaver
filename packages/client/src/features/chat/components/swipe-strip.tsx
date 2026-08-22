@@ -121,11 +121,22 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
         </Button>
       ) : null}
       {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
-          from nudging the chevrons sideways as it ticks (density-pass-spec.md §2.3). */}
+          from nudging the chevrons sideways as it ticks (density-pass-spec.md §2.3).
+          IT IS NAMED FOR THE EYE NOW (#490). `‹ 8 / 8 ›` under a transcript is the universal pagination
+          shape, and it was read as one BY THE REVIEWER, with the source open — "8 / 8" says there are seven
+          earlier pages of conversation. The a11y tree was already correct ("Previous variant" / "Next
+          variant"), which made this the sharper kind of defect: the screen-reader user was told what the
+          control is and the sighted user was not. The fix is the VISIBLE word, in the existing micro voice,
+          never a mechanism change — the counter itself keeps its `datum` tabular figures beside it. */}
       {showPager ? (
-        <Text as="span" voice="datum">
-          {current} / {total}
-        </Text>
+        <>
+          <Text as="span" voice="kicker">
+            Variant
+          </Text>
+          <Text as="span" voice="datum">
+            {current} / {total}
+          </Text>
+        </>
       ) : null}
       <Button intent="ghost" size="icon" loading={busy} aria-label="Next variant" onClick={goNext}>
         <Icon icon={ChevronRight} size="sm" />
