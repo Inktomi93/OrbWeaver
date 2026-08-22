@@ -138,7 +138,12 @@ a11y → `side-eye`; both if the change spans both.
   cannot span accounts):** `~/.claude/bridge/` holds `to-b/` and `to-primary/` inboxes. A message is
   one markdown file `NNN-<slug>.md` (frontmatter: from/at/re + body); the reader ACKS BY MOVE into
   the inbox's `done/` subdir after acting. Check your inbox at session start and at every merge
-  window; never edit another message, only move it.
+  window; never edit another message, only move it. REALTIME (primary side): keep a persistent
+  Monitor (`inotifywait -m` on `~/.claude/bridge/to-primary/`) so claude-b messages arrive as live
+  events instead of polls. POST-COMPACT LIVENESS: `~/.claude/bridge/SESSIONS.md` is the claude-b
+  session REGISTRY — read it before any claude-b spawn; the standing session there is RESUMED
+  (`--resume <id>`), never re-minted (endless fresh spawns lose its accumulated context); a live
+  process check is `ps ax | grep -F 'CLAUDE_CONFIG_DIR=/home/inktomi/.claude-b'`.
 - **Local `main` is the worktree base.** The owner pushes manually, so `origin/main` can be far behind.
   Spawn and rebase from the latest local `main`; never "refresh" a lane onto the remote branch.
 - **Never push `origin` without fresh owner authorization for that exact push.** A prior or conditional
