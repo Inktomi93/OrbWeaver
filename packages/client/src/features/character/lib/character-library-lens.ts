@@ -18,18 +18,41 @@ export interface LibraryChipTag {
 }
 
 /** What the filter row's live region says — how many characters the current search + chips MATCH, which is
- *  the server's census over the whole library, not the rows this pane happens to have paged in.
+ *  the server's census over the whole library, not the rows this pane happens to have paged in. Before the
+ *  first page lands there is no census — the loaded count is then the only true thing to say.
  *
- *  When fewer are loaded than match, it says BOTH ("30 of 412 characters"): the census alone would read as a
- *  claim about what is on screen, and the loaded count alone is the number this list stopped being able to
- *  print honestly the day it went keyset-paged. Before the first page lands there is no census — the loaded
- *  count is then the only true thing to say. */
+ *  IT USED TO PRINT BOTH NUMBERS ("30 of 412 characters"), AND THE RULING SURVIVES — ITS INPUT CHANGED
+ *  (#493, side-eye 2026-08-22 rail-characters P2-1). The ruling was that the loaded count alone is a number
+ *  this list stopped being able to print honestly the day it went keyset-paged, and the census alone reads
+ *  as a claim about what is on screen. The second half died on the owner's real library: at rest the line
+ *  read `30 of 327 characters` — the PAGE SIZE (`character.list {limit:30}`) worded as a result count —
+ *  230px under a band already reading `CHARACTERS 327`, whose natural reading is "only 30 of your
+ *  characters match". It is false, and it is the resting state, so it is the state everyone sees.
+ *
+ *  What is preserved: the number here is the SERVER's census, never the loaded rows, and the loaded-vs-
+ *  census signal is not lost — it MOVES to the foot of the list, beside the tail-fetch sentinel, where
+ *  "how much of it have I got" is the question being asked ({@link loadedProgressLabel}). */
 export function resultCountLabel(loaded: number, totalCount: number | null): string {
-  const noun = (n: number): string => `character${n === 1 ? "" : "s"}`;
-  if (totalCount === null || totalCount === loaded) {
-    return `${String(loaded)} ${noun(loaded)}`;
-  }
-  return `${String(loaded)} of ${String(totalCount)} ${noun(totalCount)}`;
+  const matched = totalCount ?? loaded;
+  return `${String(matched)} character${matched === 1 ? "" : "s"}`;
+}
+
+/** The FOOT of the list: how much of the matched set is paged in, beside the tail-fetch sentinel. `null`
+ *  once everything is loaded (or before the census lands) — a progress line with nothing left to report is
+ *  noise, and it is the one place a loaded count is a fact about the list rather than a claim about the
+ *  library. */
+export function loadedProgressLabel(loaded: number, totalCount: number | null): string | null {
+  return totalCount === null || loaded >= totalCount ? null : `${String(loaded)} of ${String(totalCount)} loaded`;
+}
+
+/** What the GROUP-BY-TAG mode says about its own scope, or `null` when the loaded set IS the matched set —
+ *  the buckets are then library facts and need no caveat. The rest of the reasoning is at the render site
+ *  (`character-categorized-list.tsx`'s `PartialGroupingNotice`): the counts describe the paged-in rows, and
+ *  a bucket count that re-forms as you scroll is worse than none unless it says what it is counting. */
+export function partialGroupingLabel(loaded: number, totalCount: number | null): string | null {
+  return totalCount === null || loaded >= totalCount
+    ? null
+    : `Grouping the ${String(loaded)} of ${String(totalCount)} characters loaded so far — the counts below are this page's, not the library's.`;
 }
 
 /**
