@@ -38,8 +38,10 @@ import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
 import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
+import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
+import { BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 
@@ -76,7 +78,18 @@ export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContr
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 w-full outline-none">
       <QueryBoundary
-        fallback={<SkeletonRows count={3} />}
+        // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
+        // own TRACK (`CHAT_TRACK` — the room's one answer to "where is the middle", #213) so the three
+        // placeholder rows stand exactly where the rows they stand in for will, and it takes the
+        // wallpaper-gated reading plate so it is still an OBJECT over a room's art instead of three faint
+        // bands on a photo. The timing was never the defect: #454's rAF sampler proves the skeleton paints
+        // on the first room frame of a Resume; it was invisible, so Resume — the most-pressed action in the
+        // app — read as an empty room for ~400ms. Both classes are inert on a plain background.
+        fallback={
+          <Stack className={`${CHAT_TRACK} ${BG_PHOTO_LOADING_PLATE}`} data-slot="transcript-loading">
+            <SkeletonRows count={3} />
+          </Stack>
+        }
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}

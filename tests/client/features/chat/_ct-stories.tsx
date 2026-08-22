@@ -1016,6 +1016,24 @@ export function MessageListSurfaceStory(): ReactElement {
   );
 }
 
+/** THE TRANSCRIPT'S LOADING STATE, OVER ART (#468). The same keystone surface, mounted under the shell's
+ *  own `data-has-bg-image` flag over a SATURATED backdrop — pure green, so "does the art show through
+ *  behind the skeleton?" is a one-channel question instead of a contrast estimate (the `_edge-fade-stories`
+ *  precedent). The CT holds `chat.listMessages` so the suspense fallback is a settled, indefinitely-stable
+ *  render rather than a flash. `artBackdrop={false}` is the same probe with the flag off — the planted
+ *  positive control that proves the sampler can see the raw backdrop at all. */
+export function MessageListOverArtStory({ artBackdrop }: { readonly artBackdrop: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div {...(artBackdrop ? { "data-has-bg-image": "" } : {})} style={{ background: "rgb(0 255 0)", width: 640 }}>
+          <SurfaceHarness />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
 /** #107 TAB-BUDGET harness: the real surface between two sentinel buttons that stand in for "the control
  *  before the transcript" and "the composer". A CT focuses `walk-start`, presses Tab until `walk-end` has
  *  focus, and compares the count across thread lengths — which is the whole contract: the transcript's
