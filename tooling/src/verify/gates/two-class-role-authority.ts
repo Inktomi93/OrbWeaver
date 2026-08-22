@@ -42,7 +42,7 @@
 //     stating it, so a future widening starts from a written baseline rather than a surprise.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 
 const HOST_ROLE = "host";
 const ROLE_IDENTIFIER = "role";
@@ -52,16 +52,18 @@ const DOMAIN_ROOT = "packages/server/src/domain/";
  *  the citation that makes it law. Both-ways ratchet: a home listed here that carries NO enforcement
  *  comparison any more is RED (the sanction has moved or died — delete the row), so this table can never
  *  become a standing exemption for a file that no longer earns it. */
-const SANCTIONED_HOMES: Record<string, string> = {
-  "packages/server/src/domain/admin/guard.ts":
-    "the `can()` seam itself — spine invariant #6: `owner ⊇ admin` and `role === 'host'` are decided HERE and nowhere else (its own header states it).",
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/server/src/domain/admin/guard.ts": {
+    why: "the `can()` seam itself — spine invariant #6: `owner ⊇ admin` and `role === 'host'` are decided HERE and nowhere else (its own header states it).",
+  },
 };
 
 /** Enforcement-shaped comparisons that are NOT a caller-privilege gate. Each carries the reason it survives.
  *  Same both-ways ratchet as the sanctioned homes. */
-const ALLOWLIST: Record<string, string> = {
-  "packages/server/src/domain/chat/verbs/roster.ts":
-    "the host compare is on the NOMINEE (`nominee.role === 'host'` → ChatNotFound) — a TARGET-VALIDITY check on the handoff candidate, not the caller's privilege (the caller's gate is the `requireHost` on the line above it).",
+const ALLOWLIST: ExemptionTable = {
+  "packages/server/src/domain/chat/verbs/roster.ts": {
+    why: "the host compare is on the NOMINEE (`nominee.role === 'host'` → ChatNotFound) — a TARGET-VALIDITY check on the handoff candidate, not the caller's privilege (the caller's gate is the `requireHost` on the line above it).",
+  },
 };
 
 const MESSAGE =

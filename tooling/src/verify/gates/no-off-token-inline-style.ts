@@ -5,7 +5,7 @@
 // raw-literal inline style. Scope: packages/{ui,client}/src, and only a static literal value.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
@@ -13,7 +13,7 @@ import { fileLoaded } from "../lib/pass.ts";
  *  canvas + CodeMirror decoration) are framework-config OBJECT PROPERTIES, not JSX `style={{…}}`/imperative
  *  `.style` sites, so they fall outside this gate's scope entirely — no allowlist entry needed. A NEW
  *  raw-literal JSX/imperative inline style is RED on sight. */
-const ALLOWLIST: Record<string, string> = {};
+const ALLOWLIST: ExemptionTable = {};
 
 const MESSAGE =
   "off-token raw-literal inline style (design-enforcement.md §3) — a token-backed CSS property " +

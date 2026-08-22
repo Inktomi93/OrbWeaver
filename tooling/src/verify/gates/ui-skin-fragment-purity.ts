@@ -6,14 +6,27 @@
 // row is {signature, composeInstead}, so the failure names the exact lib constant to compose.
 //
 // SCOPE: class-string CONTEXTS only — string literals + template-literal STATIC parts (head/middle/tail
-// + no-substitution) under packages/ui/src/**, excluding packages/ui/src/lib/** (the fragments' home).
-// Comments/JSDoc are never these node kinds, so a prose mention of `bg-scrim` can't trip it. A template
-// that INTERPOLATES a lib constant (`${FOCUS_RING}`) carries no `focus-visible:ring-` in its static
-// source text — the constant's content isn't present statically — so composing is inherently clean.
+// + no-substitution) under packages/ui/src/**. Comments/JSDoc are never these node kinds, so a prose
+// mention of `bg-scrim` can't trip it. A template that INTERPOLATES a lib constant (`${FOCUS_RING}`)
+// carries no `focus-visible:ring-` in its static source text — the constant's content isn't present
+// statically — so composing is inherently clean.
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the fragments' home is SCANNED and exempted by a
+// cited row + the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home carries its
+// exemption silently through the move, and the tier's whole point is that the fragments have ONE address.
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
-const LIB_HOME = "packages/ui/src/lib/";
+const GATE_SELF = "tooling/src/verify/gates/ui-skin-fragment-purity.ts";
+
+/** The ONE home the signatures may be spelled in — it is where they are DEFINED. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/ui/src/lib/": {
+    why: "the skin-fragment home itself (FOCUS_RING / OVERLAY_ARROW / SCRIM / DISABLED_STATE …) — the definition site cannot be a hand-copy of itself. Ends when the tier moves out of lib/: the rename tripwire reds the row at its dead path instead of exempting a directory that no longer exists",
+  },
+};
 
 interface FragmentSignature {
   /** The banned hand-spelled substring — the fragment's raw class signature. */
@@ -55,11 +68,14 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => p.startsWith("packages/ui/src/") && !p.startsWith(LIB_HOME),
+  scanRoot: (p) => p.startsWith("packages/ui/src/"),
   // String literals + every static carrier of a template literal (a tv()/cn() class string may be a
   // template interpolating lib constants — its head/middle/tail are the parts we scan).
   kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral, SyntaxKind.TemplateHead, SyntaxKind.TemplateMiddle, SyntaxKind.TemplateTail],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
+      return;
+    }
     const text = node.getText();
     for (const row of SIGNATURES) {
       const offset = text.indexOf(row.signature);
@@ -74,6 +90,9 @@ export const gate: GateDescriptor = {
       // `hasGateIgnore` — so every marker was inert. The per-row `composeInstead` moved into MESSAGE.
       ctx.report(node, { token: row.signature, offset });
     }
+  },
+  finalize: (ctx) => {
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "skin-fragment home" });
   },
   mustFlag: [
     {
@@ -95,6 +114,14 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "bg-backdrop" },
       why: "a TEMPLATE literal whose STATIC part hand-spells `bg-backdrop` around an interpolation — the head/tail scan must still bite",
     },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        "packages/ui/src/primitives/toast/variants.ts": "export const toast = {};\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but packages/ui/src/lib/ resolves to no file — the fragment tier moved, and the old scanRoot exclusion would have kept exempting a directory that no longer exists",
+    },
   ],
   mustPass: [
     {
@@ -108,7 +135,14 @@ export const gate: GateDescriptor = {
     {
       files: 'export const OVERLAY_ARROW = "size-row rotate-45 border border-border bg-popover";\nexport const SCRIM_BASE = "fixed inset-0 bg-backdrop";\n',
       at: "packages/ui/src/lib/overlay-arrow.ts",
-      why: "the lib home itself IS where the signatures live — packages/ui/src/lib/ is excluded from the scan",
+      why: "THE ALLOWLIST ITSELF: the lib home is where the signatures are DEFINED — now scanned, and passing only because a cited SANCTIONED_HOMES row covers it",
+    },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        "packages/ui/src/lib/focus-ring.ts": 'export const FOCUS_RING = "focus-visible:ring-2";\n',
+      },
+      why: "the home is alive (anchor loaded AND lib/ resolves) — the pass half of the mode-B arm, and the allowlist still covers the definition site",
     },
   ],
 };

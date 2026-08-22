@@ -35,7 +35,7 @@
 // differs from the contracts dir name (the domain map has no such pair today).
 import type { Node, SourceFile } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
 const DOMAIN_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
 const CONTRACTS_DIR_RE = /\/packages\/contracts\/src\/(?<domain>[^/]+)\//u;
@@ -52,11 +52,13 @@ const REAL_TREE_ANCHOR = "packages/server/src/domain/chat/contract/service.ts";
 /** ARM B survivors: a `*Row` whose prefix collides with a table NAME but which is not that table's row. Each
  *  row states WHY (a homonym or an aggregate), and the ratchet works both ways — a row whose file no longer
  *  carries the shape is RED, so a cleaned-up exemption cannot linger. */
-const ALLOWLIST: Record<string, string> = {
-  "packages/server/src/domain/discovery/contract/results.ts::ThemeRow":
-    "HOMONYM: discovery's `ThemeRow` is an emergent THEME CLUSTER (k-means over digest embeddings — id/level/clusterIdx/size/model), while the `themes` table is the UI palette/token-override row (owner-scoped `override` blob). Same word, unrelated concepts; the cluster's own table is `themeClusters`.",
-  "packages/server/src/domain/stats/contract/views.ts::ModelStatRow":
-    "AGGREGATE: a read-time GROUP BY projection over `model_stats` carrying computed fields that are never columns (`charactersUsedWith` — model_stats is character-less, plus the p50/p90 percentiles the file header says are computed on read, invariant #6). Deriving it from `$inferSelect` would be a lie about what the read returns.",
+const ALLOWLIST: ExemptionTable = {
+  "packages/server/src/domain/discovery/contract/results.ts::ThemeRow": {
+    why: "HOMONYM: discovery's `ThemeRow` is an emergent THEME CLUSTER (k-means over digest embeddings — id/level/clusterIdx/size/model), while the `themes` table is the UI palette/token-override row (owner-scoped `override` blob). Same word, unrelated concepts; the cluster's own table is `themeClusters`.",
+  },
+  "packages/server/src/domain/stats/contract/views.ts::ModelStatRow": {
+    why: "AGGREGATE: a read-time GROUP BY projection over `model_stats` carrying computed fields that are never columns (`charactersUsedWith` — model_stats is character-less, plus the p50/p90 percentiles the file header says are computed on read, invariant #6). Deriving it from `$inferSelect` would be a lie about what the read returns.",
+  },
 };
 
 const MESSAGE =

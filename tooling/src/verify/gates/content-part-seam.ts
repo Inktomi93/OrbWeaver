@@ -4,14 +4,18 @@
 // else stays `content: string`. Enforced as a sanctioned-importer allowlist on the symbol: a
 // `ChatContentPart` import from a file outside the seam set is RED.
 //
-// TWO-SIDED (gate-hub #10): a SANCTIONED pattern matching NO file in the project is RED — a seam member
-// that moved or died leaves a hole in the scan (every file it used to cover silently stops being checked),
-// so the row ratchets down with the code. The stale arm self-guards on a REAL-TREE ANCHOR (gate-hub #11):
-// the conformance mini-projects hold 1-2 files and would "prove" every seam member had vanished, so it only
-// judges when the ONE producer (`domain/chat/engine/pipeline.ts`) is loaded.
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the seam members are SCANNED and exempted by cited
+// rows, not scoped out of scanRoot — an excluded member that moves takes its exemption with it AND leaves a
+// hole in the scan (every file the pattern covered silently stops being checked).
+//
+// TWO-SIDED (gate-hub #10): a row resolving to NO file is RED, through the ONE shared rename tripwire
+// (lib/sanctioned-home.ts) rather than a hand-rolled sweep. It self-guards on a REAL-TREE ANCHOR
+// (gate-hub #11) that sits OUTSIDE every row — this gate's own declaration-home anchor lives INSIDE the
+// contracts row, so guarding on it would let a dead home take its own tripwire down with it.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const SYMBOL = "ChatContentPart";
 const CONTRACTS_CHAT = /^@orb\/contracts\/chat(?:\/|$)/u;
@@ -21,25 +25,22 @@ const PROD_SRC = /\/packages\/[^/]+\/src\//u;
 
 /** Files sanctioned to import `ChatContentPart` — the seam producer + the request DTO it fills + the
  *  infra consumers + the contracts home. */
-const SANCTIONED = [
-  // The contracts home (declares it) — matched loosely (the whole chat namespace).
-  /\/packages\/contracts\/src\/chat\//u,
-  // The infra consumers: the sealed runner tier maps parts onto each backend wire.
-  /\/packages\/server\/src\/infra\/providers\//u,
-  // The engine request SEAM — the ONE producer (D51).
-  /\/packages\/server\/src\/domain\/chat\/engine\/pipeline\.ts$/u,
-  // The domain-side request DTO the seam populates (content: ChatContentPart[] handed to the runner).
-  /\/packages\/server\/src\/domain\/chat\/contract\/results\.ts$/u,
-] as const;
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/contracts/src/chat/": {
+    why: "the contracts home DECLARES the symbol — the whole chat namespace, since the declaration and its barrel move together. Ends when the chat contracts move: the rename tripwire reds the row at its dead path",
+  },
+  "packages/server/src/infra/providers/": {
+    why: "the sealed runner tier is the ONLY consumer — it maps parts onto each backend wire (D51). Same end condition",
+  },
+  "packages/server/src/domain/chat/engine/pipeline.ts": {
+    why: "THE one producer (D51): parts are built exactly here, at the engine request seam. Ends when the pipeline moves",
+  },
+  "packages/server/src/domain/chat/contract/results.ts": {
+    why: "the domain-side request DTO the seam populates (`content: ChatContentPart[]` handed to the runner). Same end condition",
+  },
+};
 
 const GATE_SELF = "tooling/src/verify/gates/content-part-seam.ts";
-/** Real-tree anchor (gate-hub #11): the DECLARATION home of the symbol. Loaded on every real run; a
- *  conformance mini-project only has it when an example materializes it on purpose. */
-const ANCHOR = "packages/contracts/src/chat/bus.ts";
-const STALE_PREFIX =
-  "stale SANCTIONED seam pattern — it matches NO file in the project (ratchet down): a seam member that " +
-  "moved or died leaves a HOLE in the scan (every file the pattern covers silently stops being checked). " +
-  "Re-point it at the member's new home, or delete the row: ";
 
 const MESSAGE =
   "`ChatContentPart` is imported outside the D51 seam set (the engine producer `domain/chat/engine/" +
@@ -62,31 +63,20 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "keep `content: string` upstream; ChatContentPart is produced ONCE at the engine request seam (domain/chat/engine/pipeline.ts) and consumed only by infra/providers/**.",
-  scanRoot: (p) => {
-    const abs = `/${p}`;
-    return PROD_SRC.test(abs) && !SANCTIONED.some((re) => re.test(abs));
-  },
+  scanRoot: (p) => PROD_SRC.test(`/${p}`),
   kinds: [SyntaxKind.ImportSpecifier],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
+      return;
+    }
     if (isContentPartImport(node)) {
       ctx.report(node, { token: SYMBOL, offset: 0 });
     }
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    const paths = ctx.project.getSourceFiles().map((sf) => sf.getFilePath() as string);
-    for (const re of SANCTIONED) {
-      if (!paths.some((p) => re.test(p))) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_PREFIX}${re.source} — the SANCTIONED table lives in tooling/src/verify/gates/content-part-seam.ts`,
-        });
-      }
-    }
+    // The declaration-home ANCHOR still guards nothing here — the sweep's guard is the SHARED anchor, which
+    // is outside every row (a member that dies must not be able to silence its own tripwire).
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "D51 content-part seam member" });
   },
   mustFlag: [
     {
@@ -96,17 +86,18 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
         "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
       },
-      expect: { count: 3, messageIncludes: "stale SANCTIONED seam pattern" },
-      why: "THE STALE ARM: the anchor (the symbol's declaration home) is loaded, so the seam set is judged — the three patterns naming homes no file matches (infra/providers, pipeline.ts, contract/results.ts) each ratchet down; the contracts pattern matches the anchor itself and stays",
+      expect: { count: 3, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded, so the seam set is judged — the three rows naming homes no file resolves (infra/providers, pipeline.ts, contract/results.ts) each ratchet down; the contracts row resolves (the declaration file itself) and stays",
     },
   ],
   mustPass: [
     {
       files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "packages/server/src/infra/providers/backends/kit/map.ts",
-      why: "the infra/providers consumer is a sanctioned seam member — the sealed runner maps parts to wire",
+      why: "THE ALLOWLIST ITSELF: the infra/providers consumer is now SCANNED and passes on a cited row — the sealed runner maps parts to wire",
     },
     {
       files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
@@ -132,7 +123,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/chat/verbs/read.ts": "export const x = 1;\n",
       },
-      why: "THE ANCHOR GUARD: a project without the symbol's declaration home is not the real tree — the stale arm stays silent instead of 'proving' all four seam members vanished",
+      why: "THE ANCHOR GUARD: a project without the shared real-tree anchor is not the real tree — the tripwire stays silent instead of 'proving' all four seam members vanished",
     },
   ],
 };

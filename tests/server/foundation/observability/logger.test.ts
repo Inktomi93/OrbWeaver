@@ -35,6 +35,19 @@ describe("request ring", () => {
     recordRequest(rec("lim-b"));
     expect(recentRequests(1).map((r) => r.id)).toEqual(["lim-b"]);
   });
+
+  // THE PLANTED-EVICTION PIN (#414): the request ring is BOUNDED (500) and evicts oldest-first. Asserted
+  // through the public record/read pair, so it pins the recorder's behavior rather than whichever engine
+  // implements the buffer — this is the property that had to survive the move onto @orb/kit/bounded-ring.
+  test("EVICTION: past the ring capacity the OLDEST records drop and the read stays newest-first", () => {
+    for (let i = 0; i < 600; i += 1) {
+      recordRequest(rec(`evict-${i}`));
+    }
+    const all = recentRequests(10_000);
+    expect(all.length).toBeLessThan(600); // bounded — it did not grow to hold every record
+    expect(all.slice(0, 3).map((r) => r.id)).toEqual(["evict-599", "evict-598", "evict-597"]);
+    expect(all.some((r) => r.id === "evict-0")).toBe(false);
+  });
 });
 
 describe("request scope", () => {

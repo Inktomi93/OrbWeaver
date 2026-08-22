@@ -8,7 +8,7 @@
 // a structural/live-region role. BURN_DOWN is a both-directions ratchet (persistence-boundary.ts pattern).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 /** ARIA roles that mint an INTERACTIVE widget — a feature must reach for the matching @orb/ui primitive,
@@ -47,7 +47,7 @@ const WIDGET_ROLES: ReadonlySet<string> = new Set([
  *  makes a stale entry RED, so this list can never rot). CLEAN as of 2026-07-09: the founding entry
  *  (persona-panel-row.tsx's Row role=button) was reworked to a stretched-Button overlay by the Wave 1
  *  list-row content-model pass and burned down the same day. */
-const BURN_DOWN: Record<string, string> = {};
+const BURN_DOWN: ExemptionTable = {};
 
 const MESSAGE =
   "hand-rolled interactive ARIA role in a feature (UI-Gates-and-Lessons.md §8) — the @orb/ui layout kit " +
