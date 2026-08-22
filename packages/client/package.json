@@ -6,7 +6,10 @@
   "engines": {
     "node": ">=26"
   },
-  "sideEffects": ["**/*.css", "./src/lib/zod-jitless.ts"],
+  "sideEffects": [
+    "**/*.css",
+    "./src/lib/zod-jitless.ts"
+  ],
   "scripts": {
     "dev": "vite --configLoader native",
     "build": "vite build --configLoader native",
@@ -23,12 +26,9 @@
     "@orb/contracts": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/ui": "workspace:*",
-    "@tanstack/react-devtools": "catalog:",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
-    "@tanstack/react-query-devtools": "catalog:",
     "@tanstack/react-router": "catalog:",
-    "@tanstack/react-router-devtools": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
     "react": "catalog:",
@@ -40,7 +40,6 @@
     "@orb/server": "workspace:*",
     "@rolldown/plugin-babel": "catalog:",
     "@tailwindcss/vite": "catalog:",
-    "@tanstack/devtools-vite": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
