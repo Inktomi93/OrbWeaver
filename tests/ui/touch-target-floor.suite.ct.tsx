@@ -5,11 +5,14 @@
 // each one meets the ≥44px floor on the axis the LAW governs, under a coarse pointer.
 //
 // TWO GOVERNED METRICS (D62 P1 is precise about which axis is floored):
-//   • SHORT SIDE — for the square / pseudo-expanded controls. Switch/Checkbox/RadioGroupItem keep a
-//     SMALL visible box and lift the hit area to 44×44 via a `::before` size-touch-target pseudo
-//     (variants.ts); icon Button + NumberField steppers are square touch-target boxes. A boundingBox-
-//     only read would wrongly fail the pseudo controls, so `box()` unions the visible box with the
-//     absolutely-positioned pseudo, and the assertion is on the SHORT side.
+//   • SHORT SIDE — for the square / pseudo-expanded controls. Checkbox/RadioGroupItem keep a SMALL
+//     visible box at every pointer and lift the hit area to 44×44 via a `::before` size-touch-target
+//     pseudo (variants.ts); icon Button + NumberField steppers are square touch-target boxes. A
+//     boundingBox-only read would wrongly fail the pseudo controls, so `box()` unions the visible box
+//     with the absolutely-positioned pseudo, and the assertion is on the SHORT side.
+//     SWITCH IS NO LONGER IN THAT BUCKET (382e46d83): its ROOT grows to `h-touch-target` at a coarse
+//     pointer, so the coarse floor is carried by the visible track and the pseudo demotes to the
+//     unknown-pointer fallback. Its case below asserts the live mechanism, not the union alone.
 //   • CONTROL HEIGHT — for row / text controls (text Button/Toggle/Tabs/Select/Input/ListRow/Menu item/
 //     Combobox group/Slider control). The law floors the control HEIGHT ("≥44px control heights hold at
 //     pointer: coarse"); their WIDTH is content/layout-driven and deliberately NOT token-floored (a
@@ -55,9 +58,9 @@ const TAGS = ["Adventure", "Mystery"] as const;
 
 /**
  * The effective hit box (px): the visible border box unioned per-axis with the element's
- * absolutely-positioned `::before` (the size-touch-target pseudo Switch/Checkbox/Radio use to lift a
- * small visible box to the floor). For control-height primitives the pseudo is absent and the box is
- * the visible box.
+ * absolutely-positioned `::before` (the size-touch-target pseudo Checkbox/Radio use to lift a small
+ * visible box to the floor, and that Switch keeps as its unknown-pointer fallback). For control-height
+ * primitives the pseudo is absent and the box is the visible box.
  */
 async function box(locator: Locator): Promise<{ width: number; height: number }> {
   return await locator.evaluate((el: Element) => {
@@ -104,12 +107,29 @@ test("icon Button is a square control meeting the floor on both axes", async ({ 
   await expect.poll(() => shortSide(button), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
-test("Switch hit area reaches the floor via its ::before pseudo (visible track is shorter)", async ({ mount, page }) => {
+// The Switch's coarse floor is ROOT-CARRIED (`pointer-coarse:h-touch-target`, switch/variants.ts:18,
+// landed 382e46d83) — the visible track itself grows to 44 at a coarse pointer while the thumb stays on
+// its 32px display token so the travel stays legible. This case used to open with the opposite
+// precondition (`visible < 44`, proving the ::before union was doing the lifting); that assertion was
+// true of the OLD mechanism and became a lie the moment the root started carrying the floor, which is
+// how this file went red. It is replaced, not dropped: asserting the VISIBLE box clears the floor is
+// strictly STRONGER than the union — a union can be satisfied by invisible overflow, a visible box
+// cannot. The pseudo survives as the unknown-pointer fallback, so it keeps its own pin; without it a
+// silent removal of TOUCH_TARGET_PSEUDO from the root would leave this case green.
+test("Switch: the VISIBLE track carries the floor at a coarse pointer (::before stays as the fallback)", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" />);
   const control = page.getByRole("switch");
-  // Prove the visible box alone is UNDER the floor — otherwise the ::before union isn't being exercised.
-  const visible = await control.evaluate((el: Element) => el.getBoundingClientRect().height);
-  expect(visible, "the Switch's visible track is intentionally < 44px tall").toBeLessThan(FLOOR);
+  await expect.poll(() => control.evaluate((el: Element) => el.getBoundingClientRect().height), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
+  const pseudo = await control.evaluate((el: Element) => {
+    const before = getComputedStyle(el, "::before");
+    return {
+      height: Number.parseFloat(before.height),
+      position: before.position,
+      width: Number.parseFloat(before.width),
+    };
+  });
+  expect(pseudo.position, "TOUCH_TARGET_PSEUDO must stay on the root as the unknown-pointer hit-area fallback").toBe("absolute");
+  expect(Math.min(pseudo.width, pseudo.height), "the fallback pseudo still spans the full touch target").toBeGreaterThanOrEqual(FLOOR);
   await expect.poll(() => shortSide(control), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
