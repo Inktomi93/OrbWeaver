@@ -6,9 +6,24 @@
 // shared-selection hook (seed: initialized from a SELECTION_HOOK_RE call; transitive: same-file
 // name-level fixpoint) — a surface reacting to ambient selection with side effects, the neo chase
 // reborn. Does not flag props/query-data deps or lifecycle-store hooks (chat-stream/draft-store).
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): app-shell is SCANNED and exempted by a cited row
+// plus the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home carries its exemption
+// silently through a rename, and "app-shell" is exactly the kind of feature dir that gets restructured.
 import type { ArrayLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+
+const GATE_SELF = "tooling/src/verify/gates/no-effect-on-shared-selection.ts";
+
+/** The ONE feature dir that may react to shared selection with an effect. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/client/src/features/app-shell/": {
+    why: "the shell OWNS the shared-selection pointers (UI-Architecture-and-Layout.md §5.1) — routing, panels and modal state are the shell's own lifecycle, not an ambient chase. Ends when the shell moves or the pointers re-home: the rename tripwire reds the row at its dead path",
+  },
+};
 
 /** The shared-selection pointer hooks (the state/ selection stores' read APIs — NOT the
  *  lifecycle/draft stores). Kept in sync with state/index.ts by the fixture in
@@ -138,14 +153,20 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "derive in render instead, or use `useEffectEvent` for a non-reactive read inside an unrelated effect.",
-  scanRoot: (p) => p.includes("packages/client/src/features/") && !p.includes("packages/client/src/features/app-shell/"),
+  scanRoot: (p) => p.includes("packages/client/src/features/"),
   kinds: [SyntaxKind.CallExpression],
   begin: () => {
     taintMemo.clear();
   },
+  finalize: (ctx) => {
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "selection-owning shell" });
+  },
   visit: (node, sf, ctx) => {
     const deps = effectDepsOf(node);
     if (deps === undefined) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     const tainted = taintFor(sf);
@@ -166,8 +187,22 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/chat/hooks/transitive.ts",
       why: "TRANSITIVE taint — `gated` derives from the tainted `chatId`; the name-level fixpoint still chases (§5.1)",
     },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        "packages/client/src/features/chat/hooks/ok.ts": "export const x = 1;\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but features/app-shell/ resolves to no file — the shell moved, and the old scanRoot exclusion would keep exempting a path that no longer exists",
+    },
   ],
   mustPass: [
+    {
+      files:
+        "declare function useActiveChatId(): string;\ndeclare function useEffect(f: () => void, d: unknown[]): void;\nexport function C() {\n  const chatId = useActiveChatId();\n  useEffect(() => {}, [chatId]);\n}\n",
+      at: "packages/client/src/features/app-shell/shell.ts",
+      why: "THE ALLOWLIST ITSELF: the shell OWNS the pointers (§5.1) — now scanned, and passing only because a cited SANCTIONED_HOMES row covers features/app-shell/",
+    },
     {
       files:
         "declare function useEffect(f: () => void, d: unknown[]): void;\nexport function C(props: { chatId: string }) {\n  useEffect(() => {}, [props.chatId]);\n}\n",

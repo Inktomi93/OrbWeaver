@@ -19,22 +19,34 @@
 // (`createHiddenSpanStreamScrubber as x`) hides the call arm — the import arm still catches the
 // ImportSpecifier itself, so the construction site is never silently green.
 //
-// TWO-SIDED (gate-hub #10): the seal ratchets DOWN — a SANCTIONED zone that no longer imports or calls the
-// scrubber symbol is RED. Both zones are CLAIMS about where the stateful scrubber lives (the producer stamp
-// + the kit definition); when a zone stops touching it, the row stops being a seal and becomes a standing
-// permission for whatever moves in there next. The arm self-guards on a REAL-TREE ANCHOR (gate-hub #11) —
-// the kit module that DEFINES the factory.
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the two sanctioned homes are SCANNED and exempted
+// by a cited row, not scoped OUT of scanRoot. This gate's exclusion shape WAS the law's named anti-pattern —
+// an excluded home follows its old path into the void on a rename while the new path is judged by nobody.
+//
+// TWO-SIDED (gate-hub #10), now on both axes: MODE A — a sanctioned home that no longer imports, calls or
+// declares the scrubber symbol is RED (the row stops being a seal and becomes a standing permission for
+// whatever moves in next); MODE B — a row resolving to no file at all is RED (the rename tripwire, shared
+// with every other scan-and-allowlist gate: lib/sanctioned-home.ts). Both self-guard on a REAL-TREE ANCHOR
+// (gate-hub #11) — the kit module that DEFINES the factory.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, homeFiles, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const SCRUBBER_SYMBOL = "createHiddenSpanStreamScrubber";
 const KIT_CONTENT_SPECIFIER = /^@orb\/kit\/content(?:\/|$)/u;
 const PACKAGES_SRC = /\/packages\/[^/]+\/src\//u;
-/** The two sanctioned zones, named individually so the stale arm can name the dead one: the producer stamp
- *  (the ONE construction home) and the kit module that defines the factory. */
-const SANCTIONED_ZONES: readonly RegExp[] = [/\/packages\/server\/src\/domain\/chat\/substrate\/member-visibility\.ts/u, /\/packages\/kit\/src\/content\//u];
+/** The two sanctioned homes, keyed by path so a stale arm can name the dead one: the producer stamp (the
+ *  ONE construction home) and the kit module that defines the factory. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/server/src/domain/chat/substrate/member-visibility.ts": {
+    why: "THE producer stamp — the one place a stateful per-slot scrubber may be constructed (§3.6, ed2aafc5). Ends when the stamp moves (mode B reds it) or stops constructing a scrubber (mode A reds it)",
+  },
+  "packages/kit/src/content/": {
+    why: "the kit module that DEFINES createHiddenSpanStreamScrubber — the factory's declaration site cannot be a violation of its own construction rule. Same end conditions",
+  },
+};
 
 const GATE_SELF = "tooling/src/verify/gates/scrubber-home.ts";
 /** Real-tree anchor (gate-hub #11): the kit module that DEFINES the scrubber factory. */
@@ -43,6 +55,8 @@ const STALE_PREFIX =
   "stale SANCTIONED zone — nothing it matches declares, imports or calls the hidden-span scrubber any more, so the " +
   "zone is no longer a seal over anything: it is a standing permission for whatever moves in next " +
   "(ratchet down). Re-point it at the real producer home or delete it: ";
+/** What the rows sanction, for the shared rename tripwire's message. */
+const HOME_NOUN = "hidden-span scrubber construction home";
 
 const MESSAGE =
   "hidden-span stream scrubber constructed outside its producer home — per-subscription scrub state cannot survive replay→live handoffs (a cold scrubber mid-`<lie>` forwards the secret's tail; ed2aafc5); the producer stamp is the one home: domain/chat/substrate/member-visibility.ts.";
@@ -82,31 +96,37 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "read the already-stamped `memberText` (createMemberDeltaStamper, domain/chat/substrate/member-visibility.ts) — a read seam is a STATELESS field read; never build a scrubber of your own.",
-  scanRoot: (p) => PACKAGES_SRC.test(`/${p}`) && !SANCTIONED_ZONES.some((zone) => zone.test(`/${p}`)),
+  // SCANNED, not excluded: every packages/**/src file, the sanctioned homes included. The only exemption
+  // is a cited SANCTIONED_HOMES row, so a home that moves is RED at its new path.
+  scanRoot: (p) => PACKAGES_SRC.test(`/${p}`),
   kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
     if (!(scrubberImport(node) || scrubberCall(node))) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     ctx.report(node, { token: SCRUBBER_SYMBOL, offset: 0 });
   },
-  // The sanctioned zones are scanRoot-EXCLUDED, so the walk never sees them — the stale arm reads them off
-  // the shared project directly, with the SAME two predicates the walk uses.
   finalize: (ctx) => {
+    // MODE B (the rename tripwire) — a row that resolves to no file at all.
+    // Anchored on the SHARED anchor, deliberately NOT on this gate's kit ANCHOR: that file lives inside a
+    // sanctioned home, so a home that died would take its own guard with it and the tripwire would sleep.
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: HOME_NOUN });
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
-    for (const zone of SANCTIONED_ZONES) {
-      const touches = ctx.project
-        .getSourceFiles()
-        .filter((sf) => zone.test(sf.getFilePath()))
-        .some((sf) => touchesScrubber(sf));
-      if (!touches) {
+    // MODE A — the home still exists but no longer has a stake in the scrubber, so the row seals nothing.
+    // Honest for THIS gate specifically: both rows are claims that the symbol LIVES there.
+    for (const key of Object.keys(SANCTIONED_HOMES)) {
+      const files = homeFiles(ctx, key);
+      if (files.length > 0 && !files.some((sf) => touchesScrubber(sf))) {
         ctx.report({
           file: GATE_SELF,
           line: 1,
           column: 0,
-          message: `${STALE_PREFIX}${zone.source} — the zone list lives in tooling/src/verify/gates/scrubber-home.ts`,
+          message: `${STALE_PREFIX}${key} — the sanctioned-home table lives in tooling/src/verify/gates/scrubber-home.ts`,
         });
       }
     }
@@ -130,7 +150,15 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/substrate/member-visibility.ts": "export const stamp = null;\n",
       },
       expect: { count: 1, messageIncludes: "stale SANCTIONED zone" },
-      why: "THE STALE ARM: the anchor (the kit definition) is loaded and still owns the factory, but the producer-stamp home no longer constructs a scrubber — that zone seals nothing and ratchets down instead of standing as a blanket permission on the file",
+      why: "THE STALE ARM, MODE A: the anchor (the kit definition) is loaded and still owns the factory, but the producer-stamp home no longer constructs a scrubber — that zone seals nothing and ratchets down instead of standing as a blanket permission on the file",
+    },
+    {
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        [ANCHOR]: "export function createHiddenSpanStreamScrubber(): unknown {\n  return null;\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE STALE ARM, MODE B (the rename tripwire): the anchor is loaded but the producer-stamp path resolves to NO file — the home moved, and the scanRoot-exclusion shape this gate used to carry would have followed it into the void while the new path went unjudged",
     },
   ],
   mustPass: [
@@ -150,7 +178,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/substrate/member-visibility.ts":
           'import { createHiddenSpanStreamScrubber } from "@orb/kit/content";\nexport const s = createHiddenSpanStreamScrubber();\n',
       },
-      why: "both zones STILL EARNED, judged against the real-tree anchor: the kit defines the factory and the producer stamp constructs it — the seal is over something, so neither arm fires",
+      why: "THE ALLOWLIST ITSELF: the producer stamp is now SCANNED (it constructs a scrubber right there) and passes ONLY because a cited SANCTIONED_HOMES row covers its path — plus both rows are still earned against the real-tree anchor, so neither stale arm fires",
     },
   ],
 };

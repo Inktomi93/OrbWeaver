@@ -7,7 +7,7 @@
 // is checked live (a stale entry reds) — see the file-level comment below.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionRow, ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
@@ -18,10 +18,15 @@ const ALLOWED_ROOTS: ReadonlySet<string> = new Set(["ListRow", "LibraryRow"]);
 /** JSX prop names a virtualized/collection list uses to render each row — the non-`.map()` row form. */
 const RENDER_PROP_NAMES: ReadonlySet<string> = new Set(["renderItem", "renderRow"]);
 
-/** Current allowlisted edges (cited reason required) → the JSX root name it legalizes IN THAT FILE. Empty:
- *  every current LIST-surface `.map()` row already roots in ListRow/LibraryRow (verified — M5 baseline). A
- *  stale entry (the file no longer contains that root) REDs via `finalize`, so this can't rot. */
-const ALLOWLIST: Record<string, string> = {};
+/** An allowlisted edge: the JSX `root` name legalized IN THAT FILE (DATA — the legacy
+ *  `Record<string, string>` spelling made the root name and the reason indistinguishable), plus the
+ *  mandatory `why`. */
+type RootRow = ExemptionRow & { readonly root: string };
+
+/** Current allowlisted edges (cited reason required) → the JSX root name each legalizes IN THAT FILE.
+ *  Empty: every current LIST-surface `.map()` row already roots in ListRow/LibraryRow (verified — M5
+ *  baseline). A stale entry (the file no longer contains that root) REDs via `finalize`, so this can't rot. */
+const ALLOWLIST: ExemptionTable<RootRow> = {};
 
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
@@ -165,7 +170,7 @@ export const gate: GateDescriptor = {
       return;
     }
     const path = rel(sf.getFilePath());
-    const allowedRoot = ALLOWLIST[path];
+    const allowedRoot = ALLOWLIST[path]?.root;
     const checkCallback = (callback: Node): void => {
       const jsxRoot = mapReturnRoot(callback);
       if (jsxRoot === undefined || !isInteractiveJsx(jsxRoot)) {

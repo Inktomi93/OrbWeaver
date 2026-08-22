@@ -4,11 +4,26 @@
 // "per-occurrence message override … → explicit-Finding overload" — which is precisely the trade
 // GATE-AUTHORING §1 forbids: the overload bypasses `hasGateIgnore`, so every marker here was inert. The two
 // per-arm messages moved onto the group `message`, which is where the harness homes a reason.
+//
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the time home is SCANNED and exempted by a cited
+// row plus the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home carries its exemption
+// silently through a move, and this gate's whole claim is that time display has ONE address.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { repoRel } from "../lib/pass.ts";
+import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
 
 /** The ARM tokens — each finding's `token`, and the position an `@orb-gate-ignore` names. */
 const ARM_TOKENS = { toLocale: "tolocale", intlFormatter: "intl-formatter" } as const;
+
+const GATE_SELF = "tooling/src/verify/gates/no-raw-intl-time.ts";
+
+/** The ONE home allowed to touch Intl directly — it is what `createTimeLib` is built out of. */
+const SANCTIONED_HOMES: ExemptionTable = {
+  "packages/kit/src/time/": {
+    why: "@orb/kit/time IS the memoized Intl seam (createTimeLib) — the formatters it hands every call site are constructed here. Ends when the time engine moves: the rename tripwire reds the row at its dead path",
+  },
+};
 
 function report(node: Node, token: string, ctx: GateRunCtx): void {
   ctx.report(node, { token, offset: 0 });
@@ -29,8 +44,14 @@ export const gate: GateDescriptor = {
     "(Spine-TypeScript-and-Patterns.md)",
   fix: "use @orb/kit/time's createTimeLib — client: timeLib.formatDate/formatDateTime/formatTime/formatRelative.",
   kinds: [SyntaxKind.CallExpression, SyntaxKind.PropertyAccessExpression],
-  scanRoot: (p) => !p.startsWith("packages/kit/src/time/"),
-  visit(node, _sf, ctx): void {
+  scanRoot: (_p) => true,
+  finalize: (ctx) => {
+    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "kit time seam" });
+  },
+  visit(node, sf, ctx): void {
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
+      return;
+    }
     if (Node.isCallExpression(node)) {
       const expr = node.getExpression();
       if (Node.isPropertyAccessExpression(expr)) {
@@ -73,10 +94,17 @@ export const gate: GateDescriptor = {
         `,
       },
     },
+    {
+      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but packages/kit/src/time/ resolves to no file — the time seam moved, and the old scanRoot exclusion would have kept exempting a dead path forever",
+      files: {
+        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+      },
+    },
   ],
   mustPass: [
     {
-      why: "exempt package kit time",
+      why: "THE ALLOWLIST ITSELF: the kit time home is now SCANNED and its own Intl construction passes on a cited SANCTIONED_HOMES row",
       files: {
         "packages/kit/src/time/index.ts": `
           export function build() {

@@ -69,7 +69,7 @@
 //   node to read a marker from, and §1 reserves the overload for exactly that.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const ZOD_NS = "z";
@@ -97,21 +97,28 @@ const REAL_TREE_ANCHOR = "packages/server/src/foundation/env/index.ts";
 /** ARM C survivors — the MODEL-facing `path: message` joins and the two write-guard re-emits. Both-ways
  *  ratchet: a row whose file no longer reads `.error.issues` is RED, so a site that got prettified (or
  *  moved) cannot keep a standing exemption. */
-const ISSUES_ALLOWLIST: Record<string, string> = {
-  "packages/server/src/domain/tool-use/verbs/register.ts":
-    "MODEL-facing: the tool registry hands the failing model `path.join('.') + ': ' + message` so it can match the refusal against its own arg schema. The path is CARRIED, not dropped — the opposite of the F4 defect — and `z.prettifyError`'s human layout (`→ at config.sections[0].id`) is the wrong shape for a wire the model re-reads.",
-  "packages/server/src/domain/tool-use/verbs/register-plugin-tool.ts":
-    "MODEL-facing, the plugin twin of `register.ts` — the identical `path: message` convention, deliberately kept byte-identical between the two registration doors so a model sees one refusal vocabulary.",
-  "packages/server/src/domain/refinery/substrate/schema-forge.ts":
-    "STRUCTURAL RE-EMIT: the §4.5 lift-refusal bridge maps each document-belt issue into the OUTER envelope parse (`ctx.addIssue({path: issue.path, …})`) so the bounded retry's correction prompt carries construct + path to the MODEL — the path is carried, never dropped, and prettify's human layout is the wrong shape for a wire the model re-reads.",
-  "packages/server/src/kit/structured-turn/index.ts":
-    "MODEL-facing: the issue summary is fed straight BACK to the model as the retry prompt (`args.run(first.issues)`), so it must be the schema-addressable `path: message` form, not a human-formatted tree.",
-  "packages/contracts/src/rpg/extraction.ts":
-    "MODEL-facing: `issueLines` renders the salvage drop list in the same `path: message` convention (the shared-plane proof means the structured plane and its tool validate through the identical schema, so the two refusal texts must agree).",
-  "packages/contracts/src/persona/index.ts":
-    "a write-guard RE-EMIT, not a message render: `personaMetadataWriteSchema`'s superRefine forwards each inner issue as `ctx.addIssue({code:'custom', message, path})`. It keeps `path` — `prettifyError` returns a STRING and would collapse the whole issue array into one opaque message on the outer error.",
-  "packages/contracts/src/world-info/index.ts":
-    "the same write-guard RE-EMIT for `entryMetadataWriteSchema` (its header cites the persona rationale verbatim) — issues forwarded structurally, never flattened to a display string.",
+const ISSUES_ALLOWLIST: ExemptionTable = {
+  "packages/server/src/domain/tool-use/verbs/register.ts": {
+    why: "MODEL-facing: the tool registry hands the failing model `path.join('.') + ': ' + message` so it can match the refusal against its own arg schema. The path is CARRIED, not dropped — the opposite of the F4 defect — and `z.prettifyError`'s human layout (`→ at config.sections[0].id`) is the wrong shape for a wire the model re-reads.",
+  },
+  "packages/server/src/domain/tool-use/verbs/register-plugin-tool.ts": {
+    why: "MODEL-facing, the plugin twin of `register.ts` — the identical `path: message` convention, deliberately kept byte-identical between the two registration doors so a model sees one refusal vocabulary.",
+  },
+  "packages/server/src/domain/refinery/substrate/schema-forge.ts": {
+    why: "STRUCTURAL RE-EMIT: the §4.5 lift-refusal bridge maps each document-belt issue into the OUTER envelope parse (`ctx.addIssue({path: issue.path, …})`) so the bounded retry's correction prompt carries construct + path to the MODEL — the path is carried, never dropped, and prettify's human layout is the wrong shape for a wire the model re-reads.",
+  },
+  "packages/server/src/kit/structured-turn/index.ts": {
+    why: "MODEL-facing: the issue summary is fed straight BACK to the model as the retry prompt (`args.run(first.issues)`), so it must be the schema-addressable `path: message` form, not a human-formatted tree.",
+  },
+  "packages/contracts/src/rpg/extraction.ts": {
+    why: "MODEL-facing: `issueLines` renders the salvage drop list in the same `path: message` convention (the shared-plane proof means the structured plane and its tool validate through the identical schema, so the two refusal texts must agree).",
+  },
+  "packages/contracts/src/persona/index.ts": {
+    why: "a write-guard RE-EMIT, not a message render: `personaMetadataWriteSchema`'s superRefine forwards each inner issue as `ctx.addIssue({code:'custom', message, path})`. It keeps `path` — `prettifyError` returns a STRING and would collapse the whole issue array into one opaque message on the outer error.",
+  },
+  "packages/contracts/src/world-info/index.ts": {
+    why: "the same write-guard RE-EMIT for `entryMetadataWriteSchema` (its header cites the persona rationale verbatim) — issues forwarded structurally, never flattened to a display string.",
+  },
 };
 
 // THE ONE REASON, printed once per group. It carries all four arms BY TOKEN — the per-arm `Finding.message`

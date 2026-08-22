@@ -2,29 +2,42 @@
 // version + total migrate, key uniqueness) are baked into the two store factories; a bare `persist(` is a
 // store that re-grows them.
 //
-// TWO-SIDED (gate-hub #10) at the STRONG grain, because the allowlist names FILES that make a CLAIM
-// ("this file is a persist factory"): a row is RED when its file has left the project OR when the file no
-// longer calls `persist(` — at which point the row is un-scanning a file for nothing (the allowlist is a
-// scanRoot exclusion) and the factory the fix text points at has moved. The arm self-guards on a REAL-TREE
+// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the factories are SCANNED and their `persist(`
+// calls exempted by cited rows, not scoped out of scanRoot — an exclusion un-scans the WHOLE file, so a
+// second unrelated footgun inside a factory was invisible.
+//
+// TWO-SIDED (gate-hub #10) at the STRONG grain, because the table names FILES that make a CLAIM ("this file
+// is a persist factory"): a row is RED when its file has left the project (mode B) OR when the file no
+// longer calls `persist(` (mode A — the row claims a factory that is not one, and the fix text points at a
+// factory that has moved). Both arms are this gate's own, with tailored messages, so the shared
+// lib/sanctioned-home.ts sweep is deliberately NOT stacked on top of them. They self-guard on a REAL-TREE
 // ANCHOR (gate-hub #11): the state barrel these factories are exported from.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const SCOPE_REGEX = /\/packages\/client\/src\//u;
 const STATE_DIR = "packages/client/src/state/";
 const PERSIST = "persist";
 /** The persist FACTORIES — the only sanctioned `persist(` call sites. */
-const ALLOWLIST = [`${STATE_DIR}create-entity-draft-store.ts`, `${STATE_DIR}create-persisted-store.ts`] as const;
+const SANCTIONED_HOMES: ExemptionTable = {
+  [`${STATE_DIR}create-entity-draft-store.ts`]: {
+    why: "the draft-store factory bakes the footguns in (partialize / version+total-migrate / key uniqueness) — the `persist(` call it wraps IS the seal. Ends when it stops calling persist (mode A) or leaves the project (mode B)",
+  },
+  [`${STATE_DIR}create-persisted-store.ts`]: {
+    why: "the general persisted-store factory, same seal one shape over. Same two end conditions",
+  },
+};
 const TEST_REGEX = /\.test\.tsx?$/u;
 
 const GATE_SELF = "tooling/src/verify/gates/no-raw-zustand-persist.ts";
 /** Real-tree anchor (gate-hub #11): the state barrel the factories are exported from. */
 const ANCHOR = `${STATE_DIR}index.ts`;
-const STALE_GONE = "stale ALLOWLIST row — the persist factory is no longer in the project (ratchet down): ";
+const STALE_GONE = "stale SANCTIONED_HOMES row — the persist factory is no longer in the project (ratchet down): ";
 const STALE_UNUSED =
-  "stale ALLOWLIST row — this file calls no `persist(` any more, so it is not a persist factory: the row " +
-  "un-scans a whole file for nothing and the fix text points at a factory that has moved (ratchet down): ";
+  "stale SANCTIONED_HOMES row — this file calls no `persist(` any more, so it is not a persist factory and " +
+  "the fix text points at a factory that has moved (ratchet down): ";
 
 const MESSAGE =
   "raw zustand persist() outside the draft-store factory — persistence footguns (partialize / version+total-migrate / key uniqueness) are baked into createEntityDraftStore; use it (or extend it), never a bare persist. See UI-Gates-and-Lessons.md §11.5.";
@@ -38,30 +51,26 @@ export const gate: GateDescriptor = {
   fix: "Use createEntityDraftStore or createPersistedStore instead of bare persist().",
   scanRoot: (p) => {
     const path = `/${p}`;
-    if (!SCOPE_REGEX.test(path)) {
-      return false;
-    }
-    if (ALLOWLIST.some((rel) => path.endsWith(`/${rel}`)) || TEST_REGEX.test(path)) {
-      return false;
-    }
-    return true;
+    return SCOPE_REGEX.test(path) && !TEST_REGEX.test(path);
   },
   kinds: [SyntaxKind.CallExpression],
-  visit: (node, _sf, ctx) => {
+  visit: (node, sf, ctx) => {
     if (!Node.isCallExpression(node)) {
+      return;
+    }
+    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
     if (node.getExpression().getText() === PERSIST) {
       ctx.report(node, { token: `${PERSIST}(`, offset: 0 });
     }
   },
-  // The factories are scanRoot-EXCLUDED, so the walk never sees them — the stale arm reads them off the
-  // shared project directly.
+  // A whole-tree claim about the TABLE, read off the shared project (never off what the walk visited).
   finalize: (ctx) => {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
-    for (const rel of ALLOWLIST) {
+    for (const rel of Object.keys(SANCTIONED_HOMES)) {
       const sf = ctx.project.getSourceFile(`${ctx.root}/${rel}`);
       if (sf === undefined) {
         ctx.report({
@@ -111,7 +120,7 @@ export const gate: GateDescriptor = {
     {
       files: "export const useStore = create(persist(() => ({})));",
       at: "packages/client/src/state/create-persisted-store.ts",
-      why: "allowlisted factory",
+      why: "THE ALLOWLIST ITSELF: the factory is now SCANNED, and its `persist(` passes only because a cited SANCTIONED_HOMES row covers the file",
     },
     {
       files: "export const useStore = create(persist(() => ({})));",

@@ -7,7 +7,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionRow, ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import type { CheckContext, Violation } from "../contract/harness.ts";
 
 const SCHEMA_REL = "packages/db/src/schema";
@@ -18,19 +18,42 @@ const TS_EXT_RE = /\.ts$/u;
 
 const RESERVED_CROSS_CUTTING = new Set(["users", "audit", "custom-types", "relations"]);
 
-const NON_DOMAIN_PRODUCERS: Readonly<Record<string, string>> = {
-  "rate-limit": "packages/server/src/transport/rate-limit.ts",
-  "sdk-session": "packages/server/src/infra/providers/backends/agent-sdk/session",
-  "agent-principals": "packages/server/src/domain/sessions",
-  gallery: "packages/server/src/domain/assets",
-  poses: "packages/server/src/domain/assets",
-  "character-proposals": "packages/server/src/domain/character",
+/** A producer row: the PATH that owns the schema file, plus (ExemptionTable's mandatory) why. The path is
+ *  DATA, not prose — the legacy `Record<string, string>` spelling made the two indistinguishable, which is
+ *  exactly the failure `ExemptionRow` intersections exist to prevent (GATE-AUTHORING.md §4.1). */
+type ProducerRow = ExemptionRow & { readonly producer: string };
+
+const NON_DOMAIN_PRODUCERS: ExemptionTable<ProducerRow> = {
+  "rate-limit": {
+    producer: "packages/server/src/transport/rate-limit.ts",
+    why: "transport owns the limiter's rows — there is no `domain/rate-limit`, and there should not be (Tier-4-Transport.md). Ends if the limiter re-homes into a domain",
+  },
+  "sdk-session": {
+    producer: "packages/server/src/infra/providers/backends/agent-sdk/session",
+    why: "the agent-sdk session cache is backend-INTERNAL (D8) — a chat concern would be the tier collapse the ledger forbids. Ends if the cache leaves infra",
+  },
+  "agent-principals": {
+    producer: "packages/server/src/domain/sessions",
+    why: "agent principals are identity (D60) and sessions is the identity domain; the DDL is dormant until the mint is built. Ends when a `domain/agent-principals` exists",
+  },
+  gallery: {
+    producer: "packages/server/src/domain/assets",
+    why: "the gallery verbs live in `domain/assets` (the CAS index owns its own presentation rows) — there is no `domain/gallery`. Ends if gallery becomes its own domain",
+  },
+  poses: {
+    producer: "packages/server/src/domain/assets",
+    why: "poses are asset rows with an expression key, produced by the same domain. Same end condition",
+  },
+  "character-proposals": {
+    producer: "packages/server/src/domain/character",
+    why: "a proposal is a character-domain row (the snapshot/proposal log, D28) — the file is named for the table, not for a second domain. Ends if proposals re-home",
+  },
 };
 
 // BASELINE RIDERS: schema born while the 0000_baseline window is open for a committed domain that
 // lands later (DDL rides the squash, code follows). Each entry names its future producer; the moment
 // that dir exists the entry is stale and this gate flags it.
-const BASELINE_RIDER_PRODUCERS: Readonly<Record<string, string>> = {
+const BASELINE_RIDER_PRODUCERS: ExemptionTable<ProducerRow> = {
   // crew removed 2026-07-17 — the producer domain now EXISTS (CW1-remainder), so the normal producer-mirror
   // applies (Tier-1-DB.md producer-names-the-schema).
   // automation removed 2026-07-17 — the producer domain now EXISTS (A3 global-variable slice), so the
@@ -51,7 +74,7 @@ function findBarrel(ctx: CheckContext): SourceFile | undefined {
 
 /** Arm 2 for ONE schema file: the producer-mirror verdict (rider staleness / missing producer). */
 function mirrorViolation(ctx: CheckContext, f: string, name: string): Violation | undefined {
-  const riderProducer = BASELINE_RIDER_PRODUCERS[name];
+  const riderProducer = BASELINE_RIDER_PRODUCERS[name]?.producer;
   if (riderProducer !== undefined) {
     return existsSync(join(ctx.root, riderProducer))
       ? {
@@ -61,7 +84,7 @@ function mirrorViolation(ctx: CheckContext, f: string, name: string): Violation 
         }
       : undefined;
   }
-  const nonDomainProducer = NON_DOMAIN_PRODUCERS[name];
+  const nonDomainProducer = NON_DOMAIN_PRODUCERS[name]?.producer;
   const producerPath = nonDomainProducer === undefined ? join(ctx.root, DOMAIN_REL, name) : join(ctx.root, nonDomainProducer);
   return existsSync(producerPath)
     ? undefined

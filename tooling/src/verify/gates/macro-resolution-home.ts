@@ -95,7 +95,10 @@ const FIX =
   "(tests/support/ct/assert-token-roundtrip.ts) if it sits next to a writable field.";
 
 /** Every example except the tripwire one spreads this: the five entry points DECLARED where the rename
- *  tripwire expects them, so an example proves its own arm rather than incidentally tripping the tripwire. */
+ *  tripwire expects them, so an example proves its own arm rather than incidentally tripping the tripwire.
+ *  NOT an exemption table — a conformance FIXTURE MAP (path → mini-project SOURCE), which is why it stays a
+ *  `Record<string, string>`: the 2026-08-22 census listed it under the legacy path→reason tables by shape,
+ *  and the shape is a coincidence. */
 const DECLARATIONS: Readonly<Record<string, string>> = {
   "packages/kit/src/macro/row-macros.ts": "export function resolveRowMacros(): string { return ''; }\n",
   "packages/kit/src/macro/engine.ts": "export function processMacros(): string { return ''; }\nexport function createMacroContext(): object { return {}; }\n",

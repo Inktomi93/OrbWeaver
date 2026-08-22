@@ -37,53 +37,70 @@
 // tests/tooling/check-gates.int.test.ts. Seam: packages/client/src/data/invalidation.ts.
 import type { Node, Project, SourceFile } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
 // ── the two-map registry (keyed "<router>.<proc>") ───────────────────────────────────────────────────────
 // STATIC = a SANCTIONED uncovered key: a bus row is not warranted, and the entry says why (the datum does not
 // change in-session, or its freshness driver deliberately lives outside the seam — blind spot 4). DEFERRED =
 // TRACKED STALENESS DEBT with its remediation. Delete an entry the moment the key gains a seam row (the gate
 // REDs the stale entry). Founding set triaged against the live tree 2026-07-31, consumer by consumer.
-const STATIC: Record<string, string> = {
+const STATIC: ExemptionTable = {
   // ── identity / content-addressed / self-keyed reads: the datum cannot go stale for its key ──────────────
-  "assets.resolveChatBlobRefs":
-    "keyed by (chatId, the row's asset ids) over CONTENT-ADDRESSED blobs (features/chat/hooks/attachment-url-provider.tsx): the hash behind an assetId never changes, so the resolved map is immutable for its key.",
-  "chat.getVariantWire":
-    "keyed by (chatId, variantId) over a COMMITTED variant's stamped generation record (features/chat/components/variant-wire-viewer.tsx). A variant's prompt/params/draws are written once at commit and never updated: an edit mints a new variant and a swipe APPENDS one, so a new key is what a change produces — the old key's answer stays true forever. Deleting the message makes the key resolve NOT_FOUND, which the viewer renders as its typed gone-arm.",
-  "search.search":
-    "input-keyed live search (features/discovery/components/corpus-search-results.tsx) — the query text + `over` target are part of the key, so every new search is a cold fetch of a NEW cache entry.",
-  "search.fields":
-    "input-keyed BM25 lexical search (same surface) — the query string is part of the key; re-running the identical query inside gcTime correctly returns the same corpus answer.",
-  "search.suggest":
-    "input-keyed prefix suggest (features/discovery/surfaces/corpus-list-surface.tsx) — keyed by the deferred query text, gated on a minimum length; each keystroke is its own key.",
+  "assets.resolveChatBlobRefs": {
+    why: "keyed by (chatId, the row's asset ids) over CONTENT-ADDRESSED blobs (features/chat/hooks/attachment-url-provider.tsx): the hash behind an assetId never changes, so the resolved map is immutable for its key.",
+  },
+  "chat.getVariantWire": {
+    why: "keyed by (chatId, variantId) over a COMMITTED variant's stamped generation record (features/chat/components/variant-wire-viewer.tsx). A variant's prompt/params/draws are written once at commit and never updated: an edit mints a new variant and a swipe APPENDS one, so a new key is what a change produces — the old key's answer stays true forever. Deleting the message makes the key resolve NOT_FOUND, which the viewer renders as its typed gone-arm.",
+  },
+  "search.search": {
+    why: "input-keyed live search (features/discovery/components/corpus-search-results.tsx) — the query text + `over` target are part of the key, so every new search is a cold fetch of a NEW cache entry.",
+  },
+  "search.fields": {
+    why: "input-keyed BM25 lexical search (same surface) — the query string is part of the key; re-running the identical query inside gcTime correctly returns the same corpus answer.",
+  },
+  "search.suggest": {
+    why: "input-keyed prefix suggest (features/discovery/surfaces/corpus-list-surface.tsx) — keyed by the deferred query text, gated on a minimum length; each keystroke is its own key.",
+  },
 
   // ── freshness driven OUTSIDE the seam, deliberately (blind spot 4) — each names its real driver ─────────
-  "chat.checkSendAvailability":
-    "carries its OWN finite staleTime (AVAILABILITY_STALE_MS = 15s, features/chat/hooks/use-send-availability.ts). The fact it reads (an engine coming up, a key being added) has NO producer to emit an event; that documented 15s window is the driver, and the file explains why a poll/focus-refetch was rejected.",
-  "admin.vllmEngines":
-    "POLLS: features/user-admin/components/admin-engines-section.tsx sets a status-adaptive `refetchInterval` (fast while an engine is mid-transition, slow at steady state) — an engine's liveness is a machine fact no bus announces.",
-  "notifications.list":
-    "driven by the durable inbox SSE adapter (features/notifications/hooks/use-inbox-stream.ts) — every arrival AND every transition into the live state calls invalidation.invalidateFilters([notifications.list]); the bell's own mark-read/dismiss mutations `invalidates` it too.",
-  "workloads.list":
-    "driven by the per-row workload SSE adapter (features/workloads/hooks/use-workload-stream.ts) — every non-progress event (state change, error, reconnect) invalidates the list through the seam; `progress` stays a row-local buffer by design.",
+  "chat.checkSendAvailability": {
+    why: "carries its OWN finite staleTime (AVAILABILITY_STALE_MS = 15s, features/chat/hooks/use-send-availability.ts). The fact it reads (an engine coming up, a key being added) has NO producer to emit an event; that documented 15s window is the driver, and the file explains why a poll/focus-refetch was rejected.",
+  },
+  "admin.vllmEngines": {
+    why: "POLLS: features/user-admin/components/admin-engines-section.tsx sets a status-adaptive `refetchInterval` (fast while an engine is mid-transition, slow at steady state) — an engine's liveness is a machine fact no bus announces.",
+  },
+  "notifications.list": {
+    why: "driven by the durable inbox SSE adapter (features/notifications/hooks/use-inbox-stream.ts) — every arrival AND every transition into the live state calls invalidation.invalidateFilters([notifications.list]); the bell's own mark-read/dismiss mutations `invalidates` it too.",
+  },
+  "workloads.list": {
+    why: "driven by the per-row workload SSE adapter (features/workloads/hooks/use-workload-stream.ts) — every non-progress event (state change, error, reconnect) invalidates the list through the seam; `progress` stays a row-local buffer by design.",
+  },
 
   // ── writer-local: the ONLY producer is a mutation in the same surface, which cites the filter ───────────
-  "workloads.listSchedules":
-    "writer-local — the four schedule mutations (features/workloads/hooks/use-workload-mutations.ts) each `invalidates` it. Schedules are per-user and edited from exactly one pane; no second producer can change them behind it.",
-  "admin.listUsers":
-    "writer-local — every admin user write (features/user-admin/hooks/use-admin-mutations.ts) `invalidates` it. The writes land on OTHER users' rows, so the actor's own user-bus never carries them (the hook's own header); the mutation is the only possible driver.",
-  "admin.listSessions":
-    "writer-local — the session revoke/reset/kill mutations (features/user-admin/hooks/use-admin-mutations.ts) each `invalidates` it; another user's session lifecycle reaches this admin's bus through nothing.",
-  "settings.getAppSettings":
-    "writer-local — AppSettings is admin-only and emits no user-bus event; both writers (`useUpdateAppSettings`/`useUpdateAppOverrides` in features/user-admin/hooks/use-admin-mutations.ts and the system-settings surface's own mutation) `invalidates` it.",
-  "settings.getAppSettingsWithOverrides":
-    "writer-local — the floor-vs-override read of the admin tuning sections; its sole writer `useUpdateAppOverrides` invalidates it alongside `getAppSettings` (same admin-only, bus-less write path).",
-  "invites.listInvites":
-    "writer-local — the invite create/revoke mutations (features/chat/hooks/use-invite-mutations.ts) `invalidates` the list, and it is the inviting host's own dialog surface (nobody else's action adds a link).",
-  "rpg.listCheckpoints":
-    "writer-local — create/restore checkpoint (features/rpg/hooks/use-rpg-mutations.ts) each `invalidates` it. Marks are HOST-only and written from this one pane, so the acting tab is the only tab that can be stale.",
-  "assets.listGallery":
-    "writer-local — add/remove gallery art (features/chat/hooks/use-character-gallery.ts) `invalidates` it; the gallery dialog is the only writer of the junction it reads.",
+  "workloads.listSchedules": {
+    why: "writer-local — the four schedule mutations (features/workloads/hooks/use-workload-mutations.ts) each `invalidates` it. Schedules are per-user and edited from exactly one pane; no second producer can change them behind it.",
+  },
+  "admin.listUsers": {
+    why: "writer-local — every admin user write (features/user-admin/hooks/use-admin-mutations.ts) `invalidates` it. The writes land on OTHER users' rows, so the actor's own user-bus never carries them (the hook's own header); the mutation is the only possible driver.",
+  },
+  "admin.listSessions": {
+    why: "writer-local — the session revoke/reset/kill mutations (features/user-admin/hooks/use-admin-mutations.ts) each `invalidates` it; another user's session lifecycle reaches this admin's bus through nothing.",
+  },
+  "settings.getAppSettings": {
+    why: "writer-local — AppSettings is admin-only and emits no user-bus event; both writers (`useUpdateAppSettings`/`useUpdateAppOverrides` in features/user-admin/hooks/use-admin-mutations.ts and the system-settings surface's own mutation) `invalidates` it.",
+  },
+  "settings.getAppSettingsWithOverrides": {
+    why: "writer-local — the floor-vs-override read of the admin tuning sections; its sole writer `useUpdateAppOverrides` invalidates it alongside `getAppSettings` (same admin-only, bus-less write path).",
+  },
+  "invites.listInvites": {
+    why: "writer-local — the invite create/revoke mutations (features/chat/hooks/use-invite-mutations.ts) `invalidates` the list, and it is the inviting host's own dialog surface (nobody else's action adds a link).",
+  },
+  "rpg.listCheckpoints": {
+    why: "writer-local — create/restore checkpoint (features/rpg/hooks/use-rpg-mutations.ts) each `invalidates` it. Marks are HOST-only and written from this one pane, so the acting tab is the only tab that can be stale.",
+  },
+  "assets.listGallery": {
+    why: "writer-local — add/remove gallery art (features/chat/hooks/use-character-gallery.ts) `invalidates` it; the gallery dialog is the only writer of the junction it reads.",
+  },
 
   // (The 27 `discovery.*` rows + `search.similarArt` that stood here were DELETED 2026-08-14, and their own
   //  prose predicted it word for word: "A row becomes POSSIBLE only once a corpus-recompute event exists
@@ -109,15 +126,16 @@ const STATIC: Record<string, string> = {
   //  mint the event instead.)
 
   // ── the upload seam: a RAW multipart POST, so its freshness lives outside the seam (blind spot 4) ────────
-  "assets.listOwned":
-    "driven by the upload front door `useUploadAsset` (data/use-upload-asset.ts) — every completed upload calls invalidation.invalidateFilters([trpc.assets.listOwned.pathFilter()]). The upload route is a raw multipart POST, not a tRPC mutation, so it can carry no `invalidates` and no bus event announces it; the hook IS the driver, and every feature upload (character/persona avatars, backgrounds, chat attachments) goes through it. Proven by tests/client/data/use-upload-asset.ct.tsx (the mounted listOwned read refetches after an upload).",
+  "assets.listOwned": {
+    why: "driven by the upload front door `useUploadAsset` (data/use-upload-asset.ts) — every completed upload calls invalidation.invalidateFilters([trpc.assets.listOwned.pathFilter()]). The upload route is a raw multipart POST, not a tRPC mutation, so it can carry no `invalidates` and no bus event announces it; the hook IS the driver, and every feature upload (character/persona avatars, backgrounds, chat attachments) goes through it. Proven by tests/client/data/use-upload-asset.ct.tsx (the mounted listOwned read refetches after an upload).",
+  },
 };
 
 // Empty today — every founding deferral was resolved 2026-08-01 (the twelve `stats.*` reads gained the
 // `chatsChanged` row; `assets.listOwned` gained its upload-seam driver and moved to STATIC above). The lane
 // stays: this is where a key with a REAL freshness debt gets tracked with its remediation, rather than being
 // laundered into STATIC (which asserts the key is fine as-is).
-const DEFERRED: Record<string, string> = {};
+const DEFERRED: ExemptionTable = {};
 
 // ── the seam, found BY SYMBOL (never by path) ────────────────────────────────────────────────────────────
 const SEAM_FACTORY = "createInvalidation";
