@@ -1,0 +1,138 @@
+// Symbol & reference + rename operations (TypeScript's reference engine).
+// ── §11 ─ Symbol & reference operations ──────────────────────────────────────
+
+import type { Project, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
+import { CodemodError } from "./errors.ts";
+import { absolutePath, assert, repoRelative } from "./plans.ts";
+
+/**
+ * Find every node in the project that references the named declaration
+ * `name` in `filePath`. The "declaration" is the FIRST exported symbol with
+ * that name (interface, type alias, class, function, const). Returns
+ * Node[] — the call sites / references themselves, not their declaration.
+ *
+ * Caveat: this uses ts-morph's LanguageService which is symbol-aware. It
+ * follows aliases through re-exports correctly but is slower than text
+ * search. For "every file that imports X" use `findImporters()` instead.
+ */
+export function findReferencesByName(project: Project, filePath: string, name: string): Node[] {
+  const sf = project.getSourceFile(filePath);
+  if (!sf) {
+    throw new CodemodError(
+      `findReferencesByName: file not in project: ${filePath}`,
+      "Pass an absolute path or one that matches a file added by the project globs.",
+    );
+  }
+  const decl = findExportedDeclaration(sf, name);
+  if (!decl) {
+    throw new CodemodError(
+      `findReferencesByName: no exported declaration "${name}" in ${filePath}`,
+      "Confirm the name + check it's exported (this helper only walks exported declarations).",
+    );
+  }
+  // ts-morph's findReferencesAsNodes lives on the ReferenceFindableNode
+  // mixin; the static `Node.isReferenceFindable` guard narrows the union
+  // properly so we don't need any casts.
+  if (Node.isReferenceFindable(decl)) {
+    return decl.findReferencesAsNodes();
+  }
+  return [];
+}
+
+/** Find an exported declaration by name. Returns the first match across
+ *  class / interface / type alias / function / variable / enum. */
+export function findExportedDeclaration(sf: SourceFile, name: string): Node | undefined {
+  const decls = sf.getExportedDeclarations().get(name);
+  return decls?.[0];
+}
+
+/** Get every symbol exported from a file with its name. Useful for surface
+ *  audit codemods. */
+export function listExports(sf: SourceFile): Array<{ name: string; declarations: Node[] }> {
+  const out: Array<{ name: string; declarations: Node[] }> = [];
+  for (const [name, declarations] of sf.getExportedDeclarations()) {
+    out.push({ name, declarations: [...declarations] });
+  }
+  return out;
+}
+
+/** Find every CallExpression in the project whose callee is `functionName`.
+ *  Useful for "who calls foo()" sweeps. Doesn't follow aliases; for that,
+ *  use `findReferencesByName`. */
+export function findCallSites(project: Project, functionName: string): Node[] {
+  const out: Node[] = [];
+  for (const sf of project.getSourceFiles()) {
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const expr = call.getExpression();
+      if (expr.getText() === functionName) {
+        out.push(call);
+      }
+    }
+  }
+  return out;
+}
+
+// ── §12 ─ Rename operations ──────────────────────────────────────────────────
+
+/**
+ * Rename an exported symbol across the WHOLE project using TypeScript's
+ * own reference-resolution. This handles:
+ *   - import specifiers that reference the symbol
+ *   - identifier references in the symbol's own file
+ *   - re-exports
+ *   - default-export aliases (`export default X` etc.)
+ *
+ * Does NOT rename:
+ *   - strings that happen to spell the symbol (use `repointAliasPaths` for that)
+ *   - JSDoc-ish `@link` references
+ *
+ * If the declaration isn't found this throws. If the new name collides
+ * with another symbol in scope ts-morph throws a manipulation error which
+ * the harness catches and refuses to save.
+ */
+export function renameExportedSymbol(
+  ctx: CodemodContext,
+  filePath: string,
+  rename: { readonly oldName: string; readonly newName: string },
+  opts: OperationOptions = {},
+): Plan {
+  const { oldName, newName } = rename;
+  const abs = absolutePath(filePath, ctx.repoRoot);
+  const sf = ctx.project.getSourceFile(abs);
+  assert(sf !== undefined, `renameExportedSymbol: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
+  return {
+    description: `Rename symbol "${oldName}" → "${newName}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    // Only the declaring file is knowable up front; the reference set is a language-service
+    // question that can only be asked once the earlier plans have settled. The transform declares
+    // it below (`ctx.snapshot`) before the rename touches a byte.
+    touchedFiles: [abs],
+    transform(innerCtx): void {
+      const decl = findExportedDeclaration(sf, oldName);
+      assert(decl !== undefined, `renameExportedSymbol: no exported "${oldName}" in ${filePath}`);
+      // The rename engine rewrites every reference site — importers, re-export chains, the
+      // declaration's own file. Declare that whole set FIRST: `findReferencesAsNodes` is the same
+      // reference resolution `rename()` uses, and the importer set covers the re-export shells
+      // whose specifier changes without a resolved reference node of its own.
+      for (const ref of Node.isReferenceFindable(decl) ? decl.findReferencesAsNodes() : []) {
+        innerCtx.snapshot(ref.getSourceFile());
+      }
+      for (const referencing of sf.getReferencingSourceFiles()) {
+        innerCtx.snapshot(referencing);
+      }
+      // Locate the actual name node. ts-morph's RenameableNode trait lives
+      // on the identifier itself for most kinds, but on the declaration for
+      // some (function, class). Try the declaration via the typed mixin
+      // guard first, then descend to find the name node.
+      if (Node.isRenameable(decl)) {
+        decl.rename(newName);
+        return;
+      }
+      // Fallback: find the first child identifier and rename it.
+      const id = decl.getFirstDescendantByKind(SyntaxKind.Identifier);
+      assert(id !== undefined, `renameExportedSymbol: couldn't find an Identifier on the declaration of "${oldName}"`);
+      id.rename(newName);
+    },
+  };
+}

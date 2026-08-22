@@ -60,6 +60,7 @@ The constitution bans `_shared` drawers in `packages/` (Core-0 §1 principle 3);
 | `pixel-backdrop.ts` | `scripts/probes/_kit/pixel-backdrop.ts` | framebuffer backdrop sampling — P2 truth-repair: cross-tool (importers after P3: snap ops/contrast, ui-audit ops/pixels) |
 | `ffmpeg.ts` | `scripts/probes/_kit/ffmpeg.ts` | the ffmpeg shell door — P2 truth-repair: cross-zone (importers after P3: snap ops/diff, screen-record ops/run), so it did NOT ride record's promotion decision after all |
 | `wcag.ts` | extracted from `design-audit-checks.ts:94-147` | the WCAG contrast kernel (`relativeLuminance`/`contrastRatio`/`isLargeText` + the ratio floors) — one math home (importers after P3: snap ops/contrast, ui-audit lib/checks-color + lib/checks-decor, tests/ui palette-contrast suite) |
+| `schema-read.ts` | `scripts/check/schema-read.ts` (P4 pull-forward from the P6 surface) | the ts-morph drizzle-schema reader — cross-zone shared plumbing (importers: 5 db-shape gates + `tenancy-read` prose in scripts/check, `ast/lib/columns`); moved on the ts-workspace precedent so tooling never relative-escapes into scripts/ |
 | `run-tool.ts` | new (orchestrator scope-add 2026-08-21) | `runTool`/`UsageError` — the exit-honesty runner every cli.ts enters through: crash ≠ verdict (uncaught/unhandled → hard `EXIT.toolError` with sync stderr), pipe-drain (verdicts set `process.exitCode`, never `process.exit`), never-downgrade (clean→any, violations→toolError only), `UsageError` → `EXIT.misuse`. Enforcers: §4.4 arms D + E |
 | `proc.ts` | new | the ONE `node:child_process` door — `spawnNiced`/`runNicedSync`/`execNicedSync` all ride `nice -n 19` (owner-endorsed 2026-08-21; the box co-hosts the homelab), consumed by tool-fixtures' `runCli` from birth; `spawnNicedChild` (P3) is the detached long-lived door (own process group + `killGroup` — the trace:fire ephemeral-server shape); `spawnFullPrioritySync` is the loud un-niced exception, legal only for a census'd `FULL_PRIORITY_CALLERS` row (§4.4 arms F/F2) |
 | `log.ts` | new | `warn` — the stderr channel; stdout is reserved for payload (RESULT lines) |
@@ -94,8 +95,8 @@ The 27 `#!/usr/bin/env tsx` shebangs across `scripts/` (tsx was shed 2026-08-03;
 | `motion-audit/` | `motion-audit.ts` (866 at the move; the doc's 557 predates #389/#109 growth) | `motion-audit` | P3 LANDED: `lib/{budgets,verdicts,frames}.ts` + `ops/{parse,drive,trace,report,run}.ts`; the function-form `__orb` evaluates converted to raw strings (§9.1-6) |
 | `cpu-profile/` | `perf-meter.ts` (693) | `perf-meter` | P3 LANDED: renamed; `ops/{parse,meter,drive,report,run}.ts` (meter = the in-page collector string) |
 | `render-trace/` | `trace-render.ts` (255) + `trace-tail.ts` (111) + `probe-fire.ts` (246) | `trace:render` `trace:tail` `trace:fire` | P3 LANDED: one tool, three ops behind one dispatcher (`cli.ts render\|tail\|fire`); fire's child rides `spawnNicedChild` and spawns `node` (the tsx spawn was launcher rot), its stale FLAG(wiring) headers truth-repaired (`initTracing()` IS wired — entry/lifecycle.ts:169); tail/sse resolve a promise instead of calling process.exit (arm D holds fleet-wide) |
-| `ast/` | `codemods/ast.ts` (6,241) | `ast` + `check:respell/swallowed/typeonly/columns/regkeys/chains` | keeps its brand; the six `check:*` lens aliases repoint too (`package.json:54-59`) |
-| `codemod/` | `codemod-kit.ts` (3,385) + `codemod.ts` + `migrate-macro-blocks.ts` + `export-rot-cleanup.ts` | `codemod` | migrations become ops |
+| `ast/` | `codemods/ast.ts` (6,241) | `ast` + `check:respell/swallowed/typeonly/columns/regkeys/chains` | P4 LANDED: the deepest decomposition — `contract/types.ts` (every exported lens shape, unions tuple-derived), `lib/{root,keys,ledger,emit,resolve,scope,public-markers,liveness,edges,columns,column-reads,fields,field-seeds,usage}.ts`, `ops/{symbols,orphans,prodonly,graph,wiring,swallowed,dead,respell,typeonly,columns,regkeys,fields,chains,stringy,apisurface,rot,verbs,depcruise}.ts`. Exit convergence (stated): unknown verb → EXIT.misuse (it printed usage + exit 0); `exitToolError` THROWS AstToolError (arm D — the cli maps it to EXIT.toolError); depcruise pass-through rides `spawnNiced` (async, streamed — the 64MiB maxBuffer ceiling died with the raw spawnSync). Parity: the four pinned queries byte-identical pre/post, plus a fifth (`columns` full audit — 780 columns/86 tables) byte-identical at 8G; `rot ui` 1:41 new vs 1:51 monolith (warm) with identical 42 matches. One alias VALUE change (names frozen, values free): `check:columns` gains the `ast` script's `--max-old-space-size=8192` — the lens peaks \~5.5GB RSS, and main's MONOLITH also exits 134 at the default heap (4.5GB RSS, measured from main's checkout) — a pre-existing break the move surfaced, not a regression |
+| `codemod/` | `codemod-kit.ts` (3,385) + `codemod.ts` + `migrate-macro-blocks.ts` + `export-rot-cleanup.ts` | `codemod` | P4 LANDED: the kit split by its own §-sections into `lib/{errors,project,run,plans,files,imports,exports,symbols,text,jsx,id-branding,id-casts,diagnostics,kit,example}.ts` + `ops/{manifest,recipes,migrate-macro-blocks}.ts`; index.ts is the ts-morph-pinning re-export surface. THE LOADER CONSOLIDATION: `createCodemodProject` rides `getWorkspace(types:true)` — the kit's own `new Project(` site died (plumbing arm A proves it); `projectOptionsOverride`/`extraGlobs` deleted (zero users — stated clean cut); `tsConfigFilePath`+`replaceGlobs` survive (the int test drives a scratch root). DEVIATION (stated, receipts in the P4 report): `export-rot-cleanup.ts` was DELETED, not moved — it executes at import (top-level `await runCodemod`), its disposition rows are a completed 2026-08-03 one-shot, and the dispositions doc is the durable record; the orchestrator may overrule at merge |
 | `verify/` | `scripts/check/**` (247 files incl. gates/ + GATE-AUTHORING.md) + `scripts/verify/**` (9 files) | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` | one system; moved LAST (P6); the largest coupled surface (§3.3) |
 | `workboard/` | `github/work-item.ts` (975) | `work:item` | renamed |
 | `doc-catalog/` | `docs/catalog.ts` (937) + `docs/format-md.ts` (77) | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` | |
@@ -377,13 +378,13 @@ Filled at P2 close. Every numbered step was paid for at least once during the sn
     - catalog receipts: `/usr/bin/grep -rn '"target": "scripts/…"' docs/catalog/receipts/` — re-derive hit rows, never re-prefix;
     - recipe lines in active docs: `node scripts/…` invocations become the pnpm front door (`pnpm <script>`).
 12. **Doc edits ride the two-commit attest**: the doc bytes commit FIRST, the catalog receipt commits second pointing at that commit; `updated:` bumped; scoped `pnpm check:docs` in the floor.
-13. **The floor, then the proof**: biome on touched files; BOTH type programs + per-package client when 11's second sweep fired; `pnpm check:structure` to clean; conformance + `check-gates.int` + `gate-ignore-grammar.int` + `dependency-cruiser.int`; whole-tree knip + depcruise; the tool's own suites by path; and the LIVE run — an INSTRUMENT_TOOLS member additionally satisfies its `@instrument-proof` marker with a planted defect through the REAL cli (P2: a planted contrast failure over `--file`, red, and its passing twin, green).
+13. **The floor, then the proof**: biome on touched files; BOTH type programs + per-package client when 11's second sweep fired; `pnpm check:structure` to clean; conformance + `check-gates.int` + `gate-ignore-grammar.int` + `dependency-cruiser.int`; whole-tree knip + depcruise; the tool's own suites by path; and the LIVE run — an INSTRUMENT\_TOOLS member additionally satisfies its `@instrument-proof` marker with a planted defect through the REAL cli (P2: a planted contrast failure over `--file`, red, and its passing twin, green).
 
 ### 9.2 Classes hit vs missed (the §9 contract's ledger)
 
 - **Hit, as designed (§3 predicted them):** pnpm script repoint · tests path-literals (killed forward by `runCli` — the relocated snap tests now name the TOOL) · monotonic manifest · exports-map growth (`"./*"` joined at P2 per §2.2) · knip tool entries · biome path-named rows (`useAwaitThenable` → `ops/contrast.ts`; a scoped `useNamingConvention` off for `ops/stage.ts` env keys) · the instrument registry member joining in the same commit (§4.5).
 - **Missed by the design, amended at P2:** the per-phase §3.2 replay (§3.2 amendment) · the `.ct.tsx`/client-program blind spot (§3.1 row) · repo-wide comment/prose cites (§3.1 row) · the DOM-less evaluate class (9.1-6) · exit-contract convergence as a shared-value change (9.1-7).
-- **Verified not-coupled at P2:** SERIAL_INT (no snap rows existed; new tests are scratch-planted parallel-safe per §5.4) · tool-guard (script names unchanged) · stryker configs (§3.3).
+- **Verified not-coupled at P2:** SERIAL\_INT (no snap rows existed; new tests are scratch-planted parallel-safe per §5.4) · tool-guard (script names unchanged) · stryker configs (§3.3).
 
 ### 9.2a The P3 replay ledger (five tools + the promotion — what the checklist caught, what it gained)
 
@@ -418,6 +419,23 @@ wire-tap · screen-record. New classes and idioms it minted:
   P2 font census (a bare fixture's default face is off the ramp) — the twin pins `p1=0` + no
   `contrast` + exit 0, never "no findings" (which would make the proof lie the day any P2/P3 rule
   grows).
+- **The P4 replay (ast + codemod — the deepest cut) added:** the ROOT\_CONFIG\_IMPORTS exemption on
+  tooling-front-door (a tool may import a repo-root CONFIG whose data would otherwise be re-spelled —
+  knip.ts for prodonly's entry closure; typed rows, two-sided stale sweep); the oracle-loop at scale
+  (1,008 tsc errors → 0 via an automated import/export fixer — whose OWN despecifier regex mangled a
+  type body (`Map<SkipReason, number>` → `Map<number>`): tsc is the mangle detector, never trust a
+  text fixer beyond it); four import cycles minted by liberal wiring, broken by moving LEAVES down
+  (lib/keys, root consts — never by re-merging); a capture-seam class (a test spying `console.log`
+  goes blind when output moves to the print/warn doors — the spy must follow the REAL sink); and the
+  cold-vs-warm perf confound AGAIN at tool scale (rot ui read 2.1× slower until re-timed warm: 1:41
+  new vs 1:51 monolith — time BOTH sides warm before calling a regression). Post-split, run
+  knip + depcruise BEFORE the final structure pass: they are the split-residue detectors — 8
+  type-only import cycles (a contract importing an OP's exported type: the type moves DOWN to
+  contract, never the reverse), a stale 64MiB maxBuffer const the spawnNiced port orphaned, and
+  knip's unused-file flag on the kit's §16/§17 surface exposing a front-door fidelity gap (the
+  MANIFEST documents `removeEmptyDirectory`; the split had dropped it and four siblings off
+  `codemod/index.ts`) plus a duplicated direct-run guard and the monolith's stale footer riding
+  along in `lib/example.ts`.
 - **process.exit stayed single-homed without exceptions:** tail/sse/fire re-shaped as promise-resolving
   ops (SIGINT resolves; fire's `process.on("exit")` SIGKILL belt survives) — arm D needed no new
   allowlist row at P3.
@@ -425,5 +443,5 @@ wire-tap · screen-record. New classes and idioms it minted:
 ### 9.3 Post-merge ledger (orchestrator steps at every phase merge — P2 barrier receipts)
 
 - **Cross-lane §4.8 collisions are EXPECTED while sibling lanes are live:** a sibling's `tests/tooling` test written before the tool-fixtures door existed imports `support/fixtures` and reds at the barrier. The fix is mechanical rerouting to `support/tool-fixtures`; budget one per live sibling lane per merge.
-- **Three-way merges BREAK organizeImports sort in files both sides touched** (7 files across `scripts/probes`, `tests`, `tooling/src/snap` at the P2 merge). The orchestrator runs a scoped `biome check` over the merge-touched file set post-merge and lands the `--write` fixes as a style commit.
+- **Three-way merges BREAK organizeImports sort in files both sides touched** (7 files across `scripts/probes`, `tests`, `tooling/src/snap` at the P2 merge; the P3 merge hit the JSON-FORMATTER variant of the same class — a unioned `docs/catalog/receipts/*.json` needed a scoped format). The orchestrator runs a scoped `biome check` over the merge-touched file set post-merge and lands the `--write` fixes as a style commit.
 - **A merged sibling's tooling-adjacent dep may need its own knip row** (`@typescript/native`, a stryker-internal consumer, minted post-merge at the P2 barrier) — the phase lane cannot see a sibling's dep surface; the row is the orchestrator's.
