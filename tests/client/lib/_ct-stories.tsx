@@ -591,6 +591,126 @@ export function MotionFlaggersSlowInputStory(): ReactElement {
   );
 }
 
+// The `[css]` FALSE-POSITIVE fence for the kit tokenizer (`@orb/kit/dead-css`). Tailwind v4 emits its
+// variant/arbitrary utilities as ESCAPED class selectors, and the ONLY thing that makes `.sm\:max-w-dialog-lg`
+// match the live `classList` token `sm:max-w-dialog-lg` is the tokenizer's un-escape step. A regression
+// there does not go quiet — it flags every escaped utility in the app as dead, which buries the one real
+// finding under thousands of false accusations. Both arms ship in one stage: escaped-and-DEFINED utilities
+// that must stay silent, and one genuinely undefined token that must still be flagged (the positive
+// control — without it a broken scan would pass the silence assertion for free).
+const ESCAPED_UTILITY_SHEET = ".sm\\:max-w-dialog-lg { max-width: 40rem } .w-\\[2px\\] { width: 2px } .hover\\:bg-x\\/50 { opacity: 1 }";
+
+export function MotionFlaggersCssEscapedTokenStory(): ReactElement {
+  useEffect(() => {
+    installMotionFlaggers();
+  }, []);
+  return (
+    <div>
+      <style>{ESCAPED_UTILITY_SHEET}</style>
+      <div className="sm:max-w-dialog-lg w-[2px] hover:bg-x/50">escaped utilities — every one is defined by the sheet above</div>
+      <div className="orb-ct-escaped-arm-dead-marker">the positive control: no rule defines this token</div>
+    </div>
+  );
+}
+
+/** The `[drop]` RE-ARM seam. Two mechanisms have to survive a checkpoint for a driven multi-step probe to
+ *  read step 2 honestly: `raise()` dedupes per `tag|offender` for the whole session, and
+ *  `resetFrameDropFlagger` drops every tracked animation lifetime. So a SECOND real stutter on the SAME
+ *  surface after `__resetMotionFlags` reads as silence unless the reset re-arms both the dedupe set and
+ *  the lifetime accounting. Same blocked-transition plant as MotionFlaggersDropStory, made restartable. */
+export function MotionFlaggersDropRearmStory(): ReactElement {
+  const [active, setActive] = useState(false);
+  const targetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    installMotionObservers();
+    installMotionFlaggers();
+    const target = targetRef.current;
+    const onStart = (): void => blockMainThread(80);
+    target?.addEventListener("transitionstart", onStart);
+    return (): void => target?.removeEventListener("transitionstart", onStart);
+  }, []);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setActive((value) => !value)}>
+        plant stutter
+      </button>
+      <button type="button" onClick={__resetMotionFlags}>
+        reset evidence
+      </button>
+      <div
+        ref={targetRef}
+        data-testid="rearm-animation"
+        style={{ transform: active ? "translateX(20px)" : "translateX(0)", transition: "transform 2s linear" }}
+      >
+        moving target
+      </div>
+    </div>
+  );
+}
+
+// A block well past `MOTION_BUDGETS.longFrameMs` (100ms), so the frame is `[frame]`-actionable with a
+// non-zero blockingDuration rather than a headless presentation stretch.
+const LONG_FRAME_PLANT_MS = 260;
+// Enough write→read pairs that the forced synchronous layout dominates; each pair is a REAL reflow, not a
+// synthesized PerformanceObserver entry.
+const REFLOW_THRASH_ITERATIONS = 200;
+const REFLOW_THRASH_SPIN_MS = 2;
+const REFLOW_WIDTH_BASE_PX = 100;
+const REFLOW_WIDTH_SPREAD_PX = 40;
+
+/** The `[frame]`/`[reflow]` channels of `long-task-tracer.ts`, POST-P7. The tracer no longer observes
+ *  `long-animation-frame` itself — it SUBSCRIBES to the ONE observer `motion-stats.ts` installs — so both
+ *  installs are now required for either channel to say anything, and that new coupling is exactly what this
+ *  stage exists to catch (MotionFlaggersSlowInputStory installs the tracer ALONE and can only ever exercise
+ *  `[input]`). It also publishes the motion snapshot, so one test can prove the shared LoAF ring RECEIVED
+ *  the frame it is judging. Two plants: a pure blocking script, and the same block interleaved with
+ *  write→read style thrash so the frame additionally runs style/layout (`styleAndLayoutStart` > 0). */
+export function MotionFrameReflowStory(): ReactElement {
+  const thrashRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    installMotionObservers();
+    installLongTaskTracer();
+    // Published from HERE for the reason MotionShiftFlaggerStory states: a page-side import would resolve
+    // a second module instance whose ring is always empty.
+    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    const probes = globalThis as unknown as { __motionRead: typeof motionSnapshot | undefined };
+    probes.__motionRead = motionSnapshot;
+    return (): void => {
+      probes.__motionRead = undefined;
+    };
+  }, []);
+  return (
+    <div>
+      <button type="button" onClick={(): void => blockMainThread(LONG_FRAME_PLANT_MS)}>
+        plant long frame
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          const target = thrashRef.current;
+          if (target === null) {
+            return;
+          }
+          let measured = 0;
+          for (let index = 0; index < REFLOW_THRASH_ITERATIONS; index += 1) {
+            target.style.width = `${REFLOW_WIDTH_BASE_PX + (index % REFLOW_WIDTH_SPREAD_PX)}px`;
+            // The read IMMEDIATELY after the write is the forced synchronous layout — the defect class.
+            measured += target.offsetWidth;
+            blockMainThread(REFLOW_THRASH_SPIN_MS);
+          }
+          // Consumed so no engine can elide the layout-forcing reads above.
+          target.dataset["reflowMeasured"] = String(measured);
+        }}
+      >
+        plant forced reflow
+      </button>
+      <div ref={thrashRef} data-testid="reflow-target" style={{ width: REFLOW_WIDTH_BASE_PX }}>
+        reflow target
+      </div>
+    </div>
+  );
+}
+
 // Just past agent-bridge's 3s readiness GRACE. The marker is a settled RENDERED state, not a sleep: the CT
 // barriers on it, then asks what the flag did — which is the only way to observe a timer's decision without
 // a fixed wait.

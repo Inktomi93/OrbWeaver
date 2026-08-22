@@ -9,6 +9,14 @@
 //     (the red-first case: before the fix, this never fired — verifier's plant receipt: blocked src,
 //     no dims, 8.4s churn, 0 flags);
 //  2. an `<img>` with width+height attrs is NOT flagged (the false-positive guard).
+//
+// P8 (the instrument-proof suite) added the two planted-defect proofs the pack was missing. Each carries
+// its own note above the test naming the plant and the regression it REDs on:
+//  · `[css]` — escaped Tailwind-shaped selectors (`.sm\:max-w-dialog-lg`, `.w-\[2px\]`) stay silent while a
+//    genuinely undefined token is still flagged. The regression is the `@orb/kit/dead-css` un-escaper: it
+//    does not go quiet, it accuses every escaped utility in the app.
+//  · `[drop]` — the RE-ARM. A second real stutter on the SAME surface after `__resetMotionFlags` must fire
+//    again, or a driven multi-step probe reads every step after the first as clean.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -18,7 +26,9 @@ import {
   MotionFlaggersAuditPauseStory,
   MotionFlaggersCheckpointStory,
   MotionFlaggersCssBatchStory,
+  MotionFlaggersCssEscapedTokenStory,
   MotionFlaggersCssTrailingStory,
+  MotionFlaggersDropRearmStory,
   MotionFlaggersDropStory,
   MotionFlaggersExternalDevtoolsStory,
   MotionFlaggersReducedMotionStory,
@@ -140,6 +150,26 @@ test("a mutation subtree yields across idle callbacks without losing a deep dead
   expect(after - before, "the 97-element insertion cannot complete in one short idle slice").toBeGreaterThan(1);
 });
 
+// PLANTED-DEFECT PROOF (P8) for the `@orb/kit/dead-css` tokenizer's un-escape step. The plant is the
+// class of token Tailwind v4 actually emits — an ESCAPED variant/arbitrary selector — and the regression it
+// REDs on is the tokenizer losing the un-escape (or the escape-tolerant token pattern): `.sm\:max-w-dialog-lg`
+// then never matches the live token `sm:max-w-dialog-lg`, and every escaped utility on the page is accused.
+// The dead marker in the same stage is the positive control: without it, a scan that never ran would pass
+// the silence assertion for free.
+test("escaped Tailwind-shaped class selectors are NOT flagged [css] while a genuinely dead token still is", async ({ mount, page }) => {
+  const lines = captureCssLines(page);
+  await mount(<MotionFlaggersCssEscapedTokenStory />);
+
+  // Barrier on the POSITIVE control: its arrival is the receipt that the census walked this stage's
+  // elements and read this stage's sheet — asserting the silence before that would be vacuous.
+  await expect.poll(() => lines.some((line) => line.includes("orb-ct-escaped-arm-dead-marker")), { timeout: 20_000 }).toBe(true);
+
+  const flagged = lines.join("\n");
+  expect(flagged, "an escaped variant utility that IS defined must never be called dead").not.toContain("sm:max-w-dialog-lg");
+  expect(flagged, "an escaped arbitrary-value utility that IS defined must never be called dead").not.toContain("w-[2px]");
+  expect(flagged, "an escaped variant+slash utility that IS defined must never be called dead").not.toContain("hover:bg-x/50");
+});
+
 test("the initial dev-instrument census exposes a checkpoint completion promise", async ({ mount, page }) => {
   await mount(<MotionFlaggersSettleStory />);
   await expect(page.getByTestId("motion-flaggers-settled")).toHaveText("settled");
@@ -229,6 +259,30 @@ test("a blocked animation frame is flagged without a document-wide animation-tre
 
   expect(instrument.animationReads, "the drop instrument does not force global animation/style resolution").toBe(0);
   expect(instrument.animationFrames, "the drop instrument consumes the existing LoAF clock instead of scheduling a second frame loop").toBe(0);
+});
+
+// PLANTED-DEFECT PROOF (P8) for the `[drop]` channel's RE-ARM. The first plant is the ordinary stutter;
+// the SECOND — same surface, after a checkpoint — is the one a driven multi-step probe depends on, and it
+// REDs if either half of the re-arm regresses: `raise`'s per-`tag|offender` dedupe surviving the reset
+// (the offender label is identical by construction), or `resetFrameDropFlagger` clearing the lifetime map
+// without the still-live/restarted animation re-registering.
+test("a SECOND planted stutter on the same surface after a checkpoint fires [drop] again", async ({ mount, page }) => {
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[drop]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersDropRearmStory />);
+
+  await component.getByRole("button", { name: "plant stutter" }).click();
+  await expect.poll(() => lines.length).toBeGreaterThan(0);
+  const afterFirst = lines.length;
+
+  await component.getByRole("button", { name: "reset evidence" }).click();
+  await component.getByRole("button", { name: "plant stutter" }).click();
+  await expect.poll(() => lines.length, "the checkpoint must re-arm BOTH the dedupe identity and the lifetime accounting").toBeGreaterThan(afterFirst);
+  expect(lines.at(-1)).toContain("[data-testid=rearm-animation]");
 });
 
 test("motion-audit pause skips duplicate CSS/WAAPI lifetime work and ordinary [drop] resumes", async ({ mount, page }) => {
