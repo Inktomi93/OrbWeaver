@@ -412,14 +412,20 @@
     {
       "path": "docs/reviews/misc/2026-08-19-lan-auth-unification.md",
       "assignedSha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "b695f52c891c13c63d07da77322032a2f79a1b57d716f1f9cf5017eab92d102e",
+      "verifiedCommit": "f4733a44bd01726a3cd3c3fb31ae5f9116940fb9",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "docs/reviews/misc/2026-08-19-lan-auth-unification.md:1-260 read in full (line 1 to END), then every present-tense claim re-derived against the current tree rather than accepted from the prose",
+        "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) \u2014 packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
+        "Truth-repaired at f4733a44b BEFORE archiving (a stale security doc reads as live truth): a STATUS block naming what shipped, plus PRE-FIX markers on the three superseded sections (the bypass mechanism, the CSRF corollary, the TODAY matrix)",
+        "Re-verified STILL TRUE and named as such in the repair: the OIDC-on-LAN blockers (the redirect-URI proto defaults to https in entry/http/auth-routes.ts; the session cookie is __Host- + Secure), so the analysis half of the document remains usable",
+        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent"
+      ],
+      "summary": "Historical review evidence: the pre-fix LAN owner-bypass analysis whose recommended arm shipped on 2026-08-19. Truth-repaired and marked PRE-FIX before archiving; no mutable work state is duplicated in this archive receipt."
     },
     {
       "path": "docs/reviews/misc/2026-08-19-lens-triage-210.md",
@@ -744,14 +750,21 @@
     {
       "path": "docs/reviews/security/2026-08-19-lan-auth-impl-review.md",
       "assignedSha256": "d884d66054b0f936ec737fc2271ab9702b6ce4e6b4624688402e39104bea508f",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
+      "verifiedCommit": "f4733a44bd01726a3cd3c3fb31ae5f9116940fb9",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "docs/reviews/security/2026-08-19-lan-auth-impl-review.md:1-284 read in full (line 1 to END); each of its three findings and its eight SOUND verdicts re-derived against the current tree",
+        "P1 CLOSED: d6886c5ec (ancestor of HEAD) changed packages/server/src/entry/http/import.ts to gate the /api/import/bundle CSRF check on via !== \"header\", with a red-first via:\"fallback\" regression case in tests/server/entry/http/portability-routes.suite.int.test.ts",
+        "P2 doc CLOSED: the same commit added the STOP/BYPASS-the-front-proxy instruction to the break-glass docblock in packages/server/src/entry/auth/seam.ts and to the Break-glass section of docs/design/containerize-prod-image-spec.md",
+        "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk \u2014 the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
+        "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight \u2014 SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
+        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning"
+      ],
+      "summary": "Historical security-review evidence: all three findings closed (two fixed, one owner-ruled) and one of its own verdicts since REFUTED and corrected in the document before archiving; no mutable work state is duplicated in this archive receipt."
     },
     {
       "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
