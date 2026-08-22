@@ -273,11 +273,41 @@ const ROWS: Row[] = [
   ["deny", "git-destructive", "git checkout -- packages/server/src/index.ts"],
   ["deny", "git-destructive", "git checkout ."],
   ["deny", "git-destructive", "git checkout main -- tests/ui/x.ct.tsx"],
+  // GLOBAL OPTIONS before the subcommand (#497). Every row above used a BARE `git`, so the rule was blind
+  // to `git -C <worktree>` — the spelling §L ORDERS every lane to use on every git call. Six real corpus
+  // rows passed this way (reports/tool-guard/decisions.jsonl), including the reported repro. The value
+  // token may be literal, quoted (blanked to whitespace), or a variable, and may be preceded/followed by
+  // other global options.
+  ["deny", "git-destructive", "git -C /abs/wt stash"],
+  ["deny", "git-destructive", "git -C /abs/wt stash pop"],
+  ["deny", "git-destructive", 'git -C "$WT" restore packages/client/src/app.tsx'],
+  ["deny", "git-destructive", "git -C /abs/wt checkout -- packages/server/src/index.ts"],
+  ["deny", "git-destructive", "git -C /abs/wt checkout ."],
+  ["deny", "git-destructive", "git -C /abs/wt checkout main -- tests/ui/x.ct.tsx"],
+  ["deny", "git-destructive", "git -c core.hooksPath=/dev/null -C /abs/wt checkout -- tests/ui/x.ct.tsx"],
+  ["deny", "git-destructive", "git --no-pager stash"],
+  ["deny", "git-destructive", "git --git-dir=/abs/.git --work-tree=/abs restore --worktree docs/x.md"],
+  // conflict-resolution checkout is refused UNIFORMLY (#497): it overwrites the worktree file with one
+  // merge side, discarding a hand-edit. `git show MERGE_HEAD:<path> > <path>` is the sanctioned form.
+  // The second row has an extension-less pathspec — proof the ban does not lean on the extension list.
+  ["deny", "git-destructive", "git -C .claude/worktrees/lane-x checkout --ours packages/client/src/features/refinery/hooks/use-count-up.ts"],
+  ["deny", "git-destructive", "git checkout --theirs some/pathless-extension-file"],
   // read-only forms PASS — a deny here would be a lie about destruction
   ["pass", null, "git stash list 2>/dev/null"],
   ["pass", null, "git restore --staged docs/retro-workboard.md"],
   ["pass", null, "git checkout -b feature/x"],
   ["pass", null, "git checkout main"],
+  // ...and they keep passing WITH a global option — the widening must not eat the read-only arms,
+  // the branch-switch arm, or any non-destructive subcommand whose ARGUMENTS mention a banned word.
+  ["pass", null, "git -C /abs/wt stash list"],
+  ["pass", null, "git -C /abs/wt restore --staged docs/retro-workboard.md"],
+  ["pass", null, "git -C /abs/wt checkout main"],
+  ["pass", null, "git -C /abs/wt checkout -b wt/lane-x"],
+  ["pass", null, "git -C /abs/wt log --oneline -5 -- .claude/hooks"],
+  ["pass", null, "git -C /abs/wt diff --stat -- restore.ts"],
+  // the sanctioned replacements the deny message names must themselves stay clean
+  ["pass", null, "git -C /abs/wt show HEAD:packages/server/src/index.ts > packages/server/src/index.ts"],
+  ["pass", null, "git show MERGE_HEAD:docs/x.md > docs/x.md"],
   // ---- biome write-mode: blast radius decides (owner ruling — the tsx-shedding migration is sanctioned) ----
   ["deny", "biome-write", "biome check --write ."],
   ["deny", "biome-write", "pnpm exec biome check --write"],

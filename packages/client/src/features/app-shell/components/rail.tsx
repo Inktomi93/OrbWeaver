@@ -6,6 +6,8 @@
 // (`display:none`, which also removes them from the a11y tree) and the overflow "You" tab shown. Pure
 // registry render: a new rail affordance is a registered chrome entry (section / modal trigger / widget),
 // never new DOM here — the persona avatar is `personaChrome` (§E-6, the old `railFoot` prop is dead).
+// The bar's curation is EFFECTIVE, not declared (`mobileBarCuration`, #state, #484): standing in an
+// overflow section swaps it into the last standing tab's slot, so exactly one VISIBLE tab is ever current.
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -13,8 +15,8 @@ import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
-import type { ChromeEntry, ModalSlotId, SectionId } from "#state";
-import { SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
+import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
+import { mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
 import { RailButton } from "./rail-button.tsx";
 
 export interface RailProps {
@@ -31,11 +33,16 @@ export interface RailProps {
 function RailChromeEntry({
   entry,
   activeSection,
+  mobile,
   onSelectSection,
   onOpenModal,
 }: {
   readonly entry: ChromeEntry;
   readonly activeSection: SectionId;
+  /** The entry's EFFECTIVE phone fate for the current section — `mobileBarCuration`'s verdict, never the
+   *  declared `entry.mobile`: standing in an overflow section swaps it onto the bar and folds the tab it
+   *  displaces into the You sheet (#484). */
+  readonly mobile: MobileCuration;
   readonly onSelectSection: (id: SectionId) => void;
   readonly onOpenModal: (id: ModalSlotId) => void;
 }): ReactNode {
@@ -49,7 +56,7 @@ function RailChromeEntry({
     // RailButton — wrap it so the mobile `@media` hides a `mobile:"sheet"` widget off the bar (it
     // projects into the You sheet via `body("sheet")` instead).
     return (
-      <div className="shell-rail-widget" data-mobile={entry.mobile ?? "sheet"}>
+      <div className="shell-rail-widget" data-mobile={mobile}>
         {behavior.body("bar")}
       </div>
     );
@@ -62,7 +69,7 @@ function RailChromeEntry({
   const active = behavior.kind === "section" && behavior.sectionId === activeSection;
   const onClick = behavior.kind === "section" ? (): void => onSelectSection(behavior.sectionId) : (): void => onOpenModal(behavior.modalId);
   const modalIdProp = behavior.kind === "modal" ? { modalId: behavior.modalId } : {};
-  return <RailButton active={active} icon={entry.icon} label={entry.label} mobile={entry.mobile ?? "sheet"} {...modalIdProp} onClick={onClick} />;
+  return <RailButton active={active} icon={entry.icon} label={entry.label} mobile={mobile} {...modalIdProp} onClick={onClick} />;
 }
 
 /** The BRAND cell as a real affordance (home-section-spec §4.1). The Weave glyph was a decorative
@@ -159,11 +166,11 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
   const youModal = useModalRegistry()
     .list()
     .find((m) => m.trigger.placement === "mobile-tab");
-  // Does the ACTIVE section live in the You sheet rather than on the mobile bar (F-15)? `mobile` defaults
-  // to `"sheet"` exactly as `RailChromeEntry` reads it, so the two can never disagree about a curation.
-  const activeIsSheetSection = navEntries.some(
-    (e) => e.behavior.kind === "section" && e.behavior.sectionId === activeSection && (e.mobile ?? "sheet") === "sheet",
-  );
+  // THE BAR'S EFFECTIVE CURATION for where we are standing (#484): an overflow section takes the last
+  // standing tab's slot for the duration, and that tab folds into the You sheet. One derivation, shared with
+  // the sheet (`mobileBarCuration`, #state), so the door and its contents can never disagree about who is a
+  // tab right now. Desktop is untouched — the rail column renders every entry regardless of `data-mobile`.
+  const curation = mobileBarCuration(entries, activeSection);
   return (
     <nav className="shell-rail" aria-label="Primary">
       {brandEntry === undefined ? (
@@ -202,7 +209,14 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
             {navEntries
               .filter((e) => e.group === group)
               .map((e) => (
-                <RailChromeEntry key={e.id} entry={e} activeSection={activeSection} onSelectSection={onSelectSection} onOpenModal={onOpenModal} />
+                <RailChromeEntry
+                  key={e.id}
+                  entry={e}
+                  activeSection={activeSection}
+                  mobile={curation.get(e.id) ?? "sheet"}
+                  onSelectSection={onSelectSection}
+                  onOpenModal={onOpenModal}
+                />
               ))}
           </div>
         ))}
@@ -212,32 +226,28 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
 
       <div className="shell-rail-actions">
         {endEntries.map((e) => (
-          <RailChromeEntry key={e.id} entry={e} activeSection={activeSection} onSelectSection={onSelectSection} onOpenModal={onOpenModal} />
+          <RailChromeEntry
+            key={e.id}
+            entry={e}
+            activeSection={activeSection}
+            mobile={curation.get(e.id) ?? "sheet"}
+            onSelectSection={onSelectSection}
+            onOpenModal={onOpenModal}
+          />
         ))}
       </div>
 
-      {/* THE YOU TAB HINTS AT — NEVER CLAIMS — ITS SECTIONS' CURRENCY. Standing in a
-          `mobile:"sheet"` section (Corpus · World Info · Presets · Refinery · Analytics), the mobile bar
-          marked NOTHING current: the section's own rail button DOES carry `aria-current="page"` + the amber
-          skin, but it is `display:none` on the bar (it is the desktop rail's copy), and the four visible
-          tabs are all other sections. So a screen-reader user got a nav landmark with zero current markers
-          and a sighted user saw four unlit tabs while standing in a fifth place (Nielsen #1).
-          The You tab is that section's REPRESENTATIVE on the bar — its sheet is the only door to it — so
-          it wears the VISUAL state. Derived from the active section's OWN curation, never a hardcoded id
-          list: a section that flips to `mobile:"tab"` stops feeding this the same day it starts feeding
-          the bar.
-
-          ⚑ MECHANISM SUPERSEDED, F-15's SYMPTOM KEPT (side-eye leg-4 P2). F-15 closed the "nothing is
-          current" gap by giving this tab `aria-current="page"` — and that made a reader hear "You, current
-          page" on five sections it is not (corpus · presets · analytics · refinery · databank). A tab that
-          is not the page may not say it is. The gap F-15 found is now closed by a TRUER mechanism that did
-          not exist then: the mobile topbar prints the active section's own name, and the leg-2 DOM-order
-          fix makes it read BEFORE this nav — so "where am I" is answered in words, by the thing that
-          actually knows. What survives here is the sighted hint (`data-contains-current`). */}
+      {/* THE YOU TAB IS A DOOR, AND NOW ONLY A DOOR (#484, owner-ruled). Its two predecessors both tried to
+          stand in for a section that was not on the bar: F-15 gave it `aria-current="page"` (a reader heard
+          "You, current page" on five sections it is not), and leg-4 replaced that claim with a sighted
+          `data-contains-current` hint. BOTH RULINGS SURVIVE INTACT — a tab that is not the page may not say
+          it is, and the topbar answers "where am I" in words — but their INPUT is gone: the current section
+          now HOLDS A BAR SLOT of its own (`mobileBarCuration`), so the marker sits on the real thing and
+          there is nothing left for this tab to represent. The hint is deleted rather than left dark,
+          because a state it can never enter is rot, not caution. */}
       {youModal === undefined ? null : (
         <RailButton
           badge={sheetOverflowChrome(entries).map((e) => <SheetBadge entry={e} key={e.id} />)}
-          containsCurrent={activeIsSheetSection}
           icon={youModal.trigger.icon}
           label={youModal.trigger.label}
           mobile="tab"

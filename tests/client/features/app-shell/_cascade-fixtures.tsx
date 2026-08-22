@@ -131,6 +131,40 @@ export function ShellCascadeFixture({
   );
 }
 
+/** The grain probes are sized and given a flat fill so a framebuffer read of the overlay has a uniform
+ *  backdrop to measure the noise against (a content-empty probe collapses to 0x0 and samples nothing). */
+const GRAIN_CARD_STYLE = { width: "200px", height: "200px", background: "#808080" } as const;
+
+/**
+ * The #435 double-paint fixture: ONE card inside `.shell-grid` and one OUTSIDE it, under `data-texture`.
+ *
+ * The outside card stands in for a PORTALLED one. Dialog/AlertDialog portal to `document.body`, so a
+ * portalled card is simply not a `.shell-grid` descendant — which is the only property the grain
+ * selectors discriminate on. A plain sibling of the grid reproduces that exactly, without a portal's
+ * mount timing in the way.
+ */
+export function GrainDoublePaintFixture({ surfaceTexture = "grain" }: { readonly surfaceTexture?: SurfaceTexture }): ReactElement {
+  useAppearanceRootEffects({
+    fontScale: 1,
+    dataTheme: null,
+    blurSurfaces: [],
+    shadowEffects: false,
+    blurStrength: 14,
+    reading: { lineHeight: 1.55, letterSpacing: 0, paragraphSpacing: 0.75, nameScale: 1, bodyScale: 1, justify: false },
+    themeColorization: false,
+    surfaceTexture,
+    reducedMotion: false,
+  });
+  return (
+    <div>
+      <div className="shell-grid" data-testid="grain-shell-grid">
+        <div data-slot="card-root" data-testid="in-shell-card" style={GRAIN_CARD_STYLE} />
+      </div>
+      <div data-slot="card-root" data-testid="outside-shell-card" style={GRAIN_CARD_STYLE} />
+    </div>
+  );
+}
+
 export interface ReadingTypographyFixtureProps {
   readonly lineHeight: number;
   readonly letterSpacing: number;

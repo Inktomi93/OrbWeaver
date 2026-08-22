@@ -143,7 +143,7 @@ describe("createDefaultPersonaSeeder", () => {
     expect(latch.marks).toHaveLength(0);
   });
 
-  test("passthrough input carries the default persona name + description", async () => {
+  test("passthrough input carries the default persona name + title + description", async () => {
     // Prove the authored input shape reaches createPersona (a regression guard on the default copy).
     const captured: CreatePersonaInput[] = [];
     const latch = fakeLatch();
@@ -162,6 +162,11 @@ describe("createDefaultPersonaSeeder", () => {
     expect(captured).toHaveLength(1);
     const seededInput = captured[0];
     expect(seededInput?.name).toBe("Traveler");
+    // #462 — the title is a DESCRIPTOR, never a state claim. "Your default persona" was a sentence that goes
+    // false the moment the user defaults any other persona (the crown derives from the real flag, the title
+    // does not), and the title is user-editable prose no backfill may correct. "Your first persona" stays
+    // true forever. Asserted as a LITERAL for the same reason the name is (owner-ruled copy).
+    expect(seededInput?.title).toBe("Your first persona");
     expect((seededInput?.description ?? "").length).toBeGreaterThan(0);
     // …and the layer-2 artifact marker rides the SAME authored input (never a post-create patch).
     expect(seededInput?.metadata).toEqual({ seededDefault: true });

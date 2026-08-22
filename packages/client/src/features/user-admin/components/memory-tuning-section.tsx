@@ -1,5 +1,5 @@
 // The Memory tuning admin SECTION (Phase B ③) — the write-side memory config: AppSettings.memoryDefaults
-// (the 11 recall/consolidation knobs) + AppSettings.memorySummarizer (the digest-summarize sampling). Both
+// (the 10 recall/consolidation knobs) + AppSettings.memorySummarizer (the digest-summarize sampling). Both
 // are admin-tier b-nature overrides: each field shows its deployment floor and whether it's an active
 // override; a section-level Reset clears the whole nested override to the floor (the merge-safe
 // `{ <key>: null }`). Numeric knobs batch a Save; the mode enum + keywordMatch boolean write immediately.
@@ -79,12 +79,6 @@ const NUMERIC_KNOBS = [
     key: "minScore",
     label: "Minimum match",
     hint: "How closely a stored scene must match the conversation. A higher minimum reduces noise but can miss useful memories.",
-    step: 0.05,
-  },
-  {
-    key: "recencyBias",
-    label: "Recency bias",
-    hint: "Experimental: changes only candidate order before the recall limit. 0 leaves semantic ordering unchanged.",
     step: 0.05,
   },
 ] as const satisfies readonly { key: MemoryDefaultsBoundKey; label: string; hint: string; step: number }[];

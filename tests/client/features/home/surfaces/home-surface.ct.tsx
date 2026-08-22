@@ -25,6 +25,9 @@ import {
 } from "../_ct-stories.tsx";
 
 const TEASER_RE = /Your companion/u;
+/** The doorway group's ONE name since #455 — its disclosure trigger, its h2, and its region's a11y name.
+ *  It replaced "Not yet", which named the group from inside a band you were already reading. */
+const GROUP_LABEL = "What's coming";
 /** The doorway's STATE LINE. It was the tracked developer citation ("waiting on: domain/buddy (not in the
  *  retro tree)") until the 2026-08-17 rail sweep (P1-3) — user-voice copy now, and no "waiting on:" prefix. */
 const REASON_RE = /^Not started yet/u;
@@ -84,9 +87,12 @@ test("a `useVisible:false` tile renders NOTHING — no gap, no empty card", asyn
 
 test("a DORMANT tile is a doorway: name + teaser + reason, and ZERO interactive elements", async ({ mount }) => {
   // The per-doorway `Dormant` BADGE went with #102: home collects every declared doorway under one
-  // "Not yet" band, so the group's own name says once what N badges said N times. The doorway's own
+  // group, so the group's own name says once what N badges said N times. The doorway's own
   // title is what it gained in exchange — it used to be the frame's h2 and is now its first line.
+  // The group is a FOLD since #455, so this contract is asserted on the OPENED panel — the doorway body
+  // does not exist in the DOM until a reader asks for it, which is the point of the fold.
   const home = await mount(<HomeDormantTileStory />);
+  await home.getByRole("button", { name: GROUP_LABEL }).click();
 
   const tile = home.locator('[data-home-tile="dormant"]');
   await expect(tile).toBeVisible();
@@ -204,9 +210,11 @@ test("RED-FIRST (#102-F3): the rail's two footnote blocks go SIDE BY SIDE at a w
   const footTemplate = await foot.evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
   expect(trackCount(footTemplate)).toBe(2);
 
-  // …and it is REAL geometry, not just a template: the doorway band sits beside the last shelf tile.
+  // …and it is REAL geometry, not just a template: the doorway group sits beside the last shelf tile.
+  // Measured COLLAPSED (#455): the fold's own trigger row is the block that has to pair, and the shipped
+  // state is closed — a pairing that only holds once a reader opens the panel is not the shipped layout.
   const tile = await home.locator('[data-home-tile="unplaced"]').boundingBox();
-  const doorways = await page.getByRole("region", { name: "Not yet" }).boundingBox();
+  const doorways = await page.getByRole("region", { name: GROUP_LABEL }).boundingBox();
   expect(doorways?.x ?? 0).toBeGreaterThan((tile?.x ?? 0) + (tile?.width ?? 0) - 1);
 });
 
@@ -218,16 +226,21 @@ test("#102-F3 the footnote pair STACKS again at the pane width the rail is narro
   expect(trackCount(template)).toBe(1);
 });
 
-test("#102 DOORWAYS are grouped under ONE 'Not yet' band, not framed one by one", async ({ mount, page }) => {
+test("#102 DOORWAYS are grouped under ONE band, not framed one by one", async ({ mount, page }) => {
   await mount(<HomeRegionStory />);
 
-  const group = page.getByRole("region", { name: "Not yet" });
+  const group = page.getByRole("region", { name: GROUP_LABEL });
   await expect(group).toBeVisible();
+  // #455: the band is a FOLD now, so the grouping contract is asserted on the opened panel.
+  await group.getByRole("button", { name: GROUP_LABEL }).click();
   // Both real doorways live inside that ONE band…
   await expect(group.locator("[data-home-tile]")).toHaveCount(2);
   // …and neither wears a band, a badge or a control of its own (a doorway has no chrome to spend).
   await expect(group.getByText("Dormant")).toHaveCount(0);
-  await expect(group.getByRole("button")).toHaveCount(0);
+  // The group's ONE button is its own fold trigger (#455) — scoped per doorway, the count is still zero,
+  // which is the ruling this line has always carried: a doorway fakes no control.
+  await expect(group.getByRole("button")).toHaveCount(1);
+  await expect(group.locator("[data-home-tile]").getByRole("button")).toHaveCount(0);
   // The band's OWN h2 is the group's name, and it is the only heading at THAT rank — no doorway draws a
   // band of its own. It used to be the only heading of any rank; the doorway TITLES are `h3` since the
   // rail-home ARIA rec (2026-08-22), which is a different claim: they are the region's CHILDREN, and as
@@ -238,18 +251,23 @@ test("#102 DOORWAYS are grouped under ONE 'Not yet' band, not framed one by one"
   await expect(group.getByRole("heading", { level: 3 })).toHaveCount(2);
 });
 
-// ── RED-FIRST (#102 review F6): "Not yet" is a PEER block, not a child of the tile above it ─────────
-test("#102-F6 the 'Not yet' band names itself with an h2, level with home's other blocks", async ({ mount, page }) => {
+// ── RED-FIRST (#102 review F6): the doorway group is a PEER block, not a child of the tile above it ──
+// The h2 MOVED with #455 — it is no longer `<Section kicker level={2}>` but the heading WRAPPING the
+// fold's trigger (`<h2><button>`, the canonical disclosure shape; a heading inside a button would be
+// invalid HTML). F6's ruling is untouched and is exactly what this still asserts: the block names itself
+// at h2, level with home's other blocks, and its h3s are its children.
+test("#102-F6 the doorway group names itself with an h2, level with home's other blocks", async ({ mount, page }) => {
   await mount(<HomeRegionStory />);
 
-  const group = page.getByRole("region", { name: "Not yet" });
-  await expect(group.getByRole("heading", { level: 2, name: "Not yet" })).toBeVisible();
+  const group = page.getByRole("region", { name: GROUP_LABEL });
+  await expect(group.getByRole("heading", { level: 2, name: GROUP_LABEL })).toBeVisible();
+  await group.getByRole("button", { name: GROUP_LABEL }).click();
   // …and every BLOCK on home is still a peer. This used to read "the surface has NO h3 at all", which was
   // an over-broad restatement of the ruling: F6's defect was a BLOCK announcing as a child of the peer
   // block above it (the outline read h1 → h2 → h3 → h2×4 → h3, so two of seven blocks announced as
   // children of nothing). The doorway TITLES are `h3` since the rail-home ARIA rec (2026-08-22) and are the
   // opposite case — they are genuine CHILDREN of the region they sit in. So the pin now says what F6
-  // actually ruled: every h3 on the surface is INSIDE the "Not yet" region, and no block draws one.
+  // actually ruled: every h3 on the surface is INSIDE the doorway region, and no block draws one.
   const subheadings = page.getByRole("heading", { level: 3 });
   await expect(subheadings).toHaveCount(await group.getByRole("heading", { level: 3 }).count());
   await expect(subheadings).toHaveText(["Buddy", "Automation"]);
@@ -288,6 +306,7 @@ test("a DORMANT doorway wears a DASHED RULE — not-built-yet, at a fraction of 
   // #102 moved the dashed edge from the tile's whole FRAME (a full dashed card, one per doorway) to a
   // single dashed rule down the doorway's inline start (the mockup's `.doorway`). Same signal, no box.
   const dormant = await mount(<HomeDormantTileStory />);
+  await dormant.getByRole("button", { name: GROUP_LABEL }).click();
 
   const style = await dormant.locator('[data-home-tile="dormant"]').evaluate((el) => {
     const s = globalThis.getComputedStyle(el);
@@ -310,6 +329,7 @@ test("a DORMANT tile RECEDES: a muted-gloss teaser, and the dev citation a mono/
   // and both land on it (there is no step below, and one is not invented for a footnote). So this asserts
   // "never LARGER than the teaser" — the honest relation — instead of a size gap the scale cannot express.
   const dormant = await mount(<HomeDormantTileStory />);
+  await dormant.getByRole("button", { name: GROUP_LABEL }).click();
   const tile = dormant.locator('[data-home-tile="dormant"]');
 
   const teaser = await tile.getByText(TEASER_RE).evaluate((el) => {
@@ -591,6 +611,56 @@ test("P2-1 a home that FITS its pane paints no fade at all — the cue is scroll
   // The recipe is still ON the element — it is the STOPS that resolve to 0%, which is what makes a fitting
   // surface render its edges fully opaque instead of dimming a flush heading against nothing.
   await expect.poll(() => scroller.evaluate((el) => globalThis.getComputedStyle(el).maskImage)).toMatch(FADE_GRADIENT_RE);
+});
+
+// ── RED-FIRST (#455): the doorway group is a FOLD, collapsed by default ─────────────────────────────
+// Owner ruling 2026-08-22: FOLD the roadmap block behind a disclosure, do not cut it. Four paragraphs of
+// prose about things that do not exist yet sat below the fold at 1280×800, in the smallest voice on the
+// page, above nothing — the least-read real estate carrying the most words (side-eye rail-home P2-1 +
+// P3-6 + the taste verdict), on top of #226's open ~370px shelf residual.
+//
+// Both arms are pinned, and the CLOSED one is the load-bearing half: `CollapsiblePanel` UNMOUNTS its
+// content while closed, so the shelf gets the height back instead of hiding it under a clip. A pin that
+// only checked the trigger's presence would pass on a panel that renders the whole block behind
+// `visibility: hidden` and buys the column nothing.
+test("#455 the doorway group ships COLLAPSED — one control line, and the roadmap block is not in the DOM", async ({ mount, page }) => {
+  const home = await mount(<HomeRegionStory />);
+
+  const trigger = page.getByRole("button", { name: GROUP_LABEL });
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  // The teaser line is ALL that is rendered: no doorway body, no title, no roadmap prose.
+  await expect(home.locator('[data-home-tile="buddy"]')).toHaveCount(0);
+  await expect(home.locator('[data-home-tile="automation"]')).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 3 })).toHaveCount(0);
+});
+
+test("#455 opening the fold restores the block WHOLE — #457's h3 titles and ramped teasers intact", async ({ mount, page }) => {
+  const home = await mount(<HomeRegionStory />);
+
+  await page.getByRole("button", { name: GROUP_LABEL }).click();
+  await expect(page.getByRole("button", { name: GROUP_LABEL })).toHaveAttribute("aria-expanded", "true");
+  await expect(home.locator('[data-home-tile="buddy"]')).toBeVisible();
+  await expect(home.locator('[data-home-tile="automation"]')).toBeVisible();
+  // #457's work SURVIVES the fold rather than being folded away with it: real h3 titles, and the teaser
+  // still on the `prose` length modifier (the ramp stop above bare micro), which is what P3-6 ruled.
+  await expect(page.getByRole("heading", { level: 3 })).toHaveText(["Buddy", "Automation"]);
+  const teaserSize = await home.getByText(TEASER_RE).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
+  const triggerSize = await page.getByRole("button", { name: GROUP_LABEL }).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
+  // P3-6's actual defect: the explanatory paragraph rendered at the SAME step as the label above it.
+  expect(teaserSize).toBeGreaterThanOrEqual(triggerSize);
+});
+
+test("#455 the fold's trigger is a CONTROL, not a kicker — it clears the 24×24 target floor", async ({ mount, page }) => {
+  // The ruling #482 landed on the params deck's `Advanced` (side-eye 2026-08-22 P2-4) applies to every
+  // disclosure that IS a row of its own: `voice="kicker"` is the 10.5px section eyebrow and measured under
+  // WCAG 2.5.8's floor on the one thing you can press. `size="control"` pins the primitive's own
+  // pointer-conditional `--spacing-control-sm` row box.
+  await mount(<HomeRegionStory />);
+
+  const box = await page.getByRole("button", { name: GROUP_LABEL }).boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(24);
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(24);
 });
 
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
