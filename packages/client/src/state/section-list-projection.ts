@@ -19,6 +19,20 @@ import { useFocusMode, useMobileViewport, useNarrowViewport, useOpenOverlayPanel
 const NO_SELECTION_SUBSCRIBE = (): (() => void) => (): void => undefined;
 const NO_SELECTION_SNAPSHOT = (): boolean => false;
 
+/** THE ONE SENTENCE a CONTENT surface appends while its LIST is off screen (#434 · #445 · #446) — the
+ *  footnote four section welcomes now carry (presets · databank · characters · chats).
+ *
+ *  IT HOMES BESIDE THE SIGNAL, not in each feature, because it is spoken by whoever reads
+ *  `useSectionListMode` for this exact purpose: four hand-copies of one sentence is how "Show list panel"
+ *  drifts into "Show the list panel" in one pane and stops being the topbar's own string. That verbatim
+ *  match is load-bearing — WCAG 2.5.3, a voice-control user says what is written, and the topbar's toggle
+ *  label IS "Show list panel" (`shell-topbar.tsx`). It is re-spelled here rather than imported from
+ *  app-shell for the reason `config-copy.ts` records for its own band word: `client-features-no-cross` bars
+ *  a feature from importing app-shell's copy, and `#state` is the tier BOTH sides can legally reach.
+ *
+ *  It opens with a space: it is APPENDED to a pane's own instruction, never printed alone. */
+export const LIST_OFF_SCREEN_HINT = " The list isn't on screen right now — Show list panel in the top bar brings it back.";
+
 /** Is `section` in the mobile LIST-AS-SCREEN arm — does it declare a list with nothing selected? The ONE
  *  home for that question (`useShellLayout`'s resolve and `useSectionListMode` below both read it here), and the
  *  reason `SectionSelection` is a subscribe/snapshot pair rather than a hook: this is ONE
