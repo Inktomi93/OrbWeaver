@@ -11,6 +11,7 @@ export {
   useAuthConfig,
   useExternalMediaBlocked,
   useInteractiveCardsAllowed,
+  useMultiHumanCapable,
   useRenderPolicyFloor,
   useUploadCaps,
 } from "./auth-config.ts";
