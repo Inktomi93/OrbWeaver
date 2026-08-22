@@ -914,8 +914,25 @@ test("a compressed size spread fires flat-type-hierarchy; the real ramp spread p
 test("text-overflow, repeated-container-text, clipped-overflow, and edge-flush-cards carry their fixed severities", () => {
   expect(checkTextOverflow({ selector: ".cell", spillPx: 45, mode: "inline" }).severity).toBe("P1");
   expect(checkRepeatedText({ containerSelector: ".card", text: "Active", count: 3, distinctSigs: 3 }).severity).toBe("P3");
-  expect(checkClippedOverflow({ selector: ".row", childSelector: ".menu" }).severity).toBe("P2");
+  expect(checkClippedOverflow({ selector: ".row", childSelector: ".menu", flow: "positioned", side: null, spillPx: 0 }).severity).toBe("P2");
   expect(checkEdgeFlush({ scrollerSelector: ".strip", cardSelector: ".chip", edge: "right", gapPx: 2, count: 3 }).severity).toBe("P3");
+});
+
+// ── the two clipped-overflow arms (#444, paid for by #439) ───────────────────
+// A positioned child that needs to escape a clip is a composition smell. An ordinary IN-FLOW control
+// painted outside its container and cut is broken pixels — a first-timer reads "nk chat" as a rendering
+// bug — so the arms carry different severities and different remedies, and the measured side + spill
+// ride the value (the negative-side spill is what neither instrument could see at all).
+test("the in-flow arm is a P1 naming the side and the spill; the positioned arm keeps its P2 and its remedy", () => {
+  const inFlow = checkClippedOverflow({ selector: "div.dialog-surface", childSelector: "button", flow: "in-flow", side: "left", spillPx: 35 });
+  expect(inFlow.severity).toBe("P1");
+  expect(inFlow.value).toBe("clips button left by 35px");
+  expect(inFlow.message).toContain("wrap");
+
+  const positioned = checkClippedOverflow({ selector: ".row", childSelector: ".menu", flow: "positioned", side: "right", spillPx: 8 });
+  expect(positioned.severity).toBe("P2");
+  expect(positioned.value).toBe("clips .menu right by 8px");
+  expect(positioned.message).toContain("portal it");
 });
 
 // ── script errors (impeccable; runner-side capture) ──────────────────────────

@@ -395,3 +395,74 @@ export function WalkerProgrammaticFocusDoorStory(): ReactElement {
     </div>
   );
 }
+
+/** The NEGATIVE-OVERFLOW stage (issue #444), a reconstruction of the #439 frame both overflow
+ *  instruments were blind to. `clip-dialog` is an overflow-hidden box whose footer is a `nowrap`
+ *  `justify-end` row wider than the content box, so the FIRST button is pushed past the container's
+ *  LEFT edge and cut — a negative overflow, which grows `scrollWidth` by exactly nothing.
+ *
+ *  `clip-dialog` is deliberately `overflow: auto`, NOT `hidden` — that is what the live new-chat dialog
+ *  computes to (measured on :5173: auto on both axes, scroll delta 0), and it is the second half of the
+ *  blindness: judging per AXIS instead of per SIDE exempts every scrolling surface, so the arm that was
+ *  meant to catch #439 would have declined the very surface #439 lives on. Scrolling sanctions content
+ *  past the RIGHT edge; there is no negative scroll offset, so the left spill is still a cut.
+ *
+ *  `healthy-dialog` is the paired no-false-positive control (and keeps the `overflow: hidden` arm live),
+ *  carrying the three shapes a naive sweep reports and shouldn't: a scroll pane whose content (including
+ *  a control) legitimately extends past its box, an `sr-only` stub, and an absolutely-positioned badge
+ *  sitting inside the padding. */
+export function WalkerClippedInflowControlStory(): ReactElement {
+  const dialog = {
+    position: "relative",
+    width: 366,
+    overflow: "hidden",
+    padding: 24,
+    boxSizing: "border-box",
+    backgroundColor: "rgb(27, 27, 32)",
+    color: "rgb(240, 240, 245)",
+  } as const;
+  const row = { display: "flex", flexWrap: "nowrap", justifyContent: "flex-end", gap: 8 } as const;
+  const button = { flex: "0 0 auto", whiteSpace: "nowrap", height: 36 } as const;
+  const srOnly = { position: "absolute", width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" } as const;
+  return (
+    <div style={{ width: 520, padding: 20, backgroundColor: "rgb(16, 16, 20)" }}>
+      <div data-testid="clip-dialog" style={{ ...dialog, height: 220, overflow: "auto" }}>
+        <p>Pick a character to start.</p>
+        <div style={row}>
+          <button data-testid="clip-blank" type="button" style={{ ...button, width: 120 }}>
+            Blank chat
+          </button>
+          <button type="button" style={{ ...button, width: 238 }}>
+            Start chat with 3 characters
+          </button>
+        </div>
+      </div>
+      <div data-testid="healthy-dialog" style={{ ...dialog, height: 300, marginTop: 20 }}>
+        <a data-testid="healthy-sr-link" href="#main" style={srOnly}>
+          Skip to content
+        </a>
+        <span data-testid="healthy-badge" style={{ position: "absolute", top: 4, right: 4 }}>
+          3
+        </span>
+        {/* overflow-x hidden + overflow-y auto: one box that CLIPS on one axis and SCROLLS on the
+            other, so the per-side law has something to be wrong about (right is judged, bottom is not). */}
+        <div data-testid="healthy-scroller" style={{ height: 80, overflowX: "hidden", overflowY: "auto" }}>
+          <div style={{ height: 320 }}>
+            A pane whose content legitimately extends past its box.
+            <button data-testid="healthy-scrolled" type="button" style={button}>
+              Scrolled out of view
+            </button>
+          </div>
+        </div>
+        <div style={{ ...row, flexWrap: "wrap", marginTop: 12 }}>
+          <button data-testid="healthy-blank" type="button" style={{ ...button, width: 120 }}>
+            Blank chat
+          </button>
+          <button type="button" style={{ ...button, width: 238 }}>
+            Start chat with 3 characters
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -25,7 +25,9 @@ Assertions and reports:
   --expect-text <selector=text>     require rendered text to contain a value
   --expect-count <selector=N>       require N rendered matches
   --expect-url <url-or-path>        require the final URL
-  --expect-no-overflow [selector]   require scroll bounds to fit client bounds
+  --expect-no-overflow [selector]   scroll bounds must fit client bounds AND no descendant's box may
+                                    exit the clip on any side (left/top too — scrollWidth cannot see
+                                    a justify-end spill); a scrolling axis is not judged
   --expect-focus <selector>         require the active element to match
   --json                            write a machine-readable run manifest
   --summary                         compact scenario output; pair with --json for full evidence

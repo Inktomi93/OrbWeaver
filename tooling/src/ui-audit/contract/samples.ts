@@ -264,10 +264,19 @@ export interface RepeatedTextInput {
   readonly distinctSigs: number;
 }
 
-// ── Clipping container vs positioned child (impeccable `clipped-overflow-container`) ──
+// ── Clipping container vs cut child (impeccable `clipped-overflow-container`) ──
+// TWO ARMS (#444): `positioned` is the original — an absolute/fixed child that needs to escape a clip.
+// `in-flow` is the #439 class — ordinary in-flow content pushed OUT of a clipping box (a `justify-end`
+// nowrap row wider than its container puts its first control past the LEFT edge). Negative overflow is
+// invisible to `scrollWidth`, so nothing in the fleet saw it until this arm existed.
 export interface ClippedOverflowInput {
   readonly selector: string;
   readonly childSelector: string;
+  readonly flow: "in-flow" | "positioned";
+  /** The worst side the child's border box exits the container's PADDING box by — null only on the
+   *  zero-size positioned fallback, where the declared insets are the evidence and nothing measures. */
+  readonly side: "bottom" | "left" | "right" | "top" | null;
+  readonly spillPx: number;
 }
 
 // ── Cards flush against a scroller edge (impeccable `edge-flush-cards`) ───────
