@@ -2,8 +2,9 @@
 // it opens the preset in the editor. The subtitle is the row's scent (`presetRowSubtitle` — the edit stamp
 // plus a meaningful kind plus the fork lineage the surface resolved), since same-base forks all carry the
 // SAME name. The system-default row is marked (editing it COWs into a fork server-side), keeps its
-// "Built-in default" subtitle, and cannot be deleted. The Rename/Duplicate/Delete menu + its delete-confirm
-// live in LibraryRow; the delete copy warns when the row is the active preset.
+// "Built-in default" subtitle, and cannot be deleted. The Duplicate/Delete menu + its delete-confirm live
+// in LibraryRow; the delete copy warns when the row is the active preset. RENAME IS NOT ON THIS ROW — it
+// single-homes in the editor header (#506/#442/#483; the reasoning sits at the omission below).
 //
 // ACTIVATE (redesign §9, owner decision D1) is the row's STATE TOGGLE — the one-of-N pick of the preset the
 // next generation runs with, amending §12.2's "presets carry no boolean row state". It is RADIO-shaped: the
@@ -84,14 +85,13 @@ export interface PresetLibraryRowProps {
   readonly onSelect: (id: PresetId) => void;
   readonly onDelete: (id: PresetId) => void;
   readonly onDuplicate: (id: PresetId) => void;
-  readonly onRename: (id: PresetId) => void;
   /** Make THIS row the active-for-generation pick (§16 row 3 — the one `setDefault` mutation). */
   readonly onActivate: (id: PresetId) => void;
   /** Download this preset as an `orb.preset` file (G6). Never offered on the built-in row. */
   readonly onExport: (id: PresetId) => void;
 }
 
-/** A single preset library row (its Rename/Duplicate/Delete menu + delete-confirm come from LibraryRow). */
+/** A single preset library row (its Duplicate/Delete menu + delete-confirm come from LibraryRow). */
 export function PresetLibraryRow({
   preset,
   selected,
@@ -101,7 +101,6 @@ export function PresetLibraryRow({
   onSelect,
   onDelete,
   onDuplicate,
-  onRename,
   onActivate,
   onExport,
 }: PresetLibraryRowProps): ReactElement {
@@ -189,7 +188,16 @@ export function PresetLibraryRow({
               // what tells their ACTION names apart too (side-eye P3a), escalated by the SURFACE where the
               // stamp collided as well (P2c).
               qualifier,
-              onRename: (): void => onRename(preset.id),
+              // NO `onRename` — RENAME SINGLE-HOMES IN THE EDITOR (#506, on #442's ruling for the same
+              // verb on world-info: "rename single-homes in the EDITOR", the posture tags and regex
+              // already ship). #483 built the editor door (`preset-editor-header.tsx`, the Pencil beside
+              // the h2) and argued it AT that site: `New` mints "New preset" and opens the editor, so the
+              // only naming door used to be the OTHER pane's kebab — a control far from where its effect
+              // shows, on the very first thing a new user does, and on mobile the LIST is a closed sheet
+              // so from the editor the name could not be changed at all. That door is the one home now;
+              // this item was the second, and `LibraryRowActions.onRename` is optional for exactly this
+              // (the regex roster minted the omission). Nothing else about this row changes: Duplicate,
+              // Delete and Export are lifecycle and stay list-side (O-16★).
               onDuplicate: (): void => onDuplicate(preset.id),
               onDelete: (): void => onDelete(preset.id),
               // G6: the single-preset export door. Its bytes are `buildPresetFile`'s — the same serde the

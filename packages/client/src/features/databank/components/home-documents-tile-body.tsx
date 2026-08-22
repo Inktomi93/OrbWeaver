@@ -95,13 +95,24 @@ export function HomeDocumentsTileBody(): ReactElement {
       // ramp's only 16px on the emptiest sentence on the surface (F8).
       //
       // The mock's own answer, and the RULED one: the block keeps its kicker band and says the same three
-      // things at rail weight — a label line, the shared gloss, and a text link. ~60px, in the flow, left
+      // things at rail weight — a label line, the doors, and the shared gloss. ~60px, in the flow, left
       // edge shared with the four document rows it replaces. The COPY is unchanged; only the register is.
+      // (The gloss ran SECOND when that ruling landed; #499 moved it last — see the note on the Row.)
       <Stack className="items-start" gap="field">
         <Text voice="label">No documents yet</Text>
-        <Text className="line-clamp-3" voice="gloss" prose={true}>
-          {DATABANK_INGEST_GLOSS}
-        </Text>
+        {/* THE DOORS COME BEFORE THE TEACHING LINE (#499, the residual half of side-eye rail-home P2-1).
+            Measured at 1280×800 on the shipped registry: both CTAs ended 51px past the fold, and #455's
+            roadmap fold could not reach them — at a narrow pane the shelf's foot subgrid is ONE track, so
+            the block it folded sits BELOW this tile. What was left is this block's own reading order, and
+            it was the odd one out on the shelf: `home-temp-chat-tile-body.tsx` — the peer-rank CTA one
+            block up, in this same column, at this same rank — leads with its button and explains
+            afterwards. This one led with three lines of explanation and put the doors under them, which
+            spent the whole fold budget on the sentence and cut the two controls the state exists to offer.
+            NOTHING IS THINNED and nothing below moves: the block's height is identical, the gloss is
+            unchanged and still `prose`-measured, and the tile's own box (and therefore every reservation
+            derived from it) is untouched. Only which end of the block the fold lands on changes.
+            THE STATE LINE STAYS ON TOP: "no documents yet" is the answer to what the tile was asked, and a
+            door offered before the state it answers is a control with no subject. */}
         {/* TWO AFFORDANCES, ONE STYLE (side-eye rail sweep P3-16 + the IA finding, 2026-08-17).
             [1] THE CEREMONY stays first and stays the promise the label makes (side-eye 2026-08-08 P1-2:
             it used to `setActiveSection("databank")` and land the user on the library's own empty state —
@@ -127,6 +138,9 @@ export function HomeDocumentsTileBody(): ReactElement {
             <TrailingArrow />
           </Button>
         </Row>
+        <Text className="line-clamp-3" voice="gloss" prose={true}>
+          {DATABANK_INGEST_GLOSS}
+        </Text>
       </Stack>
     );
   }

@@ -3,9 +3,15 @@
 // preset. A row click opens the preset in CONTENT (`selectPreset`); ACTIVATION is the row's own toggle
 // (redesign §9/D1) — the pane-level "Active for generation" Select is DELETED, not kept beside it, and the
 // built-in row's toggle is the `defaultPresetId === null` pick. CRUD composes existing verbs —
-// Duplicate/Rename/Delete/Export here, and New/Import in the LIST chrome band (`preset-list-header.tsx`,
+// Duplicate/Delete/Export here, and New/Import in the LIST chrome band (`preset-list-header.tsx`,
 // D66 A1/A2 — the band owns the pane's create verbs). The focus/QueryBoundary shell + search/empty body
 // come from the shared library-surface scaffold.
+//
+// RENAME IS NOT ONE OF THEM (#506). It single-homes in the EDITOR — #442's ruling for the same verb on
+// world-info ("rename single-homes in the EDITOR", the posture tags and regex already ship), applied to the
+// door #483 built at `preset-editor-header.tsx`. This pane therefore mounts no rename dialog and holds no
+// rename state; `PresetRenameDialog` is the editor header's now, and `preset.update {id, name}` has one
+// caller. The row's own omission carries the reasoning.
 //
 // EXPORT (G6) is client-side: the cached `preset.get` row through `buildPresetFile` — the SAME contract
 // serde the whole-profile bundle's export arm writes (`domain/preset/verbs/export.ts`). No second
@@ -19,14 +25,13 @@ import { Icon, Search, SlidersHorizontal } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useDeferredValue, useRef, useState } from "react";
+import { useDeferredValue, useRef } from "react";
 import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusOnMount } from "#lib";
 import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
-import { PresetRenameDialog } from "../components/preset-rename-dialog.tsx";
-import { useCreatePreset, useRemovePreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
+import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
@@ -64,7 +69,6 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   const selectedId = useSelectedPresetId();
 
   const create = useCreatePreset({ trpc, invalidation });
-  const update = useUpdatePreset({ trpc, invalidation });
   const remove = useRemovePreset({ trpc, invalidation });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
 
@@ -76,7 +80,6 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   // (client-side) filter catches up.
   const query = usePresetSearchQuery();
   const deferredQuery = useDeferredValue(query);
-  const [renameId, setRenameId] = useState<PresetId | null>(null);
 
   const needle = presetSearchNeedle(deferredQuery);
   const filtered = filterPresetsByName(presets, needle);
@@ -138,7 +141,6 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
     remove.mutate({ id });
   };
 
-  const renamePreset = presets.find((p) => p.id === renameId) ?? null;
   const qualifiers = rowQualifiers(
     filtered.map((preset) => ({ name: preset.name, at: preset.updatedAt })),
     timeLib.formatRelative,
@@ -146,81 +148,65 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   );
 
   return (
-    <>
-      <LibraryListLayout
-        empty={
-          <EmptyState
-            action={
-              // A NO-MATCH STATE HAS AN EXIT (side-eye 2026-08-19 P3). It used to render NO action at all, so
-              // the only way out of a search that found nothing was to notice the box above and clear it by
-              // hand — a dead end wearing an explanation. Clear leads (it restores what you had); New is the
-              // second door, because "nothing matched" is also the moment you decide to make the thing.
-              needle === "" ? (
-                <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
+    <LibraryListLayout
+      empty={
+        <EmptyState
+          action={
+            // A NO-MATCH STATE HAS AN EXIT (side-eye 2026-08-19 P3). It used to render NO action at all, so
+            // the only way out of a search that found nothing was to notice the box above and clear it by
+            // hand — a dead end wearing an explanation. Clear leads (it restores what you had); New is the
+            // second door, because "nothing matched" is also the moment you decide to make the thing.
+            needle === "" ? (
+              <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
+                New preset
+              </Button>
+            ) : (
+              <Row align="center" gap="field">
+                <Button intent="secondary" onClick={(): void => setPresetSearchQuery("")} size="sm">
+                  Clear search
+                </Button>
+                <Button disabled={create.isPending} intent="ghost" onClick={onCreate} size="sm">
                   New preset
                 </Button>
-              ) : (
-                <Row align="center" gap="field">
-                  <Button intent="secondary" onClick={(): void => setPresetSearchQuery("")} size="sm">
-                    Clear search
-                  </Button>
-                  <Button disabled={create.isPending} intent="ghost" onClick={onCreate} size="sm">
-                    New preset
-                  </Button>
-                </Row>
-              )
-            }
-            description={needle === "" ? "Create a preset to tune sampling, reasoning, and the prompt structure." : "No preset matches your search."}
-            icon={<Icon icon={needle === "" ? SlidersHorizontal : Search} size="lg" />}
-            title={needle === "" ? "No presets yet" : "No matches"}
-          />
-        }
-        isEmpty={filtered.length === 0}
-        onSearchChange={setPresetSearchQuery}
-        // The rows' activate toggles are `role="radio"` (side-eye F-19) — this is the group that owns them.
-        rowsRadiogroupLabel="Active preset for generation"
-        searchLabel="Search presets"
-        searchPlaceholder="Search presets"
-        searchValue={query}
-      >
-        {filtered.map((preset, index) => (
-          <PresetLibraryRow
-            // The built-in row IS the null pick (D1) — with the pane Select gone, "nothing chosen" is not an
-            // unmarked list, it is that row wearing the state.
-            active={preset.isSystemDefault ? activeId === null : preset.id === activeId}
-            // Lineage is resolved against the UNFILTERED list (a search that hides the source must not hide
-            // the scent) and stays null when the source is not a row we have — packaged templates never are,
-            // and nothing here guesses a name from a name.
-            forkedFromName={presets.find((p) => p.id === preset.forkedFrom)?.name ?? null}
-            key={preset.id}
-            onActivate={onActivate}
-            onDelete={onDelete}
-            onDuplicate={onDuplicate}
-            onExport={onExport}
-            onRename={(id): void => setRenameId(id)}
-            onSelect={onSelectPreset}
-            preset={preset}
-            // The action-name disambiguator, resolved across the WHOLE list (side-eye P2c): the fork
-            // workflow mints rows that share a name exactly, and eight minted in the same hour also share
-            // "9h ago" — the per-row stamp then produced eight identical accessible names.
-            qualifier={qualifiers[index] ?? ""}
-            selected={preset.id === selectedId}
-          />
-        ))}
-      </LibraryListLayout>
-
-      {renamePreset !== null ? (
-        <PresetRenameDialog
-          currentName={renamePreset.name}
-          onOpenChange={(next): void => {
-            if (!next) {
-              setRenameId(null);
-            }
-          }}
-          onRename={(name): void => update.mutate({ id: renamePreset.id, name })}
-          open={true}
+              </Row>
+            )
+          }
+          description={needle === "" ? "Create a preset to tune sampling, reasoning, and the prompt structure." : "No preset matches your search."}
+          icon={<Icon icon={needle === "" ? SlidersHorizontal : Search} size="lg" />}
+          title={needle === "" ? "No presets yet" : "No matches"}
         />
-      ) : null}
-    </>
+      }
+      isEmpty={filtered.length === 0}
+      onSearchChange={setPresetSearchQuery}
+      // The rows' activate toggles are `role="radio"` (side-eye F-19) — this is the group that owns them.
+      rowsRadiogroupLabel="Active preset for generation"
+      searchLabel="Search presets"
+      searchPlaceholder="Search presets"
+      searchValue={query}
+    >
+      {filtered.map((preset, index) => (
+        <PresetLibraryRow
+          // The built-in row IS the null pick (D1) — with the pane Select gone, "nothing chosen" is not an
+          // unmarked list, it is that row wearing the state.
+          active={preset.isSystemDefault ? activeId === null : preset.id === activeId}
+          // Lineage is resolved against the UNFILTERED list (a search that hides the source must not hide
+          // the scent) and stays null when the source is not a row we have — packaged templates never are,
+          // and nothing here guesses a name from a name.
+          forkedFromName={presets.find((p) => p.id === preset.forkedFrom)?.name ?? null}
+          key={preset.id}
+          onActivate={onActivate}
+          onDelete={onDelete}
+          onDuplicate={onDuplicate}
+          onExport={onExport}
+          onSelect={onSelectPreset}
+          preset={preset}
+          // The action-name disambiguator, resolved across the WHOLE list (side-eye P2c): the fork
+          // workflow mints rows that share a name exactly, and eight minted in the same hour also share
+          // "9h ago" — the per-row stamp then produced eight identical accessible names.
+          qualifier={qualifiers[index] ?? ""}
+          selected={preset.id === selectedId}
+        />
+      ))}
+    </LibraryListLayout>
   );
 }

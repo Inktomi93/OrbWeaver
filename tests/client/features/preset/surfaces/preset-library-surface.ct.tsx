@@ -13,9 +13,9 @@
 // loop's mechanism; a CT cannot observe the loop itself (synthetic pointers do not re-hit-test on layout
 // shift — that verification is real-pointer-only), so what is pinned here is rest-vs-hover geometry.
 //
-// The built-in row is deliberately NOT deletable and NOT renameable — asserted on its OPEN menu (2026-08-19:
-// it carries a kebab now, holding the one act it CAN do, Duplicate), so a future refactor can't hand the user
-// a delete that the server refuses.
+// The built-in row is deliberately NOT deletable — asserted on its OPEN menu (2026-08-19: it carries a kebab
+// now, holding the one act it CAN do, Duplicate), so a future refactor can't hand the user a delete that the
+// server refuses. NO row offers Rename any more (#506): the verb single-homes in the editor header.
 // `preset.list`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc); the menu + ConfirmDialog
 // render in a PORTAL, so they are located on `page`, not the mounted component.
 
@@ -565,7 +565,8 @@ test("P3 the built-in row IS duplicable — a kebab holding Duplicate and nothin
   await page.getByRole("button", { name: menuFor("Default") }).click();
   // The one act the packaged row CAN do…
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
-  // …none of the three the server would refuse (items are OMITTED, never disabled)…
+  // …none of the ones it would refuse (items are OMITTED, never disabled). Rename is absent for a second,
+  // now-universal reason too (#506 — no list row offers it); this row would refuse it regardless.
   await expect(page.getByRole("menuitem", { name: "Rename" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Delete" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
@@ -764,10 +765,11 @@ test("#481 the row kebab offers NO Activate — the radio is the list's one acti
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_TWO_NAME }).first().hover();
   await page.getByRole("button", { name: menuFor(EDITED_TWO_NAME) }).click();
   // The menu IS open (its own items are there) — the absence is real, not an unopened popup.
-  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
-  // …and the menu is FOUR items now (Rename · Duplicate · Delete · Export), the report's own closing bar.
-  await expect(page.getByRole("menuitem")).toHaveCount(4);
+  // …and the menu is THREE items (Duplicate · Delete · Export). It was FOUR when this pin landed; #506 took
+  // Rename to the editor, which is the same one-home test applied to the next echo.
+  await expect(page.getByRole("menuitem")).toHaveCount(3);
 
   // The door that survives, on the same row: its radio, unchecked and ready.
   await expect(page.getByRole("radio", { name: activateFor(EDITED_TWO_NAME), exact: true })).toHaveAttribute("aria-checked", "false");
@@ -910,16 +912,40 @@ test("G6 the BUILT-IN row offers no Export — the bundle excludes the system de
 // A FENCE, not a defect proof: the ACTIVE row's kebab already omitted Activate before #481 (the item was
 // conditional on `!active`). It is kept because the echo's absence must now be UNCONDITIONAL — a future
 // re-introduction would most plausibly come back through this arm.
-test("#481 the ACTIVE row's kebab is the same four items — the echo's absence is not state-dependent", async ({ mount, page }) => {
+test("#481 the ACTIVE row's kebab is the same item set — the echo's absence is not state-dependent", async ({ mount, page }) => {
   await routeLibrary(page, EDITED_ONE);
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
   await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
-  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
-  await expect(page.getByRole("menuitem")).toHaveCount(4);
+  await expect(page.getByRole("menuitem")).toHaveCount(3);
+});
+
+// ── #506: RENAME SINGLE-HOMES IN THE EDITOR ──────────────────────────────────────────────────────
+// #483 built the rename door in the editor header (`preset-editor-header.tsx` — the Pencil beside the h2)
+// and recorded at that site that it read as a SECOND door, because the list row's kebab carried Rename too.
+// #442 settled the class for the same verb on world-info — "rename single-homes in the EDITOR", the posture
+// tags and regex already ship — so the list item is the one that goes. This is the ORDINARY row (the arm
+// that carried the item); the built-in never had it, which is why its own pin above is not the proof.
+test("#506 the row kebab offers NO Rename — the editor header is the verb's one door", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_TWO_NAME }).first().hover();
+  await page.getByRole("button", { name: menuFor(EDITED_TWO_NAME) }).click();
+  // The menu is OPEN, so the absence is a statement about its contents rather than an unopened popup.
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Rename" })).toHaveCount(0);
+  // …and the pane mounts NO rename dialog either — the item's removal took its whole flow, rather than
+  // leaving an unreachable overlay behind (the half-migration this repo calls rot).
+  await expect(page.getByRole("dialog", { name: "Rename preset" })).toHaveCount(0);
+  // The verbs that stay are the LIFECYCLE ones (O-16★: lifecycle lives list-side).
+  await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Export" })).toBeVisible();
 });
 
 // ── G6: the ONE band IMPORT door, two sniffed arms (§16.1 / §16 row 2) ───────────────────────────
