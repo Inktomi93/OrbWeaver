@@ -12,9 +12,13 @@
 // second observer over the same entries). One signal, one emitter (AGENTS §3); one entry type, one
 // observer. The channels, and why each is its own tag:
 //   [frame]   a frame over `longFrameMs`, attributed to its costliest script. WHAT blocked.
-//   [reflow]  that frame ALSO ran style/layout (`styleAndLayoutStart` > 0) — a forced synchronous
-//             reflow or a non-compositor animation. This is the diagnosis `[frame]` alone does not
-//             give you, and it is what turns "623ms blocking" into a file to open.
+//   [reflow]  a SCRIPT in that frame blocked on synchronous style/layout (per-script
+//             `forcedStyleAndLayoutDuration` > 0), with the cost printed. This is the diagnosis
+//             `[frame]` alone does not give you, and it is what turns "623ms blocking" into a file to
+//             open. It gated on `frame.styleAndLayoutStart > 0` until #432 — which is >0 on every frame
+//             that renders anything, so the channel accused ordinary renders (measured 8/8 with the
+//             accused script's own forced duration at 0, and it corroborated #429's mis-filing). A
+//             frame-level "style/layout happened" is not a defect; a script WAITING on layout is.
 //   [input]   an interaction over `interactionMs`, attributed to its target element.
 // `[perf]` survives on `render-profiler.tsx` alone, where it means a slow REACT COMMIT — a different
 // measurement with a different fix, which is why it kept its own tag rather than folding in here.
@@ -108,15 +112,40 @@ function basename(url: string): string {
   }
 }
 
+type LoafScript = LongAnimationFrameEvidence["scripts"][number];
+
+/** One script as a compact "function · source · Nms" line — the shared attribution vocabulary of both
+ *  frame channels, so `[frame]` and `[reflow]` can never describe the same script two ways. */
+function describeScript(script: LoafScript, ms: number): string {
+  const who = script.sourceFunctionName ?? script.invoker ?? script.name ?? "(anonymous)";
+  const where = script.sourceURL !== undefined && script.sourceURL !== "" ? ` @ ${basename(script.sourceURL)}` : "";
+  return `${who}${where} ${Math.round(ms)}ms`;
+}
+
 /** The costliest script in a long frame as a compact "function · source · Nms" attribution — LoAF's payoff. */
 function attributeFrame(scripts: LongAnimationFrameEvidence["scripts"]): string {
   if (scripts.length === 0) {
     return "(no script attribution)";
   }
   const worst = scripts.reduce((a, b) => (b.duration > a.duration ? b : a));
-  const who = worst.sourceFunctionName ?? worst.invoker ?? worst.name ?? "(anonymous)";
-  const where = worst.sourceURL !== undefined && worst.sourceURL !== "" ? ` @ ${basename(worst.sourceURL)}` : "";
-  return `${who}${where} ${Math.round(worst.duration)}ms`;
+  return describeScript(worst, worst.duration);
+}
+
+function forcedMs(script: LoafScript): number {
+  return script.forcedStyleAndLayoutDuration ?? 0;
+}
+
+/** The frame's total forced synchronous layout, and the script that paid most of it — `null` when no
+ *  script blocked on layout at all, which is the ordinary case and must stay silent (#432). The blame
+ *  goes to the FORCING script, not the frame's longest one: they are routinely different, and a reflow
+ *  line naming a script that forced nothing sends the reader to the wrong file. */
+function attributeForcedLayout(scripts: LongAnimationFrameEvidence["scripts"]): { readonly total: number; readonly who: string } | null {
+  const total = scripts.reduce((sum, script) => sum + forcedMs(script), 0);
+  if (Math.round(total) === 0) {
+    return null;
+  }
+  const worst = scripts.reduce((a, b) => (forcedMs(b) > forcedMs(a) ? b : a));
+  return { total, who: describeScript(worst, forcedMs(worst)) };
 }
 
 /** Compact CSS-selector-ish description of an event target for the log line. */
@@ -170,10 +199,15 @@ function reportLongFrame(frame: LongAnimationFrameEvidence): void {
     PERF_STYLE,
     MUTED_STYLE,
   );
-  // The diagnosis half: this frame also ran style/layout, so the cost is a forced reflow or a
-  // non-compositor animation — not merely a long script. Same attribution, different fix.
-  if (frame.styleAndLayoutStart > 0) {
-    console.warn(`%c${logClock()} [reflow]%c style/layout ran inside that frame · ${who} · route ${route()}`, PERF_STYLE, MUTED_STYLE);
+  // The diagnosis half: a script in this frame BLOCKED on synchronous style/layout, so the fix is the
+  // layout read, not the script's own work. Different attribution (the forcing script), different fix.
+  const forced = attributeForcedLayout(frame.scripts);
+  if (forced !== null) {
+    console.warn(
+      `%c${logClock()} [reflow]%c forced synchronous style/layout ${Math.round(forced.total)}ms inside that frame · ${forced.who} · route ${route()}`,
+      PERF_STYLE,
+      MUTED_STYLE,
+    );
   }
 }
 
