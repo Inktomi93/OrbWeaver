@@ -85,6 +85,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Text } from "@orb/ui/text";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
@@ -1054,6 +1055,63 @@ export function MessageListTabWalkStory(): ReactElement {
   );
 }
 
+// ── #488: a FEATURE-CONTRIBUTED disclosure in the row's tab walk ────────────────────────────────────
+// The shape of `rpgTurnToolCallsSurface` with none of its data: one `message-footer` contribution whose
+// body is a `Collapsible` trigger, which is precisely the element a review reported as keyboard-
+// unreachable. It is not — `row-roving.ts`'s sweep is a DOM sweep, so a control the row's own React tree
+// never knew about is suppressed and restored exactly like `Edit message`. The `tabindex="-1"` it wears at
+// rest is the #107 budget working, not a defect, and this harness is what keeps that distinction pinned.
+const FOOTER_DISCLOSURE_CONTRIBUTORS = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
+  {
+    id: "ct-footer-disclosure",
+    anchor: "message-footer",
+    when: ({ message }) => message.role === "assistant",
+    body: () => (
+      <Collapsible>
+        <CollapsibleTrigger>
+          <Text voice="label">What this turn did</Text>
+        </CollapsibleTrigger>
+        <CollapsiblePanel>
+          <Text voice="gloss">the folded record</Text>
+        </CollapsiblePanel>
+      </Collapsible>
+    ),
+  },
+]);
+
+function FooterDisclosureHarness(): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const busDeps: ChatBusDeps = {
+    stream: chatStream,
+    invalidate: createInvalidation({ queryClient, trpc }).invalidate,
+  };
+  return (
+    <div style={{ height: 480 }}>
+      <MessageThreadAnchor>
+        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={FOOTER_DISCLOSURE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+      </MessageThreadAnchor>
+    </div>
+  );
+}
+
+/** The tab-walk harness with one `message-footer` disclosure contributed into every assistant row. */
+export function MessageListFooterDisclosureStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <button type="button" data-testid="walk-start">
+          before
+        </button>
+        <FooterDisclosureHarness />
+        <button type="button" data-testid="walk-end">
+          after
+        </button>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
 /** Bug-2 (Stop flashes the reply away) harness: a committed surface + a `mark-stopping` button that
  *  drives the slot streaming→stopping (client-only `markStopping`, no bus event) so the CT can assert
  *  the ghost row stays mounted and keeps its accumulated text through `stopping`. */
@@ -1267,6 +1325,26 @@ export function ChatListHeaderStory({ width }: { readonly width: number }): Reac
         <header className="shell-panel-header" style={{ width }}>
           <ChatListHeader />
         </header>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** #490 — the chrome BAND above the pane it counts, which is the only mount where the census claim is
+ *  checkable: the band feeds a different shell slot and reads the pane's narrowing through
+ *  `chat-list-filter-store`, so a header-only or a surface-only story can each pass while the pair lies. */
+export function ChatListBandAndSurfaceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 360 }}>
+        <header className="shell-panel-header">
+          <ChatListHeader />
+        </header>
+        <div style={{ height: 420 }}>
+          <ChatListAnchor>
+            <ChatListSurface onNewChat={(): void => undefined} onSelect={(): void => undefined} />
+          </ChatListAnchor>
+        </div>
       </div>
     </CtDataProviders>
   );

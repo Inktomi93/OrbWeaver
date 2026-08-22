@@ -315,8 +315,14 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * THE READING PLATE'S ALPHA for a base surface — polarity-aware, derived, never designed (#217).
  *
  * WHY IT CANNOT BE ONE NUMBER. The plate is translucent, so the surface the transcript's ink actually
- * lands on is `plate·α + art·(1−α)` — the ART is in the composite, and art is arbitrary
- * (`BACKGROUND_DIM_MIN` is 0, so raw pixels are legal). Which art is the WORST case is a function of the
+ * lands on is `plate·α + art·(1−α)` — the ART is in the composite, and art is arbitrary.
+ *
+ * THIS DERIVATION KEEPS RAW ART AS ITS INPUT, DELIBERATELY, EVEN THOUGH RAW ART IS NO LONGER LEGAL (#487).
+ * The sentence here used to read "`BACKGROUND_DIM_MIN` is 0, so raw pixels are legal"; that premise died
+ * when the wallpaper scrim grew a derived floor of 0.45. Re-solving the alpha against SCRIMMED art would
+ * relax it — and relaxing a shipped plate alpha moves pixels in every light room for no legibility gain.
+ * Raw art is therefore retained as a strictly-conservative input: the scrim floor is an ADDITIONAL
+ * guarantee stacked under this one, never a reason to weaken it. Which art is the WORST case is a function of the
  * plate's POLARITY, and the intuition runs backwards: a LIGHT plate carries DARK inks, so the composite
  * is worst when the art DARKENS it ⇒ BLACK art; a DARK plate carries LIGHT inks ⇒ WHITE art. Measured
  * live 2026-08-18 (`reports/design/rescore-chats-2026-08-18.md`): at the flat 0.65 the light-palette

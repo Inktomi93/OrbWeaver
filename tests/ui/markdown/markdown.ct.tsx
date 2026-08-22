@@ -613,3 +613,52 @@ test("issue 238: inline code renders its horizontal padding (the vendor's own ut
   const padding = await code.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingLeft));
   expect(padding).toBeGreaterThan(0);
 });
+
+// #490 — the OTHER TWO declarations #238 left on the floor. The vendor spells a SIZE and a VERTICAL
+// padding on the same element and neither compiled in the app bundle either, so in a real room the chip
+// rendered at BODY size with zero vertical padding: a muted bar hugging the glyphs (measured live
+// 2026-08-22: fontSize 15px, padding "0px 4px", an 18px box in a 23.25px line).
+//
+// ⚑ THE ASSERTION IS AN EQUALITY AGAINST OUR OWN TOKENS, AND THAT IS FORCED, NOT STYLISTIC. This harness
+// scans `../tests` and `../packages/client/src` for class usage (playwright/index.css), so the vendor's
+// `text-sm`/`py-0.5` DO compile HERE while they are dead in the app bundle — a CT can never observe the
+// production defect as "unstyled". A first cut asserting `fontSize < proseFontSize` passed at pre-fix HEAD
+// for exactly that reason (14px vendor `text-sm` < 15px prose) and was an un-failable fence. Pinning the
+// resolved TOKEN values instead is failable in both bundles: pre-fix the element measures the vendor's
+// 14px/2px, post-fix it measures `--text-code`/`--spacing-tight` — and no px literal is spelled, so a
+// token retune moves the expectation with the design system.
+test("issue 490: inline code renders at the CODE token size with the tight vertical padding", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {INLINE_CODE_MARKDOWN}
+    </Markdown>,
+  );
+  const measured = await cmp
+    .locator("code")
+    .first()
+    .evaluate((el) => {
+      const own = getComputedStyle(el);
+      const root = getComputedStyle(document.documentElement);
+      return {
+        fontSize: own.fontSize,
+        codeToken: root.getPropertyValue("--text-code").trim(),
+        paddingTop: own.paddingTop,
+        paddingBottom: own.paddingBottom,
+        tightToken: root.getPropertyValue("--spacing-tight").trim(),
+        // The rem base, read rather than assumed — `fontScale` moves it, and a hardcoded 16 would make
+        // every equality below a lie the moment a reader scales their type.
+        remPx: Number.parseFloat(root.fontSize),
+        proseFontSize: Number.parseFloat(getComputedStyle(el.parentElement ?? el).fontSize),
+      };
+    });
+  // Both tokens must actually resolve, or every equality below is a vacuous ""==="" (the same
+  // positive-control discipline a planted fixture gives a gate).
+  expect(measured.codeToken).not.toBe("");
+  expect(measured.tightToken).not.toBe("");
+  const px = (rem: string): number => Number.parseFloat(rem) * measured.remPx;
+  expect(Number.parseFloat(measured.fontSize)).toBeCloseTo(px(measured.codeToken), 1);
+  expect(Number.parseFloat(measured.paddingTop)).toBeCloseTo(px(measured.tightToken), 1);
+  expect(Number.parseFloat(measured.paddingBottom)).toBeCloseTo(px(measured.tightToken), 1);
+  // …and it is still SMALLER than the prose it sits in — the reader-visible half of the finding.
+  expect(Number.parseFloat(measured.fontSize)).toBeLessThan(measured.proseFontSize);
+});

@@ -19,11 +19,28 @@ export interface ChatListCharacterFilter {
   readonly avatarHash: string | null;
 }
 
+// THE OTHER TWO NARROWING AXES LIVE HERE TOO NOW (#490). They were `useState` inside `ChatListSurface`,
+// which made them invisible to the LIST CHROME BAND — a sibling shell region with no shared React ancestor,
+// exactly the problem this store was minted for. The measured consequence: the band printed `CHATS 896`
+// while the pane showed twelve rows for `Hikari`, and printed the same 896 over a "No matches" empty state.
+// A census that ignores the filters beside it is not a fact about anything the reader can see.
+//
+// The RAW typed search is what is stored, not the debounced one: the field is controlled off it, and a
+// consumer that turns it into a QUERY damps it with the shared `CHAT_LIST_SEARCH_DEBOUNCE_MS`
+// (`features/chat/lib/chat-list-scope.ts`) — one damper constant, applied by each consumer, rather than a
+// second stored copy that could disagree with the field.
 interface ChatListFilterState {
   readonly characterFilter: ChatListCharacterFilter | null;
+  /** The raw text in the pane's search field (`""` = unsearched). */
+  readonly search: string;
+  /** The native month control's `YYYY-MM` anchor (`""` = unanchored). */
+  readonly month: string;
 }
 
-const useChatListFilterStore = createGatedStore<ChatListFilterState>("chat-list-filter", (): ChatListFilterState => ({ characterFilter: null }));
+const useChatListFilterStore = createGatedStore<ChatListFilterState>(
+  "chat-list-filter",
+  (): ChatListFilterState => ({ characterFilter: null, month: "", search: "" }),
+);
 
 /** Scope the Chats LIST to one character's threads (the hero "N chats ›" seam) — the LIST reads this and
  *  filters to chats seating this character, showing a "filtered by [name] ✕" clear affordance. */
@@ -41,4 +58,24 @@ export function clearChatListCharacterFilter(): void {
  *  stored object is stable — set/cleared as a whole, never mutated — so no fresh-object churn). */
 export function useChatListCharacterFilter(): ChatListCharacterFilter | null {
   return useChatListFilterStore((s) => s.characterFilter);
+}
+
+/** The pane's search text. */
+export function setChatListSearch(search: string): void {
+  useChatListFilterStore.setState({ search }, false, "chat-list-filter/search");
+}
+
+/** The pane's month anchor (`YYYY-MM`, or `""` to unanchor). */
+export function setChatListMonth(month: string): void {
+  useChatListFilterStore.setState({ month }, false, "chat-list-filter/month");
+}
+
+/** Reactive: the RAW search text (the field is controlled off this; a query consumer damps it itself). */
+export function useChatListSearch(): string {
+  return useChatListFilterStore((s) => s.search);
+}
+
+/** Reactive: the month anchor (`""` = unanchored). */
+export function useChatListMonth(): string {
+  return useChatListFilterStore((s) => s.month);
 }
