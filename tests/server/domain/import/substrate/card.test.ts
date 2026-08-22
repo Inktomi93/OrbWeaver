@@ -144,6 +144,6 @@ describe("cardToCreateInput", () => {
   test("throws ImportCardError(card_invalid) when the normalized card fails the canonical schema", () => {
     // An all-whitespace/empty name folds to "" → fails createCharacterSchema's name min(1).
     const card = cardFromJson({ data: { name: "" } }, "");
-    expect(() => cardToCreateInput(card, null)).toThrowError(FAILED_VALIDATION);
+    expect(() => cardToCreateInput(card, null)).toThrow(FAILED_VALIDATION);
   });
 });

@@ -20,7 +20,7 @@ test("scrubWireSchema is brand-transparent — a WireReady in stays WireReady ou
 
 test("a raw / stored (Unprojected) schema CANNOT fill ResponseFormat.schema — the compile-time enforcement", () => {
   // An Unprojected blob is not a WireReady — the type gap the send-site invariant rests on.
-  expectTypeOf<Unprojected>().not.toMatchTypeOf<WireReady>();
+  expectTypeOf<Unprojected>().not.toExtend<WireReady>();
   const stored: Unprojected = { type: "object", properties: {} };
   // @ts-expect-error — a stored/unprojected blob is not WireReady; it must go through projectJsonSchema first.
   const fromStored: ResponseFormat = { name: "x", schema: stored };
@@ -31,6 +31,6 @@ test("a raw / stored (Unprojected) schema CANNOT fill ResponseFormat.schema — 
 });
 
 test("the brand is one-directional — WireReady IS a Record, a Record is NOT a WireReady", () => {
-  expectTypeOf<WireReady>().toMatchTypeOf<Record<string, unknown>>();
-  expectTypeOf<Record<string, unknown>>().not.toMatchTypeOf<WireReady>();
+  expectTypeOf<WireReady>().toExtend<Record<string, unknown>>();
+  expectTypeOf<Record<string, unknown>>().not.toExtend<WireReady>();
 });

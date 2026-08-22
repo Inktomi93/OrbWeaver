@@ -106,7 +106,6 @@ function spyRegistry(outcome: PortableImportOutcome = { ok: true, created: true 
     kind: "chat",
     dir: "chats/",
     ext: ".jsonl",
-    // eslint-disable-next-line @typescript-eslint/require-await
     async *exportAll(): AsyncIterable<PortableFile> {
       // no-op: this suite only drives the import leg.
     },

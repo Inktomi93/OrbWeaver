@@ -104,7 +104,15 @@ const UI_CT = "tests/ui/**/*.ct.tsx";
 const UI_FIXTURES = "tests/ui/**/*.fixtures.tsx";
 const CLIENT_CT = "tests/client/**/*.ct.tsx";
 const CLIENT_STORIES = "tests/client/**/_ct-stories.tsx";
-const CT_SURFACE = [UI_CT, UI_FIXTURES, CLIENT_CT, CLIENT_STORIES];
+// tests/tooling grew a browser tree of its own (the design-audit walker + snap's overflow op are
+// in-page instruments, so their proofs MOUNT), and tests/support/ct carries the shared CT providers.
+// Both are React under playwright-ct exactly like the ui/client trees — without these rows the
+// react-hooks/Compiler rules stop at the tests/{ui,client} border while `.ct.tsx` files elsewhere
+// render unchecked. Syntactic parse, same as the rest of CT_SURFACE (no program needed).
+const TOOLING_CT = "tests/tooling/**/*.ct.tsx";
+const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
+const SUPPORT_CT = "tests/support/ct/**/*.tsx";
+const CT_SURFACE = [UI_CT, UI_FIXTURES, CLIENT_CT, CLIENT_STORIES, TOOLING_CT, TOOLING_STORIES, SUPPORT_CT];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
 const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
@@ -135,9 +143,51 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // Scope note: the react/tailwind/query/router blocks above stay off tooling by construction (node-context
 // tools render nothing). What tooling gets is the ASYNC-SAFETY + dispatch + deprecation set — exactly the
 // eslint-only category, and the highest-value one for code that spawns processes and walks trees.
+//
+// ── WIDENED TO THE WHOLE TEST TREE (#473, 2026-08-22) ───────────────────────────────────────────────
+// #459 fixed `tooling/**`; the same hole was still open over EVERY other node test dir. `tests/server`
+// (1,025 files), `tests/kit`, `tests/db`, `tests/contracts`, `tests/support` and `tests/e2e` were all
+// outside both halves of the surface, so the class #459 caught in tooling — an async assertion that
+// could not fail its own test — had nowhere to be caught here either.
+//
+// SURVEY over the 1,276 newly-covered files, before anything was enabled:
+//   require-await 182 (server 180 · contracts 2) · no-deprecated 11 (server 5 · contracts 4 · kit 2)
+//   await-thenable 1 (server) · unused-eslint-disable 3 (server)
+//   no-floating-promises / no-misused-promises / switch-exhaustiveness-check /
+//   restrict-template-expressions: 0
+// Everything except require-await was FIXED in the landing lane. no-floating-promises measuring 0 is
+// the independent confirmation of #473's census: the 36 un-awaited matchers really were the whole
+// population, and there is no second reservoir outside tooling.
+//
+// `require-await` IS DELIBERATELY OFF FOR `tests/**`, WITH A RECEIPT — it is a rule/surface mismatch,
+// NOT a deferred sweep, so do not open a cleanup row for it. A 26-site spread sample of the 182 (every
+// 7th site across 37 files) was 26/26 the SAME legitimate shape: an async TEST DOUBLE conforming to an
+// interface whose method returns a Promise —
+//   `vi.fn<ChatService["listChats"]>(async () => page)` · `generateSegments: async () => ({ written: 0 })`
+//   · `async *exportAll(): AsyncIterable<PortableFile>`
+// The `async` is REQUIRED by the contract being stubbed; there is nothing to await because a stub has no
+// work. "Fixing" all 182 means `Promise.resolve(...)` boilerplate that is semantically identical and
+// strictly less readable. The rule stays ON for `tooling/src/**` (real tool code, where an async
+// function with no await IS a mis-signaled sync function — measured 0 there) and ON for `packages/**`
+// via the async-safety block above. Same posture, same evidence standard, as the
+// react-you-might-not-need-an-effect triage below.
+//
+// TWO PARSER PROGRAMS, because the test tree has two owners. Most of it resolves upward to the ROOT
+// `tsconfig.json` (which `include`s `tests`), so `projectService` finds it. But `tests/e2e/**` is
+// EXCLUDED from the root program and `tests/support/ct/{drop-files,settings-geometry,tier-liveness}.ts`
+// are claimed only by `tsconfig.tests-dom.json` — under projectService those answer "was not found by
+// the project service" (measured: 3 parse errors). The escapee block hands the parser BOTH configs as
+// an array so each file is owned by whichever program includes it, WITHOUT duplicating tests-dom's
+// filename list here (that list moves; a copy of it would rot silently).
 const TOOLING_SRC = "tooling/src/**/*.ts";
 const TOOLING_TESTS = "tests/tooling/**/*.ts";
-const TOOLING_SURFACE = [TOOLING_SRC, TOOLING_TESTS];
+// Node test dirs owned by the ROOT tsconfig program.
+const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts"];
+// The two trees the root program does NOT own — see the parser note above.
+const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts"];
+const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
+// Every file the async-safety + dispatch + deprecation rules apply to.
+const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];
 
 // The typed exported-API packages governed by the Documentation-Law doc-comment gates
 // (tsdoc/syntax + no-deprecated). server/kit/db/contracts — where the contract surface + its TSDoc
@@ -277,36 +327,55 @@ export default tseslint.config(
     },
   },
   {
-    // Type-aware parser for the tooling surface (#459). `tooling/src` resolves upward to
-    // `tooling/tsconfig.json` (which `include`s `src`); `tests/tooling` resolves to the ROOT
-    // `tsconfig.json` (which `include`s `tests`) — both are real programs, so `projectService` finds an
-    // owner for every file here and no `.tsx` exists in either tree.
-    files: TOOLING_SURFACE,
+    // Type-aware parser for the root-program-owned half of the tooling + test surface (#459/#473).
+    // `tooling/src` resolves upward to `tooling/tsconfig.json` (which `include`s `src`); the node test
+    // dirs resolve to the ROOT `tsconfig.json` (which `include`s `tests`). All real programs, so
+    // `projectService` finds an owner for every file here.
+    files: PROJECT_SERVICE_SURFACE,
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { projectService: true, tsconfigRootDir: ROOT, sourceType: "module" },
     },
   },
   {
-    // ASYNC-SAFETY + dispatch + deprecation over the tooling surface — see the TOOLING_SURFACE header for
-    // the mechanism of the old gap, the 591-file measurement, and the three rules tracked at #472.
-    files: TOOLING_SURFACE,
+    // The tests-dom escapees (#473) — `tests/e2e/**` plus the three `tests/support/ct/*.ts` files the
+    // root program excludes. The parser gets BOTH configs and uses whichever one owns the file, so this
+    // block never has to restate tsconfig.tests-dom.json's include list (a copy of it would rot).
+    files: TESTS_DOM_OWNED,
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { project: ["tsconfig.json", "tsconfig.tests-dom.json"], tsconfigRootDir: ROOT, sourceType: "module" },
+    },
+  },
+  {
+    // ASYNC-SAFETY + dispatch + deprecation over the tooling + test surface — see the SAFETY_SURFACE
+    // header for the mechanism of the old gap, both measurements (591 files at #459, 1,276 more at
+    // #473), the three rules tracked at #472, and why require-await is off for `tests/**`.
+    files: SAFETY_SURFACE,
     plugins: { "@typescript-eslint": tseslint.plugin },
     rules: {
       // THE headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
-      // could not fail their own test. Nothing else in the stack can see a dropped Promise.
+      // could not fail their own test. Nothing else in the stack can see a dropped Promise. (Measured 0
+      // across the #473 dirs — that zero is what closes the census, not an assumption.)
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
-      "@typescript-eslint/require-await": "error",
       "@typescript-eslint/await-thenable": "error",
       // The §5.5 string-union dispatch law as a lint rule: a `default:` catch-all lets a NEW union member
-      // silently inherit an arm. Seven sites in `stack/` were enumerated at the landing.
+      // silently inherit an arm. Seven sites in `stack/` were enumerated at the #459 landing.
       "@typescript-eslint/switch-exhaustiveness-check": "error",
-      // Caught a real defect at the landing: an ExemptionRow OBJECT interpolated into a gate's operator
-      // message, which would have rendered `[object Object]` (list-row-adoption.ts).
+      // Caught a real defect at the #459 landing: an ExemptionRow OBJECT interpolated into a gate's
+      // operator message, which would have rendered `[object Object]` (list-row-adoption.ts).
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-deprecated": "error",
     },
+  },
+  {
+    // require-await is TOOL-SOURCE ONLY, never `tests/**` — the 26/26 test-double triage in the
+    // SAFETY_SURFACE header. Here it keeps its real meaning: a tool function declared `async` with
+    // nothing to await is a mis-signaled sync function, and a caller may skip awaiting it.
+    files: [TOOLING_SRC],
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: { "@typescript-eslint/require-await": "error" },
   },
   {
     // react-hooks: rules-of-hooks + React Compiler diagnostics. The full recommended set IS what we

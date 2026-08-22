@@ -350,11 +350,12 @@ test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface",
   expect(stage("lint:eslint").scopedArgv?.(sel)).toBe("skip-empty");
 });
 
-test("lint:eslint scopedArgv: a tooling file IS in the eslint surface (#459)", () => {
+test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surface (#459, #473)", () => {
   // The surface has two halves that must agree or the coverage is a lie: the `lint:eslint` SCRIPT argv
   // (package.json) and this selection regex. Before #459 NEITHER named tooling — eslint answered "File
   // ignored because no matching configuration" and the scoped lane silently linted nothing there, which
-  // is how 36 un-awaited async matchers (assertions that could not fail their own test) survived.
+  // is how 36 un-awaited async matchers (assertions that could not fail their own test) survived. #473
+  // closed the same hole over the REST of the test tree; this pin is what stops either half regressing.
   const sel = resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts"] });
   expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual([
     "eslint",
@@ -366,14 +367,28 @@ test("lint:eslint scopedArgv: a tooling file IS in the eslint surface (#459)", (
     "content",
     "tooling/src/verify/lib/registry.ts",
   ]);
-  const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
-  expect(testSel.eslintPaths).toEqual(["tests/tooling/verify/ops/run.int.test.ts"]);
-  // ...and the SCRIPT half, pinned against package.json itself - a regex that agreed with nothing would
+  // Every test dir, named individually — a `tests/` regex arm that silently lost one is the exact
+  // failure this pin exists for, and only a per-dir assertion catches it.
+  const testFiles = [
+    "tests/tooling/verify/ops/run.int.test.ts",
+    "tests/server/entry/http/spa.test.ts",
+    "tests/kit/ids/index.test-d.ts",
+    "tests/db/client.int.test.ts",
+    "tests/contracts/portability/index.contract.test.ts",
+    "tests/support/tool-fixtures.ts",
+    "tests/e2e/support/global-setup.ts",
+    "tests/ui/stream/snap.test.ts",
+    "tests/client/state/create-entity-draft-store.test.ts",
+  ];
+  for (const file of testFiles) {
+    expect(resolveSelection({ kind: "file", paths: [file] }).eslintPaths).toEqual([file]);
+  }
+  // ...and the SCRIPT half, pinned against package.json itself — a regex that agreed with nothing would
   // read exactly like coverage.
   const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
-  expect(eslintPkg.scripts["lint:eslint"]).toContain("tooling/src tests/tooling");
+  expect(eslintPkg.scripts["lint:eslint"]).toContain("tooling/src tests ");
 });
 
 test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", () => {
