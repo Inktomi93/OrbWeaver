@@ -12,7 +12,7 @@
 // the tRPC payload first (via `routeTrpc`'s recorder), and then re-asserts the field's own displayed value
 // as the second half of the round trip: the surface must not repaint resolved text after the save settles.
 //
-// The static half of this invariant is the `macro-resolution-home` gate (scripts/check/gates/) — it keeps a
+// The static half of this invariant is the `macro-resolution-home` gate (tooling/src/verify/gates/) — it keeps a
 // resolver from being imported into a form component at all. The gate is import-keyed and therefore blind to
 // DATA FLOW (a sanctioned render home drilling an already-resolved string down as a prop); this helper is
 // the belt for that blind spot, and the two are meant to be worn together.

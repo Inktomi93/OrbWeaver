@@ -74,6 +74,8 @@ test("the in-budget twin passes on a REAL frame population — the red above is 
   expect(Number(denominator)).toBeGreaterThan(0);
 });
 
+// @instrument-absence-proof: the __orb bridge REMOVED (the apparatus absent) and, below, a measured window
+// that composited NO frame (the population empty) — both must say INSTRUMENT ERROR, never verdict=PASS.
 test("a page with no __orb bridge is an INSTRUMENT ERROR, never a clean audit", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "bridgeless.html"), NO_BRIDGE);
   const res = await runCli("motion-audit", args(scratch, "bridgeless.html"), { timeoutMs: CLI_TIMEOUT_MS });

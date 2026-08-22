@@ -40,7 +40,7 @@ export const EPILOGUE_TAG = "[ast]";
 /** What the two `getWorkspace` arms load, named in `scope=` so a corpus-shaped zero is self-diagnosing. */
 export const CORPUS_TYPED = "search-globs(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)";
 
-export const CORPUS_SYNTACTIC = "harness-globs(packages/*/src,tests,scripts/check/gates)";
+export const CORPUS_SYNTACTIC = "harness-globs(packages/*/src,tests,tooling/src/verify/gates)";
 
 /** Same file set as {@link CORPUS_TYPED}, loaded WITHOUT the type graph — a purely syntactic walk (no
  *  `import`/re-export resolution, no checker) needs no language service, so `literal` gets the wide

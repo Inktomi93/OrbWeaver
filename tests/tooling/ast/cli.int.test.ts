@@ -92,7 +92,7 @@ test(
 test(
   "a zero-match NAME lookup on the syntactic corpus carries the corpus caveat — a symbol in unscanned scripts/** must not read as absent",
   () => {
-    // `callers` scans harness-globs (packages src + tests + scripts/check/gates): a function that lives
+    // `callers` scans harness-globs (packages src + tests + tooling/src/verify/gates): a function that lives
     // ONLY in e.g. scripts/github/ zero-matches here while being fully alive. The bare "no results" line
     // read as a clean answer once (a file-local `gh()` helper); the caveat is the fix. Path-scoped verbs
     // (the `exports` case above) stay bare — their argument names a file that WAS scanned.
@@ -124,7 +124,7 @@ test(
   "an --in filter that admits no file is a TOOL ERROR, not a clean zero",
   () => {
     // `scripts/dev/**` is real on disk and absent from the SYNTACTIC corpus (harness-globs loads only
-    // scripts/check/gates) — the exact shape that used to print `no results` from a search of nothing.
+    // tooling/src/verify/gates) — the exact shape that used to print `no results` from a search of nothing.
     const run = runAst(["ident", "REPO_ROOT", "--in", "scripts/dev"]);
     expect(run.epilogue["scanned"]).toBe("0");
     expect(run.epilogue["status"]).toBe("error");

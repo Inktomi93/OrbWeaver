@@ -70,7 +70,19 @@ const config: KnipConfig = {
     tooling: {
       // The three BASH-SPAWNED entries are invisible to the import graph: `stack` is a bash-fronted tool
       // (tooling-package.md §4.1) whose .sh entrypoints exec these by path, so nothing imports them.
-      entry: ["src/*/cli.ts", "src/*/index.ts", "src/_shared/*.ts", "src/stack/ops/prod-entry.ts", "src/stack/ops/engines.ts", "src/stack/ops/engines-ctl.ts"],
+      // The GATE CORPUS is an entry glob for the same reason one level up: `verify`'s loader IS the registry
+      // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (tooling-package.md §4.3), so every
+      // descriptor is a plugin nothing statically imports. Without this row knip reads all 219 `export const
+      // gate` as dead, and drops every helper they alone consume with them.
+      entry: [
+        "src/*/cli.ts",
+        "src/*/index.ts",
+        "src/_shared/*.ts",
+        "src/verify/gates/*.ts",
+        "src/stack/ops/prod-entry.ts",
+        "src/stack/ops/engines.ts",
+        "src/stack/ops/engines-ctl.ts",
+      ],
       project: ["src/**/*.ts"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },

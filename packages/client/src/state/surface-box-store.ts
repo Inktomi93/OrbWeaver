@@ -28,7 +28,7 @@
 // user gained/lost rows, or resized) only mis-reserves by the delta and self-heals on the same mount.
 //
 // Device-local by construction: it is a measurement of THIS device's viewport, never a user preference —
-// registered as such in scripts/check/gates/persistence-boundary.ts.
+// registered as such in tooling/src/verify/gates/persistence-boundary.ts.
 
 import { isPlainObject } from "@orb/kit/guards";
 import { createPersistedStore } from "./create-persisted-store.ts";

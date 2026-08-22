@@ -75,6 +75,8 @@ test("an unknown subcommand is CLI misuse", async ({ runCli }) => {
 
 // ── ZERO HYGIENE (#409): a trace with nothing in it is absent evidence, not a clean waterfall ──
 
+// @instrument-absence-proof: a trace whose SPAN population is empty must report INSTRUMENT ERROR — while a
+// genuinely EMPTY traces LIST (the twin below) stays clean, because an empty ring is a real answer.
 test("a trace whose SPAN population is empty is an INSTRUMENT ERROR, never a clean header", async ({ runCli, scratch }) => {
   // A recorded trace always carries its root span; an empty list means the tracer captured nothing —
   // rendering the header alone read exactly like a successful waterfall.

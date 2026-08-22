@@ -16,7 +16,7 @@
 // bus to announce. The client's tracker/journal invalidation keys list `variantSelected` alongside these.
 //
 // D72 MACHINE-SHIPS-WITH-ITS-SEAL: a NEW member is gated on BOTH ends — the PRODUCER side by
-// `scripts/check/gates/rpg-bus-coverage.ts` (every member needs a server emit site in `domain/rpg/**` OR a
+// `tooling/src/verify/gates/rpg-bus-coverage.ts` (every member needs a server emit site in `domain/rpg/**` OR a
 // cited DEFERRED entry — a declared-never-emitted member is RED, not silent dead wire, D50), and the CONSUMER
 // side by the exhaustive `EVENT_INVALIDATIONS` mapped Record over `RpgBusEvent["type"]` (a new member fails
 // client tsc until it names its reads; `bus-definition-belts` checks BOTH belts exist). `RPG_BUS_EVENT_TYPES`
@@ -62,7 +62,7 @@ export type RpgBusEvent =
 
 /** The producer-coverage belt (§4.9, coupled site): every `RpgBusEvent` discriminant, enumerated. The
  *  `satisfies readonly RpgBusEvent["type"][]` proves each member is a real event type (a typo fails tsc); the
- *  reverse — a NEW union member missing here — surfaces via `scripts/check/gates/rpg-bus-coverage.ts`, which
+ *  reverse — a NEW union member missing here — surfaces via `tooling/src/verify/gates/rpg-bus-coverage.ts`, which
  *  reads THIS list to know the members it must find a producer emit (or a DEFERRED citation) for. The client
  *  invalidation map keys on the same union. */
 export const RPG_BUS_EVENT_TYPES = [

@@ -517,7 +517,8 @@
         "packages/server/src/infra/providers/**",
         "packages/contracts/src/connection/**",
         "tests/contracts/connection/**",
-        "tooling/src/model-ab/**"
+        "tooling/src/model-ab/**",
+        "tooling/src/verify/gates/**"
       ],
       "linter": {
         "rules": {
@@ -583,6 +584,16 @@
             "noDefaultExport": "off",
             "useNamingConvention": "off",
             "useConsistentTypeDefinitions": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["tooling/src/verify/ops/ct-flaky-reporter.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
           }
         }
       }
