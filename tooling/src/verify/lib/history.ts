@@ -1,0 +1,109 @@
+// The run-history store (#411): append one JSONL line per verify-family run to
+// `reports/verify-history.jsonl`, and compare the current run against the previous one AT THE SAME TIER.
+//
+// APPEND-ONLY, BOUNDED, AND NEVER FATAL. The file lives under the gitignored `reports/` root, so it is
+// per-worktree ephemera the way every other artifact is. It is trimmed to the last `MAX_ENTRIES` on each
+// append — an unbounded log would make the read cost grow forever for a comparison that only ever looks at
+// the most recent same-tier line. A corrupt or unreadable line is SKIPPED, and any I/O failure is swallowed
+// with a warning: a timing LEDGER must never be able to fail a verification run.
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { ensureReportsDir, reportsPath } from "@orb/tooling/_shared/artifacts";
+import { warn } from "@orb/tooling/_shared/log";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
+import type { RunHistoryEntry, SlowdownAdvisory } from "../contract/history.ts";
+
+const HISTORY_FILE = "verify-history.jsonl";
+/** The retained window. Deep enough to see a regression that arrived a few runs ago, shallow enough that
+ *  the read stays a few KB forever. */
+const MAX_ENTRIES = 200;
+/** Only a stage that TOOK REAL TIME can be meaningfully "2× slower" — a 3ms→8ms jitter is noise, and an
+ *  advisory that fires on noise is one nobody reads. */
+const MIN_BASELINE_MS = 1000;
+const SLOWDOWN_RATIO = 2;
+/** Modes whose durations are comparable at all. A deferred/skipped stage records 0ms by construction. */
+const RAN_MODES: ReadonlySet<string> = new Set(["full", "scoped"]);
+
+/** The commit under judgement, or `"unknown"` — never fabricated, so a line can always be trusted about
+ *  which tree it measured. */
+export function currentSha(root: string): string {
+  const res = runNicedSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root });
+  return res.status === 0 && res.stdout.trim().length > 0 ? res.stdout.trim() : "unknown";
+}
+
+/** Every retained entry, oldest first. A malformed line is skipped rather than throwing — this store is
+ *  evidence, and a torn append from a killed run must not blind the next comparison. */
+export function readHistory(root: string): readonly RunHistoryEntry[] {
+  const path = reportsPath(root, HISTORY_FILE);
+  if (!existsSync(path)) {
+    return [];
+  }
+  const out: RunHistoryEntry[] = [];
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    if (line.trim().length === 0) {
+      continue;
+    }
+    try {
+      out.push(JSON.parse(line) as RunHistoryEntry);
+    } catch {
+      // a torn/partial line — skip it, never fail the run that is only trying to record a timing
+    }
+  }
+  return out;
+}
+
+/** Append `entry`, trimming the file to the retained window. Never throws. */
+export function appendHistory(root: string, entry: RunHistoryEntry): void {
+  try {
+    ensureReportsDir(root);
+    const path = reportsPath(root, HISTORY_FILE);
+    const prior = readHistory(root);
+    if (prior.length + 1 > MAX_ENTRIES) {
+      const kept = [...prior.slice(prior.length + 1 - MAX_ENTRIES), entry];
+      writeFileSync(path, `${kept.map((e) => JSON.stringify(e)).join("\n")}\n`);
+      return;
+    }
+    appendFileSync(path, `${JSON.stringify(entry)}\n`);
+  } catch (err) {
+    warn(`verify-history: could not record this run's timings (${err instanceof Error ? err.message : String(err)})`);
+  }
+}
+
+/** The most recent retained entry at the same TIER (tiers run wildly different stage sets, so comparing
+ *  across them is meaningless), excluding the run being recorded. */
+export function previousAtTier(history: readonly RunHistoryEntry[], tier: string, runId: string): RunHistoryEntry | undefined {
+  return [...history].reverse().find((e) => e.tier === tier && e.runId !== runId);
+}
+
+/** Stages that took materially longer than the previous same-tier run. PURE — the whole comparison is
+ *  unit-testable without touching disk. Only stages that RAN in both runs are compared. */
+export function slowdowns(previous: RunHistoryEntry | undefined, current: RunHistoryEntry): readonly SlowdownAdvisory[] {
+  if (previous === undefined) {
+    return [];
+  }
+  const before = new Map(previous.stages.filter((s) => RAN_MODES.has(s.mode)).map((s) => [s.name, s.durationMs]));
+  const out: SlowdownAdvisory[] = [];
+  for (const stage of current.stages) {
+    const wasMs = before.get(stage.name);
+    if (wasMs === undefined || !RAN_MODES.has(stage.mode) || wasMs < MIN_BASELINE_MS) {
+      continue;
+    }
+    const ratio = stage.durationMs / wasMs;
+    if (ratio > SLOWDOWN_RATIO) {
+      out.push({ stage: stage.name, wasMs, nowMs: stage.durationMs, ratio });
+    }
+  }
+  return out;
+}
+
+/** The advisory block — printed, never exited on. It names BOTH runs so the reader can go compare the two
+ *  per-stage logs rather than take the ratio on faith. */
+export function slowdownLines(previous: RunHistoryEntry | undefined, advisories: readonly SlowdownAdvisory[]): readonly string[] {
+  if (advisories.length === 0 || previous === undefined) {
+    return [];
+  }
+  return [
+    `[verify] SLOWER THAN THE LAST ${previous.tier} RUN (${previous.sha} @ ${previous.at}) — advisory only, not a verdict:`,
+    ...advisories.map((a) => `[verify]   · ${a.stage}: ${a.wasMs}ms → ${a.nowMs}ms (${a.ratio.toFixed(1)}×)`),
+    "[verify] history → reports/verify-history.jsonl (tooling/src/verify/contract/history.ts, #411)",
+  ];
+}
