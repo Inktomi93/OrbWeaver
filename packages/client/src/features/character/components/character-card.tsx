@@ -15,6 +15,7 @@ import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
+import { slugifyHandle } from "@orb/kit/slug";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -24,6 +25,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu, RowToggleAction } from "#components";
+import { rowActionSubject } from "#lib";
 
 /** The owner-gated card download route (`GET /api/export/character/:characterId`) — export's ONE home is
  *  this row's kebab (import is the list band's ghost; the editor carries no lifecycle chrome).
@@ -72,6 +74,29 @@ export interface CharacterCardTileProps {
   readonly onDelete: (id: string) => void;
 }
 
+/**
+ * THE ROW'S ANNOUNCED IDENTITY (#492, side-eye 2026-08-22 rail-characters P1-2) — `undefined` when the name
+ * says it all, the HANDLE when it does not.
+ *
+ * The library holds genuine same-name collisions (three `Emily` at handles `emily`/`emily-2`/`emily-3`;
+ * `Hikari`×2 and `Eva`×2 inside the first 50 rows), and the row announced its `name` alone: three identical
+ * `button "Emily"`. Voice control could address none of them ("click emily-3" matches nothing) and
+ * list-navigation / low-verbosity screen-reader modes, which drop descriptions, heard one name three times.
+ *
+ * IT GATES ON DERIVABILITY, NOT ON COLLISION, and that is a deviation from the #443/#458/#463 qualifier
+ * resolvers with two receipts. (1) Those resolve a qualifier ACROSS THE LIST, and this list is keyset-paged
+ * 30 at a time: a collision scan over the loaded page would answer about the page, not the library, and the
+ * name would CHANGE under a screen-reader user as later pages arrived — the same lie `#493` is fixing in the
+ * group counts. (2) The review assumed the handle is the row's visible subtitle; it is the ladder's LAST
+ * rung (`elevatorPitch ?? tagLine ?? handle`, below), so any character with a distilled pitch or a visible
+ * tag — every orphan import, whose `orphan import` TAG takes the rung — never shows one. A per-row,
+ * paging-stable rule is the only one that holds. The handle is unique per owner, so it always separates
+ * them; when it is merely the name slugified it says nothing, and is spent on nothing.
+ */
+function handleQualifier(character: Pick<CharacterCardItem, "name" | "handle">): string | undefined {
+  return character.handle === slugifyHandle(character.name) ? undefined : character.handle;
+}
+
 export function CharacterCardTile({
   character,
   selected,
@@ -91,8 +116,13 @@ export function CharacterCardTile({
   const subtitle = character.elevatorPitch ?? tagLine ?? character.handle;
   // exactOptionalPropertyTypes: omit `src` entirely for a missing avatar so it falls to the fallback.
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
+  // ONE announced identity for the row AND every control that acts on it (`rowActionSubject`, #443/#458/#463):
+  // "Star Emily" / "Chat with Emily" / "Actions for Emily" collided across the three Emilys exactly as the row
+  // body did, so fixing only the body would have left three identically-named kebabs behind it.
+  const qualifier = handleQualifier(character);
+  const subject = rowActionSubject(character.name, qualifier);
 
-  const bulkActions = <Checkbox aria-label={`Select ${character.name}`} checked={bulkSelected} onCheckedChange={(): void => onToggleBulk(character.id)} />;
+  const bulkActions = <Checkbox aria-label={`Select ${subject}`} checked={bulkSelected} onCheckedChange={(): void => onToggleBulk(character.id)} />;
   const markers = bulkMode ? undefined : rowMarkers(character);
 
   return (
@@ -110,6 +140,7 @@ export function CharacterCardTile({
             onDuplicate={onDuplicate}
             onToggleArchive={onToggleArchive}
             onToggleStar={onToggleStar}
+            subject={subject}
           />
         )
       }
@@ -142,6 +173,7 @@ export function CharacterCardTile({
       selected={bulkMode ? bulkSelected : selected}
       subtitle={subtitle}
       title={character.name}
+      {...(qualifier === undefined ? {} : { titleQualifier: qualifier })}
       // Not in bulk mode (the row is a checkbox target, no hover disclosure).
       {...(bulkMode ? {} : { subtitleReveal: `${character.handle} · ${character.tokenSize}` })}
     />
@@ -179,6 +211,7 @@ function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">):
  *  fine pointers, always-on for coarse) + the ⋯ overflow. */
 function NormalRowActions({
   character,
+  subject,
   onChat,
   onToggleStar,
   onToggleArchive,
@@ -186,6 +219,11 @@ function NormalRowActions({
   onDelete,
 }: {
   readonly character: CharacterCardItem;
+  /** The row's announced identity (`rowActionSubject(name, handleQualifier)`) — what every control here
+   *  embeds, so a library holding three "Emily"s cannot ship three identically-named kebabs (#492). The
+   *  ROW BODY spells the same pair without the action grammar's quotes (`ListRow.titleQualifier` →
+   *  `Emily · emily-3`): one identity, two sentence shapes — a name standing alone, and a name inside a verb. */
+  readonly subject: string;
   readonly onChat: (id: string) => void;
   readonly onToggleStar: (id: string, next: boolean) => void;
   readonly onToggleArchive: (id: string, next: boolean) => void;
@@ -201,26 +239,19 @@ function NormalRowActions({
           114px (P1-3). Same split as the chats row. */}
       <RowToggleAction
         icon={Star}
-        labelOff={`Star ${character.name}`}
-        labelOn={`Unstar ${character.name}`}
+        labelOff={`Star ${subject}`}
+        labelOn={`Unstar ${subject}`}
         onToggle={(): void => onToggleStar(character.id, !character.starred)}
         pressed={character.starred}
         pressedClassName="text-warning"
         rest="never"
       />
-      <Button
-        aria-label={`Chat with ${character.name}`}
-        className={ROW_REVEAL}
-        intent="ghost"
-        onClick={(): void => onChat(character.id)}
-        size="icon"
-        type="button"
-      >
+      <Button aria-label={`Chat with ${subject}`} className={ROW_REVEAL} intent="ghost" onClick={(): void => onChat(character.id)} size="icon" type="button">
         <Icon icon={MessagesSquare} size="sm" />
       </Button>
       <RowActionsMenu
         align="start"
-        label={`Actions for ${character.name}`}
+        label={`Actions for ${subject}`}
         reveal={true}
         destructive={{
           separator: false,

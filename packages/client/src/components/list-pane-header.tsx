@@ -19,6 +19,7 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { LIST_PANE_TITLE_ID } from "#lib";
 
 /** The band's leading back affordance — a mode-swapped pane's way out (Arm A's projection → picker). */
 export interface ListPaneHeaderBack {
@@ -65,10 +66,15 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             only ever be read WITH the thing it counts, in either regime, with no second CSS rule to keep in
             step. The heading is therefore the flex BOX and `truncate` moves to the title text alone — so a
             long name still ellipsises and the census still survives beside it, exactly as before. */}
+        {/* THE LANDMARK IS NAMED BY THIS HEADING (#493) — the LIST `<aside>` points its `aria-labelledby`
+            here (`LIST_PANE_TITLE_ID`), so the complementary landmark says whatever the band says. It is
+            what makes a pane that SWAPS its contents (Characters → a character's chats) stop announcing
+            the section it used to hold. The rationale + the single-instance argument live at the constant. */}
         <Heading
           className="flex min-w-0 items-center gap-field"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
+          id={LIST_PANE_TITLE_ID}
           level={2}
           size="micro"
           tone="muted"

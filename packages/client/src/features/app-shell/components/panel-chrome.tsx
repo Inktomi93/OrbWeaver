@@ -21,6 +21,7 @@ import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { LIST_PANE_TITLE_ID } from "#lib";
 import type { PanelMode, PanelName } from "#state";
 
 export interface PanelChromeProps {
@@ -49,6 +50,14 @@ export function PanelChrome({ panel, label, header, mode, onDismiss, children }:
     <aside
       className="shell-panel"
       aria-label={label}
+      // THE LIST LANDMARK FOLLOWS ITS OWN BAND (#493, side-eye 2026-08-22 rail-characters P2-3). `label` is
+      // derived from the ACTIVE SECTION, so it announced "Characters list" over a pane that had swapped to a
+      // character's CHATS. The band beside it already says the right thing; pointing the landmark at that
+      // heading makes the two one fact instead of two. `aria-label` STAYS as the fallback — a name
+      // computation whose `aria-labelledby` resolves to nothing falls through to it, which is exactly the
+      // case for a section whose band is not a `ListPaneHeader`. CONTEXT keeps the static label: its band is
+      // the section's detail identity, not a swappable pane. See `lib/list-pane-title-id.ts`.
+      {...(panel === "list" ? { "aria-labelledby": LIST_PANE_TITLE_ID } : {})}
       data-panel-mode={mode}
       data-panel-side={panel}
       aria-hidden={mode === "collapsed" ? "true" : undefined}

@@ -38,6 +38,7 @@ import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings,
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { ListPaneHeader } from "../../../../packages/client/src/components/list-pane-header.tsx";
 import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
 import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
 import { AppearanceReadingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-reading-section.tsx";
@@ -478,6 +479,30 @@ export function AppShellChatsProjectionIntentStory(): ReactElement {
         }}
       >
         <LandOn section="characters" />
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** THE LIST LANDMARK IS NAMED BY ITS OWN BAND (#493). The shell's `aria-label` is derived from the ACTIVE
+ *  SECTION, so it could only ever describe the section — and the Characters LIST pane swaps its whole
+ *  contents to a character's CHATS when one is opened, at which point "Characters list" was a lie. The
+ *  landmark points at the band's heading now; this story is the band, with a caller-chosen title/accent so
+ *  one CT can walk both arms of the swap. */
+export function AppShellNamedListBandStory({ title, accent }: { readonly title: string; readonly accent?: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            content: <p>chats content pane</p>,
+            list: <p>chats list pane</p>,
+            listHeader: <ListPaneHeader title={title} {...(accent === undefined ? {} : { accent })} />,
+          },
+        }}
+      >
+        <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>

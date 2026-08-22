@@ -100,6 +100,7 @@ import {
   subscribeHuskAbandoned,
   toggleCollectionGroup,
   toggleFavoritesOnly,
+  toggleFiltersOpen,
   toggleShowArchived,
   toggleSpoilerBlur,
   useActiveChatHandle,
@@ -123,6 +124,7 @@ import {
   useDatabankPhaseFilter,
   useErroredSaveSections,
   useFavoritesOnly,
+  useFiltersOpen,
   useFocusMode,
   useModalRegistry,
   useMultiHumanCapableHint,
@@ -587,6 +589,7 @@ export function CharacterLibraryStoreProbe(): ReactElement {
   const bulk = useCharacterBulkMode();
   const tags = useTagFilter();
   const spoilerBlur = useSpoilerBlur();
+  const filtersOpen = useFiltersOpen();
   // `browseOffset` (#255) has no read HOOK by design (its getter is a one-shot mount-time read, never a
   // subscription — see the store's own header) — the probe reads it into local state on demand instead of
   // rendering it directly, which is exactly how the real mount-time caller uses it.
@@ -594,7 +597,7 @@ export function CharacterLibraryStoreProbe(): ReactElement {
   return (
     <div>
       <output>
-        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.map((entry) => `${entry.id}:${entry.state}`).join(",") || "none"} blur=${spoilerBlur}`}
+        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.map((entry) => `${entry.id}:${entry.state}`).join(",") || "none"} blur=${spoilerBlur} filtersOpen=${filtersOpen}`}
       </output>
       <p>{`browseOffset=${browseOffset}`}</p>
       <button type="button" onClick={(): void => setCharacterSortMode("alpha")}>
@@ -623,6 +626,9 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => toggleSpoilerBlur()}>
         toggle spoiler blur
+      </button>
+      <button type="button" onClick={(): void => toggleFiltersOpen()}>
+        toggle filters open
       </button>
       <button type="button" onClick={(): void => setCharacterBrowseOffset(240)}>
         set browse offset

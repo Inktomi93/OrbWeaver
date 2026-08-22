@@ -11,6 +11,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
 import type { CollectionSurface } from "#data";
@@ -48,6 +49,14 @@ export interface CharacterLibraryBodyProps {
    *  accordion, not one windowed scroller, so a px offset taken under the other view does not name a
    *  position in it. */
   readonly initialScrollOffset: number;
+  /** "30 of 327 loaded" — the loaded-vs-census progress line, `null` once the whole matched set is in
+   *  (#493). It renders at the FOOT of the list, beside the tail-fetch sentinel: that is where "how much of
+   *  it have I got" is the question, and it is the number the pane's top status line had to stop printing
+   *  because at rest it read as a result count (`character-library-lens.ts`'s own note). */
+  readonly loadedProgress: string | null;
+  /** The GROUP-BY-TAG mode's scope sentence (`partialGroupingLabel`), `null` when the buckets are complete
+   *  (#493). Only the categorized arm reads it. */
+  readonly partialNotice: string | null;
   readonly onClearSearch: () => void;
   readonly onRetry: () => void;
   readonly renderRow: (item: CharacterCardItem) => ReactNode;
@@ -65,6 +74,8 @@ export function CharacterLibraryBody({
   isFetchingNextPage,
   listProps,
   initialScrollOffset,
+  loadedProgress,
+  partialNotice,
   onClearSearch,
   onRetry,
   renderRow,
@@ -132,6 +143,7 @@ export function CharacterLibraryBody({
         hasNextPage={hasNextPage}
         isLoadingMore={isFetchingNextPage}
         onLoadMore={listProps.onEndApproach}
+        partialNotice={partialNotice}
         renderRow={renderRow}
       />
     );
@@ -145,7 +157,7 @@ export function CharacterLibraryBody({
     <Stack className="h-full min-h-0">
       <VirtualList
         aria-label={ariaLabel}
-        className="h-full"
+        className="min-h-0 flex-1"
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="row"
@@ -155,6 +167,15 @@ export function CharacterLibraryBody({
         onEndApproach={listProps.onEndApproach}
         renderItem={renderRow}
       />
+      {/* THE PROGRESS LINE, AT THE FOOT (#493). `aria-hidden`: the pane's `role="status"` line already
+          speaks the count that MATCHED, and a second live number under an infinite scroller would announce
+          itself on every page the tail-fetch pulls. This one is for the eye — it is the answer to "is the
+          list still growing under me", which the top line was being read as and could not honestly be. */}
+      {loadedProgress === null ? null : (
+        <Text aria-hidden={true} className="shrink-0 self-center" voice="gloss">
+          {loadedProgress}
+        </Text>
+      )}
     </Stack>
   );
 }
