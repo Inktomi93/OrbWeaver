@@ -69,10 +69,12 @@ test("picking a character fires chat.generate with that speakerCharacterId", asy
 // dead affordance with a cheerful invitation. (The composer's other icons compose "<what it does> — <the
 // unlock condition>" for exactly this; `reasonFor` in composer-guided-cluster.tsx is that seam.)
 //
-// SCOPE FENCE: this pins the reason for the states the control ALREADY gates on — a turn in flight and its
-// own generate in flight. Whether speak-as should ALSO gate on send-availability (#54) is a separate owner
-// decision and is deliberately not touched here.
+// The send-availability arm below joined it under owner ruling #397 (#406): speak-as fires a turn, so an
+// unserveable connection idles it exactly like the four guided icons.
 const SPEAK_AS_TOOLTIP = "Choose who speaks next";
+// The `engine-off` copy, spelled literally so a drift in `sendUnavailableReason` reds here as it does in
+// composer.ct.tsx rather than following the source into a new string.
+const ENGINE_OFF_REASON = "Local engine is off — enable it to send.";
 
 test("while its own generate is in flight the trigger is aria-disabled AND says why", async ({ mount, page }) => {
   const held = trpcHold();
@@ -104,6 +106,31 @@ test("while its own generate is in flight the trigger is aria-disabled AND says 
   held.release({ messages: [], aborted: false });
   await expect(trigger).not.toHaveAttribute("aria-disabled", "true");
   await expect(page.getByRole("tooltip", { name: SPEAK_AS_TOOLTIP, exact: true })).toBeVisible();
+});
+
+// ── THE SEND GATE REACHES SPEAK-AS (#406, owner ruling #397) ─────────────────────────────────────────
+// Speak-as fires `chat.generate` — a TURN. An unserveable connection dooms it exactly as it dooms the four
+// guided icons, so the control idles with the SAME cause-specific reason instead of inviting a doomed turn.
+// The send cause is PERSISTENT, so it wins over the phase reason (`reasonFor`, composer-guided-cluster.tsx).
+test("an unserveable connection idles the trigger and the tooltip names the send cause", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
+    "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
+  });
+  const component = await mount(<SpeakAsSelectStory />);
+
+  const trigger = component.getByRole("button", { name: "Speak as a character" });
+  // SETTLED barrier: the verdict is a resolved query, so the disabled arm is the steady state — poll the
+  // rendered attribute rather than asserting on the first commit (the verdict lands after mount).
+  await expect(trigger).toHaveAttribute("aria-disabled", "true");
+  await trigger.hover();
+  await expect(page.getByRole("tooltip", { name: `${SPEAK_AS_TOOLTIP} — ${ENGINE_OFF_REASON}`, exact: true })).toBeVisible();
+  // The refusal is REAL, not decorative: the menu never opens, so no doomed generate can be dispatched. `force`
+  // is required and is the point — playwright's own actionability check refuses a disabled control, so an
+  // ordinary click would prove only that playwright agrees it is off. Forcing the event past that check is what
+  // asks the component itself, and Base UI's aria-disabled MenuTrigger swallows it.
+  await trigger.click({ force: true });
+  await expect(page.getByRole("menu")).toHaveCount(0);
 });
 
 test("picking Auto fires chat.generate with a null speakerCharacterId (arbitration picks)", async ({ mount, page }) => {

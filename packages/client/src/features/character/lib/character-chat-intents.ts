@@ -10,7 +10,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { useStartChat } from "#data";
-import { clearChatListCharacterFilter, setActiveSection, setOpenOverlayPanel, setPanelMode } from "#state";
+import { clearChatListCharacterFilter, dockListPanel, setActiveSection, setOpenOverlayPanel } from "#state";
 
 /** The projection pane's container slot — the one string the shell stamps and the hero focuses. */
 export const CHARACTER_CHATS_PROJECTION_SLOT = "character-chats-projection";
@@ -34,13 +34,20 @@ export function useStartChatWithCharacter(): (characterId: CharacterId) => void 
  * NARROW: the LIST is a sheet, so open it — that reveals the pane AND moves focus into it.
  * WIDE: the pane is beside the editor, but it may be collapsed, so un-collapse it and move focus there —
  * a link that scrolls nothing and focuses nothing is a dead end (rule 1).
+ *
+ * THE WIDE ARM GOES THROUGH `dockListPanel`, NOT `setPanelMode` (#391). Docking the LIST can move CONTEXT
+ * between the two channels that carry its visibility, and #383 made every list flip pay the carry that
+ * bridges them — but it installed that carry inside `useShellLayout`, which this module cannot reach (a
+ * feature may never import another feature). A raw `setPanelMode("list","docked")` here therefore went
+ * BEHIND the carry and silently vanished an open detail pane, the same orphan on a narrower trigger. The
+ * shell registers its carry into `#state`; `dockListPanel` is the door that pays it.
  */
 export function revealChatsProjection(narrow: boolean): void {
   if (narrow) {
     setOpenOverlayPanel("list");
     return;
   }
-  setPanelMode("list", "docked");
+  dockListPanel();
   const pane = (globalThis as { document?: { querySelector: (s: string) => { focus?: () => void } | null } }).document?.querySelector(
     `[data-slot="${CHARACTER_CHATS_PROJECTION_SLOT}"]`,
   );
