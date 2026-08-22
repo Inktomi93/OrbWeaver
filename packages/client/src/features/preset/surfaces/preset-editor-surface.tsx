@@ -283,7 +283,15 @@ function PresetEditorBody({
             thing they belong to; they aligned only below the cap, where the column IS the pane.
             The `Container` is here for the same reason it is around each panel: `@5xl` has to measure the
             PANE, and only a container can. Same classes as the panel column, deliberately — the header and
-            the body must breathe together or they realign at every dock. */}
+            the body must breathe together or they realign at every dock.
+
+            RE-DERIVED AND HELD (side-eye 2026-08-22 P2-1, which read the header as 176px wider than "the
+            body column"). Measured live at that arm (both panels hidden, `main` = 1224px): header x=220
+            w=896 and panel column x=220 w=896, on all five tabs — the panel column has carried this exact
+            class pair since 45cf001d53 (2026-08-01), so the ruling above was never broken. What that report
+            measured is a THIRD, deeper column: the Params deck's own 720px instrument cap
+            (`params-deck.tsx`, side-eye 2026-08-19 P2), which is why the offset shows on Params and on no
+            other tab. Fenced by a CT; the deck's cap is argued at its own site. */}
         <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
           <Container className="w-full">
             <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)" gap="block">
@@ -389,7 +397,11 @@ function PresetEditorBody({
                   (globals.css), driven by the hook per its stated consumer contract: an edge dissolves only
                   while it is actually hiding something. */}
               <Row className="scroll-fade-x min-w-0 overflow-x-auto py-tight" ref={stripRef}>
-                <TabsList>
+                {/* THE STRIP NAMES ITSELF (side-eye 2026-08-22 P3-4). Without this the tablist's accessible
+                    name computed from its own contents — `ParamsPromptActionsDataTransforms` — which was
+                    the ONE element of 112 mapped controls on this surface that resolved to a DOM-path
+                    selector instead of a semantic one. */}
+                <TabsList aria-label="Preset sections">
                   {PRESET_EDITOR_VIEWS.map((entry) => (
                     <TabsTab key={entry.id} value={entry.id}>
                       {entry.label}

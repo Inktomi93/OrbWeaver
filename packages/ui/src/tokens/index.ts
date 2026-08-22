@@ -96,6 +96,7 @@ export const TOKENS = {
   "spacing.switch-thumb": { cssVar: "--spacing-switch-thumb", value: "2rem" },
   "spacing.checkbox": { cssVar: "--spacing-checkbox", value: "1.125rem" },
   "spacing.slider-thumb": { cssVar: "--spacing-slider-thumb", value: "1.5rem" },
+  "spacing.slider-inset": { cssVar: "--spacing-slider-inset", value: "0.75rem" },
   "spacing.glyph-xs": { cssVar: "--spacing-glyph-xs", value: "1rem" },
   "spacing.glyph-sm": { cssVar: "--spacing-glyph-sm", value: "1.25rem" },
   "spacing.glyph-md": { cssVar: "--spacing-glyph-md", value: "1.5rem" },

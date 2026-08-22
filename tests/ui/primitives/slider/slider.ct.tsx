@@ -212,10 +212,62 @@ test("tone: default keeps the ember fill; neutral drops the accent for WEIGHT; g
   expect(neutralFill).not.toBe(resolvedTokenColor("color.primary"));
   expect(await backgroundAlpha(indicators.nth(1))).toBeGreaterThan(0);
 
-  // GHOST (the INHERITED arm) — a muted thumb sitting at the effective value over a BARE rail. No fill
+  // GHOST (the INHERITED arm) — a HOLLOW thumb sitting at the effective value over a BARE rail. No fill
   // means no magnitude claim about a number you did not set.
-  await expect(thumbs.nth(2)).toHaveCSS("background-color", resolvedTokenColor("color.muted-foreground"));
+  expect(await backgroundAlpha(thumbs.nth(2))).toBe(0);
+  await expect(thumbs.nth(2)).toHaveCSS("border-top-color", resolvedTokenColor("color.muted-foreground"));
   expect(await backgroundAlpha(indicators.nth(2))).toBe(0);
+});
+
+// P2-3 (side-eye 2026-08-22): the inherited arm was distinguished from an explicit one by TINT alone, and
+// the tint dies in the state that matters. An EXPLICIT knob at its minimum draws a zero-width fill, so at
+// the left rail an unset knob and a true-minimum one were two 24px discs differing only in grey — and on a
+// brand-new preset all eight sampling thumbs sit exactly there, reading "everything is turned all the way
+// down" when the truth is "nothing is set". Pinned as a FILLEDNESS difference (a ring vs a disc), not as a
+// colour pair: a tint that merely differs is what this finding says is not enough.
+test("P2-3: an UNSET knob and a knob at its TRUE MINIMUM are visibly different at the same rail position", async ({ mount, page }) => {
+  await mount(
+    <>
+      <Slider label="At minimum" max={100} min={0} tone="default" value={0} />
+      <Slider label="Unset" max={100} min={0} tone="ghost" value={0} />
+    </>,
+  );
+  const thumbs = page.locator(THUMB);
+  const [minimumBox, unsetBox] = await Promise.all([thumbs.nth(0).boundingBox(), thumbs.nth(1).boundingBox()]);
+  // SAME POSITION — this is the whole premise of the finding; if they parked apart there would be nothing
+  // for the paint to disambiguate.
+  expect(unsetBox?.x).toBe(minimumBox?.x);
+  // …and the paint carries the distinction on its own: one thumb is filled, the other is a ring.
+  expect(await backgroundAlpha(thumbs.nth(0))).toBeGreaterThan(0);
+  expect(await backgroundAlpha(thumbs.nth(1))).toBe(0);
+});
+
+// P2-8 (side-eye 2026-08-22): Base UI centres a thumb ON its value position, so at `min` and `max` the knob
+// hangs half its width outside the CONTROL — and while the control ran the full row, that half landed
+// outside the ROW as well. Measured at a 430px coarse viewport: the max thumb ran 406→430 and the min thumb
+// 0→24, flush with the screen edge, the grabbable half sitting on the OS edge-swipe bezel.
+//
+// The reference box is the slider ROOT, not the Control: the overhang past the control is INHERENT to
+// centring a thumb on its position and no inset removes it — what the inset buys is that the overhang now
+// falls inside the row the slider occupies instead of past it. Asserted as a box relationship rather than a
+// viewport number so the pin holds at any mount width.
+test("P2-8: at min and at max the thumb stays inside the slider's own row", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 320 }}>
+      <Slider label="Floor" max={100} min={0} value={0} />
+      <Slider label="Ceiling" max={100} min={0} value={100} />
+    </div>,
+  );
+  const roots = page.locator('[data-slot="slider-root"]');
+  const thumbs = page.locator(THUMB);
+  const [floorRoot, ceilingRoot, floorThumb, ceilingThumb] = await Promise.all([
+    roots.nth(0).boundingBox(),
+    roots.nth(1).boundingBox(),
+    thumbs.nth(0).boundingBox(),
+    thumbs.nth(1).boundingBox(),
+  ]);
+  expect(floorThumb?.x).toBeGreaterThanOrEqual(floorRoot?.x ?? 0);
+  expect((ceilingThumb?.x ?? 0) + (ceilingThumb?.width ?? 0)).toBeLessThanOrEqual((ceilingRoot?.x ?? 0) + (ceilingRoot?.width ?? 0));
 });
 
 // `tone` is COLOR ONLY — a seven-row knob deck mixes both arms in one column, so a tone that moved the box

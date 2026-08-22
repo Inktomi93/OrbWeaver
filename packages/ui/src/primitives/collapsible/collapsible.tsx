@@ -23,13 +23,18 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
   /** Bake the trailing `ChevronDown` that rotates on open (the discovery affordance; default `true`). Set
    *  `false` when the consumer renders its OWN chevron/icon inside the trigger, to avoid a double chevron. */
   chevron?: boolean;
+  /** The trigger's BOX. `inline` (default) is text-height — a disclosure sitting in running content, where a
+   *  control box would shear it off the copy it belongs to. `control` pins the pointer-conditional
+   *  `--spacing-control-sm` row floor for a disclosure that IS a row of its own (see variants.ts for the
+   *  measurement that minted it). */
+  size?: "inline" | "control";
 }
 
 /** Bakes the trailing `ChevronDown` that rotates on `data-panel-open` (the accordion precedent) unless the
  *  consumer opts out with `chevron={false}` (it renders its own). */
-export function CollapsibleTrigger({ className, chevron = true, children, ...rest }: CollapsibleTriggerProps): ReactElement {
+export function CollapsibleTrigger({ className, chevron = true, size = "inline", children, ...rest }: CollapsibleTriggerProps): ReactElement {
   return (
-    <BaseCollapsible.Trigger className={slots.trigger({ className })} data-slot="collapsible-trigger" {...rest}>
+    <BaseCollapsible.Trigger className={collapsibleVariants({ instant: false, size }).trigger({ className })} data-slot="collapsible-trigger" {...rest}>
       {children}
       {chevron ? <Icon icon={ChevronDown} size="sm" className={slots.chevron()} /> : null}
     </BaseCollapsible.Trigger>

@@ -719,8 +719,12 @@ test("CONTROL COLOR — one grammar, asserted COMPUTED: explicit slider fill IS 
     return resolved;
   });
 
-  // THUMB: the inherited row reads "not yours yet" and the explicit one is full weight.
-  expect(await partColor(ghostRow, "slider-thumb")).not.toBe(await partColor(explicitRow, "slider-thumb"));
+  // THUMB: the inherited row reads "not yours yet" and the explicit one is full weight. The inherited arm
+  // is HOLLOW as of side-eye 2026-08-22 P2-3 — a tint alone died at the left rail, where an explicit knob
+  // at its minimum draws a zero-width fill and the two rows differed by nothing but a grey. Pinned as
+  // unfilled-vs-filled here too, so the deck's own arm cannot drift back to a tint.
+  expect(await partColor(ghostRow, "slider-thumb")).toBe("rgba(0, 0, 0, 0)");
+  expect(await partColor(explicitRow, "slider-thumb")).not.toBe("rgba(0, 0, 0, 0)");
 
   // FILL — the inherited row claims NO magnitude at all (F-09's surviving half: an unset Top-P at its 0.92
   // model default painting a near-full bar read as MORE set than the explicit rows beside it)…
@@ -784,5 +788,38 @@ test.describe("coarse pointer — every knob explainer clears the touch floor", 
       expect(hit.width, `${hit.label}: hit width`).toBeGreaterThanOrEqual(measured.floor);
       expect(hit.height, `${hit.label}: hit height`).toBeGreaterThanOrEqual(measured.floor);
     }
+  });
+
+  // P2-4 (side-eye 2026-08-22): the deck's ONE disclosure was its smallest interactive text — a 544×16 box
+  // with a 10.5px label, below WCAG 2.5.8's 24×24 on any pointer and far below the coarse floor, with no
+  // hit expansion (`::after` resolved `content: none`, so the `@orb/ui` touch pseudo was not in play). It
+  // was `voice="kicker"`, the SECTION-EYEBROW step — right for a label that names a group, wrong for the
+  // only thing you can press to reach one. `design-audit` reds this class as `undersized-ui-text` at the
+  // 11px functional floor; asserted here as the RESOLVED type step and the RESOLVED coarse box, so the pin
+  // does not restate either number as a literal.
+  test("P2-4: the Advanced disclosure is sized as a control, not as a section eyebrow", async ({ mount, page }) => {
+    const deck = await mount(<ParamsDeckGhostStory />);
+    const trigger = deck.getByRole("button", { name: "Advanced" });
+    await expect(trigger).toBeVisible();
+
+    const measured = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.height = "var(--spacing-control-sm)";
+      probe.style.fontSize = "var(--text-label)";
+      document.body.append(probe);
+      const style = getComputedStyle(probe);
+      const floor = Number.parseFloat(style.height);
+      const labelStep = Number.parseFloat(style.fontSize);
+      probe.remove();
+
+      const el = document.querySelector<HTMLElement>('[data-slot="collapsible-trigger"]');
+      const text = el?.querySelector<HTMLElement>("p") ?? el;
+      return { floor, labelStep, height: el?.getBoundingClientRect().height ?? 0, fontSize: Number.parseFloat(getComputedStyle(text as HTMLElement).fontSize) };
+    });
+
+    expect(measured.floor, "the control-sm token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
+    expect(measured.labelStep, "the label type step must resolve, or this assertion is vacuous").toBeGreaterThan(0);
+    expect(measured.fontSize, "the trigger's label rides the control type step, not the eyebrow").toBe(measured.labelStep);
+    expect(measured.height, "the trigger's row box clears the coarse floor").toBeGreaterThanOrEqual(measured.floor);
   });
 });
