@@ -1207,3 +1207,87 @@ test("#490 the chrome band's count reflects the pane's filters, and returns to t
   await expect(band).not.toContainText(" of ");
   await expect(band).toContainText(String(library.length));
 });
+
+// ── #500 (side-eye 2026-08-22 rail-chats, the P3 cluster) ────────────────────────────────────────────
+
+// P3 item 1 — the row's visual WEIGHT was inverted against its information VALUE. Measured at 896-chat
+// density: title 13px/600, subtitle 10.5px/400 — the instrument tier's micro gloss, the same step the
+// "CHATS" / "FILTER BY CHARACTER" chrome kickers take. On the imported corpus the titles share a leading
+// token, so the loudest element in each row was the part identical ACROSS rows while the only
+// discriminating content (the scent line) was the quietest thing on the surface. Read from computed values
+// against the document's OWN tokens, never a hardcoded px — the fix is `subtitleStep="label"`, and the
+// guard is that the resolved step is the label one and NOT the micro one.
+test("#500 the scent line takes the LABEL step, not the chrome kickers' micro gloss — and the title still outranks it", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, ADVENTURE]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("The Ashfell run")).toBeVisible();
+
+  const proof = await component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" }).evaluate((node: HTMLElement) => {
+    const pick = (slot: string): HTMLElement => {
+      const found = node.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+      if (found === null) {
+        throw new Error(`the row rendered no ${slot} to measure`);
+      }
+      return found;
+    };
+    const probe = node.ownerDocument.createElement("div");
+    node.ownerDocument.body.append(probe);
+    const at = (token: string): string => {
+      probe.style.fontSize = `var(${token})`;
+      return getComputedStyle(probe).fontSize;
+    };
+    const label = at("--text-label");
+    const micro = at("--text-micro");
+    probe.remove();
+    const subtitle = getComputedStyle(pick("list-row-subtitle"));
+    const title = getComputedStyle(pick("list-row-title"));
+    const meta = getComputedStyle(pick("list-row-meta"));
+    return {
+      label,
+      micro,
+      subtitleSize: subtitle.fontSize,
+      subtitleWeight: subtitle.fontWeight,
+      subtitleColor: subtitle.color,
+      titleSize: title.fontSize,
+      titleWeight: title.fontWeight,
+      titleColor: title.color,
+      metaSize: meta.fontSize,
+    };
+  });
+
+  // The two steps are genuinely different in this document, or the assertion below proves nothing.
+  expect(proof.label).not.toBe(proof.micro);
+  expect(proof.subtitleSize, "the scent line owes the readable label floor").toBe(proof.label);
+  expect(proof.subtitleSize, "the scent line must not share the chrome kickers' micro voice").not.toBe(proof.micro);
+  // The hierarchy did not invert the other way: the title still leads, on WEIGHT and tone rather than size.
+  expect(Number(proof.titleWeight)).toBeGreaterThan(Number(proof.subtitleWeight));
+  expect(proof.titleColor).not.toBe(proof.subtitleColor);
+  expect(proof.titleSize).toBe(proof.label);
+  // …and the lift is the SCENT line alone — the recency stamp stays the quiet column the eye scans past.
+  expect(proof.metaSize, "the meta stamp keeps the micro step").toBe(proof.micro);
+});
+
+// P3 item 4 — the shell's `Skip to content` lands in `<main>`, i.e. PAST this pane, and on the Chats
+// surface the work starts in the LIST: 13 measured tab stops stood before the list's first control and the
+// only skip target was CONTENT. The pane carries its own now, the landed characters twin's exact posture
+// (#491).
+test("#500 the pane's skip link is its FIRST focusable and lands focus on the first chat row", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText(ADVENTURE_ROW)).toBeVisible();
+
+  const skip = component.getByRole("button", { name: "Skip to chats" });
+  // FIRST among the pane's focusables in DOM order — the whole contract: a skip control that is not the
+  // first focusable is a second tab stop, not a skip. Asserted structurally rather than by pressing Tab,
+  // because where a CT's initial focus SITS is the harness's business, not this pane's.
+  const isFirstInPane = await skip.evaluate((el: HTMLElement) => {
+    const pane = el.closest<HTMLElement>('[tabindex="-1"]');
+    const focusables = pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])');
+    return focusables?.[0] === el;
+  });
+  expect(isFirstInPane).toBe(true);
+
+  await skip.focus();
+  await page.keyboard.press("Enter");
+  await expect(component.locator('[data-slot="list-row-body"]').first()).toBeFocused();
+});
