@@ -19,7 +19,7 @@ import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearanc
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
-import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
+import { GrainDoublePaintFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
   AppShellChatsProjectionIntentStory,
   AppShellDropGuardStory,
@@ -3195,6 +3195,91 @@ test("under contrast: no-preference the same grain overlay still paints — the 
   await emulateContrast(page, "no-preference");
   const shell = await mount(<ShellCascadeFixture surfaceTexture="grain" />);
   await expect.poll(() => afterDisplayOf(shell), { intervals: [20, 50, 100] }).not.toBe("none");
+});
+
+// ── #435: ONE grain layer per pixel ────────────────────────────────────────────────────────────────
+// The ratified host is the WHOLE shell (`.shell-grid::after`), so an in-shell card that ALSO painted its
+// own arm composed the film twice over exactly the card's pixels. `content` is the honest read here, not
+// `opacity`: the fix suppresses the pseudo-element outright, and a suppressed pseudo still reports the
+// inherited/initial opacity, so an opacity assertion would pass on the double-painting tree too.
+function afterContentOf(probe: Locator): Promise<string> {
+  return probe.evaluate((el) => getComputedStyle(el, "::after").content);
+}
+
+test("grain: an in-shell card does NOT paint its own second layer (the whole-shell ::after already covers it)", async ({ mount, page }) => {
+  await emulateContrast(page, "no-preference");
+  await mount(<GrainDoublePaintFixture />);
+  await expect.poll(() => afterContentOf(page.getByTestId("in-shell-card")), { intervals: [20, 50, 100] }).toBe("none");
+  // …while the grid's own layer is the one still painting over that card.
+  await expect.poll(() => afterDisplayOf(page.getByTestId("grain-shell-grid")), { intervals: [20, 50, 100] }).not.toBe("none");
+});
+
+test("grain: a card OUTSIDE the shell grid keeps its own arm — a portalled dialog has no other carrier", async ({ mount, page }) => {
+  await emulateContrast(page, "no-preference");
+  await mount(<GrainDoublePaintFixture />);
+  const outside = page.getByTestId("outside-shell-card");
+  await expect.poll(() => afterContentOf(outside), { intervals: [20, 50, 100] }).not.toBe("none");
+  await expect.poll(() => outside.evaluate((el) => getComputedStyle(el, "::after").opacity), { intervals: [20, 50, 100] }).toBe("0.04");
+});
+
+/** Luminance standard deviation over a screenshot REGION, decoded in-browser (the `samplePixel` technique
+ *  below, widened from one pixel). Grain is PAINT — a `background-image` noise tile composited through
+ *  `mix-blend-mode: soft-light` — so computed style can report each authored layer but never how many of
+ *  them landed. The film's amplitude IS the spread of the pixels around a flat fill, which makes stddev
+ *  the direct measure of "how many grain layers is this surface wearing". */
+async function regionNoiseStdDev(page: Page, box: { x: number; y: number; width: number; height: number }): Promise<number> {
+  // fullPage: `.shell-grid` is a viewport-tall grid, so the out-of-shell probe (its sibling, standing in
+  // for a portalled card) lays out BELOW the fold and a viewport-clipped screenshot refuses the region.
+  const clip = await page.screenshot({ clip: box, fullPage: true });
+  const dataUrl = `data:image/png;base64,${clip.toString("base64")}`;
+  return await page.evaluate(async (url: string) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, img.width, img.height);
+    const values: number[] = [];
+    for (let i = 0; i < data.length; i += 4) {
+      values.push(0.2126 * (data[i] ?? 0) + 0.7152 * (data[i + 1] ?? 0) + 0.0722 * (data[i + 2] ?? 0));
+    }
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    return Math.sqrt(values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length);
+  }, dataUrl);
+}
+
+test("grain: the in-shell card wears exactly ONE film by framebuffer, the same as the out-of-shell card", async ({ mount, page }) => {
+  await emulateContrast(page, "no-preference");
+  await mount(<GrainDoublePaintFixture />);
+  const inShell = await page.getByTestId("in-shell-card").boundingBox();
+  const outside = await page.getByTestId("outside-shell-card").boundingBox();
+  if (inShell === null || outside === null) {
+    throw new Error("grain probes did not lay out");
+  }
+  // Both probes are the SAME flat fill at the SAME size, so the out-of-shell card is this test's own
+  // one-layer control — a ratio, not an absolute, survives any future change to the opacity token.
+  const [inside, control] = [await regionNoiseStdDev(page, inShell), await regionNoiseStdDev(page, outside)];
+  test.info().annotations.push({ description: `in-shell=${inside.toFixed(3)} outside=${control.toFixed(3)}`, type: "grain-stddev" });
+  // Positive control FIRST: a zero-noise read means the screenshot never saw the film (the `/grain.svg`
+  // 404 the CT harness used to serve did exactly that — playwright-ct.config.ts's publicDir), which would
+  // make the ratio below pass 0/0-style on a tree that double-paints. Measured one-layer control ≈ 0.405.
+  expect(control).toBeGreaterThan(0.2);
+  // Red-first receipt (#435, this file's own pins run against the pre-fix globals.css): in-shell 0.810 vs
+  // outside 0.405 — the second film, exactly doubling the amplitude. Post-fix: 0.405 vs 0.405.
+  expect(inside / control).toBeLessThan(1.25);
+});
+
+test("grain: texture=none paints nothing on either card (the suppression is not what makes the in-shell card bare)", async ({ mount, page }) => {
+  await emulateContrast(page, "no-preference");
+  await mount(<GrainDoublePaintFixture surfaceTexture="none" />);
+  await expect.poll(() => afterContentOf(page.getByTestId("outside-shell-card")), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => afterContentOf(page.getByTestId("grain-shell-grid")), { intervals: [20, 50, 100] }).toBe("none");
 });
 
 test("the contrast fill is per-surface in the LIGHT theme too — the modal tracks --color-popover, not a baked colour", async ({ mount, page }) => {
