@@ -31,7 +31,7 @@ const STALE_PREFIX =
 const MESSAGE =
   'the PNG card-chunk engine (@orb/kit/png-card-chunk) imported outside the sanctioned serde homes — it is shared byte surgery for domain/import (read) and domain/export (write) only (Core-Enforcement-Deferred-Dropped.md "serde-core"; Spine-Config-and-Serialization.md §Serialization/serde core).';
 
-/** Is this ImportSpecifier a card-chunk engine symbol imported from @orb/kit/png-card-chunk? */
+/** Is this ImportSpecifier a card-chunk engine symbol imported from `@orb/kit/png-card-chunk`? */
 function pngChunkImport(node: Node): string {
   if (!node.isKind(SyntaxKind.ImportSpecifier)) {
     return "";

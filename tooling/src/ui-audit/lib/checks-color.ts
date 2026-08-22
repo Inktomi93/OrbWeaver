@@ -13,7 +13,7 @@ import { OPAQUE_STOP_MIN_ALPHA } from "./ramp.ts";
 const FOREGROUND_OPACITY_EPS = 0.999;
 
 /** Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
- *  glyph painted inside an opacity<1 group. opacity 1 is a no-op; opacity 0 is the pure backdrop. */
+ *  glyph painted inside an `opacity<1` group. opacity 1 is a no-op; opacity 0 is the pure backdrop. */
 function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
   const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
   return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };

@@ -9,8 +9,9 @@ import { absolutePath, assert, repoRelative } from "./plans.ts";
  * THE one-true pattern for arbitrary text replacements in a single file.
  *
  * Why: `sourceFile.replaceText([s, e], txt)` invalidates every previously
- * held AST node reference. A naive `for (node of getDescendants()) node
- * .replaceWithText(...)` loop crashes on the second iteration.
+ * held AST node reference. A naive
+ * `for (node of getDescendants()) node.replaceWithText(...)` loop crashes
+ * on the second iteration.
  *
  * How: collect ALL plans up front as `{ filePath, start, end, text }`,
  * sort end-DESCENDING (so earlier offsets stay valid as we apply later

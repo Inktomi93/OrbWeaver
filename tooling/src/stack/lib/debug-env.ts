@@ -72,8 +72,8 @@ export function debugConflictMessage(conflicts: readonly DebugConflict[]): strin
   ].join("\n");
 }
 
-/** Strip every debug key from an inherited env. Used when `--debug` is ABSENT: a stray `export
- *  WIRE_CAPTURE=on` in the operator's shell must not silently arm a production launch. `.env` is
+/** Strip every debug key from an inherited env. Used when `--debug` is ABSENT: a stray
+ *  `export WIRE_CAPTURE=on` in the operator's shell must not silently arm a production launch. `.env` is
  *  untouched by this — a knob declared in the file is deploy config and still applies. */
 export function stripDebugEnv(base: Readonly<Record<string, string | undefined>>): Readonly<Record<string, string>> {
   const out: Record<string, string> = {};

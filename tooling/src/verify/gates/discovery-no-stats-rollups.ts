@@ -15,7 +15,7 @@ const MESSAGE =
   "the stats rollup tables (ownerStats/characterStats/dailyStats/modelStats) are stats' alone — discovery is SEMANTICS and computes no usage rollup (stats-discovery-seam.md; Knowledge-Cluster.md §7 #7). Economics reach discovery ONLY through the injected pre-aggregated stats ops.";
 const SCAN_DIR = /packages\/server\/src\/domain\/discovery\//u;
 
-/** Is this ImportSpecifier one of the four rollup tables imported from an @orb/db module? */
+/** Is this ImportSpecifier one of the four rollup tables imported from an `@orb/db` module? */
 function isRollupFromDb(spec: ImportSpecifier): boolean {
   if (!ROLLUP_TABLES.has(spec.getName())) {
     return false;

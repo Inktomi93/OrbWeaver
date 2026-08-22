@@ -138,7 +138,7 @@ function isNode(v: Node | Finding): v is Node {
 
 /** How many findings each marker actually SUPPRESSED in this run, keyed `<repo-rel file>:<1-based line>`.
  *  §4.4's two-sidedness needs the ZERO case: a marker nobody consumed guards no live violation and is a
- *  loaded gun, so `gate-ignore-inventory` reds it. §4.3a needs the >1 case: an UNPOSITIONED marker that
+ *  loaded gun, so `gate-ignore-inventory` reds it. §4.3a needs the \>1 case: an UNPOSITIONED marker that
  *  absolved two guarded things is the over-exemption the `(<position>)` grammar exists to prevent, so the
  *  count — not a boolean — is what the inventory gate must read. Module state, reset per `runPass`
  *  (conformance runs many passes). */

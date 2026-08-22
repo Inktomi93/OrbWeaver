@@ -217,7 +217,7 @@ function boxInBoxFindings(sf: SourceFile, rel: string): Finding[] {
   return out;
 }
 
-/** A3 — a FEATURE passing an @orb/ui-internal type axis to <Text>/<Heading>. */
+/** A3 — a FEATURE passing an `@orb/ui`-internal type axis to `<Text>`/`<Heading>`. */
 function textVoiceFindings(sf: SourceFile, rel: string): Finding[] {
   if (!rel.startsWith(FEATURES_DIR)) {
     return [];

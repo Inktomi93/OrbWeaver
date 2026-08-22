@@ -25,7 +25,7 @@ export interface WorkspaceOptions {
 }
 
 /** The source globs the gate harness loads: the historical `getProject` packages+tests fileset PLUS
- *  `tooling/src/**` (the @orb/tooling first-class tree — docs/design/tooling-package.md §3.2: the widening
+ *  `tooling/src/**` (the `@orb/tooling` first-class tree — docs/design/tooling-package.md §3.2: the widening
  *  ran the before/after scanned-count diff; every catch-all gate's delta got an explicit fence-or-embrace
  *  decision in the P1 commit). The whole-project scanners (commented-code, no-caller-user-id,
  *  pd-citation-integrity) pin their `scanRoot` to packages+tests so this addition does NOT change THEIR

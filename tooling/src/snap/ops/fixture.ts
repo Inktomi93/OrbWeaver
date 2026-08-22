@@ -52,8 +52,8 @@ function stripSlash(url: string): string {
   return url.replace(TRAILING_SLASH_RE, "");
 }
 
-/** Resolve the fixture's two origins: explicit override > env (SNAP_FIXTURE_SERVER_URL /
- *  SNAP_FIXTURE_BASE_URL) > the offset-pair defaults. Pure apart from the env read (injectable for tests).
+/** Resolve the fixture's two origins: explicit override \> env (SNAP_FIXTURE_SERVER_URL /
+ *  SNAP_FIXTURE_BASE_URL) \> the offset-pair defaults. Pure apart from the env read (injectable for tests).
  *  An unparseable server URL falls back to the default port for the `/proc` check rather than throwing —
  *  the health probe below will refuse loudly on the same URL anyway, with a reason a human can act on. */
 export function resolveFixtureTarget(
