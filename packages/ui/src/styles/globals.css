@@ -201,6 +201,33 @@
   --fade-end-stop: var(--fade-edge-stop);
 }
 
+/* Vertical-overflow cue — the SAME mechanism on the block axis, for a self-scrolling SURFACE (the home
+ * content scroller) rather than a strip. Its own edge is the whole finding it answers (side-eye rail-home
+ * P2-1): 293px of home sat below the fold at 1280x800 with `mask-image: none`, no scrollbar gutter and no
+ * `::after`, so the last visible line was severed mid-word and read as a rendering fault instead of "scroll
+ * for more" — with BOTH of the databank empty state's calls to action below the cut.
+ *
+ * It is not `[data-slot="message-list-scroll"]` (client globals.css) because that rule is the TRANSCRIPT's,
+ * scoped to one slot and carrying the art-arm opt-out that only a chat background needs. This is the
+ * generic surface form, homed beside `.scroll-fade-x` so the two axes of one recipe stay one thing; the
+ * driver for both is `#lib`'s `useScrollFade{X,Y}`.
+ *
+ * SCROLL-AWARE, same contract as the horizontal twin: an edge dissolves ONLY while content is actually
+ * scrolled past it, so a surface that fits renders both edges fully opaque instead of dimming a flush
+ * heading against nothing. Static (no transition) => reduced-motion-safe. */
+.scroll-fade-y {
+  --fade-top-stop: 0%;
+  --fade-bottom-stop: 0%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
+}
+.scroll-fade-y[data-fade-top] {
+  --fade-top-stop: var(--fade-edge-stop);
+}
+.scroll-fade-y[data-fade-bottom] {
+  --fade-bottom-stop: var(--fade-edge-stop);
+}
+
 /* CLAMPED-MENU TAIL CUE (side-eye 2026-08-06 P2). A menu taller than `--available-height` clamps and
  * scrolls (see menu/variants.ts `popup`), but the clamp is INVISIBLE: the last visible row ends flush at a
  * clean border and reads as the last row, so the tail below it is undiscoverable without a stray wheel.

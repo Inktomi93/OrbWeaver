@@ -220,6 +220,48 @@ test("#216 every cell in a row starts its pitch at the same baseline, whatever i
   expect(nameBoxes[0]).toBe(nameBoxes[1]);
 });
 
+// ── AND THE SAME RULE ONE ROW DOWN (side-eye rail-home P3-5, 2026-08-22) ────────────────────────────
+// The filed finding was "the NAME band has a ragged bottom edge in every arm". That half is RETRACTED by
+// measurement — on the live shelf every name element is 43px and every cell bottom in a row is identical,
+// because #216-d above already reserves the name's two lines. What was still a clamp WITHOUT a reservation
+// is the pitch under it: a one-line pitch and a two-line pitch in the same row end their cells at different
+// baselines, which is the same defect the test above fixed, one line further down. `lines={2}` is the same
+// sanctioned variant. Asserted through the cell's rendered BOTTOM — the edge the eye actually reads as
+// ragged — with pitches of deliberately different lengths and names of the SAME length, so a regression in
+// the name reservation cannot make this pass for the other reason.
+test("P3-5 every cell in a row ENDS at the same edge, whatever its pitch's length", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": {
+      items: [
+        makeCharacterSummary({ id: "char_terse", name: "Hikari", elevatorPitch: "A medic." }),
+        makeCharacterSummary({
+          id: "char_wordy",
+          name: "Renata",
+          elevatorPitch: "A burnt-out night-shift medic who has stopped counting the ones she could not save.",
+        }),
+      ],
+      nextCursor: null,
+    },
+  });
+
+  const home = await mount(<ChatQuickPicksTileStory />);
+  const cells = home.getByRole("list", { name: "Character quick-picks" }).getByRole("listitem");
+  await expect(cells).toHaveCount(2);
+  // The long pitch must actually WRAP, or this passes for the wrong reason (two one-line pitches always
+  // align). Its box is two lines of the pitch's own leading; the terse one now reserves the same.
+  const pitchBoxes = await cells.evaluateAll((nodes: Element[]) =>
+    nodes.map((cell) => {
+      const spans = [...cell.querySelectorAll("span[data-slot='text']")];
+      const pitch = spans.at(-1);
+      return pitch === undefined ? Number.NaN : Math.round(pitch.getBoundingClientRect().height);
+    }),
+  );
+  expect(pitchBoxes[0]).toBe(pitchBoxes[1]);
+
+  const cellBottoms = await cells.evaluateAll((nodes: Element[]) => nodes.map((cell) => Math.round(cell.getBoundingClientRect().bottom)));
+  expect(cellBottoms[0]).toBe(cellBottoms[1]);
+});
+
 test("the cells are real LIST ITEMS inside the list — a role=list of generic divs announces empty", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": CHAR_PAGE });
 

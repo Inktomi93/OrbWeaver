@@ -117,12 +117,34 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
     <Row align="start" className="border-border border-l border-dashed pl-row" data-home-tile={tile.id} gap="row">
       <Icon className="mt-tight shrink-0 text-muted-foreground" icon={tile.icon} size="sm" />
       <Stack className="min-w-0" gap="tight">
-        <Text voice="label">{tile.title}</Text>
+        {/* A REAL HEADING (side-eye rail-home, ARIA rec 2 — 2026-08-22). This was a `<p>`, so `Buddy` and
+            `Automation` read to AT as body text with no structural distinction from their own descriptions:
+            the "Not yet" region announced as one undifferentiated run of prose, and a heading-navigating
+            user could not step between the two doorways. `h3` is the correct rank — the group's own band is
+            the `level={2}` kicker HomeSurface draws (`<Section aria-label="Not yet" level={2}>`), so these
+            are its children and nothing in the outline is skipped. The VOICE is unchanged, which is what
+            keeps this a semantics fix and not a type change: `voice` is declared after `size` in
+            textVariants, so `Heading`'s level-derived `title` step loses to `label` exactly as `kicker`
+            already does on every band on this surface. */}
+        <Heading level={3} voice="label">
+          {tile.title}
+        </Heading>
         {/* The `gloss` VOICE (mock `.dorm .teaser`: 11px, muted). The `label` step made the two DORMANT
             tiles the brightest prose on home — full-foreground text on the two things you cannot use
             (side-eye P1-2). The dashed rule + the group's "Not yet" name carry "not built yet"; the copy
-            recedes. */}
-        <Text voice="gloss">{doorway.teaser}</Text>
+            recedes.
+            …AND `prose` IS THE LENGTH MODIFIER IT ALWAYS OWED (side-eye rail-home P3-6, 2026-08-22). This
+            teaser is a two-line explanatory PARAGRAPH, and at the bare micro step it rendered at 10.5px —
+            the same size as the "Not yet" kicker above it, which is a label voice used at sentence length.
+            Contrast was never the issue (measured 8.45:1); it is small, not dim. `prose` is the sanctioned
+            answer and the one the quick-pick captions already take: it lifts the step to `label` and relaxes
+            the leading and changes nothing else, so the copy is still unmistakably the gloss voice. The
+            STATE LINE below keeps the bare micro step on purpose — the recorded ruling there is that the
+            separation between teaser and state is carried by the MONO FACE, and that ruling now has the
+            ramp helping it rather than doing its whole job alone. */}
+        <Text prose={true} voice="gloss">
+          {doorway.teaser}
+        </Text>
         {/* THE STATE LINE — what is still missing, in the user's own words (`DormantDoorway.reason`).
             It was a DEVELOPER CITATION behind an alpha, and both halves were defects (side-eye rail sweep
             P1-3, 2026-08-17): the copy read "waiting on: domain/buddy (not in the retro tree)" at a user,
