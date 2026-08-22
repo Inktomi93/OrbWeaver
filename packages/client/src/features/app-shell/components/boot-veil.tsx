@@ -16,6 +16,27 @@
 //
 // Already-ready at first render (an in-session remount) ⇒ renders nothing — no flash of a veil over
 // a live app. After its one exit the veil unmounts for good (state, not a timer).
+//
+// THE COLD-BOOT LONG FRAME IS NOT THIS COMPONENT'S — ACCEPTED WITH A MEASUREMENT (#429, 2026-08-22).
+// The dev console accuses the splash on every cold load (`[frame] long frame 139-172ms · blocking
+// 89-122ms @ main.tsx`, `[reflow] style/layout ran inside that frame`, `[drop] …ms rendered frame
+// mid-animation · svg[aria-label=Orbweaver] · [data-slot=weave-veil]`). Three channels, ONE frame,
+// and the veil is its victim, not its cause. Measured on the live dev stack, cold context per run:
+//   • The frame is the BOOT ENTRY MODULE SCRIPT evaluating — LoAF `invokerType: "module-script"`,
+//     invoker `/src/main.tsx`, 139-166ms of the 144-172ms frame. Its per-script
+//     `forcedStyleAndLayoutDuration` is **0** in every sample: nothing in it reads layout.
+//   • THIS VEIL DOES NOT EXIST YET WHEN IT RUNS. Polled at 50ms: the long frame spans t≈490-682ms and
+//     `[data-slot="weave-veil"]` first appears at t≈693ms — after React's first commit, which is the
+//     frame's own tail. A component that has not mounted cannot have dropped the frame.
+//   • The `[drop]` attribution names whatever animation LIFETIME overlaps the frame window
+//     (motion-animation-state.ts `targetsOverlapping`) — under load that is this veil's fade-in and
+//     the wordmark glyph, because they are the only motion alive that early. Attribution, not cause.
+//   • NOT dev-transform-only, so there is nothing to "accept away": a production `vite build` served
+//     from `dist` pays the same frame at 100-103ms / blocking 51-55ms, same `module-script` invoker on
+//     the 1.15 MB boot chunk. Vite's dev pipeline is the ~40ms delta on top, not the body.
+// So there is no splash-side fix: no synchronous layout here, no oversized filter, and the glyph is
+// four vector ops at 26px. The real cost is the boot chunk's evaluation, which is a bundle-size
+// question for the boot-split, not an animation one.
 
 import { Row, Stack } from "@orb/ui/layout";
 import { usePrefersReducedMotion } from "@orb/ui/lib";
