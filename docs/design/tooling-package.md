@@ -130,7 +130,7 @@ Evidence line for the dates: transcript archaeology 2026-08-21, retention-bounde
 
 **Promotion-or-research decision (plan §roster) — EXECUTED at P3:** `record.ts` PROMOTED as `screen-record/` (it gained the parse pins at the move — the promotion condition) and brought to the strict-CLI misuse posture (it was the fleet's last lenient parser; stated refinement). `_kit/ffmpeg.ts` had already gone fleet-shared at P2 (§2.4).
 
-**Operator one-offs, stay:** `sandbox.sh`, `vllm-setup.sh`, `oracle-steady-clone.sh`, `multi-user-fixture.sh`, `probe:history-system-rows` (`history-system-rows.ts`).
+**Operator one-offs, stay:** `sandbox.sh`, `vllm-setup.sh`, `multi-user-fixture.sh`, `probe:history-system-rows` (`history-system-rows.ts`). (`oracle-steady-clone.sh` was on this list until 2026-08-22 — removed with the neo parity rip, #428; git preserves it.)
 
 The research zone MAY import `@orb/tooling` (plumbing reuse beats respelling; the one-way glass is `packages/** ⇏ tooling`, not `scripts/ ⇏ tooling`). It keeps its blanket biome relaxations (`biome.json:575`) and knip entry globs (`knip.ts:44-45`) unchanged.
 

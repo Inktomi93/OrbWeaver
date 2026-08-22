@@ -179,11 +179,12 @@ is RED.
 
 **The mirror rule (one line, fully enforceable):** a test for `packages/<pkg>/src/<path>.ts` lives at
 `tests/<pkg>/<path>.<kind>.test.ts`. **Path = prefix-swap** (`packages/X/src/` ↔ `tests/X/`); the
-`test-layout` gate exempts the non-mirror trees `support/` + `e2e/` and the `.parity`/`.suite` kinds;
+`test-layout` gate exempts the non-mirror trees `support/` + `e2e/` and the `.suite` kinds;
 `tooling/` is CONDITIONAL — `tests/tooling/<dir>/` mirrors `tooling/src/<dir>/` whenever that tool dir
 exists (§9), and only flat files + dirs with no tool twin stay exempt. **Kind by suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) ·
-`.contract.test.ts` (golden/surface) · `.test-d.ts` (types) · `.parity.test.ts` (differential oracle —
-slow, opt-in) · `.suite.test.ts`/`.suite.int.test.ts` (cross-cutting property suites — mirror-exempt).
+`.contract.test.ts` (golden/surface) · `.test-d.ts` (types) · `.suite.test.ts`/`.suite.int.test.ts`
+(cross-cutting property suites — mirror-exempt). (`.parity.test.ts`, the neo differential oracle, was
+ripped out 2026-08-22 — #428.)
 The **node** lanes are Vitest `test.projects` selected by suffix in ONE config. **Browser lanes are
 Playwright, not Vitest** (Vitest browser-mode hangs): `.ct.tsx` (component, Playwright CT) · `.spec.ts`
 (e2e) — separate runners, not in the fast `check`.
