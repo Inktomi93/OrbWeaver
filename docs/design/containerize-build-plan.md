@@ -101,8 +101,9 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
      were RE-HOMED under `packages/server/src/infra/providers/vllm/engine/templates/` on 2026-08-22
      (#415), so the gpu image now gets them for free from the app-files `packages/server/src` copy and
      the Dockerfile carries no per-template line. What the gpu image still copies by hand: the stack
-     tool's `engines.sh`/`ops/engines.ts`/`ops/engines-ctl.ts` from `tooling/src/stack/` and
-     `scripts/dev/vllm-setup.sh`; the rest of both trees stays out.
+     tool's `engines.sh`/`vllm-setup.sh`/`ops/engines.ts`/`ops/engines-ctl.ts` from `tooling/src/stack/`
+     (`vllm-setup.sh` re-homed there from `scripts/dev/` on 2026-08-22, #421 — it is the venv bootstrap
+     `engines.sh` calls as its sibling, not research); the rest of both trees stays out.
    - Related env arrangement (no code change): `tooling/src/stack/engines.sh:41,82` checks the venv at
      `$VLLM_STORE_ROOT/.cache/vllm/venv` and IGNORES `VLLM_BIN` — so the image bakes the venv exactly
      there (`VLLM_STORE_ROOT=/opt/vllm-store`) and relocates the model/compile caches onto the volume

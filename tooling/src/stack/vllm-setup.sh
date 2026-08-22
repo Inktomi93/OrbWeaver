@@ -6,8 +6,8 @@
 # NVIDIA driver and selects matching CUDA wheels — no system CUDA toolkit,
 # no index-URL archaeology, nothing outside this repo (cache pinned below).
 #
-# Called automatically by `pnpm engines` (tooling/src/stack/engines.sh) when the venv
-# is missing; safe to run by hand (`bash scripts/dev/vllm-setup.sh`). Re-runs
+# Called automatically by `pnpm engines` (its sibling engines.sh) when the venv
+# is missing; safe to run by hand (`bash tooling/src/stack/vllm-setup.sh`). Re-runs
 # are no-ops unless the pin changes.
 #
 # TORCH BACKEND NOTE: `auto` is only safe when vLLM's own compiled kernels
@@ -25,7 +25,7 @@
 # Output contract (probe convention): last line is `RESULT vllm-setup …`.
 
 set -euo pipefail
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 # Model/venv stores are SHARED across git worktrees: root them at the MAIN checkout (the git common
 # dir's parent) so a linked worktree reuses the multi-GB caches instead of re-downloading. Falls back
 # to this checkout outside a linked worktree; an explicit env override still wins.

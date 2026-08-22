@@ -26,7 +26,8 @@
 # Output contract (probe convention): the LAST line is `RESULT engines …`.
 
 set -u
-REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../../.." && pwd)"
 RUN_DIR="$REPO/.cache/stack"
 PIDFILE="$RUN_DIR/engines.pgid"
 LOG_DIR="$RUN_DIR"
@@ -82,7 +83,7 @@ skip_if_disabled() {
 bootstrap_venv() {
   if [ ! -x "$VLLM_VENV/bin/vllm" ]; then
     echo "engines: vLLM venv missing — bootstrapping (first run only, several GB)…"
-    bash "$REPO/scripts/dev/vllm-setup.sh" || {
+    bash "$HERE/vllm-setup.sh" || {
       echo "engines: bootstrap failed — see output above."
       exit 1
     }

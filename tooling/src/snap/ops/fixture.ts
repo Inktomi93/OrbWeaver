@@ -3,10 +3,10 @@
 // WHY THIS EXISTS: `--contexts N` needs ≥2 DIFFERENT authenticated dev users to prove multi-human chat
 // states (host vs member views). The SHARED dev stack (:5173/:8788, tooling/src/stack/stack.sh) always boots
 // AUTH_MODE=single-user — one user, no login form, nothing to authenticate AS. The only door with a real
-// local-login form + a second user is `scripts/dev/multi-user-fixture.sh`. This module never boots/stops
-// that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture is up and
-// healthy, and resolves its known credentials; bringing it up is `bash scripts/dev/multi-user-fixture.sh
-// up`, a human/orchestrator call, not something a screenshot tool silently does.
+// local-login form + a second user is `tooling/src/stack/multi-user-fixture.sh`. This module never
+// boots/stops that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture
+// is up and healthy, and resolves its known credentials; bringing it up is `pnpm fixture up`, a
+// human/orchestrator call, not something a screenshot tool silently does.
 //
 // PORTS — AN OFFSET PAIR, SO THE FIXTURE IS A SIDECAR (fixed 2026-08-03): the fixture used to reuse
 // stack.sh's own 8788/5173, which made `--contexts` unusable whenever the owner's dev stack was up (they
@@ -44,7 +44,7 @@ export const FIXTURE_CREDENTIALS: readonly { readonly handle: string; readonly p
   { handle: "member", password: "member-dev-pass" },
 ];
 
-const FIXTURE_UP_REMEDY = "run scripts/dev/multi-user-fixture.sh up";
+const FIXTURE_UP_REMEDY = "run `pnpm fixture up`";
 
 const TRAILING_SLASH_RE = /\/$/u;
 
@@ -161,7 +161,7 @@ export function resolveFixtureUsers(
     const c = byHandle.get(h);
     if (c === undefined) {
       return {
-        error: `unknown fixture handle "${h}" — known dev users: ${FIXTURE_CREDENTIALS.map((u) => u.handle).join(", ")} (extend scripts/dev/multi-user-fixture.sh to seed more)`,
+        error: `unknown fixture handle "${h}" — known dev users: ${FIXTURE_CREDENTIALS.map((u) => u.handle).join(", ")} (extend tooling/src/stack/multi-user-fixture.sh to seed more)`,
       };
     }
     users.push(c);
