@@ -142,7 +142,7 @@ function joinAggregate(p: Node): Node | undefined {
     return;
   }
   const access = p.getParent();
-  if (access?.isKind(SyntaxKind.PropertyAccessExpression) !== true || access.getName() !== "join") {
+  if (!access.isKind(SyntaxKind.PropertyAccessExpression) || access.getName() !== "join") {
     return;
   }
   const call = access.getParent();
@@ -188,8 +188,8 @@ function markerLines(sf: SourceFile): MarkerLine[] {
         return;
       }
       const m = MARKER_RE.exec(text);
-      if (m !== undefined && m !== null) {
-        out.push({ line: i + 1, malformed: m.groups?.["colon"] !== ":" || (m.groups?.["reason"] ?? "") === "" });
+      if (m !== null) {
+        out.push({ line: i + 1, malformed: m.groups?.["colon"] !== ":" || (m.groups["reason"] ?? "") === "" });
       }
     });
   return out;

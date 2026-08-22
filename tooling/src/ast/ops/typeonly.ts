@@ -117,8 +117,10 @@ function refPosition(ref: Node): RefPosition {
 
 /** Does the ancestry of a reference land in a TYPE context? */
 function climbsToTypeContext(from: Node): boolean {
-  let cur: Node | undefined = from;
-  while (cur !== undefined) {
+  // A parsed Identifier/QualifiedName ALWAYS has a parent, so the climb below can only end at the
+  // `return false` arms — there is no undefined-parent exit to guard.
+  let cur: Node = from;
+  for (;;) {
     // MUST precede the isTypeNode test: `class D extends Base` puts `Base` in an ExpressionWithTypeArguments,
     // which IS a TypeNode by kind — but a class's `extends` target is CONSTRUCTED at runtime (measured; a
     // naive isTypeNode check calls every base class type-only). `implements`, and an interface's `extends`,
@@ -129,13 +131,11 @@ function climbsToTypeContext(from: Node): boolean {
     if (Node.isTypeNode(cur)) {
       return true;
     }
-    if (Node.isIdentifier(cur) || Node.isQualifiedName(cur)) {
-      cur = cur.getParent();
-      continue;
+    if (!(Node.isIdentifier(cur) || Node.isQualifiedName(cur))) {
+      return false;
     }
-    return false;
+    cur = cur.getParent();
   }
-  return false;
 }
 
 /** A heritage reference is type-only unless it is a CLASS's `extends` target (the one runtime-constructing

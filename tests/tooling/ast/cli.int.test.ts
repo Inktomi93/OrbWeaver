@@ -17,6 +17,7 @@
 //
 // SLOW BY CONSTRUCTION: every row pays one real ts-morph workspace load (~11s). All rows use SYNTACTIC
 // verbs (the `harness-globs` arm) — the typed arm would triple it for no extra coverage of THIS seam.
+import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -67,7 +68,10 @@ function runAst(argv: readonly string[], timeoutMs: number = SPAWN_TIMEOUT_MS): 
   // default old-space ceiling and aborts (SIGABRT → status null, ~5.6GB RSS). Raise the heap to match the
   // `pnpm ast` script; this harness spawns node DIRECTLY so it does not inherit that script's flag, and a
   // higher ceiling is harmless for the lighter syntactic rows (node allocates only what it uses).
-  const res = spawnSync(process.execPath, ["--max-old-space-size=8192", AST_CLI, ...argv], {
+  // `SpawnSyncReturns<string | null>`, not node's `<string>`: a spawn that never STARTS returns
+  // null for both pipes, so the `?? ""` below is load-bearing and the annotation is what makes it
+  // provably so (the @types/node signature is the optimistic half of the contract).
+  const res: SpawnSyncReturns<string | null> = spawnSync(process.execPath, ["--max-old-space-size=8192", AST_CLI, ...argv], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     timeout: timeoutMs,

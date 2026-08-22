@@ -155,7 +155,7 @@ export function blockerIssueId(number: number): string {
     number,
   });
   const id = data.repository?.issue?.id;
-  if (id === undefined || id === null) {
+  if (id === undefined) {
     throw new Error(`#${number} was not found in ${REPOSITORY}`);
   }
   return id;

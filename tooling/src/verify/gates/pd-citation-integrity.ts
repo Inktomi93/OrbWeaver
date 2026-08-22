@@ -55,7 +55,7 @@ function orphanCitesIn(sf: SourceFile, root: string, ids: Set<string>): Violatio
   const text = sf.getFullText();
   for (const m of text.matchAll(CITE_RE)) {
     const id = m[1];
-    if (id !== undefined && !ids.has(id) && m.index !== undefined) {
+    if (id !== undefined && !ids.has(id)) {
       // @finding-overload-ok: a TEXT-scan position — `m.index` is a regex match offset into the raw file text (a citation in a comment or a doc), NOT a node start, so there is nothing for hasGateIgnore to read a marker off. Ends if this scanner ever resolves its hits to real nodes
       out.push({
         file: relPath(root, sf.getFilePath()),

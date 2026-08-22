@@ -181,7 +181,7 @@ function renderFilesSection(
       filesDeleted += 1;
     } else if (entry.status === "created") {
       filesCreated += 1;
-    } else if (entry.status === "changed") {
+    } else {
       filesChanged += 1;
     }
   }

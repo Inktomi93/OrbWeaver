@@ -201,7 +201,7 @@ function boxInBoxFindings(sf: SourceFile, rel: string): Finding[] {
     }
     // An OPENING tag's parent is its own JsxElement; a SELF-CLOSING tag's parent is already the enclosing
     // element, so only the opening form skips a level.
-    const self: Node = element.getKind() === SyntaxKind.JsxOpeningElement ? (element.getParent() ?? element) : element;
+    const self: Node = element.getKind() === SyntaxKind.JsxOpeningElement ? element.getParent() : element;
     let ancestor: Node | undefined = self.getParent();
     let nested = false;
     while (ancestor !== undefined && !nested) {
