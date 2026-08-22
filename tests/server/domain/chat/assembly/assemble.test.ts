@@ -8,8 +8,10 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { MacroRegistry } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { assemblePrompt, assemblePromptWithSlices } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
+import { assemblePrompt, assemblePromptWithSlices, previewSection } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
+import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -691,5 +693,741 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     const ctx = ctxOf({ chatInjections: [{ position: "in_static", depth: 0, role: "system", content: "note", origin: "user" }] });
 
     expect(assemblePromptWithSlices(config, ctx).prompt).toEqual(assemblePrompt(config, ctx));
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// MUTATION KILL-TESTS (#404). Every block below pins a behavioral consequence a SURVIVING mutant flips —
+// the branch each one guards was executed by the existing suites but never CHECKED. They assert exact
+// assembled bytes / exact trace shapes rather than `toContain`, because a surviving mutant is by
+// definition something a loose containment assertion already rides over.
+//
+// Convention here: `{{getvar::<unset>}}` is the handle for "a field that renders to WHITESPACE but is not
+// blank at source" — the discriminator between a `.trim()`-guarded emptiness check and a bare `.length`
+// one, which is otherwise unreachable from a plain string fixture.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A char field that is non-blank at SOURCE and renders to pure whitespace. */
+const RENDERS_BLANK = " {{getvar::__unset__}} ";
+/** A fixed instant + zone so `{{date}}`/`{{time}}` resolve rather than passing through verbatim. */
+const CLOCK = { nowMs: 1_750_000_000_000, timezone: "UTC" } as const;
+
+/** A per-turn user-macro registry exposing exactly one NON-volatile macro, `{{mood}}` → "grim". */
+function moodRegistry(): MacroRegistry {
+  const turn = buildTurnUserMacros({
+    preset: {
+      id: "preset-mood",
+      defs: [
+        {
+          name: "mood",
+          description: "tone",
+          args: [],
+          body: "{{tone}}",
+          strict: false,
+          inputs: [
+            {
+              kind: "single-select",
+              name: "tone",
+              label: "Tone",
+              options: [{ label: "Grim", value: "grim" }],
+              separator: "",
+              onValue: "",
+              offValue: "",
+              defaultValue: "grim",
+            },
+          ],
+        },
+      ],
+    },
+    values: {},
+    prng: () => 0,
+  });
+  if (turn === null) {
+    throw new Error("expected a built registry");
+  }
+  return turn.registry;
+}
+
+// The ROOM-SCOPE FALLBACK (`resolveScopeFallback` + `dedupeNonEmpty`): what a room override inherits and
+// what `{{original}}` recovers in a merged room. The fallback is a JOIN, so every dedupe/trim/empty rule in
+// it is a byte-level property of the text the model receives — asserted exactly, never by containment.
+describe("assemblePrompt — the merged room-scope fallback", () => {
+  const overridable = (): PromptConfig => configOf([marker({ marker: "main_prompt", template: "PRESET" })]);
+
+  test("the merged fallback dedupes, trims and drops empty member fields, in first-seen order", () => {
+    const out = assemblePrompt(
+      overridable(),
+      ctxOf({
+        character: { name: "Aria", description: "", systemPrompt: "ACTIVE" },
+        coSpeakers: [
+          { name: "Dup", description: "d", systemPrompt: "ACTIVE" },
+          { name: "Blank", description: "d", systemPrompt: null },
+          { name: "Padded", description: "d", systemPrompt: "  PADDED  " },
+        ],
+        roomOverrides: { mainPrompt: "ROOM: {{original}}" },
+      }),
+    );
+
+    expect(out.static).toBe("ROOM: ACTIVE\n\nPADDED");
+    expect(out.trace.staticCacheBusters).toEqual(["merged-present-cast"]);
+  });
+
+  test("a SOLO turn collapses to the active value — not merged, no cache-buster, sourced to the card", () => {
+    const out = assemblePrompt(overridable(), ctxOf({ character: { name: "Aria", description: "", systemPrompt: "CARD" } }));
+
+    expect(out.static).toBe("CARD");
+    expect(out.trace.staticCacheBusters).toEqual([]);
+    expect(out.trace.overrideSources).toEqual({ mainPrompt: "from Aria" });
+  });
+
+  test("an EMPTY present cast is not a merge — an empty roster must not read as 'merged (present cast)'", () => {
+    const out = assemblePrompt(overridable(), ctxOf({ character: { name: "Aria", description: "", systemPrompt: "CARD" }, coSpeakers: [] }));
+
+    expect(out.trace.staticCacheBusters).toEqual([]);
+    expect(out.trace.overrideSources).toEqual({ mainPrompt: "from Aria" });
+  });
+
+  test("the concatenated fallback is HARD-CAPPED at 4000 chars (the `{{original}}` blowup bound)", () => {
+    const mine = "A".repeat(3000);
+    const theirs = "B".repeat(3000);
+    const out = assemblePrompt(
+      overridable(),
+      ctxOf({
+        character: { name: "Aria", description: "", systemPrompt: mine },
+        coSpeakers: [{ name: "Kai", description: "d", systemPrompt: theirs }],
+      }),
+    );
+
+    expect(out.static).toBe(`${mine}\n\n${theirs}`.slice(0, 4000));
+    expect(out.static.length).toBe(4000);
+  });
+
+  test("post_history reads the POST-HISTORY room override, and records under its own trace key", () => {
+    const config = configOf([marker({ marker: "post_history", template: "" })]);
+    const out = assemblePrompt(config, ctxOf({ roomOverrides: { mainPrompt: "MAIN-ROOM", postHistory: "PH-ROOM" } }));
+
+    expect(out.static).toBe("PH-ROOM");
+    expect(out.trace.overrideSources).toEqual({ postHistory: "room override" });
+  });
+});
+
+// THE OVERRIDE-SOURCE LABEL (`resolveOverrideSource`) — the host's "where did this slot come from" readout.
+// Its four arms are a PRECEDENCE, so each arm needs the arms above it proven not to fire.
+describe("assemblePrompt — the overridable slot's source label", () => {
+  const openConfig = (): PromptConfig => configOf([marker({ marker: "main_prompt", template: "PRESET" })]);
+  const carded = { name: "Aria", description: "", systemPrompt: "CARD" };
+
+  test("a room override wins and is labelled 'room override'", () => {
+    const out = assemblePrompt(openConfig(), ctxOf({ character: carded, roomOverrides: { mainPrompt: "ROOM" } }));
+
+    expect(out.static).toBe("ROOM");
+    expect(out.trace.overrideSources).toEqual({ mainPrompt: "room override" });
+  });
+
+  test("forbidRoomOverride drops the room arm entirely — the label falls back to the card", () => {
+    const locked = configOf([marker({ marker: "main_prompt", template: "PRESET", forbidRoomOverride: true })]);
+    const out = assemblePrompt(locked, ctxOf({ character: carded, roomOverrides: { mainPrompt: "ROOM" } }));
+
+    expect(out.static).toBe("CARD");
+    expect(out.trace.overrideSources).toEqual({ mainPrompt: "from Aria" });
+  });
+
+  test("forbidCharacterOverride pins the PRESET text against a card that would replace it", () => {
+    const locked = configOf([marker({ marker: "main_prompt", template: "PRESET", forbidCharacterOverride: true })]);
+
+    expect(assemblePrompt(locked, ctxOf({ character: carded })).static).toBe("PRESET");
+  });
+
+  test("a merged present cast is labelled 'merged (present cast)' when no room override displaces it", () => {
+    const out = assemblePrompt(openConfig(), ctxOf({ character: carded, coSpeakers: [{ name: "Kai", description: "d", systemPrompt: "KAI" }] }));
+
+    expect(out.static).toBe("CARD\n\nKAI");
+    expect(out.trace.overrideSources).toEqual({ mainPrompt: "merged (present cast)" });
+    expect(out.trace.staticCacheBusters).toEqual(["merged-present-cast"]);
+  });
+
+  test("an un-overridden slot records NO source at all (absence is the honest fourth arm)", () => {
+    const out = assemblePrompt(openConfig(), ctxOf());
+
+    expect(out.static).toBe("PRESET");
+    expect(out.trace.overrideSources).toBeUndefined();
+    expect(out.trace.staticCacheBusters).toEqual([]);
+  });
+});
+
+// THE MERGED CARD BLOCK (`renderCoSpeakerBlock` / `renderCoSpeakerBlocks`) — one string on the wire built
+// from N members' cards. Every join/filter in it is a byte the model reads, so these assert the whole
+// rendered section.
+describe("assemblePrompt — the merged co-speaker card blocks", () => {
+  const cards = (): PromptConfig => configOf([marker({ marker: "char_description", name: "cards" }), marker({ marker: "chat_history" })]);
+
+  test("each member's block joins description + personality on their own lines, blank fields dropped", () => {
+    const out = assemblePrompt(
+      cards(),
+      ctxOf({
+        character: { name: "Aria", description: "ARIA-DESC", personality: null },
+        coSpeakers: [
+          // renders to whitespace → contributes nothing, and must not open a blank line
+          { name: "Kai", description: "KAI-DESC", personality: RENDERS_BLANK },
+          { name: "Rin", description: "RIN-DESC", personality: "RIN-PERS" },
+          // blank at source in the FIRST field → the block still leads with the personality
+          { name: "Mos", description: "   ", personality: "MOS-PERS" },
+        ],
+      }),
+    );
+
+    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC\n\n[Also present — Rin]\nRIN-DESC\nRIN-PERS\n\n[Also present — Mos]\nMOS-PERS");
+  });
+
+  test("a member's scenario + examples ride their own headings beneath the card", () => {
+    const out = assemblePrompt(
+      cards(),
+      ctxOf({
+        character: { name: "Aria", description: "ARIA-DESC" },
+        coSpeakers: [{ name: "Kai", description: "KAI-DESC", scenario: "KAI-SCENE", exampleMessages: "Kai: hi." }],
+      }),
+    );
+
+    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC\n\n[Kai's scenario]\nKAI-SCENE\n\n[Kai's example dialogue]\n<START>\nKai: hi.");
+  });
+
+  test("a scenario that RENDERS blank emits no heading (an empty section header is a lie)", () => {
+    const out = assemblePrompt(
+      cards(),
+      ctxOf({
+        character: { name: "Aria", description: "ARIA-DESC" },
+        coSpeakers: [{ name: "Kai", description: "KAI-DESC", scenario: RENDERS_BLANK }],
+      }),
+    );
+
+    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC");
+  });
+
+  test("a member field that is BLANK AT SOURCE contributes nothing, even through the example normalizer", () => {
+    // `exampleMessages` is the one field post-processed after the render (`normalizeExampleStart` prepends
+    // `<START>`), so it is the field where a leaked blank becomes VISIBLE rather than filtered — which makes
+    // it the honest place to pin the source-side emptiness guard.
+    const out = assemblePrompt(
+      cards(),
+      ctxOf({
+        character: { name: "Aria", description: "ARIA-DESC" },
+        coSpeakers: [{ name: "Kai", description: "KAI-DESC", exampleMessages: "   " }],
+      }),
+    );
+
+    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC");
+  });
+
+  test("KNOWN GAP: an example field that renders blank still ships its heading over a bare `<START>`", () => {
+    // `renderMemberField` runs `normalizeExampleStart` AFTER the macro render, so a field that is non-blank
+    // at source but resolves to whitespace comes back as the literal "<START>" — non-empty, so the emptiness
+    // guard below it passes and the member gets an example heading with no example under it. The scenario
+    // field (no post-render normalization) correctly emits nothing in the same situation, which is what makes
+    // this an asymmetry rather than a design choice. Pinned as the CURRENT bytes, not as the desired ones:
+    // fixing it is a source change outside this lane, and this assertion is what a fix must come through.
+    const out = assemblePrompt(
+      cards(),
+      ctxOf({
+        character: { name: "Aria", description: "ARIA-DESC" },
+        coSpeakers: [{ name: "Kai", description: "KAI-DESC", exampleMessages: RENDERS_BLANK }],
+      }),
+    );
+
+    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC\n\n[Kai's example dialogue]\n<START>");
+  });
+
+  test("a member with no description AND no personality contributes NOTHING — not a bare heading", () => {
+    const out = assemblePrompt(
+      cards(),
+      ctxOf({
+        character: { name: "Aria", description: "ARIA-DESC" },
+        coSpeakers: [{ name: "Ghost", description: "", personality: null, scenario: "GHOST-SCENE", exampleMessages: "Ghost: boo." }],
+      }),
+    );
+
+    expect(out.static).toBe("ARIA-DESC");
+    // …and a member who contributes nothing does not bust the cached prefix either.
+    expect(out.trace.staticCacheBusters).toEqual([]);
+  });
+
+  test("a merged card section DOES flag the static prefix as cache-busted", () => {
+    const out = assemblePrompt(cards(), ctxOf({ coSpeakers: [{ name: "Kai", description: "KAI-DESC" }] }));
+
+    expect(out.trace.staticCacheBusters).toEqual(["merged-present-cast"]);
+  });
+
+  test("an active card that renders blank is dropped from the per-member budget split, not counted empty", () => {
+    const config = configOf([marker({ marker: "char_description", name: "cards" }), marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ character: { name: "Aria", description: "   " }, coSpeakers: [{ name: "Kai", description: "KAI-DESC" }] });
+
+    const { prompt, slices } = assemblePromptWithSlices(config, ctx);
+
+    expect(slices.map((s) => s.label)).toEqual(["Kai"]);
+    expect(prompt.static).toBe("[Also present — Kai]\nKAI-DESC");
+  });
+
+  test("previewSection of the merged card does not LEAD with the blank active card (the untrimmed door)", () => {
+    // The system-block walk trims, which hides a leading empty part; the prompt-manager Preview tab does not.
+    const section = marker({ marker: "char_description", name: "cards" });
+    const config = configOf([section, marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ character: { name: "Aria", description: "   " }, coSpeakers: [{ name: "Kai", description: "KAI-DESC" }] });
+
+    expect(previewSection(section, ctx, config).rendered).toBe("[Also present — Kai]\nKAI-DESC");
+  });
+});
+
+// The two CARD-GATED markers: they render their framing ONLY when the card field carries content. A
+// `template` with framing of its own is what makes the gate observable — the shipped `{{personality}}`
+// default renders to "" either way, which is exactly why these branches were never checked.
+describe("assemblePrompt — the card-gated personality / examples markers", () => {
+  const personalityConfig = (): PromptConfig =>
+    configOf([marker({ marker: "char_personality", name: "personality", template: "TRAITS" }), marker({ marker: "chat_history" })]);
+  const examplesConfig = (): PromptConfig =>
+    configOf([marker({ marker: "dialogue_examples", name: "examples", template: "EXAMPLES" }), marker({ marker: "chat_history" })]);
+
+  test("char_personality renders its framing for a filled field and NOTHING for null / empty", () => {
+    const config = personalityConfig();
+    expect(assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", personality: "brave" } })).static).toBe("TRAITS");
+    expect(assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", personality: "" } })).static).toBe("");
+    expect(assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", personality: null } })).static).toBe("");
+  });
+
+  test("dialogue_examples renders its framing for a filled field and NOTHING for null / empty", () => {
+    const config = examplesConfig();
+    expect(assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", exampleMessages: "Aria: hi." } })).static).toBe("EXAMPLES");
+    expect(assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", exampleMessages: "" } })).static).toBe("");
+    expect(assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", exampleMessages: null } })).static).toBe("");
+  });
+
+  test("the scenario marker records its source ONLY when it actually delivered text", () => {
+    const config = configOf([marker({ marker: "scenario", name: "scenario" }), marker({ marker: "chat_history" })]);
+
+    const delivered = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", scenario: "the docks" } }));
+    expect(delivered.static).toBe("the docks");
+    expect(delivered.trace.overrideSources).toEqual({ scenario: "from Aria" });
+
+    for (const scenario of [null, RENDERS_BLANK]) {
+      const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", scenario } }));
+      expect(out.static, `scenario=${JSON.stringify(scenario)}`).toBe("");
+      expect(out.trace.overrideSources, `scenario=${JSON.stringify(scenario)}`).toBeUndefined();
+    }
+  });
+});
+
+// The SERVER-INJECTED markers: the server owns the value, the preset owns only the framing. A blank value
+// must produce neither the framing nor the trace flag — "no retrieval this turn" is a distinct state from
+// "the preset places no slot" (issue #80).
+describe("assemblePrompt — server-marker delivery + inclusion flags", () => {
+  test("each server marker delivers exactly its own ctx value", () => {
+    const ctx = ctxOf({ compactSummary: "SUM", memory: "MEM", databank: "BANK", guidedInstruction: "GUIDE" });
+    const build = (m: Extract<PromptSection, { type: "marker" }>["marker"]): PromptConfig =>
+      configOf([marker({ marker: m, name: m }), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(build("compact_summary"), ctx).static).toBe("Summary of the conversation so far:\nSUM");
+    expect(assemblePrompt(build("memory"), ctx).dynamic).toBe("Past events:\nMEM");
+    expect(assemblePrompt(build("databank"), ctx).dynamic).toBe("Related information:\nBANK");
+    expect(assemblePrompt(build("guided_instruction"), ctx).dynamic).toBe("GUIDE");
+  });
+
+  test("a WHITESPACE-only server value delivers nothing and sets no inclusion flag", () => {
+    const config = configOf([marker({ marker: "memory", name: "memory" }), marker({ marker: "chat_history" })]);
+
+    const blank = assemblePrompt(config, ctxOf({ memory: "   " }));
+    expect(blank.dynamic).toBe("");
+    expect(blank.trace.memoryIncluded).toBe(false);
+
+    const absent = assemblePrompt(config, ctxOf());
+    expect(absent.dynamic).toBe("");
+    expect(absent.trace.memoryIncluded).toBe(false);
+  });
+
+  test("the dynamic half joins its sections with a blank line, in section order", () => {
+    const config = configOf([
+      marker({ marker: "memory", name: "memory" }),
+      marker({ marker: "databank", name: "databank" }),
+      marker({ marker: "chat_history" }),
+    ]);
+    const out = assemblePrompt(config, ctxOf({ memory: "MEM", databank: "BANK" }));
+
+    expect(out.dynamic).toBe("Past events:\nMEM\n\nRelated information:\nBANK");
+  });
+
+  test("a DYNAMIC section is never scanned for cache-busters — it was never in the cached prefix", () => {
+    const config = configOf([marker({ marker: "memory", name: "memory", template: "as of {{date}}: {{memory}}" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ memory: "MEM", ...CLOCK }));
+
+    expect(out.trace.staticCacheBusters).toEqual([]);
+  });
+});
+
+// The CACHE-BUSTER SOURCE MAP (`markerStaticSources`): each static marker declares the pre-render strings a
+// volatile macro could be hiding in. A wrong/empty declaration silently ships a cache-busting prompt as a
+// cacheable one, which is invisible in the rendered bytes — a volatile macro per slot is the only handle.
+describe("assemblePrompt — per-marker cache-buster source declarations", () => {
+  test("world_info_before and world_info_after each declare their OWN text", () => {
+    const config = configOf([
+      marker({ marker: "world_info_before", name: "wi-before" }),
+      marker({ marker: "world_info_after", name: "wi-after" }),
+      marker({ marker: "chat_history" }),
+    ]);
+
+    const out = assemblePrompt(config, ctxOf({ worldInfoBefore: "as of {{date}}", worldInfoAfter: "at {{time}}", ...CLOCK }));
+    expect(out.trace.staticCacheBusters).toEqual(["date", "time"]);
+
+    // …and the markers render their value verbatim, or nothing at all when the gather produced none.
+    const rendered = assemblePrompt(config, ctxOf({ worldInfoBefore: "LORE-BEFORE", worldInfoAfter: "LORE-AFTER" }));
+    expect(rendered.static).toBe("LORE-BEFORE\n\nLORE-AFTER");
+    expect(assemblePrompt(config, ctxOf()).static).toBe("");
+  });
+
+  test("main_prompt declares the CARD systemPrompt", () => {
+    const config = configOf([marker({ marker: "main_prompt", template: "PRESET" })]);
+    const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", systemPrompt: "as of {{date}}" }, ...CLOCK }));
+
+    expect(out.trace.staticCacheBusters).toEqual(["date"]);
+  });
+
+  test("char_description declares the card description", () => {
+    const config = configOf([marker({ marker: "char_description", name: "cards" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "as of {{date}}" }, ...CLOCK }));
+
+    expect(out.trace.staticCacheBusters).toEqual(["date"]);
+  });
+
+  test("char_personality declares the card personality", () => {
+    const config = configOf([marker({ marker: "char_personality", name: "personality" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", personality: "as of {{date}}" }, ...CLOCK }));
+
+    expect(out.trace.staticCacheBusters).toEqual(["date"]);
+  });
+
+  test("scenario declares the card scenario", () => {
+    const config = configOf([marker({ marker: "scenario", name: "scenario" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", scenario: "as of {{date}}" }, ...CLOCK }));
+
+    expect(out.trace.staticCacheBusters).toEqual(["date"]);
+  });
+
+  test("dialogue_examples declares the card example messages", () => {
+    const config = configOf([marker({ marker: "dialogue_examples", name: "examples" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", exampleMessages: "as of {{date}}" }, ...CLOCK }));
+
+    expect(out.trace.staticCacheBusters).toEqual(["date"]);
+  });
+
+  test("the persona marker declares its own TEMPLATE, and nothing another marker owns", () => {
+    const config = configOf([marker({ marker: "persona", name: "persona", template: "as of {{date}}" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(
+      config,
+      // The card systemPrompt carries a DIFFERENT volatile macro: it belongs to main_prompt's declaration,
+      // and no persona section may drag it into the buster set.
+      ctxOf({ character: { name: "Aria", description: "", systemPrompt: "at {{time}}" }, activePersona: { name: "Nate", description: "d" }, ...CLOCK }),
+    );
+
+    expect(out.trace.staticCacheBusters).toEqual(["date"]);
+  });
+});
+
+// SECTION GATING + PLACEMENT — which half a section lands in, and whether it lands at all.
+describe("assemblePrompt — section gating and placement", () => {
+  test("an EMPTY trigger list always fires, and keeps the section in the cached static half", () => {
+    const config = configOf([literal("ALWAYS", { trigger: [] }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ generationType: "continue" }));
+
+    expect(out.static).toBe("ALWAYS");
+    expect(out.dynamic).toBe("");
+  });
+
+  test("a MULTI-type trigger fires when ANY of its types matches this turn", () => {
+    const config = configOf([literal("EITHER", { trigger: ["normal", "continue"] }), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(config, ctxOf({ generationType: "continue" })).dynamic).toBe("EITHER");
+    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).dynamic).toBe("EITHER");
+    expect(assemblePrompt(config, ctxOf({ generationType: "swipe" })).dynamic).toBe("");
+  });
+
+  test("a DISABLED section is skipped entirely", () => {
+    const config = configOf([literal("OFF", { enabled: false }), literal("ON"), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(config, ctxOf()).static).toBe("ON");
+  });
+
+  test("world-info markers after the pivot stay in the SYSTEM block; every other marker becomes an injection", () => {
+    const config = configOf([
+      marker({ marker: "main_prompt", template: "SYS" }),
+      marker({ marker: "chat_history" }),
+      marker({ marker: "world_info_before", name: "wi-before" }),
+      marker({ marker: "world_info_after", name: "wi-after" }),
+      marker({ marker: "char_description", name: "cards" }),
+    ]);
+    const out = assemblePrompt(config, ctxOf({ worldInfoBefore: "LORE-BEFORE", worldInfoAfter: "LORE-AFTER" }));
+
+    expect(out.static).toBe("SYS\n\nLORE-BEFORE\n\nLORE-AFTER");
+    expect(out.afterHistory).toHaveLength(1);
+    expect(out.afterHistory[0]?.content).toBe("a bold knight");
+  });
+
+  test("the pivot at index 0 still delivers everything after it as an in_chat injection", () => {
+    const config = configOf([marker({ marker: "chat_history" }), literal("POST")]);
+    const out = assemblePrompt(config, ctxOf());
+
+    expect(out.static).toBe("");
+    expect(out.afterHistory).toEqual([{ position: "in_chat", depth: 0, role: "system", content: "POST" }]);
+  });
+
+  test("a DISABLED pivot at index 0 still suppresses history", () => {
+    const config = configOf([marker({ marker: "chat_history", enabled: false }), literal("POST")]);
+
+    expect(assemblePrompt(config, ctxOf()).sendHistory).toBe(false);
+  });
+
+  test("a NON-system section before the pivot rides at the top of history, not in the system block", () => {
+    const config = configOf([literal("USER-NOTE", { role: "user" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf());
+
+    expect(out.static).toBe("");
+    expect(out.afterHistory).toEqual([{ position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "USER-NOTE" }]);
+  });
+
+  test("a system-block section is TRIMMED, and one that renders empty is dropped from bytes AND trace", () => {
+    const padded = literal("  PADDED  ");
+    const config = configOf([padded, marker({ marker: "char_personality", name: "empty", template: "TRAITS" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", personality: null } }));
+
+    expect(out.static).toBe("PADDED");
+    expect(out.trace.staticSections).toEqual([padded.id]);
+  });
+
+  test("an after-history section is TRIMMED, and one that renders empty is never pushed", () => {
+    const config = configOf([
+      marker({ marker: "chat_history" }),
+      literal("  PADDED  "),
+      marker({ marker: "char_personality", name: "empty", template: "TRAITS" }),
+    ]);
+    const out = assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", personality: null } }));
+
+    expect(out.afterHistory).toEqual([{ position: "in_chat", depth: 0, role: "system", content: "PADDED" }]);
+    expect(out.trace.afterHistorySections).toHaveLength(1);
+  });
+
+  test("a plain turn's trace starts EMPTY — no phantom sections, busters or inclusion flags", () => {
+    const out = assemblePrompt(configOf([literal("A"), marker({ marker: "chat_history" })]), ctxOf());
+
+    expect(out.trace.dynamicSections).toEqual([]);
+    expect(out.trace.staticCacheBusters).toEqual([]);
+    expect(out.trace.afterHistorySections).toEqual([]);
+    expect(out.trace.memoryIncluded).toBe(false);
+  });
+});
+
+// THE IMPLICIT COMPACT SUMMARY (PD-140/D25) — WHERE the synthesized section lands. Its position decides
+// whether a compacted chat's summary reaches a stateless runner inside the system block or after history.
+describe("assemblePrompt — implicit compact_summary placement", () => {
+  test("a NULL compactSummary is inert — no crash, no synthesis", () => {
+    const config = configOf([marker({ marker: "main_prompt", template: "SYS" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: null }));
+
+    expect(out.static).toBe("SYS");
+    expect(out.trace.compactSummaryIncluded).toBe(false);
+  });
+
+  test("the synthesized section splices at the chat_history PIVOT, not at the first section or first marker", () => {
+    const config = configOf([literal("LIT-TOP"), marker({ marker: "main_prompt", template: "SYS" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "SUM" }));
+
+    expect(out.static).toBe("LIT-TOP\n\nSYS\n\nSummary of the conversation so far:\nSUM");
+  });
+
+  test("with NO pivot at all the synthesized section is appended LAST", () => {
+    const out = assemblePrompt(configOf([literal("A"), literal("B")]), ctxOf({ compactSummary: "SUM" }));
+
+    expect(out.static).toBe("A\n\nB\n\nSummary of the conversation so far:\nSUM");
+  });
+
+  test("with the pivot FIRST the summary still lands in the system block, ahead of history", () => {
+    const config = configOf([marker({ marker: "chat_history" }), literal("POST")]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "SUM" }));
+
+    expect(out.static).toBe("Summary of the conversation so far:\nSUM");
+    expect(out.afterHistory).toHaveLength(1);
+  });
+
+  test("the synthesized section carries its own budget identity", () => {
+    const { slices } = assemblePromptWithSlices(configOf([marker({ marker: "chat_history" })]), ctxOf({ compactSummary: "SUM" }));
+
+    expect(slices).toEqual([
+      {
+        source: "steering",
+        label: "compact summary (implicit)",
+        text: "Summary of the conversation so far:\nSUM",
+        sectionId: "__synthetic-compact-summary",
+      },
+    ]);
+  });
+});
+
+// BUDGET ATTRIBUTION LABELS — who a section's bytes belong to. A mis-labelled contributor makes the host's
+// "where did my context go" readout name the wrong person.
+describe("assemblePromptWithSlices — contributor labels", () => {
+  test("the three card markers are labelled by the CHARACTER; everything else keeps its section name", () => {
+    const config = configOf([
+      marker({ marker: "main_prompt", name: "main prompt", template: "SYS" }),
+      marker({ marker: "char_personality", name: "personality section", template: "TRAITS" }),
+      marker({ marker: "dialogue_examples", name: "examples section", template: "EXAMPLES" }),
+      marker({ marker: "scenario", name: "scenario section", template: "SCENE" }),
+      marker({ marker: "chat_history" }),
+    ]);
+    const ctx = ctxOf({
+      character: { name: "Aria", description: "", personality: "brave", exampleMessages: "Aria: hi.", scenario: "the docks" },
+    });
+
+    expect(assemblePromptWithSlices(config, ctx).slices.map((s) => s.label)).toEqual(["main prompt", "Aria", "Aria", "Aria"]);
+  });
+
+  test("the persona marker is labelled by the PERSONA, and an unnamed persona degrades to the bare word", () => {
+    const config = configOf([marker({ marker: "persona", name: "persona section", template: "PERSONA-BODY" }), marker({ marker: "chat_history" })]);
+    const labelFor = (name: string): string | undefined =>
+      assemblePromptWithSlices(config, ctxOf({ activePersona: { name, description: "d" } })).slices[0]?.label;
+
+    expect(labelFor("Nate")).toBe("Nate (persona)");
+    expect(labelFor("")).toBe("persona");
+    expect(labelFor("   ")).toBe("persona");
+  });
+
+  test("a member block's slice text is TRIMMED to the member's own bytes", () => {
+    const config = configOf([marker({ marker: "char_description", name: "cards", template: "  {{description}}  " }), marker({ marker: "chat_history" })]);
+
+    expect(assemblePromptWithSlices(config, ctxOf()).slices.map((s) => s.text)).toEqual(["a bold knight"]);
+  });
+
+  test("in_chat injections are accounted ONCE, trimmed, and only when they carry content", () => {
+    const config = configOf([marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({
+      chatInjections: [
+        { position: "in_chat", depth: 0, role: "system", content: "  STATE  ", origin: "game-state" },
+        { position: "in_chat", depth: 1, role: "system", content: "   ", origin: "user" },
+        { position: "in_prompt", depth: 0, role: "system", content: "STEER", origin: "user" },
+      ],
+    });
+
+    expect(assemblePromptWithSlices(config, ctx).slices).toEqual([
+      { source: "steering", label: "chat injections", text: "STEER" },
+      { source: "game-state", label: "state block", text: "STATE" },
+    ]);
+  });
+
+  test("a before_prompt injection is attributed to its own origin, with its content trimmed", () => {
+    const main = marker({ marker: "main_prompt", name: "main prompt", template: "BODY" });
+    const config = configOf([main, marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ chatInjections: [{ position: "before_prompt", depth: 0, role: "system", content: "  TOP  ", origin: "authors-note" }] });
+
+    expect(assemblePromptWithSlices(config, ctx).slices).toEqual([
+      { source: "system", label: "main prompt", text: "BODY", sectionId: main.id },
+      { source: "steering", label: "author's note", text: "TOP" },
+    ]);
+  });
+
+  test("each system-block injection position carries its own trace label, and before_prompt is trimmed", () => {
+    const main = marker({ marker: "main_prompt", template: "BODY" });
+    const config = configOf([main, marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(
+      config,
+      ctxOf({
+        chatInjections: [
+          { position: "before_prompt", depth: 0, role: "system", content: "  TOP  " },
+          { position: "in_static", depth: 0, role: "system", content: "MID" },
+          { position: "in_prompt", depth: 0, role: "system", content: "TAIL" },
+        ],
+      }),
+    );
+
+    expect(out.static).toBe("TOP\n\nBODY\n\nMID");
+    expect(out.dynamic).toBe("TAIL");
+    expect(out.trace.staticSections).toEqual(["chat-injection:before_prompt", main.id, "chat-injection:in_static"]);
+    expect(out.trace.dynamicSections).toEqual(["chat-injection:in_prompt"]);
+  });
+});
+
+// previewSection — the prompt-manager edit dialog's Preview tab. It is the one door that does NOT trim, and
+// the one that must not leak a `{{setvar}}` into the caller's live variable map.
+describe("previewSection — the edit dialog's read", () => {
+  test("a disabled section previews as empty", () => {
+    const section = literal("BODY", { enabled: false });
+
+    expect(previewSection(section, ctxOf(), configOf([section])).rendered).toBe("");
+  });
+
+  test("the chat_history pivot previews as the DYNAMIC half", () => {
+    const section = marker({ marker: "chat_history" });
+
+    expect(previewSection(section, ctxOf(), configOf([section])).half).toBe("dynamic");
+  });
+
+  test("the preview READS the caller's variables but cannot WRITE to them", () => {
+    const live: Record<string, string> = { seed: "kept" };
+    const reader = literal("V={{getvar::seed}}");
+    const writer = literal("{{setvar::seed::changed}}");
+
+    expect(previewSection(reader, ctxOf({ variableValues: live }), configOf([reader])).rendered).toBe("V=kept");
+    previewSection(writer, ctxOf({ variableValues: live }), configOf([writer]));
+    expect(live).toEqual({ seed: "kept" });
+  });
+});
+
+// WAVE MU: the per-turn user-macro registry has to reach EVERY render seam. A seam that drops it silently
+// falls back to the process singleton, which leaves the turn's own macros unresolved in the prompt.
+describe("assemblePrompt — the per-turn registry reaches every render seam", () => {
+  const registry = moodRegistry();
+
+  test("the memoized preset render of an overridable marker", () => {
+    expect(assemblePrompt(configOf([marker({ marker: "main_prompt", template: "M:{{mood}}" })]), ctxOf(), registry).static).toBe("M:grim");
+  });
+
+  test("a server marker's framing template", () => {
+    const config = configOf([marker({ marker: "memory", name: "memory", template: "S:{{mood}}" }), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(config, ctxOf({ memory: "MEM" }), registry).dynamic).toBe("S:grim");
+  });
+
+  test("the active card description", () => {
+    const config = configOf([marker({ marker: "char_description", name: "cards", template: "D:{{mood}}" }), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(config, ctxOf(), registry).static).toBe("D:grim");
+  });
+
+  test("a CO-SPEAKER's card field", () => {
+    const config = configOf([marker({ marker: "char_description", name: "cards" }), marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ character: { name: "Aria", description: "A" }, coSpeakers: [{ name: "Kai", description: "{{mood}}" }] });
+
+    expect(assemblePrompt(config, ctx, registry).static).toBe("A\n\n[Also present — Kai]\ngrim");
+  });
+
+  test("the card-gated personality and examples markers", () => {
+    const personality = configOf([marker({ marker: "char_personality", name: "p", template: "P:{{mood}}" }), marker({ marker: "chat_history" })]);
+    const examples = configOf([marker({ marker: "dialogue_examples", name: "e", template: "E:{{mood}}" }), marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ character: { name: "Aria", description: "", personality: "brave", exampleMessages: "Aria: hi." } });
+
+    expect(assemblePrompt(personality, ctx, registry).static).toBe("P:grim");
+    expect(assemblePrompt(examples, ctx, registry).static).toBe("E:grim");
+  });
+
+  test("the scenario marker", () => {
+    const config = configOf([marker({ marker: "scenario", name: "scenario", template: "S:{{mood}}" }), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(config, ctxOf({ character: { name: "Aria", description: "", scenario: "x" } }), registry).static).toBe("S:grim");
+  });
+
+  test("the persona marker", () => {
+    const config = configOf([marker({ marker: "persona", name: "persona", template: "U:{{mood}}" }), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(config, ctxOf({ activePersona: { name: "Nate", description: "d" } }), registry).static).toBe("U:grim");
+  });
+
+  test("a turn whose registry declares NO volatile macro busts nothing", () => {
+    const config = configOf([literal("Mood: {{mood}}"), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf(), registry);
+
+    expect(out.static).toBe("Mood: grim");
+    expect(out.trace.staticCacheBusters).toEqual([]);
   });
 });
