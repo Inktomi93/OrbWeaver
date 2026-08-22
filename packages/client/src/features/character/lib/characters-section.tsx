@@ -8,8 +8,18 @@
 // it via `useSectionRegistry`.
 //
 // The SECOND door param is the chats PROJECTION body: chat-owned chat-row
-// anatomy, hosted by this section's LIST pane. Same posture as the contributor registry — character never
+// anatomy, hosted by this section's CONTEXT pane. Same posture as the contributor registry — character never
 // imports chat, chat never imports character, and `client-features-no-cross` keeps enforcing it.
+//
+// THE LIST PANE NEVER SWAPS (#501, owner ruling 2026-08-22 — "library stays docked"). It used to be MODAL:
+// selecting somebody replaced the library with her chats (`list-pane-projection-proposal.md` §10 D2, the
+// unconditional arm — which that doc itself records as a design RECOMMENDATION, never an owner-ruled ledger
+// entry, and whose priced cost was exactly "you can't browse the library while editing her"). On the owner's
+// 327-character library that price came due: the section whose whole job is browsing a big library lost the
+// library on every pick, so "look at the next one" cost a back-chevron trip (side-eye 2026-08-22
+// rail-characters, the taste verdict). The list is now the library, always — the chats-section shape (LIST
+// drives CONTENT, LIST never becomes something else) — and her chats moved to CONTEXT, where artifact-scoped
+// detail belongs (§14). The hero's "N chats ›" reveals that tab (`character-chat-intents.ts`).
 
 import { Users } from "@orb/ui/icons";
 import type { ReactNode } from "react";
@@ -19,13 +29,15 @@ import type { SectionDefinition } from "#state";
 import { characterSectionSelection } from "#state";
 import { CharacterLibraryAnchor } from "../anchors/character-library-anchor.tsx";
 import { CharacterActionsMenu } from "../components/character-actions-menu.tsx";
+import { CharacterChatsProjectionShell } from "../components/character-chats-projection-shell.tsx";
 import { CharacterContent } from "../components/character-content.tsx";
 import { CharacterFacetInspector } from "../components/character-facet-inspector.tsx";
 import { CharacterOptionsTab } from "../components/character-options-tab.tsx";
 import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
 import { CharactersListHeader } from "../components/characters-list-header.tsx";
-import { CharactersListPane } from "../components/characters-list-pane.tsx";
 import { useCharacterContextState } from "../hooks/use-character-context-state.ts";
+import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
+import { CHARACTER_CHATS_TAB_ID } from "./character-chat-intents.ts";
 import { useCharactersSelectionTitle } from "./character-selection-title.ts";
 
 export function makeCharactersSection(
@@ -40,21 +52,21 @@ export function makeCharactersSection(
       title: "Characters",
       description: "Your cast lives here — browse the list, then open someone to see their card.",
     },
-    // The MODAL pane (Arm A): the picker while nothing is selected, HER CHATS the
-    // moment a character is — the same slot, swapping on the section's own drill selection.
+    // The LIBRARY, whatever is selected (#501) — the picker is the pane's ONE role.
     list: () => (
       <CharacterLibraryAnchor>
-        <CharactersListPane chatsProjection={chatsProjection} />
+        <CharacterLibrarySurface />
       </CharacterLibraryAnchor>
     ),
-    // The band swaps with the pane (D9): `CHARACTERS` + create, or `‹ CHATS · <name>` + New chat.
+    // …so the band has ONE mode too: `CHARACTERS` + the create primary.
     listHeader: () => <CharactersListHeader />,
     // How the SHELL reads "is someone open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: characterSectionSelection,
     // …and what it calls the open character in the pushed frame's topbar.
     useSelectionTitle: useCharactersSelectionTitle,
     content: () => <CharacterContent detailContributors={detailContributors} />,
-    // Three tabs: Field (drilled facet detail), Links (world books + personas), Options.
+    // Four tabs: Field (drilled facet detail), Chats (#501 — her history, the pane the LIST used to
+    // become), Links (world books + personas), Options.
     context: defineContextTabs<CharacterContextState>({
       useContextState: useCharacterContextState,
       tabs: [
@@ -62,6 +74,11 @@ export function makeCharactersSection(
           id: "field",
           label: "Field",
           body: (s) => <CharacterFacetInspector characterId={s.characterId} />,
+        },
+        {
+          id: CHARACTER_CHATS_TAB_ID,
+          label: "Chats",
+          body: (s) => <CharacterChatsProjectionShell characterId={s.characterId} chatsProjection={chatsProjection} />,
         },
         {
           id: "links",
@@ -79,7 +96,8 @@ export function makeCharactersSection(
       // "Select something to see its details here." with two other sections.
       empty: {
         title: "Nobody open",
-        description: "Open someone from your cast and this pane carries the field you are editing, their world books and personas, and their options.",
+        description:
+          "Open someone from your cast and this pane carries the field you are editing, your chats with them, their world books and personas, and their options.",
       },
     }),
   };

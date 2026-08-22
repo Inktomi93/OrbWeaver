@@ -191,9 +191,9 @@ export function useShellLayout(): ShellLayout {
     }
   };
 
-  // …and PUBLISH it, because a list flip is not the topbar's private event (#391). `revealChatsProjection`
-  // — the character hero's "N chats ›" — docks the LIST from outside this hook and orphaned CONTEXT exactly
-  // as the pre-#383 toggle did. The registry is re-published on EVERY commit (no dep array) because the
+  // …and PUBLISH it, because a list flip is not the topbar's private event (#391). A FEATURE docks the LIST
+  // from outside this hook (through `dockListPanel`) and orphaned CONTEXT exactly as the pre-#383 toggle
+  // did. The registry is re-published on EVERY commit (no dep array) because the
   // carry closes over this render's resolved modes and regime; a stale closure would carry the wrong answer.
   useEffect(() => {
     registerListFlipCarry(carryContextAcrossListFlip);

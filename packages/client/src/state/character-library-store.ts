@@ -3,8 +3,8 @@
 // (createCollectionSurface's transient id-set). Device-local, registered in
 // tooling/src/verify/gates/persistence-boundary.ts DEVICE_LOCAL_REGISTRY. `bulkMode` is transient (excluded
 // from partialize) — a reload landing in bulk mode with an empty selection would be a confusing dead state.
-// `browseOffset` is transient for the same class of reason (see its setter) — it is a within-session browse
-// position, not a preference, so the persisted blob's shape is unchanged and the gate's rationale still holds.
+// (It also used to carry `browseOffset`, the scroll position #255 rescued across the LIST pane's selection
+// swap. #501 stopped the pane swapping, so nothing unmounts the list and there is no position to rescue.)
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
@@ -29,9 +29,6 @@ interface CharacterLibraryState {
   readonly tagFilter: readonly TagFilterEntry[];
   /** Bulk-select mode. Transient (not persisted). */
   readonly bulkMode: boolean;
-  /** Where the library list was scrolled when the user last opened somebody from it, in px (#255). The
-   *  browse context the pane swap would otherwise destroy — see `setCharacterBrowseOffset`. Transient. */
-  readonly browseOffset: number;
   /** Blurs the editor's spoiler-bearing card text for screen-sharing. */
   readonly spoilerBlur: boolean;
   /** Is the filter rail's VOCABULARY on screen? Default `false` — the rail's inactive tag chips and its
@@ -60,7 +57,6 @@ const DEFAULT_STATE: CharacterLibraryState = {
   showArchived: false,
   tagFilter: [],
   bulkMode: false,
-  browseOffset: 0,
   spoilerBlur: false,
   filtersOpen: false,
 };
@@ -114,7 +110,6 @@ function migrate(persisted: unknown, _version: number): CharacterLibraryState {
     showArchived: typeof p.showArchived === "boolean" ? p.showArchived : false,
     tagFilter: toTagFilter(p.tagFilter),
     bulkMode: false,
-    browseOffset: 0,
     spoilerBlur: typeof p.spoilerBlur === "boolean" ? p.spoilerBlur : false,
     // No version bump: a v1/v2 blob simply has no `filtersOpen`, and the DEFAULT (collapsed) is the value
     // #491 wants a returning user to land on anyway. `migrate` is field-by-field total, so absence degrades.
@@ -165,28 +160,6 @@ export function clearCharacterFilters(): void {
 }
 export function __resetTagFilter(): void {
   useCharacterLibraryStore.setState({ tagFilter: [] }, false, "character-library/__resetTagFilter");
-}
-/** Remember where the library was scrolled, so opening somebody does not destroy the browse context (#255).
- *
- *  WHY IT IS WRITTEN AT SELECTION rather than on scroll: the LIST pane swaps to the selected character's
- *  chats projection (per the projection design's D2 arm — selection ⇒ projection, back = deselect —
- *  `docs/design/list-pane-projection-proposal.md` §10), which UNMOUNTS the library
- *  and its `VirtualList`; the paged rows survive in the query cache, the scroll offset does not. A scroll
- *  handler would write here ~60×/second, and this store is `persist`-wrapped — zustand re-serializes the
- *  partialized blob to localStorage on EVERY state change, so a per-frame write would be a per-frame
- *  localStorage write. The click that swaps the pane is the one moment the offset both matters and is
- *  cheap, and reading it there is also the only reading that is guaranteed to happen while the scroll
- *  element is still attached (a detached element reports `scrollTop === 0`).
- *
- *  Transient by design: it is NOT in `partialize`. A reload is a fresh browse — restoring a px offset into a
- *  list whose rows may have changed underneath it would be a guess wearing the shape of a memory. */
-export function setCharacterBrowseOffset(browseOffset: number): void {
-  useCharacterLibraryStore.setState({ browseOffset }, false, "character-library/setBrowseOffset");
-}
-/** The offset to start the remounting library at. A one-shot READ (not a hook): the value is a mount-time
- *  initializer, and subscribing to it would re-scroll the list under the user every time it changed. */
-export function getCharacterBrowseOffset(): number {
-  return useCharacterLibraryStore.getState().browseOffset;
 }
 export function setBulkMode(bulkMode: boolean): void {
   useCharacterLibraryStore.setState({ bulkMode }, false, "character-library/setBulkMode");

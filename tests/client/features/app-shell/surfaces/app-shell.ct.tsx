@@ -1745,12 +1745,14 @@ test("#383 UNCONSTRAINED, the same three clicks stay a plain wide dock (the arm 
 });
 
 // ── #391: THE CARRY IS A PROPERTY OF THE FLIP, NOT OF THE TOGGLE THAT CAUSED IT ──────────────────────
-// #383 fixed the orphan at `useShellLayout`'s two seams (togglePanel / collapsePanel). The character
-// screen's "N chats ›" hero link does the SAME list flip through a different door —
-// `revealChatsProjection` is a plain module function and wrote `setPanelMode("list","docked")` straight
-// past the hook — so the identical orphan survived on a narrower trigger. The pin drives the REAL intent
-// against the REAL frame: anything that docks the LIST owes CONTEXT the carry, whoever fired it.
-test("#391 the character chats-projection intent carries CONTEXT across the list flip it causes", async ({ mount, page }) => {
+// #383 fixed the orphan at `useShellLayout`'s two seams (togglePanel / collapsePanel). A FEATURE docking the
+// LIST does the SAME flip through a different door — it cannot reach the hook, so it used to write
+// `setPanelMode("list","docked")` straight past it and the identical orphan survived on a narrower trigger.
+// `dockListPanel` is the door that pays the carry, and this pin drives it against the REAL frame: anything
+// that docks the LIST owes CONTEXT the carry, whoever fired it. (Its original trigger was the character
+// hero's "N chats ›" intent; #501 re-pointed that at the CONTEXT Chats tab, so the story fires the door
+// itself — the invariant is the door's, never that one caller's.)
+test("#391 an out-of-shell list dock carries CONTEXT across the flip it causes", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
   const shell = await mount(<AppShellChatsProjectionIntentStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
@@ -1767,7 +1769,7 @@ test("#391 the character chats-projection intent carries CONTEXT across the list
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
   await expect(contextPanel).toContainText("characters context pane");
 
-  // FIRE THE HERO INTENT. It docks the LIST, which re-enters the auto-overlay regime — and CONTEXT, which
+  // FIRE THE FEATURE-SIDE DOCK. It docks the LIST, which re-enters the auto-overlay regime — and CONTEXT, which
   // the user never touched, must still be on screen (as the sheet that regime paints). Pre-fix: "collapsed",
   // the same silent vanish #383 retired at the topbar.
   await shell.getByTestId("reveal-chats-projection").click();

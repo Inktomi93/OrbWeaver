@@ -486,25 +486,44 @@ test("#493 the editor header's token census glosses its own jargon", async ({ mo
   await expect(census).toHaveAttribute("title", TOKEN_SENT_EVERY_TURN_RE);
 });
 
-test("F4 the Field tab rests on the overview card, not a full-height empty state", async ({ mount, page }) => {
+// F4 (the ruling: a CONTEXT panel that opens to "Open a field to inspect it" fails its instrument tier)
+// SURVIVES — its INPUT changed. #513 replaced the card's four ECHO rows (tokens · openings · tags · chats,
+// all of which CONTENT prints 300px to the left) with rows CONTENT never shows: where the card came from,
+// what it is linked to, how it renders, and when you two last spoke. So this pin asserts BOTH halves — the
+// panel is still an instrument, and it is no longer a second copy of the editor.
+test("F4/#513 the Field tab rests on an overview card carrying what CONTENT does not", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.get": () => OVERVIEW_CARD,
     "chat.listChats": chatListResponder(OVERVIEW_CHATS),
+    "worldInfo.listForCharacter": () => [{ id: "wb_ct_1", name: "The Gilded Ember", role: "primary" }],
+    "persona.listConnectedToCharacter": () => [],
   });
   const component = await mount(<CharacterFacetInspectorStory />);
 
   const overview = component.locator('[data-slot="character-overview"]');
   await expect(overview).toBeVisible();
-  // The instrument datums: the token split, the openings count, the tag summary, and this character's OWN
-  // chats (the second chat belongs to another character and must not be counted).
-  await expect(overview.getByText(TOKEN_TOTAL_RE)).toBeVisible();
-  await expect(overview.getByText(TOKEN_PERMANENT_RE)).toBeVisible();
-  await expect(overview.locator('[data-slot="overview-row"]').filter({ hasText: "Openings" })).toContainText("2");
-  await expect(overview.locator('[data-slot="overview-row"]').filter({ hasText: "Chats" })).toContainText("1");
-  await expect(overview.getByText("rpg · noir")).toBeVisible();
-  await expect(overview.getByText("chub")).toBeVisible();
+  const row = (label: string): ReturnType<typeof overview.locator> => overview.locator('[data-slot="overview-row"]').filter({ hasText: label });
 
-  // The old resting state is gone; the instruction survives as the footer gloss.
+  // ORIGIN — where this card came from (the import source is a fact CONTENT never states).
+  await expect(overview.getByText("chub")).toBeVisible();
+  // LINKS — the count as the datum, the names as the gloss; the empty side says the house empty word.
+  await expect(row("World books")).toContainText("1");
+  await expect(overview.getByText("The Gilded Ember")).toBeVisible();
+  await expect(row("Personas")).toContainText("Empty");
+  // OPTIONS — the render posture. `null` columns mean "inherit the deployment", which is an answer.
+  await expect(row("HTML")).toContainText("Default");
+  await expect(row("External media")).toContainText("Default");
+  // ACTIVITY — recency, not a census: the hero's "N chats ›" is the count.
+  await expect(row("Last chat")).toBeVisible();
+
+  // THE ECHOES ARE GONE (#513): each of these is printed by CONTENT on the same screen.
+  await expect(overview.getByText(TOKEN_TOTAL_RE)).toHaveCount(0);
+  await expect(row("Openings")).toHaveCount(0);
+  await expect(row("Handle")).toHaveCount(0);
+  await expect(row("Tags")).toHaveCount(0);
+  await expect(row("Chats")).toHaveCount(0);
+
+  // The old resting state is still gone; the instruction survives as the footer gloss.
   await expect(component.getByText("Open a field to inspect it")).toHaveCount(0);
   await expect(overview.getByText(INSPECT_HINT_RE)).toBeVisible();
 });

@@ -88,6 +88,24 @@ test("a filled facet row and an empty one announce distinguishable descriptions"
   await expect(empty).toHaveAccessibleDescription(LEADS_WITH_EMPTY);
 });
 
+// #502 (side-eye 2026-08-22 rail-characters P3-1) — ONE VOCABULARY FOR "nothing here". The empty row used to
+// print "Add…", an ACTION word standing in a VALUE slot (and the third word this one editor used for the
+// state, beside the tags row's "No tags" and the context card's "None"). The visible word is the state word
+// now, and it is the SAME node the screen reader already heard — so the eye and the ear stop disagreeing.
+test("an empty facet row shows the house EMPTY word, not an action word", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const emptyRow = component.getByRole("button", { name: "Personality", exact: true }).locator("xpath=..");
+  await expect(emptyRow).toBeVisible();
+  await expect(emptyRow.getByText("Empty", { exact: true })).toBeVisible();
+  // The action word is gone from the whole surface — the row IS the affordance.
+  await expect(component.getByText("Add…")).toHaveCount(0);
+  // …and a FILLED row shows its preview, never the state word (the magnitude stays sr-only).
+  const filledRow = component.getByRole("button", { name: "Description", exact: true }).locator("xpath=..");
+  await expect(filledRow.getByText("Empty", { exact: true })).toHaveCount(0);
+});
+
 // The aria-snapshot receipt: the two ROWS as an assistive tech reads them, side by side, so a change that
 // flattens them back into one announcement is a visible diff rather than a silent regression. Scoped to the
 // two rows — an `ariaSnapshot` of the whole surface would churn on every editor edit. The snapshot is taken
