@@ -9,7 +9,7 @@ import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 describe("resolvePanelMode", () => {
-  test("resolvePanelMode — the shared algebra both useListDocked and useShellLayout's resolvePanel call — precedence isMobile > narrow > wide", () => {
+  test("resolvePanelMode — the shared algebra both useSectionListMode and useShellLayout's resolvePanel call — precedence isMobile > narrow > wide", () => {
     const regime = (isMobile: boolean, isNarrow: boolean, openOverlayPanel: OverlayPanelRequest): Parameters<typeof resolvePanelMode>[2] => ({
       isFocus: false,
       isMobile,

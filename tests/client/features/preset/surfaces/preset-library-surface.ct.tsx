@@ -26,7 +26,13 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
-import { PresetLibraryDockedStory, PresetLibrarySurfaceStory, PresetLibraryWelcomeNarrowStory, PresetLibraryWelcomeWideStory } from "./_ct-stories.tsx";
+import {
+  PresetLibraryDockedStory,
+  PresetLibrarySurfaceStory,
+  PresetLibraryWelcomeListModeStory,
+  PresetLibraryWelcomeNarrowStory,
+  PresetLibraryWelcomeWideStory,
+} from "./_ct-stories.tsx";
 
 const BUILT_IN = "preset_00000000000000000000000000";
 const EDITED_ONE = "preset_ct_edited0001";
@@ -83,6 +89,32 @@ test("#379 Presets teaching hierarchy has a focal title in the wide arm", async 
 
 test("#379 Presets teaching hierarchy has a focal title in the narrow arm", async ({ mount }) => {
   expect(await focalHierarchyRatio(await mount(<PresetLibraryWelcomeNarrowStory />))).toBeGreaterThanOrEqual(1.5);
+});
+
+// #434 — THE FOOTNOTE IS CONDITIONALLY RENDERED, NOT CONDITIONALLY WORDED. The pane used to print "If the
+// list isn't on screen, Show list panel in the top bar brings it back" unconditionally, so a 1280 desktop
+// reader with the list docked 400px to the left was handed an "if" about a pane they were looking at (#99
+// item 5 moved it to a trailing sentence; the honest version needed the shell's `listMode`, which
+// `useSectionListMode` now publishes to features). Both arms, ONE mount — the finding is that the SAME pane
+// must say different things. The driver is the shell's FOCUS flag (see the story's note): what this pane
+// reads is the RESOLVED list mode, and focus is the one regime that resolves it synchronously and
+// section-independently; the override path's own resolution is pinned in `shell-store.ct`.
+const LIST_FOOTNOTE = /Show list panel in the top bar/u;
+const TEACHING_SENTENCE = /Pick a preset to edit its sampling/u;
+
+test("#434 the 'Show list panel' footnote renders only while the Presets LIST is off screen", async ({ mount }) => {
+  const welcome = await mount(<PresetLibraryWelcomeListModeStory />);
+  // The section's boot layout docks its LIST, so this is the reader who can already see it.
+  await expect(welcome.getByText(TEACHING_SENTENCE)).toBeVisible();
+  await expect(welcome.getByText(LIST_FOOTNOTE)).toHaveCount(0);
+
+  await welcome.getByRole("button", { name: "take the list off screen" }).click();
+  await expect(welcome.getByText(LIST_FOOTNOTE)).toBeVisible();
+  // …and the instruction survives beside it: the footnote is an addition, never a replacement.
+  await expect(welcome.getByText(TEACHING_SENTENCE)).toBeVisible();
+
+  await welcome.getByRole("button", { name: "put the list back" }).click();
+  await expect(welcome.getByText(LIST_FOOTNOTE)).toHaveCount(0);
 });
 
 // Action names carry the row's own edit stamp after the name (side-eye P3a): nine forks share the name

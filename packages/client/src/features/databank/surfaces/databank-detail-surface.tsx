@@ -1,5 +1,7 @@
 // The Databank CONTENT pane — the open document's detail (databank-surface-spec §6.2), or the teaching
-// welcome when nothing is selected (an empty CONTENT pane reads as unbuilt: empty states are load-bearing).
+// welcome when nothing is selected (an empty CONTENT pane reads as unbuilt: empty states are load-bearing),
+// or — on an EMPTY bank with the LIST on screen — nothing at all, because there the list's own empty state
+// owns the first step and the only Add door (#434; `DatabankWelcome`'s note states the whole rule).
 //
 // `form` TIER (density §3.1 "entity editor"): identity header → Details group → Maintenance → Source text.
 //
@@ -29,7 +31,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
-import { useSelectedDocumentId } from "#state";
+import { useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
 import {
@@ -76,7 +78,27 @@ export function DatabankDetailSurface(): ReactElement {
 }
 
 /**
- * The no-selection arm — what this PANE will show once a document is open.
+ * The no-selection arm — what this PANE will show once a document is open, and NOTHING AT ALL while the bank
+ * is empty and the LIST is on screen (#434, the #430 IA proposal).
+ *
+ * THE EMPTY-BANK STAND-DOWN extends the ruling below one notch rather than reversing it. "An empty CONTENT
+ * pane reads as unbuilt" still holds — it is why the two arms under it exist — but on an EMPTY bank the pane
+ * was not empty, it was WRONG: "Pick a document from the list" names an act the reader cannot perform, three
+ * feet from a LIST that is already teaching the real first step and already carrying the only Add door. Two
+ * empty states in one glance saying nearly the same thing is the §13 IA duplication the side-eye report
+ * filed; the one that has the affordance wins, and this pane stands down. (The REFUSED arm, recorded so the
+ * next reader does not re-mint it: a second Add door here — see the two-Add-doors note below.)
+ *
+ * IT IS CONDITIONED ON THE LIST BEING ON SCREEN, not on the bank alone, because "the LIST owns the first
+ * step" is only true when the list is showing. `panelDefaults.list` is `docked`, but the shell auto-collapses
+ * a docked default in the narrow-desktop band and focus mode hides both panes — regimes where standing down
+ * would leave the reader a blank pane and no door at all. There the pane keeps a teaching state and names the
+ * affordance that produces the list, verbatim, exactly as the Presets welcome does (side-eye F-28).
+ *
+ * The census is `databank.bankHealth` — the SAME read the home tile's chips use, so "is the bank empty" has
+ * one home and cannot disagree with the list pane's own `totalCount` for a reason this pane invented. While
+ * it is in flight the pane renders nothing: a welcome shown and then withdrawn is a claim made and retracted,
+ * and this read is warm on any path that has painted the home tile or the list band.
  *
  * IT NO LONGER PRINTS THE SHARED GLOSS (side-eye 2026-08-19 taste). The one-home copy fix of 2026-08-08 is
  * CORRECT and is not being forked: `DATABANK_INGEST_GLOSS` still has exactly one spelling. What that fix
@@ -90,7 +112,23 @@ export function DatabankDetailSurface(): ReactElement {
  * no affordance, 226px from the LIST's real one (the two-Add-doors finding). The invitation goes rather
  * than a third button being minted for it.
  */
-function DatabankWelcome(): ReactElement {
+function DatabankWelcome(): ReactElement | null {
+  const trpc = useTRPC();
+  const listMode = useSectionListMode("databank");
+  const census = useQuery(trpc.databank.bankHealth.queryOptions());
+
+  if (census.data === undefined) {
+    return null;
+  }
+  if (census.data.total === 0) {
+    return listMode === "collapsed" ? (
+      <EmptyState
+        description="Nothing is indexed yet. Show list panel in the top bar opens the library, where a document gets added."
+        icon={<Icon icon={FileText} size="lg" />}
+        title="Your databank"
+      />
+    ) : null;
+  }
   return (
     <EmptyState
       // SIDE-AGNOSTIC (side-eye 2026-08-19 N-10, the chat landing's own correction carried here): the LIST

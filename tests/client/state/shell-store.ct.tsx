@@ -1,7 +1,7 @@
 // shell-store CT — drives the hook-backed shell layout store through its module actions and asserts the
 // read hooks reflect each transition: section switch, the PER-SECTION panel override memory (§4.2 rule 2
 // — switching away and back restores the section's own override, and a sibling section is unaffected),
-// `useListDocked` (the narrow #state projection chats-section.tsx reads instead of `useShellLayout`), the
+// `useSectionListMode` (the narrow #state projection a feature reads instead of `useShellLayout`), the
 // settings deep-link (`openSettingsTo`), the CONTEXT tab request (`setContextTab`), and the dual-write
 // `revealContextPanel` (writes contextTab + openOverlayPanel + the CONTEXT panel dock together). The resolve
 // (override ?? the section registry's panelDefaults) + toggle/focus derivations live in the app-shell
@@ -13,8 +13,11 @@ import { ShellStoreProbe } from "./_ct-stories.tsx";
 
 // The BORN default is `home` (owner decision H1 = D-1) — a fresh install lands on the section that HAS a
 // launcher, not on "nothing selected".
+// `docked=false` on the born default is not a layout state — `home` DECLARES no list pane at all
+// (`panels.list: "unavailable"`), and the projection pins that arm `collapsed` unconditionally (H3 / arm
+// L-b). Every docked assertion below therefore drives a list-bearing section first.
 const DEFAULT_STATE =
-  "section=home list=none context=none modal=none docked=true settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false focus=false";
+  "section=home list=none context=none modal=none docked=false settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false focus=false";
 
 test("panel overrides are PER-SECTION: set on one section, remembered, not leaked to another", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
@@ -125,10 +128,13 @@ test("revealContextPanelBesideContent writes the tab + the dock, and the overlay
   await expect(state).toContainText("contextTab=field openOverlayPanel=context");
 });
 
-test("useListDocked resolves override-over-default, per section, live", async ({ mount }) => {
+test("useSectionListMode resolves override-over-default, per section, live", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
-  // No override yet → the probe's literal "docked" default wins.
+  // A list-bearing section: the projection reads the REGISTRY default now (#434), and the born `home`
+  // declares no list pane at all.
+  await probe.getByRole("button", { name: "go chats" }).click();
+  // No override yet → the section's own registry default ("docked") wins.
   await expect(state).toContainText("docked=true");
 
   await probe.getByRole("button", { name: "collapse list" }).click();
@@ -138,10 +144,13 @@ test("useListDocked resolves override-over-default, per section, live", async ({
   await expect(state).toContainText("docked=true");
 });
 
-test("useListDocked forces `false` on mobile viewport regardless of override/default", async ({ mount }) => {
+test("useSectionListMode forces a non-docked mode on mobile viewport regardless of override/default", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
-  // Desktop + docked default → docked=true (the pre-existing algebra, unaffected).
+  // A list-bearing section: the projection reads the REGISTRY default now (#434), and the born `home`
+  // declares no list pane at all.
+  await probe.getByRole("button", { name: "go chats" }).click();
+  // Desktop + the section's docked default → docked=true (the pre-existing algebra, unaffected).
   await expect(state).toContainText("docked=true");
 
   // Mobile: the real panel is never "docked" (a transient sheet) — docked reads false even though the
@@ -167,15 +176,18 @@ test("setNarrowViewport publishes the shell-narrow regime read", async ({ mount 
   await expect(state).toContainText("narrowViewport=false");
 });
 
-test("useListDocked resolves `false` in the narrow-desktop regime too (the M10 correction bug — a hand-copied mirror read only mobileViewport and disagreed with resolvePanel in 48-64rem)", async ({
+test("useSectionListMode resolves non-docked in the narrow-desktop regime too (the M10 correction bug — a hand-copied mirror read only mobileViewport and disagreed with resolvePanel in 48-64rem)", async ({
   mount,
 }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
+  // A list-bearing section: the projection reads the REGISTRY default now (#434), and the born `home`
+  // declares no list pane at all.
+  await probe.getByRole("button", { name: "go chats" }).click();
   await expect(state).toContainText("docked=true");
 
   // Narrow-desktop: a docked DEFAULT auto-downgrades to a CLOSED slide-over — never "docked" — exactly
-  // like mobile, so `useListDocked` must read false here too (chats-landing's `showRecents`).
+  // like mobile, so `useSectionListMode` must read non-docked here too (chats-landing's `showRecents`).
   await probe.getByRole("button", { name: "enter narrow viewport" }).click();
   await expect(state).toContainText("docked=false");
 
@@ -233,9 +245,12 @@ test("the narrow-viewport auto-collapse during focus cannot corrupt the saved pr
   await expect(state).toContainText("docked=true");
 });
 
-test("useListDocked reads FALSE while focused (focus outranks the section's own docked preference), and true again on exit", async ({ mount }) => {
+test("useSectionListMode reads collapsed while focused (focus outranks the section's own docked preference), and true again on exit", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
+  // A list-bearing section: the projection reads the REGISTRY default now (#434), and the born `home`
+  // declares no list pane at all.
+  await probe.getByRole("button", { name: "go chats" }).click();
   await expect(state).toContainText("docked=true");
 
   await probe.getByRole("button", { name: "enter focus", exact: true }).click();

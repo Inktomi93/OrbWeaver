@@ -122,7 +122,6 @@ import {
   useErroredSaveSections,
   useFavoritesOnly,
   useFocusMode,
-  useListDocked,
   useModalRegistry,
   useNarrowViewport,
   useNewChatIntent,
@@ -133,6 +132,7 @@ import {
   usePresetSearchQuery,
   useRefineryLandingFocusRequest,
   useSectionListIsScreen,
+  useSectionListMode,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
   useSelectedCharacterFacetId,
@@ -179,7 +179,7 @@ export function SectionListProjectionProbe(): ReactElement {
 function SectionListProjectionBody(): ReactElement {
   const configIsScreen = useSectionListIsScreen("config");
   const homeIsScreen = useSectionListIsScreen("home");
-  const configDocked = useListDocked("config", "docked");
+  const configDocked = useSectionListMode("config") === "docked";
   const overlay = useOpenOverlayPanel();
   return (
     <div>
@@ -237,10 +237,10 @@ function SectionTitleRow({ definition }: { readonly definition: SectionDefinitio
  *  its own component (a provider rendered by the same component that calls `useSectionRegistry` is not in
  *  its own context, and the whole probe rendered nothing). */
 export function ShellStoreProbe(): ReactElement {
-  // The registry is load-bearing since the mobile ONE-SHELL rule: `useListDocked` reads the section's
-  // declared SELECTION seam (a list-bearing section with nothing open is `docked` on a phone), and that
-  // answer has ONE home — the registry. The fake's sections inject no `list`, so they declare no seam and
-  // this probe exercises the pre-existing algebra unchanged.
+  // The registry is load-bearing since the mobile ONE-SHELL rule: `useSectionListMode` reads the section's
+  // declared SELECTION seam (a list-bearing section with nothing open is `docked` on a phone) AND its
+  // `panelDefaults`, and both answers have ONE home — the registry. The fake's sections inject no `list`, so
+  // they declare no seam and this probe exercises the pre-existing algebra over the REAL section defaults.
   return (
     <CtFakeSectionRegistry>
       <ShellStoreProbeBody />
@@ -258,10 +258,11 @@ function ShellStoreProbeBody(): ReactElement {
   const settingsTarget = useSettingsTarget();
   const contextTab = useContextTab();
   const openOverlayPanel = useOpenOverlayPanel();
-  // `useListDocked` — the narrow #state projection a section definition reads instead of
-  // `useShellLayout` (chats-section.tsx's landing showRecents). Fed a literal "docked" own-default here
-  // so the probe exercises the override-priority logic, independent of any real section's actual default.
-  const docked = useListDocked(section, "docked");
+  // `useSectionListMode` — the narrow #state projection a feature reads instead of `useShellLayout`. The
+  // OWN-DEFAULT is the registry's now (#434), not a literal the caller carries, so what this prints is the
+  // ACTIVE section's real resolved mode: `home` declares no list at all and can never be docked, while
+  // `chats`/`corpus` default `docked` — which is why the docked assertions below drive a section first.
+  const docked = useSectionListMode(section) === "docked";
   const narrowViewport = useNarrowViewport();
   // The ONE focus flag (item 20) — the probe prints it BESIDE the raw overrides so a CT can assert the two
   // never disagree, and that focus mode never writes into the overrides it is hiding.
