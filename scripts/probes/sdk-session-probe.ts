@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * pnpm sdk:session-probe [--mode sub|or] [--model <id>] [--turns N] [--verbose]
  *

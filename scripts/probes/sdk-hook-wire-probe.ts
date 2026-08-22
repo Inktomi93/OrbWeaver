@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * pnpm sdk:hook-wire-probe
  *

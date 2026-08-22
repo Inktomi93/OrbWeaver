@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * transcript-census.mjs — READ-ONLY mining pass over Claude Code session transcripts
+ * transcript-census.ts — READ-ONLY mining pass over Claude Code session transcripts
  * (~/.claude/projects/**\/*.jsonl and ~/.claude-b/projects/**\/*.jsonl) to classify every
  * Bash tool_use call into anti-pattern buckets (exit-code-destroying pipes, bare-runner
  * dodges, destructive commands, ...) and to measure wall-clock cost by pairing each
@@ -27,7 +27,7 @@
  *     call is a real, if capped, measurement of time lost.
  *
  * Usage:
- *   node scripts/probes/transcript-census.mjs [--roots dir1,dir2] [--examples N] [--out file.json]
+ *   node scripts/probes/transcript-census.ts [--roots dir1,dir2] [--examples N] [--out file.json]
  *
  * Defaults: roots = ~/.claude/projects,~/.claude-b/projects ; examples = 6 per tag ;
  * out = stdout only (pass --out to also dump the full JSON stats blob for later re-slicing).

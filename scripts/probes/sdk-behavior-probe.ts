@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 /**
  * pnpm sdk:behavior-probe [--scenario p1,rz1,…] [--model <id>] [--verbose]
  *
