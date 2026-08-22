@@ -47,7 +47,7 @@ export function TagMemberSurface({ memberId }: { readonly memberId: string }): R
   if (tag === undefined) {
     // Reachable for real: another device deleted this tag while it was open here (the tag verbs are
     // bus-driven, so the list refetches under the editor). Say so instead of rendering a dead form.
-    return <EmptyState description="This tag was deleted. Pick another on the left." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />;
+    return <EmptyState description="This tag was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />;
   }
   return <TagMemberEditor others={tags.filter((other) => other.id !== tag.id)} tag={tag} />;
 }

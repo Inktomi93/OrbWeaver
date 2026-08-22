@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
-import { setActiveSection } from "#state";
+import { setActiveSection, useSectionListMode } from "#state";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
 import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
 import {
@@ -56,6 +56,10 @@ function OverviewBody(): ReactElement {
   const { data: wrapped } = useSuspenseQuery(trpc.stats.wrapped.queryOptions());
   const { data: overview } = useSuspenseQuery(trpc.stats.overview.queryOptions());
   const { data: momentum } = useSuspenseQuery(trpc.stats.momentum.queryOptions());
+  // #451: the list defaults COLLAPSED here, so "open the list" is right by default — but wrong once a
+  // reader docks it, and even collapsed the affordance's verbatim name is "Show list panel" (the topbar
+  // toggle, `shell-topbar.tsx`), not "open the list" (WCAG 2.5.3, label-in-name).
+  const listMode = useSectionListMode("analytics");
 
   // `hasData` is the runtime gate; overview/wrapped are still typed `| null` (an absent rollup), so
   // guard all three together — no data ⇒ the teaching state instead of a wall of zeros.
@@ -76,6 +80,8 @@ function OverviewBody(): ReactElement {
   // shared maximum is the comparison; the semantic colour below is the redundant channel, not the fix.
   const momentumMax = Math.max(0, ...rising.map((row) => row.value), ...falling.map((row) => row.value));
   const momentumScale = momentumMax > 0 ? momentumMax : undefined;
+  const topCharacterSubtitle =
+    listMode === "collapsed" ? "Your most-played character — Show list panel to drill into any character" : "Your most-played character";
 
   return (
     <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
@@ -113,7 +119,7 @@ function OverviewBody(): ReactElement {
             <ListRow
               leading={<Icon icon={Crown} size="sm" />}
               title={wrapped.topCharacter.name}
-              subtitle="Your most-played character — open the list to drill into any character"
+              subtitle={topCharacterSubtitle}
               actions={
                 <Text voice="gloss" className="whitespace-nowrap font-mono">
                   {formatCompact(wrapped.topCharacter.assistantTurns)} replies

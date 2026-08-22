@@ -56,7 +56,7 @@ export function RegexContextBody({ memberId }: { readonly memberId: string }): R
   const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
   const script = scripts.find((row) => row.id === memberId);
   if (script === undefined) {
-    return <EmptyState description="This script was deleted. Pick another on the left." icon={<Icon icon={Code} size="lg" />} title="Script not found" />;
+    return <EmptyState description="This script was deleted. Pick another from the list." icon={<Icon icon={Code} size="lg" />} title="Script not found" />;
   }
   return <RegexScopePanel globals={globals} isGlobal={globals.some((row) => row.id === script.id)} script={script} />;
 }
