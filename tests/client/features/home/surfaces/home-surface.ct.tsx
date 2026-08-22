@@ -8,6 +8,7 @@ import type { HomeTileContribution } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
@@ -15,6 +16,7 @@ import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import {
   HomeDormantTileStory,
   HomeEmptyStory,
+  HomeFoldStory,
   HomeRegionStory,
   HomeScrollCueFittingStory,
   HomeScrollCueStory,
@@ -611,6 +613,122 @@ test("P2-1 a home that FITS its pane paints no fade at all — the cue is scroll
   // The recipe is still ON the element — it is the STOPS that resolve to 0%, which is what makes a fitting
   // surface render its edges fully opaque instead of dimming a flush heading against nothing.
   await expect.poll(() => scroller.evaluate((el) => globalThis.getComputedStyle(el).maskImage)).toMatch(FADE_GRADIENT_RE);
+});
+
+// ── #499: the databank empty state's CTAs are REACHABLE without scrolling ───────────────────────────
+// The residual half of the P2-1 finding. #455 folded the roadmap block, but that block sits BELOW the
+// databank tile in the shelf at a narrow pane (the foot subgrid is one track there), so folding it could
+// not move the thing the finding was about: `Open Databank` measured top=819 against an 800px fold — an
+// empty state whose only calls to action are off-screen teaches nothing.
+//
+// A POINT MEASUREMENT NEVER PROVES A RANGE PROPERTY, so this is a MATRIX: the fold reach is asserted at
+// every width the column-balance instrument uses, spanning the `pairWide` crossover where the shelf's foot
+// goes 2-up. The bank is EMPTY — that is the arm that renders CTAs at all, and it is a first-run user's arm.
+//
+// AND IT IS TWO-SIDED: `Start a temp chat` — the shelf's other peer-rank CTA — is measured by the same
+// bar. A fold fix that lifts one control by dropping its neighbour is a shell game, and the only thing
+// that can tell the two apart is measuring both. (The fixture is the FULLEST house the shipped registry can
+// render, so every margin here is the worst case — it reproduces the live receipt exactly. The bar is
+// stated on the DEFAULTS appearance arm, where the finding was measured; `--font-scale 1.25` hides 850px of
+// this surface by construction and no block order answers that.)
+//
+// THE BAR IS THE FINDING'S OWN CRITERION — the control's TOP edge, which is what "top=819 against an 800px
+// fold" measured and what decides whether a user sees a control at all. The overhang of each CTA's BOTTOM
+// is printed beside it rather than asserted, and it is not zero: at 1280/1440 the `Open Databank` box still
+// runs ~5px under the cut on this worst-case fixture. Closing that last 5px needs a block ABOVE this tile to
+// shrink, and the two arms that reach it were both measured and refused — promoting the tile above Temp chat
+// regresses #226's column-balance fence in three wide-pane cells (see `home-documents-tile.tsx`), and
+// trimming the empty state's own copy is what the load-bearing-empty-state law forbids.
+const FOLD_WIDTHS = [1280, 1440, 1920, 2560] as const;
+/** The desktop shell's rail, ahead of home's pane (`--dimension-rail`) — home declares both panels away. */
+const FOLD_RAIL_PX = 56;
+const ADD_DOCUMENT_CTA = "Add your first document";
+const OPEN_DATABANK_CTA = "Open Databank";
+/** The shelf's OTHER peer-rank CTA, one block up. It is measured because a fold fix that lifts one control
+ *  by dropping its neighbour is a shell game, not a fix — this row is what makes the receipt two-sided. */
+const TEMP_CHAT_CTA = "Start a temp chat";
+
+/** One CTA's edges against the scroller's own visible bottom — negative px means above the cut. `top` is
+ *  the bar (a control whose top is under the cut is not on screen at all); `bottom` is the printed residual. */
+interface FoldReach {
+  readonly cta: string;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+interface FoldCell {
+  readonly reach: readonly FoldReach[];
+  /** `id:height` per shelf block, in paint order — the diagnostic that says WHICH block the fold is spent on. */
+  readonly shelf: string;
+}
+
+function measureFoldReach(page: Page, width: number): Promise<FoldCell> {
+  return page.evaluate(
+    ({ names, pane }) => {
+      (document.querySelector("[data-home-fold-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(pane)}px`);
+      const scroller = document.querySelector(".scroll-fade-y");
+      const fold = scroller === null ? Number.NaN : scroller.getBoundingClientRect().top + scroller.clientHeight;
+      const blocks = (column: Element | null): string =>
+        [...(column?.children ?? [])]
+          .map(
+            (child) =>
+              `${child.getAttribute("data-home-tile") ?? child.tagName.toLowerCase()}:${child.getBoundingClientRect().height.toFixed(0)}@${(child.getBoundingClientRect().bottom - fold).toFixed(0)}`,
+          )
+          .join(",");
+      const grid = document.querySelector("[data-home-grid]");
+      const shelf = `hearth=[${blocks(grid?.firstElementChild ?? null)}] shelf=[${blocks(document.querySelector("[data-home-shelf]"))}]`;
+      return {
+        shelf,
+        reach: names.map((cta) => {
+          const box = [...document.querySelectorAll("button")].find((el) => (el.textContent ?? "").includes(cta))?.getBoundingClientRect();
+          return { cta, top: box === undefined ? Number.NaN : box.top - fold, bottom: box === undefined ? Number.NaN : box.bottom - fold };
+        }),
+      };
+    },
+    { names: [ADD_DOCUMENT_CTA, OPEN_DATABANK_CTA, TEMP_CHAT_CTA], pane: width - FOLD_RAIL_PX },
+  );
+}
+
+test("#499 the databank empty state's CTAs clear the 1280x800 fold — and the shelf's other CTA still does", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // An EMPTY bank: no rows, a zero census. This is the arm the CTAs live on.
+  await stubDatabank(
+    page,
+    {
+      "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characterListResponder(FIRST_BOOT_FACES),
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_fold" },
+    },
+    [],
+  );
+
+  const home = await mount(<HomeFoldStory />);
+  // SETTLED, never "not busy": barrier on the rendered empty arm itself, so the matrix below cannot be
+  // measured between two tiles' commits.
+  await expect(home.getByText("No documents yet")).toBeVisible();
+  await expect(home.getByRole("button", { name: ADD_DOCUMENT_CTA })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+
+  // SEQUENTIAL by construction: every cell re-sizes the same live pane, so the widths cannot be probed
+  // concurrently (biome `performance/noAwaitInLoops` targets accidental serialization, which this is not).
+  const cells = await FOLD_WIDTHS.reduce<Promise<{ width: number; cell: FoldCell }[]>>(async (pending, width) => {
+    const done = await pending;
+    done.push({ width, cell: await measureFoldReach(page, width) });
+    return done;
+  }, Promise.resolve([]));
+
+  const matrix = cells.map(
+    ({ width, cell }) =>
+      `${String(width)}\t${cell.reach.map((row) => `${row.cta}=${row.top.toFixed(0)}..${row.bottom.toFixed(0)}`).join("\t")}\tshelf=[${cell.shelf}]`,
+  );
+  // Printed on PASS as well as fail — this table IS the issue's closing receipt.
+  console.info(`\n#499 databank CTA fold reach (top..bottom px against the cut; negative = above it)\n${matrix.join("\n")}\n`);
+
+  const below = cells.flatMap(({ width, cell }) =>
+    cell.reach.filter((row) => !(row.top < 0)).map((row) => `${String(width)}: "${row.cta}" starts ${row.top.toFixed(0)}px past the fold`),
+  );
+  expect(below, below.join("\n")).toEqual([]);
 });
 
 // ── RED-FIRST (#455): the doorway group is a FOLD, collapsed by default ─────────────────────────────
