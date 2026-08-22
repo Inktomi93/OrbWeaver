@@ -54,7 +54,12 @@ export function decideUp(classification: InstanceClassification): { readonly act
       return { action: "adopt", reason: classification.reason };
     case "absent":
       return { action: "spawn", reason: classification.reason };
-    default:
+    // Enumerated, not `default:` — a NEW verdict must fail the compile here rather than silently
+    // inheriting "refuse" (the §5.5 string-union dispatch law). All three refuse today for the same
+    // reason: `up` never double-spawns onto a held port, and never touches a stack it did not start.
+    case "ours-unhealthy":
+    case "foreign":
+    case "harness":
       return { action: "refuse", reason: classification.reason };
   }
 }
@@ -68,7 +73,10 @@ export function decideDown(classification: InstanceClassification): { readonly a
       return { action: "stop", reason: classification.reason };
     case "absent":
       return { action: "noop", reason: classification.reason };
-    default:
+    // Enumerated, not `default:` (§5.5) — a foreign holder and a harness stack are the two instances
+    // this tool proved it does NOT own, and a new verdict must be decided here, not defaulted.
+    case "foreign":
+    case "harness":
       return { action: "refuse", reason: classification.reason };
   }
 }

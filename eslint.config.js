@@ -109,6 +109,36 @@ const CT_SURFACE = [UI_CT, UI_FIXTURES, CLIENT_CT, CLIENT_STORIES];
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
 const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 
+// ── The TOOLING surface (#459) ──────────────────────────────────────────────────────────────────────
+// `@orb/tooling` + its test mirror were DOUBLY uncovered by eslint until 2026-08-22, and the two halves
+// have to be fixed together or the surface stays dark: the `lint:eslint` SCRIPT argv named only
+// `packages/{ui,client,server,kit,db,contracts}` + `tests/{ui,client}`, AND no config object's `files`
+// pattern matched `tooling/**` — so even an explicit `eslint tooling/src/foo.ts` answered "File ignored
+// because no matching configuration was supplied". Both are repaired: this block, and the script's argv.
+// (The scoped verify lane passes `--no-warn-ignored`, so the ignore was silent there too.)
+//
+// THE MEASUREMENT that justifies the block, taken over 591 files before anything was enabled:
+// no-floating-promises 36 · switch-exhaustiveness-check 7 · no-deprecated 1 · restrict-template-expressions 1
+// · no-misused-promises / require-await / await-thenable 0. The 36 were ONE class and a LYING-TEST class:
+// `expect(res).toExitWith(N)` with no `await` — `toExitWith` is an ASYNC matcher (tests/support/matchers.ts),
+// so a wrong exit code surfaced as an unhandled rejection attributed to a DIFFERENT test while the real
+// test reported PASS (planted-control receipt: 2 passed, 1 unhandled error, wrong test named). Biome is
+// syntactic and structurally cannot see any of these. All live violations were fixed in the landing lane;
+// nothing here is suppressed or allowlisted.
+//
+// THREE MEASURED RULES ARE NOT ON THIS SURFACE YET — tsdoc/syntax (110), strict-boolean-expressions (61),
+// no-unnecessary-condition (41). They are REAL findings, not false positives, and they are tracked as a
+// sweep at issue #472: the fix wave is behaviour-touching (nullable-conditional rewrites) or 110 comment
+// edits, so it lands as its own lane rather than riding this one. This is a tracked population, NOT a
+// ruling that the rules do not belong here — turn them on with that sweep.
+//
+// Scope note: the react/tailwind/query/router blocks above stay off tooling by construction (node-context
+// tools render nothing). What tooling gets is the ASYNC-SAFETY + dispatch + deprecation set — exactly the
+// eslint-only category, and the highest-value one for code that spawns processes and walks trees.
+const TOOLING_SRC = "tooling/src/**/*.ts";
+const TOOLING_TESTS = "tests/tooling/**/*.ts";
+const TOOLING_SURFACE = [TOOLING_SRC, TOOLING_TESTS];
+
 // The typed exported-API packages governed by the Documentation-Law doc-comment gates
 // (tsdoc/syntax + no-deprecated). server/kit/db/contracts — where the contract surface + its TSDoc
 // live; ui/client run their own react-surface gates above. `.ts` only (no `.tsx` in these packages).
@@ -244,6 +274,38 @@ export default tseslint.config(
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-unnecessary-condition": "error",
+    },
+  },
+  {
+    // Type-aware parser for the tooling surface (#459). `tooling/src` resolves upward to
+    // `tooling/tsconfig.json` (which `include`s `src`); `tests/tooling` resolves to the ROOT
+    // `tsconfig.json` (which `include`s `tests`) — both are real programs, so `projectService` finds an
+    // owner for every file here and no `.tsx` exists in either tree.
+    files: TOOLING_SURFACE,
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { projectService: true, tsconfigRootDir: ROOT, sourceType: "module" },
+    },
+  },
+  {
+    // ASYNC-SAFETY + dispatch + deprecation over the tooling surface — see the TOOLING_SURFACE header for
+    // the mechanism of the old gap, the 591-file measurement, and the three rules tracked at #472.
+    files: TOOLING_SURFACE,
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: {
+      // THE headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
+      // could not fail their own test. Nothing else in the stack can see a dropped Promise.
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
+      "@typescript-eslint/require-await": "error",
+      "@typescript-eslint/await-thenable": "error",
+      // The §5.5 string-union dispatch law as a lint rule: a `default:` catch-all lets a NEW union member
+      // silently inherit an arm. Seven sites in `stack/` were enumerated at the landing.
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      // Caught a real defect at the landing: an ExemptionRow OBJECT interpolated into a gate's operator
+      // message, which would have rendered `[object Object]` (list-row-adoption.ts).
+      "@typescript-eslint/restrict-template-expressions": "error",
+      "@typescript-eslint/no-deprecated": "error",
     },
   },
   {

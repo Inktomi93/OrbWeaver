@@ -14,7 +14,7 @@ test("format --check reds on a pipe-aligned table and names the file", async ({ 
   const file = join(scratch, "padded.md");
   await writeFile(file, PADDED);
   const res = await runCli("doc-catalog", ["format", "--check", file]);
-  expect(res).toExitWith(1);
+  await expect(res).toExitWith(1);
   expect(res.stderr).toContain("not formatted");
   expect(res.stderr).toContain(file);
 });
@@ -23,18 +23,18 @@ test("format --check passes a document already in compact form", async ({ runCli
   const file = join(scratch, "compact.md");
   await writeFile(file, COMPACT);
   const res = await runCli("doc-catalog", ["format", "--check", file]);
-  expect(res).toExitWith(0);
+  await expect(res).toExitWith(0);
   expect(res.stdout).toContain("1 file(s) formatted");
 });
 
 test("an unknown verb is misuse, not a violation and not a crash", async ({ runCli }) => {
   const res = await runCli("doc-catalog", ["reticulate"]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
   expect(res.stderr).toContain("usage: doc-catalog");
 });
 
 test("a valid verb with an unknown mode is misuse", async ({ runCli }) => {
   const res = await runCli("doc-catalog", ["catalog", "--obliterate"]);
-  expect(res).toExitWith(3);
+  await expect(res).toExitWith(3);
   expect(res.stderr).toContain("usage: doc-catalog");
 });

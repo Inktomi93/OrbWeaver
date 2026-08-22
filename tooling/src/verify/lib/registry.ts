@@ -302,6 +302,24 @@ const GATING_STAGES: readonly StageDef[] = [
     // Cross-cutting by nature — never scoped; deferred at a scoped tier.
   },
 
+  {
+    name: "quality:boot-chunk",
+    group: "quality",
+    // PUSH tier, never the commit bar: it runs a real vite production build of @orb/client (15.45s warm,
+    // measured 2026-08-22). `pnpm check` is the STRUCTURAL-fast bar (§3.2, "no behavioral suite"), and a
+    // bundler invocation is neither. It defends the #433 + #448 boot-chunk wins (1,146,760 → 740,339 B)
+    // that NOTHING else on the ladder can see: a single new barrel import in main.tsx's static graph
+    // silently re-pays the whole cost, and every other stage stays green while it happens (#460).
+    tiers: ["push", "full"],
+    argv: ["pnpm", "check:boot-chunk"],
+    // Our OWN 0/1/2/3-speaking script (tooling/src/verify/ops/boot-chunk-ratchet.ts) — and it USES the
+    // tool-error code: an unmeasurable dist (no entry chunk / more than one / a failed build) exits 2, so
+    // the run is not a verdict rather than a silent pass.
+    classify: ownScheme,
+    // WHOLE-TREE by nature — the boot chunk is a property of the ENTIRE static import graph reachable
+    // from main.tsx, so no changed-file subset makes an honest partial. Deferred at a scoped tier.
+  },
+
   // ── full-tier additions (the "nothing omitted" bar) ──
   {
     name: "quality:cpd",

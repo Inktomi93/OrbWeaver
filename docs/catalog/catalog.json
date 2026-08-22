@@ -1696,16 +1696,16 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 279,
-      "bytes": 22189,
-      "sha256": "9fc745710d722942fa9356d224720dfb6bc2e37f56d70e76cec8f7b1370c8635",
+      "lines": 296,
+      "bytes": 24081,
+      "sha256": "e04e5eb31f7006b46de9a9224304c7a9e5015b70899e4862b1c4c558211d2326",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-17"
+          "updated": "2026-08-22"
         },
         "errors": []
       },
@@ -1715,14 +1715,15 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "9fc745710d722942fa9356d224720dfb6bc2e37f56d70e76cec8f7b1370c8635",
-        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
+        "verifiedSha256": "e04e5eb31f7006b46de9a9224304c7a9e5015b70899e4862b1c4c558211d2326",
+        "verifiedCommit": "4b048de6d7664bc2db026c7ca5c8887450198f30",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the `full`-tier table row and the §3.7 stage list drop `tests:parity`; the vitest project count corrects to five. No other claim in this document moved."
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the `full`-tier table row and the §3.7 stage list drop `tests:parity`; the vitest project count corrects to five. No other claim in this document moved.",
+          "delta re-verify 2026-08-22 (#460, commit 4b048de6d): re-read at the ratchet bytes — §3.2's push row gains `quality:boot-chunk` and the previously-missing `quality:cpd` (promoted 2026-08-03), §3.7 gains the boot-chunk stage entry, and the static ordered set is corrected to include structure:agent-config and docs:catalog. No other claim in this document moved."
         ],
         "claims": [
           {

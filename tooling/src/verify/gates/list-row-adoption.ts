@@ -204,13 +204,13 @@ export const gate: GateDescriptor = {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
       return;
     }
-    for (const [path, rootName] of Object.entries(ALLOWLIST)) {
+    for (const [path, row] of Object.entries(ALLOWLIST)) {
       if (!seenAllowlistEntries.has(path)) {
         ctx.report({
           file: GATE_SELF,
           line: 1,
           column: 0,
-          message: `stale ALLOWLIST entry — "${path}" no longer has a \`.map()\` row rooted in "${rootName}": delete the row in tooling/src/verify/gates/list-row-adoption.ts`,
+          message: `stale ALLOWLIST entry — "${path}" no longer has a \`.map()\` row rooted in "${row.root}": delete the row in tooling/src/verify/gates/list-row-adoption.ts`,
         });
       }
     }
