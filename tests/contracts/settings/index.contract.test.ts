@@ -126,6 +126,94 @@ test("v4→v5 AppSettings lift is a no-op passthrough — structuredOutputShape 
   expect(parseAppSettings({ structuredOutputShape: "nonsense", logLevel: "debug" })).toEqual({ logLevel: "debug" });
 });
 
+test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVERY other key forward (#321)", () => {
+  // #321 / PD-35 — the recencyBias knob is REMOVED (owner ruling 2026-08-22, after his own 2026-08-20 probe
+  // measured no recall gain on the real corpus). This is the FIRST AppSettings lift that DELETES a field, so
+  // it is also the one that has to prove it is not the #461 incident class: a lift that quietly drops sections
+  // destroys an admin's overrides permanently. Every sibling section AND every sibling memoryDefaults knob is
+  // therefore asserted BY VALUE, not by spot-check.
+  //
+  // The absence is asserted through `Object.keys` rather than a property read so the pin compiles against the
+  // pre-removal shape too (a property read of a deleted key is a build error, which proves nothing).
+  const storedV7 = {
+    schemaVersion: SCHEMA_VERSION_V7,
+    memoryDefaults: {
+      recencyBias: 0.5,
+      blockSize: 16,
+      verbatimWindow: 4,
+      queryWindow: 3,
+      mode: "mixB",
+      fanOut: 6,
+      maxTier: 2,
+      retrieveK: 12,
+      rerankTo: 5,
+      minScore: 0.4,
+      keywordMatch: false,
+    },
+    memorySummarizer: { maxTokens: 2048, temperature: 0.7 },
+    rateLimits: { aiTurn: 60, login: 10 },
+    engineLaunch: { genModel: "qwen3-vl", genPresencePenalty: 1.2 },
+    vllmConcurrency: { embed: 32 },
+    agentSdkConcurrency: { summarize: 4 },
+    logLevel: "debug",
+    corpusAutoindex: true,
+    forbidExternalMedia: true,
+    maxImageBytes: 20_000_000,
+    imageVariantQuality: 60,
+    structuredOutputShape: "strict-compatible",
+    structuredOutputVehicle: "forced-tool",
+    promptCacheMinDepth: 4,
+    allowNonOwnerLocalCompute: false,
+    localMultiUser: true,
+  };
+  const parsed = parseAppSettings(storedV7);
+
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
+  // The knob is GONE — not merely zeroed, absent from the parsed section.
+  expect(Object.keys(parsed.memoryDefaults ?? {})).not.toContain("recencyBias");
+  // …and the other TEN memoryDefaults knobs survive byte-identically.
+  expect(parsed.memoryDefaults).toEqual({
+    blockSize: 16,
+    verbatimWindow: 4,
+    queryWindow: 3,
+    mode: "mixB",
+    fanOut: 6,
+    maxTier: 2,
+    retrieveK: 12,
+    rerankTo: 5,
+    minScore: 0.4,
+    keywordMatch: false,
+  });
+  // …as does every sibling SECTION (the carry-forward receipt the #461 class demands).
+  expect(parsed.memorySummarizer).toEqual({ maxTokens: 2048, temperature: 0.7 });
+  expect(parsed.rateLimits).toEqual({ aiTurn: 60, login: 10 });
+  expect(parsed.engineLaunch).toEqual({ genModel: "qwen3-vl", genPresencePenalty: 1.2 });
+  expect(parsed.vllmConcurrency).toEqual({ embed: 32 });
+  expect(parsed.agentSdkConcurrency).toEqual({ summarize: 4 });
+  expect(parsed.logLevel).toBe("debug");
+  expect(parsed.corpusAutoindex).toBe(true);
+  expect(parsed.forbidExternalMedia).toBe(true);
+  expect(parsed.maxImageBytes).toBe(20_000_000);
+  expect(parsed.imageVariantQuality).toBe(60);
+  expect(parsed.structuredOutputShape).toBe("strict-compatible");
+  expect(parsed.structuredOutputVehicle).toBe("forced-tool");
+  expect(parsed.promptCacheMinDepth).toBe(4);
+  expect(parsed.allowNonOwnerLocalCompute).toBe(false);
+  expect(parsed.localMultiUser).toBe(true);
+});
+
+test("a v8 blob that still carries recencyBias is stripped at parse, section intact (#321)", () => {
+  // The lift only runs for blobs stamped BELOW the current version. A blob already stamped v8 that somehow
+  // carries the retired key (a stale writer, a hand-edited row) must ALSO lose just that key — the
+  // `personaWizardSeen` precedent: zod strips the unknown, the section is not healed away wholesale.
+  const parsed = parseAppSettings({
+    schemaVersion: SCHEMA_VERSION_V8,
+    memoryDefaults: { recencyBias: 0.9, retrieveK: 12 },
+  });
+  expect(Object.keys(parsed.memoryDefaults ?? {})).not.toContain("recencyBias");
+  expect(parsed.memoryDefaults).toEqual({ retrieveK: 12 });
+});
+
 // ── Lenient parse: garbage degrades to the default (never throws) ──
 
 test("parseAppSettings degrades a non-object / garbage blob to {} (no overrides)", () => {
@@ -522,8 +610,8 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
   expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
 });
 
-test("the pinned schema versions: AppSettings v7 (structuredOutputVehicle, task #36), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V7);
+test("the pinned schema versions: AppSettings v8 (memoryDefaults.recencyBias REMOVED, #321), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
   expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
 });
 

@@ -47,10 +47,19 @@ import { getLog } from "#foundation/observability";
  *  Renaming it is safe for existing users BY CONSTRUCTION, with no gating code and no backfill: `seed()`
  *  returns early on the persisted `onboarding.defaultPersonaSeeded` latch, so anyone already seeded never
  *  reaches this constant again. (There is no separate "first-run complete" flag — `personaWizardSeen` was
- *  deleted as dead in D107; this latch IS the first-run signal.) */
+ *  deleted as dead in D107; this latch IS the first-run signal.)
+ *
+ *  THE TITLE IS A DESCRIPTOR, NOT A STATE CLAIM (owner ruling 2026-08-22, #462). It was "Your default
+ *  persona" — a sentence that goes FALSE the moment the user defaults any other persona, while still being
+ *  displayed: the crown derives from the real `seeds.defaultPersonaId` flag, the title does not, so the two
+ *  contradict each other on screen (the 2026-08-03 side-eye ruling killed the row's other two
+ *  default-tellings and left this one standing). It is also USER-EDITABLE PROSE, so no backfill may correct
+ *  it — the only fix is to author copy that stays true forever. "Your first persona" is a fact about how the
+ *  row came to exist, and nothing the user does later can falsify it. Existing rows keep whatever prose they
+ *  have: `seed()` returns early on the latch, so a seeded user never reaches this constant again. */
 const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
   name: DEFAULT_PERSONA_NAME,
-  title: "Your default persona",
+  title: "Your first persona",
   description:
     "This is you — the person on the other side of the conversation. Edit this description to tell characters who you are: your name, how you speak, what you're like, whatever you want them to react to. Until you do, you're simply {{user}}: curious, present, and here to see where the story goes.",
   starred: true,

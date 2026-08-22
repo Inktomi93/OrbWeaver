@@ -47,9 +47,10 @@
 // the teaser in the gloss voice, the state line as a FOOTNOTE-scale mono line — and NO interactive
 // element at all (no button, no skeleton, no spinner). `empty-states-are-load-bearing`: omitting the tile
 // would say "this product has no companion"; a fake-loading tile would lie. It has NO band of its own
-// and no `Dormant` badge any more: HomeSurface collects every declared doorway under ONE "Not yet"
-// kicker (the mockup's right-rail move), so the group's own name says what the per-tile badge used to,
-// once instead of N times.
+// and no `Dormant` badge any more: HomeSurface collects every declared doorway under ONE "What's coming"
+// group (the mockup's right-rail move), so the group's own name says what the per-tile badge used to,
+// once instead of N times — and since #455 that group is a FOLD, collapsed by default, so this body only
+// ever renders once a reader has asked for it.
 //
 // A11y: a banded tile is a `region` NAMED by its own real `h2`, so home's blocks are navigable landmarks
 // with a heading each — and a tile's own trailing action ("All chats →") inherits that name instead of
@@ -110,7 +111,7 @@ function TileBand({
 }
 
 /** The DORMANT doorway — what this will be, and exactly what must land first. Zero controls, and no band
- *  of its own: HomeSurface groups every doorway under one "Not yet" kicker. The dashed LEFT rule is the
+ *  of its own: HomeSurface groups every doorway under one "What's coming" fold. The dashed LEFT rule is the
  *  mockup's `.doorway` treatment — the "not built yet" signal at a fraction of a dashed card's weight. */
 export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
@@ -119,9 +120,9 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
       <Stack className="min-w-0" gap="tight">
         {/* A REAL HEADING (side-eye rail-home, ARIA rec 2 — 2026-08-22). This was a `<p>`, so `Buddy` and
             `Automation` read to AT as body text with no structural distinction from their own descriptions:
-            the "Not yet" region announced as one undifferentiated run of prose, and a heading-navigating
-            user could not step between the two doorways. `h3` is the correct rank — the group's own band is
-            the `level={2}` kicker HomeSurface draws (`<Section aria-label="Not yet" level={2}>`), so these
+            the doorway region announced as one undifferentiated run of prose, and a heading-navigating
+            user could not step between the two doorways. `h3` is the correct rank — the group's own name is
+            the `level={2}` heading HomeSurface wraps its disclosure trigger in (#455), so these
             are its children and nothing in the outline is skipped. The VOICE is unchanged, which is what
             keeps this a semantics fix and not a type change: `voice` is declared after `size` in
             textVariants, so `Heading`'s level-derived `title` step loses to `label` exactly as `kicker`
@@ -135,7 +136,7 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
             recedes.
             …AND `prose` IS THE LENGTH MODIFIER IT ALWAYS OWED (side-eye rail-home P3-6, 2026-08-22). This
             teaser is a two-line explanatory PARAGRAPH, and at the bare micro step it rendered at 10.5px —
-            the same size as the "Not yet" kicker above it, which is a label voice used at sentence length.
+            the same size as the group's own kicker above it, which is a label voice used at sentence length.
             Contrast was never the issue (measured 8.45:1); it is small, not dim. `prose` is the sanctioned
             answer and the one the quick-pick captions already take: it lifts the step to `label` and relaxes
             the leading and changes nothing else, so the copy is still unmistakably the gloss voice. The
@@ -252,7 +253,7 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   // NO DOORWAY ARM HERE (review 2026-08-17 F7). The frame used to re-check `tile.body` for the `{dormant}`
   // shape and render `HomeDoorway` itself — residue from before the doorways were GROUPED. HomeSurface
   // partitions the registry first (`live`/`doorways`) and renders every doorway through `HomeDoorway`
-  // directly under the shared "Not yet" band, so every tile that reaches this frame is already live and the
+  // directly inside the shared "What's coming" fold, so every tile that reaches this frame is already live and the
   // branch was unreachable: a second home for a decision that has one. `HomeTile` has exactly one importer
   // (home-surface.tsx), which is what makes that provable rather than hopeful.
   // The MASTHEAD is bandless and landmark-less by design (see the header): its body renders the page's

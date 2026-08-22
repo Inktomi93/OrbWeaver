@@ -241,6 +241,30 @@ function PromptReadoutBody({
   );
 }
 
+/** THE SHORTEST FILL THAT IS STILL A FILL, as a fraction of the rail (side-eye 2026-08-22 P2-7). Measured
+ *  live: of the first 17 rows, 7 fills were 0px and 6 were 0.7px on a 146px track — a 0.5% sliver, sub-pixel
+ *  at DPR 1 — because one section (`Instructions`, ~393 of ~896 setup tokens) owns the scale and flattens
+ *  everything else. So the column's one useful statement ("which sections are actually costing you") was
+ *  exactly the one it could not make. 3% ≈ 4.4px at that width: visible at DPR 1, and small enough that it
+ *  still reads as the bottom of the column rather than as a middling section.
+ *
+ *  WHY A FLOOR AND NOT A LOG/RANK SCALE (the report offered both): above the floor this stays LINEAR, so the
+ *  bar keeps meaning what it looks like. A log scale would draw a 6% section at a quarter of the rail —
+ *  legible, but a different lie, on a column whose whole job is proportion. Non-zero rows get a visible
+ *  minimum; everything else is untouched. */
+const MIN_VISIBLE_FILL_FRACTION = 0.03;
+
+/** The bar's DRAWN magnitude: the row's own cost, lifted to the visible floor when it would otherwise paint
+ *  a sub-pixel sliver. Zero stays zero — an enabled row that costs nothing draws an empty rail, which is
+ *  true. The DATUM is the text cell beside it (the bar is `aria-hidden`), so the floor never reaches a
+ *  number a reader can read. */
+function drawnTokens(tokens: number, max: number): number {
+  if (tokens <= 0) {
+    return 0;
+  }
+  return Math.max(tokens, max * MIN_VISIBLE_FILL_FRACTION);
+}
+
 /** One section's budget bar — the row's name, its zone-hued track, and its cost cell. A component rather
  *  than a map body so the row's five derived facts (its estimate, its off state, its accent, its selected
  *  skin, its spoken cost) each read once. */
@@ -266,8 +290,15 @@ function BudgetBar({
       </Text>
       {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's
           first step is vitality GREEN, a hue this surface's language does not contain. Steel-blue setup /
-          warm-amber post is the rack's own zone accent, echoed. */}
-      <TrackBar accent={accent} className="min-w-0 flex-1" max={max} value={off ? 0 : (tokens ?? 0)} />
+          warm-amber post is the rack's own zone accent, echoed.
+
+          AN OFF ROW HAS NO RAIL AT ALL (side-eye 2026-08-22 P2-7). It used to draw an empty track, which is
+          pixel-identical to an enabled row whose fill rounded to nothing — so "switched off" and "costs
+          almost nothing" were the same picture, and they are opposite decisions. The row keeps its reserved
+          column (the numbers still read down one edge) and states its state in the two places that carry
+          meaning here: the struck name and the struck, zeroed cost. F-26's ruling holds — the off row stays
+          IN the budget list; what it loses is a meter that was saying nothing about it. */}
+      {off ? <Row className="min-w-0 flex-1" /> : <TrackBar accent={accent} className="min-w-0 flex-1" max={max} value={drawnTokens(tokens ?? 0, max)} />}
       {/* The GLYPH is decoration for the eye and the SENTENCE is the datum (side-eye F-27): `~—`
           announces as "tilde em dash", which is not a cost. */}
       <Text aria-hidden={true} className={off ? "line-through" : ""} voice="datum">

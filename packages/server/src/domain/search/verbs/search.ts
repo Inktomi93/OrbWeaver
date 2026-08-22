@@ -169,7 +169,6 @@ async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params
     queryText: query,
     mode: memoryMode(rerank),
     keywordMatch: false,
-    recencyBias: 0,
     minScore: 0,
     // The omnibox asks for `topN` — so the retrieval cut and the mixC rerank cut are both the caller's topN.
     retrieveK: topN,

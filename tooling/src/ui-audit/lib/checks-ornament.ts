@@ -264,7 +264,7 @@ export function checkMotionStatic(input: MotionStaticInput): Finding | null {
       selector: input.selector,
       value: `transition: ${input.value}`,
       message:
-        "a declared transition on a layout property (width/height/padding/margin) — per-frame layout when it runs; motion law §3.7 is compositor-only (transform/opacity), with only the measured-var accordion/collapsible panels exempt",
+        "a declared transition on a layout property (width/height/padding/margin) — per-frame layout when it runs; motion law §3.7 is compositor-only (transform/opacity), with only the measured-var accordion/collapsible panels exempt. §3.7's 2026-08-22 interactive-state carve-out is PAINT-ONLY COLOUR and does not reach a layout property, whatever triggers it",
       origin: "impeccable",
     };
   }

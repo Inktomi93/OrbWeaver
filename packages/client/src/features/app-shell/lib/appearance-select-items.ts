@@ -20,7 +20,11 @@ export const ELEVATION_ITEMS: SelectItems<string> = [
   { value: "glow", label: "Lifted (glow)" },
 ] satisfies readonly { value: AppearanceSettings["elevation"]; label: string }[];
 
-// surfaceTexture — the opt-in film-grain overlay. Chrome/cards only, never the reading surface.
+// surfaceTexture — the opt-in film-grain overlay. It hosts on the WHOLE SHELL (`.shell-grid::after`,
+// client globals.css), reading column included — ratified by the owner 2026-08-22 (#435) after this line
+// spent its life claiming "chrome/cards only, never the reading surface", which the shipped selector never
+// did. The measurement that carried the ruling: sub-12/255 peak contribution over prose at 0.04 under
+// `soft-light`, and `prefers-contrast: more` drops the overlay entirely.
 export const SURFACE_TEXTURE_ITEMS: SelectItems<string> = [
   { value: "none", label: "None" },
   { value: "grain", label: "Film grain" },

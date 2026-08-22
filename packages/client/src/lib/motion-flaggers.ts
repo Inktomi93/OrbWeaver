@@ -131,6 +131,62 @@ function raise({ tag, key, offender, detail, overBudget }: RaiseArgs): void {
 
 // ── [anim] — non-compositor at START ─────────────────────────────────────────────────────────────────
 
+// THE INTERACTIVE-STATE COLOUR CARVE-OUT (owner ruling 2026-08-22, #456; motion guide §3.7). §3.7 read
+// "transform/opacity only" without qualification, so the ONE core Card primitive's `hover:bg-accent`
+// (`packages/ui/src/primitives/card/variants.ts`) made this channel print OVER BUDGET on every
+// interactive-card hover, app-wide (receipt: docs/reviews/side-eye/2026-08-22-rail-home.md P3-2) — a
+// flagger accusing RATIFIED behaviour, which is the lying-instrument class. The amended law: a PAINT-ONLY
+// colour transition driven by an interactive STATE (hover/active/focus) is allowed; anything that moves
+// geometry stays flagged.
+//
+// WHAT THIS PREDICATE CAN AND CANNOT DISTINGUISH — no false precision:
+//  · CAN: the property set. A transition/animation whose every property is a colour (`color`, `fill`,
+//    `stroke`, or any `*-color` longhand) touches paint only, never layout.
+//  · CAN: whether the element is IN an interactive state at start — `Element.matches(":hover, :active,
+//    :focus, :focus-visible, :focus-within")` is a live read of exactly the selector class the ruling
+//    names. It is deliberately SELF-only: `:hover` also matches every ANCESTOR of the pointer target, so
+//    an ancestor-walking form (`closest`) matches `<html>` whenever the cursor is anywhere in the
+//    document and would exempt every colour change on the page.
+//  · CANNOT: the CSS SELECTOR that triggered it. The event carries a property name and a target, never
+//    a rule. So a data-driven colour change that happens to run while its own element is hovered is
+//    exempted too (under-report), and a colour change on a `group-hover:`-styled DESCENDANT still fires
+//    (over-report — the descendant does not itself match `:hover`).
+//  · The LATCH is the exit leg: the pointer has already left when the hover-OUT transition starts, so a
+//    state read alone would flag every unhover. An element that earned the exemption once keeps it for
+//    colour-only transitions. Cost of that honesty: a later MOUNT/data-change colour transition on a
+//    previously-hovered element is missed. A colour transition on an element interaction has never
+//    touched — the mount/data-change case the ruling still forbids — fires normally.
+//
+// NOT APPLIED to `activeAnimations()` (`motion-stats.ts` → `__orb.animations()` → motion-audit's dirty-
+// animation gate). That is a SAMPLER of `document.getAnimations()`: an interactive-state colour
+// transition lives ~130ms and a headless audit run hovers nothing, so the sampler cannot observe this
+// class at all — and `compositorClean` there is a factual property-set classification, not this law.
+const PAINT_ONLY_COLOUR_PROPS: ReadonlySet<string> = new Set(["color", "fill", "stroke"]);
+const INTERACTIVE_STATE_SELECTOR = ":hover, :active, :focus, :focus-visible, :focus-within";
+const CAMEL_BOUNDARY_RE = /[A-Z]/gu;
+/** Elements that earned the carve-out while in an interactive state — see "the LATCH" above. */
+const interactiveColourSurfaces = new WeakSet<Element>();
+
+/** true ⇒ this property repaints and nothing else. Accepts both spellings the platform hands us: the
+ *  dash-case `transitionstart` `propertyName` and the camelCase keyframe key (see `CSS_DASH_RE` below —
+ *  the two spellings differ and this channel sees both). */
+function isPaintOnlyColourProperty(property: string): boolean {
+  const dashed = property.replace(CAMEL_BOUNDARY_RE, (letter) => `-${letter.toLowerCase()}`);
+  return PAINT_ONLY_COLOUR_PROPS.has(dashed) || dashed.endsWith("-color");
+}
+
+/** true ⇒ guide §3.7's interactive-state colour carve-out covers this property set on this element. */
+function isInteractiveStateColourChange(el: Element, props: readonly string[]): boolean {
+  if (props.length === 0 || !props.every(isPaintOnlyColourProperty)) {
+    return false;
+  }
+  if (el.matches(INTERACTIVE_STATE_SELECTOR)) {
+    interactiveColourSurfaces.add(el);
+    return true;
+  }
+  return interactiveColourSurfaces.has(el);
+}
+
 /** Classify every animation currently attached to `el` and flag the dirty ones. Runs at animation START
  *  (see the header): a 130ms transition is over before any sampler could see it. */
 function flagDirtyAnimationsOn(el: Element): void {
@@ -147,13 +203,16 @@ function flagDirtyAnimationsOn(el: Element): void {
     if (props.length === 0 || props.every((p) => COMPOSITOR_SAFE_PROPS.has(p))) {
       continue;
     }
+    if (isInteractiveStateColourChange(el, props)) {
+      continue;
+    }
     const dirty = props.filter((p) => !COMPOSITOR_SAFE_PROPS.has(p));
     const label = surfaceLabelOf(el);
     raise({
       tag: "anim",
       key: `${label}|${dirty.join(",")}`,
       offender: label,
-      detail: `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter only)`,
+      detail: `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter, plus paint-only colour on an interactive state)`,
       overBudget: true,
     });
   }
@@ -169,6 +228,12 @@ const CSS_DASH_RE = /-([a-z])/gu;
  *  {@link installAnimationFlagger}.) Attribute reads only: no `getAnimations`, no computed style, no flush. */
 function skipTransition(el: Element, propertyName: string): boolean {
   if (COMPOSITOR_SAFE_PROPS.has(propertyName)) {
+    return true;
+  }
+  // The §3.7 colour carve-out rides this cheap path too — a hover on an interactive card must not pay a
+  // `getAnimations()` for a verdict the event's own datum already settles. This is also where the LATCH
+  // is set for the hover-OUT leg (the element still matches `:hover` on the way IN).
+  if (isInteractiveStateColourChange(el, [propertyName])) {
     return true;
   }
   const idl = propertyName.replace(CSS_DASH_RE, (_match, letter: string) => letter.toUpperCase());

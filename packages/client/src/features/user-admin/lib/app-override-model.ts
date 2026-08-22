@@ -17,7 +17,7 @@ export function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycle
 
 /** Is this stored-override value actively set? `null`/`undefined` = the deployment floor governs; anything
  *  else (INCLUDING `0` / `false`) = an active override. The nullish check is load-bearing — a falsy check
- *  would wrongly read `recencyBias: 0` / `keywordMatch: false` as "not overridden". */
+ *  would wrongly read `maxTier: 0` / `keywordMatch: false` as "not overridden". */
 export function isOverridden(v: unknown): boolean {
   return v !== null && v !== undefined;
 }

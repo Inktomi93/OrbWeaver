@@ -5,7 +5,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Kbd } from "@orb/ui/kbd";
-import { PortalContainerContext } from "@orb/ui/lib";
+import { LIVE_TOKEN_ROOT_ATTRIBUTE, PortalContainerContext } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@orb/ui/tooltip";
@@ -298,9 +298,14 @@ export function AppShell(): ReactElement {
       )}
       <ThemeScope tokens={scopeTokens} className="contents" ambientBackground={ambientBackground}>
         <PortalContainerContext value={portalRootRef}>
+          {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
+              the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,
+              because a custom theme's palette is inline on <ThemeScope> above and the colorization rule
+              redeclares --color-border on the grid itself — neither of which a documentElement read sees. */}
           <div
             ref={gridRef}
             className="shell-grid"
+            {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}
             data-section={layout.activeSection}
             data-list-mode={layout.listMode}
             data-context-mode={layout.contextMode}
