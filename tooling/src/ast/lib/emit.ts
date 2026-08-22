@@ -4,6 +4,7 @@ import { getWorkspace, searchGlobs } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { warn } from "../../_shared/log.ts";
+import { UsageError } from "../../_shared/run-tool.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { CORPUS_SYNTACTIC, EPILOGUE_TAG, ledger, NAME_LOOKUP_SYNTACTIC_VERBS, noteMatches, scanMeta } from "./ledger.ts";
 import { COLLAPSE_THRESHOLD, DEFAULT_MAX, REPO_ROOT, RESPELL_NEAR_DEFAULT_PCT, SNIPPET_CAP } from "./root.ts";
@@ -48,19 +49,34 @@ const VALUE_FLAGS: Readonly<Record<string, ValueFlagHandler>> = {
   "--near": applyNearFlag,
 };
 
+/** Every token this parser recognizes — the vocabulary a refusal quotes back, derived from the two
+ *  dispatch tables so it can never drift from what actually parses. */
+const KNOWN_FLAGS = [...Object.keys(VALUE_FLAGS), ...Object.keys(BOOLEAN_FLAGS)].sort().join(" ");
+
+/** #452's second half. An unrecognized token used to be SILENTLY DROPPED, so `pnpm ast jsx --name Button`
+ *  swallowed `Button` whole while the verb searched for "--name" and reported a clean zero. A token this
+ *  parser cannot name is MISUSE (exit 3) — never a quiet no-op that degrades a run into a wrong answer,
+ *  and never a typo (`--fles`) that silently un-sets the flag the caller thought they passed. */
+function rejectUnknownArg(token: string): never {
+  throw new UsageError(
+    `unknown argument ${JSON.stringify(token)} — ast's flags are: ${KNOWN_FLAGS}. Every verb's subject is POSITIONAL and comes FIRST (\`pnpm ast jsx Button\`); an argument this parser does not know is misuse, never a silent no-op.`,
+  );
+}
+
 export function parseFlags(rest: string[]): Flags {
   const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false, public: false, all: false, near: null };
   for (let i = 0; i < rest.length; i += 1) {
-    const t = rest[i];
-    const valueFlag = t === undefined ? undefined : VALUE_FLAGS[t];
+    const t = rest[i] ?? "";
+    const valueFlag = VALUE_FLAGS[t];
     if (valueFlag !== undefined) {
       i += valueFlag(flags, rest, i);
       continue;
     }
-    const key = t === undefined ? undefined : BOOLEAN_FLAGS[t];
-    if (key !== undefined) {
-      flags[key] = true;
+    const key = BOOLEAN_FLAGS[t];
+    if (key === undefined) {
+      rejectUnknownArg(t);
     }
+    flags[key] = true;
   }
   return flags;
 }
