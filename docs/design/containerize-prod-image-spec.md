@@ -33,9 +33,12 @@ updated: 2026-08-22
 
 **Two facts the recon did not mention that reshape the image (see §7 forks D & E):**
 
-1. **The server is NOT compiled — node 26 runs `.ts` directly.** `pnpm start` = `NODE_ENV=production node
-   packages/server/src/entry/index.ts` (`package.json:37`); `engines.node >= 26`, `packageManager
-   pnpm@11.15.1`. The only build artifact is the client bundle (`vite build` → `packages/client/dist`,
+1. **The server is NOT compiled — node 26 runs `.ts` directly.** The production spawn is
+   `NODE_ENV=production node packages/server/src/entry/index.ts`, built at one site
+   (`tooling/src/stack/lib/spawn-plan.ts`) and run detached by `pnpm stack up prod` or in the foreground by
+   `pnpm stack start-fg prod` — the pair that replaced the removed `pnpm start` script (#309);
+   `engines.node >= 26`, `packageManager pnpm@11.15.1`. The only build artifact is the client bundle
+   (`vite build` → `packages/client/dist`,
    `packages/client/package.json` `build`). So "build" = install deps + `pnpm --filter @orb/client build`;
    the server ships as source `.ts` + its workspace deps (`kit`/`contracts`/`db`) as source.
 2. **The canonical deployment bakes orb AND the 3-engine vLLM fleet into ONE container** (owner's turnkey
@@ -414,9 +417,10 @@ and log in over the HTTPS origin (no fallback, no proxy caveat). Documented at t
 
 **`.env` interaction — how ONE image runs dev=owner and prod=deny (ties to #301):** `AUTH_MODE` lives in
 `.env`, which `foundation/env` loads with **`override:true`** (the `.env` value WINS over a process export —
-the #301 footgun), so BOTH `pnpm dev` and `pnpm start` read `AUTH_MODE=oidc` from `.env`. The discriminator
-between the two is the run command, not the mode: `pnpm start` = `NODE_ENV=production node …` (the ONLY place
-production is set); `pnpm dev`/`stack.sh`/the e2e webServer set no `NODE_ENV` → `development`. For prod to run
+the #301 footgun), so BOTH stack modes read `AUTH_MODE=oidc` from `.env`. The discriminator between the two is
+the run command, not the mode: the prod arm (`pnpm stack up prod` / `start-fg prod`) spawns
+`NODE_ENV=production node …` (the ONLY place production is set); the dev arm (`pnpm stack up`, i.e.
+`stack.sh` → `dev.sh`) and the e2e webServer set no `NODE_ENV` → `development`. For prod to run
 `deny` while dev keeps the frictionless auto-owner, **`AUTH_FALLBACK` MUST NOT be placed in `.env`**: leave it
 unset so dev falls to the schema default `owner` (loopback vite proxy → auto-owner, no OIDC in dev), and have
 the prod start command/compose export `AUTH_FALLBACK=deny`. If `AUTH_FALLBACK=owner` ever lands in `.env`,
