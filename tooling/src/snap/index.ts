@@ -1,7 +1,16 @@
 // snap's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
 // One tool, one API (docs/design/tooling-package.md §2.5).
 export type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "./contract/fixture.ts";
-export type { ActiveStage, BandAccess, EnsureStageOpts, StageDecision, StagePaths, StagePorts } from "./contract/stage.ts";
+export type {
+  ActiveStage,
+  BandAccess,
+  EnsureStageOpts,
+  StageDecision,
+  StagePaths,
+  StagePorts,
+  StageSweepEvidence,
+  StageSweepVerdict,
+} from "./contract/stage.ts";
 export type { Args, SnapAction, SnapFailureSummary } from "./contract/types.ts";
 export { capEvalText } from "./lib/eval-text.ts";
 export { variantOut } from "./lib/out-names.ts";
