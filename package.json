@@ -87,7 +87,6 @@
     "e2e:live": "E2E_LIVE=1 nice -n 19 playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
     "cpd": "jscpd -c jscpd.json",
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
-    "lens:kit-candidates": "node scripts/lens/kit-candidates.ts",
     "test:mutation": "nice -n 19 stryker run stryker.config.json",
     "test:mutation:gate": "nice -n 19 stryker run stryker.gate.config.json",
     "check": "nice -n 19 node tooling/src/verify/cli.ts run --static",
