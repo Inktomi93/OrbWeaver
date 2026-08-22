@@ -144,7 +144,9 @@ function evidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: R
     return [];
   }
   const match = PROVENANCE_EVIDENCE_RE.exec(evidence.target);
-  return match !== null && facts?.provenanceCommits.has(match[1] ?? "") ? [] : [`${entry.path}: provenance evidence target must resolve to an ancestor commit`];
+  return match !== null && facts?.provenanceCommits.has(match[1] ?? "") === true
+    ? []
+    : [`${entry.path}: provenance evidence target must resolve to an ancestor commit`];
 }
 
 function typedClaimErrors(entry: ReceiptEntry, claim: ReceiptClaim, facts: ReceiptFacts | undefined): readonly string[] {

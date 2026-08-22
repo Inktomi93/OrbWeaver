@@ -75,7 +75,7 @@ function assetsWrite(node: Node): string {
     return "";
   }
   const [firstArg] = node.getArguments();
-  const isAssetsArg = firstArg?.isKind(SyntaxKind.Identifier) && firstArg.getText() === "assets";
+  const isAssetsArg = firstArg !== undefined && firstArg.isKind(SyntaxKind.Identifier) && firstArg.getText() === "assets";
   return isAssetsArg ? `.${callee.getName()}(assets)` : "";
 }
 

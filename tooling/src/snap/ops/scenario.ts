@@ -99,7 +99,9 @@ function scenarioCheckpointArgs(globalArgs: Args, spec: ScenarioSpec): Args[] {
         ],
         [args.theme !== null, "scenario checkpoints share ONE browser context, so the theme shim is session-level; put --theme on the outer command"],
       ]
-        .filter(([invalid]) => invalid)
+        // Each row is [invalid, message], so the tuple element type here is `boolean | string`;
+        // `=== true` reads the boolean slot exactly and never the message.
+        .filter(([invalid]) => invalid === true)
         .map(([, message]) => `${checkpoint.name}: ${message}`),
     );
     return inherited;
@@ -243,7 +245,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
     const range = evidenceRanges[index] as ScenarioEvidenceRange;
     const outcome = outcomes[index] as CaptureOutcome;
     const checkpointSession = scenarioCheckpointSession(session, outcome, range);
-    if (checkpoints[index]?.summary) {
+    if (checkpoints[index]?.summary === true) {
       const failedAssertions = outcome.assertions.filter((entry) => entry.failed).length;
       const errors = checkpointSession.consoleMessages.filter((message) => message.type === "error" && !isSandboxTraceNoise(message)).length;
       const warnings = checkpointSession.consoleMessages.filter((message) => message.type === "warning").length;

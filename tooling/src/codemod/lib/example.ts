@@ -11,7 +11,7 @@ import { CodemodError } from "./errors.ts";
 import { addReExport } from "./exports.ts";
 import { deleteFiles, moveFiles } from "./files.ts";
 import { repointAliasPaths, routeSymbolsByMap } from "./imports.ts";
-import { absolutePath, assert, repoRelative } from "./plans.ts";
+import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 import { runCodemod } from "./run.ts";
 
 /**
@@ -94,7 +94,7 @@ export function assertDirectoryExists(dir: string, repoRoot = process.cwd()): vo
 export function removeEmptyDirectory(ctx: CodemodContext, dir: string, opts: OperationOptions & { confirm: true }): Plan {
   const abs = absolutePath(dir, ctx.repoRoot);
   return {
-    description: `Remove empty directory ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Remove empty directory ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [],
     transform(innerCtx): void {
       if (innerCtx.isDryRun) {

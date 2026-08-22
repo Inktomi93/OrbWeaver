@@ -119,7 +119,7 @@ export function programsFor(rel: string, graphSrcMembers?: ReadonlySet<string>):
   const base = staticPrograms(rel);
   // rule 5 — the import-pull overlay. Only package-src files can be pulled into the graph (the graph's
   // own roots are already GRAPH via rule 4; browser tsx is directory-excluded from the graph).
-  if (PKG_SRC_RE.test(rel) && graphSrcMembers?.has(rel) && !base.includes(GRAPH)) {
+  if (PKG_SRC_RE.test(rel) && graphSrcMembers?.has(rel) === true && !base.includes(GRAPH)) {
     return [...base, GRAPH];
   }
   return base;

@@ -4,7 +4,7 @@
 import type { CallExpression, ImportDeclaration, ImportSpecifier, Project, SourceFile, SourceFileReferencingNodes, StringLiteral } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { CodemodContext, ImportSpecFilter, OperationOptions, Plan } from "../contract/types.ts";
-import { absolutePath, assert, assertPathString, repoRelative } from "./plans.ts";
+import { absolutePath, assert, assertPathString, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
  * Find every ImportDeclaration in the project whose module specifier
@@ -61,10 +61,7 @@ export function repointImports(ctx: CodemodContext, fromSpecifier: string, toSpe
   const matches = findImporters(ctx.project, fromSpecifier);
 
   return {
-    description:
-      `Repoint imports "${fromSpecifier}" → "${toSpecifier}" ` +
-      `(${matches.length} declaration${matches.length === 1 ? "" : "s"})` +
-      `${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Repoint imports "${fromSpecifier}" → "${toSpecifier}" (${matches.length} declaration${matches.length === 1 ? "" : "s"})${noteSuffix(opts)}`,
     touchedFiles: [...new Set(matches.map((d) => d.getSourceFile().getFilePath()))],
     transform(): void {
       for (const decl of matches) {
@@ -96,7 +93,7 @@ export function repointAliasPaths(ctx: CodemodContext, rewrites: ReadonlyArray<r
   const affected = ctx.project.getSourceFiles().map((sf) => sf.getFilePath());
 
   return {
-    description: `Alias-path sweep (${rewrites.length} pattern${rewrites.length === 1 ? "" : "s"})${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Alias-path sweep (${rewrites.length} pattern${rewrites.length === 1 ? "" : "s"})${noteSuffix(opts)}`,
     touchedFiles: affected,
     transform(innerCtx): void {
       for (const sf of innerCtx.project.getSourceFiles()) {
@@ -191,8 +188,8 @@ export function addNamedImport(
 
   return {
     description:
-      `Add named import { ${named.isTypeOnly ? "type " : ""}${named.name}${named.alias ? ` as ${named.alias}` : ""} } ` +
-      `from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+      `Add named import { ${named.isTypeOnly === true ? "type " : ""}${named.name}${named.alias === undefined ? "" : ` as ${named.alias}`} } ` +
+      `from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
       // A TYPE-ONLY add is satisfied by ANY existing import of the name from this module — a separate
@@ -249,7 +246,7 @@ export function removeNamedImport(
   assert(names.length > 0, "removeNamedImport: pass at least one name to remove");
 
   return {
-    description: `Remove import { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Remove import { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
       // See addNamedImport's matching comment: don't grab a type-only declaration sharing the
@@ -293,7 +290,7 @@ export function renameNamedImport(
   const { oldName, newName } = rename;
   const importers = findImporters(ctx.project, moduleSpecifier).filter((d) => d.getNamedImports().some((n) => n.getName() === oldName));
   return {
-    description: `Rename named import "${oldName}" → "${newName}" from "${moduleSpecifier}" (${importers.length} file${importers.length === 1 ? "" : "s"})${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Rename named import "${oldName}" → "${newName}" from "${moduleSpecifier}" (${importers.length} file${importers.length === 1 ? "" : "s"})${noteSuffix(opts)}`,
     touchedFiles: [...new Set(importers.map((d) => d.getSourceFile().getFilePath()))],
     transform(): void {
       for (const decl of importers) {
@@ -315,7 +312,7 @@ export function renameNamedImport(
 export function makeImportTypeOnly(ctx: CodemodContext, moduleSpecifier: string, filter: ImportSpecFilter = () => true, opts: OperationOptions = {}): Plan {
   const decls = findImporters(ctx.project, moduleSpecifier);
   return {
-    description: `Flip imports to type-only from "${moduleSpecifier}"${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Flip imports to type-only from "${moduleSpecifier}"${noteSuffix(opts)}`,
     touchedFiles: [...new Set(decls.map((d) => d.getSourceFile().getFilePath()))],
     transform(): void {
       for (const decl of decls) {
@@ -392,7 +389,7 @@ export function routeSymbolsByMap(
   const matches = findImporters(ctx.project, fromSpecifier);
 
   return {
-    description: `Route ${symbols.length} symbols from "${fromSpecifier}" to per-symbol destinations across ${matches.length} importer(s)${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Route ${symbols.length} symbols from "${fromSpecifier}" to per-symbol destinations across ${matches.length} importer(s)${noteSuffix(opts)}`,
     touchedFiles: [...new Set(matches.map((d) => d.getSourceFile().getFilePath()))],
     transform(): void {
       for (const decl of matches) {

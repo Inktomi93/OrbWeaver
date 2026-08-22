@@ -55,7 +55,7 @@ async function visibleLocators(locator: Locator, includeHidden: boolean): Promis
     return candidates;
   }
   const visible = await Promise.all(candidates.map((candidate) => candidate.isVisible()));
-  return candidates.filter((_, index) => visible[index]);
+  return candidates.filter((_, index) => visible[index] === true);
 }
 
 function urlMatches(actual: string, expected: string): boolean {

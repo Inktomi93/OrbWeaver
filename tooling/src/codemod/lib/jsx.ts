@@ -4,6 +4,7 @@
 import type { JsxAttribute, Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { CodemodContext, JsxLike, OperationOptions, Plan } from "../contract/types.ts";
+import { noteSuffix } from "./plans.ts";
 
 /**
  * Find every JSX element with the given tag name across the project. Useful
@@ -41,7 +42,7 @@ export function renameJsxTag(ctx: CodemodContext, oldTagName: string, newTagName
     touched.add(el.getSourceFile().getFilePath());
   }
   return {
-    description: `Rename JSX <${oldTagName}> → <${newTagName}> (${matches.length} instance${matches.length === 1 ? "" : "s"})${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Rename JSX <${oldTagName}> → <${newTagName}> (${matches.length} instance${matches.length === 1 ? "" : "s"})${noteSuffix(opts)}`,
     touchedFiles: [...touched],
     transform(): void {
       for (const el of matches) {

@@ -168,7 +168,8 @@ export function printHelp(maxOutputLines?: number): void {
  *  that category. The full list runs ~80 lines for the current MANIFEST;
  *  if the kit grows past the threshold the overflow goes to /tmp. */
 export function printList(categoryId?: string, maxOutputLines?: number): void {
-  const targets = categoryId ? MANIFEST.filter((c) => c.id === categoryId) : MANIFEST;
+  const scoped = categoryId !== undefined && categoryId !== "";
+  const targets = scoped ? MANIFEST.filter((c) => c.id === categoryId) : MANIFEST;
   const buf: string[] = [];
   if (targets.length === 0) {
     buf.push(`No category "${categoryId}". Available: ${MANIFEST.map((c) => c.id).join(", ")}`);
@@ -183,7 +184,7 @@ export function printList(categoryId?: string, maxOutputLines?: number): void {
       buf.push(`    Use when: ${e.when}`);
     }
   }
-  flushBuffer(buf, categoryId ? `list-${categoryId}` : "list", maxOutputLines);
+  flushBuffer(buf, scoped ? `list-${categoryId}` : "list", maxOutputLines);
 }
 
 /** Print every recipe with its description + code block. Almost always
