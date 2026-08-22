@@ -1520,12 +1520,12 @@
     },
     {
       "path": "docs/design/tooling-package.md",
-      "assignedSha256": "75376d9571ced9375dcc9d66866863d0545b1d43632ee06229848713e935449d",
+      "assignedSha256": "1dea314bbbc0ab5d676be8d16db642ba0cfd4373ad2110be85f620a4d9883df9",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "75376d9571ced9375dcc9d66866863d0545b1d43632ee06229848713e935449d",
-      "verifiedCommit": "4440032c40e4a0a610bd872fb02671248ca2ce4f",
+      "verifiedSha256": "1dea314bbbc0ab5d676be8d16db642ba0cfd4373ad2110be85f620a4d9883df9",
+      "verifiedCommit": "6bfc4fb2afbd4c466881bf2136903c1873afea49",
       "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/design/tooling-package.md:1 full read; P7 truth-repairs authored in commit 4440032c4 (§2.8 rewritten as the landed record: the dead-CSS tokenizer merged to @orb/kit/dead-css and the single LoAF observer, plus the accname and devlog premise-kills with their receipts; the §6 P7 row restated to match)",
