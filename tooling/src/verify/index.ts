@@ -29,6 +29,7 @@ export type {
   ScopeSafety,
 } from "./contract/gate.ts";
 export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
+export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
 export type { ConformanceFailure, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
@@ -54,6 +55,7 @@ export {
 export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
 export { getProject } from "./lib/harness.ts";
+export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "./lib/history.ts";
 export type { GateCorpus } from "./lib/loader.ts";
 export { loadGateCorpus, loadGates } from "./lib/loader.ts";
 export { canonicalSort, fileLoaded, projectCtx, repoRel, runPass, stripProbeFindings, zeroScanGates } from "./lib/pass.ts";

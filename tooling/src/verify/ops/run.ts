@@ -35,9 +35,11 @@ import process from "node:process";
 import { ensureReportsDir, reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import type { RunHistoryEntry } from "../contract/history.ts";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, VerifyReport } from "../contract/stage.ts";
 import { aggregateExit } from "../lib/exit-classifiers.ts";
+import { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
 import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
@@ -245,9 +247,24 @@ async function runTier(root: string, parsed: Parsed): Promise<VerifyReport> {
   };
 }
 
-/** The `verify` verb: run a tier, write reports/verify.json, print the truncation-robust summary, and
- *  return the run's exit code (the cli's runTool owns the process exit — never a bare process.exit here,
- *  which would drop the unflushed summary). */
+/** This run's history line (#411) — recorded BEFORE the comparison so the file is the ledger even when the
+ *  comparison has nothing to say. `runId` ties the line back to the artifact it measured. */
+function historyEntry(root: string, report: VerifyReport): RunHistoryEntry {
+  return {
+    runId: `${process.pid}-${new Date().toISOString()}`,
+    at: new Date().toISOString(),
+    tier: report.tier,
+    scope: report.scope,
+    sha: currentSha(root),
+    exitCode: report.exitCode,
+    totalMs: report.stages.reduce((n, s) => n + s.durationMs, 0),
+    stages: report.stages.map((s) => ({ name: s.name, mode: s.mode, durationMs: s.durationMs })),
+  };
+}
+
+/** The `verify` verb: run a tier, write reports/verify.json, retain the run's timings, print the
+ *  truncation-robust summary, and return the run's exit code (the cli's runTool owns the process exit —
+ *  never a bare process.exit here, which would drop the unflushed summary). */
 export async function runVerify(root: string, parsed: Parsed): Promise<number> {
   if (parsed.list) {
     printList();
@@ -255,6 +272,16 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
   }
   const report = await runTier(root, parsed);
   writeReport(root, report);
+
+  // #411: retain, then compare against the previous run AT THE SAME TIER. The advisory prints BEFORE the
+  // summary block so the truncation-robust tail (the verdict + the artifact pointer) stays last.
+  const entry = historyEntry(root, report);
+  const previous = previousAtTier(readHistory(root), report.tier, entry.runId);
+  appendHistory(root, entry);
+  for (const line of slowdownLines(previous, slowdowns(previous, entry))) {
+    process.stdout.write(`${line}\n`);
+  }
+
   printSummary(report);
   if (parsed.json) {
     process.stdout.write(`${JSON.stringify(report)}\n`);
