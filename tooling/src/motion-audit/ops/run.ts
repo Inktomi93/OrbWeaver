@@ -4,7 +4,7 @@ import { buildUrl, launchProbeSession, settle } from "@orb/tooling/_shared/brows
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { Args, AuditData } from "../contract/types.ts";
 import { CPU_THROTTLE_RATE, MOUNT_SETTLE_MS, NAV_TIMEOUT_MS, READY_TIMEOUT_MS } from "../lib/budgets.ts";
-import { orbBridgeGap, reportInstrumentError } from "../lib/evidence.ts";
+import { apparatusGap, reportInstrumentError } from "../lib/evidence.ts";
 import { driveReach, hasOrbBridge, prepareMeasuredClick } from "./drive.ts";
 import { report } from "./report.ts";
 import { runAudit } from "./trace.ts";
@@ -29,18 +29,23 @@ export async function runMotionAudit(opts: Args): Promise<number> {
   }
 
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
-  await page
+  // The readiness outcome is KEPT, not swallowed (#515). Discarding it here is what let a cold-vite boot
+  // timeout be reported as "the __orb dev bridge is ABSENT" on a page that has the whole bridge.
+  const ready = await page
     .locator("html[data-app-ready]")
     .waitFor({ state: "attached", timeout: READY_TIMEOUT_MS })
-    .catch(() => undefined);
+    .then(() => true)
+    .catch(() => false);
   await settle(page, MOUNT_SETTLE_MS);
 
   // The INPUT CONTRACT, checked before a single number is produced: `__orb` is app-only, and without it
-  // every budget arm below reads its absent evidence as a clean zero. Absent apparatus ⇒ no verdict.
-  if (!(await hasOrbBridge(page))) {
+  // every budget arm below reads its absent evidence as a clean zero. Absent apparatus ⇒ no verdict —
+  // and WHICH apparatus was absent decides whether the operator retries or opens the client.
+  const gap = apparatusGap({ url, ready, bridge: await hasOrbBridge(page), readyTimeoutMs: READY_TIMEOUT_MS });
+  if (gap !== null) {
     await session.context.close();
     await session.browser.close();
-    reportInstrumentError(url, orbBridgeGap(url));
+    reportInstrumentError(url, gap);
     return EXIT.toolError;
   }
 

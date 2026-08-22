@@ -5,8 +5,11 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+
+refuseDirectInvocation(import.meta.url, "pnpm gate:new <kebab-name>");
 
 const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const NAME_TOKEN = "__NAME__";

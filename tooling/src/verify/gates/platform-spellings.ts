@@ -2,7 +2,7 @@
 // (docs/design/node-26-adoption-program.md). Each ACTIVE arm is a RULED ADOPT/AVOID whose modern spelling
 // W4 already burned down; the gate keeps the old spelling from creeping back through a copy-paste or an
 // agent's pre-node-26 muscle memory. All FOUR arms land at ZERO on the tree — a LIVE-verified zero: the
-// arm inventory was established by RUNNING the gate (node tooling/src/verify/ops/structure.ts), not by ast-grep sweeps,
+// arm inventory was established by RUNNING the gate (`pnpm check:structure`), not by ast-grep sweeps,
 // which returned false negatives here for want of positive controls (and surfaced the §4.5 captures, which
 // the W4.5 burn-down then measured at EIGHT, not the seven this header once claimed).
 //

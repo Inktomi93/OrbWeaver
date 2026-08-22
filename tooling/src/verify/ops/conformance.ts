@@ -7,10 +7,13 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { Project } from "ts-morph";
 import type { Finding, GateDescriptor, GateExample } from "../contract/gate.ts";
 import type { ConformanceFailure } from "../contract/scoped.ts";
 import { runPass } from "../lib/pass.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/gate-conformance.int.test.ts");
 
 const VROOT = "/repo";
 

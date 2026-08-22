@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-17
+updated: 2026-08-22
 ---
 
 # Authoring a structural gate
@@ -22,7 +22,7 @@ updated: 2026-08-17
 | couple | Core-Enforcement row · the `(N registered gates)` count · `check-gates.int` fixture OR `UNFIXTURABLE_GATES` |
 | exempt | typed `ExemptionRow` (`why` mandatory) + a STALE arm + a real-tree anchor. Never a comment marker without a stale arm |
 | posture | if it matches a literal against FILE TEXT, declare its COMMENT POSTURE in the header and wire it through `comment-spans.ts` (§5) |
-| prove | `pnpm exec tsx tooling/src/verify/ops/structure.ts` on a REAL planted violation — conformance passing proves nothing about `scanRoot` |
+| prove | `pnpm check:structure` on a REAL planted violation — conformance passing proves nothing about `scanRoot` |
 | fix | violations found at landing get FIXED in the same lane. Allowlists are for PERMANENT deliberate exemptions only |
 
 ## 1. The descriptor contract
@@ -238,6 +238,19 @@ An exemption is a promise. This is how the promise is written.
    - `existsSync(join(root, BASELINE_REL))` / a real-manifest guard (`verify-registry-parity`'s `"verify" in
      scripts` idiom, `density-tier`'s absent-baseline-in-temp-dir behavior) — the ALTERNATE anchor shape,
      equally sanctioned.
+
+   **THE ANCHOR IS A FILESET QUESTION, NOT A PROJECT-MEMBERSHIP ONE (#505, 2026-08-22).** `fileLoaded`
+   asks whether the path is in **`ctx.files`** — the fileset THIS RUN walked. It used to ask `ctx.project`,
+   and a SCOPED run (`cli.ts scoped`) builds the FULL workspace Project and narrows only the fileset: the
+   anchor answered TRUE on every scoped run, so every anchor-guarded stale sweep judged rows whose files
+   the run never visited and called each of them stale. Measured on `--scope
+   packages/ui/src/primitives/button` (3 files): **six false stale findings** across `no-manual-memo`,
+   `no-floorless-control-in-wrap` and `tooling-front-door` — the last from a gate whose own line read
+   `scanned 0/3 files` — and an issue was filed to DELETE all six live rows. Consequences for an author:
+   `fileLoaded(ctx, ANCHOR)` alone is now correct for both hazards (conformance AND scoped); the
+   belt-and-braces `ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)` spelling ~38 gates carry is
+   still fine; and a bare `ctx.scope.kind === "project"` check alone is still WRONG (it is TRUE inside a
+   conformance mini-project). Pinned by `tests/tooling/verify/ops/scoped.int.test.ts` §4.
 6. **A GATE KEYED ON AN EXACT NAME MUST DETECT ITS OWN BLINDNESS.** If the gate looks up a symbol/file/table
    BY NAME, add the tripwire: when that name resolves to nothing on the real tree, RED. Otherwise a rename
    turns the whole gate into a no-op that reports ✓ forever (`firehose-import-allowlist`, `knob-wire-coverage`'s
@@ -397,9 +410,15 @@ against the real tree before inheriting it, and expect "already migrated" claims
 
 Run all of these before calling a gate done:
 
-1. `pnpm exec tsx tooling/src/verify/ops/structure.ts` — the live pass. READ the full output, **including your gate's
-   scan denominator** (`scanned N/M files`): a ✓ over a count you did not expect is the §3 scanRoot trap
-   mid-flight, and zero is a refused verdict.
+1. `pnpm check:structure` — the live pass (= `node tooling/src/verify/cli.ts structure`). READ the full
+   output, **including your gate's scan denominator** (`scanned N/M files`): a ✓ over a count you did not
+   expect is the §3 scanRoot trap mid-flight, and zero is a refused verdict.
+   **This line used to read `pnpm exec tsx tooling/src/verify/ops/structure.ts`, and that spelling was a
+   LIE for months (#509):** `ops/*.ts` are library modules with no main, so it loaded the module, ran no
+   gate and exited 0 — with pnpm's own `✓ Lockfile passes…` lines printed over the silence. Every ops
+   module now REFUSES direct invocation (exit 2 naming the real door,
+   `tooling/src/_shared/entrypoint.ts`), pinned by `tests/tooling/_shared/entrypoint.int.test.ts`. The
+   general law: a bare zero from an instrument is "I could not run", never "clean".
 2. **Plant a REAL violation of the REAL shape** at a real path, watch it RED, remove it. Not a strawman: the
    machine proves the gate self-CONSISTENT, it cannot prove the examples are HONEST. A `mustFlag` that bites
    a toy while the real shape slips through is the failure mode.

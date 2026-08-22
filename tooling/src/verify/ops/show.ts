@@ -17,8 +17,11 @@
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { reportsPath } from "@orb/tooling/_shared/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:show");
 
 const DEFAULT_LIMIT = 10;
 /** The artifact this view reads. ROOT arrives from the cli (the caller's cwd) — never a depth-derived

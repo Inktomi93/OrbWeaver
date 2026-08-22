@@ -12,8 +12,36 @@ import type { AuditData } from "../contract/types.ts";
 export function orbBridgeGap(url: string): EvidenceGap {
   return {
     evidence: "the __orb dev bridge",
-    detail: `${url} exposes no globalThis.__orb — the LoAF/CLS/animation evidence this audit judges does not exist on that page, so no verdict is possible`,
+    detail: `${url} signalled data-app-ready and STILL exposes no globalThis.__orb — the LoAF/CLS/animation evidence this audit judges does not exist on that page, so no verdict is possible`,
   };
+}
+
+/** The app never signalled readiness. DISTINCT FROM A MISSING BRIDGE, and the distinction is the whole
+ *  point (#515): motion-audit printed "the __orb dev bridge is ABSENT" against a page that exposes all 21
+ *  bridge keys — snap read them on the same URL seconds later. The real cause was a cold-vite boot
+ *  (1141 requests) blowing the readiness ceiling, and the bridge simply had not been installed YET. A
+ *  wrong diagnosis printed with confidence is worse than no diagnosis: the next lane reads "no bridge" as
+ *  a broken app and goes hunting in the client. */
+export function appReadyTimeoutGap(url: string, timeoutMs: number): EvidenceGap {
+  return {
+    evidence: "app readiness (data-app-ready)",
+    detail: `${url} never signalled data-app-ready within ${timeoutMs}ms — the app had not finished booting, so nothing about it was measured AND the __orb bridge could not be checked at all (an absent bridge at this point is a boot symptom, not a finding). RETRYABLE and usually environmental: a cold vite compiling the route on first navigation is the standard cause — re-run against the now-warm stack`,
+  };
+}
+
+/** THE APPARATUS VERDICT, decided once from the two facts a run can observe, in the ONE order that makes
+ *  each claim honest: readiness first, because "no bridge" is only a claim about the APP once the app has
+ *  had its chance to install one. `null` ⇒ the apparatus is present and the audit may speak. */
+export function apparatusGap(input: {
+  readonly url: string;
+  readonly ready: boolean;
+  readonly bridge: boolean;
+  readonly readyTimeoutMs: number;
+}): EvidenceGap | null {
+  if (!input.ready) {
+    return appReadyTimeoutGap(input.url, input.readyTimeoutMs);
+  }
+  return input.bridge ? null : orbBridgeGap(input.url);
 }
 
 /* WHY an empty frame population is a HARD instrument error and not a soft "the page was idle" note —

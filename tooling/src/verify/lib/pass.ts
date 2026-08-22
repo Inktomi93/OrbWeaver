@@ -20,11 +20,38 @@ export function repoRel(root: string, absPath: string): string {
   return withRoot.startsWith("/") ? withRoot.slice(1) : withRoot;
 }
 
-/** Is a repo-relative path actually loaded in this run's project? A ratchet stale-arm must only judge a
- *  file that is present — a synthetic conformance tree omits real allowlisted files, so an unloaded
- *  entry must not falsely flag stale. */
-export function fileLoaded(ctx: Pick<GateRunCtx, "root" | "project">, repoRelPath: string): boolean {
-  return ctx.project.getSourceFile(`${ctx.root}/${repoRelPath}`) !== undefined;
+/** The fileset index behind `fileLoaded`, keyed on the ctx's `files` ARRAY IDENTITY (stable for a run —
+ *  `projectCtx` builds it once). A stale-arm sweep asks this once per exemption row, so the per-run O(n)
+ *  build beats a linear scan per row. */
+const filesetIndex = new WeakMap<readonly SourceFile[], ReadonlySet<string>>();
+
+function filesetOf(ctx: Pick<GateRunCtx, "root" | "files">): ReadonlySet<string> {
+  const cached = filesetIndex.get(ctx.files);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const set = new Set(ctx.files.map((sf) => repoRel(ctx.root, sf.getFilePath())));
+  filesetIndex.set(ctx.files, set);
+  return set;
+}
+
+/** Is a repo-relative path in THIS RUN'S FILESET? The real-tree ANCHOR door every stale/ratchet arm
+ *  guards on (GATE-AUTHORING.md §4.5): a row must only be judged stale on a run that actually LOOKED at
+ *  the rows' files — a synthetic conformance tree omits the real allowlisted files, so an unloaded anchor
+ *  must not license a stale claim.
+ *
+ *  IT READS `ctx.files`, NOT `ctx.project`, AND THAT IS THE WHOLE POINT (#505). A SCOPED run
+ *  (`cli.ts scoped`) builds the FULL workspace Project and then narrows only the fileset — so a
+ *  project-membership test answers TRUE for an anchor the run never visited, every anchor-guarded stale
+ *  sweep fires, and every path-keyed exemption row in the tree reads "stale" while being demonstrably
+ *  live. Measured 2026-08-22 on `--scope packages/ui/src/primitives/button` (3 files): six false stale
+ *  findings across no-manual-memo (3), no-floorless-control-in-wrap (2) and tooling-front-door (1) — the
+ *  last of them from a gate whose own line said `scanned 0/3 files`. Issue #505 was filed to DELETE those
+ *  six rows; all six cover live violations on the same tree.
+ *
+ *  At project scope and in conformance `files === project.getSourceFiles()`, so this is a no-op there. */
+export function fileLoaded(ctx: Pick<GateRunCtx, "root" | "files">, repoRelPath: string): boolean {
+  return filesetOf(ctx).has(repoRelPath);
 }
 
 /** Line+column from the node, never a regex newline-guess. `getStart()` skips leading trivia so the
