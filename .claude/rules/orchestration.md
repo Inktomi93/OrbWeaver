@@ -94,6 +94,14 @@ a11y → `side-eye`; both if the change spans both.
 - Non-trivial changes pass a fresh-context lens (`verifier` and/or `side-eye`) before you report them done.
   Prefer that over self-review.
 - Scout findings are inputs, not verified outputs — sanity-check a load-bearing scouted fact, or re-scout.
+- **FIX TOOLS AS WE FIND THEM LYING (owner, 2026-08-22).** An instrument caught printing a false clean
+  or a false positive (a silent matches=0, a PASS the eye refutes, a detector blind to a defect class)
+  is fixed in the SAME era it is found — file the row AND route it immediately (dispatch, or fold into
+  the live lane already in that tool's area), at P2 regardless of the surface finding's own priority:
+  every downstream lane consumes the instrument's output, so a lying tool multiplies its cost by every
+  run until fixed. The fix carries the zero-hygiene contract (planted positive controls both directions;
+  unsupported query shapes REFUSE loudly instead of printing a clean zero) and a clean-surface re-run
+  distinguishing fixed-false-positives from newly-visible real findings.
 - **Don't delegate:** a single file-read you need right now, a decision, or anything the user asked you
   personally to judge.
 - **Session hygiene:** set up MCP servers / connectors BEFORE starting work — adding or removing one
