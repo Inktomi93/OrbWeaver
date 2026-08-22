@@ -54,7 +54,7 @@ tests/
 └── e2e/                full-stack Playwright .spec.ts (NOT a mirror)
 ```
 
-`support/` and `e2e/` are unconditional non-mirror trees; **`tooling/` is CONDITIONAL** — `tests/tooling/<dir>/` prefix-swap-mirrors `tooling/src/<dir>/` whenever that tool dir exists, and only flat files plus dirs with no `tooling/src/` twin stay exempt (they test root configs and the research zone). The mirror gate (`tooling/src/verify/gates/test-layout.ts`) enforces exactly that, exempts the `.suite` KINDS (§1 — its `.parity` arm is inert residue of the oracle ripped out by #428), and treats every other path as a strict prefix-swap mirror. The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root — separate runners, not Vitest projects.
+`support/` and `e2e/` are unconditional non-mirror trees; **`tooling/` is CONDITIONAL** — `tests/tooling/<dir>/` prefix-swap-mirrors `tooling/src/<dir>/` whenever that tool dir exists, and only flat files plus dirs with no `tooling/src/` twin stay exempt (they test root configs and the research zone). The mirror gate (`tooling/src/verify/gates/test-layout.ts`) enforces exactly that, exempts the `.suite` KINDS (§1 — its `.parity` arm went out with the oracle, #428), and treats every other path as a strict prefix-swap mirror. The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root — separate runners, not Vitest projects.
 
 ## 3. Determinism + mock doctrine
 
