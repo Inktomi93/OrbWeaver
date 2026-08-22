@@ -12,7 +12,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { SectionId } from "./section-ids.ts";
 import type { MobileCuration, SectionGroup } from "./section-registry.ts";
-import { RAIL_ZONES } from "./section-registry.ts";
+import { RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
 import type { ModalSlotId } from "./shell-store.ts";
 
 // The rail's own zones DERIVE from `RAIL_ZONES` (its one home, beside `RailEntry.zone` in
@@ -80,4 +80,48 @@ export interface ChromeEntry {
  *  badges their `useBadge` count, and the two must never disagree about which entries those are. */
 export function sheetOverflowChrome(entries: readonly ChromeEntry[]): readonly ChromeEntry[] {
   return entries.filter((entry) => entry.zone === "topbar.trail" && entry.mobile === "sheet");
+}
+
+/**
+ * THE PHONE BAR'S EFFECTIVE CURATION — the CURRENT SECTION ALWAYS HOLDS A SLOT (owner ruling, #484).
+ *
+ * A phone shows four affordances: the brand tab, the `mobile:"tab"` sections, and the You door. Standing in
+ * a `mobile:"sheet"` section (corpus · presets · databank · refinery · config · analytics) the bar marked
+ * NOTHING current — the section's own button carries `aria-current="page"` but is `display:none` there, so
+ * AT was told the current page is a 0×0 control no finger can reach and a sighted user saw four unlit tabs
+ * while standing in a fifth place. The ruled fix is a SWAP, not a marker: the active section takes the LAST
+ * standing section slot on the bar, and the tab it displaces folds into the You sheet for the duration.
+ * Exactly one VISIBLE tab then carries the marker, and the ARIA lie dies of its own accord.
+ *
+ * ONE HOME, for the same reason `sheetOverflowChrome` has one: the bar and the sheet read this map, so they
+ * can never disagree about who is a tab right now — a displaced section stays reachable because the sheet's
+ * "More" list is derived from the SAME result, never from the declared `mobile` field.
+ *
+ * Returns a TOTAL map (every entry id → its effective curation), so a consumer never re-spells a default —
+ * and the defaults are per zone, exactly as `ChromeEntry.mobile` documents them: a rail entry that declares
+ * nothing folds into the sheet, a `topbar.trail` widget that declares nothing stays on the row. Declared
+ * curation is returned untouched when the active section already holds a tab, when it is the brand cell
+ * (always the bar's first tab), or when it is not a rail section at all.
+ */
+export function mobileBarCuration(entries: readonly ChromeEntry[], activeSection: SectionId): ReadonlyMap<string, MobileCuration> {
+  const curation = new Map<string, MobileCuration>(entries.map((entry) => [entry.id, entry.mobile ?? (entry.zone === "topbar.trail" ? "tab" : "sheet")]));
+  // Only a GROUPED `rail.nav` section can hold a bar slot: the rail renders its nav list group by group, so
+  // an ungrouped entry has no cell to take and displacing a tab for it would shrink the bar to three.
+  const barSections = entries.filter((entry) => entry.zone === "rail.nav" && entry.behavior.kind === "section" && entry.group !== undefined);
+  const active = barSections.find((entry) => entry.behavior.kind === "section" && entry.behavior.sectionId === activeSection);
+  if (active === undefined || curation.get(active.id) === "tab") {
+    return curation;
+  }
+  // The LAST standing tab is the one that yields — the bar's own grammar reads left-to-right from the most
+  // everyday destination, so the slot nearest the You door is the cheapest to lend (and its section is one
+  // tap away inside that door while it is lent).
+  const standing = barSections
+    .filter((entry) => curation.get(entry.id) === "tab")
+    .toSorted((a, b) => SECTION_GROUPS.indexOf(a.group ?? SECTION_GROUPS[0]) - SECTION_GROUPS.indexOf(b.group ?? SECTION_GROUPS[0]));
+  const displaced = standing.at(-1);
+  curation.set(active.id, "tab");
+  if (displaced !== undefined) {
+    curation.set(displaced.id, "sheet");
+  }
+  return curation;
 }
