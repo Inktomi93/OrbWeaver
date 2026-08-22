@@ -134,6 +134,7 @@
   --reading-measure-min: 65ch;
   --fade-edge-stop: 10%;
   --border-width-hairline: 1.25px;
+  --border-width-control: 1px;
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
   --text-display: 1.5rem;

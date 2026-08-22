@@ -135,6 +135,7 @@ export const TOKENS = {
   "reading.measure-min": { cssVar: "--reading-measure-min", value: "65ch" },
   "fade.edge-stop": { cssVar: "--fade-edge-stop", value: "10%" },
   "border-width.hairline": { cssVar: "--border-width-hairline", value: "1.25px" },
+  "border-width.control": { cssVar: "--border-width-control", value: "1px" },
   "font.sans": { cssVar: "--font-sans", value: "Geist, ui-sans-serif, system-ui, sans-serif" },
   "font.mono": { cssVar: "--font-mono", value: "'Geist Mono', ui-monospace, SFMono-Regular, monospace" },
   "text.display": { cssVar: "--text-display", value: "1.5rem" },
