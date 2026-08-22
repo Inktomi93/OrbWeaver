@@ -1,7 +1,7 @@
 // The shell's PANEL-MODE algebra + its vocabulary — the pure half of the layout store, split out when
 // `shell-store.ts` crossed the component-size cap. Pure by construction: no store handle, no React, no
 // viewport read. `shell-store.ts` owns the STATE and the hooks that feed this function; every caller
-// (the feature-tier `useShellLayout`, the `#state` projection `useListDocked`) resolves through THIS one
+// (the feature-tier `useShellLayout`, the `#state` projection `useSectionListMode`) resolves through THIS one
 // function so the tiers can never drift (the M10 correction).
 
 /** A panel's 3-state model: docked (in-flow) · overlay (floats over) · collapsed (zero width). */
@@ -27,7 +27,7 @@ export type PanelName = "list" | "context";
 export type OverlayPanelRequest = PanelName | "none" | null;
 
 /** The ONE mode-resolution algebra — both `useShellLayout`'s `resolvePanel` (feature-tier hook, reads the
- *  section registry for `panelDefaults`) and `useListDocked` below (this tier) call this SAME function so
+ *  section registry for `panelDefaults`) and `useSectionListMode` (the `#state` tier) call this SAME function so
  *  they can never drift (the M10 correction: a hand-copied mirror read only `mobileViewport` and
  *  disagreed with `resolvePanel` in the 48–64rem regime). Precedence isFocus → isMobile → narrow → wide.
  *

@@ -250,7 +250,7 @@ export {
 export { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest, useRpgRoundPending } from "./rpg-round-store.ts";
 export type { SectionId } from "./section-ids.ts";
 export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
-export { useListDocked, useSectionListIsScreen } from "./section-list-projection.ts";
+export { LIST_OFF_SCREEN_HINT, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
 export type {
   RailEntry,
   RailZone,

@@ -102,7 +102,7 @@ export { CHAT_CONTEXT_TAB_IDS, defineContextRegion, defineContextTabs, resolveCo
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy, SAFE_FLOOR } from "./render-trust.ts";
-export { rowQualifiers } from "./row-qualifiers.ts";
+export { rowActionSubject, rowQualifiers } from "./row-qualifiers.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";

@@ -16,8 +16,12 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { useFocusOnMount, WeaveGlyph } from "#lib";
+import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
 
 const WEAVE_SIZE = 48;
+
+/** The instruction, side-agnostic since the N-10 sweep: it names the COLLECTION, not a side. */
+const PICK_A_THREAD = "Pick a thread from your chats, or start a new one.";
 
 export interface ChatLandingSurfaceProps {
   readonly onNewChat: () => void;
@@ -25,6 +29,11 @@ export interface ChatLandingSurfaceProps {
 
 export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
+  // #446 — "Pick a thread from your chats" is an act the reader cannot perform while the roster is off
+  // screen (the narrow-desktop auto-collapse of this section's docked default, focus mode, a hand collapse).
+  // Naming the shell affordance is the same fix the Presets welcome carries, on the same signal; this pane
+  // also keeps its own primary in both arms, so neither is a dead end and no second door is minted.
+  const listMode = useSectionListMode("chats");
   useFocusOnMount(surfaceRef);
 
   return (
@@ -39,8 +48,9 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
           }
           decoration={<WeaveGlyph size={WEAVE_SIZE} />}
           // SIDE-AGNOSTIC: the list pane is a docked column on wide, a slide-over on narrow/mobile, and
-          // collapsed in focus mode — "on the left" is wrong in three of the four states.
-          description="Pick a thread from your chats, or start a new one."
+          // collapsed in focus mode — "on the left" is wrong in three of the four states. And in the state
+          // where it is COLLAPSED, the footnote names the door back to it (#446).
+          description={listMode === "collapsed" ? `${PICK_A_THREAD}${LIST_OFF_SCREEN_HINT}` : PICK_A_THREAD}
           title="No chat selected"
         />
       </Stack>

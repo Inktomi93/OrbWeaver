@@ -918,13 +918,12 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
     expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC");
   });
 
-  test("KNOWN GAP: an example field that renders blank still ships its heading over a bare `<START>`", () => {
-    // `renderMemberField` runs `normalizeExampleStart` AFTER the macro render, so a field that is non-blank
-    // at source but resolves to whitespace comes back as the literal "<START>" — non-empty, so the emptiness
-    // guard below it passes and the member gets an example heading with no example under it. The scenario
-    // field (no post-render normalization) correctly emits nothing in the same situation, which is what makes
-    // this an asymmetry rather than a design choice. Pinned as the CURRENT bytes, not as the desired ones:
-    // fixing it is a source change outside this lane, and this assertion is what a fix must come through.
+  test("an example field that RENDERS blank emits nothing — the `<START>` normalizer cannot resurrect it", () => {
+    // The emptiness guard is on the RENDERED value, before `normalizeExampleStart` can prepend `<START>` and
+    // make a whitespace render look non-empty. Without that ordering the member shipped "[Kai's example
+    // dialogue]\n<START>" with nothing under it, while the scenario field — which has no post-render
+    // normalization — correctly emitted nothing from the identical input. This assertion is the fix's pin
+    // (it was the "KNOWN GAP" pin of the current bytes until #436); its scenario twin is three tests above.
     const out = assemblePrompt(
       cards(),
       ctxOf({
@@ -933,7 +932,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
       }),
     );
 
-    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC\n\n[Kai's example dialogue]\n<START>");
+    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC");
   });
 
   test("a member with no description AND no personality contributes NOTHING — not a bare heading", () => {

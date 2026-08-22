@@ -82,7 +82,7 @@ function parseLifecycle(name: string | undefined, issue: number, rest: readonly 
   if (name === "set") {
     return parseSet(issue, rest);
   }
-  if (name === "verify" || name === "reverify" || name === "done") {
+  if (name === "verify" || name === "reverify" || name === "done" || name === "refute") {
     return { kind: name, issue, evidence: option(rest, "--evidence") };
   }
   if (name === "park") {
@@ -91,7 +91,7 @@ function parseLifecycle(name: string | undefined, issue: number, rest: readonly 
   if (name === "block" || name === "unblock") {
     return { kind: name, issue, blocker: issueNumber(option(rest, "--by")) };
   }
-  throw new UsageError("command must be help, show, create, claim, ready, review, needs-owner, set, verify, reverify, done, park, block, or unblock");
+  throw new UsageError("command must be help, show, create, claim, ready, review, needs-owner, set, verify, reverify, done, refute, park, block, or unblock");
 }
 
 export function parseWorkCommand(argv: readonly string[]): WorkCommand {
