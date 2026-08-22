@@ -127,9 +127,44 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     }
   }
 
-  // ── clipping container vs positioned child (impeccable clipped-overflow-container) ──
+  // ── clipping container vs cut child (impeccable clipped-overflow-container) ──
+  // #439 WAS TWO BLIND SPOTS, AND BOTH ARE FIXED HERE (#444). A \`nowrap justify-end\` footer whose
+  // buttons were wider than the dialog pushed "Blank chat" 35px past the dialog's LEFT edge, where it
+  // was cut — and this rule stayed silent because (1) it judged POSITIONED children only, and the
+  // button was ordinary in-flow content, and (2) it skipped SCROLL containers wholesale, and the live
+  // dialog is \`overflow: auto\` (measured on :5173 — auto on both axes, scroll delta 0).
+  // \`snap --expect-no-overflow\` printed PASS on the same frame for a third reason: negative overflow
+  // does not grow \`scrollWidth\`.
+  //
+  // PER-SIDE, NEVER PER-AXIS — do not "simplify" this back. Scrolling sanctions only the POSITIVE side:
+  // content past the right/bottom edge is reachable by scrolling and belongs to the scroll delta. There
+  // is NO negative scroll offset, so content before the content origin is unreachable and cut whatever
+  // the overflow value says. Judging per axis re-blinds every \`overflow: auto\` surface, which is the
+  // exact surface #439 lived on.
+  //
+  // The IN-FLOW arm is deliberately narrower than the POSITIONED one: it judges only children that ARE
+  // or CONTAIN a control. In-flow TEXT spilling out of a clip is the text-overflow rule's finding, and
+  // widening this one to text would re-report every deliberate truncation.
   var clippedOverflows = [];
   var clipsVal = function (v) { return v === "hidden" || v === "clip"; };
+  var scrollsVal = function (v) { return v === "auto" || v === "scroll"; };
+  // The clip boundary is the PADDING box — that is exactly where overflow:hidden cuts, so a full-bleed
+  // child sitting in the container's own padding is not a cut. On a SCROLLED container the left/top
+  // boundary is the content ORIGIN (children have already moved by scrollLeft/scrollTop); the document
+  // element is the exception, since its own box moves with the page scroll.
+  var clipBoxOf = function (el) {
+    var r = el.getBoundingClientRect();
+    var rootScroller = el === document.documentElement;
+    var l = r.left + el.clientLeft;
+    var t = r.top + el.clientTop;
+    return {
+      left: l - (rootScroller ? 0 : el.scrollLeft),
+      top: t - (rootScroller ? 0 : el.scrollTop),
+      right: l + el.clientWidth,
+      bottom: t + el.clientHeight,
+    };
+  };
+  var CLIP_SPILL_TOLERANCE = 2;
   var DECOR_IDENT_RE = /\\b(art|bg|background|badge|blob|crop|decor|dot|glow|grain|image|mask|ornament|overlay|photo|scrim|shadow|shine|texture)\\b/i;
   var VIEWPORT_IDENT_RE = /\\b(carousel|comparison|compare|fisheye|marquee|preview|scroller|slider|slideshow|split|viewport|demo-area|demo-stage|demo-viewport)\\b/i;
   var CHILD_SUBSTANTIVE_SEL = "a[href],button,input,select,summary,textarea,[tabindex]:not([tabindex='-1']),[role='button'],[role='dialog'],[role='link'],[role='listbox'],[role='menu'],[role='menuitem'],[role='option'],[role='tooltip']";
@@ -138,8 +173,13 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     var coStyle = getComputedStyle(coel);
     var clipX = clipsVal(coStyle.overflowX) || clipsVal(coStyle.overflow);
     var clipY = clipsVal(coStyle.overflowY) || clipsVal(coStyle.overflow);
-    if (!clipX && !clipY) continue;
-    if (/(auto|scroll)/.test((coStyle.overflow || "") + (coStyle.overflowX || "") + (coStyle.overflowY || ""))) continue;
+    var scrollX = scrollsVal(coStyle.overflowX) || scrollsVal(coStyle.overflow);
+    var scrollY = scrollsVal(coStyle.overflowY) || scrollsVal(coStyle.overflow);
+    // Judged sides: left/top wherever the axis is bounded AT ALL (clip or scroll — see the per-side
+    // note above), right/bottom only where it clips.
+    var judgeLeft = clipX || scrollX;
+    var judgeTop = clipY || scrollY;
+    if (!judgeLeft && !judgeTop) continue;
     if (!isVisible(coel)) continue;
     // Every screen-reader-only box is an overflow:hidden clip by construction, so this rule would call
     // each one a UI-cutting container. Cut UI is a claim about pixels; a clipped stub paints none.
@@ -147,7 +187,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     var coIdent = ((coel.getAttribute("class") || "") + " " + (coel.getAttribute("id") || "")).toLowerCase();
     var coRoleDesc = (coel.getAttribute("aria-roledescription") || "").toLowerCase();
     if (VIEWPORT_IDENT_RE.test(coIdent) || /\\b(carousel|slider)\\b/.test(coRoleDesc)) continue;
-    var coRect = coel.getBoundingClientRect();
+    var coBox = clipBoxOf(coel);
     var coChildren = coel.querySelectorAll("*");
     var coTag = coel.tagName.toLowerCase();
     for (var cc = 0; cc < coChildren.length; cc += 1) {
@@ -155,19 +195,21 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       if (isDevChrome(cchild)) continue;
       var ccStyle = getComputedStyle(cchild);
       var ccPos = ccStyle.position || "";
-      if (ccPos !== "absolute" && ccPos !== "fixed") continue;
+      var ccPositioned = ccPos === "absolute" || ccPos === "fixed";
       // A fixed child of the ROOT clip (html/body overflow gutters) is viewport-anchored — root
       // overflow does not clip it unless the root establishes a containing block. Toasts/portals
       // live exactly there; only a NON-root clipping ancestor is a real cut risk.
       if (ccPos === "fixed" && (coTag === "html" || coTag === "body")) continue;
       // A SCROLL REGION between the child and this clip container means the child is
       // scroll-managed content (virtualizer overscan rows, long panes), not cut UI — geometry
-      // "escapes" the outer rect only because the content scrolls.
-      var scrollBetween = false;
+      // "escapes" the outer rect only because the content scrolls. An inner CLIP between them owns
+      // its own cut and is judged on its own turn as a container, so it ends the walk too.
+      var managedBetween = false;
       for (var sb = cchild.parentElement; sb && sb !== coel; sb = sb.parentElement) {
-        if (isScrollRegion(getComputedStyle(sb))) { scrollBetween = true; break; }
+        var sbStyle = getComputedStyle(sb);
+        if (isScrollRegion(sbStyle) || clipsVal(sbStyle.overflowX) || clipsVal(sbStyle.overflowY) || clipsVal(sbStyle.overflow)) { managedBetween = true; break; }
       }
-      if (scrollBetween) continue;
+      if (managedBetween) continue;
       // decorative child?
       if (cchild.closest("[aria-hidden='true']")) continue;
       var ccRole = (cchild.getAttribute("role") || "").toLowerCase();
@@ -176,22 +218,41 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       if (ccTag === "img" || ccTag === "svg" || ccTag === "canvas" || ccTag === "video") continue;
       var ccIdent = (cchild.getAttribute("class") || "") + " " + (cchild.getAttribute("id") || "");
       var ccText = (cchild.textContent || "").replace(/\\s+/g, " ").trim();
-      var ccSubstantive = ccText.length > 0 || (cchild.matches && cchild.matches(CHILD_SUBSTANTIVE_SEL)) || !!cchild.querySelector(CHILD_SUBSTANTIVE_SEL);
+      var ccControl = (cchild.matches && cchild.matches(CHILD_SUBSTANTIVE_SEL)) || !!cchild.querySelector(CHILD_SUBSTANTIVE_SEL);
+      var ccSubstantive = ccText.length > 0 || ccControl;
       if (DECOR_IDENT_RE.test(ccIdent) && !ccSubstantive) continue;
       if (!ccSubstantive) continue;
+      // The IN-FLOW arm's extra fences: it must paint (an unpainted box cuts nothing), it must not be
+      // an sr-only stub, and it must be or carry a CONTROL — in-flow text spill is text-overflow's.
+      if (!ccPositioned && !(ccControl && isVisible(cchild) && !isVisuallyHidden(cchild))) continue;
       var ccRect = cchild.getBoundingClientRect();
+      var ccSide = null;
+      var ccSpill = CLIP_SPILL_TOLERANCE;
       var escapes = null;
       if (ccRect.width > 0 || ccRect.height > 0) {
-        escapes =
-          (clipX && (ccRect.left < coRect.left - 2 || ccRect.right > coRect.right + 2)) ||
-          (clipY && (ccRect.top < coRect.top - 2 || ccRect.bottom > coRect.bottom + 2));
+        var sides = [];
+        if (judgeLeft) sides.push(["left", coBox.left - ccRect.left]);
+        if (judgeTop) sides.push(["top", coBox.top - ccRect.top]);
+        if (clipX) sides.push(["right", ccRect.right - coBox.right]);
+        if (clipY) sides.push(["bottom", ccRect.bottom - coBox.bottom]);
+        for (var si = 0; si < sides.length; si += 1) {
+          if (sides[si][1] > ccSpill) { ccSpill = sides[si][1]; ccSide = sides[si][0]; }
+        }
+        escapes = ccSide !== null;
       }
       if (escapes === false) continue;
       if (escapes === null) {
+        // A zero-size positioned child measures nothing; its declared insets are the only evidence.
         var insets = [ccStyle.top, ccStyle.right, ccStyle.bottom, ccStyle.left].join(" ").toLowerCase();
         if (!(/(^|[\\s(])-+(?:\\d|\\.)/.test(insets) || /(^|[\\s(])100(?:\\.0+)?%/.test(insets))) continue;
       }
-      clippedOverflows.push({ selector: describe(coel), childSelector: describe(cchild) });
+      clippedOverflows.push({
+        selector: describe(coel),
+        childSelector: describe(cchild),
+        flow: ccPositioned ? "positioned" : "in-flow",
+        side: ccSide,
+        spillPx: ccSide === null ? 0 : Math.round(ccSpill),
+      });
       break;
     }
   }

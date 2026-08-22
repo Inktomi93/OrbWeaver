@@ -6,8 +6,11 @@ import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_F
 
 const LINE_LENGTH_TEXT_MIN = 80;
 
-const LINE_LENGTH_EST_MAX = 85; // estimated chars/line = rectWidth / (fontSize × 0.5)
-const CHAR_WIDTH_FONT_RATIO = 0.5;
+/** Chars per line above which the line-return gets hard to find. The house measure is
+ *  `--reading-measure: 75ch`, so the floor sits ABOVE it deliberately — an instrument that indicts the
+ *  ratified measure is measuring wrong, which is precisely what happened while this number was compared
+ *  against a GUESSED character width (#464: a 75.0-real-char paragraph was filed as 85.9). */
+const LINE_LENGTH_MAX_CHARS = 85;
 
 const TIGHT_LEADING_TEXT_MIN = 50;
 
@@ -47,20 +50,34 @@ function checkTypeFloor(input: TextStyleInput): Finding | null {
   return null;
 }
 
+/** Characters that fit on one rendered line: the box width over the MEASURED `ch` advance plus this
+ *  element's tracking, which is what actually decides how many glyphs land before the wrap. With
+ *  tracking 0 — every prose surface here — it is the CSS `ch` count exactly, so the number a finding
+ *  prints and the number `--reading-measure: 75ch` states are the same unit. Null when the walker could
+ *  not measure the advance: NO VERDICT beats a verdict from a guessed ratio (#464). */
+function charsPerLine(input: TextStyleInput): number | null {
+  const chWidthPx = input.chWidthPx ?? 0;
+  if (chWidthPx <= 0) {
+    return null;
+  }
+  const advance = chWidthPx + input.letterSpacingPx;
+  return advance > 0 ? input.rectWidth / advance : null;
+}
+
 function checkLineLength(input: TextStyleInput): Finding | null {
   if (!input.isProseTag || input.totalTextLen <= LINE_LENGTH_TEXT_MIN || input.rectWidth <= 0 || input.fontSizePx <= 0) {
     return null;
   }
-  const estCharsPerLine = input.rectWidth / (input.fontSizePx * CHAR_WIDTH_FONT_RATIO);
-  if (estCharsPerLine <= LINE_LENGTH_EST_MAX) {
+  const chars = charsPerLine(input);
+  if (chars === null || chars <= LINE_LENGTH_MAX_CHARS) {
     return null;
   }
   return {
     rule: "line-length",
     severity: "P3",
     selector: input.selector,
-    value: `~${Math.round(estCharsPerLine)} chars/line`,
-    message: `prose line measures ~${Math.round(estCharsPerLine)} chars — beyond ~80 the eye loses the line-return; cap the measure (65–75ch, skill §2)`,
+    value: `${Math.round(chars)} chars/line`,
+    message: `prose line measures ${Math.round(chars)} chars — beyond ~80 the eye loses the line-return; cap the measure (65–75ch, skill §2)`,
     origin: "impeccable",
   };
 }

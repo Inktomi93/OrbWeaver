@@ -144,6 +144,12 @@ export interface TextStyleInput {
   readonly textAlign: string;
   readonly hyphens: string;
   readonly rectWidth: number;
+  /** The MEASURED advance of one `0` in this element's own font — the CSS `ch` unit, from an in-page
+   *  canvas `measureText` (#464). It replaces a guessed `fontSize × 0.5`: Geist's real ratio is 0.573,
+   *  so the guess over-estimated every measure by ~15% and the rule indicted the house's own ratified
+   *  `--reading-measure: 75ch`. `0` means the measurement did not happen — read as NO VERDICT, never as
+   *  a narrow line. Optional because this type also describes samples from an older walker string. */
+  readonly chWidthPx?: number;
   /** p/li/td/th/dd/blockquote/figcaption — the prose tags line-length judges. */
   readonly isProseTag: boolean;
   readonly isHeading: boolean;
@@ -264,10 +270,19 @@ export interface RepeatedTextInput {
   readonly distinctSigs: number;
 }
 
-// ── Clipping container vs positioned child (impeccable `clipped-overflow-container`) ──
+// ── Clipping container vs cut child (impeccable `clipped-overflow-container`) ──
+// TWO ARMS (#444): `positioned` is the original — an absolute/fixed child that needs to escape a clip.
+// `in-flow` is the #439 class — ordinary in-flow content pushed OUT of a clipping box (a `justify-end`
+// nowrap row wider than its container puts its first control past the LEFT edge). Negative overflow is
+// invisible to `scrollWidth`, so nothing in the fleet saw it until this arm existed.
 export interface ClippedOverflowInput {
   readonly selector: string;
   readonly childSelector: string;
+  readonly flow: "in-flow" | "positioned";
+  /** The worst side the child's border box exits the container's PADDING box by — null only on the
+   *  zero-size positioned fallback, where the declared insets are the evidence and nothing measures. */
+  readonly side: "bottom" | "left" | "right" | "top" | null;
+  readonly spillPx: number;
 }
 
 // ── Cards flush against a scroller edge (impeccable `edge-flush-cards`) ───────

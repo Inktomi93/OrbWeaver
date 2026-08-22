@@ -11,6 +11,26 @@ export const WALKER_CENSUS_TEXT = `
   var fontSizes = {};
   var textEls = [];
   var seenTextEls = new Set();
+  // REAL CHARACTER ADVANCE, not a guessed ratio (#464). line-length used to estimate
+  // chars = rectWidth / (fontSize * 0.5); Geist's '0' advance is 0.573em, so that over-estimated every
+  // measure by ~15% and the rule filed an "86 chars" P3 against a paragraph that is 75.0 REAL
+  // characters — i.e. it indicted \`--reading-measure: 75ch\`, the house's own ratified measure. Canvas
+  // measureText of the element's OWN computed font is the honest number and is exactly what the CSS
+  // \`ch\` unit means, so the finding and the token are finally denominated the same way.
+  // Memoized per font string: a page has a handful of fonts and hundreds of text nodes.
+  var chWidthCache = {};
+  var measureCtx = null;
+  var chWidthOf = function (fontShorthand) {
+    if (chWidthCache[fontShorthand] !== undefined) return chWidthCache[fontShorthand];
+    if (measureCtx === null) measureCtx = document.createElement("canvas").getContext("2d") || false;
+    var width = 0;
+    if (measureCtx) {
+      measureCtx.font = fontShorthand;
+      width = measureCtx.measureText("0").width;
+    }
+    chWidthCache[fontShorthand] = width;
+    return width;
+  };
   var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   var node;
   while ((node = walker.nextNode())) {
@@ -87,6 +107,9 @@ export const WALKER_CENSUS_TEXT = `
       textAlign: style.textAlign || "",
       hyphens: style.hyphens || style.webkitHyphens || "",
       rectWidth: rect.width,
+      // The rendered advance of one '0' in THIS element's font — the CSS \`ch\` unit, measured. 0 means
+      // the canvas refused (no 2d context), which the check reads as "no verdict", never as "narrow".
+      chWidthPx: chWidthOf((style.fontStyle || "normal") + " " + (style.fontWeight || "400") + " " + style.fontSize + " " + style.fontFamily),
       isProseTag: QUALITY_TEXT_TAGS[tag] === 1,
       isHeading: HEADING_TAGS[tag] === 1,
       interactive: interactivePrimary,
