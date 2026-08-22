@@ -25,10 +25,9 @@ import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-// biome mis-enumerates react's conditional-CJS export map and misses StrictMode/lazy/Suspense
-// specifically (useState/Component/etc. resolve fine); tsc resolves them and the client
-// typechecks clean.
-import { lazy, StrictMode, Suspense } from "react";
+// biome mis-enumerates react's conditional-CJS export map and misses StrictMode specifically
+// (useState/Component/etc. resolve fine); tsc resolves it and the client typechecks clean.
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { AppToaster, BootVeil } from "#features/app-shell";
@@ -39,7 +38,6 @@ import { buildAgentRpg } from "./agent-rpg/index.ts";
 import { buildAgentSeed } from "./agent-seed/index.ts";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge.ts";
-import { isProbeMode } from "./lib/probe-mode.ts";
 import { routeResolution, router } from "./routes/router.tsx";
 import "./styles/globals.css";
 
@@ -50,14 +48,6 @@ if (import.meta.env.DEV) {
     installLongTaskTracer();
   });
 }
-// Deep import on purpose — dev-tools must never ride a barrel that also exports prod code.
-const DevTools = import.meta.env.DEV
-  ? lazy(async () => {
-      const mod = await import("./lib/dev-tools.tsx");
-      return { default: mod.DevTools };
-    })
-  : null;
-
 // A redeploy rotates hashed chunk names; an old tab that lazy-imports a chunk with a stale hash
 // white-screens. Soft-reload once — the sessionStorage guard stops a reload loop.
 const PRELOAD_RELOAD_FLAG = "orb:preload-reloaded";
@@ -136,11 +126,6 @@ createRoot(rootEl).render(
               OWNS its exit transition (a router pending component is ripped out with no exit phase). */}
           <BootVeil />
         </ToastProvider>
-        {DevTools === null || isProbeMode() ? null : (
-          <Suspense fallback={null}>
-            <DevTools queryClient={queryClient} router={router} />
-          </Suspense>
-        )}
       </TRPCProvider>
     </QueryClientProvider>
   </StrictMode>,
