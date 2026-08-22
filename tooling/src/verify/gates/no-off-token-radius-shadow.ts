@@ -70,8 +70,8 @@ function bannedTokens(nodeText: string): BannedToken[] {
   return out;
 }
 
-/** Strip a template-literal part's delimiters: TemplateHead is `` `text${ ``, TemplateMiddle is
- *  `` }text${ ``, TemplateTail is `` }text` ``, NoSubstitutionTemplateLiteral is `` `text` `` — one
+/** Strip a template-literal part's delimiters: TemplateHead is \`text$\{, TemplateMiddle is
+ *  \}text$\{, TemplateTail is \}text\`, NoSubstitutionTemplateLiteral is \`text\` — one
  *  backtick-or-brace char off each end in every case. */
 function stripTemplateDelimiters(text: string): string {
   return text.slice(1, -1);

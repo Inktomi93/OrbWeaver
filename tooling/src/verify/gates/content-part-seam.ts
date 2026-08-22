@@ -47,7 +47,7 @@ const MESSAGE =
   "pipeline.ts` · the request DTO `domain/chat/contract/results.ts` · the infra/providers consumers · the " +
   "@orb/contracts/chat home) — content-parts are produced ONCE at the engine request seam and everything " +
   "upstream stays `content: string`. See Core-Path-Registry.md D51.";
-/** Is this ImportSpecifier a `ChatContentPart` named import from @orb/contracts/chat? */
+/** Is this ImportSpecifier a `ChatContentPart` named import from `@orb/contracts/chat`? */
 function isContentPartImport(spec: Node): boolean {
   if (!Node.isImportSpecifier(spec) || spec.getName() !== SYMBOL) {
     return false;

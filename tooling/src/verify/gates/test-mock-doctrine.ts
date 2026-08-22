@@ -4,7 +4,7 @@ import type { CallExpression } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 
-/** Is this `vi.mock(...)` call on an internal (relative / packages/ / @orb/) target? The node overload
+/** Is this `vi.mock(...)` call on an internal (relative / `packages/` / `@orb/`) target? The node overload
  *  carries the report — this predicate only needs a boolean, never a Finding-shaped record. */
 function isInternalMockCall(call: CallExpression): boolean {
   const expr = call.getExpression();

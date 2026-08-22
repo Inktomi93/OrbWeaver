@@ -134,11 +134,18 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // syntactic and structurally cannot see any of these. All live violations were fixed in the landing lane;
 // nothing here is suppressed or allowlisted.
 //
-// THREE MEASURED RULES ARE NOT ON THIS SURFACE YET — tsdoc/syntax (110), strict-boolean-expressions (61),
-// no-unnecessary-condition (41). They are REAL findings, not false positives, and they are tracked as a
-// sweep at issue #472: the fix wave is behaviour-touching (nullable-conditional rewrites) or 110 comment
-// edits, so it lands as its own lane rather than riding this one. This is a tracked population, NOT a
-// ruling that the rules do not belong here — turn them on with that sweep.
+// THE THREE DEFERRED RULES ARE BEING LANDED BY THE #472 SWEEP, one family per commit. They were REAL
+// findings, never false positives — the deferral was about the fix wave's shape (behaviour-touching
+// nullable-conditional rewrites; 111 comment edits), not about whether the rules belong here.
+//   tsdoc/syntax — LANDED. Re-measured 111 on the current tree (the survey said 110); all 111 fixed and
+//     the rule is ON below for tooling/src + tests/tooling. Every finding was in tooling/src; tests/tooling
+//     measured 0, and the rule is on there anyway so the zero cannot rot. Four classes, no suppressions:
+//     a bare `@orb/…` package name in prose (→ a code span, the packages/**  house spelling), an unescaped
+//     `<`/`>`/`{`/`}` that TSDoc reads as an HTML tag or an inline-tag opener (→ a code span, or `\>` where
+//     the text is a genuine comparison), a code span WRAPPED across two comment lines (TSDoc code spans are
+//     single-line — reflowed, never truncated), and a markdown ``…`` double-backtick span (TSDoc has no
+//     such form and no in-span escape — rewritten as backslash-escaped prose).
+//   strict-boolean-expressions (61) / no-unnecessary-condition (41) — still tracked at #472.
 //
 // Scope note: the react/tailwind/query/router blocks above stay off tooling by construction (node-context
 // tools render nothing). What tooling gets is the ASYNC-SAFETY + dispatch + deprecation set — exactly the
@@ -376,6 +383,16 @@ export default tseslint.config(
     files: [TOOLING_SRC],
     plugins: { "@typescript-eslint": tseslint.plugin },
     rules: { "@typescript-eslint/require-await": "error" },
+  },
+  {
+    // The Documentation-Law doc-comment gate over the tooling surface (#472, the first family of the
+    // deferred wave — see the SAFETY_SURFACE header for the four fix classes). Same rule the typed-API
+    // packages carry above: tooling's file headers ARE its per-domain law (the per-domain prose was
+    // gutted), so a malformed doc comment there is exactly as load-bearing as one in `packages/server`.
+    // Purely syntactic (the TSDoc parser), so it needs no program — but these files have one anyway.
+    files: [TOOLING_SRC, TOOLING_TESTS],
+    plugins: { tsdoc },
+    rules: { "tsdoc/syntax": "error" },
   },
   {
     // react-hooks: rules-of-hooks + React Compiler diagnostics. The full recommended set IS what we

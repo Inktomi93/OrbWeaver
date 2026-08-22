@@ -91,7 +91,7 @@ const producerKeys = new Set<string>();
 const mentionCandidates = new Set<string>();
 const consumerValues: ValueSite[] = [];
 const consumerKeys: KeySite[] = [];
-/** The live registry, read off its own AST: key → { value, the property node to anchor A2 on }. */
+/** The live registry, read off its own AST: key → `{ value, the property node to anchor A2 on }`. */
 const registry = new Map<string, RegistryRow>();
 
 function recordProducerValue(expr: Node | undefined): void {

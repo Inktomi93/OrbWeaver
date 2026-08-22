@@ -238,7 +238,8 @@ function descendHelper(call: CallExpression, sink: Sink, hop: number): void {
 }
 
 /** A drizzle `sql` tagged template that interpolates a COLUMN reference is reading the stored value
- *  SQL-side (`sql\`json_set(${userSettings.config}, …)\`` — the live theme-clear writer). The taint test
+ *  SQL-side (a `sql` template around `json_set(${userSettings.config}, …)` — the live theme-clear
+ *  writer). The taint test
  *  cannot see through SQL text, so the column reference is what stands in for the read. */
 function isSqlColumnMerge(rhs: TsNode): boolean {
   return (

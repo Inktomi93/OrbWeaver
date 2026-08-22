@@ -48,7 +48,7 @@ function severityRank(code: number): number {
   return SEVERITY_RANK[code] ?? 0;
 }
 
-/** The run's exit = the highest-severity stage exit (2 > 3 > 1 > 0). */
+/** The run's exit = the highest-severity stage exit (2 \> 3 \> 1 \> 0). */
 export function aggregateExit(codes: readonly number[]): number {
   let worst: number = EXIT_CLEAN;
   for (const code of codes) {

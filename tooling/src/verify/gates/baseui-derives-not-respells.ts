@@ -63,7 +63,7 @@ interface FileContext {
    *  colour clamp, is never handed to `Field.Control`, and has no eventDetails to preserve. Judging by name
    *  alone reds it, and an exemption row for it would be an apology for the matcher, not a decision. */
   readonly forwarded: Set<string>;
-  /** handler prop name → { arity, owner } over the ROOT plus every part the file renders. */
+  /** handler prop name → `{ arity, owner }` over the ROOT plus every part the file renders. */
   readonly handlers: Map<string, { arity: number; owner: string }>;
   /** non-handler prop name → owner, over the ROOT only (ARM B's measured scope). */
   readonly rootProps: Map<string, string>;

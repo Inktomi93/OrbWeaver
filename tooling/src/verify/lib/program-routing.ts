@@ -38,7 +38,7 @@ const ROOT_CONFIG_FILES: ReadonlySet<string> = new Set(["vitest.config.ts", "vit
 /** The repo-root AMBIENT declaration pair — `reset.d.ts` (ts-reset) + `platform.d.ts` (the V8 14.6
  *  surfaces TS's libs lack; node-26 adoption program §1.2). Every program includes BOTH: the base's
  *  `${configDir}/../../<file>` covers kit/contracts/server, and the five configs that OVERRIDE the base
- *  include (tsconfig.json, tsconfig.tests-dom.json, packages/{ui,client,db}) list them explicitly. So
+ *  include (tsconfig.json, tsconfig.tests-dom.json, `packages/{ui,client,db}`) list them explicitly. So
  *  their honest route is EVERY program, not the graph alone — an ambient edit changes every program's
  *  world. Measured 2026-08-03: the graph program carries `@types/node`, which independently declares
  *  Disposable/getOrInsert/isError, so a graph-only route MASKED 5 of 6 real per-package errors — exactly

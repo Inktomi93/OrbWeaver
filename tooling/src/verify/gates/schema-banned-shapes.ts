@@ -246,7 +246,7 @@ function schemaFieldViolations(sf: SourceFile, rel: string, shape: SchemaFieldBa
   ];
 }
 
-/** Import-ban rules (the @orb/contracts/sessions namespace), over any source file. */
+/** Import-ban rules (the `@orb/contracts/sessions` namespace), over any source file. */
 function importViolations(sf: SourceFile, rel: string): Violation[] {
   const out: Violation[] = [];
   for (const shape of BANNED_SHAPES) {

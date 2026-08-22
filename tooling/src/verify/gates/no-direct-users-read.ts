@@ -44,7 +44,7 @@ const STALE_PREFIX =
   "stale EXEMPT_DOMAINS row — this domain imports no `users` symbol any more, so its sanctioned-reader " +
   "claim is dead and the carve-out is just a standing licence (ratchet down): ";
 
-/** Is this ImportSpecifier a `users` named import from an @orb/db module? */
+/** Is this ImportSpecifier a `users` named import from an `@orb/db` module? */
 function isUsersFromDb(spec: ImportSpecifier): boolean {
   if (spec.getName() !== TABLE) {
     return false;

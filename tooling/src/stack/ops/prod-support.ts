@@ -71,7 +71,7 @@ export function distVerdict(): DistVerdict {
   });
 }
 
-/** The ONLY build in this repo: @orb/client's own `vite build`, invoked through its package script (never
+/** The ONLY build in this repo: `@orb/client`'s own `vite build`, invoked through its package script (never
  *  a hand-rolled vite call). Runs BEFORE anything is stopped, so a failed build never leaves a live
  *  instance killed and a dead bundle behind. */
 export function buildClient(): boolean {
