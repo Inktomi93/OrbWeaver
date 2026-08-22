@@ -42,7 +42,7 @@ export function RegexMemberSurface({ memberId }: { readonly memberId: string }):
   if (row === undefined) {
     // Reachable for real: another device deleted this script while it was open here (the regex verbs are
     // bus-driven, so the list refetches under the editor).
-    return <EmptyState description="This script was deleted. Pick another on the left." icon={<Icon icon={Code} size="lg" />} title="Script not found" />;
+    return <EmptyState description="This script was deleted. Pick another from the list." icon={<Icon icon={Code} size="lg" />} title="Script not found" />;
   }
   return <RegexMemberEditor row={row} />;
 }

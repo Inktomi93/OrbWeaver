@@ -17,7 +17,7 @@ export function WorldInfoContextBody({ memberId }: { readonly memberId: string }
   const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
   const book = books.find((row) => row.id === memberId);
   if (book === undefined) {
-    return <EmptyState description="This book was deleted. Pick another on the left." icon={<Icon icon={BookOpen} size="lg" />} title="Book not found" />;
+    return <EmptyState description="This book was deleted. Pick another from the list." icon={<Icon icon={BookOpen} size="lg" />} title="Book not found" />;
   }
   return <BookAttachments bookId={book.id} />;
 }

@@ -317,7 +317,7 @@ test("a collapsed CONTEXT body mounts only when opened, then follows the active 
   // The generic un-swept fallback's copy (side-eye F-12): its title is no longer the word "Details" —
   // the CONTEXT band directly above it already says that, so the pane printed it twice over one
   // voiceless sentence. A section that states its own `context.empty` gets its own words instead.
-  await expect.poll(panelText, { intervals: [20, 50, 100] }).toContain("Pick something on the left and its details appear here");
+  await expect.poll(panelText, { intervals: [20, 50, 100] }).toContain("Pick something from the list and its details appear here");
   expect(await panelText()).not.toContain("chats context pane");
 });
 
