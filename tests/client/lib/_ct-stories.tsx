@@ -478,15 +478,17 @@ export function MotionFlaggersWaapiDropStory(): ReactElement {
           }
           const finished = target.animate({ transform: ["translateX(0)", "translateX(20px)"] }, { duration: 2000 });
           const canceled = target.animate({ opacity: [1, 0.5] }, { duration: 2000 });
-          const finishEvent = new Promise<void>((resolve) => finished.addEventListener("finish", () => resolve(), { once: true }));
-          const cancelEvent = new Promise<void>((resolve) => canceled.addEventListener("cancel", () => resolve(), { once: true }));
+          const finishEvent = new Promise<number>((resolve) => finished.addEventListener("finish", (e) => resolve(e.timeStamp), { once: true }));
+          const cancelEvent = new Promise<number>((resolve) => canceled.addEventListener("cancel", (e) => resolve(e.timeStamp), { once: true }));
           finished.finish();
           canceled.cancel();
-          void Promise.all([finishEvent, cancelEvent]).then(() => {
+          void Promise.all([finishEvent, cancelEvent]).then(([finishedAt, canceledAt]) => {
             // Both flagger listeners were registered inside the `Element.animate` wrapper, so they ran
-            // BEFORE these — this stamp is at or after the bookkeeping's own `endTime`, which is the
-            // conservative direction for the ordering verdict.
-            retiredAtRef.current = performance.now();
+            // BEFORE these — and each event's own timeStamp IS the dispatch instant on the performance
+            // timeline (test-determinism bans an ambient performance.now() here; the event-provided
+            // stamp is both gate-clean and MORE conservative: it is at or after the bookkeeping's
+            // `endTime` by construction of the listener order).
+            retiredAtRef.current = Math.max(finishedAt, canceledAt);
             requestAnimationFrame(() => {
               setTimeout(() => {
                 blockMainThread(80);
