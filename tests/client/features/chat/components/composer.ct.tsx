@@ -1091,6 +1091,22 @@ test("#376 drop: an unsupported type is refused BY NAME and nothing of it attach
   await expect(component.locator(NOTIFIED)).toContainText("isn't an image or video");
 });
 
+// #423: the dropzone now refuses an off-vocabulary file itself, so the picker's refusal arrives as a
+// `reason: "type"` rejection instead of reaching `triageAttachFiles`. The composer's adapter has to speak the
+// SAME line the drop/paste gestures do — its inline error renders `hidden` inside the ✨ menu, so a rejection
+// the adapter doesn't toast is a silent vanish.
+test("#423 picker: an off-vocabulary pick is refused in the same voice as a drop (never silently)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "resume.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF") });
+
+  await expect(component.locator(NOTIFIED)).toContainText("resume.pdf");
+  await expect(component.locator(NOTIFIED)).toContainText("isn't an image or video");
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(0);
+});
+
 test("#376 paste: pasting a screenshot attaches it", async ({ mount, page }) => {
   await routeTrpc(page, {});
   const component = await mount(<ComposerStory />);
