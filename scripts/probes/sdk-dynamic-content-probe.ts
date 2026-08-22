@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 /**
  * pnpm sdk:dynamic-probe [--spot A,B,C] [--nonce <str>] [--mode sub|or] [--model <id>]
  *                        [--verbose] [--dry-run]
