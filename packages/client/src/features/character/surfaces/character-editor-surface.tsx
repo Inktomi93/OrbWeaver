@@ -219,9 +219,21 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
             kind="Character"
             sticky="header"
             meta={
+              /* IT CARRIES ITS OWN GLOSS NOW (#493, side-eye 2026-08-22 rail-characters P2-4). `1017
+                 permanent` is the editor's most jargon-dense datum and it shipped with NO explanation on
+                 this surface — no `title`, no `aria-label`, no tooltip (all three verified null) — while the
+                 ONE place that says what it means ("sent every turn") is the CONTEXT pane, 300px away and
+                 closed by default. The visible line is unchanged: the `aria-label` is what a screen reader
+                 hears and the `title` what a pointer gets, and the mono line stays the glanceable one. */
               <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
                 {(values): ReactElement => (
-                  <Text size="micro" tone="muted" className="font-mono">
+                  <Text
+                    aria-label={`${totalTokenCount(values, activeGreetingIndex)} tokens total, ${permanentTokenCount(values)} permanent — sent every turn`}
+                    className="font-mono"
+                    size="micro"
+                    title={`${permanentTokenCount(values)} permanent tokens are sent every turn; the rest ride the active greeting.`}
+                    tone="muted"
+                  >
                     {totalTokenCount(values, activeGreetingIndex)} total · {permanentTokenCount(values)} permanent
                   </Text>
                 )}

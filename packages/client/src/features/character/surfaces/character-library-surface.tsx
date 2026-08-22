@@ -40,6 +40,7 @@ import { CHAT_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { Stack, Surface } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -60,11 +61,13 @@ import {
   setActiveSection,
   setCharacterBrowseOffset,
   toggleFavoritesOnly,
+  toggleFiltersOpen,
   toggleShowArchived,
   useCharacterBulkMode,
   useCharacterSortMode,
   useCharacterViewMode,
   useFavoritesOnly,
+  useFiltersOpen,
   useSelectedCharacterId,
   useShowArchived,
   useTagFilter,
@@ -79,7 +82,7 @@ import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-characte
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { useLibraryLens } from "../hooks/use-library-lens.ts";
 import { useRestoreRowFocus } from "../hooks/use-restore-row-focus.ts";
-import { effectiveTagFilter, knownTagIds, resultCountLabel, tagVocabulary } from "../lib/character-library-lens.ts";
+import { effectiveTagFilter, knownTagIds, loadedProgressLabel, partialGroupingLabel, resultCountLabel, tagVocabulary } from "../lib/character-library-lens.ts";
 import { resumeTargets } from "../lib/character-list-view.ts";
 
 /** How deep the resume-or-new map looks back. The server's own page ceiling — one read, no keyset walk. */
@@ -169,6 +172,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const favoritesOnly = useFavoritesOnly();
   const showArchived = useShowArchived();
   const tagFilter = useTagFilter();
+  const filtersOpen = useFiltersOpen();
   const bulkMode = useCharacterBulkMode();
   // ⑪ — the user's library page size (cache-first; the settings read is already loaded app-wide). Until it
   // resolves, fall back to the schema default so the first page fetches at the same size as pre-wire.
@@ -311,6 +315,26 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
     // and a name, not a form you operate.
     <Surface tier="instrument">
       <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="row">
+        {/* SKIP THE CHROME (#491, side-eye 2026-08-22 rail-characters P1-1). The app-shell's own
+            `Skip to content` moves focus to `<main>` — it skips PAST this pane, so a keyboard user who came
+            for the LIST had no shortcut at all: the search, the sort, the two view commands, up to 24
+            favourite faces and the filter rail all stand in front of the first row. This lands directly ON
+            the first character, which is the thing the section exists to offer.
+            Same posture as the shell's: `not-focus-visible:sr-only`, never `sr-only focus-visible:not-sr-only`
+            — `not-sr-only` is a RESET whose `padding:0; height:auto` lands in the same layer as the Button's
+            own box and wins, which renders the revealed control under the WCAG 2.5.8 floor. It costs the
+            keyboard user one press and the pointer user nothing.
+            It is FIRST IN DOM ORDER inside the surface, which is the whole contract: a skip control that is
+            not the first focusable is a second tab stop, not a skip. */}
+        <Button
+          className="not-focus-visible:sr-only focus-visible:self-start"
+          intent="secondary"
+          onClick={(): void => surfaceRef.current?.querySelector<HTMLElement>('[data-slot="list-row-body"]')?.focus()}
+          size="sm"
+          type="button"
+        >
+          Skip to characters
+        </Button>
         <CharacterLibraryToolbar onQueryChange={setQuery} query={query} />
         {/* THE RESULT COUNT, SPOKEN (side-eye 2026-08-03 P2), AND NOW HOUSED (side-eye 2026-08-17 taste a).
             It is a `role="status"` line that is ALWAYS mounted and always states the count (a region that
@@ -326,6 +350,8 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
           onCycleTag={cycleTagFilter}
           onToggleArchived={toggleShowArchived}
           onToggleFavorites={toggleFavoritesOnly}
+          onToggleOpen={toggleFiltersOpen}
+          open={filtersOpen}
           resultLabel={resultCountLabel(items.length, collection.totalCount)}
           showArchived={showArchived}
           tagFilter={tagFilter}
@@ -347,8 +373,10 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
             isFetchingNextPage={collection.isFetchingNextPage}
             isPending={collection.isPending}
             listProps={collection.listProps}
+            loadedProgress={loadedProgressLabel(items.length, collection.totalCount)}
             onClearSearch={(): void => setQuery("")}
             onRetry={collection.refetch}
+            partialNotice={partialGroupingLabel(items.length, collection.totalCount)}
             query={settledQuery}
             renderRow={renderRow}
           />

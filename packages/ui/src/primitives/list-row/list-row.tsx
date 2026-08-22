@@ -17,6 +17,14 @@ export interface ListRowProps {
    * that doesn't contain the read label breaks voice control).
    */
   fullTitle?: string;
+  /**
+   * A DISAMBIGUATOR appended to the CLICKABLE row's accessible name — `"<title> · <qualifier>"`. Never
+   * rendered; the title stays a prefix of the name (WCAG 2.5.3 — a voice user can say what they can see).
+   * For a list whose titles genuinely collide (three characters named "Emily" as three identical
+   * `button "Emily"`, #492): the caller decides what disambiguates (`rowActionSubject`, #443/#458/#463) and
+   * this carries it into the NAME, which `subtitle` cannot — a description is what low-verbosity and
+   * voice-control modes drop. Not by itself an axe `label-content-name-mismatch` fix; see #492. */
+  titleQualifier?: string;
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
   /** Opts a functional subtitle into the ratified label step instead of the instrument tier's micro gloss. */
@@ -154,8 +162,7 @@ function subtitleStepAttribute(step: "default" | "label"): "label" | undefined {
 }
 
 /** The DOM ids of the row's describing spans (subtitle · meta · markers), for the body's
- *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty string ⇒
- *  omit the attr). */
+ *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty ⇒ no attr). */
 interface ListRowDescriptors {
   subtitleId: string | undefined;
   metaId: string | undefined;
@@ -303,7 +310,8 @@ function ListRowBody({
   expanded: boolean | undefined;
   disabled: boolean;
   onClick: MouseEventHandler<HTMLButtonElement> | undefined;
-  /** The row's accessible name — the `title` alone (set only on the clickable button body). */
+  /** The row's accessible name — the `title` plus a caller-supplied `titleQualifier` when the list's titles
+   *  collide (set only on the clickable button body). */
   ariaLabel: string;
   /** Space-joined subtitle/meta ids, or undefined when the row has neither descriptor. */
   ariaDescribedBy: string | undefined;
@@ -365,6 +373,7 @@ function useCollapsedBelow(ref: RefObject<HTMLElement | null>, threshold: number
 export function ListRow({
   leading,
   title,
+  titleQualifier,
   fullTitle,
   subtitle,
   subtitleLead,
@@ -405,7 +414,7 @@ export function ListRow({
     <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-slot="list-row-root" ref={rootRef}>
       <ListRowBody
         ariaDescribedBy={describedBy}
-        ariaLabel={title}
+        ariaLabel={titleQualifier === undefined ? title : `${title} · ${titleQualifier}`}
         clickable={clickable}
         disabled={disabled}
         expanded={expanded}

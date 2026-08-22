@@ -34,6 +34,12 @@ interface CharacterLibraryState {
   readonly browseOffset: number;
   /** Blurs the editor's spoiler-bearing card text for screen-sharing. */
   readonly spoilerBlur: boolean;
+  /** Is the filter rail's VOCABULARY on screen? Default `false` — the rail's inactive tag chips and its
+   *  +N-more panel are a disclosure now (#491). A browse posture, so it persists like `viewMode`: a user who
+   *  opened the vocabulary is filtering, and re-collapsing it under them on every remount would fight them.
+   *  Only the INACTIVE half hides — the scope pills and every ACTIVE chip render in both states, so the
+   *  "a filter you cannot see is a filter you cannot turn off" invariant is untouched. */
+  readonly filtersOpen: boolean;
 }
 
 /** Everything but the transient `bulkMode` survives a reload. */
@@ -44,6 +50,7 @@ interface PersistedCharacterLibraryState {
   readonly showArchived: boolean;
   readonly tagFilter: readonly TagFilterEntry[];
   readonly spoilerBlur: boolean;
+  readonly filtersOpen: boolean;
 }
 
 const DEFAULT_STATE: CharacterLibraryState = {
@@ -55,6 +62,7 @@ const DEFAULT_STATE: CharacterLibraryState = {
   bulkMode: false,
   browseOffset: 0,
   spoilerBlur: false,
+  filtersOpen: false,
 };
 
 // v2: `tagFilter` went from a flat id list (include-only) to three-state entries. `migrate` reads BOTH
@@ -108,6 +116,9 @@ function migrate(persisted: unknown, _version: number): CharacterLibraryState {
     bulkMode: false,
     browseOffset: 0,
     spoilerBlur: typeof p.spoilerBlur === "boolean" ? p.spoilerBlur : false,
+    // No version bump: a v1/v2 blob simply has no `filtersOpen`, and the DEFAULT (collapsed) is the value
+    // #491 wants a returning user to land on anyway. `migrate` is field-by-field total, so absence degrades.
+    filtersOpen: typeof p.filtersOpen === "boolean" ? p.filtersOpen : false,
   };
 }
 
@@ -124,6 +135,7 @@ const useCharacterLibraryStore = createPersistedStore<CharacterLibraryState, Per
       showArchived: s.showArchived,
       tagFilter: s.tagFilter,
       spoilerBlur: s.spoilerBlur,
+      filtersOpen: s.filtersOpen,
     }),
   },
 );
@@ -179,6 +191,11 @@ export function getCharacterBrowseOffset(): number {
 export function setBulkMode(bulkMode: boolean): void {
   useCharacterLibraryStore.setState({ bulkMode }, false, "character-library/setBulkMode");
 }
+/** Show/hide the filter rail's INACTIVE vocabulary (#491) — the collapsed default is what gave the 327-row
+ *  library its vertical space and its keyboard back. Never touches the filter VALUES. */
+export function toggleFiltersOpen(): void {
+  useCharacterLibraryStore.setState((s) => ({ filtersOpen: !s.filtersOpen }), false, "character-library/toggleFiltersOpen");
+}
 export function toggleSpoilerBlur(): void {
   useCharacterLibraryStore.setState((s) => ({ spoilerBlur: !s.spoilerBlur }), false, "character-library/toggleSpoilerBlur");
 }
@@ -200,6 +217,9 @@ export function useTagFilter(): readonly TagFilterEntry[] {
 }
 export function useCharacterBulkMode(): boolean {
   return useCharacterLibraryStore((s) => s.bulkMode);
+}
+export function useFiltersOpen(): boolean {
+  return useCharacterLibraryStore((s) => s.filtersOpen);
 }
 export function useSpoilerBlur(): boolean {
   return useCharacterLibraryStore((s) => s.spoilerBlur);

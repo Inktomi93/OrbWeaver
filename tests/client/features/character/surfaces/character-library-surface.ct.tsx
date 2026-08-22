@@ -16,6 +16,8 @@
 // (routeTrpc) — the responder inspects the decoded input (cursor · search · chips) to serve its page.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/ct/drop-files.ts";
@@ -24,6 +26,18 @@ import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trp
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
 import { characterListResponder, makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
+
+/** A library ROW, by its character's name.
+ *
+ *  `getByText` cannot address one any more, and that is a FIXTURE-REALISM fix rather than a workaround
+ *  (#492): `makeCharacterSummary` now mints the handle the server would mint (`Bolt` → `bolt`) instead of a
+ *  fixed `char_ct_1`, the row renders the handle as its subtitle when nothing outranks it, and Playwright's
+ *  text matching is case-insensitive substring — so `getByText("Bolt")` resolves to the title span AND the
+ *  handle line AND the hover reveal. The row's ACCESSIBLE NAME is the precise probe, and it is also the
+ *  thing #492 is about, so the row pins address rows the way assistive tech does. */
+function row(component: Locator, name: string): Locator {
+  return component.getByRole("button", { name, exact: true });
+}
 
 const ARIA = makeCharacterSummary({
   id: "char_aria",
@@ -57,10 +71,10 @@ test("renders the first page, then auto-fetches the next page (tail-fetch guard)
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
-  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
   // The tail-fetch guard (VirtualList's onEndApproach) pulls page 2 without a scroll gesture — the
   // story's viewport puts every row inside the default endApproachRows window.
-  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(row(component, "Cassius")).toBeVisible();
 });
 
 // THE OWNER'S P1 (2026-08-13): searching found only what the client had already paged in. The pin is a
@@ -80,7 +94,7 @@ test("the search box asks the SERVER — a match beyond the loaded page is found
   // The term went over the wire…
   await expect.poll(() => (trpc.lastInput("character.list") as { search?: string } | undefined)?.search, { intervals: [50, 100, 200] }).toBe("zephyr");
   // …and the row it matched is on screen even though it was never in the loaded window.
-  await expect(component.getByText("Zephyrine")).toBeVisible();
+  await expect(row(component, "Zephyrine")).toBeVisible();
   await expect(component.getByText("Filler 0")).toHaveCount(0);
 });
 
@@ -96,7 +110,7 @@ test("a search with no matches shows the 'no matches' empty state", async ({ mou
   await routeTrpc(page, { "character.list": characterListResponder([ARIA, BOLT, CASSIUS]), "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
-  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(row(component, "Cassius")).toBeVisible();
   await component.getByPlaceholder("Search characters…").fill("nonexistent-name");
 
   // An HONEST claim now that the predicate is the server's: the whole library was searched.
@@ -130,8 +144,25 @@ test("a read failure shows the error state with a working Retry (rule 1 — no d
 
   await expect(component.getByText("Couldn't load the character library.")).toBeVisible();
   await component.getByRole("button", { name: "Retry" }).click();
-  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE FILTER RAIL IS A DISCLOSURE NOW (#491, side-eye 2026-08-22 rail-characters). At the owner's library
+// the rail was 34% of the desktop pane / 42% of the phone and 18 tab stops (563 with the vocabulary open),
+// so the INACTIVE vocabulary is collapsed on first visit. A test about the tag chips therefore opens it the
+// way a user does. The pins that state what does NOT collapse — the scope pills, every ACTIVE chip, the
+// orphan chips, the `N active` datum — deliberately do not call this.
+const MORE_FILTERS = "More filters — show the tag vocabulary";
+const FEWER_FILTERS = "Fewer filters — hide the tag vocabulary";
+
+async function openFilters(component: Locator): Promise<void> {
+  await component.getByRole("button", { name: MORE_FILTERS }).click();
+}
+
+/** The FOOT-of-list progress line (#493) — "30 of 327 loaded", absent once the matched set is fully paged
+ *  in. Top level: a regex literal built inside a test body is a fresh compile per call. */
+const LOADED_PROGRESS = /of \d+ loaded$/u;
 
 // ── §4.2/§4.5/§4.6/§4.3 the new LIST features ──────────────────────────────────────────────────────
 
@@ -179,11 +210,12 @@ test("§4.2 the favorites strip surfaces starred characters as select-only avata
 test("§4.5 the Favorites filter chip narrows the SERVER read to starred rows", async ({ mount, page }) => {
   const trpc = await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
-  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
+  await openFilters(component);
   await component.getByRole("button", { name: "Show only favorites" }).click();
-  await expect(component.getByText("Bolt")).toHaveCount(0);
-  await expect(component.getByText("Cassius")).toHaveCount(0);
-  await expect(component.getByText("Starla")).toBeVisible();
+  await expect(row(component, "Bolt")).toHaveCount(0);
+  await expect(row(component, "Cassius")).toHaveCount(0);
+  await expect(row(component, "Starla")).toBeVisible();
   // The narrowing is a REQUEST, not an array pass — which is what makes it reach past the loaded window.
   await expect.poll(() => (trpc.lastInput("character.list") as { starred?: boolean } | undefined)?.starred, { intervals: [50, 100] }).toBe(true);
 });
@@ -231,12 +263,12 @@ test("C9-1d an OPEN tag's group starts EXPANDED; a plain tag's group starts coll
   await expect(component.getByRole("button", { name: OPEN_GROUP_HEADER, exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: PLAIN_GROUP_HEADER, exact: true })).toBeVisible();
 
-  await expect(component.getByText("Marlowe")).toBeVisible();
-  await expect(component.getByText("Cassius")).toHaveCount(0);
+  await expect(row(component, "Marlowe")).toBeVisible();
+  await expect(row(component, "Cassius")).toHaveCount(0);
 
   // The collapsed group is not a dead end: its header opens it, and the user's toggle wins from then on.
   await component.getByRole("button", { name: PLAIN_GROUP_HEADER, exact: true }).click();
-  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(row(component, "Cassius")).toBeVisible();
 });
 
 // TAG EXCLUSION (the three-state chip) — "everything tagged X that ISN'T tagged Y" is a query shape a
@@ -246,22 +278,23 @@ test("C9-1d an OPEN tag's group starts EXPANDED; a plain tag's group starts coll
 test("a tag chip cycles include → exclude → off, and exclusion hides the rows carrying the tag", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
-  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(row(component, "Cassius")).toBeVisible();
+  await openFilters(component);
 
   // 1) OFF → INCLUDE: only the tagged row survives.
   await component.getByRole("button", { name: "Filter by rpg: off" }).click();
-  await expect(component.getByText("Cassius")).toBeVisible();
-  await expect(component.getByText("Starla")).toHaveCount(0);
+  await expect(row(component, "Cassius")).toBeVisible();
+  await expect(row(component, "Starla")).toHaveCount(0);
 
   // 2) INCLUDE → EXCLUDE: the tagged row is the only one gone.
   await component.getByRole("button", { name: "Filter by rpg: included" }).click();
-  await expect(component.getByText("Starla")).toBeVisible();
-  await expect(component.getByText("Bolt")).toBeVisible();
-  await expect(component.getByText("Cassius")).toHaveCount(0);
+  await expect(row(component, "Starla")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
+  await expect(row(component, "Cassius")).toHaveCount(0);
 
   // 3) EXCLUDE → OFF: the whole library is back.
   await component.getByRole("button", { name: "Filter by rpg: excluded" }).click();
-  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(row(component, "Cassius")).toBeVisible();
   await expect(component.getByRole("button", { name: "Filter by rpg: off" })).toBeVisible();
 });
 
@@ -278,6 +311,7 @@ test("a tag chip cycles include → exclude → off, and exclusion hides the row
 test("the excluded chip is distinguishable without colour, and every chip clears the tap floor", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory width={360} />);
+  await openFilters(component);
 
   const off = component.getByRole("button", { name: "Filter by rpg: off" });
   await expect(off).toBeVisible();
@@ -328,10 +362,11 @@ test("D1 a favorite that lives deep in the library arrives on the FIRST page of 
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Filler 0")).toBeVisible();
+  await openFilters(component);
 
   await component.getByRole("button", { name: "Show only favorites" }).click();
   // No "No matches in view", no Load more — the row itself, straight away.
-  await expect(component.getByText("Zephyr")).toBeVisible();
+  await expect(row(component, "Zephyr")).toBeVisible();
   await expect(component.getByRole("button", { name: "Load more" })).toHaveCount(0);
 });
 
@@ -339,9 +374,16 @@ test("D1 a favorite that lives deep in the library arrives on the FIRST page of 
 // `getPreviousPageParam: () => undefined` made the HEAD page unrecoverable: past five pages TanStack dropped
 // page 1 and nothing could ever fetch it back. At the settings floor (pageSize 10) six pages is 60 rows.
 //
-// The proof is the LIVE REGION, not the DOM rows: at the bottom of a 60-row virtualized list the head rows
-// are legitimately unmounted either way, so "is row 1 in the DOM" cannot tell eviction from virtualization.
-// The readout can: it prints `loaded` against the server census, so a dropped page reads "50 of 60".
+// The proof is a READOUT, not the DOM rows: at the bottom of a 60-row virtualized list the head rows are
+// legitimately unmounted either way, so "is row 1 in the DOM" cannot tell eviction from virtualization. A
+// readout that prints `loaded` against the server census can — a dropped page reads "50 of 60".
+//
+// WHICH READOUT MOVED (#493, side-eye 2026-08-22 rail-characters P2-1). It used to be the pane's `status`
+// line, and that line no longer prints the loaded count: at rest it read `30 of 327 characters` — the PAGE
+// SIZE worded as a result count, under a band already saying `CHARACTERS 327`. The loaded-vs-census signal
+// lives at the FOOT of the list now, beside the tail-fetch sentinel, and that is what this asserts. The
+// detector is unchanged in kind: a dropped head page still makes it read "50 of 60 loaded" and never
+// disappear, because the run never reaches its census.
 const EVICTION_PAGE_SIZE = 10;
 const EVICTION_ROWS = 60;
 const SCROLL_STEP_PX = 600;
@@ -377,7 +419,10 @@ test("the head page is NEVER evicted — all six pages stay loaded through a dee
       return tail.count();
     }, scrollPoll())
     .toBeGreaterThan(0);
-  // Sixty loaded of sixty — never "50 of 60", which is what a silently dropped head page reads as.
+  // Sixty loaded of sixty, so the FOOT line has nothing left to report and is gone. A silently dropped head
+  // page leaves it standing, reading "50 of 60 loaded" — which is the eviction this pin exists to catch.
+  await expect(component.getByText(LOADED_PROGRESS)).toHaveCount(0);
+  // …and the pane's own status prints the CENSUS, which the eviction cannot move (it is the server's).
   await expect(component.getByRole("status")).toHaveText(`${String(EVICTION_ROWS)} characters`);
 });
 
@@ -391,7 +436,7 @@ const SEARCH_MIN_USABLE_PX = 140;
 test("F1 the sort Select cannot crush the search box — search keeps the row's width", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory width={360} />);
-  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
 
   const searchBox = await component.getByRole("textbox", { name: "Search characters" }).boundingBox();
   const sortBox = await component.getByRole("combobox", { name: "Sort characters" }).boundingBox();
@@ -681,6 +726,7 @@ test("the chip row is CAPPED, and the rest are one disclosure away", async ({ mo
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
   await component.getByRole("button", { name: moreTagsName(4) }).click();
@@ -693,6 +739,7 @@ test("an ACTIVE chip is never hidden by the cap (a filter you cannot see is one 
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   await component.getByRole("button", { name: moreTagsName(4) }).click();
   await component.getByRole("button", { name: BEYOND_CAP_CHIP }).click();
@@ -705,6 +752,7 @@ test("a 72-character tag name TRUNCATES inside the pane instead of overflowing i
   await routeManyTags(page, 0, [{ id: "tag_long", name: LONG_TAG }]);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   const chip = component.locator("[data-tag-filter-state]");
   const chipBox = await chip.boundingBox();
@@ -724,6 +772,7 @@ test("a chip's accessible name states the ACTION, not just the state, around the
   await routeManyTags(page, 1);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   const chip = component.locator("[data-tag-filter-state]");
   await expect(chip).toHaveAttribute("aria-label", "Filter by bulk-00: off — activate to include");
@@ -738,6 +787,7 @@ test("cycling a chip SPEAKS the new result count (it changed the list silently b
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
+  await openFilters(component);
   const status = component.getByRole("status");
   await expect(status).toHaveText("1 character");
   // Excluding the only tag on the only character empties the list — and says so.
@@ -760,7 +810,8 @@ test("the chip vocabulary is the TAG LIBRARY — a tag no loaded row carries sti
     "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
-  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
+  await openFilters(component);
 
   await expect(component.getByRole("button", { name: "Filter by noir: off — activate to include" })).toBeVisible();
 });
@@ -805,7 +856,7 @@ test("a persisted filter for a DELETED tag still renders a clearable chip (it ca
   await component.getByRole("button", { name: DEAD_TAG_CHIP }).click();
   await component.getByRole("button", { name: "Filter by Deleted tag: excluded — activate to clear" }).click();
   await expect(component.getByRole("button", { name: "Filter by Deleted tag: off — activate to include" })).toHaveCount(0);
-  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
 });
 
 // W5 — REFERENTIAL INTEGRITY AT READ (staleness-and-session-freshness.md §4.2.2). The chip above made the
@@ -825,7 +876,7 @@ test("W5 a persisted include-filter for a DELETED tag does NOT empty the library
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
   // The row is on screen — the dead entry filtered nothing…
-  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(row(component, "Bolt")).toBeVisible();
   // …and it is still visible + clearable, so the state is inert rather than hidden (no write-on-render).
   await expect(component.getByRole("button", { name: DEAD_TAG_CHIP })).toBeVisible();
   // …and the settled COLLECTION request carries no tag arm at all. (The FIRST one may still carry the dead
@@ -849,8 +900,8 @@ test("W5 a LIVE tag filter still filters — the drop is referential, not a disa
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
-  await expect(component.getByText("Cassius")).toBeVisible();
-  await expect(component.getByText("Bolt")).toHaveCount(0);
+  await expect(row(component, "Cassius")).toBeVisible();
+  await expect(row(component, "Bolt")).toHaveCount(0);
   await expect.poll(() => lastCollectionInput(trpc)?.includeTagIds, { intervals: [50, 100, 200] }).toEqual(["tag_rpg"]);
 });
 
@@ -928,7 +979,7 @@ function resolvedPx(component: Locator, token: string): Promise<number> {
 test("the filter rail NAMES its two groups, each under its own hairline (CD1 — a grouping is not a box)", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
-  await expect(component.getByText("Starla")).toBeVisible();
+  await expect(row(component, "Starla")).toBeVisible();
 
   await Promise.all(
     RAIL_GROUPS.map(async (name) => {
@@ -949,6 +1000,7 @@ test("the rail renders THREE distinct registers — a command, a filter chip and
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   const commandLocator = component.getByRole("button", { name: "Group by tag" });
   const chipLocator = component.getByRole("button", { name: RAIL_CHIP });
@@ -979,6 +1031,7 @@ test("a filter chip DRAWS its pill at rest, at the pointer's own touch floor", a
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   const chip = component.getByRole("button", { name: RAIL_CHIP });
   const register = await registerOf(chip);
@@ -998,6 +1051,7 @@ test("the chip rail runs at the tight 32px pitch the grouping is paid for out of
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   // Two chips on consecutive wrapped lines: the pitch is the chip box + the atom gap, and nothing else.
   const tops = await component
@@ -1023,14 +1077,28 @@ test("the chip rail runs at the tight 32px pitch the grouping is paid for out of
  *  `character-filter-chips.tsx`. This is the fence doing its job, not a coincidence. */
 const RAIL_CHROME_CEILING_PX = 264;
 
-test("naming the groups stays HEIGHT-NEUTRAL — the chrome above the first row holds its budget", async ({ mount, page }) => {
+/** The chrome the OPEN rail spends, which is one wrapped line more than it used to: the group's own
+ *  disclosure ("More filters" / "Fewer filters") is a rail cell like any other, and at 307px with the
+ *  8-chip cap it lands on a third line — measured 262.25 → 293.375 here (#491).
+ *
+ *  THE 264px FENCE SURVIVES — ITS INPUT CHANGED. That fence was minted to keep the chrome above the first
+ *  character row cheap AT REST, and it was the resting spelling because the rail was unconditional. The
+ *  resting spelling is the COLLAPSED rail now, and it holds 264 with room to spare (the #491 pin below
+ *  states it). This second ceiling keeps the OPEN arm fenced too, so the rail cannot quietly grow a fourth
+ *  line behind a disclosure nobody re-measures. It is deliberately NOT a licence to reopen the refused
+ *  glyph-cell arm (`character-filter-chips.tsx`'s `TagFilterChip` refusal, owner ARM B 2026-08-17): that
+ *  cost lands on EVERY resting chip and would spend this budget again on top. */
+const OPEN_RAIL_CHROME_CEILING_PX = 300;
+
+test("naming the groups stays HEIGHT-NEUTRAL — the OPEN rail's chrome holds its budget", async ({ mount, page }) => {
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   const list = component.getByRole("list", { name: "Character library" });
   const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
-  expect((listBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeLessThanOrEqual(RAIL_CHROME_CEILING_PX);
+  expect((listBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeLessThanOrEqual(OPEN_RAIL_CHROME_CEILING_PX);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1069,6 +1137,7 @@ test("P1 the expansion is BOUNDED — the character list keeps its height and th
   await routeBigVocabulary(page, OWNER_VOCABULARY);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   const scroller = component.locator('[data-slot="virtual-list-scroll"]');
   const beforeHeight = await scroller.evaluate((el: Element) => el.clientHeight);
@@ -1107,6 +1176,7 @@ test("P1 the expanded vocabulary has an INDEX — the search box narrows it to t
   await routeBigVocabulary(page, OWNER_VOCABULARY);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
   await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
 
   await component.getByRole("searchbox", { name: "Filter tags" }).fill("vocab-500");
@@ -1124,6 +1194,7 @@ test("P1 an ACTIVE tag leads the expanded panel, above its fold", async ({ mount
   await routeBigVocabulary(page, OWNER_VOCABULARY);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
   await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
 
   // A tag from deep in the ranking, reached through the index, then switched on.
@@ -1147,7 +1218,8 @@ test("P1 an ACTIVE tag leads the expanded panel, above its fold", async ({ mount
 test("P2 a search-AND-filter empty names both causes and offers both exits", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
-  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(row(component, "Cassius")).toBeVisible();
+  await openFilters(component);
 
   await component.getByRole("button", { name: "Filter by rpg: off — activate to include" }).click();
   await component.getByPlaceholder("Search characters…").fill("zzzqqq");
@@ -1178,6 +1250,7 @@ test("P2 selecting a chip no longer reshuffles the rail — the count datum cann
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   // Press the LAST chip of the capped rail; watch the FIRST one. The datum used to mount at the HEAD of the
   // control line, so this observer moved 18px on a click that happened four rows away from it.
@@ -1211,6 +1284,7 @@ test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does 
   });
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await hold.requested;
+  await openFilters(component);
 
   // HELD: the reserve is rendered, and it is what the group is spending its height on.
   const group = component.getByRole("group", { name: "Filters" });
@@ -1231,6 +1305,7 @@ test("the rail's text affordances carry disclosure semantics and object-qualifie
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   // The disclosure is a DISCLOSURE: a verb, its state, and the region it owns.
   const more = component.getByRole("button", { name: moreTagsName(4) });
@@ -1260,7 +1335,7 @@ test("the rail's text affordances carry disclosure semantics and object-qualifie
 test("the result count is typeset as a datum, inside the Filters group", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
-  await expect(component.getByText("Starla")).toBeVisible();
+  await expect(row(component, "Starla")).toBeVisible();
 
   const status = component.getByRole("status");
   await expect(status).toHaveText("3 characters");
@@ -1277,6 +1352,7 @@ test("a focused SELECTED chip rings in a different hue from its selection ring",
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
 
   const chip = component.getByRole("button", { name: RAIL_CHIP });
   await chip.click();
@@ -1428,4 +1504,215 @@ test("P1-3 a starred row shows its ★ at rest on the TITLE LINE, and it yields 
   await expect(toggle).toHaveCSS("opacity", "1");
   // VISIBILITY, not display: the marker's box stays, so the title line cannot reflow under the pointer.
   await expect(marker).toHaveCSS("visibility", "hidden");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE 2026-08-22 SIDE-EYE PASS (rail sweep 4/10, docs/reviews/side-eye/2026-08-22-rail-characters.md).
+// #491 the reachability P1s · #492 the accname P1 · #493 the honesty P2s. Every pin below is a rendered
+// tree or a rendered geometry, at the docked LIST width, on the shapes the review measured.
+
+/** A library the pane can never finish paging: the responder serves ONE page and reports a census far
+ *  beyond it. That is what holds the PARTIAL state settled — a real second page would be auto-pulled by the
+ *  tail-fetch guard inside this story's short viewport, and asserting mid-flight is the flake the CT law
+ *  bans. What is under test is the two LABELS the partial state produces, and they read `loaded` against
+ *  `totalCount` only. */
+const BIG_CENSUS = 327;
+
+function routePartialLibrary(page: Page, rows: readonly ReturnType<typeof makeCharacterSummary>[]): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "character.list": (input: unknown) => {
+      const args = (input ?? {}) as { starred?: boolean; limit?: number };
+      const isCollection = args.starred === undefined && args.limit !== COUNT_ONLY_PAGE;
+      return { items: isCollection ? rows : [], nextCursor: null, totalCount: BIG_CENSUS };
+    },
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+}
+
+// #491 P1-3/P1-4 — the FILTERS block was 34% of the desktop pane and 42% of the phone, density-immune, and
+// the first thing between a keyboard user and the library. It is collapsed on first visit now. The pin is
+// the RENDERED absence plus the chrome geometry, never the store: a store assertion would stay green while
+// the pixels shipped the wall.
+test("#491 the tag vocabulary is COLLAPSED on first visit, and the disclosure brings it back", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  // Not one chip of the vocabulary — and the `+N more` disclosure that led to the 551-chip panel is gone
+  // with it, so the two-click path to the wall starts from a deliberate act.
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(0);
+  await expect(component.getByRole("button", { name: moreTagsName(4) })).toHaveCount(0);
+
+  // The whole point, in pixels: the chrome above the first character row. The ratified fence is 264px and
+  // it was minted against the RESTING rail — which is this one now. The resting chrome must hold it, and
+  // hold it with margin, because holding it exactly is what the 8-chip rail already did (262.25) while
+  // being the thing the review filed.
+  const list = component.getByRole("list", { name: "Character library" });
+  const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
+  const collapsedChrome = (listBox?.y ?? 0) - (paneBox?.y ?? 0);
+  expect(collapsedChrome).toBeLessThan(RAIL_CHROME_CEILING_PX);
+  // …and it is a DISCLOSURE, not a deletion: one press restores exactly the rail that was there before —
+  // and that rail costs MORE chrome, which is the saving, measured rather than asserted about the store.
+  await openFilters(component);
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
+  const openBox = await list.boundingBox();
+  expect((openBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeGreaterThan(collapsedChrome);
+  await expect(component.getByRole("button", { name: FEWER_FILTERS })).toHaveAttribute("aria-expanded", "true");
+  await component.getByRole("button", { name: FEWER_FILTERS }).click();
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(0);
+});
+
+// #491, THE INVARIANT THE COLLAPSE MUST NOT BREAK — "a filter you cannot see is a filter you cannot turn
+// off" (the owner's live P1, 2026-08-13). The collapse hides the INACTIVE vocabulary and nothing else: the
+// scope pills, every ACTIVE chip, the `N active` datum and Clear all all render collapsed.
+test("#491 a filter you cannot see is a filter you cannot turn off — every ACTIVE chip survives the collapse", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  // At rest, with nothing filtering, the group is its name + its disclosure + its datum: the scope pills
+  // are vocabulary too while they are OFF, and vocabulary is what the disclosure is for.
+  const favorites = component.getByRole("button", { name: "Show only favorites" });
+  await expect(favorites).toHaveCount(0);
+
+  // Switch BOTH a scope pill and a tag chip on from inside the open rail, then shut the rail on them.
+  await openFilters(component);
+  await favorites.click();
+  await component.getByRole("button", { name: RAIL_CHIP }).click();
+  await component.getByRole("button", { name: FEWER_FILTERS }).click();
+
+  // Both survive — a live filter is always on screen and always clearable. The eleven INACTIVE tag chips
+  // and the unpressed Archived pill are not, which is the whole saving.
+  await expect(favorites).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show archived characters" })).toHaveCount(0);
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Filter by bulk-00: included — activate to exclude" })).toBeVisible();
+  await expect(component.getByText("2 active")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Clear all filters" })).toBeVisible();
+});
+
+// #491 P1-1 — 551 sequentially tabbable chips, 529 of them scrolled out of the 192px viewport, put 563 tab
+// stops between a keyboard user and the first character row. The cloud is ONE stop with arrows within it
+// (WAI-APG's toolbar pattern). The pin is the rendered tab order, not the hook.
+test("#491 the expanded vocabulary is ONE tab stop — arrows move within the cloud", async ({ mount, page }) => {
+  await routeBigVocabulary(page, OWNER_VOCABULARY);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
+  await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
+
+  const cloud = component.getByRole("toolbar", { name: "Tag filter vocabulary" });
+  await expect(cloud).toBeVisible();
+  // EXACTLY ONE chip in the tab sequence, however many are mounted. Before: every one of them.
+  await expect(cloud.locator('[data-tag-filter-state][tabindex="0"]')).toHaveCount(1);
+  await expect(cloud.locator('[data-tag-filter-state][tabindex="-1"]').first()).toBeAttached();
+
+  // …and the arrows are the way around it.
+  const chips = cloud.locator("[data-tag-filter-state]");
+  await chips.first().focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(chips.nth(1)).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(chips.first()).toBeFocused();
+});
+
+// #491 P1-1 (the other half) — the shell's `Skip to content` moves focus to `<main>`, i.e. PAST this pane,
+// so a keyboard user who wanted the LIST had no shortcut past the search, the sort, the two view commands,
+// the favourites strip and the filter rail. The pane carries its own, and it lands ON a character.
+test("#491 the pane's skip link lands focus on the first character row", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(row(component, "Starla")).toBeVisible();
+
+  // FIRST among the pane's focusables, in DOM order — the whole contract: a skip control that is not the
+  // first focusable is a second tab stop, not a skip. Asserted structurally rather than by pressing Tab,
+  // because where a CT's initial focus SITS is the harness's business, not this pane's.
+  const skip = component.getByRole("button", { name: "Skip to characters" });
+  const isFirstInPane = await skip.evaluate((el: HTMLElement) => {
+    // The pane is the surface's own focus container (`tabIndex={-1}`) — scoped there rather than to the
+    // story root, which also mounts the LIST chrome band above the surface.
+    const pane = el.closest<HTMLElement>('[tabindex="-1"]');
+    const focusables = pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])');
+    return focusables?.[0] === el;
+  });
+  expect(isFirstInPane).toBe(true);
+
+  await skip.focus();
+  await page.keyboard.press("Enter");
+  await expect(component.locator('[data-slot="list-row-body"]').first()).toBeFocused();
+});
+
+// ── #492 · WCAG 2.5.3 / the three Emilys ─────────────────────────────────────────────────────────────
+// The library holds real same-name collisions (three `Emily` at handles emily/emily-2/emily-3, `Mira`×2
+// and `Nell`×2 inside the first 50 rows) and every row announced its NAME alone: three identical
+// `button "Emily"`. Voice control could address none of them; list-navigation and low-verbosity screen
+// reader modes, which drop descriptions, heard one name three times.
+const EMILY_PLAIN = makeCharacterSummary({ id: "char_e1", name: "Emily", handle: castId<CharacterHandle>("emily"), createdAt: 3000 });
+const EMILY_THIRD = makeCharacterSummary({ id: "char_e3", name: "Emily", handle: castId<CharacterHandle>("emily-3"), createdAt: 2000 });
+
+test("#492 two characters named Emily announce two DIFFERENT names — row body and every control on it", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": characterListResponder([EMILY_PLAIN, EMILY_THIRD]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.locator('[data-slot="list-row-title"]').first()).toHaveText("Emily");
+
+  // The handle is spent ONLY where the name does not already say it: `emily` IS `slugifyHandle("Emily")`,
+  // so that row stays plain, and the one that cannot be derived carries its disambiguator.
+  await expect(component.getByRole("button", { name: "Emily", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Emily · emily-3", exact: true })).toHaveCount(1);
+
+  // …and the row's CONTROLS speak the same identity (`rowActionSubject`, #443/#458/#463) — fixing only the
+  // body would have left two identically-named kebabs and two identical "Chat with Emily" behind it.
+  await expect(component.getByRole("button", { name: 'Actions for "Emily" · emily-3' })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: 'Chat with "Emily" · emily-3' })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Chat with Emily", exact: true })).toHaveCount(1);
+});
+
+// ── #493 · the honesty P2s ───────────────────────────────────────────────────────────────────────────
+
+// P2-1 — `30 of 327 characters` is the PAGE SIZE worded as a result count, 230px under a band already
+// reading `CHARACTERS 327`. At rest the status now states the census; the loaded number moves to the foot
+// of the list, next to the tail-fetch sentinel, where it is a fact about the list rather than a claim
+// about the library.
+test("#493 the status line states the CENSUS; the loaded count moves to the foot of the list", async ({ mount, page }) => {
+  await routePartialLibrary(page, [ARIA, BOLT, CASSIUS]);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+
+  await expect(component.getByRole("status")).toHaveText(`${String(BIG_CENSUS)} characters`);
+  await expect(component.getByText(`3 of ${String(BIG_CENSUS)} loaded`)).toBeVisible();
+  // The foot line is for the EYE: the status region already speaks the count that matched, and a second
+  // live number under an infinite scroller would announce itself on every page the guard pulls.
+  await expect(component.getByText(`3 of ${String(BIG_CENSUS)} loaded`)).toHaveAttribute("aria-hidden", "true");
+});
+
+// P2-2 — Group produced `ADVENTURE 1 · … · UNCATEGORIZED 27`: four counts summing to the 30 rows paged in,
+// presented as library facts, re-forming under the reader as scrolling pages more in. The mode states its
+// scope now, wherever the loaded set is a strict subset of what matched.
+test("#493 group-by-tag says it is grouping the LOADED page, not the library", async ({ mount, page }) => {
+  await routePartialLibrary(page, [ARIA, BOLT, CASSIUS]);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+  await component.getByRole("button", { name: "Group by tag" }).click();
+
+  await expect(component.getByText(`Grouping the 3 of ${String(BIG_CENSUS)} characters loaded so far`, { exact: false })).toBeVisible();
+  await expect(component.getByText("Uncategorized")).toBeVisible();
+});
+
+test("#493 a COMPLETE library groups with no caveat — the notice is a claim about partiality, not decoration", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+  await component.getByRole("button", { name: "Group by tag" }).click();
+
+  await expect(component.getByText("loaded so far", { exact: false })).toHaveCount(0);
+  await expect(component.getByText(LOADED_PROGRESS)).toHaveCount(0);
 });

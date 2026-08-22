@@ -58,6 +58,7 @@ export {
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
 } from "./injection-copy.ts";
+export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export { logClock } from "./log-clock.ts";
 export { messageBubbleClass } from "./message-bubble-class.ts";
 export type { MessageRenderContext } from "./message-render.ts";
