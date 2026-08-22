@@ -131,7 +131,11 @@ describe("registerSpa", () => {
 
   test("traversal through the static handler never escapes the bundle root", async () => {
     const attempts = ["/../secret.txt", "/%2e%2e/secret.txt", "/assets/..%2f..%2fsecret.txt"];
-    const responses = await Promise.all(attempts.map((path) => app.request(path, { headers: { accept: "*/*" } })));
+    // `Promise.resolve` is not decoration: hono types `app.request` as `Response | Promise<Response>`
+    // (hono-base.d.ts — one signature, a union return), so a bare `Promise.all` over the mapped calls is
+    // aggregating values that the type system says may not be thenable. Normalizing each one keeps the
+    // fan-out honest under both arms of that union instead of relying on Promise.all's coercion.
+    const responses = await Promise.all(attempts.map((path) => Promise.resolve(app.request(path, { headers: { accept: "*/*" } }))));
     const bodies = await Promise.all(responses.map((res) => res.text()));
     // A real sentinel file exists at each traversal target — a broken guard would leak it as a 200
     // carrying SECRET_CONTENTS, not just 404 on a missing path.
