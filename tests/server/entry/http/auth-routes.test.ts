@@ -334,14 +334,22 @@ describe("logout — CSRF gate", () => {
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBe(endSession);
   });
 
-  // #141 — the owner-observed gap: the bare end_session_endpoint stranded the user on the IdP's logged-out
-  // page. With a request origin that matches OUR OIDC_REDIRECT_URIS allowlist, the end-session URL now carries
-  // post_logout_redirect_uri=<orb>/login on that SAME validated origin, so the IdP returns the browser to our
-  // login screen after ending the SSO session.
-  test("#141 with oidc deps + an allowlisted origin → end-session URL carries post_logout_redirect_uri=<orb>/login", async () => {
+  // #141 — THE END-SESSION URL IS SENT BARE, AND THAT IS THE SECURITY-LOAD-BEARING SHAPE. A first attempt
+  // (8446a55ce) appended post_logout_redirect_uri=<orb>/login to fix the owner's UX papercut; it was reverted
+  // after being measured against the real IdP. authentik 2026.5.5's `EndSessionView.validate` raises
+  // `invalid_request`/`id_token_hint_missing` → a 400 page whenever post_logout_redirect_uri arrives with no
+  // id_token_hint AND the provider has any registered post-logout URI — and it raises BEFORE the flow planner,
+  // so the invalidation flow never runs and THE UPSTREAM SSO SESSION SURVIVES the sign-out. We persist no
+  // id_token (the sessions table stores only a token hash), so there is no hint to pair the param with.
+  //
+  // These two pins are the regression fence: re-adding the param on EITHER origin arm reds them. The allowlist
+  // arm is the one that matters (an off-allowlist origin never resolved a redirect URI anyway) — it proves the
+  // param stays absent even when the origin WOULD validate, which is exactly the case that shipped the 400.
+  test("#141 with oidc deps + an ALLOWLISTED origin → the end-session URL is still BARE (no post_logout_redirect_uri)", async () => {
     const rec = recordingSessions();
     const endSession = "https://idp.example/application/o/orb/end-session/";
-    // fakeOidcDeps.redirectAllowlist = ["https://app.example/api/auth/oidc/callback"], so this origin resolves.
+    // fakeOidcDeps.redirectAllowlist = ["https://app.example/api/auth/oidc/callback"], so this origin resolves —
+    // and the URL must STILL carry no query at all.
     const oidc = fakeOidcDeps({
       getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
     });
@@ -359,15 +367,12 @@ describe("logout — CSRF gate", () => {
     )(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", "x-forwarded-proto": "https", "x-forwarded-host": "app.example" } }));
     expect(res.status).toBe(200);
     const { endSessionUrl } = (await res.json()) as { endSessionUrl: string | null };
-    const parsed = new URL(endSessionUrl ?? "");
-    expect(parsed.origin + parsed.pathname).toBe("https://idp.example/application/o/orb/end-session/");
-    expect(parsed.searchParams.get("post_logout_redirect_uri")).toBe("https://app.example/login");
+    expect(endSessionUrl).toBe(endSession);
+    // Byte-identical to the discovery value: no param was appended, and none was smuggled under another name.
+    expect(new URL(endSessionUrl ?? "").search).toBe("");
   });
 
-  // #141 open-redirect guard — a spoofed X-Forwarded-Host that is NOT in OUR callback allowlist must NEVER be
-  // reflected into post_logout_redirect_uri. The param is simply omitted (the bare endpoint stands); the origin
-  // is gated by the SAME allowlist deriveRedirectUri uses for the callback.
-  test("#141 an off-allowlist forwarded-host is NOT reflected — no post_logout_redirect_uri param", async () => {
+  test("#141 an off-allowlist forwarded-host changes nothing — the same bare end-session URL", async () => {
     const rec = recordingSessions();
     const endSession = "https://idp.example/application/o/orb/end-session/";
     const oidc = fakeOidcDeps({
@@ -388,7 +393,7 @@ describe("logout — CSRF gate", () => {
     expect(res.status).toBe(200);
     const { endSessionUrl } = (await res.json()) as { endSessionUrl: string | null };
     expect(endSessionUrl).toBe(endSession);
-    expect(new URL(endSessionUrl ?? "").searchParams.get("post_logout_redirect_uri")).toBeNull();
+    expect(new URL(endSessionUrl ?? "").search).toBe("");
   });
 });
 
