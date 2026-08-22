@@ -101,6 +101,55 @@ async function labels(page: Page, pattern: RegExp): Promise<readonly string[]> {
   return all.filter((label) => pattern.test(label));
 }
 
+/** Every `aria-label`-named control INSIDE a persona row, grouped by row, in DOM order. Scoped to the rows
+ *  (each row is the `persona-row-name` column's parent) so the band's own verbs — New persona, Restore — are
+ *  not mistaken for row controls. */
+function rowControlLabels(page: Page): Promise<readonly (readonly string[])[]> {
+  return page
+    .locator('[data-slot="persona-row-name"]')
+    .evaluateAll((els: readonly Element[]): readonly (readonly string[])[] =>
+      els.map((el) =>
+        Array.from((el.parentElement as HTMLElement).querySelectorAll("button[aria-label]")).map((button) => button.getAttribute("aria-label") ?? ""),
+      ),
+    );
+}
+
+// ── EVERY ROW CONTROL NAMES ITS ROW (#463) ──────────────────────────────────────────────────────────
+// #458 fixed the two controls that already embedded the name (the kebab + the stretched select target) and
+// left the other five GENERIC: "Rename persona", "Change avatar", "Favorite"/"Unfavorite", "Set as default",
+// "Show details" were byte-identical on EVERY row. That collision does not need two personas to share a name
+// — it exists between any two rows — so a reader tabbing the list hears the same five controls three times
+// and cannot tell which persona they act on. The fix is the #443 subject on every one of them, which is why
+// this pin is a set-size claim over the whole list rather than a per-label spelling.
+test("no two controls in the persona list share an accessible name — every row control names its row", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<PersonaYouSheetStory />);
+  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
+
+  const rows = await rowControlLabels(page);
+  expect(rows).toHaveLength(3);
+  const all = rows.flat();
+  // The receipt names the offenders rather than a bare count — the defect read
+  // ["Rename persona","Rename persona","Rename persona","Change avatar", …].
+  expect(all.filter((label, index) => all.indexOf(label) !== index)).toEqual([]);
+});
+
+// The mechanism behind the set-size claim, stated so a future "make them unique some other way" cannot pass:
+// what a row's controls carry is the row's own SUBJECT (the persona's name, plus the #458 qualifier where the
+// name itself collided) — never an opaque index or an id.
+test("each row's controls all embed that row's persona name", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<PersonaYouSheetStory />);
+  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
+
+  const [nova, ...travelers] = await rowControlLabels(page);
+  expect(nova?.length ?? 0).toBeGreaterThan(3);
+  expect((nova ?? []).filter((label) => !label.includes("Nova"))).toEqual([]);
+  for (const row of travelers) {
+    expect(row.filter((label) => !label.includes("Traveler"))).toEqual([]);
+  }
+});
+
 test("two same-named personas get DISTINCT kebab names — the row's actions announce which row they belong to", async ({ mount, page }) => {
   await stub(page);
   await mount(<PersonaYouSheetStory />);

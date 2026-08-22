@@ -40,10 +40,15 @@ export function PersonaRowNameColumn({
   persona,
   isDefault,
   onRename,
+  subject,
 }: {
   readonly persona: PersonaListItem;
   readonly isDefault: boolean;
   readonly onRename: (name: string) => void;
+  /** The row's ANNOUNCED IDENTITY, resolved once by the row (`rowActionSubject`, #443/#458/#463) and passed
+   *  in rather than re-derived here — a second derivation is how one row ends up announcing itself two ways.
+   *  It is the persona's name, carrying the list-resolved disambiguator only when the surface spent one. */
+  readonly subject: string;
 }): ReactElement {
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(persona.name);
@@ -79,6 +84,9 @@ export function PersonaRowNameColumn({
       <Row align="center" className="min-w-0" gap="field">
         {editingName ? (
           <Input
+            // THE EDIT ARM KEEPS A FIELD LABEL, deliberately (#463 fence): a textbox is named for the field it
+            // holds, not for a verb plus its subject, and this arm cannot collide the way the row's buttons
+            // did — blur commits, so at most one row is ever in edit state.
             aria-label="Persona name"
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus={true}
@@ -98,7 +106,10 @@ export function PersonaRowNameColumn({
           />
         ) : (
           <Button
-            aria-label="Rename persona"
+            // NAMES ITS ROW (#463): a bare "Rename persona" was byte-identical on every row in the list — and
+            // this control's own visible text (the persona's name) is overridden by the label, so the row's
+            // identity was announced NOWHERE on the one control that renders it.
+            aria-label={`Rename ${subject}`}
             className="pointer-events-auto min-w-0 justify-start truncate"
             intent="ghost"
             onClick={(): void => {
