@@ -21,7 +21,7 @@ import { useState } from "react";
 import { ConfirmDialog, FINE_INERT_UNTIL_HOVER, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
-import { cn, downloadTextFile, notify, oversizeUploadMessage } from "#lib";
+import { cn, downloadTextFile, notify, oversizeUploadMessage, rowActionSubject } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import { PersonaEditor } from "./persona-editor.tsx";
 import { PersonaRowNameColumn } from "./persona-row-name-column.tsx";
@@ -30,6 +30,11 @@ type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
 export interface PersonaPanelRowProps {
   readonly persona: PersonaListItem;
+  /** The row's action-name DISAMBIGUATOR, resolved by the surface across the WHOLE list (`rowQualifiers`,
+   *  #443/#458) — absent when this row's name is already unique in the list, which is the common case (see
+   *  the surface's "spent, not sprayed" note). Every control that embeds the persona's name announces
+   *  `rowActionSubject(name, qualifier)`, so one row can never announce its subject two different ways. */
+  readonly qualifier?: string;
   readonly isCurrent: boolean;
   readonly isDefault: boolean;
   readonly expanded: boolean;
@@ -42,6 +47,7 @@ export interface PersonaPanelRowProps {
 /** A panel persona row: click-body sets Current; avatar/name edit inline; a chevron discloses DETAILS. */
 export function PersonaPanelRow({
   persona,
+  qualifier,
   isCurrent,
   isDefault,
   expanded,
@@ -78,7 +84,10 @@ export function PersonaPanelRow({
     }
   };
 
-  const selectLabel = selectTargetLabel(persona.name, isCurrent);
+  // ONE ANNOUNCED IDENTITY PER ROW (#443/#458): the subject the surface resolved, spelled once here so the
+  // stretched select target and the kebab can never name the same row two different ways.
+  const subject = rowActionSubject(persona.name, qualifier);
+  const selectLabel = selectTargetLabel(subject, isCurrent);
 
   const onToggleFavorite = (): void => {
     update.mutate({ personaId: persona.id, input: { starred: !persona.starred } });
@@ -224,6 +233,7 @@ export function PersonaPanelRow({
               onSetDefault={onSetDefault}
               onToggleFavorite={onToggleFavorite}
               starred={persona.starred}
+              subject={subject}
             />
           </Row>
         </Layer>
@@ -273,14 +283,20 @@ function PersonaRowMenu({
   onSetDefault,
   onToggleFavorite,
   starred,
+  subject,
 }: {
   readonly isDefault: boolean;
+  /** The persona's own name — the destructive confirm quotes it, and a confirm body speaks to a reader who
+   *  can SEE which row they opened, so it never wants the disambiguator. */
   readonly name: string;
   readonly onDelete: () => void;
   readonly onExport: () => Promise<void>;
   readonly onSetDefault: () => void;
   readonly onToggleFavorite: () => void;
   readonly starred: boolean;
+  /** The row's announced identity (`rowActionSubject`) — what the TRIGGER's accessible name embeds, so two
+   *  same-named rows can't hand one list two controls called "Actions for Traveler" (#443/#458). */
+  readonly subject: string;
 }): ReactElement {
   return (
     <RowActionsMenu
@@ -289,7 +305,7 @@ function PersonaRowMenu({
         description: deleteCopy(name),
         onConfirm: onDelete,
       }}
-      label={`Actions for ${name}`}
+      label={`Actions for ${subject}`}
     >
       <MenuItem className={ROW_ACTION_OVERFLOW} onClick={onToggleFavorite}>
         <Icon icon={Heart} size="sm" />
@@ -319,9 +335,13 @@ function PersonaRowMenu({
  *  are ALREADY playing as: a verb offering an act that is a no-op, contradicted by its own `aria-current` one
  *  word later. §13.10 N4 names a control by what activating it DOES, and on the current row there is nothing
  *  to do; N3 keeps the STABLE identity — the persona's name — leading in BOTH arms, so a name-scoped lookup
- *  survives the Current pick moving. File-local: this is the row's own naming rule, not a shared vocabulary. */
-function selectTargetLabel(name: string, isCurrent: boolean): string {
-  return isCurrent ? `${name} — current persona` : `Switch to ${name}`;
+ *  survives the Current pick moving. File-local: this is the row's own naming rule, not a shared vocabulary.
+ *
+ *  It takes the SUBJECT, not the bare name (#458): with two personas called "Traveler" and neither current,
+ *  a bare name gave one list two buttons called "Switch to Traveler". The subject still leads with the name,
+ *  so N3 is unchanged — it just carries the list-resolved disambiguator when there is one to carry. */
+function selectTargetLabel(subject: string, isCurrent: boolean): string {
+  return isCurrent ? `${subject} — current persona` : `Switch to ${subject}`;
 }
 
 /** The ONE delete-confirm body — both confirms (the kebab's and the editor's) render it. */

@@ -6,7 +6,7 @@
 // mounts under `CtDataProviders` (the trpc client) — the overlay tests trigger no network call.
 
 import { QueryBoundary } from "@orb/client/data";
-import { PersonaPanelRow } from "@orb/client/features/persona";
+import { PersonaPanelRow, personaChrome } from "@orb/client/features/persona";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { selectChat } from "@orb/client/state";
@@ -108,6 +108,22 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
           persona={{ ...PERSONA, name: "Traveler", starred: true }}
         />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The MOBILE YOU SHEET's persona list — `personaChrome.body("sheet")`, which is the production projection
+ *  (`shell-chrome-unification.md` §B: the You sheet inlines the SAME sections the desktop popover shows).
+ *  Driven through the registered chrome entry rather than the surface module so the story mounts exactly what
+ *  the sheet mounts, and imports it through the feature's front door (a relative reach into `packages/` would
+ *  bind a different React context instance).
+ *
+ *  The list itself comes from the `.ct.tsx`'s `persona.list` + `settings.getUserSettings` stubs — this story
+ *  supplies only the 320px sheet box, which is the narrowest real host for these rows (#458). */
+export function PersonaYouSheetStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 320 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("sheet") : null}</div>
     </CtDataProviders>
   );
 }
