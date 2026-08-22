@@ -28,16 +28,15 @@ test("a known fork source prints the lineage between the kind and the stamp", ()
   );
 });
 
-// #99 item 3 — the ACTIVE row says so in WORDS. The state used to live only in the trailing cluster's
-// filled dot while the context panel said "Active" in a chip, which is one fact in two vocabularies with
-// the row's half unreadable. It leads the subtitle (a truncating text column) rather than returning to the
-// title-line Badge that O-1 killed as a measured P0 — see preset-row-view.ts's doc comment.
-test("the ACTIVE row leads its subtitle with the word, and an inactive row is byte-identical to before", () => {
-  expect(presetRowSubtitle({ kind: "generation", updatedAt: 7, forkedFromName: null, active: true }, formatRelative)).toBe("Active · generation · edited T-7");
-  expect(presetRowSubtitle({ kind: "generation", updatedAt: 7, forkedFromName: "Default", active: true }, formatRelative)).toBe(
-    "Active · generation · forked from Default · edited T-7",
-  );
-  expect(presetRowSubtitle({ kind: "generation", updatedAt: 7, forkedFromName: null, active: false }, formatRelative)).toBe(
-    presetRowSubtitle({ kind: "generation", updatedAt: 7, forkedFromName: null }, formatRelative),
-  );
+// #481 (side-eye 2026-08-22 P3-5) — THE SUBTITLE NEVER CARRIES THE ACTIVE MARKER. #99 item 3 briefly led it
+// with "Active · " on the theory that the subtitle is a flexible truncating column; measured at the docked
+// list it is 155px, and the prefix pushed the ACTIVE row's own timestamp into an ellipsis while every
+// inactive row showed its metadata whole. The derivation is now the SAME STRING for every row, active or
+// not — the state's readout is the row's radio (filled dot + `aria-checked`) plus the activation
+// announcement, neither of which spends subtitle width. See preset-row-view.ts's doc comment.
+test("the subtitle is identical whether or not the row is the active pick — no marker, no width spent", () => {
+  const subtitle = presetRowSubtitle({ kind: "roleplay", updatedAt: 7, forkedFromName: null }, formatRelative);
+  expect(subtitle).toBe("roleplay · edited T-7");
+  // The old shape's literal must not survive anywhere in the derivation, on any input.
+  expect(presetRowSubtitle({ kind: "generation", updatedAt: 7, forkedFromName: "Default" }, formatRelative)).not.toContain("Active");
 });

@@ -2,6 +2,9 @@
 // keyboard contract (side-eye F-5), pinned once for every list that composes `LibraryListLayout` +
 // `LibraryRow` with a `semantics="radio"` state toggle.
 //
+// …and since #481 the F-5 half is the APG's SELECTION-WITH-SIDE-EFFECT arm: arrows move focus, Space/Enter
+// commits (see the group hook's header for why the first arm died).
+//
 // Both assertions are about the LIST, not about a component: F-4 only reproduces when rows of DIFFERENT
 // cluster shapes sit in one list (a built-in with no actions menu beside forks that have one), and F-5 only
 // means anything across a set of radios. See the harness for the anatomy.
@@ -47,23 +50,72 @@ test("F-5: exactly one radio is tabbable, and it is the checked one", async ({ m
   expect(groupTabIndex).toBe(-1);
 });
 
-test("F-5: ArrowDown moves the selection and the roving tab stop follows it", async ({ mount, page }) => {
+// ── #481: FOCUS IS NOT SELECTION ─────────────────────────────────────────────────────────────────
+// This group used to activate on every arrow key (selection-follows-focus), and the one list that owns a
+// radiogroup here persists its pick as a GLOBAL setting: a live keyboard walk produced one
+// `settings.updateUserSettingsSection` write PER ARROW PRESS, with no confirm, no undo and nothing
+// announced. The APG's second arm — selection with a side effect — is the contract now: arrows move focus,
+// Space/Enter commits. The pins below assert the WRITE COUNT, not just the resulting state, because "the
+// active row did not change" is also true when a walk lands back where it started.
+//
+// Every press after the first goes through `page.keyboard`, never `locator.press()`: a locator press FOCUSES
+// its target first, so a second `first.press("ArrowDown")` silently walks from the START again instead of
+// from where the last move left off (it cost this file one confused failure).
+
+test("#481 arrow keys move FOCUS ONLY — a walk across the whole group commits nothing", async ({ mount, page }) => {
   const component = await mount(<LibraryListHarness />);
   await expect(component.getByTestId("active-id")).toHaveText("builtin");
 
   const checked = page.getByRole("radio", { name: "Activate Default for generation" });
   await checked.focus();
-  await checked.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
 
-  // SELECTION FOLLOWS FOCUS, per the pattern: the move activates.
-  await expect(component.getByTestId("active-id")).toHaveText("fork-a");
   const moved = page.getByRole("radio", { name: "Activate Default (edited) for generation" });
-  await expect(moved).toHaveAttribute("aria-checked", "true");
   await expect(moved).toBeFocused();
-  // The tab stop rove: still exactly one, and it is where the user now stands.
+  // Focus moved; the PICK did not — no write, and the row the user is standing on is not checked.
+  await expect(moved).toHaveAttribute("aria-checked", "false");
+  await expect(component.getByTestId("active-id")).toHaveText("builtin");
+
+  // …and it stays true across a longer walk (the live receipt was two presses, two writes).
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowUp");
+  await expect(moved).toBeFocused();
+  await expect(component.getByTestId("commit-count")).toHaveText("0");
+  await expect(component.getByTestId("active-id")).toHaveText("builtin");
+
+  // The tab stop roves WITH FOCUS (not with the check): still exactly one, and it is where the user stands,
+  // so tabbing out and back cannot teleport them to the checked row mid-walk.
   const tabIndexes = await page.getByRole("radio").evaluateAll((els) => els.map((el) => (el as HTMLElement).tabIndex));
   expect(tabIndexes.filter((t) => t === 0)).toHaveLength(1);
   expect(tabIndexes[1]).toBe(0);
+});
+
+test("#481 Space commits the focused radio — exactly one activation for the whole walk", async ({ mount, page }) => {
+  const component = await mount(<LibraryListHarness />);
+  const first = page.getByRole("radio", { name: "Activate Default for generation" });
+  await first.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+
+  const target = page.getByRole("radio", { name: "Activate New preset for generation" });
+  await expect(target).toBeFocused();
+  await expect(component.getByTestId("commit-count")).toHaveText("0");
+
+  await page.keyboard.press(" ");
+  await expect(component.getByTestId("active-id")).toHaveText("fork-b");
+  await expect(target).toHaveAttribute("aria-checked", "true");
+  await expect(component.getByTestId("commit-count")).toHaveText("1");
+});
+
+test("#481 Enter commits too — the other half of the native button's activation", async ({ mount, page }) => {
+  const component = await mount(<LibraryListHarness />);
+  const first = page.getByRole("radio", { name: "Activate Default for generation" });
+  await first.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+
+  await expect(component.getByTestId("active-id")).toHaveText("fork-a");
+  await expect(component.getByTestId("commit-count")).toHaveText("1");
 });
 
 test("F-5: End jumps to the last radio, Home back to the first, wrapping with ArrowUp", async ({ mount, page }) => {
@@ -71,13 +123,16 @@ test("F-5: End jumps to the last radio, Home back to the first, wrapping with Ar
   const first = page.getByRole("radio", { name: "Activate Default for generation" });
   await first.focus();
 
-  await first.press("End");
-  await expect(component.getByTestId("active-id")).toHaveText("fork-b");
+  // Navigation is asserted on FOCUS now (#481) — the moves no longer select, so the active id would say
+  // nothing about where the keys went.
+  await page.keyboard.press("End");
+  await expect(page.getByRole("radio", { name: "Activate New preset for generation" })).toBeFocused();
 
-  await page.getByRole("radio", { name: "Activate New preset for generation" }).press("Home");
-  await expect(component.getByTestId("active-id")).toHaveText("builtin");
+  await page.keyboard.press("Home");
+  await expect(first).toBeFocused();
 
   // ArrowUp from the first wraps to the last (the pattern's own wrap-around).
-  await page.getByRole("radio", { name: "Activate Default for generation" }).press("ArrowUp");
-  await expect(component.getByTestId("active-id")).toHaveText("fork-b");
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("radio", { name: "Activate New preset for generation" })).toBeFocused();
+  await expect(component.getByTestId("commit-count")).toHaveText("0");
 });

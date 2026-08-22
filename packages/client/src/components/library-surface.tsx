@@ -77,8 +77,10 @@ export function LibraryListLayout({
   rowsRadiogroupLabel,
 }: LibraryListLayoutProps): ReactElement {
   const rowsGroup = rowsRadiogroupLabel === undefined ? {} : { role: "radiogroup", "aria-label": rowsRadiogroupLabel };
-  // The radiogroup's keyboard contract (side-eye F-5) — roving tabindex + Arrow/Home/End. A no-op on a
-  // list that renders no `[role=radio]`, which is why it can mount unconditionally beside the optional role.
+  // The radiogroup's keyboard contract (side-eye F-5) — roving tabindex + Arrow/Home/End moving FOCUS ONLY,
+  // with Space/Enter as the commit (#481: arrows used to activate, and this list's activation is a persisted
+  // global setting). A no-op on a list that renders no `[role=radio]`, which is why it can mount
+  // unconditionally beside the optional role.
   const rowsRef = useRef<HTMLDivElement>(null);
   useRovingRadioGroup(rowsRef);
   return (
