@@ -30,7 +30,7 @@
 | path | why |
 | - | - |
 | `probes/st-goldens/` | the SillyTavern parity rig; carries a gitignored captured runtime, fenced in biome/knip/stryker/tsconfig by its own path |
-| `probes/rpg-extraction/` | the RPG structured-extraction probe corpus + committed `SPEC*.md` verdicts |
+| `probes/rpg-extraction/` | the RPG structured-extraction probe rig — durable value is `docs/design/rpg-extraction-one-call-spike.md` + committed `SPEC*.md` verdicts, **not** a results artifact (its `out*/` dirs are gitignored) |
 | `probes/impersonate/` | the impersonation-quality rig with committed `RESULTS.md` + `results.jsonl` |
 | `probes/openrouter/` | seven standing OpenRouter wire probes with committed `RESULTS.md` + `results/*.jsonl` |
 
@@ -62,6 +62,29 @@ retired neo-parity campaign's capture rig — it needs an external neo-tavern wo
 test executes it, and its only citations are the prose lines naming it as the regeneration procedure
 for the committed `tests/support/fixtures/parity/neo-reference.json`
 (`tests/support/parity-runner.ts:5`, the fixture's own `$comment`).
+
+### `probes/rpg-extraction/` — 2026-08-22 disposition (#426)
+
+Per `docs/reviews/tooling/2026-08-22-research-zone-assessment.md`'s deletion shortlist, six
+harnesses were deleted 2026-08-22 (four self-declared `ARCHIVED 2026-08-02 — pre-R2R3 vocabulary …
+do NOT run against the current contracts`, two superseded by `openrouter/f5-effort-translation.ts`'s
+more rigorous, committed answer): `run.ts`, `run-coverage.ts`, `native-wire-probe.ts`,
+`native-format-roundtrip.ts`, `effort-ladder-native-vs-or.ts`, `effort-reasoning-probe.ts`,
+`replay-toolround.ts`. Recover any of them with `git log --diff-filter=D --oneline -- scripts/probes/rpg-extraction/<path>`
+→ `git show <sha>^:scripts/probes/rpg-extraction/<path>`. Their value is preserved in
+`docs/design/rpg-extraction-one-call-spike.md` (§2–§4) + `SPEC.md` + `SPEC-coverage.md`.
+
+The three tracked capture JSONs those harnesses read — `real-cheap-toolround.json`,
+`real-reliable-structured.json`, `real-narrative-turn.json` — are KEPT despite losing every reader
+in this tree: `docs/design/rpg-extraction-one-call-spike.md:1255-1256` still cites them by name as
+the frozen wire-shape record behind the spike's findings. They are a standing evidence artifact, not
+live fixtures — do not treat their presence as a signal that a harness still runs them.
+
+`steer-probe.ts` was assessed as a delete-candidate (superseded by `steer-probe-real.ts`) but kept —
+weak row, 172 lines, costs nothing to keep; see the assessment doc for the full call.
+
+Contrast `openrouter/`, where the "committed RESULTS" claim IS true: `results/*.jsonl` are git-tracked
+and re-included by that dir's own `.gitignore` negation.
 
 ## Tool dependencies that LEFT this zone
 
