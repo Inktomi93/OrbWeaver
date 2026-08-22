@@ -1,8 +1,9 @@
-// ChatsWithCharacterPane — the CHAT-owned body of the character screen's LIST projection
-// (Arm A). Chat owns chat-row anatomy and the `listChats` consumer, so the rows
-// are rendered HERE and the CHARACTER section hosts them: the pane is exported on chat's front door and
-// threaded into `makeCharactersSection` at the composition root (`main.tsx`). Neither feature imports the
-// other — `client-features-no-cross` stays satisfied by construction.
+// ChatsWithCharacterPane — the CHAT-owned body of the character screen's chats projection, hosted by the
+// CONTEXT **Chats** tab (#501; it was the LIST pane's second role until "library stays docked"). Chat owns
+// chat-row anatomy and the `listChats` consumer, so the rows are rendered HERE and the CHARACTER section
+// hosts them: the pane is exported on chat's front door and threaded into `makeCharactersSection` at the
+// composition root (`main.tsx`). Neither feature imports the other — `client-features-no-cross` stays
+// satisfied by construction.
 //
 // The D18 guardrail, structurally: this reads the SAME `chat.listChats` seam as the chats pane, through the
 // SAME `useChatListCollection`, with `characterId` set. There is no character-scoped chat read, key, or
@@ -71,15 +72,16 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
   if (collection.isEmpty && settledQuery === "") {
     return (
       // Scale is the primitive's own business (side-eye P2f): `EmptyState` drops a type step by CONTAINER
-      // QUERY inside a ~307px LIST pane, so this call site says WHAT to teach and nothing about how big.
+      // QUERY inside a narrow side pane, so this call site says WHAT to teach and nothing about how big.
       //
-      // ONE PRIMARY PER REGION (side-eye NR2): the LIST band directly above this pane already carries the
-      // "New chat" primary for this mode, so the empty state's own action demotes to secondary — the empty
-      // state still ACTS (never a dead end), it just stops competing with the band for the same intent. The
-      // identity row above drops its "no chats yet" gloss for the same reason: this pane already says it.
+      // ONE PRIMARY PER REGION (side-eye NR2), AND IT IS THIS ONE AGAIN (#501). While this pane WAS the LIST
+      // pane, the band directly above it carried the region's "New chat" primary and this action demoted to
+      // secondary so the two would not compete for one intent. The pane is a CONTEXT tab now — its region has
+      // no band, no primary and nothing else to act with — so the empty state's action is the region's one
+      // primary. (The hero's "New chat" is CONTENT tier, a different region, and fires the same writer.)
       <EmptyState
         action={
-          <Button intent="secondary" onClick={onNewChat} size="sm">
+          <Button intent="primary" onClick={onNewChat} size="sm">
             <Icon icon={Plus} size="sm" />
             New chat
           </Button>
@@ -110,7 +112,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
   );
 
   return (
-    // INSTRUMENT tier (density-pass-spec.md §3.1): a LIST pane, scanned — same steps as the chats pane it
+    // INSTRUMENT tier (density-pass-spec.md §3.1): a side pane of rows, scanned — same steps as the chats pane it
     // mirrors, so the two lists of the same rows can never drift apart in density.
     <Surface tier="instrument">
       <Stack className="h-full min-h-0" gap="row">

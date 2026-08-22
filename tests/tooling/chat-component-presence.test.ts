@@ -60,7 +60,7 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   },
   "chats-with-character-pane": {
     deferred:
-      "REAL coverage lives OUTSIDE this checker's chat glob: tests/client/features/character/components/characters-list-pane.ct.tsx composes picker+editor+projection and drives the swap, rows, focus ownership and back-focus. This checker only resolves chat-dir CTs, so citing it as coveredBy reads as dangling (see header); recorded here instead.",
+      "REAL coverage lives OUTSIDE this checker's chat glob: tests/client/features/character/components/character-chats-projection-shell.ct.tsx mounts this pane through the characters section's CONTEXT Chats tab (#501 — it was the LIST pane's projection until the library stayed docked) and drives the rows, the departed-seat semantics, the avatar-stack upgrade, the accname collision and the empty state's primary. This checker only resolves chat-dir CTs, so citing it as coveredBy reads as dangling (see header); recorded here instead.",
   },
   "assembly-preview-diagnostics": {
     coveredBy: "assembly-preview-panel",
