@@ -39,12 +39,17 @@
 // for these axes already live in `appearanceSettingsSchema` (every key `.catch()`es, so parsing is
 // TOTAL). `dataTheme` is checked against the SEED value-set names the `[data-theme]` blocks are generated
 // from, so a stale/hand-edited value can never stamp an attribute no stylesheet defines.
+// The schema comes through `@orb/contracts/settings/appearance` — the section's own module — rather than the
+// `settings` barrel: the barrel composes the whole `UserSettings` tree, and zod construction is not
+// statically pure, so reaching it for this one schema dragged the entire contracts prose corpus into the
+// boot chunk every visitor evaluates before the login form can paint (#448). Same schema object, same
+// ownership (settings re-exports it verbatim); only the door is narrower.
 //
 // ONE ATTRIBUTE, ONE SPELLING: `REDUCED_MOTION_ATTR` / `DATA_THEME_ATTR` / `FONT_SCALE_VAR` are imported
 // by the root-effects hook rather than re-spelled, because two writers of one DOM name must not drift.
 
-import type { AppearanceSettings } from "@orb/contracts/settings";
-import { appearanceSettingsSchema } from "@orb/contracts/settings";
+import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
+import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { isPlainObject } from "@orb/kit/guards";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { createPersistedStore } from "./create-persisted-store.ts";
