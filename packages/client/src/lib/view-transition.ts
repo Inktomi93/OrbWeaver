@@ -42,17 +42,37 @@ export function motionIsReduced(): boolean {
   return prefersReducedMotionNow() || (g.document?.querySelector?.('[data-reduced-motion="true"]') ?? null) !== null;
 }
 
+/** The updates already queued into a transition that has STARTED but whose update callback has not run
+ *  yet — i.e. the ones raised by the task we are still inside. `null` between tasks (see the coalescing
+ *  note on `withViewTransition`). */
+let joinableUpdates: (() => void)[] | null = null;
+
 /**
  * Run a view-state update inside a View Transition when the platform supports it (and the user
  * hasn't asked for reduced motion) — otherwise apply the update directly. Fire-and-forget: the
  * caller never awaits the transition.
+ *
+ * ONE TASK ⇒ ONE TRANSITION (#454, measured 2026-08-22). One intent routinely raises two wrapped
+ * writes: home's "Resume" runs `selectChatFromList` (which wraps `selectChat`) and then
+ * `setActiveSection`, and the live app started TWO transitions at the same millisecond for that single
+ * click (`document.startViewTransition` patched on the dev stack: `[3431, 3431]`). The browser skips the
+ * first the moment the second starts, so the user only ever saw one crossfade — but the app paid for two
+ * old-state snapshot captures, and, worse, the two writes landed in two SEPARATE React renders (the
+ * update callback runs in its own task, so React's event-handler batching cannot reach them).
+ *
+ * So a call raised while a transition is still waiting for its update callback JOINS that transition
+ * instead of starting a rival. `queueMicrotask` closes the window: a same-task caller always runs before
+ * any microtask, and a transition whose callback never fires can therefore never strand the queue.
+ * Ordering is unchanged (the updates run in the order they were raised) and every caller keeps the exact
+ * fire-and-forget signature it had.
  *
  * A SUPERSEDED transition (a second one starting before the first settles — e.g. the draft→committed
  * promotion swapping the active chat while the context panel re-renders) rejects the ViewTransition's
  * `ready`/`finished`/`updateCallbackDone` promises with `AbortError: Transition was skipped`. That is
  * BENIGN — the update callback itself still ran — but the discarded promises would surface as UNCAUGHT
  * rejections (a red console error on a perfectly normal rapid pane swap). Swallow them HERE, the one
- * legal wrapper, so no call site re-derives the handling.
+ * legal wrapper, so no call site re-derives the handling. Coalescing does not retire that handling: two
+ * transitions raised from two different tasks still supersede each other exactly as before.
  */
 export function withViewTransition(update: () => void): void {
   const g = globalThis as VtGlobals;
@@ -61,7 +81,24 @@ export function withViewTransition(update: () => void): void {
     update();
     return;
   }
-  const transition = start.call(g.document, update);
+  if (joinableUpdates !== null) {
+    joinableUpdates.push(update);
+    return;
+  }
+  const updates: (() => void)[] = [update];
+  joinableUpdates = updates;
+  // End of THIS task — anything raised later is a different intent and gets its own transition.
+  queueMicrotask(() => {
+    if (joinableUpdates === updates) {
+      joinableUpdates = null;
+    }
+  });
+  const transition = start.call(g.document, () => {
+    joinableUpdates = null;
+    for (const run of updates) {
+      run();
+    }
+  });
   for (const settled of [transition?.ready, transition?.finished, transition?.updateCallbackDone]) {
     settled?.catch(() => undefined); // skipped-transition AbortError — benign, never an uncaught rejection
   }
