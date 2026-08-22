@@ -11,6 +11,20 @@
 // every row would be noise): the shown stamp → the absolute date-time → an ordinal. Rows that are already
 // distinct keep the short form, so the common list is unchanged.
 
+/**
+ * The SUBJECT an action label names — the row's name, disambiguated by what the row already shows.
+ *
+ * It lives beside the resolver rather than inside `LibraryRow` because a row's cluster is not always a kebab:
+ * the regex roster swaps it for a bulk checkbox named `Select <subject>`, which inherited the same collision
+ * the kebab had (#443 — two rows named "New script" gave one list two identically-named controls). ONE
+ * spelling of the grammar, so a row's two controls can never announce their subject two different ways.
+ * (It cannot be exported from `library-row.tsx`: a component module may export only components —
+ * `useComponentExportOnlyModules`.)
+ */
+export function rowActionSubject(name: string, qualifier: string | undefined): string {
+  return qualifier === undefined ? name : `"${name}" · ${qualifier}`;
+}
+
 /** One row's disambiguation inputs: the name its actions announce + the instant its stamp shows. */
 interface RowQualifierRow {
   readonly name: string;

@@ -10,6 +10,10 @@
 //    There is NO Rename item — a script's name is a bound field of the editor this row's click already
 //    mounts, so a Rename dialog would be a second write path for a field one click away (`LibraryRow`'s
 //    `onRename` is optional for exactly this, the `onDuplicate` precedent).
+//    The kebab (and the bulk checkbox that replaces it) names its row with the `rowQualifiers` subject, not
+//    the bare name — `Add script` mints every row "New script", so the bare form gave one list two
+//    identically-named controls (#443). The confirm dialog keeps the bare name: a dialog carries its own
+//    context.
 //  · BULK MODE. While it is on, the trailing cluster IS a checkbox and the row's click toggles selection
 //    instead of opening the editor — the `character-card` bulk shape, so "act on the things I checked" reads
 //    the same everywhere. The kebab is suppressed while it runs.
@@ -65,6 +69,8 @@ import {
   regexPlacementStages,
   regexRowScent,
   regexScriptTitle,
+  rowActionSubject,
+  rowQualifiers,
   timeLib,
 } from "#lib";
 import {
@@ -126,6 +132,21 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       });
   };
 
+  // THE ROW'S CONTROLS NAME WHICH ROW THEY BELONG TO (#443, side-eye 2026-08-22 P3). `Add script` mints
+  // every row "New script", so two clicks produced two buttons both called "Actions for New script" — a
+  // screen-reader walk of the list could not tell them apart, and the discriminating datum ("no pattern yet ·
+  // edited 3m ago") lives inside the ROW button, never in the control's own label. `rowQualifiers` is the
+  // house answer to exactly this (presets fork from one base and hit it eight rows at a time): resolved with
+  // the whole list in hand, escalating only where it must — the stamp the row already shows → the absolute
+  // date-time → an ordinal. Keyed by id rather than index because both render arms hand `renderRow` an item,
+  // not a position.
+  const qualifiers = rowQualifiers(
+    filtered.map((script) => ({ name: regexScriptTitle(script), at: script.updatedAt })),
+    timeLib.formatRelative,
+    timeLib.formatDateTime,
+  );
+  const qualifierById = new Map(filtered.map((script, index) => [script.id, qualifiers[index] ?? ""]));
+
   const renderRow = (script: RegexScriptRow): ReactElement => (
     <RegexCollectionRow
       bulkActive={bulkActive}
@@ -134,6 +155,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       onDuplicate={onDuplicate}
       onExport={onExport}
       onSelect={(): void => view.onSelect(script.id)}
+      qualifier={qualifierById.get(script.id) ?? ""}
       script={script}
       selected={view.selectedId === script.id}
     />
@@ -203,15 +225,20 @@ interface RegexCollectionRowProps {
   readonly script: RegexScriptRow;
   readonly selected: boolean;
   readonly bulkActive: boolean;
+  /** The list-resolved disambiguator this row's controls announce (#443) — see the caller. */
+  readonly qualifier: string;
   readonly onSelect: () => void;
   readonly onDuplicate: (id: RegexScriptId) => void;
   readonly onDelete: (id: RegexScriptId) => void;
   readonly onExport: (id: RegexScriptId) => void;
 }
 
-function RegexCollectionRow({ script, selected, bulkActive, onSelect, onDuplicate, onDelete, onExport }: RegexCollectionRowProps): ReactElement {
+function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect, onDuplicate, onDelete, onExport }: RegexCollectionRowProps): ReactElement {
   const checked = useIsRegexScriptSelected(script.id);
   const title = regexScriptTitle(script);
+  // The bulk checkbox is this row's cluster while the mode runs, so it carries the SAME subject the kebab
+  // does (#443) — one row, one announced identity, whichever control is standing.
+  const subject = rowActionSubject(title, qualifier);
   // The glyph strip is OMITTED, not emptied, for a script that runs nowhere: `ListRow` puts a literal space
   // between a present lead and the scent (the accname-concatenation guard), so an empty-but-present lead
   // would prepend a stray space to every such row's subtitle. `regexRowScent` says "runs nowhere" in words
@@ -231,7 +258,7 @@ function RegexCollectionRow({ script, selected, bulkActive, onSelect, onDuplicat
         // membership in the batch, and painting the open-editor row as current on top of that would give one
         // list two "you are here" marks.
         selected={checked}
-        stateToggle={<Checkbox aria-label={`Select ${title}`} checked={checked} onCheckedChange={(): void => toggleRegexScriptSelected(script.id)} />}
+        stateToggle={<Checkbox aria-label={`Select ${subject}`} checked={checked} onCheckedChange={(): void => toggleRegexScriptSelected(script.id)} />}
         title={title}
         {...scent}
       />
@@ -242,6 +269,7 @@ function RegexCollectionRow({ script, selected, bulkActive, onSelect, onDuplicat
     <LibraryRow
       actions={{
         name: title,
+        qualifier,
         onDuplicate: (): void => onDuplicate(script.id),
         onDelete: (): void => onDelete(script.id),
         deleteDescription: "Deleting a script removes it from every preset, character, and room it's attached to. This can't be undone.",

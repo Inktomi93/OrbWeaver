@@ -1,13 +1,25 @@
 // The world-info collection's ROWS — the OWNER half of the config-rail seam (F-5).
 //
 // The row anatomy is the LANDED library row, re-homed: name · the Global marker on the title line · the
-// Rename/Duplicate/Export/Delete kebab. ONE thing changed, and the mock is why: the subtitle is now the
+// Duplicate/Export/Delete kebab. ONE thing changed, and the mock is why: the subtitle is now the
 // book's SCENT ("42 entries · attached ×3") instead of its description. A roster row's job is to let a
 // reader pick a book without opening it, and "how much lore, switched on anywhere?" is what answers that;
 // the description is the book's own prose and it still leads the member editor.
 //
 // EXPORT stays HERE, in the row's kebab (D121-D `kebab=Export`) — it is a per-member verb, so it is the
 // owner's to render. IMPORT is the group band's, declared as data on the contribution (`importFile`).
+//
+// …AND RENAME LEFT THE KEBAB (#442, side-eye 2026-08-22 P2 — the #271 single-homing lens, a different verb).
+// #271 converged DELETE onto this kebab because Delete had two homes; the same drive found RENAME with two,
+// on world-info alone: this menu item opened `BookDetailsDialog`, and the member editor's own
+// "Edit book details" opens the SAME dialog. Tags and regex rename in their editor only, so one verb read
+// one way on two collections and two ways on the third — the recall burden single-homing exists to kill.
+// THE DIALOG WON, not the kebab, and the direction is the opposite of #271's for a stated reason: #271's
+// contested homes were the row kebab (width-free, where the row already is) versus a DELETE BUTTON inside
+// the editor (a second destructive door). Here both homes open the identical dialog, and the editor's door
+// is the WIDER one — it owns Description beside Name, and it sits on the surface where a book's prose is
+// actually written. A rename-only second door bought a reader nothing the row click plus one pencil did not.
+// The row keeps every verb the editor does NOT own: Duplicate, Export, Delete.
 //
 // Two render arms by size, the tag/regex shape: the sealed `VirtualList` in a bounded box past
 // COLLECTION_LARGE_GROUP (with the host's filter), a plain stack below it.
@@ -22,15 +34,13 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, downloadTextFile, notify } from "#lib";
 import { clearCollectionSelection } from "#state";
-import { useDuplicateWorldBook, useRemoveWorldBook, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
+import { useDuplicateWorldBook, useRemoveWorldBook } from "../hooks/use-world-info-mutations.ts";
 import { bookScent } from "../lib/world-info-model.ts";
-import { BookDetailsDialog } from "./book-details-dialog.tsx";
 
 /** One compact row's height guess for the windowed arm (name + scent subtitle). */
 const ESTIMATED_ROW_PX = 44;
@@ -40,14 +50,11 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
   const invalidation = useInvalidation();
   const client = useTRPCClient();
   const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
-  const update = useUpdateWorldBook({ trpc, invalidation });
   const remove = useRemoveWorldBook({ trpc, invalidation });
   const duplicate = useDuplicateWorldBook({ trpc, invalidation });
-  const [renameId, setRenameId] = useState<WorldBookId | null>(null);
 
   const needle = view.filter.trim().toLowerCase();
   const filtered = needle === "" ? books : books.filter((book) => book.name.toLowerCase().includes(needle));
-  const renameBook = books.find((book) => book.id === renameId) ?? null;
 
   const onDuplicate = (id: WorldBookId): void => {
     void duplicate.mutateAsync({ bookId: id }).then((created) => view.onSelect(created.id));
@@ -82,14 +89,12 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
       onDelete={onDelete}
       onDuplicate={onDuplicate}
       onExport={onExport}
-      onRename={(id): void => setRenameId(id)}
       onSelect={(): void => view.onSelect(book.id)}
       selected={view.selectedId === book.id}
     />
   );
 
-  // The three list arms as ONE expression (early returns, not nested ternaries) — the rename dialog is a
-  // sibling of whichever arm renders, and it must survive an arm swap.
+  // The three list arms as ONE expression (early returns, not nested ternaries).
   const rows = ((): ReactElement | null => {
     if (filtered.length === 0) {
       // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1): with no needle
@@ -137,25 +142,7 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
     );
   })();
 
-  return (
-    <>
-      {rows}
-
-      {renameBook === null ? null : (
-        <BookDetailsDialog
-          currentDescription={renameBook.description}
-          currentName={renameBook.name}
-          onOpenChange={(next): void => {
-            if (!next) {
-              setRenameId(null);
-            }
-          }}
-          onSave={(patch): void => update.mutate({ bookId: renameBook.id, input: patch })}
-          open={true}
-        />
-      )}
-    </>
-  );
+  return <>{rows}</>;
 }
 
 interface WorldInfoCollectionRowProps {
@@ -164,16 +151,16 @@ interface WorldInfoCollectionRowProps {
   readonly onSelect: () => void;
   readonly onDelete: (id: WorldBookId) => void;
   readonly onDuplicate: (id: WorldBookId) => void;
-  readonly onRename: (id: WorldBookId) => void;
   readonly onExport: (id: WorldBookId) => void;
 }
 
-function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicate, onExport, onRename }: WorldInfoCollectionRowProps): ReactElement {
+function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicate, onExport }: WorldInfoCollectionRowProps): ReactElement {
   return (
     <LibraryRow
       actions={{
         name: book.name,
-        onRename: (): void => onRename(book.id),
+        // No `onRename` — the Book details dialog is naming's one home (#442, see the header). `LibraryRow`
+        // omits the item when the handler is absent, the regex roster's own posture.
         onDuplicate: (): void => onDuplicate(book.id),
         onDelete: (): void => onDelete(book.id),
         deleteDescription: "This permanently removes the book and every entry in it, and detaches it everywhere. This can't be undone.",

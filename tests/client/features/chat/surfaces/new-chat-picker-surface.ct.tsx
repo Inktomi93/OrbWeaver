@@ -9,16 +9,22 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { CreateOnStartClickStory, NewChatPickerStory, TemporaryNewChatPickerStory } from "../_ct-stories.tsx";
+import { CreateOnStartClickStory, NarrowNewChatPickerStory, NewChatPickerStory, TemporaryNewChatPickerStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
+const CASS = makeCharacterSummary({ id: "char_cass", name: "Cass" });
 
 const charPage = { items: [ARIA, BOLT], nextCursor: null, totalCount: 2 };
+
+/** Three pickable rows — the selection count the mobile clip got WORST at (the Start label grew
+ *  212→231→238px across 0→1→3 picks; side-eye 2026-08-22 #439). */
+const threeCharPage = { items: [ARIA, BOLT, CASS], nextCursor: null, totalCount: 3 };
 
 test("renders the character rows + the Blank chat escape hatch", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": charPage });
@@ -64,6 +70,132 @@ test("the Start affordance is a persistent, role=button control — disabled at 
   const startAfter = component.getByRole("button", { name: "Start chat with 1 character" });
   await expect(startAfter).toBeVisible();
   await expect(startAfter).toBeEnabled();
+});
+
+// ── #440 — ARRIVING IN THE PICKER PUTS THE CARET IN THE SEARCH BOX ───────────────────────────────
+//
+// The surface used to run `useFocusOnMount` on its own `<Stack tabIndex={-1} className="outline-none">`,
+// which is neither the search box nor inside cmdk's key handler: every keystroke on arrival was swallowed,
+// with no focus ring on screen to explain why (side-eye 2026-08-22 P1, measured live —
+// `activeElement = DIV.relative`, `cmdk-input.value === ""` after typing "ab"). The picker now hands the
+// caret to `CharacterPicker`'s own `autoFocusSearch`, which fires when the ROWS mount (at open time the
+// body is still the suspense fallback, so Base UI's dialog initial-focus has nothing to land on).
+//
+// Asserted through the rendered affordance (the combobox's value), never the prop — so it compiles against
+// the old source and goes RED there.
+test("typing on arrival reaches the search box — the caret starts in the combobox (#440)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": charPage });
+
+  const component = await mount(<NewChatPickerStory />);
+  await expect(component.getByText("Aria")).toBeVisible();
+
+  await page.keyboard.type("ar");
+
+  await expect(component.getByRole("combobox")).toHaveValue("ar");
+});
+
+test("the Tab chain still walks Search → Blank chat (#440)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": charPage });
+
+  const component = await mount(<NewChatPickerStory />);
+  await expect(component.getByText("Aria")).toBeVisible();
+
+  await page.keyboard.press("Tab");
+
+  await expect(component.getByRole("button", { name: "Blank chat" })).toBeFocused();
+});
+
+// The selection COUNT is announced (side-eye 2026-08-22 ARIA rec #2): a user whose focus is in the search
+// box never hears the Start button's accessible name change, so toggling a character was silent.
+test("toggling a character announces the selection count (#440)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": charPage });
+
+  const component = await mount(<NewChatPickerStory />);
+  await component.getByText("Aria").click();
+
+  await expect(component.getByRole("status")).toHaveText("1 character selected");
+
+  await component.getByText("Bolt").click();
+  await expect(component.getByRole("status")).toHaveText("2 characters selected");
+});
+
+// ── #439 — THE ACTION FOOTER FITS ITS NARROWEST REAL MOUNT ───────────────────────────────────────
+//
+// At the mobile dialog (366px) the footer was a nowrap `justify-end` row whose two buttons were wider than
+// its content box, so the overflow went LEFT and "Blank chat" painted 27–35px outside the dialog, clipped
+// by the popup — WORSE as the Start label grew with the selection count. Two instruments were blind to it:
+// `snap --expect-no-overflow` reads `scrollWidth` (a negative overflow is invisible to it, filed as #444)
+// and design-audit's `clipped-positioned-child` did not fire. A per-button rect table is the only proof,
+// so that is exactly what this pin is.
+/** Per-button overhang against the mount's content box, in px — the rect table the review had to fall back
+ *  on, as data a test can assert on. Rounded, so sub-pixel layout noise is not a failure. */
+async function footerOverhang(page: Page): Promise<readonly { readonly label: string; readonly outsideLeft: number; readonly outsideRight: number }[]> {
+  const dialog = await page.getByTestId("narrow-picker-mount").boundingBox();
+  const buttons = await page.getByRole("button").all();
+  const rows = await Promise.all(
+    buttons.map(async (button: Locator) => {
+      const box = await button.boundingBox();
+      return {
+        label: ((await button.textContent()) ?? "").trim(),
+        outsideLeft: Math.max(0, Math.round((dialog?.x ?? 0) - (box?.x ?? 0))),
+        outsideRight: Math.max(0, Math.round((box?.x ?? 0) + (box?.width ?? 0) - ((dialog?.x ?? 0) + (dialog?.width ?? 0)))),
+      };
+    }),
+  );
+  return rows;
+}
+
+test("at the mobile mount no action button paints outside the dialog — 1 selection (#439)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": threeCharPage });
+
+  const component = await mount(<NarrowNewChatPickerStory />);
+  await component.getByText("Aria").click();
+
+  // Blank chat + Start; the picker's own count/Clear footer is absent (no search term, walk exhausted).
+  await expect(page.getByRole("button")).toHaveCount(2);
+  await expect
+    .poll(() => footerOverhang(page), { intervals: [50, 100, 200] })
+    .toEqual([
+      { label: expect.stringContaining("Blank chat"), outsideLeft: 0, outsideRight: 0 },
+      { label: expect.any(String), outsideLeft: 0, outsideRight: 0 },
+    ]);
+});
+
+test("at the mobile mount no action button paints outside the dialog — 3 selections (#439)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": threeCharPage });
+
+  const component = await mount(<NarrowNewChatPickerStory />);
+  await component.getByText("Aria").click();
+  await component.getByText("Bolt").click();
+  await component.getByText("Cass").click();
+
+  await expect(page.getByRole("button")).toHaveCount(2);
+  await expect
+    .poll(() => footerOverhang(page), { intervals: [50, 100, 200] })
+    .toEqual([
+      { label: expect.stringContaining("Blank chat"), outsideLeft: 0, outsideRight: 0 },
+      { label: expect.any(String), outsideLeft: 0, outsideRight: 0 },
+    ]);
+});
+
+// ── #441 — THE ZERO-SELECTION START IS QUIET, AND ITS TEACHING COPY IS READABLE ──────────────────
+//
+// It rendered as the loudest primary orange fill in the modal while disabled, with the teaching label
+// composited at 2.64:1 by the primitive's `disabled:opacity-50` (design-audit P1; snap --contrast reported
+// a false 7.56:1 PASS because css-resolve ignores the element's own opacity). `data-cta` is the attribute
+// the primary CTA's accent ring keys off — it is the rendered tell of "this is THE call to action".
+test("the Start button is the primary CTA only once it can act, and its teaching copy is undimmed (#441)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": charPage });
+
+  const component = await mount(<NewChatPickerStory />);
+  const start = component.getByRole("button", { name: "Pick a character to start" });
+  await expect(start).toBeVisible();
+  await expect(start).not.toHaveAttribute("data-cta", "");
+  await expect.poll(() => start.evaluate((el: HTMLElement): string => globalThis.getComputedStyle(el).opacity), { intervals: [50, 100, 200] }).toBe("1");
+
+  await component.getByText("Aria").click();
+
+  await expect(component.getByRole("button", { name: "Start chat with 1 character" })).toHaveAttribute("data-cta", "");
 });
 
 test("the search input filters the character rows", async ({ mount, page }) => {
