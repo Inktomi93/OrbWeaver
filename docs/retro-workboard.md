@@ -74,6 +74,18 @@ orchestrator merges #394; evidence must record upstream-drafts-stay-local postur
 `docs/design/tooling-package.md` (owner-APPROVED) + plan file `~/.claude/plans/jolly-churning-dove.md`
 (P0-P9). Untracked residue (3 side-eye docs + .codex/config.toml) = #400's scope, leave in place.
 
+VACATION POSTURE (2026-08-22 → owner returns; supersedes earlier deltas): OVERNIGHT MODE IS STANDING
+(orchestration.md carries the full rule set — auto-loads every session; nothing here needs re-derivation):
+drain Ready · lanes at cap · merge+barrier per train · file-claim-fix findings · Parked stays parked ·
+Needs-owner accumulates (#431 colorization reach awaits the owner's eye) · never merge under a live drive ·
+ready-dry fallback = side-eye every RAIL item + home screen (fix all identified, never score-chase) ·
+claude-b overflow ONLY on a WEEKLY ≥85% usage sentinel (CLAUDE_CONFIG_DIR=~/.claude-b claude -p, cold
+briefs, verify receipts). Tooling program #393 COMPLETE (P0-P9). Neo parity RIPPED (#428). Recent Done:
+#376 #391 #392 #398 #400 #404-analysis #405 #406 #408 #409-#424 #426 #428 #291. Live lanes at this
+snapshot: kill-assemble (#404 kill-tests), client-polish (#424+#429), audit-aspect (#430). Parked: #54
+demo-seeding (wake=owner) · #403 · #418 · #425-closed. Pre-push bar unchanged: full battery + verify
+--push + FRESH owner word — never push origin.
+
 This page is the cold-start entry point, not a backlog or a second source of status. Mutable work
 lives in [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1); repository documents
 hold durable law, programs, evidence, and history.

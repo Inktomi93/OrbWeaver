@@ -1,5 +1,6 @@
 // SHAPE substrate: shape() + computeHistoryBreakpoint (chat.md Part II §2 SHAPE, §3, §8; Part III §12
-// inv 1 + 7). The cross-repo byte-parity vs neo lives in the .parity.test; THIS pins the orbweaver-side
+// inv 1 + 7). The cross-repo byte-parity vs neo used to live in a sibling .parity.test — ripped out
+// 2026-08-22 (#428, the neo floor is obsolete), so THIS is now the ONLY home; it pins the orbweaver-side
 // invariants directly: the 3 breakpoint-undefined cases, the offset/clamp/floor math, the neo-quirk →
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
 import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";

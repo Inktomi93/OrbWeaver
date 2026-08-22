@@ -294,9 +294,9 @@
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 322,
-      "bytes": 23602,
-      "sha256": "396606219526d26f6f6fcddf39a5ae62069d8ccc24978f20e823b9383c459d69",
+      "lines": 323,
+      "bytes": 23618,
+      "sha256": "4dfc769003e8a8a7f0da52d7ff416246f061ccbc60b79f0246be11dac876d829",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -313,14 +313,15 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "396606219526d26f6f6fcddf39a5ae62069d8ccc24978f20e823b9383c459d69",
-        "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+        "verifiedSha256": "4dfc769003e8a8a7f0da52d7ff416246f061ccbc60b79f0246be11dac876d829",
+        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — §5's suffix taxonomy and the test-layout exemption list drop `.parity.test.ts`. No other claim in this document moved."
         ],
         "claims": [
           {
@@ -520,8 +521,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 68,
-      "bytes": 6251,
-      "sha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
+      "bytes": 6723,
+      "sha256": "556a5ea2b4fc1758535c794a954499f3c6a7d92f543a1d247ee683d3ccc4d4e8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -538,13 +539,14 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
-        "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "556a5ea2b4fc1758535c794a954499f3c6a7d92f543a1d247ee683d3ccc4d4e8",
+        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
           "docs/architecture/core/Core-Path-Registry.md:523-533 contains D139-D141",
-          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact redirect blob"
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact redirect blob",
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — locked principle 7 rewritten in place — parity WAS proven and the floor is now exceeded; the principle survives as provenance, not a live gate. No other claim in this document moved."
         ],
         "claims": [
           {
@@ -601,8 +603,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 246446,
-      "sha256": "9cf78c677e7324fde1bde35d461c7f7f194f2e6a3d2fb954d1d6c94f0660b183",
+      "bytes": 246501,
+      "sha256": "fd2c77e0d42e56d131ed16b0c8e8a4cf741e30e513b1def385a5dce489474dd7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -619,8 +621,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "9cf78c677e7324fde1bde35d461c7f7f194f2e6a3d2fb954d1d6c94f0660b183",
-        "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+        "verifiedSha256": "fd2c77e0d42e56d131ed16b0c8e8a4cf741e30e513b1def385a5dce489474dd7",
+        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -633,7 +635,8 @@
           "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)",
           "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)",
           "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the macro-model row drops the oracle half of its evidence pair; the S1–S4 matrix test still stands. No other claim in this document moved."
         ],
         "claims": [
           {
@@ -667,9 +670,9 @@
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 67,
-      "bytes": 4299,
-      "sha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
+      "lines": 70,
+      "bytes": 4586,
+      "sha256": "93d67ecb64e75257ff506da65534c6435558424fa82833a4689c9bd379d6cdcf",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -686,13 +689,14 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
-        "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "93d67ecb64e75257ff506da65534c6435558424fa82833a4689c9bd379d6cdcf",
+        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Planning-and-Checklists.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — §C1 rewritten as RETIRED. No other claim in this document moved."
         ],
         "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
       },
@@ -1082,9 +1086,9 @@
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 234,
-      "bytes": 26468,
-      "sha256": "401ac4d4115c6aceb266e62caee12c838823e4cd5957aa2c861a2cad89fa824c",
+      "lines": 230,
+      "bytes": 25960,
+      "sha256": "33b12c0b0d219f497f6c58caf6813a22b46aa578ae27963a3f6f9dd5de35f42d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1101,14 +1105,15 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "401ac4d4115c6aceb266e62caee12c838823e4cd5957aa2c861a2cad89fa824c",
-        "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+        "verifiedSha256": "33b12c0b0d219f497f6c58caf6813a22b46aa578ae27963a3f6f9dd5de35f42d",
+        "verifiedCommit": "e92204f687661423caabc1f3e2cc6da9d32b4615",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commits bd1f126f6 + e92204f68): re-read at the ripped bytes — the `.parity` lane row, its tree entry, its two §1 bullets, the §6 obligation and the Esoterica bullet retired, and §2's test-layout sentence follows the gate's KIND removal in e92204f68. No other claim in this document moved."
         ],
         "claims": [
           {
@@ -1669,8 +1674,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 279,
-      "bytes": 22234,
-      "sha256": "87ef3ced7c7bcf6199ff12a20dc1c5031903139ed30a1c78cb2f1632a57b25e3",
+      "bytes": 22189,
+      "sha256": "9fc745710d722942fa9356d224720dfb6bc2e37f56d70e76cec8f7b1370c8635",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1687,13 +1692,14 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "87ef3ced7c7bcf6199ff12a20dc1c5031903139ed30a1c78cb2f1632a57b25e3",
-        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "9fc745710d722942fa9356d224720dfb6bc2e37f56d70e76cec8f7b1370c8635",
+        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the `full`-tier table row and the §3.7 stage list drop `tests:parity`; the vitest project count corrects to five. No other claim in this document moved."
         ],
         "claims": [
           {
@@ -13069,8 +13075,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 539,
-      "bytes": 88125,
-      "sha256": "62fe43191ef3400c37c0fb0b37ad5770406f97066251e65882dfaca1e1fec751",
+      "bytes": 88221,
+      "sha256": "c544f9a8e5829d2b5fad541124e19d072680a900be32df91bf5d9ca6b58b96ab",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13087,15 +13093,16 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "62fe43191ef3400c37c0fb0b37ad5770406f97066251e65882dfaca1e1fec751",
-        "verifiedCommit": "1b60c51dd8ffea32def2b1905a775856ca0ca0c6",
+        "verifiedSha256": "c544f9a8e5829d2b5fad541124e19d072680a900be32df91bf5d9ca6b58b96ab",
+        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "delta re-verify 2026-08-22 (lane srv-data): three deferral rows closed in place — §2.6's stack row and §9's roster-row lesson record the #415 template move, §3.2a records the #408 `/tools/` clause deletion. Each was re-derived against the landed change, not copied from the issue text",
           "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
           "single-pass clean on the P3 tree with all six INSTRUMENT_TOOLS members proof-carrying (reports/check-structure.json)",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the operator-one-offs roster drops `oracle-steady-clone.sh`. No other claim in this document moved."
         ],
         "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
         "claims": [
@@ -15313,9 +15320,9 @@
       "path": "docs/retro-workboard.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 113,
-      "bytes": 8326,
-      "sha256": "b00ceab6f44e7c2132668b2dd3b2a7ae9fe846b54d83235ea3b15a5df67b0400",
+      "lines": 125,
+      "bytes": 9423,
+      "sha256": "225ab163e40c368df8cfffe128c8112f9f5f0c12859ab934fd2021d3cfa39488",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -15328,12 +15335,12 @@
       },
       "receipt": {
         "path": "docs/retro-workboard.md",
-        "assignedSha256": "b00ceab6f44e7c2132668b2dd3b2a7ae9fe846b54d83235ea3b15a5df67b0400",
+        "assignedSha256": "225ab163e40c368df8cfffe128c8112f9f5f0c12859ab934fd2021d3cfa39488",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "b00ceab6f44e7c2132668b2dd3b2a7ae9fe846b54d83235ea3b15a5df67b0400",
-        "verifiedCommit": "ee1efa0cee4e1b1331c4dcc5f018300dab2c31df",
+        "verifiedSha256": "225ab163e40c368df8cfffe128c8112f9f5f0c12859ab934fd2021d3cfa39488",
+        "verifiedCommit": "aab4729f358c8864250da052ccf050066388d03b",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",

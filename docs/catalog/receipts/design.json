@@ -1532,15 +1532,16 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "62fe43191ef3400c37c0fb0b37ad5770406f97066251e65882dfaca1e1fec751",
-      "verifiedCommit": "1b60c51dd8ffea32def2b1905a775856ca0ca0c6",
+      "verifiedSha256": "c544f9a8e5829d2b5fad541124e19d072680a900be32df91bf5d9ca6b58b96ab",
+      "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
       "verifiedAt": "2026-08-22",
       "evidence": [
         "delta re-verify 2026-08-22 (lane srv-data): three deferral rows closed in place — §2.6's stack row and §9's roster-row lesson record the #415 template move, §3.2a records the #408 `/tools/` clause deletion. Each was re-derived against the landed change, not copied from the issue text",
         "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
         "single-pass clean on the P3 tree with all six INSTRUMENT_TOOLS members proof-carrying (reports/check-structure.json)",
-        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+        "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the operator-one-offs roster drops `oracle-steady-clone.sh`. No other claim in this document moved."
       ],
       "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
       "claims": [

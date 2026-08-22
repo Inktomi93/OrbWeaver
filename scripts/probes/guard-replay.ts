@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * guard-replay.mjs — READ-ONLY validation harness for the PreToolUse guard
+ * guard-replay.ts — READ-ONLY validation harness for the PreToolUse guard
  * (`.claude/hooks/tool-guard.mjs`): replays the guard's REAL classifier over every Bash
  * `tool_use` command in every Claude Code transcript on this box (the same corpus
- * `transcript-census.mjs` measured: 3,138 files / 4.5 GB / 133,631 Bash calls as of
+ * `transcript-census.ts` measured: 3,138 files / 4.5 GB / 133,631 Bash calls as of
  * 2026-08-03) and reports, per rule: how many commands it would have hit, the main/subagent
  * split, and a seeded-random sample for human false-positive review.
  *
  * This is the evidence a rule ships on. A rule that cannot be defended against this replay
  * does not ship — re-run it whenever the ruleset is retuned:
  *
- *   node scripts/probes/guard-replay.mjs --out reports/guard-replay.json
+ *   node scripts/probes/guard-replay.ts --out reports/guard-replay.json
  *
- * Extraction mirrors transcript-census.mjs (streaming readline + cheap substring pre-filter
+ * Extraction mirrors transcript-census.ts (streaming readline + cheap substring pre-filter
  * before JSON.parse — that miner's header documents the transcript shape). Classification is
  * NOT re-derived: it imports `classify` from the hook itself, so what is measured is exactly
  * what will run. Replay context: subagent lines get a synthetic agentId (so lane-scoped rules

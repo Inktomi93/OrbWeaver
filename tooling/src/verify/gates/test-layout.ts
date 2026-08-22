@@ -14,7 +14,6 @@ const KINDS = [
   ".suite.ct.tsx",
   ".int.test.ts",
   ".contract.test.ts",
-  ".parity.test.ts",
   ".test-d.ts",
   ".ct.tsx",
   ".test.tsx",
@@ -63,17 +62,12 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
       message: "test outside a package mirror — expected tests/{kit,contracts,db,server,client}/… or tests/{support,e2e,tooling}/",
     };
   }
-  // The differential oracle (.parity.test.ts) is authored BEFORE its source (BUILD-PLAN Phase 5
-  // step 1 / CHECKLIST §C1: "write the runbook + fixture FIRST") and validates an assembled
-  // cross-repo SURFACE (the SHAPE prompt + cache placement vs the steady clone), not a single source
-  // module — so it is exempt from the 1:1 source-mirror requirement. It still must sit under a valid
-  // package tree (the pkg check above), and is opt-in/skipped until chat assembly lands.
-  if (kind === ".parity.test.ts") {
-    return;
-  }
+  // (A `.parity.test.ts` KIND sat here until 2026-08-22 — the neo differential oracle, mirror-exempt because
+  // it validated a cross-repo SURFACE rather than one source module. It went out with the oracle, #428.)
+  //
   // Cross-cutting PROPERTY suites (`.suite.test.ts` / `.suite.int.test.ts`) validate a behaviour that spans
   // MANY source modules — a security-containment matrix, a cross-writer drift-equality — not one module, so
-  // like `.parity.test.ts` they are exempt from the 1:1 source-mirror (they still sit under a valid package
+  // they are exempt from the 1:1 source-mirror (they still sit under a valid package
   // tree, the pkg check above). The named containment suite (agent-principal-design/07 §4) + the stats
   // drift gate (stats.md inv #3) are the first; the seat wave's seated containment re-run extends the former.
   // `.suite.ct.tsx` is the BROWSER-lane twin: a cross-cutting Playwright-CT property suite that asserts
@@ -112,7 +106,7 @@ function toolingViolationFor(root: string, rel: string, segs: readonly string[],
     return; // no src twin — a root-config / research-zone test dir
   }
   const kind = KINDS.find((k) => name.endsWith(k));
-  if (kind === undefined || kind === ".parity.test.ts" || kind.startsWith(".suite.")) {
+  if (kind === undefined || kind.startsWith(".suite.")) {
     return;
   }
   const base = name.slice(0, -kind.length);

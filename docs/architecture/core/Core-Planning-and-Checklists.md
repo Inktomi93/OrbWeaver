@@ -32,14 +32,17 @@ updated: 2026-07-13
   `backupBeforeMigrate` is non-optional (both live in `entry/boot/migrate.ts` / `@orb/db`).
 - **Status:** blocked:later — rides `history/export-import-portability.md` §5.
 
-## C1. The differential oracle
+## C1. The differential oracle — RETIRED
 
-⭐ BUILT: `tests/server/domain/chat/pipeline-breakpoint.parity.test.ts`
-with the steady-clone driver `tests/support/parity-runner.ts` (vs `/tmp/neo-tavern-steady`; the
-`scripted-override.ts` RUNNER\_OVERRIDE seam makes RECEIVE deterministic). **The honest caveat:** the
-oracle byte-validates the PARITY surface only (assembled prompt + cache placement + token tallies).
-Memory is a rewrite — it intentionally retrieves differently and got its OWN tests (the 6-semantics
-map), never the oracle.
+BUILT, served its purpose, and **RIPPED OUT 2026-08-22** (owner ruling, #428: "we exceeded neo a while
+ago" — the floor is obsolete). Gone from the tree: the `.parity` suite, its steady-clone driver, the
+captured neo reference fixture, the `parity` vitest project and the `tests:parity` verify stage. Git
+preserves all of it; the campaign record is [`../history/neo-orb-parity-audit.md`](../history/neo-orb-parity-audit.md).
+
+While it ran it byte-validated the PARITY surface only (assembled prompt + cache placement + token
+tallies). Memory was never in scope — it is a rewrite that intentionally retrieves differently and got
+its OWN tests (the 6-semantics map). Nothing is measured against neo any more: a behaviour is proven by
+its own tests, never by a neo diff.
 
 ## C2. The \~150 "preserve exactly" esoterica → named tests
 

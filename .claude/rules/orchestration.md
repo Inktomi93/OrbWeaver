@@ -107,6 +107,28 @@ a11y → `side-eye`; both if the change spans both.
 - **Overnight / finish / keep-going means autonomous queue execution.** Re-derive, claim, dispatch, merge,
   verify, and continue while safe work exists. Stop only for destructive or irreversible action,
   owner-sacred product choices, a genuine scope pivot, or an origin push.
+- **STANDING (owner, 2026-08-22, vacation week): overnight mode IS the default posture until the owner
+  returns.** Every session auto-adopts it — no per-session activation word needed. The goal is a DRAINED
+  Ready column: keep lanes filled to the cap, merge trains as lanes drain, barrier per train, refill from
+  Ready, file-and-claim new findings, and take quiet holds only when Ready is empty and no lane is live.
+  The stop categories above are unchanged; Parked rows stay parked (wake conditions are law), Needs-owner
+  rows accumulate for the owner's return, and NEVER merge a train while a live drive depends on the
+  in-memory recorders (paid 2026-08-22: an orchestrator merge respawned the server mid-turn and killed it).
+  WHEN READY RUNS DRY (owner, 2026-08-22): side-eye every RAIL item and the home screen, one surface per
+  lane-slot, full-battery lens. On the aesthetic/Nielsen scoring: a default-tier score (a "30/40") is NOT
+  acceptance — every IDENTIFIED issue gets fixed or filed with a receipt; but do not score-chase
+  perfection (no re-review loops hunting points; the finding list, not the number, is the deliverable).
+  Findings → file-claim-fix per lifecycle; fixes verified by the side-eye lens before Done.
+- **CLAUDE-B OVERFLOW (owner, 2026-08-22): if — and ONLY if — a WEEKLY-usage sentinel reports ≥85%,
+  lane-class work may delegate to the second Claude account.** The trigger is exclusively that explicit
+  harness sentinel in context — never a self-estimate, never the 5-hour window, never any other signal.
+  Spelling (the bashrc `claude-b` function is invisible to non-interactive shells):
+  `CLAUDE_CONFIG_DIR="$HOME/.claude-b" claude -p "<full cold brief>"` — verified alive 2026-08-22.
+  A claude-b invocation shares NOTHING (no context, no memory, no conversation): every delegation is a
+  complete cold brief to executor standard (goal, constraints, paths, done-criteria, hazards, the WHY,
+  §L discipline, scoped floors), and its output returns on stdout — treat it like any lane report:
+  verify receipts, never trust bare claims. Same permission boundaries as any lane: nothing denied here
+  may be routed there.
 - **Local `main` is the worktree base.** The owner pushes manually, so `origin/main` can be far behind.
   Spawn and rebase from the latest local `main`; never "refresh" a lane onto the remote branch.
 - **Never push `origin` without fresh owner authorization for that exact push.** A prior or conditional

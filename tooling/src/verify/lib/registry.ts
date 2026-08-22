@@ -320,16 +320,6 @@ const GATING_STAGES: readonly StageDef[] = [
     classify: asViolations,
   },
   {
-    name: "tests:parity",
-    group: "tests",
-    // PROMOTED to the push tier 2026-08-03: measured 1.65s (ONE file, 18 tests). The `full`-only
-    // placement implied an expensive cross-repo suite; it is not one. Parity is a LOCKED PRINCIPLE
-    // (Core-Laws §0.7 — "parity is proven, not assumed"), so it belongs where it actually gates.
-    tiers: ["push", "full"],
-    argv: ["pnpm", "test:parity"],
-    classify: asViolations,
-  },
-  {
     name: "quality:mutation-gate",
     group: "quality",
     tiers: ["full"],

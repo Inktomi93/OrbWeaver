@@ -16,6 +16,7 @@ import {
   checkBrokenImage,
   checkClippedOverflow,
   checkContrast,
+  checkControlAspect,
   checkEdgeFlush,
   checkFontCensus,
   checkGlowShadow,
@@ -364,6 +365,64 @@ test("fine pointer: a genuinely tiny <24px target still FAILs at P1", () => {
   const finding = checkTapTarget({ selector: "button.tiny", width: 20, height: 20 }, false);
   expect(finding?.severity).toBe("P1");
   expect(finding?.message).toContain("24px");
+});
+
+// ── #4b control silhouette (#430, from side-eye #420) ────────────────────────
+// The founding numbers are LIVE MEASUREMENTS, not invented fixtures
+// (docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md, "Measured geometry"):
+// the shipped coarse Switch was 48x44 (aspect 1.091, read as a crescent moon) and the fix is 64x44
+// (aspect 1.455). Each carve below carries the reason it exists AND its passing control.
+const SWITCH_SAMPLE = { selector: "[data-slot=switch-root]", role: "switch", animating: false };
+
+test("the pre-#420 coarse Switch geometry (48x44, aspect 1.09) FIRES — the defect this rule exists for", () => {
+  const finding = checkControlAspect({ ...SWITCH_SAMPLE, width: 48, height: 44 });
+  expect(finding?.rule).toBe("control-aspect");
+  expect(finding?.severity).toBe("P2");
+  expect(finding?.value, "the finding must publish the measured aspect, not just a verdict").toContain("1.09");
+  expect(finding?.value).toContain("48×44px");
+});
+
+test("the shipped fix (64x44, aspect 1.455) is CLEAN — the twin that makes the red above a plant", () => {
+  expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 64, height: 44 })).toBeNull();
+});
+
+test("the fine-pointer arm (48x32, aspect 1.5) was never the defect and stays clean", () => {
+  expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 48, height: 32 })).toBeNull();
+});
+
+// CARVE 1 — ORIENTATION. The ratio is long/short, so a vertical track is judged by the same number as a
+// horizontal one instead of needing an aria-orientation sniff. A width/height ratio would flag every
+// vertical track in the product at ~0.1 while passing the crescent at 1.09.
+test("a vertical track (44x64) passes on the same relation that fails 48x44 — orientation is not a carve", () => {
+  expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 44, height: 64 })).toBeNull();
+  expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 20, height: 200 })).toBeNull();
+});
+
+// CARVE 2 — MID-FLIGHT GEOMETRY. A box read while a transition/animation is running measures a frame,
+// not a design (the same trap that produced a retracted "widening does not restore travel" reading).
+test("an ANIMATING near-square control is declined, not judged", () => {
+  expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 48, height: 44, animating: true })).toBeNull();
+});
+
+// CARVE 3 — ROLES THE TABLE DOES NOT CLAIM. progressbar (a circular progress ring is a legitimate
+// deliberate circle) and slider (role="slider" lands on the visually-hidden native input inside the
+// THUMB here — tests/ui/primitives/slider/slider.ct.tsx:129-131 — never on the track) are declared out of
+// reach rather than approximated; checkbox/radio are square by design.
+test("a near-square progressbar/slider/checkbox is NOT judged — the refused roles, pinned", () => {
+  for (const role of ["progressbar", "slider", "checkbox", "radio", "button", ""]) {
+    expect(checkControlAspect({ selector: "[data-slot=x]", role, width: 44, height: 44, animating: false }), `role=${role} must not be judged`).toBeNull();
+  }
+});
+
+// CARVE 4 — a degenerate box has no silhouette and no computable ratio.
+test("a zero-height sample yields no verdict instead of a division by zero", () => {
+  expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 48, height: 0 })).toBeNull();
+});
+
+test("an exactly-square switch is the worst case and fires at aspect 1.00", () => {
+  const finding = checkControlAspect({ ...SWITCH_SAMPLE, width: 44, height: 44 });
+  expect(finding?.value).toContain("1.00");
+  expect(finding?.message).toContain("silhouette floor");
 });
 
 // ── #5 ARIA navigability ─────────────────────────────────────────────────────
@@ -937,6 +996,11 @@ test("collectFindings fans a raw-sample bundle out to exactly the findings each 
     ],
     // 20px fails even the fine-pointer AA floor, so the finding fires under the realistic desktop default.
     tapTargets: [{ selector: "button.tiny", width: 20, height: 20 }],
+    // The silhouette lens is WIRED, not merely exported: the crescent geometry must reach the fan-out.
+    controlAspects: [
+      { selector: "[data-slot=switch-root]", role: "switch", width: 48, height: 44, animating: false },
+      { selector: "[data-slot=switch-root]:nth-of-type(2)", role: "switch", width: 64, height: 44, animating: false },
+    ],
     accessibleNames: [
       {
         selector: "button.icon",
@@ -950,7 +1014,7 @@ test("collectFindings fans a raw-sample bundle out to exactly the findings each 
     ],
   });
   const rules = findings.map((f) => f.rule).sort((a, b) => a.localeCompare(b));
-  expect(rules).toEqual(["aria-name", "contrast", "tap-target"]);
+  expect(rules).toEqual(["aria-name", "contrast", "control-aspect", "tap-target"]);
 });
 
 test("collectFindings fans the impeccable-adapted sample families out too, origin-tagged", () => {

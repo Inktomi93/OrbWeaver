@@ -133,7 +133,9 @@ interface ShapeOutput {
     named: WireRow[];
     /** The FINAL stage's content-free projection: `history` as order + role + voice + provenance + size.
      *  The only stage snapshot that is already wire-shaped, because it is the one a host READS
-     *  (`ShapeTrace.rows` via `assembly/trace`); the others exist for counts + the differential oracle. */
+     *  (`ShapeTrace.rows` via `assembly/trace`); the others feed that same builder's counts +
+     *  breakpoint-decision derivation. (They also fed the neo differential oracle until #428 ripped it
+     *  out 2026-08-22 — every field still has a live consumer in `buildShapeTrace`.) */
     delivered: readonly ShapeTraceRow[];
   };
 }
