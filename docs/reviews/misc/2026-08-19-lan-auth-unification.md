@@ -1,10 +1,12 @@
 ---
 kind: review
-status: active
-updated: 2026-08-19
+status: archived
+updated: 2026-08-22
 ---
 
 # LAN auth unification — removing the local-origin owner bypass and making OIDC work off-localhost
+
+**STATUS 2026-08-22 — HISTORICAL. The recommended arm (f2) SHIPPED, so §1, §1.5 and §4.1 describe the PRE-FIX tree and are NOT live truth.** The un-credentialed owner fallback now gates on the raw LOOPBACK TCP peer, never the `Host` header (`ownerFallbackAllowed(peerIp)` — `packages/server/src/infra/auth/dispatch.ts`); `isLocalOrigin` and `TRUSTED_LOCAL_HOSTS` no longer exist, and `TRUSTED_PRIVATE_RANGES` widens only the egress belt, exactly as §3(f2) recommended. The §1.5 CSRF asymmetry is closed on all four byte-ingest routes plus a content-type belt at the tRPC mount. A prod boot-guard (`AUTH_FALLBACK=owner` + an SSO mode + `NODE_ENV=production` is boot-fatal) and an `AUTH_BREAK_GLASS` escape hatch landed with it. Issues #298 and #300 are CLOSED; the standing rule lives in `Spine-Identity-and-Auth.md` invariant #9 and the `dispatch.ts` header — cite those, never this document. Still valid as ANALYSIS: §2 (why a plain-http LAN origin cannot complete OIDC — the `https` proto default and the `__Host-`+`Secure` session cookie are both unchanged) and the §3 arm costing.
 
 **Findings-first, read-only.** No code, no env, no authentik config was changed. Issue #298 (P1, Review: Owner). Every claim below carries a `path:line` receipt or a live probe; §7 lists what I did NOT verify.
 
@@ -18,7 +20,7 @@ updated: 2026-08-19
 
 ---
 
-## 1. The bypass, precisely
+## 1. The bypass, precisely (CLOSED 2026-08-19 — this section describes the pre-fix tree)
 
 ### 1.1 Mechanism
 
@@ -61,7 +63,7 @@ The `10.9.9.9` row is the finding in one line: the gate is a string comparison a
 - **The moment the port is reachable — which is exactly what "make the LAN work" means — it is HIGH.** `pnpm stack up prod` sets `NODE_ENV=production`, where `resolveBindPosture` binds every interface by design (`bind.ts:110-118`). At that point every device on 192.168.1.0/24 (guest phones, IoT, a compromised laptop) is owner with a one-line `curl`, bypassing Caddy, CrowdSec, the edge rate limit and OIDC. The Caddyfile states this as intended behavior in its own comment (`Caddyfile:364-368`: *"AUTH\_FALLBACK=owner gives SSO on this domain AND owner on the raw LAN IP (which bypasses caddy)"*). This is the same hole prior reviews logged as F3/C13 (`docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:126-148, 289-301`) — nothing has changed on the tree since.
 - **`single-user` is worse than the LAN case and deserves its own sentence.** `ownerFallbackAllowed` returns `true` before the origin test in that mode (`dispatch.ts:48-50`; the unit test `tests/server/infra/auth/dispatch.test.ts:41` pins `host: "chat.example.com"` → `true`). A `single-user` process behind the public proxy is world-owner. The only thing standing between that and reality is "don't do that".
 
-### 1.5 The CSRF corollary (MEDIUM, new here)
+### 1.5 The CSRF corollary (MEDIUM, new here — CLOSED; see the STATUS block)
 
 `transport/trpc/trpc.ts:124` gates CSRF on `ctx.auth.via === "cookie"`; the ingest routes repeat that shape (`upload.ts:78`, `import-tree.ts:99`, `import-chat.ts:140`). The rationale in the spine — "header/fallback auth is CSRF-immune by construction" — holds for the *header* arm (a proxy asserts it) and **fails for the fallback arm**, because the credential is `Host`, which the browser fills in automatically on a cross-origin request.
 
@@ -193,7 +195,7 @@ Either way: real TLS from a publicly-trusted CA, `Secure`/`__Host-` cookies work
 
 Origins: **L** = `http://localhost` / `127.0.0.1` (loopback) · **LAN** = `http://192.168.1.27:8788` direct · **LANH** = an https LAN hostname through Caddy · **FQDN** = `https://orbweaver.inktomi.tech` through Caddy.
 
-### 4.1 TODAY (derived from code; loopback rows live-probed on this box)
+### 4.1 TODAY AS OF 2026-08-19, PRE-FIX (derived from code; loopback rows live-probed on this box) — §4.2 is what shipped
 
 | Mode | L | LAN | LANH | FQDN |
 | - | - | - | - | - |

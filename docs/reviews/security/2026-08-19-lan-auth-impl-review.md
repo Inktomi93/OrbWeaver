@@ -1,10 +1,12 @@
 ---
 kind: review
-status: active
-updated: 2026-08-19
+status: archived
+updated: 2026-08-22
 ---
 
 # LAN/hosted auth unification — cold security review of `wt/agent-aaeeb6b5c3dc02237` (#298/#300)
+
+**STATUS 2026-08-22 — HISTORICAL, and ONE VERDICT IN IT WAS WRONG.** All three findings are closed: the **P1** `/api/import/bundle` CSRF hole was fixed by `d6886c5ec` (`entry/http/import.ts` now gates `via !== "header"`, with the red-first `via:"fallback"` regression case in `portability-routes.suite.int.test.ts`); the **P2 doc** gap was closed in the same commit (the `entry/auth/seam.ts` break-glass docblock and `containerize-prod-image-spec.md §Break-glass` both order the operator to STOP or BYPASS the front proxy); the **P2 hardening** was RULED by the owner on 2026-08-19 — keep `NODE_ENV` as the discriminator, add no `PUBLIC_DEPLOYMENT` flag, and accept the hand-rolled-launch residual as documented risk (the ruling and its two rejected alternatives are the WHY block above the guard in `foundation/env/index.ts`). **§4's "tRPC 'JSON forces preflight'" verdict is REFUTED — read the correction in that section before citing anything from it.** Issues #298 and #300 are CLOSED; the standing rule lives in `Spine-Identity-and-Auth.md` invariant #9, which is what to cite instead of this document.
 
 Reviewer: `security-executor`, fresh context, review-only (no source edits). Branch: two commits on
 `wt/agent-aaeeb6b5c3dc02237` over base merge `ef4424fa4` — `46a262793` (peer-IP re-gate + multipart
@@ -117,7 +119,7 @@ break-glass while Caddy keeps forwarding hands owner to the whole LAN for the du
 docs state: during break-glass, stop the front proxy or bind the port to loopback-with-no-proxy, and hit
 node directly.** P2 doc hardening; the code is behaving as specified.
 
-## 4. CSRF coverage (brief Q4) — HOLE (P1) + tRPC claim SOUND
+## 4. CSRF coverage (brief Q4) — HOLE (P1, since FIXED) + tRPC claim SINCE REFUTED
 
 **Inventory of every state-changing route on the app** (`app.ts` mounts; `.post`/`.put`/`.delete` swept
 across `entry/http` + `entry/import`; blob/export/auth-meta/join confirmed GET-only):
@@ -179,7 +181,9 @@ against the bundle route, whereas this branch added fallback-CSRF assertions to 
 got none. **A regression test asserting `via:"fallback"` + no header → 403 on `/api/import/bundle` should
 land with the fix.**
 
-### tRPC "JSON forces preflight" claim — SOUND
+### tRPC "JSON forces preflight" claim — REFUTED (proven 2026-08-19, after this review)
+
+**The verdict below is WRONG and the hole it cleared was real.** `@trpc/server` 11.18's `getContentTypeHandler` matches `multipart/form-data` and `application/octet-stream` as well as `application/json`, and dispatches all three as `type:"mutation"` — and `multipart/form-data` IS a CORS-simple content-type. A cross-site `<form>` therefore reached `/api/trpc/*` with no preflight and no CORS grant, and because the gate keys on `via === "cookie"` the loopback-owner `fallback` arm was exempt: on any `AUTH_FALLBACK=owner` box (every `single-user` deployment, every dev stack, any break-glass session) a page loaded in the box's own browser drove an input-less owner mutation. Proven behaviorally against the assembled app, not inferred — pre-belt, a `multipart/form-data` POST with no `x-orb-csrf` on the `fallback` arm returned 200 and RAN `tag.pruneUnusedTags`. CLOSED by `621ac2218`: a content-type belt at the mount (`packages/server/src/entry/app.ts`) refuses any POST to `/api/trpc/*` whose content-type does not select tRPC's JSON handler, on EVERY `via` arm, ahead of the body cap; GET queries and `application/json` (with or without a charset param) are untouched, so the un-cookied loopback dev tooling still works. ENFORCER: the content-type-belt `describe` in `tests/server/entry/app.test.ts`. What the tRPC exemption now actually rests on, stated so it can be re-checked: `application/json` is not CORS-simple, and this app mounts no CORS middleware. The original reasoning is kept below as the review record — it is the exact shape of premise a future review must not repeat.
 
 `trpc.ts:132` gates only `via === "cookie"`, exempting `fallback`. This is correct: every tRPC call
 (query/mutation/batch) is dispatched by the tRPC fetch client with `Content-Type: application/json`, which
@@ -260,6 +264,8 @@ to the IdP is ever added, `frame-src`/`connect-src` would then need the Authenti
 ---
 
 ## Summary of required action
+
+**All three are CLOSED — two fixed, one owner-ruled. See the STATUS block at the top of this document; nothing below is an outstanding action.**
 
 1. **P1 (fix before merge):** `entry/http/import.ts:65` — change `principal.via === "cookie"` to
    `principal.via !== "header"`, matching the sibling `authCsrfGuard`. Add a `via:"fallback"` + no-header
