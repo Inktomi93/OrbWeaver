@@ -52,16 +52,13 @@
 
 ### Operator one-offs
 
-`dev/sandbox.sh` (`pnpm sandbox`) · `dev/oracle-steady-clone.sh` · `probes/history-system-rows.ts`
+`dev/sandbox.sh` (`pnpm sandbox`) · `probes/history-system-rows.ts`
 (`pnpm probe:history-system-rows`, the D69 capability measurement) · `mutation/arid-ignorer.ts` (the
 Stryker `PluginKind.Ignore` plugin — `Spine-Testing.md` §"An ARID mutant is not a test failure").
 
-Both survivors are HAND-RUN ONLY, re-derived 2026-08-22 (#421): `sandbox.sh` is reached solely by its
-`pnpm sandbox` alias and runs on the HOST to launch `.devcontainer/`; `oracle-steady-clone.sh` is the
-retired neo-parity campaign's capture rig — it needs an external neo-tavern working tree, no tool or
-test executes it, and its only citations are the prose lines naming it as the regeneration procedure
-for the committed `tests/support/fixtures/parity/neo-reference.json`
-(`tests/support/parity-runner.ts:5`, the fixture's own `$comment`).
+`sandbox.sh` is HAND-RUN ONLY, re-derived 2026-08-22 (#421): it is reached solely by its `pnpm sandbox`
+alias and runs on the HOST to launch `.devcontainer/`. (`dev/oracle-steady-clone.sh`, the neo-parity
+campaign's capture rig, was removed with the neo parity rip — #428, git preserves it.)
 
 ## Tool dependencies that LEFT this zone
 

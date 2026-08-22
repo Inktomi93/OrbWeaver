@@ -29,7 +29,6 @@
     "**/*.test.ts",
     "**/*.int.test.ts",
     "**/*.contract.test.ts",
-    "**/*.parity.test.ts",
     "**/*.test-d.ts",
     "**/*.ct.tsx",
     "**/*.spec.ts",
