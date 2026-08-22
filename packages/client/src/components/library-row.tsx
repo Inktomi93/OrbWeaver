@@ -16,6 +16,7 @@ import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
+import { rowActionSubject } from "#lib";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { ROW_REVEAL } from "./row-reveal.ts";
 
@@ -214,11 +215,6 @@ export function LibraryRow(props: LibraryRowProps): ReactElement {
   );
 }
 
-/** The subject an action label names — the row's name, disambiguated by what the row already shows. */
-function actionSubject(name: string, qualifier: string | undefined): string {
-  return qualifier === undefined ? name : `"${name}" · ${qualifier}`;
-}
-
 function LibraryRowActionsMenu({
   name,
   qualifier,
@@ -230,7 +226,7 @@ function LibraryRowActionsMenu({
   menuItemsBefore,
   menuItemsAfter,
 }: LibraryRowActions): ReactElement {
-  const subject = actionSubject(name, qualifier);
+  const subject = rowActionSubject(name, qualifier);
   const duplicate = onDuplicate;
   return (
     <>
@@ -273,7 +269,7 @@ function LibraryRowMenu({
   const remove = onDelete;
   return (
     <RowActionsMenu
-      label={`Actions for ${actionSubject(name, qualifier)}`}
+      label={`Actions for ${rowActionSubject(name, qualifier)}`}
       reveal={true}
       triggerSize="icon"
       // A row with no delete VERB renders no destructive arm — items are OMITTED, never disabled (the

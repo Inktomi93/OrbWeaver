@@ -69,8 +69,14 @@ test("rows stay kebab-only, and EXPORT is the row's ruled arm", async ({ mount, 
   // §12.2: the kebab rests hidden + inert like every row affordance, so reach it by hovering the row.
   await rows.locator('[data-slot="list-row-root"]', { hasText: "The Ninefold Reach" }).hover();
   await rows.getByRole("button", { name: "Actions for The Ninefold Reach", exact: true }).click();
-  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+  // NAMING HAS ONE HOME (#442). The kebab used to carry Rename as well, so the same verb was reachable
+  // under two different accessible names on this one collection — "Rename" here, "Edit book details" →
+  // "Name" in the member editor — while tags and regex rename in the editor only. The dialog is the wider
+  // door (it owns Description beside Name), so the rename-only second door is the one that went.
+  // The WHOLE menu is pinned, in order, because "no Rename" is only half the claim: the other half is that
+  // this kebab now reads exactly like the regex roster's.
+  await expect(page.getByRole("menuitem")).toHaveText(["Duplicate", "Export", "Delete"]);
+  await expect(page.getByRole("menuitem", { name: "Rename" })).toHaveCount(0);
   await page.getByRole("menuitem", { name: "Export" }).click();
   await expect.poll(() => trpc.count("worldInfo.exportBook"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
