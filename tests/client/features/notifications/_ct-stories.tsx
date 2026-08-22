@@ -8,7 +8,7 @@
 // the stream to exist at all.
 
 import { useOrbSocket } from "@orb/client/data";
-import { NotificationBell } from "@orb/client/features/notifications";
+import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
 import type { ReactElement, ReactNode } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -43,6 +43,27 @@ export function NotificationBellSheetStory(): ReactElement {
         <div style={{ width: 320, padding: 16 }}>
           <NotificationBell presentation="sheet" />
         </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** The topbar TRAIL slot exactly as the shell assembles it: the registered chrome entry decides its own
+ *  visibility (`useVisible`) and renders its own `"bar"` body. The story deliberately mounts the ENTRY, not
+ *  the bell — the claim under test is what the trail paints in its FIRST frame while `/api/auth/config` is
+ *  still in flight (#476), which is a property of the gate, not of the bell. */
+function ChromeTrailSlot(): ReactElement {
+  const visible = notificationsChrome.useVisible?.() !== false;
+  const { behavior } = notificationsChrome;
+  return <div style={{ width: 480, padding: 16 }}>{visible && behavior.kind === "widget" ? behavior.body("bar") : null}</div>;
+}
+
+/** The trail slot over the real data layer (`/api/auth/config` + the network stubbed in the `.ct.tsx`). */
+export function NotificationsTrailStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <ChromeTrailSlot />
       </SocketHost>
     </CtDataProviders>
   );

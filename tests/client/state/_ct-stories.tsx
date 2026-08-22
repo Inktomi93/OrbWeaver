@@ -17,6 +17,7 @@ import {
   __resetAppearanceBootHint,
   __resetCollectionGroupOpen,
   __resetComposerDrafts,
+  __resetDeploymentBootHint,
   __resetPresetSection,
   __resetPresetSelection,
   __resetTagFilter,
@@ -55,6 +56,7 @@ import {
   registerListFlipCarry,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
+  rememberMultiHumanCapable,
   reportSectionSaveStatus,
   requestComposerFocus,
   requestRefineryLandingFocus,
@@ -123,6 +125,7 @@ import {
   useFavoritesOnly,
   useFocusMode,
   useModalRegistry,
+  useMultiHumanCapableHint,
   useNarrowViewport,
   useNewChatIntent,
   useOpenModal,
@@ -1164,6 +1167,29 @@ export function AppearanceBootHintProbe(): ReactElement {
         server says light
       </button>
       <button type="button" onClick={(): void => __resetAppearanceBootHint()}>
+        forget device
+      </button>
+    </div>
+  );
+}
+
+/** DeploymentBootHintProbe — the #476 capability hint at the tier a CT can see it. Unlike the appearance
+ *  hint there is nothing to stamp on `<html>`: this hint's whole job is to be READABLE at first paint, so
+ *  the claim is the value the very first render observes, and a persisted store rehydrates off localStorage
+ *  at MODULE INIT (hence the seed-then-reload CT). The buttons stand in for `useMultiHumanCapable`'s
+ *  authoritative write-back the instant `/api/auth/config` lands. */
+export function DeploymentBootHintProbe(): ReactElement {
+  const multiHumanCapable = useMultiHumanCapableHint();
+  return (
+    <div>
+      <output>{`multiHuman=${multiHumanCapable === null ? "unknown" : String(multiHumanCapable)}`}</output>
+      <button type="button" onClick={(): void => rememberMultiHumanCapable(true)}>
+        server says capable
+      </button>
+      <button type="button" onClick={(): void => rememberMultiHumanCapable(false)}>
+        server says single-human
+      </button>
+      <button type="button" onClick={(): void => __resetDeploymentBootHint()}>
         forget device
       </button>
     </div>
