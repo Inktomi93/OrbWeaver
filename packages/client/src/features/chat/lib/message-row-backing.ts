@@ -67,7 +67,9 @@ export const BG_PHOTO_READING_PLATE = "in-data-[has-bg-image]:bg-reading-plate i
 // this comment used to end with did NOT stand: the filled modes' chrome "passed the side-eye's live
 // measurement ... flagged for the coordinator either way". That pass was CIRCUMSTANTIAL — it was measured
 // under the owner's dark wallpaper. Re-measured against the worst LEGAL background (a pure-white wallpaper
-// at `backgroundDim` 0 — BACKGROUND_DIM_MIN = 0, packages/contracts/src/settings/index.ts), that chrome
+// at `backgroundDim` 0 — which was legal then: `BACKGROUND_DIM_MIN` was 0. #487 floored it at 0.45, so the
+// worst legal art is now SCRIMMED, and the numbers below are the strictly-worse pre-floor arm. The finding
+// stands unchanged — a floored scrim narrows the composite, it does not anchor an unbacked band), that chrome
 // renders pale grey on white in EVERY mode, because nothing anchors it: those bands sit under the bubble
 // box, outside any fill, on the raw photo. Extending the existing mechanism is the ruled fix (#106); an
 // adaptive sampled-luminance scrim was DECLINED.

@@ -20,7 +20,7 @@
 // The ariaSnapshot YAML shape this parser targets (measured, not assumed — Playwright 1.5x):
 //     - button "Send message"
 //     - button "Aria — character": Aria responding
-//     - 'button "Talkativeness: Aria — 50%"': Talks 50%      ← quoted key when the name holds a colon
+//     - 'button "Talkativeness: Aria — talks at level 50 of 100"': Talks 50   ← quoted key: the name holds a colon
 //     - textbox "Message":
 //         - /placeholder: Type a message…
 //     - group:                                                ← a NAMELESS node

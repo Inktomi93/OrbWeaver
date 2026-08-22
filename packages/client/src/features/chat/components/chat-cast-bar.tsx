@@ -9,10 +9,18 @@
 // `useStartChat` seeds this exact `getChat` key from `startChat`'s response — so the committed strip is
 // populated on the first frame and the twin is gone. The read is non-suspense: the strip is decoration, so
 // a cold cache degrades to null rather than blocking the transcript.
+//
+// #490 — THE STRIP IS READ-ONLY AGAIN, WHICH IS WHAT THE PARAGRAPH ABOVE ALWAYS SAID. A host-only
+// `AddMemberPopover` had been mounted here as a trailing "+", so "add a character" had TWO doors visible at
+// the same time in the default room layout (this strip's glyph and the CONTEXT panel's CAST header glyph —
+// `design-audit` `duplicate-action-door`, confirmed on the shot). §13 single-homing: two homes for one
+// concept is a defect, not a convenience, and the tie-break is not taste — this file's own first paragraph
+// declares "presence-at-a-glance only, no mutations", and §14 puts configuration in CONTEXT. So the door
+// keeps its ONE home in `committed-members-tab.tsx` and the strip goes back to what it says it is.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Crown, Icon } from "@orb/ui/icons";
@@ -20,12 +28,11 @@ import { Row } from "@orb/ui/layout";
 import { cn } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
 import { BG_PHOTO_BAND_PLATE } from "../lib/message-row-backing.ts";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
-import { AddMemberPopover } from "./add-member-popover.tsx";
 
 export interface ChatCastBarProps {
   readonly chatId: ChatId;
@@ -44,16 +51,8 @@ interface CastSeat {
   readonly disabled: boolean;
 }
 
-/** THE cast strip. `actions` is the add-member door (or null for a non-host). */
-function CastBarStrip({
-  cast,
-  humans,
-  actions,
-}: {
-  readonly cast: readonly CastSeat[];
-  readonly humans: readonly ParticipantView[];
-  readonly actions: ReactNode;
-}): ReactElement | null {
+/** THE cast strip. */
+function CastBarStrip({ cast, humans }: { readonly cast: readonly CastSeat[]; readonly humans: readonly ParticipantView[] }): ReactElement | null {
   if (cast.length <= 1 && humans.length <= 1) {
     return null;
   }
@@ -88,7 +87,6 @@ function CastBarStrip({
           </Text>
         </Row>
       ))}
-      {actions}
       {humans.length > 1 ? <HumanChips humans={humans} /> : null}
     </Row>
   );
@@ -107,11 +105,7 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
     avatarHash: member.avatarHash,
     disabled: member.disabled,
   }));
-  const isHost = chat?.viewerIsHost === true;
-  const existingCharacterIds: readonly CharacterId[] = roster.map((member) => member.characterId);
-  return (
-    <CastBarStrip cast={cast} humans={humans} actions={isHost ? <AddMemberPopover chatId={chatId} existingCharacterIds={existingCharacterIds} /> : null} />
-  );
+  return <CastBarStrip cast={cast} humans={humans} />;
 }
 
 function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] }): ReactElement {

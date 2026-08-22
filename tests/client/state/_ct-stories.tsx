@@ -83,6 +83,8 @@ import {
   setCharacterSortMode,
   setCharacterViewMode,
   setChatListCharacterFilter,
+  setChatListMonth,
+  setChatListSearch,
   setComposerDraft,
   setContextTab,
   setCorpusSearchQuery,
@@ -112,6 +114,8 @@ import {
   useCharacterSortMode,
   useCharacterViewMode,
   useChatListCharacterFilter,
+  useChatListMonth,
+  useChatListSearch,
   useChromeRegistry,
   useCollectionGroupOpen,
   useCollectionSelection,
@@ -483,6 +487,32 @@ export function ChatListFilterProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearChatListCharacterFilter()}>
         clear filter
+      </button>
+    </div>
+  );
+}
+
+/** ChatListNarrowingProbe — the OTHER two axes (#490). They were `useState` inside `ChatListSurface`, which
+ *  is why `CHATS 896` sat above twelve filtered rows: the chrome BAND is a sibling shell region with no
+ *  shared React ancestor, so it could not see them. They joined the character filter in this store for the
+ *  reason the store exists, and this probe drives each transition on the real hook-backed store. */
+export function ChatListNarrowingProbe(): ReactElement {
+  const search = useChatListSearch();
+  const month = useChatListMonth();
+  return (
+    <div>
+      <output>{`search=${search === "" ? "none" : search} month=${month === "" ? "none" : month}`}</output>
+      <button onClick={(): void => setChatListSearch("hikari")} type="button">
+        type a search
+      </button>
+      <button onClick={(): void => setChatListSearch("")} type="button">
+        clear the search
+      </button>
+      <button onClick={(): void => setChatListMonth("2026-06")} type="button">
+        anchor a month
+      </button>
+      <button onClick={(): void => setChatListMonth("")} type="button">
+        clear the month
       </button>
     </div>
   );

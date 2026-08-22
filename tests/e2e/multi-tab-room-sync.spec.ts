@@ -91,12 +91,16 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     await joinRoom(tabB, room.title);
     expect(await castChipNames(tabB)).toHaveLength(2);
 
-    // Tab A seats the third character through the cast bar's own affordance (the only committed-room
-    // add-member path) — a REAL user gesture, not an API poke. Tab A must be the FOREGROUND tab for it:
-    // the picker is an anchored Popover, and an anchored layer in a backgrounded page never settles open
-    // (Base UI dismisses on the window's focus loss). That is also the honest scenario — the human acts in
-    // the tab they are looking at; tab B's passivity is the property under test, not tab A's.
+    // Tab A seats the third character through the CONTEXT panel's CAST door — a REAL user gesture, not an
+    // API poke. It used to reach the cast bar's twin of the same door, which #490 removed (§13: one action,
+    // one home — the two were visible at the same time); the door itself is unchanged, only its address, and
+    // this is the same panel the removal half of this test opens ten lines down. Tab A must be the
+    // FOREGROUND tab for it: the picker is an anchored Popover, and an anchored layer in a backgrounded page
+    // never settles open (Base UI dismisses on the window's focus loss). That is also the honest scenario —
+    // the human acts in the tab they are looking at; tab B's passivity is the property under test.
     await tabA.bringToFront();
+    await openDetailPanel(tabA);
+    await openContextTab(tabA, "Members");
     await tabA.getByRole("button", { name: "Add a character", exact: true }).click();
     await tabA.getByRole("option", { name: CAST[2].name, exact: true }).click();
     await expect.poll(async () => (await castChipNames(tabA)).length, { timeout: 15_000 }).toBe(3);

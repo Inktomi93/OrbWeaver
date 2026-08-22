@@ -8,6 +8,7 @@
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
+import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import { READING_BAND_ALPHA, readingBandSurface, readingPlateAlpha, shadowIngredients } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "@orb/tooling/_shared/wcag";
@@ -281,8 +282,9 @@ test("clamp DERIVED primary-foreground clears AA on every realistic picked accen
 //      `readingPlateAlpha(background)`, polarity-aware since #217) to the digit — a hand-retuned plate
 //      that drifts off its base is the #204 surface/ink divorce reborn;
 //   2. the alpha is a FLOOR, not a taste call: the palette's derived foreground clears AA-NORMAL over
-//      the plate composited over WORST-CASE art (pure black AND pure white — `backgroundDim` can be 0,
-//      so raw art is the legal worst case), for every shipped palette and every realistic custom base
+//      the plate composited over WORST-CASE art (pure black AND pure white — RAW art, kept as this
+//      property's input even though #487 floored `BACKGROUND_DIM_MIN` at 0.45; see the kit contract's note
+//      on why a shipped alpha is never relaxed by a new floor), for every shipped palette and every realistic custom base
 //      (measured pre-pin at alpha 0.65: worst 4.88, over the 0.25-L base + black art);
 //   3. every shipped palette's four AUTHOR-STYLE prose inks (dialogue/narration/prose-body/speaker)
 //      clear AA against their own base — the §7a "sensible card" criterion, proving the clamp is a
@@ -378,6 +380,12 @@ test("#204 the plate alpha FLOORS AA for the derived foreground over worst-case 
 // dialogue 4.29; mocha speaker 2.50 · narration 3.12 · dialogue 4.12 — i.e. the dark plates carry the SAME
 // defect over bright art, and closing it needs alpha 0.86, which is exactly the sacred-room move the owner
 // refused. The exemption is recorded here so the next reader finds the numbers, not a silent gap.
+//
+// #487: THE RULING SURVIVES — ITS INPUT CHANGED. Those numbers are the composite over RAW art, and raw art
+// stopped being legal when `BACKGROUND_DIM_MIN` was floored at 0.45 (`@orb/contracts/settings/appearance`).
+// The plate does not move a digit; the SCRIM under it does the closing, and the property is asserted one
+// test below (`#487`) over the same worst-case arts with the floor composited in. `speaker` stays out of the
+// guaranteed set at both layers: closing IT needs dim 0.714, the same sacred-room move D144(d) refuses.
 const GUARANTEED_ART = {
   light: ["black art", "white art"],
   dark: ["black art"],
@@ -396,6 +404,63 @@ test.each(
       const ratio = contrastRatio(resolveTokenRgb(ink, palette), composited);
       expect(ratio, `${ink} over the plate over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
+  }
+});
+
+// ── #487: THE WALLPAPER SCRIM'S DERIVED FLOOR — the layer that closes the #217 dark-arm hole ─────────
+// `theme-background-layer.tsx` calls its scrim "mandatory … non-negotiable for text legibility" while
+// `BACKGROUND_DIM_MIN` was 0, so a legal setting rendered the guard at `opacity: 0` and made the
+// transcript's contrast a property of the user's picture. The floor is what makes that sentence true, and
+// this is where the number comes from — nothing here is hand-picked.
+//
+// THE COMPOSITE, bottom to top: art → `--color-backdrop` at `tokenAlpha × dim` (the element's `opacity`
+// multiplies the token's own alpha) → `--color-reading-plate` at its palette alpha → the ink. The PLATE IS
+// UNTOUCHED (D144(d) / #217: dark plates keep 0.65); only the layer beneath it gained a bound.
+//
+// WHY 0.45, and why `speaker` is not in the set. Solved over WHITE art (the dark plates' worst legal case):
+// mocha narration needs 0.442, hearth narration 0.384, mocha dialogue 0.107, prose-body/foreground already
+// clear at 0. `speaker` needs 0.714 — a dim that all but deletes the art, i.e. the same sacred-room move
+// D144(d) refuses, so it stays the recorded residual rather than a silent inclusion. The binding 0.442 is
+// stated as 0.45 because that is already `BACKGROUND_DIM_DEFAULT`: floor and default coincide, so a stored
+// value below the floor `.catch`es straight onto it and no lift migration exists to get wrong.
+const SCRIM_PATH = "color.backdrop" as const;
+/** The three body inks the floor GUARANTEES over worst-case art, plus the neutral the chrome plates pair. */
+const FLOORED_INK_PATHS = ["color.dialogue", "color.narration", "color.prose-body", "color.foreground"] as const;
+/** A token's raw oklch IN a palette (value-set override else base, correct light-dark arm) — `resolveTokenRgb`
+ *  drops the alpha slot, and both scrim and plate are composited BY their alpha here. */
+function resolveTokenOklch(path: keyof typeof TOKENS, palette: Palette): Oklch {
+  return parseOklch(resolveArm(palette.vars[TOKENS[path].cssVar] ?? TOKENS[path].value, palette.colorScheme));
+}
+/** The surface a transcript ink actually lands on at a given wallpaper dim. */
+function readingBackdropOverArt(palette: Palette, art: Rgb, dim: number): Rgb {
+  const scrim = resolveTokenOklch(SCRIM_PATH, palette);
+  const plate = resolveTokenOklch(READING_PLATE_PATH, palette);
+  return compositeOver(plate, compositeOver({ ...scrim, alpha: scrim.alpha * dim }, art));
+}
+
+test.each(
+  PALETTES.map((p) => [p.name, p] as const),
+)("#487 %s: at BACKGROUND_DIM_MIN the body inks clear AA over the plate over the SCRIMMED worst-case art", (_name, palette) => {
+  for (const [artName, art] of WORST_ART) {
+    const composited = readingBackdropOverArt(palette, art, BACKGROUND_DIM_MIN);
+    for (const ink of FLOORED_INK_PATHS) {
+      const ratio = contrastRatio(resolveTokenRgb(ink, palette), composited);
+      expect(ratio, `${ink} over plate over scrim(${BACKGROUND_DIM_MIN}) over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    }
+  }
+});
+
+test("#487 the floor is a FLOOR: at dim 0 the same property FAILS on a dark palette (the non-vacuity control)", () => {
+  // Without this the test above passes for a floor of 0 as happily as for 0.45 and proves nothing. The dark
+  // palettes over WHITE art are the arm the floor exists for — measured at dim 0: hearth narration 3.29,
+  // mocha narration 3.12. Lowering `BACKGROUND_DIM_MIN` therefore reds the property test, and deleting the
+  // scrim's effect reds this one.
+  const dark = PALETTES.filter((p) => p.colorScheme === "dark");
+  expect(dark.length, "there is at least one dark palette to control against").toBeGreaterThan(0);
+  for (const palette of dark) {
+    const unscrimmed = readingBackdropOverArt(palette, { r: 255, g: 255, b: 255 }, 0);
+    const ratios = FLOORED_INK_PATHS.map((ink) => contrastRatio(resolveTokenRgb(ink, palette), unscrimmed));
+    expect(Math.min(...ratios), `some body ink fails AA over RAW white art @ ${palette.name}`).toBeLessThan(NORMAL_MIN_RATIO);
   }
 });
 

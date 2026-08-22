@@ -14,8 +14,16 @@ import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import type { MemberCastRow } from "../lib/member-rows.ts";
 
-/** Percent display factor for the 0–1 talkativeness weight. */
-const PERCENT = 100;
+// THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490).
+//
+// `talkativeness` feeds `selectSpeakers`' Efraimidis-Spirakis weighted sample (`engine/select-speakers.ts`:
+// `key = u ** (1 / weight)`, sorted desc). That is a RELATIVE weight over the eligible pool — not a
+// probability, and emphatically not a share of the room. Rendered as "Talks 50%" it read as a share, so a
+// three-character cast showed 50% · 50% · 50% and invited arithmetic that sums to 150 and means nothing
+// (side-eye 2026-08-22). Neither number was wrong; the UNIT was. The dial keeps its familiar 0–100 domain
+// (it IS the slider's own position) and loses the sign, which is the whole defect: nobody adds up levels.
+/** Display factor for the 0–1 weight — the slider's position on a 0–100 dial, NOT a percentage. */
+const DIAL_SCALE = 100;
 
 /** The single-thumb scalar from a slider value (ours is single-thumb; a range carries an array). */
 function firstThumb(value: number | readonly number[]): number {
@@ -52,17 +60,21 @@ export function TalkativenessPopover({
             tabIndex={-1}
             // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the chip READS "Talks 50%", so
             // "talks" has to be IN the name or a voice-control user saying what they see misses it. The
-            // stable identity still leads (`Talkativeness: <who>`) and the live percent stays suffixed, so
-            // a role+name lookup on the stable prefix survives every value change.
-            aria-label={`Talkativeness: ${row.displayName} — talks ${Math.round(row.talkativeness * PERCENT)}%`}
+            // stable identity still leads (`Talkativeness: <who>`) and the live LEVEL stays suffixed, so
+            // a role+name lookup on the stable prefix survives every value change. #490 spelled the unit
+            // out here ("level N of 100") because an aria-label has room for what a two-glyph chip does not.
+            aria-label={`Talkativeness: ${row.displayName} — talks at level ${Math.round(row.talkativeness * DIAL_SCALE)} of ${DIAL_SCALE}`}
           >
-            {/* Labeled value — a bare "50%" fails the cold read (Context-Panel-Program §1 ride-along):
-                the "Talks" label names WHAT the number is; the percent stays mono for column alignment. */}
-            <Text as="span" size="micro" tone="muted">
+            {/* Labeled value — a bare number fails the cold read (Context-Panel-Program §1 ride-along):
+                the "Talks" label names WHAT the number is; the level stays mono for column alignment.
+                BOTH halves sit at the `label` step, not `micro`: this is INTERACTIVE text (the chip is the
+                popover's trigger), and `design-audit` reds interactive type under the 11px functional floor
+                — "being on the type ramp does not exempt it". `micro` is 10.5px. */}
+            <Text as="span" voice="label">
               Talks
             </Text>
-            <Text as="span" className="font-mono">
-              {Math.round(weight * PERCENT)}%
+            <Text as="span" voice="datum">
+              {Math.round(weight * DIAL_SCALE)}
             </Text>
           </Button>
         }
@@ -78,8 +90,10 @@ export function TalkativenessPopover({
         }}
       >
         <Row gap="field" align="center" className="min-w-48">
-          <Text as="span" size="label" tone="muted">
-            Talkativeness
+          {/* The popover names the unit the chip cannot spell in two glyphs: a RELATIVE weight over the
+              other speakers, which is why three members can all sit at 50 and nothing sums to 100. */}
+          <Text as="span" voice="label">
+            Talks relative to the others
           </Text>
           <Stack ref={initialFocusRef} tabIndex={-1} className="flex-1 outline-none">
             <Slider
