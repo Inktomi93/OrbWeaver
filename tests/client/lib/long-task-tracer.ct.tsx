@@ -12,9 +12,16 @@
 // seam takes every assertion below red.
 //
 // The plants are REAL, not synthesized PerformanceObserver entries: a synchronous script block over the
-// 100ms `longFrameMs` budget, and 200 write→read style pairs that force synchronous layout inside that same
-// frame. `[reflow]` is the diagnosis half — it fires only when the frame ALSO ran style/layout
-// (`styleAndLayoutStart` > 0), which is what turns "260ms blocking" into a file to open.
+// 100ms `longFrameMs` budget, 200 write→read style pairs that force synchronous layout inside that same
+// frame, and — the negative arm — a style WRITE with no read back, which is an ordinary long render.
+//
+// `[reflow]` IS A TWO-ARMED CLAIM AND BOTH ARMS ARE PINNED HERE (#432). It used to fire on
+// `frame.styleAndLayoutStart > 0`, which is true of every frame that renders anything, so it accused
+// ordinary renders of forced reflow (this file's third test is that exact shape, and it RED-ran against
+// the pre-fix source with three false `[reflow]` lines over a checkpoint whose every frame reported
+// `forcedStyleAndLayoutDuration: 0`). The honest signal is per-SCRIPT `forcedStyleAndLayoutDuration`, so
+// the positive arm additionally asserts the printed cost, and the negative arm proves its own plant is
+// the false-positive shape (ran style/layout, forced nothing) before its silence assertion counts.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -24,13 +31,23 @@ import { MotionFrameReflowStory } from "./_ct-stories.tsx";
  *  console vocabulary, so a budget rename cannot leave this file green against a line nobody emits. */
 const FRAME_BUDGET_LINE = "budget 100ms";
 
+/** The measured cost `[reflow]` must print — a verdict without its number is not a file to open, and a
+ *  frame-level "style/layout happened" phrasing is the claim #432 proved dishonest. */
+const FORCED_COST_PATTERN = /forced synchronous style\/layout \d+ms inside that frame/;
+
 interface MotionRead {
   readonly loafs: readonly {
     readonly duration: number;
     readonly blockingDuration: number;
     readonly styleAndLayoutStart: number;
+    readonly scripts: readonly { readonly forcedStyleAndLayoutDuration: number }[];
   }[];
   readonly worstBlocking: number;
+}
+
+/** The forced-layout total of one published frame — the per-SCRIPT signal `[reflow]` is a claim about. */
+function forcedTotal(loaf: MotionRead["loafs"][number]): number {
+  return loaf.scripts.reduce((sum, script) => sum + script.forcedStyleAndLayoutDuration, 0);
 }
 
 /** Collect one channel's console lines. Attached BEFORE mount so the install-time frames are not missed. */
@@ -82,11 +99,38 @@ test("a planted forced reflow adds the [reflow] diagnosis to its [frame] line", 
   await expect.poll(() => reflows.length, { intervals: [50, 100, 200, 250], timeout: 15_000 }).toBeGreaterThan(0);
 
   expect(frames.length, "[reflow] is a diagnosis ON a long frame — it can never arrive alone").toBeGreaterThan(0);
-  expect(reflows.join("\n")).toContain("style/layout ran inside that frame");
+  expect(reflows.join("\n"), "the line must carry the measured forced-layout cost, not merely the verdict").toMatch(FORCED_COST_PATTERN);
 
   const motion = await readMotion(page);
   expect(
-    motion.loafs.some((loaf) => loaf.styleAndLayoutStart > 0),
-    "the reflow verdict must be backed by a ring entry that really ran style/layout",
+    motion.loafs.some((loaf) => forcedTotal(loaf) > 0),
+    "the reflow verdict must be backed by a ring entry whose SCRIPTS really forced synchronous layout",
   ).toBe(true);
+});
+
+// The negative arm of the same claim (#432). `[reflow]` used to gate on `frame.styleAndLayoutStart > 0`,
+// which is true of every frame that renders anything — so the channel accused an ordinary render of a
+// forced reflow (measured 8/8 with the accused script's own forcedStyleAndLayoutDuration at 0). The plant
+// is that exact shape: a style write with no read back, blocked past the budget. The ring assertions are
+// this test's positive control — they prove the plant really is "ran style/layout, forced nothing"
+// before the silence assertion is allowed to mean anything.
+test("an ordinary long RENDER frame is [frame]-flagged with NO [reflow] accusation", async ({ mount, page }) => {
+  const frames = captureChannel(page, "[frame]");
+  const reflows = captureChannel(page, "[reflow]");
+  const component = await mount(<MotionFrameReflowStory />);
+
+  // Mount-time frames are not this plant's evidence — checkpoint both floors before planting.
+  await component.getByRole("button", { name: "reset frame evidence" }).click();
+  await component.getByRole("button", { name: "plant render frame" }).click();
+  await expect.poll(() => frames.length, { intervals: [50, 100, 200, 250], timeout: 15_000 }).toBeGreaterThan(0);
+
+  const motion = await readMotion(page);
+  const rendering = motion.loafs.filter((loaf) => loaf.styleAndLayoutStart > 0);
+  expect(rendering.length, "the plant must produce a frame that RAN style/layout — otherwise it proves nothing").toBeGreaterThan(0);
+  expect(
+    rendering.every((loaf) => forcedTotal(loaf) === 0),
+    "the plant must force NO synchronous layout — that asymmetry is the whole finding",
+  ).toBe(true);
+
+  expect(reflows, "a frame that merely rendered is not a forced reflow").toEqual([]);
 });

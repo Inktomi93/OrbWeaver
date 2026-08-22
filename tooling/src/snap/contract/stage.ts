@@ -26,6 +26,37 @@ export interface ActiveStage {
   readonly ownerPid: number | null;
   /** ISO timestamp of the boot that wrote this marker — the "age" half of the refusal. */
   readonly startedAt: string;
+  /** ISO timestamp of the LAST `ensureStage` that booted OR reused this stage — the heartbeat (#324).
+   *  A warm stage deliberately outlives the snap run that booted it (that is the whole design), so its
+   *  liveness cannot be a parent-process check: it is USE. A stage nobody has snapped against for
+   *  `STAGE_IDLE_TTL_MS` is a strand `--stage-sweep` may reap. A marker written before this field
+   *  existed reads back with `lastUsedAt === startedAt` (`readActive` backfills — a marker that cannot
+   *  say when it was last used must not look fresh, and its boot stamp is the honest floor). */
+  readonly lastUsedAt: string;
+}
+
+/** What `--stage-sweep` may do to whatever currently holds the stage band (#324). The one-band design and
+ *  the #108 ownership rules are unchanged — this only decides whether a stage has outlived its use:
+ *   • `live`      — the band is bound and the stage was used inside the TTL: NEVER touched, whoever owns it.
+ *   • `stranded`  — the band is bound by a stage-rooted process that no live use accounts for: reap it.
+ *   • `unbound`   — nothing holds the band; only dirs/marker reconciliation is left to do. */
+const STAGE_SWEEP_VERDICTS = ["live", "stranded", "unbound"] as const;
+export type StageSweepVerdict = (typeof STAGE_SWEEP_VERDICTS)[number];
+
+/** The evidence `stageSweepVerdict` judges — every field is observed by the imperative caller, so the
+ *  verdict itself stays pure and unit-testable. */
+export interface StageSweepEvidence {
+  /** The shared marker, or null when it is missing/unreadable (the lost-marker case). */
+  readonly active: ActiveStage | null;
+  /** Is either half of the fixed band bound right now? */
+  readonly bandBound: boolean;
+  /** True only when the bound band's process is rooted in a `.cache/snap-stage/` dir. A bound band that
+   *  is NOT stage-rooted is somebody else's server, and the sweep must keep its hands off it. */
+  readonly bandIsStageRooted: boolean;
+  /** Elapsed seconds of the bound band's process, or null when `ps` could not say — the age signal for a
+   *  MARKER-LESS stage, which has no heartbeat to read. */
+  readonly bandProcessAgeSeconds: number | null;
+  readonly nowMs: number;
 }
 
 /** How a checkout may use the band, given the shared marker (issue #108). The one-band design is

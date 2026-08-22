@@ -28,7 +28,20 @@
 // `--dirty` stages the WORKING TREE instead of a commit: rsync by `git ls-files` manifest (see
 // syncDirtyTree's docstring for the filter-syntax trap) into the fixed `dirty` key — refreshable, still
 // crash-loop-immune (only OUR rsync touches the stage; its node --watch restarts only on our calls).
-// The pure derivation half (ports/paths/staleness/band-access) is lib/stage-plan.ts.
+// The pure derivation half (ports/paths/staleness/band-access) is lib/stage-plan.ts; the marker I/O is
+// ops/stage-marker.ts and the "what is running" probes are ops/stage-probe.ts.
+//
+// WARMTH HAS AN EXPIRY NOW (issue #324, 2026-08-22). A stage stayed running as a detached process group
+// long after its purpose ended, holding the band and reading like the real dev stack until someone read
+// the cmdline; `.cache/snap-stage/` also accumulated dirs from crashed runs, and `active.json` outlived
+// the stage it named by two days. The fix is NOT teardown at run completion — staying warm across runs
+// (and across checkouts, #108's `shared-reuse`) is the whole feature, and killing the stage with its
+// invoker would delete it. A WARM stage's liveness is its USE: every boot and every reuse stamps
+// `lastUsedAt` (the heartbeat), `--stage-sweep` reaps only a stage-rooted band process that no use inside
+// `STAGE_IDLE_TTL_MS` accounts for, and the boot path prunes stage dirs that neither the marker nor the
+// current call owns. The verdicts are pure (lib/stage-plan.ts `stageSweepVerdict`/`markerIsDangling`/
+// `orphanStageDirs`); the sweep NEVER touches a band process it cannot positively identify as a stage,
+// which is what keeps a sibling's live stage safe.
 
 import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -38,20 +51,23 @@ import { print } from "../../_shared/artifacts.ts";
 import { execNicedSync, runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { ActiveStage, EnsureStageOpts, StagePaths, StagePorts } from "../contract/stage.ts";
 import {
-  ACTIVE_REL,
   bandAccess,
   DIRTY_STAGE_KEY,
   foreignStageRefusal,
   ISOLATION_TRIPWIRE,
-  markerRootFromCommonDir,
+  missingLauncherRefusal,
+  orphanStageDirs,
   STAGE_ROOT_REL,
   shortSha,
   stageBaseUrl,
   stageDecision,
   stageInheritedEnv,
+  stageLauncherPath,
   stagePaths,
   stagePorts,
 } from "../lib/stage-plan.ts";
+import { clearActive, markerRoot, readActive, touchActive, writeActive } from "./stage-marker.ts";
+import { bandIsBound, killProcessGroup, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 
 const DEBUG_TOKEN_BYTES = 16;
 
@@ -64,50 +80,6 @@ export function repoRoot(): string {
 /** Resolve a ref (branch/tag/sha/HEAD) to a full commit sha. Throws (git non-zero) on an unknown ref. */
 function resolveRef(root: string, ref: string): string {
   return execNicedSync("git", ["rev-parse", ref], { cwd: root }).trim();
-}
-
-export function markerRoot(root: string): string {
-  const res = runNicedSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
-  // No git answer at all ⇒ keep the marker local: a per-checkout marker is worse than none, but a marker
-  // written to a guessed path would be invisible to every reader including this one.
-  return res.status === 0 ? markerRootFromCommonDir(res.stdout) : root;
-}
-
-// ── active-stage state (the SHARED, repo-keyed marker — <main-checkout>/.cache/snap-stage/active.json) ──
-//
-// Every function here takes the MARKER ROOT (`markerRoot(repoRoot())`), never a checkout root: that is the
-// whole of issue #108. Stage DIRS stay per-checkout (they are worktrees of that checkout) — only the ONE
-// ownership marker is shared, and it names the checkout its dir belongs to.
-
-function activePath(markerHome: string): string {
-  return join(markerHome, ACTIVE_REL);
-}
-
-export function readActive(markerHome: string): ActiveStage | null {
-  const p = activePath(markerHome);
-  if (!existsSync(p)) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(readFileSync(p, "utf8")) as Partial<ActiveStage>;
-    // A marker with no owner cannot be reasoned about across checkouts (it predates #108, or is
-    // hand-written): treat it exactly like a truncated one — no marker, and the port-probe path decides.
-    return typeof parsed.checkout === "string" ? (parsed as ActiveStage) : null;
-  } catch {
-    // A truncated/garbage marker (a killed mid-write) is treated as "no active stage" → a clean rebuild.
-    return null;
-  }
-}
-
-/** Exported beside `readActive` because the pair IS the cross-checkout contract (#108): the suite proves
- *  a marker written under one checkout's `markerRoot` is read back under another's. */
-export function writeActive(markerHome: string, a: ActiveStage): void {
-  mkdirSync(join(markerHome, STAGE_ROOT_REL), { recursive: true });
-  writeFileSync(activePath(markerHome), `${JSON.stringify(a, null, 2)}\n`);
-}
-
-export function clearActive(markerHome: string): void {
-  rmSync(activePath(markerHome), { force: true });
 }
 
 // ── health / version / worktree primitives ─────────────────────────────────────────────────────────────
@@ -217,10 +189,35 @@ function seedStageData(root: string, paths: StagePaths): void {
   }
 }
 
+/** Stop a stage's stack, and MEAN IT. Two beats, because the first one is not guaranteed to happen:
+ *
+ *  1. the STAGED TREE's own launcher (`stack.sh stop`), which reaps its pidfiles properly — resolved,
+ *     not hardcoded, since the #393 P5 move (#447);
+ *  2. the band check. Whatever the launcher did or could not do, a stage-rooted process still holding a
+ *     band port after it is killed BY PROCESS GROUP.
+ *
+ *  Beat 2 is the whole point. `stopStage` used to be a single `if (existsSync(scripts/dev/stack.sh))`
+ *  around beat 1 — and after the launcher moved, that guard was permanently false, so every teardown
+ *  path (`--stage-down`, the stale-stage rebuild, the #108 dead-stage reclaim) SILENTLY did nothing and
+ *  then removed the dir out from under a still-running stack. That is the mechanism behind #324's
+ *  orphaned process groups, and it is why a launcher that cannot be found is now a printed problem
+ *  rather than a quiet return.
+ *
+ *  The group kill is fenced exactly like the sweep's: a band port held by something that is NOT
+ *  stage-rooted is somebody else's server and is never touched. */
 export function stopStage(dir: string): void {
-  const stackSh = join(dir, "scripts", "dev", "stack.sh");
-  if (existsSync(stackSh)) {
+  const stackSh = existsSync(dir) ? stageLauncherPath(dir, existsSync) : null;
+  if (stackSh !== null) {
     runNicedSync("bash", [stackSh, "stop"], { cwd: dir, stdio: "inherit" });
+  } else if (existsSync(dir)) {
+    print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
+  }
+  const ports = stagePorts();
+  for (const port of [ports.server, ports.vite]) {
+    const pid = stageBandPortPid(port);
+    if (pid !== null && pidIsStageRooted(pid) && killProcessGroup(pid)) {
+      print(`[snap-stage] killed the process group still holding :${port} (pid ${pid}) after the launcher stop`);
+    }
   }
 }
 
@@ -268,7 +265,13 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
     // export WIRE_CAPTURE=on in their own shell (process.env spread above), same as any other opt-in.
     DEBUG_TOKEN: randomBytes(DEBUG_TOKEN_BYTES).toString("hex"),
   };
-  const stackSh = join(paths.dir, "scripts", "dev", "stack.sh");
+  // Resolved, not hardcoded (#447): the launcher moved with the #393 P5 tooling split, and a `--ref`
+  // stage of a pre-P5 commit still ships the old path. A ref with neither is refused BY NAME here rather
+  // than spawning a path that does not exist and reporting a generic boot failure.
+  const stackSh = stageLauncherPath(paths.dir, existsSync);
+  if (stackSh === null) {
+    throw new Error(missingLauncherRefusal(paths.dir));
+  }
   // FULL PRIORITY, deliberately (the one census'd exception — see spawnFullPrioritySync's doc): a
   // -19 staged app times out snap navigations under load, skewing the receipts the stage exists for.
   const res = spawnFullPrioritySync("bash", [stackSh, "start"], { cwd: paths.dir, env });
@@ -362,6 +365,8 @@ export function ensureStage(opts: EnsureStageOpts): ActiveStage {
   }
   if (active !== null && access === "shared-reuse") {
     print(`[snap-stage] reusing ${active.checkout}'s warm stage ${active.shortSha} (same commit) → ${active.baseUrl}`);
+    // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
+    touchActive(markerHome, new Date().toISOString());
     return active;
   }
   if (active !== null && access === "take-over") {
@@ -375,11 +380,16 @@ export function ensureStage(opts: EnsureStageOpts): ActiveStage {
   const ours = access === "ours" ? active : null;
 
   if (ours !== null && stageDecision({ targetSha, active: ours, fresh: opts.fresh, healthy }) === "reuse") {
+    touchActive(markerHome, new Date().toISOString());
     return reuseWarmStage(root, ours, dirty);
   }
 
   assertStageSourceSupportsIsolation(root, dirty, targetSha);
   teardownIfStale({ root, markerHome }, ours, targetSha, opts.fresh);
+  // After the staleness teardown and BEFORE this call's dir is created: whatever is still on disk that
+  // neither the marker nor this call accounts for is a crashed run's residue (#324).
+  const surviving = readActive(markerHome);
+  pruneOrphanStageDirs(root, { markerDir: surviving === null ? null : surviving.dir, targetDir: paths.dir });
   prepareStageSource(root, paths, { targetSha, dirty, fresh: opts.fresh });
 
   if (!existsSync(join(paths.dir, "node_modules"))) {
@@ -401,35 +411,26 @@ export function ensureStage(opts: EnsureStageOpts): ActiveStage {
     checkout: root,
     ownerPid: stageBandPortPid(ports.server),
     startedAt: new Date().toISOString(),
+    // Born used: a stage booted this instant is the freshest possible, and the sweep reads THIS field.
+    lastUsedAt: new Date().toISOString(),
   };
   writeActive(markerHome, built);
   print(`[snap-stage] stage ready → ${built.baseUrl}`);
   return built;
 }
 
-const SS_PID_RE = /pid=(\d+)/u;
-
-/** The pid bound to a stage-band port (via `ss -tlnp`), or null — the marker-less teardown's index. */
-export function stageBandPortPid(port: number): number | null {
-  const out = runNicedSync("ss", ["-tlnp"]);
-  if (out.status !== 0) {
-    return null;
+/** Sweep stage dirs on THIS checkout that no live stage accounts for (#324): a crashed run leaves a bare
+ *  worktree dir behind, and `.cache/snap-stage/` accumulated them silently. Cheap, and it runs on the
+ *  boot path rather than waiting for an operator to notice — the marker's dir and the dir this call is
+ *  about to use are always spared, and dirs are per-checkout so a sibling's stage is out of reach. */
+function pruneOrphanStageDirs(root: string, keep: { readonly markerDir: string | null; readonly targetDir: string | null }): void {
+  const orphans = orphanStageDirs(stageDirs(root), keep);
+  if (orphans.length === 0) {
+    return;
   }
-  for (const line of out.stdout.split("\n")) {
-    if (line.includes(`:${port} `)) {
-      const m = SS_PID_RE.exec(line);
-      if (m !== null) {
-        return Number(m[1]);
-      }
-    }
+  print(`[snap-stage] pruning ${orphans.length} orphaned stage dir(s): ${orphans.join(", ")}`);
+  for (const name of orphans) {
+    rmSync(join(root, STAGE_ROOT_REL, name), { recursive: true, force: true });
   }
-  return null;
+  runNicedSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
 }
-
-/** Is EITHER half of the fixed band bound right now? The liveness half of the #108 ownership question —
- *  a foreign marker over an unbound band is a corpse to reclaim, over a bound one it is a live sibling. */
-function bandIsBound(ports: StagePorts): boolean {
-  return stageBandPortPid(ports.server) !== null || stageBandPortPid(ports.vite) !== null;
-}
-
-/** Stage worktree/dir names present under `.cache/snap-stage/` (excludes active.json). */
