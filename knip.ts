@@ -35,7 +35,7 @@ const config: KnipConfig = {
   },
   workspaces: {
     ".": {
-      // Every scripts/ tool is directly runnable (tsx); gate files are DYNAMICALLY discovered by
+      // Every scripts/ tool is directly runnable (node runs .ts source); gate files were DYNAMICALLY discovered by
       // the check harness loader, so they must be entries or knip calls the whole gate corpus dead.
       // The ST-parity rig's CAPTURED RUNTIME (gitignored, 26k files) sits under scripts/probes/ — the
       // negation is knip's fence. A planted bare .ts proved too weak to test this fence: knip's
