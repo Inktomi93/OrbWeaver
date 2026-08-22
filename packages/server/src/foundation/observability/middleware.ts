@@ -24,17 +24,35 @@ function redactSensitivePath(path: string): string {
   return path.startsWith(JOIN_TOKEN_PREFIX) ? `${JOIN_TOKEN_PREFIX}:token` : path;
 }
 
+const REQUEST_ID_HEADER = "X-Request-Id";
+
 /**
- * Per-request observability: assigns a request id, echoes it as `X-Request-Id` (so a caller can grab it
- * and query /api/_debug/logs?requestId=… or /traces/:requestId), binds a request-scoped logger AND the
- * request-root span, and logs one structured line per request.
+ * THE stamp (#480), and it must run AFTER `next()`. The pre-`next()` `c.header()` this replaced reached only
+ * responses Hono builds from the context — a handler returning its OWN `Response` replaces that, which is
+ * every tRPC response (`fetchRequestHandler`'s return value), so the app's primary API surface answered with
+ * no correlation handle for /api/_debug/logs?requestId=… at all. Mutating `c.res.headers` after `next()` is
+ * exactly how `hono/secure-headers` (and therefore `entry/http/securityHeaders`) gets ITS headers onto those
+ * same tRPC responses.
+ *
+ * This one site is sufficient, including for a THROWN handler: Hono's `compose` catches the throw at its own
+ * dispatch frame and runs `app.onError` there, so `next()` resolves normally and `c.res` is already the 500.
+ * Pinned by the two FENCE cases in tests/server/entry/app.test.ts (#480) — the belt/415 and the onError/500.
+ */
+function stampRequestId(c: { readonly res: Response }, requestId: string): void {
+  c.res.headers.set(REQUEST_ID_HEADER, requestId);
+}
+
+/**
+ * Per-request observability: assigns a request id, stamps it on the response as `X-Request-Id` (so a caller
+ * can grab it and query /api/_debug/logs?requestId=… or /traces/:requestId — see `stampRequestId` for WHERE
+ * that stamp has to happen), binds a request-scoped logger AND the request-root span, and logs one
+ * structured line per request. The stamped id is the SAME id every sink below records — never a second mint.
  */
 export const observability: MiddlewareHandler = (c, next) => {
   // If a trusted upstream already minted a correlation id, propagate it; else a fresh UUID. The charset
   // guard prevents log-injection from a client setting their own header.
   const incoming = c.req.header("x-request-id");
   const requestId = incoming !== undefined && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
-  c.header("X-Request-Id", requestId);
   const start = performance.now();
 
   return runInRequest(requestId, async () => {
@@ -44,6 +62,7 @@ export const observability: MiddlewareHandler = (c, next) => {
     // trace ring and evict an earlier real trace while the operator browses them.
     if (rawPath.startsWith(DEBUG_PREFIX)) {
       await next();
+      stampRequestId(c, requestId);
       return;
     }
     const path = redactSensitivePath(rawPath);
@@ -62,6 +81,7 @@ export const observability: MiddlewareHandler = (c, next) => {
     await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, async () => {
       await next();
     });
+    stampRequestId(c, requestId);
 
     const durationMs = Math.round(performance.now() - start);
     const status = c.res.status;

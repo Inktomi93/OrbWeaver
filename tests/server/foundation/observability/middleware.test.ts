@@ -1,6 +1,7 @@
 // foundation/observability/middleware — the per-request Hono middleware. Hono is NOT a test-reachable
 // dep, so the middleware is driven through a minimal mock Context (same posture as routes.test.ts): it
-// touches only c.req.header()/path/method, c.header(name,value) (the echo), c.res.status, and next().
+// touches only c.req.header()/path/method, c.res.status, c.res.headers.set (the X-Request-Id stamp, which
+// #480 moved to AFTER next() so it survives a handler-returned Response), and next().
 // The two load-bearing invariants (core/Tier-2-Foundation.md #11 + the request-id belt): the SAFE_REQUEST_ID
 // charset guard (a malicious X-Request-Id → a fresh safe id; a valid one propagates unchanged) and the
 // /api/_debug skip (no trace root, no request-ring record — introspection traffic doesn't evict real traces).
@@ -28,22 +29,21 @@ interface MockCtx {
     readonly method: string;
     readonly header: (name: string) => string | undefined;
   };
-  readonly res: { readonly status: number };
-  header: (name: string, value: string) => void;
+  readonly res: { readonly status: number; readonly headers: Headers };
   get: (key: "principal") => MockPrincipal | null;
 }
 type MiddlewareFn = (c: MockCtx, next: () => Promise<void>) => Promise<void>;
 
 interface RunResult {
-  readonly echoedId: string | undefined;
+  /** The id as it lands on the RESPONSE (`c.res.headers`, stamped after `next()` — #480). */
+  readonly stampedId: string | null;
   readonly nextCalled: boolean;
 }
 
-// Drive the middleware once: build a mock Context (capturing the echoed X-Request-Id and whether next ran),
-// invoke it, and report what came back out.
+// Drive the middleware once: build a mock Context (carrying a real Headers so the response stamp is
+// observable, plus whether next ran), invoke it, and report what came back out.
 async function run(opts: { path: string; method?: string; incomingId?: string; principal?: MockPrincipal }): Promise<RunResult> {
   const incoming = opts.incomingId;
-  let echoedId: string | undefined;
   let nextCalled = false;
   const ctx: MockCtx = {
     req: {
@@ -51,12 +51,7 @@ async function run(opts: { path: string; method?: string; incomingId?: string; p
       method: opts.method ?? "GET",
       header: (name: string): string | undefined => (name.toLowerCase() === "x-request-id" ? incoming : undefined),
     },
-    res: { status: OK_STATUS },
-    header: (name: string, value: string): void => {
-      if (name.toLowerCase() === "x-request-id") {
-        echoedId = value;
-      }
-    },
+    res: { status: OK_STATUS, headers: new Headers() },
     get: (_key: "principal"): MockPrincipal | null => opts.principal ?? null,
   };
   const next = (): Promise<void> => {
@@ -65,36 +60,36 @@ async function run(opts: { path: string; method?: string; incomingId?: string; p
   };
   const mw = observability as unknown as MiddlewareFn;
   await mw(ctx, next);
-  return { echoedId, nextCalled };
+  return { stampedId: ctx.res.headers.get("x-request-id"), nextCalled };
 }
 
 describe("the X-Request-Id charset guard (foundation.md #11)", () => {
   test("a valid incoming id is propagated unchanged (Caddy-edge correlation)", async () => {
     const incomingId = "caddy-9f8e7d6c-1234";
-    const { echoedId } = await run({ path: "/api/chats", incomingId });
-    expect(echoedId).toBe(incomingId);
+    const { stampedId } = await run({ path: "/api/chats", incomingId });
+    expect(stampedId).toBe(incomingId);
   });
 
   test("a malicious incoming id (escapes/spaces) is rejected → a fresh safe id is minted", async () => {
     const malicious = "abc def\nSet-Cookie: evil[31m";
-    const { echoedId } = await run({ path: "/api/chats", incomingId: malicious });
-    expect(echoedId).not.toBe(malicious);
-    expect(echoedId).toBeDefined();
+    const { stampedId } = await run({ path: "/api/chats", incomingId: malicious });
+    expect(stampedId).not.toBe(malicious);
+    expect(stampedId).not.toBeNull();
     // The minted id is drawn only from the safe alphabet — no injected control/escape bytes survive.
-    expect(SAFE_CHARSET.test(echoedId ?? "")).toBe(true);
+    expect(SAFE_CHARSET.test(stampedId ?? "")).toBe(true);
   });
 
   test("an over-length incoming id (>128 chars) is rejected → a fresh safe id", async () => {
     const tooLong = "a".repeat(129);
-    const { echoedId } = await run({ path: "/api/chats", incomingId: tooLong });
-    expect(echoedId).not.toBe(tooLong);
-    expect(SAFE_CHARSET.test(echoedId ?? "")).toBe(true);
+    const { stampedId } = await run({ path: "/api/chats", incomingId: tooLong });
+    expect(stampedId).not.toBe(tooLong);
+    expect(SAFE_CHARSET.test(stampedId ?? "")).toBe(true);
   });
 
-  test("no incoming id → a fresh safe id is always echoed", async () => {
-    const { echoedId } = await run({ path: "/api/chats" });
-    expect(echoedId).toBeDefined();
-    expect(SAFE_CHARSET.test(echoedId ?? "")).toBe(true);
+  test("no incoming id → a fresh safe id is always stamped", async () => {
+    const { stampedId } = await run({ path: "/api/chats" });
+    expect(stampedId).not.toBeNull();
+    expect(SAFE_CHARSET.test(stampedId ?? "")).toBe(true);
   });
 });
 
@@ -102,9 +97,10 @@ describe("the /api/_debug trace-skip (introspection doesn't evict real traces)",
   test("a /api/_debug request runs next() but opens NO trace root and records NO request-ring entry", async () => {
     initTracing();
     const incomingId = "debug-skip-req-1";
-    const { echoedId, nextCalled } = await run({ path: "/api/_debug/logs", incomingId });
-    // The id is still echoed (the header is set before the skip), but the request is invisible to the rings.
-    expect(echoedId).toBe(incomingId);
+    const { stampedId, nextCalled } = await run({ path: "/api/_debug/logs", incomingId });
+    // The id is still stamped on the response (the skip drops the RINGS, never the correlation header), but
+    // the request is invisible to the rings.
+    expect(stampedId).toBe(incomingId);
     expect(nextCalled).toBe(true);
     expect(getTraceByRequestId(incomingId)).toBeUndefined();
     expect(recentRequests(200).some((r) => r.id === incomingId)).toBe(false);
