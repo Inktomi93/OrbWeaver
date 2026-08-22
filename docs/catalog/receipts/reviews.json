@@ -362,7 +362,7 @@
           ]
         }
       ],
-      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation \u2014 R1-R5 costed options for the owner pick.",
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
       "evidence": [
         "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
         "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
@@ -378,7 +378,7 @@
       "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
       "verifiedAt": "2026-08-18",
       "evidence": [
-        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 \u2014 the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
         "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
       ],
       "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
@@ -420,7 +420,7 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/reviews/misc/2026-08-19-lan-auth-unification.md:1-260 read in full (line 1 to END), then every present-tense claim re-derived against the current tree rather than accepted from the prose",
-        "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) \u2014 packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
+        "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) — packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
         "Truth-repaired at f4733a44b BEFORE archiving (a stale security doc reads as live truth): a STATUS block naming what shipped, plus PRE-FIX markers on the three superseded sections (the bypass mechanism, the CSRF corollary, the TODAY matrix)",
         "Re-verified STILL TRUE and named as such in the repair: the OIDC-on-LAN blockers (the redirect-URI proto defaults to https in entry/http/auth-routes.ts; the session cookie is __Host- + Secure), so the analysis half of the document remains usable",
         "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent"
@@ -437,7 +437,7 @@
       "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
       "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session \u2014 lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
         "pnpm check:docs (2026-08-19: green)"
       ],
       "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
@@ -760,8 +760,8 @@
         "docs/reviews/security/2026-08-19-lan-auth-impl-review.md:1-284 read in full (line 1 to END); each of its three findings and its eight SOUND verdicts re-derived against the current tree",
         "P1 CLOSED: d6886c5ec (ancestor of HEAD) changed packages/server/src/entry/http/import.ts to gate the /api/import/bundle CSRF check on via !== \"header\", with a red-first via:\"fallback\" regression case in tests/server/entry/http/portability-routes.suite.int.test.ts",
         "P2 doc CLOSED: the same commit added the STOP/BYPASS-the-front-proxy instruction to the break-glass docblock in packages/server/src/entry/auth/seam.ts and to the Break-glass section of docs/design/containerize-prod-image-spec.md",
-        "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk \u2014 the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
-        "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight \u2014 SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
+        "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk — the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
+        "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight — SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
         "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning"
       ],
       "summary": "Historical security-review evidence: all three findings closed (two fixed, one owner-ruled) and one of its own verdicts since REFUTED and corrected in the document before archiving; no mutable work state is duplicated in this archive receipt."
@@ -908,7 +908,7 @@
       "verifiedAt": "2026-08-21",
       "evidence": [
         "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "verdict + receipts are Codex's, captured on its 611754905 stage \u2014 receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
+        "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
         "#363 confirmed live on the board at recovery"
       ],
       "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
@@ -981,6 +981,90 @@
       "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
+      "assignedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+      "verifiedCommit": "ad82980ad1654e54042b17bbd23f6a1b1ca4c8cd",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-END by the orchestrator (2026-08-22) before attestation",
+        "reports/ receipts gitignored, referenced by path; retractions published in-report"
+      ],
+      "summary": "Rail sweep 4/10 — Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
+      "claims": [
+        {
+          "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#491"
+            },
+            {
+              "kind": "issue",
+              "target": "#492"
+            },
+            {
+              "kind": "issue",
+              "target": "#493"
+            },
+            {
+              "kind": "issue",
+              "target": "#501"
+            },
+            {
+              "kind": "issue",
+              "target": "#502"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-chats.md",
+      "assignedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+      "verifiedCommit": "a6d2224a3402c06090338f1d15642ca89de1f4c2",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-END by the orchestrator (2026-08-22) before attestation",
+        "reports/ receipts gitignored, referenced by path; retractions published in-report"
+      ],
+      "summary": "Rail sweep 3/10 — Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
+      "claims": [
+        {
+          "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#487"
+            },
+            {
+              "kind": "issue",
+              "target": "#488"
+            },
+            {
+              "kind": "issue",
+              "target": "#489"
+            },
+            {
+              "kind": "issue",
+              "target": "#490"
+            },
+            {
+              "kind": "issue",
+              "target": "#500"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-22-rail-home.md",
       "assignedSha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
       "disposition": "current",
@@ -991,9 +1075,9 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "full read 1-477 by the orchestrator (2026-08-22) before attestation",
-        "receipts under reports/ (snaps, perf-meter, recordings, lighthouse \u2014 gitignored artifacts, referenced by path); 9 retractions published in-report"
+        "receipts under reports/ (snaps, perf-meter, recordings, lighthouse — gitignored artifacts, referenced by path); 9 retractions published in-report"
       ],
-      "summary": "Rail sweep 1/10 \u2014 home: SHIP WITH FIXES (32/40); a11y/contrast layers held (Lighthouse a11y 100 both devices, 13 contrast handles 0 FAIL); findings filed as #453 #454 #457 #458 with #455/#456 owner forks; empty/error states unreached read-only (seeded first-run pass recommended).",
+      "summary": "Rail sweep 1/10 — home: SHIP WITH FIXES (32/40); a11y/contrast layers held (Lighthouse a11y 100 both devices, 13 contrast handles 0 FAIL); findings filed as #453 #454 #457 #458 with #455/#456 owner forks; empty/error states unreached read-only (seeded first-run pass recommended).",
       "claims": [
         {
           "claim": "Every finding the review identifies is tracked as a live board row or an owner decision, and the two coverage gaps (empty/first-run, error state) are stated in-report rather than papered over.",
@@ -1039,10 +1123,10 @@
         "full read 1-748 by the orchestrator (2026-08-22) before attestation",
         "wedge-window receipts discarded and re-taken per the report's own timing section; 6 retractions published incl. the reviewer's own Light-theme misread"
       ],
-      "summary": "Rail sweep 2/10 \u2014 Presets: SHIP WITH FIXES (29/40); P1 keyboard-activation hazard + 9 P2s incl. a re-opened header-width ruling; findings filed as #481-#484 with #485 the ListRow-accent owner fork; contrast/overflow/motion/perf layers all held under an 8-variant matrix.",
+      "summary": "Rail sweep 2/10 — Presets: SHIP WITH FIXES (29/40); P1 keyboard-activation hazard + 9 P2s incl. a re-opened header-width ruling; findings filed as #481-#484 with #485 the ListRow-accent owner fork; contrast/overflow/motion/perf layers all held under an 8-variant matrix.",
       "claims": [
         {
-          "claim": "Every finding is tracked as a live board row or an owner decision; the two axe/design-audit systemic questions are dispositioned (accent \u2192 #485; label-content-name FP \u2192 sweep-brief boilerplate).",
+          "claim": "Every finding is tracked as a live board row or an owner decision; the two axe/design-audit systemic questions are dispositioned (accent → #485; label-content-name FP → sweep-brief boilerplate).",
           "evidence": [
             {
               "kind": "issue",
@@ -1456,10 +1540,10 @@
         "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
         "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
       ],
-      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 \u2014 awaiting detailed-mockup sign-off (#159), nothing builds before it.",
+      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 — awaiting detailed-mockup sign-off (#159), nothing builds before it.",
       "claims": [
         {
-          "claim": "Owner picked Observatory V1; detailed mockups gate any build \u2014 mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
+          "claim": "Owner picked Observatory V1; detailed mockups gate any build — mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
           "evidence": [
             {
               "kind": "issue",
@@ -1486,7 +1570,7 @@
         "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
         "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
       ],
-      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) \u2014 all resolved at merge.",
+      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
       "claims": [
         {
           "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
@@ -1627,7 +1711,7 @@
         "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
         "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
         "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
-        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) \u2014 re-attested post-merge 0cecddf97"
+        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97"
       ],
       "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
       "claims": [
@@ -1661,16 +1745,16 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
-        "the two ZEROES are graded in the document itself \u2014 a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
+        "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
         "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
         "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
-        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING \u00a74.5)",
-        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section \u2014 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
+        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)",
+        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section — 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
       ],
       "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
       "claims": [
         {
-          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row \u2014 a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
+          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row — a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
           "evidence": [
             {
               "kind": "issue",
@@ -1687,7 +1771,7 @@
           ]
         },
         {
-          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row \u2014 the \u00a73 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
+          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row — the §3 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
           "evidence": [
             {
               "kind": "gate",
@@ -1746,7 +1830,7 @@
       "verifiedAt": "2026-08-22",
       "claims": [
         {
-          "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 \u2014 SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
+          "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 — SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
           "evidence": [
             {
               "kind": "issue",

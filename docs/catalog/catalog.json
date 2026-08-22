@@ -23056,6 +23056,128 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 474,
+      "bytes": 29720,
+      "sha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
+        "assignedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+        "verifiedCommit": "ad82980ad1654e54042b17bbd23f6a1b1ca4c8cd",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-END by the orchestrator (2026-08-22) before attestation",
+          "reports/ receipts gitignored, referenced by path; retractions published in-report"
+        ],
+        "summary": "Rail sweep 4/10 — Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
+        "claims": [
+          {
+            "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#491"
+              },
+              {
+                "kind": "issue",
+                "target": "#492"
+              },
+              {
+                "kind": "issue",
+                "target": "#493"
+              },
+              {
+                "kind": "issue",
+                "target": "#501"
+              },
+              {
+                "kind": "issue",
+                "target": "#502"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-chats.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 543,
+      "bytes": 34659,
+      "sha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-rail-chats.md",
+        "assignedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+        "verifiedCommit": "a6d2224a3402c06090338f1d15642ca89de1f4c2",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-END by the orchestrator (2026-08-22) before attestation",
+          "reports/ receipts gitignored, referenced by path; retractions published in-report"
+        ],
+        "summary": "Rail sweep 3/10 — Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
+        "claims": [
+          {
+            "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#487"
+              },
+              {
+                "kind": "issue",
+                "target": "#488"
+              },
+              {
+                "kind": "issue",
+                "target": "#489"
+              },
+              {
+                "kind": "issue",
+                "target": "#490"
+              },
+              {
+                "kind": "issue",
+                "target": "#500"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-22-rail-home.md",
       "lane": "reviews",
       "issue": 7,
