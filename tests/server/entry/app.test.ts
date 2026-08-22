@@ -537,9 +537,9 @@ describe("createApp: the assembled app grants no CORS (spine invariant #9)", () 
       }),
     );
     // Non-vacuity: the assembled chain really produced this response (its own security headers are on it),
-    // so an empty grant list is "the app answered and granted nothing", not "nothing answered". The
-    // X-Request-Id stamp is NOT the anchor here — tRPC's handler returns its own Response, which the
-    // observability middleware's pre-`next()` `c.header` never reaches.
+    // so an empty grant list is "the app answered and granted nothing", not "nothing answered". A security
+    // header is the anchor rather than the X-Request-Id stamp because both now ride the same post-`next()`
+    // mechanism (#480), and this pin is about the CORS grant — its own describe block owns the stamp.
     expect(res.headers.get("X-Frame-Options")).toBe("DENY");
     expect(corsGrantHeaders(res)).toEqual([]);
   });
@@ -550,5 +550,71 @@ describe("createApp: the assembled app grants no CORS (spine invariant #9)", () 
     // A real served payload: the response a cross-site page would want to read, and cannot without a grant.
     expect(res.status).toBe(OK);
     expect(corsGrantHeaders(res)).toEqual([]);
+  });
+});
+
+// #480 — X-Request-Id exists so a caller can correlate ANY response with /api/_debug/logs?requestId=… and
+// /api/_debug/traces/:requestId, and this app's primary API surface is the tRPC mount. tRPC's
+// `fetchRequestHandler` returns its OWN Response object, which REPLACES whatever the Hono context held — so a
+// stamp written before `next()` reaches only the responses Hono builds from the context (the belt refusals,
+// the onError 500) and is silently absent on every tRPC 200 and every tRPC error. These pins drive the REAL
+// assembled mount and cover both response FACTORIES: tRPC's own (200 / error) and Hono's (415 / 500).
+describe("createApp: every response carries X-Request-Id (#480)", () => {
+  test("a tRPC 200 carries X-Request-Id — and it is the SAME id observability recorded", async () => {
+    const requestId = "req-480-trpc-ok-1";
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    const res = await hit(app, new Request("http://localhost/api/trpc/health", { headers: { "X-Request-Id": requestId } }));
+    expect(res.status).toBe(OK);
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
+    // The stamp must be the id the CAPTURE side recorded, not a second mint — a header that correlates to
+    // nothing is worse than no header, because the operator's lookup returns an honest-looking empty.
+    expect(recentRequests(500).some((r) => r.id === requestId)).toBe(true);
+  });
+
+  test("a tRPC ERROR response carries X-Request-Id (the correlation handle when it matters most)", async () => {
+    const requestId = "req-480-trpc-err-1";
+    const app = createApp(
+      deps({
+        seam: fakeSeam(OWNER),
+        rateLimit: { enforce: (): Promise<void> => Promise.reject(new DomainRateLimitError("slow down", { msBeforeNext: 1500 })) },
+      }),
+    );
+    const res = await hit(app, new Request("http://localhost/api/trpc/health", { headers: { "X-Request-Id": requestId } }));
+    expect(res.status).toBe(TOO_MANY_REQUESTS);
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
+  });
+
+  test("a tRPC 404 (unknown procedure) carries X-Request-Id", async () => {
+    const requestId = "req-480-trpc-404-1";
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    const res = await hit(app, new Request("http://localhost/api/trpc/nope.notAProcedure", { headers: { "X-Request-Id": requestId } }));
+    expect(res.status).toBe(NOT_FOUND);
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
+  });
+
+  // The two responses Hono itself builds from the context. Both already carried the stamp before #480 (the
+  // pre-`next()` `c.header` reached exactly these), so they are FENCES, not defect proofs — and they are
+  // what licensed DELETING that pre-`next()` set rather than keeping it as a belt: Hono's `compose` catches
+  // a thrown handler at ITS OWN dispatch frame and runs `onError` there, so `next()` resolves normally and
+  // the post-`next()` stamp still lands on the 500. Measured, not assumed (planted control: with the
+  // pre-`next()` line deleted both of these stay green; a non-Error throw escapes `app.fetch` with NO
+  // Response at all, so no stamp of either kind could have covered it).
+  test("FENCE: the content-type belt's own 415 refusal carries X-Request-Id", async () => {
+    const requestId = "req-480-belt-415-1";
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    const res = await hit(app, new Request(PRUNE_URL, { method: "POST", headers: { "X-Request-Id": requestId, "content-type": "text/plain" }, body: "x" }));
+    expect(res.status).toBe(UNSUPPORTED_MEDIA_TYPE);
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
+  });
+
+  test("FENCE: the onError 500 (a thrown handler) carries X-Request-Id", async () => {
+    const requestId = "req-480-thrown-500-1";
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    app.get("/api/_probe/throw-480", () => {
+      throw new Error("boom-480");
+    });
+    const res = await hit(app, new Request("http://localhost/api/_probe/throw-480", { headers: { "X-Request-Id": requestId } }));
+    expect(res.status).toBe(INTERNAL_ERROR);
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
   });
 });
