@@ -12,12 +12,23 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // invisible overflow. Both arms are pinned in tests/ui/primitives/switch/switch.ct.tsx (the fine aspect +
 // travel pins, and the `at a COARSE pointer` describe block).
 //
-// KNOWN, DELIBERATELY UNFIXED (side-eye #420 P3, pre-existing at BOTH pointers): the checked thumb sits
-// 1px proud of the track's right rim. The root is `border-box` with a 1px border, so its CONTENT box is
-// 2px narrower than `--spacing-switch-track`, while the translate below spends the full token. Every fix
-// is bigger than the defect — subtracting the border needs a raw `2px` (banned: tokens only) or a new
-// border-width token plus a re-spelling of `border` on the root, whose colour the invalid/checked
-// variants and a CT assertion already ride.
+// THE BORDER IS ARITHMETIC, NOT JUST PAINT (#424, closing side-eye #420 P3). The root is `border-box`,
+// so its CONTENT box — the box the thumb is laid out and translated in — is 2× the border narrower than
+// `--spacing-switch-track`. A travel of `track − thumb` spends the FULL token and parked the checked
+// thumb one border-width PAST the right rim (measured insetRight −1 at both pointers). So the travel
+// subtracts the border twice, and the root spells its own border WIDTH from the same
+// `--border-width-control` token that the calc reads — geometry and paint cannot drift apart. Arithmetic:
+// fine 48 − 32 − 2×1 = 14, coarse 64 − 32 − 2×1 = 30 (the coarse pin computes exactly that). The root's
+// border COLOUR is untouched: `border-border` and the `data-invalid:` / `data-checked:` colour variants
+// (and the CT that reads `border-top-color`) ride the colour axis, which the width spelling never names.
+// Pinned both ways in tests/ui/primitives/switch/switch.ct.tsx — the rim pin asserts the thumb's gap to
+// each rim EQUALS the root's own rendered border width, at both pointers, so a border retune moves the
+// expectation with the design instead of freezing 1px.
+//
+// RESIDUAL, deliberately unchanged: the thumb is exactly as tall as the root at a fine pointer
+// (`h-switch-thumb` both), so it is flush with the root's OUTER box vertically (measured top/bottom
+// inset 0) while now sitting a border in from each end horizontally. Inset-ing it vertically would mean
+// shrinking the display thumb, a size decision this fix has no mandate for.
 //
 // `tone` rations the accent (north-star §5 rule 0.5, PP1's Badge `tone` precedent; owner-sanctioned
 // 2026-07-16): `accent` (default) is the byte-identical ember-on-checked skin — the ONE sanctioned
@@ -29,7 +40,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 export const switchVariants = tv({
   slots: {
     root: [
-      "relative inline-flex h-switch-thumb w-switch-track shrink-0 cursor-pointer items-center rounded-full border border-border bg-input p-0 pointer-coarse:h-touch-target",
+      "relative inline-flex h-switch-thumb w-switch-track shrink-0 cursor-pointer items-center rounded-full border-(length:--border-width-control) border-border bg-input p-0 pointer-coarse:h-touch-target",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
@@ -42,7 +53,7 @@ export const switchVariants = tv({
     thumb: [
       "group relative flex aspect-square h-switch-thumb items-center justify-center rounded-full bg-foreground",
       "transition-transform duration-(--motion-fast) ease-out-expo",
-      "data-checked:translate-x-[calc(var(--spacing-switch-track)-var(--spacing-switch-thumb))]",
+      "data-checked:translate-x-[calc(var(--spacing-switch-track)_-_var(--spacing-switch-thumb)_-_2_*_var(--border-width-control))]",
     ],
     // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
     readOnlyIcon: "hidden text-background group-data-[readonly]:block",

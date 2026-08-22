@@ -5,9 +5,33 @@ import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
+
+/**
+ * The thumb's gap to each rim of the ROOT's border box, plus the root's own rendered border width —
+ * the #424 measurement. Read in ONE evaluate so both rects come from the same layout, and returned as
+ * rounded px because the only defect this can express is a whole-border-width overhang.
+ */
+async function thumbRims(control: Locator): Promise<{ left: number; right: number; top: number; bottom: number; border: number }> {
+  return await control.evaluate((el) => {
+    const knob = el.querySelector('[data-slot="switch-thumb"]');
+    if (knob === null) {
+      throw new Error("no switch-thumb inside the switch root");
+    }
+    const root = el.getBoundingClientRect();
+    const rect = knob.getBoundingClientRect();
+    return {
+      left: Math.round(rect.left - root.left),
+      right: Math.round(root.right - rect.right),
+      top: Math.round(rect.top - root.top),
+      bottom: Math.round(root.bottom - rect.bottom),
+      border: Math.round(Number.parseFloat(getComputedStyle(el).borderRightWidth)),
+    };
+  });
+}
 
 test("click toggles aria-checked", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" />);
@@ -54,11 +78,38 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
   expect((track?.width ?? 0) / (track?.height ?? 1)).toBeGreaterThan(1.4);
   await control.click();
   await expect(control).toHaveAttribute("aria-checked", "true");
-  // Travel = switch-track − switch-thumb = 3rem − 2rem = 16px (thumb raised to 32px for the tap-target
-  // floor, Task #76). The old fine-pointer travel was ~4px; assert well past that so a regression toward
+  // Travel = switch-track − switch-thumb − 2×border = 48 − 32 − 2 = 14px (thumb raised to 32px for the
+  // tap-target floor, Task #76; the two borders subtracted at #424 — the root is border-box, so the thumb
+  // travels inside a content box narrower than the track token). The old fine travel was ~4px; assert
+  // well past that so a regression toward
   // a near-square track fails here. Poll past the 130ms transform transition (the thumb slides,
   // boundingBox tracks the transform mid-animation).
   await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
+});
+
+// ── #424: THE THUMB LIVES INSIDE THE BORDER. The root is `border-box` with a border, so its CONTENT
+// box is 2×border narrower than `--spacing-switch-track` — a travel of `track − thumb` spends the full
+// token and pushes the checked knob one border-width PAST the right rim (measured −1 at both pointers
+// before the fix; side-eye #420 P3). Asserted as a RELATION against the root's own rendered
+// border-width, so a border-width retune moves the expectation with the design instead of pinning 1.
+// (Issue numbers stay OUT of the strings below: `#424` reads as a 3-digit hex to the ui-primitive-structure
+// gate's hardcoded-colour arm, which is comment-safe but scans literals.)
+test("the thumb sits INSIDE the root's border at both ends of its travel (issue 424)", async ({ mount, page }) => {
+  await mount(<Switch aria-label="Streaming" />);
+  const control = page.getByRole("switch");
+  const parked = await thumbRims(control);
+  expect(parked.border, "the root must actually paint a border, or this pin is vacuous").toBeGreaterThan(0);
+  // The RESIDUAL this fix deliberately leaves (measured, so a later change to it is visible here): the
+  // thumb is exactly as tall as the root at a fine pointer, so it stays flush with the root's OUTER box
+  // vertically. Inset-ing it would mean shrinking the display thumb — a size decision, not this defect.
+  expect(parked.top, "the thumb stays vertically flush with the root's OUTER box (unchanged by issue 424)").toBe(0);
+  expect(parked.bottom, "the thumb stays vertically flush with the root's OUTER box (unchanged by issue 424)").toBe(0);
+  expect(parked.left, "unchecked: the thumb starts at the content box's left edge, not on the border").toBe(parked.border);
+  await control.click();
+  await expect(control).toHaveAttribute("aria-checked", "true");
+  // SETTLED, not mid-transition: the thumb has a 130ms transform transition (the same false negative
+  // the side-eye retracted on this control), so poll the rim rather than reading it same-tick.
+  await expect.poll(async () => (await thumbRims(control)).right, { intervals: [20, 50, 100, 150] }).toBe(parked.border);
 });
 
 // ── THE COARSE-POINTER SHAPE PIN (side-eye #420, 2026-08-22). The two pins that existed before this
@@ -109,13 +160,28 @@ test.describe("at a COARSE pointer", () => {
     // expectation with the design instead of pinning a constant.
     const rem = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize));
     const remPx = (value: string): number => Number.parseFloat(value) * rem;
-    const expectedTravel = Math.round(remPx(TOKENS["spacing.switch-track"].value) - remPx(TOKENS["spacing.switch-thumb"].value));
+    // MINUS the two borders (#424): the root is border-box, so the thumb travels inside a content box
+    // 2×--border-width-control narrower than the track token. Coarse arithmetic: 64 − 32 − 2×1 = 30.
+    const borders = 2 * Number.parseFloat(TOKENS["border-width.control"].value);
+    const expectedTravel = Math.round(remPx(TOKENS["spacing.switch-track"].value) - remPx(TOKENS["spacing.switch-thumb"].value) - borders);
     const offX = (await thumb.boundingBox())?.x ?? 0;
     await control.click();
     await expect(control).toHaveAttribute("aria-checked", "true");
     // SETTLED, not mid-transition: the thumb has a 130ms transform transition and a same-tick rect read
     // reports a partial translate (the side-eye retracted exactly that false negative on this control).
     await expect.poll(async () => Math.round(((await thumb.boundingBox())?.x ?? 0) - offX), { intervals: [20, 50, 100, 150] }).toBe(expectedTravel);
+  });
+
+  // #424 is pointer-INDEPENDENT (the overhang is the border-box arithmetic, not a token value), so the
+  // rim pin runs in the coarse context too — the wider track must not put the knob back over the rim.
+  test("the thumb sits INSIDE the root's border here too (issue 424)", async ({ mount, page }) => {
+    await mount(<Switch aria-label="Streaming" />);
+    const control = page.getByRole("switch");
+    const parked = await thumbRims(control);
+    expect(parked.left, "unchecked: the thumb starts at the content box's left edge").toBe(parked.border);
+    await control.click();
+    await expect(control).toHaveAttribute("aria-checked", "true");
+    await expect.poll(async () => (await thumbRims(control)).right, { intervals: [20, 50, 100, 150] }).toBe(parked.border);
   });
 });
 
@@ -184,7 +250,7 @@ test("tone=quiet: still toggles and the thumb still travels — state is positio
   await expect(control).toHaveAttribute("aria-checked", "false");
   await control.click();
   await expect(control).toHaveAttribute("aria-checked", "true");
-  // Same 16px travel as accent (thumb translate is tone-independent) — the a11y on/off signal holds.
+  // Same 14px travel as accent (thumb translate is tone-independent) — the a11y on/off signal holds.
   await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
 });
 
