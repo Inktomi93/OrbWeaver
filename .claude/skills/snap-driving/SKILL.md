@@ -160,9 +160,12 @@ parameterized actions.
 
 ## §5b Appearance: the account state is ONE arm, and it is not the default one
 
-The dev account STORES `appearance.reducedMotion: true` (verified on the live wire 2026-08-18), plus its
-own density/elevation/texture/typography choices. So every un-flagged drive reviews THAT state — motion
-audits spent months judging an app whose own setting had frozen the animations they were measuring.
+The dev account stores its OWN appearance choices (density/elevation/texture/typography — and possibly
+`reducedMotion`), and the owner CHANGES them: `reducedMotion` measured `true` on 2026-08-18 and `false`
+on 2026-08-22. So NEVER assume the account state — PROBE it at drive start (`--eval` the settings
+response, or read `<html data-reduced-motion>`) and STATE which state your receipts were taken under.
+Every un-flagged drive reviews whatever the account holds that day — motion audits once spent months
+judging an app whose own setting had frozen the animations they were measuring.
 
 - **TWO DIFFERENT MOTION GATES, and they diverge.** `--reduced-motion` emulates the **OS media query**
   (`prefers-reduced-motion`). `--full-motion` / `--appearance` shim the **app setting** (`<html
