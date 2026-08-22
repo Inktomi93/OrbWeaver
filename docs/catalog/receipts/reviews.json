@@ -1004,9 +1004,7 @@
           ]
         }
       ],
-      "evidence": [
-        "full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"
-      ],
+      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
       "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
     },
     {
@@ -1492,9 +1490,7 @@
       "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
       "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
       "verifiedAt": "2026-08-21",
-      "evidence": [
-        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"
-      ],
+      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
       "claims": [
         {

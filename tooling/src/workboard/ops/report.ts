@@ -70,11 +70,16 @@ export function list(status?: string): void {
   print(JSON.stringify({ items }, null, 2));
 }
 
-/** The whole board on one screen, numbers guaranteed — the orchestrator's board-read ritual verb.
- *  Every status is shown (a queue the reader forgot exists is exactly the blindness this verb kills,
- *  2026-08-22); Done is count-only, every other status lists `#N [prio] title (lane|wake)`. */
-export function overview(): void {
-  const rows = withProjectContext((context) => listItems(context.projectId));
+// Working-queue statuses first, in lifecycle order; anything unexpected still prints (never hidden).
+const OVERVIEW_STATUS_ORDER = ["Triage", "Ready", "Running", "Review", "Verify", "Needs owner", "Blocked", "Parked", "Done"];
+const OVERVIEW_TITLE_MAX = 90;
+
+function overviewStatusRank(status: string): number {
+  const index = OVERVIEW_STATUS_ORDER.indexOf(status);
+  return index === -1 ? OVERVIEW_STATUS_ORDER.length : index;
+}
+
+function groupRowsByStatus(rows: readonly ListRow[]): Map<string, ListRow[]> {
   const byStatus = new Map<string, ListRow[]>();
   for (const row of rows) {
     const status = fieldOf(row.fields, "Status") ?? "(no status)";
@@ -85,13 +90,23 @@ export function overview(): void {
       bucket.push(row);
     }
   }
-  // Working-queue statuses first, in lifecycle order; anything unexpected still prints (never hidden).
-  const order = ["Triage", "Ready", "Running", "Review", "Verify", "Needs owner", "Blocked", "Parked", "Done"];
-  const names = [...byStatus.keys()].toSorted((a, b) => {
-    const ai = order.indexOf(a);
-    const bi = order.indexOf(b);
-    return (ai === -1 ? order.length : ai) - (bi === -1 ? order.length : bi);
-  });
+  return byStatus;
+}
+
+function overviewRowLine(row: ListRow, status: string): string {
+  const issue = row.content?.number === undefined ? "draft" : `#${row.content.number}`;
+  const priority = fieldOf(row.fields, "Priority");
+  const tail = status === "Parked" ? fieldOf(row.fields, "Wake condition") : fieldOf(row.fields, "Lane");
+  const title = (row.content?.title ?? fieldOf(row.fields, "Title") ?? "").slice(0, OVERVIEW_TITLE_MAX);
+  return `  ${issue}${priority === undefined ? "" : ` [${priority}]`} ${title}${tail === undefined ? "" : ` (${tail})`}`;
+}
+
+/** The whole board on one screen, numbers guaranteed — the orchestrator's board-read ritual verb.
+ *  Every status is shown (a queue the reader forgot exists is exactly the blindness this verb kills,
+ *  2026-08-22); Done is count-only, every other status lists `#N [prio] title (lane|wake)`. */
+export function overview(): void {
+  const byStatus = groupRowsByStatus(withProjectContext((context) => listItems(context.projectId)));
+  const names = [...byStatus.keys()].toSorted((a, b) => overviewStatusRank(a) - overviewStatusRank(b));
   for (const status of names) {
     const bucket = byStatus.get(status) ?? [];
     print(`${status} (${bucket.length})`);
@@ -100,11 +115,7 @@ export function overview(): void {
     }
     const sorted = bucket.toSorted((l, r) => (l.content?.number ?? Number.MAX_SAFE_INTEGER) - (r.content?.number ?? Number.MAX_SAFE_INTEGER));
     for (const row of sorted) {
-      const n = row.content?.number === undefined ? "draft" : `#${row.content.number}`;
-      const priority = fieldOf(row.fields, "Priority");
-      const tail = status === "Parked" ? fieldOf(row.fields, "Wake condition") : fieldOf(row.fields, "Lane");
-      const title = (row.content?.title ?? fieldOf(row.fields, "Title") ?? "").slice(0, 90);
-      print(`  ${n}${priority === undefined ? "" : ` [${priority}]`} ${title}${tail === undefined ? "" : ` (${tail})`}`);
+      print(overviewRowLine(row, status));
     }
   }
 }
