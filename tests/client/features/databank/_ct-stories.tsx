@@ -19,6 +19,7 @@ import { createContributorRegistry } from "../../../../packages/client/src/lib/i
 import type { HomeTileContribution } from "../../../../packages/client/src/state/index.ts";
 import {
   closeModal,
+  setFocusMode,
   useActiveChatId,
   useActiveSection,
   useDatabankPhaseFilter,
@@ -74,13 +75,46 @@ function CtModalSlotHost(): ReactElement {
 }
 
 /** CONTENT — the welcome arm with nothing selected, and the document detail once a row is opened (the
- *  selection store is module state, so the LIST story's click drives this one in the same page). */
+ *  selection store is module state, so the LIST story's click drives this one in the same page).
+ *
+ *  UNDER THE REAL SECTION REGISTRY since #434: the pane's no-selection arm reads the shell's LIST MODE for
+ *  this section (`useSectionListMode`), which resolves the section DEFINITION's `panelDefaults` — nothing is
+ *  collapsed here, so it renders the section's boot layout (LIST docked, i.e. on screen). */
 export function DatabankDetailStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 700, width: 720 }}>
-        <DatabankDetailSurface />
-      </div>
+      <CtRealSectionRegistry>
+        <div style={{ height: 700, width: 720 }}>
+          <DatabankDetailSurface />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** CONTENT alone, with a live driver for the shell's LIST MODE (#434) — the LIST pane is deliberately NOT
+ *  mounted, because the arm under test is "the list is off screen, so this pane cannot defer to it". Both
+ *  arms in ONE mount (a CT mounts once per test).
+ *
+ *  THE DRIVER IS FOCUS MODE: the shell's ONE flag for "no side panel is showing" (item 20) — regime-free,
+ *  section-independent and synchronous, where `setPanelMode` writes the ACTIVE section's override and
+ *  `setActiveSection` defers its write through `withViewTransition` (a story doing both in one handler lands
+ *  the override on the previous section — measured). The pane reads the RESOLVED mode, so any regime that
+ *  resolves `collapsed` exercises it; the override path's own resolution is pinned in `shell-store.ct`. */
+export function DatabankDetailListModeStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button type="button" onClick={(): void => setFocusMode(true)}>
+          take the list off screen
+        </button>
+        <button type="button" onClick={(): void => setFocusMode(false)}>
+          put the list back
+        </button>
+        <div style={{ height: 700, width: 720 }}>
+          <DatabankDetailSurface />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -92,14 +126,16 @@ export function DatabankDetailStory(): ReactElement {
 export function DatabankDetailWideStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ display: "flex", height: 700, width: 1760 }}>
-        <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
-          <DatabankLibrarySurface />
+      <CtRealSectionRegistry>
+        <div style={{ display: "flex", height: 700, width: 1760 }}>
+          <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
+            <DatabankLibrarySurface />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <DatabankDetailSurface />
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <DatabankDetailSurface />
-        </div>
-      </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -201,18 +237,20 @@ export function DatabankHomeTileNarrowStory(): ReactElement {
 export function DatabankWorkspaceStory(): ReactElement {
   return (
     <CtDataProviders>
-      <DatabankSettingsProbe />
-      <div style={{ display: "flex", height: 700 }}>
-        <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
-          <DatabankLibrarySurface />
+      <CtRealSectionRegistry>
+        <DatabankSettingsProbe />
+        <div style={{ display: "flex", height: 700 }}>
+          <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
+            <DatabankLibrarySurface />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <DatabankDetailSurface />
+          </div>
+          <div style={{ flex: "none", width: 320 }}>
+            <DatabankContextBody />
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <DatabankDetailSurface />
-        </div>
-        <div style={{ flex: "none", width: 320 }}>
-          <DatabankContextBody />
-        </div>
-      </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

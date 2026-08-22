@@ -2,7 +2,7 @@
 // reads with derived bits (active section label, resolved per-panel modes, scrim) plus the
 // toggle/focus/collapse callbacks. Resolution lives here (not the store): the store exposes only the raw
 // per-panel override; this hook merges `override ?? the section's registry panelDefaults` then runs it
-// through `resolvePanelMode` — the SAME algebra `useListDocked` uses (`#state`), so the two tiers can
+// through `resolvePanelMode` — the SAME algebra `useSectionListMode` uses (`#state`), so the two tiers can
 // never drift (the M10 correction).
 //
 // In an overlay regime (mobile OR narrow-desktop auto-overlay) a panel is a transient slide-over, not a
@@ -89,7 +89,7 @@ export function useShellLayout(): ShellLayout {
   const isMobile = useIsMobileViewport();
   const isNarrow = useIsShellNarrowViewport();
   const contextContentConstrained = useIsContextContentConstrained();
-  // Publishes both viewport regimes to #state so feature-tier projections (useListDocked) can branch on
+  // Publishes both viewport regimes to #state so feature-tier projections (useSectionListMode) can branch on
   // them without importing these matchMedia-backed hooks (client-features-no-cross / no-raw-matchmedia).
   useEffect(() => {
     setMobileViewport(isMobile);

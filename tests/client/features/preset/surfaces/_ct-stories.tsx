@@ -10,7 +10,7 @@
 
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";
-import { __resetPresetSelection, selectPreset, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
+import { __resetPresetSelection, selectPreset, setFocusMode, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -117,20 +117,56 @@ export function PresetLibraryDockedStory(): ReactElement {
   );
 }
 
-/** The Presets teaching state at the two real containment arms implicated by #379. */
+/** The Presets teaching state at the two real containment arms implicated by #379.
+ *
+ *  UNDER THE REAL SECTION REGISTRY since #434: the welcome reads the shell's own LIST MODE for this section
+ *  (`useSectionListMode`), which resolves the section DEFINITION's `panelDefaults` — so a story that mounts it
+ *  bare would be asking the registry a question with no registry to ask. Nothing is collapsed here, so both
+ *  arms render the section's boot layout (LIST docked), which is what the #379 hierarchy pins measure. */
 export function PresetLibraryWelcomeWideStory(): ReactElement {
   return (
-    <div style={{ height: 720, width: 720 }}>
-      <PresetLibraryWelcome />
-    </div>
+    <CtRealSectionRegistry>
+      <div style={{ height: 720, width: 720 }}>
+        <PresetLibraryWelcome />
+      </div>
+    </CtRealSectionRegistry>
   );
 }
 
 export function PresetLibraryWelcomeNarrowStory(): ReactElement {
   return (
-    <div style={{ height: 720, width: 320 }}>
-      <PresetLibraryWelcome />
-    </div>
+    <CtRealSectionRegistry>
+      <div style={{ height: 720, width: 320 }}>
+        <PresetLibraryWelcome />
+      </div>
+    </CtRealSectionRegistry>
+  );
+}
+
+/** The teaching state WITH a live driver for the shell's LIST MODE (#434). Both arms in ONE mount, because a
+ *  CT mounts once per test and the finding is about which arm the SAME pane shows.
+ *
+ *  THE DRIVER IS FOCUS MODE, and that is a deliberate choice over `setPanelMode`. Focus is the shell's ONE
+ *  flag for "no side panel is showing" (item 20) — regime-free, section-independent and SYNCHRONOUS, whereas
+ *  `setPanelMode` writes the ACTIVE section's override and `setActiveSection` defers its state write through
+ *  `withViewTransition` (a story clicking both in one handler lands the override on the previous section —
+ *  measured). What this pane reads is the RESOLVED mode, so any regime that resolves `collapsed` exercises
+ *  it; that the override path resolves the same way is pinned one tier down, over the real store
+ *  (`shell-store.ct` / `section-list-projection.ct`). No effect seeds anything: the first commit is the
+ *  section's real boot layout. */
+export function PresetLibraryWelcomeListModeStory(): ReactElement {
+  return (
+    <CtRealSectionRegistry>
+      <button type="button" onClick={(): void => setFocusMode(true)}>
+        take the list off screen
+      </button>
+      <button type="button" onClick={(): void => setFocusMode(false)}>
+        put the list back
+      </button>
+      <div style={{ height: 720, width: 720 }}>
+        <PresetLibraryWelcome />
+      </div>
+    </CtRealSectionRegistry>
   );
 }
 
