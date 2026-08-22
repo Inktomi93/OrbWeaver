@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-14
+updated: 2026-08-22
 ---
 
 # Orbweaver — Spine: Config, Settings, and Serialization
@@ -24,6 +24,7 @@ Every config value has exactly one of four natures; misfiling one re-tangles the
 - **(c) is THE CREDENTIAL FIREWALL** (security-load-bearing, D8): three per-turn subprocess-env builders + the `RESERVED_CLAUDE_ENV_KEYS` denylist + ephemeral `CLAUDE_CONFIG_DIR` isolation. The ordering-is-the-security law lives in that file's header — read it before touching; the sub OAuth token must stay structurally unreachable from a paid/local spawn. It's called "env" only because it *emits* env vars.
 - **(d):** reasoning is typed SDK Options (`thinking`/`effort` via `translate.ts`); only output/context caps + compaction ride subprocess env, preset-sourced (env-*shaped* only at the wire). The `UserIntent.advanced.claudeEnv` escape hatch is filtered through `RESERVED_CLAUDE_ENV_KEYS` BEFORE the auth firewall applies — a preset can neither set auth/routing env nor strip the firewall.
 - **Shared machinery:** all versioned blobs ride the ONE `defineVersionedConfig` primitive (`@orb/contracts/versioned-config`). Memory tuning splits write-side (`AppSettings.memoryDefaults`/`memorySummarizer`) vs read-side (`UserSettings.memory.enabled` per-user opt-out).
+- **DEGRADING IS A READ-ONLY PRIVILEGE (#471).** `parse` always returns a valid `T` — an unreadable stored blob renders as defaults instead of 500ing. A read-modify-WRITE that persists that stand-in destroys the user's real blob silently and permanently (the proven cause of the #461 settings wipe). So every write seam distinguishes three outcomes — **row absent** (a first write is legitimate) · **intact** (normal read-modify-write) · **degraded** (REFUSE; the bytes are what they are, so re-reading cannot help) — via `parseOutcome`'s provenance, never by convention. Enforcer: the two whole-blob writers (`domain/settings/persistence/queries.ts::writeUserConfig` / `writeAppOverride`) refuse at the write itself, so the guard is total over every present and future caller; the refusal is one home (`domain/settings/substrate/stored-config.ts` → `DomainOperationError(stored_config_unreadable)`), pinned at `tests/server/domain/settings/persistence/queries.int.test.ts` + `…/verbs/update-user-settings-section.int.test.ts`.
 
 ## Serialization / serde core (spine §7.3)
 

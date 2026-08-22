@@ -7,12 +7,39 @@
 // Parse contract: ALWAYS returns a valid T. A non-object input, a corrupted blob that fails even after
 // lifts, or null/undefined → the `default` (the lenient shape; a malformed stored preset degrading to
 // its default beats a hard load failure mid-session).
+//
+// …but degrading is only correct for the CURRENT REQUEST. A read-modify-WRITE that cannot tell the
+// degraded stand-in from the real blob persists the default and destroys the user's data silently (#471 —
+// the proven cause of the #461 settings wipe). `parseOutcome` is that discriminator: same value as
+// `parse`, plus whether it is the stored blob or a stand-in for one that could not be read. Every write
+// seam branches on it (`domain/settings/substrate/stored-config.ts`); read seams keep using `parse`.
 
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
 // Schema versions are 1-based; v1 is the floor a probe/lift walk starts from.
 const INITIAL_VERSION = 1;
+
+/** Why a stored blob could not be read as `T` — the honest reason a WRITE seam refuses on. */
+export const VERSIONED_PARSE_FAILURES = {
+  /** The stored value is not a plain object (null/undefined, a scalar, an array, a truncated write). */
+  notAnObject: "not-an-object",
+  /** A lift in the walk returned a non-object — the migration chain broke on this blob. */
+  liftBrokeShape: "lift-broke-shape",
+  /** The final-version schema rejected the (possibly lifted) blob. */
+  schemaRejected: "schema-rejected",
+} as const;
+
+export type VersionedParseFailure = (typeof VERSIONED_PARSE_FAILURES)[keyof typeof VERSIONED_PARSE_FAILURES];
+
+/**
+ * `parse`'s value plus its PROVENANCE. `intact: true` ⇒ `value` IS the stored blob (lifted + validated);
+ * `intact: false` ⇒ `value` is the `default` standing in for a blob that could not be read, and
+ * overwriting storage with anything derived from it would destroy the real data (#471).
+ */
+export type VersionedParseOutcome<T> =
+  | { readonly intact: true; readonly value: T }
+  | { readonly intact: false; readonly value: T; readonly failure: VersionedParseFailure };
 
 export interface VersionedConfigDef<T> {
   /** Final-version Zod schema. Must accept the output of the last lift. */
@@ -36,6 +63,15 @@ export interface VersionedConfig<T> {
    * corrupts data the moment a lift is non-idempotent (the load-bearing invariant).
    */
   parse: (raw: unknown, storedVersion?: number) => T;
+  /**
+   * `parse` with its provenance attached — the ONLY read a write path may build on. Same walk, same
+   * value; the caller learns whether it got the stored blob or a degraded stand-in (#471).
+   *
+   * Absence is the CALLER's to model: a never-written blob arrives here as `undefined` and reports
+   * `not-an-object`, which is honest (there is nothing to read) but is NOT a corruption — a write seam
+   * checks "row absent?" first and only then asks this.
+   */
+  parseOutcome: (raw: unknown, storedVersion?: number) => VersionedParseOutcome<T>;
   serialize: (value: T) => string;
   readonly default: T;
   readonly currentVersion: number;
@@ -44,30 +80,38 @@ export interface VersionedConfig<T> {
 const versionProbeSchema = z.object({ schemaVersion: z.number().int().optional() });
 
 export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedConfig<T> {
+  const degraded = (failure: VersionedParseFailure): VersionedParseOutcome<T> => ({ intact: false, value: def.default, failure });
+
+  // The ONE walk. `parse` is this minus the provenance, so the two can never disagree.
+  const parseOutcome = (raw: unknown, storedVersion?: number): VersionedParseOutcome<T> => {
+    if (!isPlainObject(raw)) {
+      return degraded(VERSIONED_PARSE_FAILURES.notAnObject);
+    }
+    const probe = versionProbeSchema.safeParse(raw);
+    const probedVersion = probe.success ? (probe.data.schemaVersion ?? INITIAL_VERSION) : INITIAL_VERSION;
+    // Externally-recorded version (a storage column) beats the in-blob probe; garbage
+    // (non-positive / non-integer) falls back to the probe rather than poisoning the walk.
+    let version = storedVersion !== undefined && Number.isInteger(storedVersion) && storedVersion >= INITIAL_VERSION ? storedVersion : probedVersion;
+    let config: Record<string, unknown> = raw;
+    let lift = def.lifts[version];
+    while (lift !== undefined) {
+      const next = lift(config);
+      if (!isPlainObject(next)) {
+        return degraded(VERSIONED_PARSE_FAILURES.liftBrokeShape);
+      }
+      config = next;
+      version += 1;
+      lift = def.lifts[version];
+    }
+    const parsed = def.schema.safeParse(config);
+    return parsed.success ? { intact: true, value: parsed.data } : degraded(VERSIONED_PARSE_FAILURES.schemaRejected);
+  };
+
   return {
     parse(raw: unknown, storedVersion?: number): T {
-      if (!isPlainObject(raw)) {
-        return def.default;
-      }
-      const probe = versionProbeSchema.safeParse(raw);
-      const probedVersion = probe.success ? (probe.data.schemaVersion ?? INITIAL_VERSION) : INITIAL_VERSION;
-      // Externally-recorded version (a storage column) beats the in-blob probe; garbage
-      // (non-positive / non-integer) falls back to the probe rather than poisoning the walk.
-      let version = storedVersion !== undefined && Number.isInteger(storedVersion) && storedVersion >= INITIAL_VERSION ? storedVersion : probedVersion;
-      let config: Record<string, unknown> = raw;
-      let lift = def.lifts[version];
-      while (lift !== undefined) {
-        const next = lift(config);
-        if (!isPlainObject(next)) {
-          return def.default;
-        }
-        config = next;
-        version += 1;
-        lift = def.lifts[version];
-      }
-      const parsed = def.schema.safeParse(config);
-      return parsed.success ? parsed.data : def.default;
+      return parseOutcome(raw, storedVersion).value;
     },
+    parseOutcome,
     serialize(value: T): string {
       return JSON.stringify(value);
     },

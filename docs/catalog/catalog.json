@@ -942,16 +942,16 @@
       "path": "docs/architecture/core/Spine-Config-and-Serialization.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 34,
-      "bytes": 4848,
-      "sha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
+      "lines": 35,
+      "bytes": 5888,
+      "sha256": "1087a7485142a814a1c0bbef96c6628a707f43de715d8bada5c622bffe429d53",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-22"
         },
         "errors": []
       },
@@ -961,13 +961,15 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "1087a7485142a814a1c0bbef96c6628a707f43de715d8bada5c622bffe429d53",
+        "verifiedCommit": "05bec5c547923854b900e0e3ec6f0276f8947612",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Spine-Config-and-Serialization.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "re-attest after edit 2026-08-22 (#471, lane wipe-fix): re-read in full at the new bytes; the ONLY delta is one added Settings/config bullet — degrading is a read-only privilege, so a read-modify-write distinguishes absent/intact/degraded via parseOutcome and the whole-blob writers refuse. Derived from the tree it describes, not from prose: the guard, its one refusal home, and its named enforcing pins are the claims below",
+          "pnpm check:docs 2026-08-22 exit 0"
         ],
         "claims": [
           {
@@ -978,9 +980,30 @@
                 "target": "packages/contracts/src/settings/index.ts:425"
               }
             ]
+          },
+          {
+            "claim": "Degrading is a read-only privilege: the parse seam reports provenance, and the whole-blob settings writers refuse to overwrite a stored blob that could not be read.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/versioned-config/index.ts:74"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/settings/substrate/stored-config.ts:26"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/settings/persistence/queries.ts:71"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/domain/settings/verbs/update-user-settings-section.int.test.ts:157"
+              }
+            ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed. Re-attested 2026-08-22 after the #471 degrade-vs-write law was added to the Settings/config section."
       },
       "receiptCurrent": true
     },

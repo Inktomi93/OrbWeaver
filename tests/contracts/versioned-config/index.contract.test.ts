@@ -61,6 +61,33 @@ test("a lift returning a non-object, or a final blob failing the schema, degrade
   expect(config.parse({ schemaVersion: 3, count: "not a number" })).toEqual(DEFAULT);
 });
 
+// #471 — `parse` cannot tell a caller whether it got the stored blob or a stand-in for one that could not
+// be read, which is exactly the discriminator a read-modify-WRITE needs before it overwrites storage.
+test("parseOutcome reports the value's provenance and names the failure", () => {
+  expect(config.parseOutcome({ schemaVersion: 3, count: 5, label: "kept" })).toEqual({ intact: true, value: { count: 5, label: "kept" } });
+  // A lifted blob is still the stored blob — lifting is not degrading.
+  expect(config.parseOutcome({ schemaVersion: 1 })).toEqual({ intact: true, value: { count: 1, label: "lifted" } });
+
+  expect(config.parseOutcome(null)).toEqual({ intact: false, value: DEFAULT, failure: "not-an-object" });
+  expect(config.parseOutcome(undefined)).toEqual({ intact: false, value: DEFAULT, failure: "not-an-object" });
+  expect(config.parseOutcome({ schemaVersion: 3, count: "not a number" })).toEqual({ intact: false, value: DEFAULT, failure: "schema-rejected" });
+
+  const broken = defineVersionedConfig<Cfg>({
+    schema,
+    version: 2,
+    default: DEFAULT,
+    // biome-ignore lint/suspicious/noExplicitAny: deliberately returns a non-object to test the guard.
+    lifts: { 1: () => null as any },
+  });
+  expect(broken.parseOutcome({ schemaVersion: 1 })).toEqual({ intact: false, value: DEFAULT, failure: "lift-broke-shape" });
+});
+
+test("parse is parseOutcome minus the provenance (the two can never disagree)", () => {
+  for (const raw of [null, "nope", 42, { schemaVersion: 1 }, { schemaVersion: 3, count: 5, label: "kept" }, { schemaVersion: 3, count: "bad" }]) {
+    expect(config.parse(raw)).toEqual(config.parseOutcome(raw).value);
+  }
+});
+
 test("serialize round-trips through parse, and default / currentVersion are exposed", () => {
   const value: Cfg = { count: 7, label: "round" };
   const json = config.serialize(value);

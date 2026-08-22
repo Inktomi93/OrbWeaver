@@ -1,8 +1,15 @@
 // domain/settings/persistence/queries — all db access for settings (queries only, no business logic). This
 // domain never reads/joins users. Timestamps arrive as params (injected clock, no ambient wall-clock reads).
+//
+// THE ONE EXCEPTION (#471): the two whole-blob writers (`writeUserConfig`, `writeAppOverride`) re-read the
+// row they are about to replace and REFUSE when an existing blob is unreadable. It lives here, not in the
+// verbs, because "may this row be overwritten?" is a property of the ROW, and because these two functions
+// are the only whole-blob writers on the tree — guarding them is TOTAL over every present and future
+// caller, where a per-verb check is a convention the next verb forgets. `substrate/stored-config.ts`
+// carries the reasoning + the tradeoff.
 
 import type { UserSettings } from "@orb/contracts/settings";
-import { DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
+import { appSettingsConfig, DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { settings, userSettings } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -11,6 +18,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { eq } from "drizzle-orm";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
+import { requireIntactStoredConfig } from "../substrate/stored-config.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
  *  write (updatedAt: 0) — materializing the row is ensureUserSettings. */
@@ -50,8 +58,18 @@ export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): P
     .onConflictDoNothing();
 }
 
-/** Seed-then-UPDATE the user's config blob; schemaVersion is service-owned (pinned to the current constant). */
+/** Seed-then-UPDATE the user's config blob; schemaVersion is service-owned (pinned to the current constant).
+ *
+ *  REFUSES (`DomainOperationError(stored_config_unreadable)`) when a row already exists whose blob cannot be
+ *  read: every caller builds `config` by spreading a READ of that row, and the read seam degrades an
+ *  unreadable blob to schema defaults — so persisting it would silently reset the user's whole settings
+ *  blob (#471). A never-written user has nothing to lose and writes normally. */
 export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSettings, at: number): Promise<void> {
+  const rows = await db.select().from(userSettings).where(eq(userSettings.userId, ownerId)).limit(1);
+  const row = rows[0];
+  if (row !== undefined) {
+    requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
+  }
   await ensureUserSettings(db, ownerId, at);
   await db.update(userSettings).set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at }).where(eq(userSettings.userId, ownerId));
 }
@@ -91,8 +109,17 @@ export async function readAppOverrideRaw(db: Db): Promise<JsonValue | undefined>
   return rows[0]?.value;
 }
 
-/** Upsert the AppSettings override row; the caller stamps schemaVersion into the blob before writing. */
+/** Upsert the AppSettings override row; the caller stamps schemaVersion into the blob before writing.
+ *
+ *  Same refusal as `writeUserConfig` and for the same reason (#471): `updateAppSettings` merges its patch
+ *  onto `parseAppSettings(readAppOverrideRaw())`, which degrades an unreadable override row to the empty
+ *  override — persisting that would silently drop every admin override the box had. An ABSENT row is the
+ *  normal first-write and proceeds. */
 export async function writeAppOverride(db: Db, value: JsonValue, at: number): Promise<void> {
+  const stored = await readAppOverrideRaw(db);
+  if (stored !== undefined) {
+    requireIntactStoredConfig(appSettingsConfig.parseOutcome(stored), `the ${APP_SETTINGS_KEY} override row`);
+  }
   await db
     .insert(settings)
     .values({ key: APP_SETTINGS_KEY, value, updatedAt: at })

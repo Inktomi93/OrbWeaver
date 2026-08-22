@@ -15,6 +15,10 @@ export const SETTINGS_OP_CODES = {
   /** A `routing.roleDefaults` patch pinned a model on a source that serves only its configured one
    *  (substrate/routing-coherence.ts) — the `{source:"vllm", model:"anthropic/…"}` pair that 404s a turn. */
   incoherentRoleModel: "incoherent_role_model",
+  /** A settings write found the EXISTING stored blob unreadable and refused rather than overwrite it with
+   *  the degraded default the read seam hands out (#471 — the silent whole-blob wipe class). The row is
+   *  left exactly as it was; the failure reason rides the message. */
+  storedConfigUnreadable: "stored_config_unreadable",
 } as const;
 
 /** A theme the caller may read/own does not exist (or is not theirs, or is a seed on a write verb). Maps to
