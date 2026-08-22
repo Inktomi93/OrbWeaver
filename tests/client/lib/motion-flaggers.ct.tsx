@@ -123,7 +123,16 @@ test("a later dead-class mutation is found without rescanning the whole document
   expect(globalScans, "post-census CSS checks stay scoped to the mutation subtree").toBe(0);
 });
 
+// CONTENTION BUDGET (#413). This test STARVES the instrument on purpose: `requestIdleCallback` is
+// overridden to hand out an 8×5ms deadline, and that override is live for the INITIAL census too — so the
+// census this test must wait for runs at a fraction of its normal slice budget. Under sibling-lane load
+// (measured 2026-08-21 at `--workers=2`) that barrier blew its 10s while the tree was healthy: green in
+// isolation, green on rerun, green at the HEAD baseline. The deadline shape is NOT the lever — `8 × 5ms` is
+// exactly what forces the yields the final assertion counts, and scaling it up would weaken the pin into
+// one that a non-yielding implementation could pass. Wall clock is the lever: `test.slow()` for the budget,
+// generous barriers inside it. Nothing here waits on a timer, so a slow box costs seconds, never a verdict.
 test("a mutation subtree yields across idle callbacks without losing a deep dead class", async ({ mount, page }) => {
+  test.slow();
   const lines = captureCssLines(page);
   await page.evaluate(() => {
     const root = document.documentElement as HTMLElement & { __orbIdleCallbackCount?: number };
@@ -140,11 +149,11 @@ test("a mutation subtree yields across idle callbacks without losing a deep dead
       }, options);
   });
   const component = await mount(<MotionFlaggersCssBatchStory />);
-  await expect.poll(() => lines.some((line) => line.includes("orb-ct-initial-dead-class-marker")), { timeout: 10_000 }).toBe(true);
+  await expect.poll(() => lines.some((line) => line.includes("orb-ct-initial-dead-class-marker")), { timeout: 60_000 }).toBe(true);
   const before = await page.evaluate(() => (document.documentElement as HTMLElement & { __orbIdleCallbackCount?: number }).__orbIdleCallbackCount ?? 0);
 
   await component.getByRole("button", { name: "add batched dead class" }).click();
-  await expect.poll(() => lines.some((line) => line.includes("orb-ct-batched-dead-class-marker")), { timeout: 10_000 }).toBe(true);
+  await expect.poll(() => lines.some((line) => line.includes("orb-ct-batched-dead-class-marker")), { timeout: 60_000 }).toBe(true);
   const after = await page.evaluate(() => (document.documentElement as HTMLElement & { __orbIdleCallbackCount?: number }).__orbIdleCallbackCount ?? 0);
 
   expect(after - before, "the 97-element insertion cannot complete in one short idle slice").toBeGreaterThan(1);

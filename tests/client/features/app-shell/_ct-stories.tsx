@@ -46,6 +46,10 @@ import { ContextTabsPanel } from "../../../../packages/client/src/features/app-s
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+// The character screen's chats-projection INTENT, imported by its own path: it is slice-internal (not on
+// the character front door), and a story is the one place allowed to reach a feature's internals to mount
+// the real production call site.
+import { revealChatsProjection } from "../../../../packages/client/src/features/character/lib/character-chat-intents.ts";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store.ts";
 import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
@@ -449,6 +453,34 @@ function RailWithStore(): ReactElement {
       <output>section={activeSection}</output>
       <Rail activeSection={activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} />
     </>
+  );
+}
+
+/** THE CHARACTER SCREEN'S "N chats ›" INTENT INSIDE THE REAL SHELL (#391). `revealChatsProjection` is a
+ *  plain module function fired from the character hero — it un-collapses the LIST on wide. That write moves
+ *  CONTEXT between regime channels exactly as a topbar list toggle does (#383), so the CT needs the intent
+ *  firing against the REAL shell frame, not a hand-rolled store poke. The `characters` slots are the shape
+ *  the ruling names (list docked + context collapsed, both available). */
+export function AppShellChatsProjectionIntentStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          characters: {
+            content: (
+              <button data-testid="reveal-chats-projection" onClick={(): void => revealChatsProjection(false)} type="button">
+                View her chats
+              </button>
+            ),
+            list: <p>characters list pane</p>,
+            context: <p>characters context pane</p>,
+          },
+        }}
+      >
+        <LandOn section="characters" />
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
   );
 }
 
