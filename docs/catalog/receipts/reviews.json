@@ -628,6 +628,36 @@
       ]
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-colorization-evidence.md",
+      "assignedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
+      "verifiedCommit": "3762fc4a4260c28319cb6f944a7bc8e4d03483e1",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-189 by the orchestrator (2026-08-22) before attestation",
+        "9 evidence pairs under reports/snaps/ce-* (gitignored); decode scripts reports/tmp-color-evidence/; no verdict offered by design — the owner rules"
+      ],
+      "summary": "Colorization-axis evidence for #431: the axis = two border tokens (alpha ×3.5, neutral→amber); chrome-only on every surface except the histogram/heatmap family (grid contrast +43% dark/+19% light; heatmap low-end IS the border token so ON collapses its hue ramp); no text contrast moves; design-audit blind to the axis; one independent defect found (charts don't repaint on toggle — #503).",
+      "claims": [
+        {
+          "claim": "The evidence is attached to the live decision row and the independent defect is tracked.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#431"
+            },
+            {
+              "kind": "issue",
+              "target": "#503"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
       "assignedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
       "disposition": "current",
