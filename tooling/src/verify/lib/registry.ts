@@ -18,7 +18,7 @@ import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 // EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
-const DOC_CATALOG_PATH_RE = /^(?:docs\/.*\.md|docs\/catalog\/.*|scripts\/docs\/catalog\.ts)$/u;
+const DOC_CATALOG_PATH_RE = /^(?:docs\/.*\.md|docs\/catalog\/.*|tooling\/src\/doc-catalog\/.*)$/u;
 
 /** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
  *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7
