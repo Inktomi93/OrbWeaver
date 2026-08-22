@@ -88,12 +88,12 @@
     },
     {
       "path": "docs/retro-workboard.md",
-      "assignedSha256": "225ab163e40c368df8cfffe128c8112f9f5f0c12859ab934fd2021d3cfa39488",
+      "assignedSha256": "9ab0932313eba3df5615580a8f97a189a7c11dc2464efbb667030247c1b2eeda",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "225ab163e40c368df8cfffe128c8112f9f5f0c12859ab934fd2021d3cfa39488",
-      "verifiedCommit": "aab4729f358c8864250da052ccf050066388d03b",
+      "verifiedSha256": "9ab0932313eba3df5615580a8f97a189a7c11dc2464efbb667030247c1b2eeda",
+      "verifiedCommit": "c12dad3262328baca2a5559936b4e882a56a80c6",
       "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",
