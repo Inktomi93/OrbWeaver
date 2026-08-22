@@ -172,7 +172,13 @@ type MemberField = (typeof MEMBER_FIELDS)[number];
 const MERGED_FALLBACK_CAP = 4000;
 
 /** Render ONE member's card field with `{{char}}` bound to that member and `{{user}}` to the room anchor.
- *  `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh. */
+ *  `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh.
+ *
+ *  EMPTINESS IS DECIDED ON THE RENDERED VALUE, BEFORE NORMALIZATION (#436). A field that is non-blank at
+ *  source but resolves to whitespace is a contribution of nothing — but `normalizeExampleStart` prepends
+ *  `<START>`, so normalizing first made that nothing look non-empty and shipped `[X's example dialogue]`
+ *  over a bare `<START>`. Every other field (scenario above all) already emitted nothing from the identical
+ *  input because it has no post-render step; checking the render, not the raw, is what makes the two agree. */
 function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: AssembleContext, registry: MacroRegistry): string {
   const raw = member[field];
   if (typeof raw !== "string" || raw.trim().length === 0) {
@@ -185,6 +191,9 @@ function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: A
     speaker: { kind: "single", character: member },
   };
   const rendered = renderMacros(raw, sub, ctx.pinnedPersona, { registry });
+  if (rendered.trim().length === 0) {
+    return "";
+  }
   return field === "exampleMessages" ? normalizeExampleStart(rendered) : rendered;
 }
 
