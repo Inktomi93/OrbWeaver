@@ -64,7 +64,7 @@ import { Container, Grid, Section, Stack, Surface } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { ContributorRegistry } from "#lib";
-import { useFocusOnMount, WeaveGlyph } from "#lib";
+import { useFocusOnMount, useScrollFadeY, WeaveGlyph } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
 import { HomeDoorway, HomeTile } from "../components/home-tile.tsx";
 import { orderHomeTiles } from "../lib/order-home-tiles.ts";
@@ -96,6 +96,13 @@ function isLive(tile: HomeTileContribution): boolean {
 export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  // THE BELOW-FOLD CUE (side-eye rail-home P2-1). Home is the app's one CONTENT-SCROLLING landing surface,
+  // and it overflowed silently: 293px hidden at 1280x800, `mask-image: none`, `scrollbar-gutter` 0, no
+  // `::after` — the last visible line severed mid-word, with BOTH of the databank empty state's calls to
+  // action below the cut. The repo already owned the recipe on the inline axis (`.scroll-fade-x`); the
+  // block-axis twin is `.scroll-fade-y` (@orb/ui styles/globals.css) and this is its driver. It is
+  // SCROLL-AWARE by construction, so a home that fits its pane paints no fade at all.
+  useScrollFadeY(surfaceRef);
   const list = orderHomeTiles(tiles.list());
   const doorways = list.flatMap(asDoorway);
   const live = list.filter(isLive);
@@ -117,7 +124,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
       {/* The page inset is the mockup's own: `--spacing-section` over the masthead, `--spacing-gutter`
           down the sides and under the last block. `Stack padding="section"` would have run 24px all round
           and pulled the two columns tighter to the frame than the shelf's own rhythm. */}
-      <Stack className="relative h-full min-h-0 overflow-y-auto px-gutter pt-section pb-gutter outline-none" gap="section" ref={surfaceRef} tabIndex={-1}>
+      <Stack
+        className="scroll-fade-y relative h-full min-h-0 overflow-y-auto px-gutter pt-section pb-gutter outline-none"
+        gap="section"
+        ref={surfaceRef}
+        tabIndex={-1}
+      >
         {/* NO `size`: the container-query context survives (the split answers to THIS pane's inline size,
             never the viewport — the shell's docked panels narrow it independently) and the max-width cap
             that was eating 37% of the page goes. */}

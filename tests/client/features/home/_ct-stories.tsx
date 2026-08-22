@@ -304,6 +304,49 @@ export function HomeBalanceStory(): ReactElement {
   );
 }
 
+// ── The BELOW-FOLD CUE (side-eye rail-home P2-1) ────────────────────────────────────────────────────
+// Home is the app's one content-SCROLLING landing surface and it overflowed silently (293px hidden at
+// 1280x800, `mask-image: none`). These two stories are the recipe's two arms in one shape: a pane too
+// short for its content, and the same pane with content that fits. The mask is SCROLL-AWARE, so the
+// fitting arm must paint no fade at all — the half of the contract a one-arm story cannot see.
+//
+// `display: grid` on the wrapper, not a bare height: `HomeSurface`'s scroller is `h-full`, so it needs an
+// ancestor with a resolved height, and a grid ITEM stretches on both axes by default where a block child
+// would only take its content's height and never overflow anything.
+
+/** Shorter than the tall body below, so the scroller genuinely overflows. */
+const SCROLL_CUE_PANE_PX = 300;
+/** Taller than the pane by a wide margin — the cut has to be unambiguous, not a rounding artifact. */
+const SCROLL_CUE_TALL_BODY_PX = 900;
+
+const SCROLL_CUE_TILES: readonly HomeTileContribution[] = [
+  { id: "tall", title: "Tall tile", icon: Clock, order: 10, body: () => <div style={{ blockSize: SCROLL_CUE_TALL_BODY_PX }} /> },
+];
+
+const SCROLL_CUE_FITTING_TILES: readonly HomeTileContribution[] = [
+  { id: "short", title: "Short tile", icon: Clock, order: 10, body: () => <Text>short body</Text> },
+];
+
+function ScrollCueStory({ tiles }: { readonly tiles: readonly HomeTileContribution[] }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ blockSize: SCROLL_CUE_PANE_PX, display: "grid" }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", tiles)} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** A pane too short for its content — the arm that must announce the cut. */
+export function HomeScrollCueStory(): ReactElement {
+  return <ScrollCueStory tiles={SCROLL_CUE_TILES} />;
+}
+
+/** The SAME pane with content that fits — the arm that must announce nothing. */
+export function HomeScrollCueFittingStory(): ReactElement {
+  return <ScrollCueStory tiles={SCROLL_CUE_FITTING_TILES} />;
+}
+
 /** The shipped home, tile for tile, at the shipped width. No box memory is seeded, so every tile is on
  *  its DECLARED reservation — a first-ever boot. */
 export function HomeShippedFirstBootStory(): ReactElement {

@@ -47,6 +47,10 @@ const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) (?:detail panel|details)$/u;
 const FOCUS_TOGGLE_RE = /focus mode$/u;
 const JUMP_COMMAND_MENU_RE = /jump.*command menu/iu;
 
+/** WCAG 2.5.8 Target Size (Minimum) — the floor a revealed control owes on BOTH axes (side-eye rail-home
+ *  P3-7). A literal because it is the standard's own number, not a token this app gets to pick. */
+const TARGET_SIZE_FLOOR_PX = 24;
+
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
 
@@ -896,12 +900,25 @@ test("the skip link is the first tab stop and lands focus on the main scroll con
   await skip.focus();
   await expect(skip).toBeFocused();
 
-  // …and taking focus REVEALS it (`focus-visible:not-sr-only`) — a skip link nobody can see while using it
+  // …and taking focus REVEALS it (`not-focus-visible:sr-only`) — a skip link nobody can see while using it
   // is a keyboard trap wearing a fix. Unclipped AND wider than the clipped stub, both rendered.
   const focusedClip = await skip.evaluate((el) => globalThis.getComputedStyle(el).clipPath);
   expect(focusedClip).toBe("none");
   const focusedBox = await skip.boundingBox();
   expect(focusedBox?.width ?? 0).toBeGreaterThan(restBox?.width ?? 0);
+
+  // …AND IT IS A REAL TARGET WHILE REVEALED (side-eye rail-home P3-7, WCAG 2.5.8). Measured on the live
+  // shell: 94x18 with a computed padding of "0px" — bare text with a border and no box, under the 24x24
+  // floor on its block axis, on the FIRST control a keyboard user meets. The cause was the reveal spelling,
+  // not the Button: `sr-only focus-visible:not-sr-only` layers a RESET whose `padding: 0` / `height: auto`
+  // land at the same specificity as the Button's own `h-control-sm px-block` and beat them. The pin reads
+  // the rendered box rather than the class string, so any future respelling that loses the box is RED.
+  expect(focusedBox?.height ?? 0).toBeGreaterThanOrEqual(TARGET_SIZE_FLOOR_PX);
+  expect(focusedBox?.width ?? 0).toBeGreaterThanOrEqual(TARGET_SIZE_FLOOR_PX);
+  // The box comes back because the control is simply the `sm` Button it declares itself to be — padding
+  // included. Asserted separately from the height so a future `min-h-*` band-aid cannot pass this.
+  const focusedPadding = await skip.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).paddingInlineStart));
+  expect(focusedPadding).toBeGreaterThan(0);
 
   // It moves focus to the `<main>` scroll container itself (tabIndex=-1, named by the active section)
   // rather than to a control inside it, so the NEXT Tab lands on the section's first real affordance
@@ -3418,9 +3435,15 @@ test("#188 the ⌘K chip's accessible name CONTAINS its visible label verbatim (
   await page.setViewportSize(WIDE);
   await mount(<AppShellStory />);
   const chip = page.locator('header.shell-topbar [data-slot="button"]').filter({ hasText: "jump" }).first();
-  const visible = ((await chip.innerText()) ?? "").replaceAll(/\s+/gu, " ").trim();
-  expect(visible).toBe("⌘K jump");
-  await expect(chip).toHaveAccessibleName(new RegExp(`^${visible.replaceAll("⌘", "\\u2318")}`, "u"));
+  // `textContent`, NOT `innerText` (side-eye rail-home P3-3, 2026-08-22). This pin used to read `innerText`
+  // and passed while the live surface FAILED the same audit: `innerText` is layout-aware and inserts a line
+  // break between two flex items, so it normalised to "⌘K jump" whichever way the DOM was built. axe reads
+  // the visible label by CONCATENATING the node's text, i.e. `textContent` — which was the literal string
+  // "⌘Kjump", not a substring of the name. The pin now reads it the way the audit does, so the separating
+  // text node between the <kbd> chip and the word is load-bearing and its removal is RED here.
+  const concatenated = (await chip.evaluate((el) => el.textContent ?? "")).replaceAll(/\s+/gu, " ").trim();
+  expect(concatenated).toBe("⌘K jump");
+  await expect(chip).toHaveAccessibleName(new RegExp(`^${concatenated.replaceAll("⌘", "\\u2318")}`, "u"));
 });
 
 // STRAY-FILE-DROP GUARD. A file dropped outside any dropzone navigates the tab to that file — the app is

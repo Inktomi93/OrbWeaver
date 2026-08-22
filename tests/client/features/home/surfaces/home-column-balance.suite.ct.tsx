@@ -93,16 +93,29 @@ const AIR_GAP_BUDGET_PX = 160;
 /** TODAY'S MEASURED VOID, cell by cell, on this instrument at the pre-fix tree (b83b7989a) — the
  *  NEVER-REGRESS half of the fence. It is a table rather than one number because the states differ by
  *  hundreds of px and a single worst-case bound would let eleven of them rot silently. Sub-pixel layout
- *  rounding only in the tolerance; a real improvement is expected to redefine these DOWN. */
+ *  rounding only in the tolerance; a real improvement is expected to redefine these DOWN.
+ *
+ *  RE-BASELINED 2026-08-22, UPWARD, and that is a COST being recorded rather than a fence being loosened
+ *  (side-eye rail-home P3-6). The "Not yet" doorway teasers were two-line explanatory paragraphs set at the
+ *  10.5px micro step — the same size as the kicker above them — and the ruled fix is the `prose` length
+ *  modifier, which lifts them one ramp stop. That is +28px of SHELF, and the shelf is the column #226's
+ *  open residual says is already structurally ~370px too tall below the `pairWide` step. So exactly the
+ *  seven cells in the OPEN regime move (`footTracks === 1`: 1280 and 1440 in all three arms, plus
+ *  1920/reading, where `--font-scale` 1.25 pushes 100rem out to a 2000px pane); every cell in the CLOSED
+ *  regime is unchanged, because there the shelf reflows and absorbs it. What is NOT relaxed: `VOID_BUDGET_PX`
+ *  still binds wherever the mechanism can deliver it, and `AIR_GAP_BUDGET_PX` is untouched — the fix pays in
+ *  a taller block, never in padding.
+ *  The two findings converge on the same 28px, and neither this lane nor this fence owns the answer: #455
+ *  (cut or fold "Not yet") is an owner decision, and taking it would erase this row AND #226's residual. */
 const BASELINE_VOID_PX: Readonly<Record<string, number>> = {
-  "1280/defaults": 368,
-  "1280/reading": 722,
-  "1280/compact": 374,
-  "1440/defaults": 368,
-  "1440/reading": 722,
-  "1440/compact": 410,
+  "1280/defaults": 396,
+  "1280/reading": 807,
+  "1280/compact": 402,
+  "1440/defaults": 396,
+  "1440/reading": 757,
+  "1440/compact": 438,
   "1920/defaults": 180,
-  "1920/reading": 510,
+  "1920/reading": 545,
   "1920/compact": 192,
   "2560/defaults": 11,
   "2560/reading": 228,

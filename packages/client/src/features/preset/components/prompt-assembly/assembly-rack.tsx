@@ -90,9 +90,14 @@ export function AssemblyRack({
                   moves a primary verb behind a menu. Twelve rows is therefore ~48 presses to reach the
                   DELIVERY cluster below, which is the real cost the finding measured. The honest fix is a
                   SKIP, not fewer verbs. Rest-invisible, revealed on focus — the standard skip-link posture,
-                  so it costs the pointer user nothing and the keyboard user exactly one stop. */}
+                  so it costs the pointer user nothing and the keyboard user exactly one stop.
+                  `not-focus-visible:sr-only` rather than `sr-only focus-visible:not-sr-only` for the reason
+                  the shell's own skip link carries in full (app-shell.tsx, side-eye rail-home P3-7):
+                  `not-sr-only` is a reset whose `padding: 0` / `height: auto` beat the Button's own box, so
+                  the revealed control lost its control height and its side padding. Same posture, one
+                  spelling, both skip links. */}
               <Button
-                className="sr-only focus-visible:not-sr-only focus-visible:self-start"
+                className="not-focus-visible:sr-only focus-visible:self-start"
                 intent="secondary"
                 onClick={(): void => afterRackRef.current?.focus()}
                 size="sm"

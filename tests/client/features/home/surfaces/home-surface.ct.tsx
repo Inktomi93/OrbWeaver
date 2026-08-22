@@ -16,6 +16,8 @@ import {
   HomeDormantTileStory,
   HomeEmptyStory,
   HomeRegionStory,
+  HomeScrollCueFittingStory,
+  HomeScrollCueStory,
   HomeShippedFirstBootStory,
   HomeSplitPressureStory,
   HomeTileOrderStory,
@@ -226,8 +228,14 @@ test("#102 DOORWAYS are grouped under ONE 'Not yet' band, not framed one by one"
   // …and neither wears a band, a badge or a control of its own (a doorway has no chrome to spend).
   await expect(group.getByText("Dormant")).toHaveCount(0);
   await expect(group.getByRole("button")).toHaveCount(0);
-  // The band's OWN h2 is the group's name and is the only heading in it — no doorway draws one.
-  await expect(group.getByRole("heading")).toHaveCount(1);
+  // The band's OWN h2 is the group's name, and it is the only heading at THAT rank — no doorway draws a
+  // band of its own. It used to be the only heading of any rank; the doorway TITLES are `h3` since the
+  // rail-home ARIA rec (2026-08-22), which is a different claim: they are the region's CHILDREN, and as
+  // `<p>` they read to AT as body text indistinguishable from their own descriptions. The ruling this
+  // assertion carries — "a doorway has no chrome of its own" — is untouched: an `h3` is structure, not
+  // chrome (no band, no rule, no badge, no control), and the voice is byte-identical to the `<p>`'s.
+  await expect(group.getByRole("heading", { level: 2 })).toHaveCount(1);
+  await expect(group.getByRole("heading", { level: 3 })).toHaveCount(2);
 });
 
 // ── RED-FIRST (#102 review F6): "Not yet" is a PEER block, not a child of the tile above it ─────────
@@ -236,9 +244,15 @@ test("#102-F6 the 'Not yet' band names itself with an h2, level with home's othe
 
   const group = page.getByRole("region", { name: "Not yet" });
   await expect(group.getByRole("heading", { level: 2, name: "Not yet" })).toBeVisible();
-  // …and the surface has NO h3 at all: every block on home is a peer (the outline read h1 → h2 → h3 →
-  // h2×4 → h3 before this, so two of seven blocks announced as children of nothing).
-  await expect(page.getByRole("heading", { level: 3 })).toHaveCount(0);
+  // …and every BLOCK on home is still a peer. This used to read "the surface has NO h3 at all", which was
+  // an over-broad restatement of the ruling: F6's defect was a BLOCK announcing as a child of the peer
+  // block above it (the outline read h1 → h2 → h3 → h2×4 → h3, so two of seven blocks announced as
+  // children of nothing). The doorway TITLES are `h3` since the rail-home ARIA rec (2026-08-22) and are the
+  // opposite case — they are genuine CHILDREN of the region they sit in. So the pin now says what F6
+  // actually ruled: every h3 on the surface is INSIDE the "Not yet" region, and no block draws one.
+  const subheadings = page.getByRole("heading", { level: 3 });
+  await expect(subheadings).toHaveCount(await group.getByRole("heading", { level: 3 }).count());
+  await expect(subheadings).toHaveText(["Buddy", "Automation"]);
 });
 
 // ── A11y STRUCTURE (side-eye F3/F4) — the frame owns it, so every contributed tile inherits it ──────
@@ -534,6 +548,49 @@ test("#188 a sweep that reaped NOTHING costs the landing no second chats read", 
       () => false,
     );
   expect(sawSecondRead, "the sweep deleted nothing, so the chats list must not be re-read").toBe(false);
+});
+
+// ── THE BELOW-FOLD CUE (side-eye rail-home P2-1) ────────────────────────────────────────────────────
+// 293px of home sat below the fold at 1280x800 with `mask-image: none`, no scrollbar gutter and no
+// `::after` — the last visible line severed mid-word, reading as a rendering fault rather than "scroll for
+// more", with BOTH of the databank empty state's calls to action below the cut.
+//
+// Pinned through the ATTRIBUTE and the RESOLVED mask, and it takes both: `data-fade-bottom` alone would
+// survive the stylesheet losing the `.scroll-fade-y` rule, and the mask alone cannot say whether the fade
+// is scroll-AWARE or painted permanently. (A mask is paint — invisible to `elementFromPoint` — but
+// `mask-image` itself does resolve on the computed style, which is what the baseline measured as "none".)
+const FADE_GRADIENT_RE = /linear-gradient/u;
+
+test("P2-1 a home taller than its pane announces the cut — and scrolling to the end retires the cue", async ({ mount }) => {
+  const home = await mount(<HomeScrollCueStory />);
+  const scroller = home.locator(".scroll-fade-y");
+
+  // The overflow is real, or everything below passes for the wrong reason.
+  await expect.poll(() => scroller.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0);
+
+  await expect(scroller).toHaveAttribute("data-fade-bottom", "");
+  // …and nothing is hidden above it yet, so the TOP edge stays fully opaque.
+  await expect(scroller).not.toHaveAttribute("data-fade-top", "");
+  await expect.poll(() => scroller.evaluate((el) => globalThis.getComputedStyle(el).maskImage)).toMatch(FADE_GRADIENT_RE);
+
+  // Scrolled to the end: the cut is gone, so the bottom cue must go with it and the top one must arrive.
+  await scroller.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(scroller).not.toHaveAttribute("data-fade-bottom", "");
+  await expect(scroller).toHaveAttribute("data-fade-top", "");
+});
+
+test("P2-1 a home that FITS its pane paints no fade at all — the cue is scroll-aware, never decoration", async ({ mount }) => {
+  const home = await mount(<HomeScrollCueFittingStory />);
+  const scroller = home.locator(".scroll-fade-y");
+
+  await expect.poll(() => scroller.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  await expect(scroller).not.toHaveAttribute("data-fade-bottom", "");
+  await expect(scroller).not.toHaveAttribute("data-fade-top", "");
+  // The recipe is still ON the element — it is the STOPS that resolve to 0%, which is what makes a fitting
+  // surface render its edges fully opaque instead of dimming a flush heading against nothing.
+  await expect.poll(() => scroller.evaluate((el) => globalThis.getComputedStyle(el).maskImage)).toMatch(FADE_GRADIENT_RE);
 });
 
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
