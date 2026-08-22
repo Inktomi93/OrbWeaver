@@ -10,6 +10,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { ensureReportsDir } from "@orb/tooling/_shared/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { GateResult, Violation } from "../contract/harness.ts";
@@ -19,6 +20,8 @@ import type { GateCorpus } from "../lib/loader.ts";
 import { loadGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, zeroScanGates } from "../lib/pass.ts";
 import { renderPass } from "../lib/render.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
 /** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact ops/show.ts renders.
  *  `toolErrors` joined 2026-08-03: a gate that THREW previously reached the artifact only as a bare

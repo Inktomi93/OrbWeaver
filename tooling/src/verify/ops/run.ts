@@ -33,6 +33,7 @@ import { renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { ensureReportsDir, reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { RunHistoryEntry } from "../contract/history.ts";
@@ -43,6 +44,8 @@ import { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, 
 import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
 
 /** Resolve how a stage runs at this tier+scope: its concrete argv, or a mode sentinel. */
 function planStage(

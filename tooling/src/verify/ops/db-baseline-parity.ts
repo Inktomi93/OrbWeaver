@@ -20,8 +20,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { SchemaBaselineComparison } from "../contract/scoped.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:db-baseline");
 
 const BASELINE_REL = "packages/db/src/migrations/0000_baseline.sql";
 const BREAKPOINT = "--> statement-breakpoint";

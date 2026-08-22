@@ -1,6 +1,6 @@
 // The SCOPED-RUN proof net (TSMORPH-SINGLE-PASS-AUDIT.md §4, the driven-for-real deliverable). The scoped
 // runner (tooling/src/verify/ops/scoped.ts) runs ONLY the incremental-safe gates over a subset of the tree and
-// DEFERS every whole-project gate. Three properties, each proven the parity-guard-divergence way — the
+// DEFERS every whole-project gate. Four properties, each proven the parity-guard-divergence way — the
 // test introduces the exact divergence, confirms the expected RED/silent, then the fixture is restored to
 // its clean shape so the assertion has teeth (a green it can be SHOWN going red):
 //
@@ -10,6 +10,8 @@
 //      by the full run. It is the fence's whole point: a scoped clean is only a claim about the scope.
 //   3. WHOLE-PROJECT-SAFETY — a whole-project ratchet (bus-coverage) that FIRES on the full tree does NOT
 //      fire on a scoped run: it is deferred, never run, so it emits zero findings.
+//   4. STALE-ARM ISOLATION — an INCREMENTAL-safe gate does run on a scoped pass, `finalize` included, so
+//      its exemption-table stale sweep must stay silent about rows whose files the run never visited.
 //
 // The "full run" oracle here is `runPass` over the SAME in-memory project with scope=project — the exact
 // path `pnpm check:structure` drives — so the scoped verdict is proven against the real full verdict, not
@@ -17,6 +19,7 @@
 import { Project } from "ts-morph";
 import { gate as busCoverageGate } from "../../../../tooling/src/verify/gates/bus-coverage.ts";
 import { gate as noCallerUserIdGate } from "../../../../tooling/src/verify/gates/no-caller-user-id.ts";
+import { gate as noManualMemoGate } from "../../../../tooling/src/verify/gates/no-manual-memo.ts";
 import type { GateRunCtx, Scope } from "../../../../tooling/src/verify/index.ts";
 import { runPass, runScopedPass } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -137,4 +140,59 @@ test("whole-project-safety: on a scoped run the whole-project ratchet is DEFERRE
   expect(pass.gates.some((g) => g.name === "bus-coverage")).toBe(false);
   // ...and the scoped run is clean despite the firing condition being present in the project.
   expect(scopedSites(base, selection, "bus-coverage")).toEqual([]);
+});
+
+// ── 4. STALE-ARM ISOLATION (#505) ──────────────────────────────────────────────────────────────────
+// The permanent pin for a LYING INSTRUMENT. An incremental-safe gate DOES run on a scoped pass, including
+// its `finalize` — where every path-keyed exemption table sweeps for stale rows, guarded on a REAL-TREE
+// ANCHOR (GATE-AUTHORING.md §4.5). `fileLoaded` used to answer that guard from `ctx.project`, and a scoped
+// run builds the FULL workspace Project and narrows only the FILESET — so the anchor read as present, the
+// sweep ran over rows whose files the run never visited, and every live exemption reported itself stale.
+// Measured on the real tree before the fix (`--scope packages/ui/src/primitives/button`, 3 files): six
+// false stale findings, which issue #505 was filed to "prune" — all six covering live violations.
+//
+// The three cases below are the whole contract: the arm must BITE at project scope (else the pin proves
+// nothing), stay SILENT at project scope when the rows are live, and stay silent on a scoped run whose
+// fileset excludes the rows' files.
+const MEMO = 'import { useMemo } from "react";\nexport const v = useMemo(() => 1, []);\n';
+const MEMO_ANCHOR = "packages/db/src/schema/index.ts";
+const MEMO_EXEMPTED: Readonly<Record<string, string>> = {
+  "packages/ui/src/fuzzy-search/fuzzy-search.ts": MEMO,
+  "packages/ui/src/primitives/media-grid/media-grid.tsx": MEMO,
+  "packages/ui/src/primitives/message-list/message-list.tsx": MEMO,
+};
+/** The scoped folder: in the gate's scanRoot, and NOT any exemption row's path. */
+const MEMO_SCOPE_FOLDER = "packages/ui/src/primitives/button";
+
+function memoStaleFindings(base: Omit<GateRunCtx, "report" | "scan">, selection?: { scope: Scope; inScope: (rel: string) => boolean }): string[] {
+  const { pass } = selection === undefined ? { pass: runPass([noManualMemoGate], base) } : runScopedPass([noManualMemoGate], base, selection);
+  const findings = pass.gates.find((g) => g.name === "no-manual-memo")?.findings ?? [];
+  return findings
+    .filter((f) => f.message?.includes("stale row") === true)
+    .map((f) => f.message ?? "")
+    .sort();
+}
+
+test("stale-arm PROVE-IT-BITES: at project scope, exemption rows whose files are absent all red", () => {
+  // The anchor is loaded and NOT ONE exemption path exists — staleness mode (B). Without this control the
+  // two silences below would be indistinguishable from a gate whose stale arm cannot fire at all.
+  const base = baseFor({ [MEMO_ANCHOR]: "export const anchor = 1;\n" });
+  expect(memoStaleFindings(base)).toHaveLength(Object.keys(MEMO_EXEMPTED).length);
+});
+
+test("stale-arm: at project scope, LIVE exemption rows are silent", () => {
+  const base = baseFor({ [MEMO_ANCHOR]: "export const anchor = 1;\n", ...MEMO_EXEMPTED });
+  expect(memoStaleFindings(base)).toEqual([]);
+});
+
+test("stale-arm ISOLATION: a scoped run whose fileset excludes the rows' files must NOT call them stale", () => {
+  // Everything is present in the PROJECT (the scoped runner always builds the full workspace); only the
+  // FILESET is narrowed. Pre-fix this returned all three rows — a scoped lane was told to delete live
+  // exemptions, which is a loaded gun pointed at the next real violation.
+  const base = baseFor({
+    [MEMO_ANCHOR]: "export const anchor = 1;\n",
+    ...MEMO_EXEMPTED,
+    [`${MEMO_SCOPE_FOLDER}/button.tsx`]: "export const Button = 1;\n",
+  });
+  expect(memoStaleFindings(base, folderScope(MEMO_SCOPE_FOLDER))).toEqual([]);
 });

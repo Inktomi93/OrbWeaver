@@ -8,6 +8,7 @@
 // deferred count + names so a scoped "clean" can never be misread as a full all-clear. Incremental-safe
 // gates with a stale-registry `finalize` arm self-fence it on `scope.kind !== "project"`.
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { SourceFile } from "ts-morph";
@@ -17,6 +18,8 @@ import { loadGates } from "../lib/loader.ts";
 import { projectCtx, repoRel, runPass, stripProbeFindings } from "../lib/pass.ts";
 import { renderPass } from "../lib/render.ts";
 import { gitChangedPaths } from "../lib/repo-paths.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts scoped --scope <folder-glob>");
 
 const TRAILING_SLASH_RE = /\/+$/u;
 
