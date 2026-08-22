@@ -288,7 +288,7 @@ export interface AssertionOutcome {
 // button 35px left of a dialog while this assertion printed `overflow=0x0`). The predicate that decides
 // what the rect sweep judges lives with the measurement, in ops/overflow.ts.
 
-export const OVERFLOW_SIDES = ["bottom", "left", "right", "top"] as const;
+const OVERFLOW_SIDES = ["bottom", "left", "right", "top"] as const;
 export type OverflowSide = (typeof OVERFLOW_SIDES)[number];
 
 export interface OverflowEscape {
