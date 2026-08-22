@@ -24,7 +24,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { openModal } from "#state";
 import { PersonaPanelRow } from "../components/persona-panel-row.tsx";
@@ -96,6 +96,26 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
       notify.error(error instanceof Error ? error.message : "Couldn't restore the persona.");
     }
   };
+  // THE ROW'S CONTROLS NAME WHICH ROW THEY BELONG TO (#458, the #443 grammar). Two personas can legitimately
+  // share a name — the user names two "Traveler", restores a backup beside its original — and the row's two
+  // name-embedding controls (the stretched select target and the kebab) then announce IDENTICAL accessible
+  // names: the live mobile-sheet census read `["Actions for Traveler","Actions for Traveler"]`. A per-row
+  // derivation cannot see that, so the qualifier is resolved HERE, with the whole list in hand.
+  //
+  // SPENT, NOT SPRAYED — the one deviation from the chats/presets/regex call sites. `rowQualifiers` returns
+  // the stamp the row already SHOWS as its baseline, which is honest on those rosters and a lie on this one:
+  // a persona row displays no timestamp at all, so naming one on a row whose name is already unique would put
+  // a datum in the accessible name that is nowhere on screen. Only a COLLIDED name buys the escalation.
+  const nameCounts = new Map<string, number>();
+  for (const persona of personas) {
+    nameCounts.set(persona.name, (nameCounts.get(persona.name) ?? 0) + 1);
+  }
+  const qualifiers = rowQualifiers(
+    personas.map((persona) => ({ name: persona.name, at: persona.updatedAt })),
+    timeLib.formatRelative,
+    timeLib.formatDateTime,
+  );
+
   const onDelete = (personaId: PersonaId): void => {
     remove.mutate({ personaId });
     if (expandedId === personaId) {
@@ -142,10 +162,11 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
             description="Create one to start speaking as a distinct identity."
           />
         ) : (
-          personas.map((persona) => (
+          personas.map((persona, index) => (
             <PersonaPanelRow
               key={persona.id}
               persona={persona}
+              {...((nameCounts.get(persona.name) ?? 0) > 1 ? { qualifier: qualifiers[index] ?? "" } : {})}
               isCurrent={persona.id === current?.id}
               isDefault={persona.id === defaultId}
               expanded={persona.id === expandedId}
