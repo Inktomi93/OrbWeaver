@@ -21,6 +21,7 @@ import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
+  AppShellChatsProjectionIntentStory,
   AppShellDropGuardStory,
   AppShellListPrimaryStory,
   AppShellMobileRuleStory,
@@ -1699,6 +1700,38 @@ test("#383 UNCONSTRAINED, the same three clicks stay a plain wide dock (the arm 
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
   // …and no slide-over was invented on the way: nothing floats, so nothing is scrimmed.
   await expect(page.locator(".shell-scrim")).toHaveAttribute("data-visible", "false");
+});
+
+// ── #391: THE CARRY IS A PROPERTY OF THE FLIP, NOT OF THE TOGGLE THAT CAUSED IT ──────────────────────
+// #383 fixed the orphan at `useShellLayout`'s two seams (togglePanel / collapsePanel). The character
+// screen's "N chats ›" hero link does the SAME list flip through a different door —
+// `revealChatsProjection` is a plain module function and wrote `setPanelMode("list","docked")` straight
+// past the hook — so the identical orphan survived on a narrower trigger. The pin drives the REAL intent
+// against the REAL frame: anything that docks the LIST owes CONTEXT the carry, whoever fired it.
+test("#391 the character chats-projection intent carries CONTEXT across the list flip it causes", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  const shell = await mount(<AppShellChatsProjectionIntentStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const listToggle = shell.getByRole("button", { name: LIST_TOGGLE_RE });
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await forceConstrainedGeometry(page);
+
+  // Collapse the LIST first — that leaves the auto-overlay regime, so the detail pane the user opens next
+  // is a plain wide DOCK whose truth lives in `panelOverrides` (the channel the flip is about to leave).
+  await listToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toContainText("characters context pane");
+
+  // FIRE THE HERO INTENT. It docks the LIST, which re-enters the auto-overlay regime — and CONTEXT, which
+  // the user never touched, must still be on screen (as the sheet that regime paints). Pre-fix: "collapsed",
+  // the same silent vanish #383 retired at the topbar.
+  await shell.getByTestId("reveal-chats-projection").click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await expect(contextPanel).toContainText("characters context pane");
 });
 
 test("resolvePanel: an explicit collapsed/overlay override passes through identically across all three regimes", async ({ mount, page }) => {

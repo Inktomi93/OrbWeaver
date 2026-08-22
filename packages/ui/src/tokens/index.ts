@@ -92,7 +92,7 @@ export const TOKENS = {
   "spacing.avatar-md": { cssVar: "--spacing-avatar-md", value: "2rem" },
   "spacing.avatar-lg": { cssVar: "--spacing-avatar-lg", value: "2.5rem" },
   "spacing.avatar-hero": { cssVar: "--spacing-avatar-hero", value: "4rem" },
-  "spacing.switch-track": { cssVar: "--spacing-switch-track", value: "3rem" },
+  "spacing.switch-track": { cssVar: "--spacing-switch-track", value: "4rem" },
   "spacing.switch-thumb": { cssVar: "--spacing-switch-thumb", value: "2rem" },
   "spacing.checkbox": { cssVar: "--spacing-checkbox", value: "1.125rem" },
   "spacing.slider-thumb": { cssVar: "--spacing-slider-thumb", value: "1.5rem" },

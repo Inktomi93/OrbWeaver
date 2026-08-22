@@ -23,6 +23,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { SPEAK_AS_WAIT_FOR_TURN, testId, turnMutationToast } from "#lib";
 import { useTurnPhase } from "#state";
+import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { filterCharacters } from "../lib/roster.ts";
 
 /** `chat.generate` vars — an on-demand turn, optionally forced to a specific speaker (null ⇒ arbitrate). */
@@ -56,6 +57,12 @@ export function SpeakAsSelect({ chatId }: SpeakAsSelectProps): ReactElement | nu
   const invalidation = useInvalidation();
   const phase = useTurnPhase(chatId);
   const generate = useSpeakAsGenerate({ trpc, invalidation });
+  // The honest-refusal pre-send gate (#54) reaches this control too (owner ruling #397, built as #406). It is
+  // read HERE rather than threaded down from the composer because this control is self-contained by design —
+  // it takes only a `chatId` and resolves everything else off the same warm caches its siblings share (the
+  // roster read above is the precedent); `useSendAvailability` is one keyed query, so the second reader costs
+  // no second fetch.
+  const sendAvailability = useSendAvailability(chatId);
 
   // Non-suspense roster read (shared cache) — degrades to `null` until populated.
   const rosterQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
@@ -67,17 +74,24 @@ export function SpeakAsSelect({ chatId }: SpeakAsSelectProps): ReactElement | nu
   }
 
   const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
-  const disabled = turnBusy || generate.isPending;
+  const disabled = turnBusy || generate.isPending || sendAvailability.unavailable;
   // A DISABLED TRIGGER OWES A REASON, and `focusableWhenDisabled` is the promise that it will give one
   // (side-eye 2026-08-21). The control stays aria-disabled IN THE TAB ORDER during a turn precisely so a
   // keyboard reader can land on it and be told why — and it described only what it would do, so landing on
   // it mid-turn was a dead affordance with a cheerful invitation. Same composition as every other composer
   // icon ("<what it does> — <the unlock condition>", composer-guided-cluster.tsx's `reasonFor`).
   //
-  // ONLY the gates this control actually has: a turn in flight, or its own aside still generating. Whether
-  // speak-as should ALSO idle on an unserveable connection (#54, which idles the guided icons) is an open
-  // owner decision, deliberately untouched here — inventing that reason would state a gate that isn't there.
-  const tooltip = disabled ? `${SPEAK_AS_TOOLTIP} — ${SPEAK_AS_WAIT_FOR_TURN}` : SPEAK_AS_TOOLTIP;
+  // THE OPEN QUESTION THIS COMMENT USED TO RECORD IS CLOSED. It read "whether speak-as should ALSO idle on an
+  // unserveable connection (#54) is an open owner decision, deliberately untouched" — the owner ruled it in
+  // #397 and it is built here (#406): speak-as fires `chat.generate`, a TURN, so an unserveable connection
+  // dooms it exactly as it dooms the four guided icons. The rule that produced the old text survives intact —
+  // never state a gate this control does not have — its INPUT changed: the gate now exists.
+  //
+  // PRECEDENCE mirrors `reasonFor` (composer-guided-cluster.tsx): the send cause is PERSISTENT and the phase
+  // cause is transient, so the send cause wins — a disabled trigger on an off engine reads "Local engine is
+  // off…", never "wait for the current reply to finish", which would point at a turn that will never start.
+  const persistentOffReason = sendAvailability.unavailable ? sendAvailability.reason : undefined;
+  const tooltip = disabled ? `${SPEAK_AS_TOOLTIP} — ${persistentOffReason ?? SPEAK_AS_WAIT_FOR_TURN}` : SPEAK_AS_TOOLTIP;
 
   const fire = (speakerCharacterId: CharacterId | null): void => {
     generate.mutate({ chatId, speakerCharacterId });
