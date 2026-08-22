@@ -39,12 +39,14 @@ function isTypeHome(path: string): boolean {
   if (path.includes("/scripts/")) {
     return true;
   }
-  // NOTE (2026-08-21): this clause predates domain/rpg/tools/ (GritQL migration, 64ab26501) and now
-  // ALSO exempts that subsystem's exported types by string accident — 4 live sites measured when it was
-  // briefly removed (apply.ts ×3, dice.ts ×1). Deliberate-or-fix is an open orchestrator routing, #393 P1.
-  if (path.includes("/tools/")) {
-    return true;
-  }
+  // DELETED (2026-08-22, #408): a `/tools/` clause used to sit here. It predated `domain/rpg/tools/`
+  // (GritQL migration, 64ab26501) and by then exempted that subsystem by pure string accident — a census of
+  // the tree found `/tools/` matching EXACTLY two directories, `packages/server/src/domain/rpg/tools/` and
+  // its already-exempt test mirror, so the clause had no legitimate remaining target: the tooling tree is
+  // `tooling/src/<tool>/`, which rides the `_shared`/`contract/` clauses instead. Narrowing it would have
+  // been a no-op with a comment; the four types it was hiding (RosterRefIndex/ScenePatch/ExtractionMints in
+  // apply.ts, DiceRoll in dice.ts) now live in `domain/rpg/contract/`, where §7.4 puts a domain-internal
+  // shape. Do NOT reintroduce a path clause for a subsystem — a tool subsystem is domain code.
   // @orb/tooling: `_shared/` is the plumbing floor (the tooling analog of kit) and `<tool>/contract/`
   // rides the `/contract/` clause above — a tool's ops/lib exporting a shape is judged, forcing the
   // five-slot discipline (docs/design/tooling-package.md §2.5).
@@ -135,6 +137,12 @@ export const gate: GateDescriptor = {
       at: "tooling/src/snap/ops/capture.ts",
       expect: { count: 1 },
       why: "a tool's ops/ exporting a shape — tool types live in the tool's contract/ slot (tooling-package.md §2.5)",
+    },
+    {
+      files: "export interface Foo { x: string }\n",
+      at: "packages/server/src/domain/rpg/tools/apply.ts",
+      expect: { count: 1 },
+      why: "#408 — the deleted `/tools/` clause used to exempt this by string accident; a domain tool SUBSYSTEM is domain code and its shapes belong in the domain's contract/",
     },
   ],
   mustPass: [

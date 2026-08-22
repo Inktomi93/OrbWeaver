@@ -127,7 +127,7 @@ export const NON_CACHING_TURNS: Turns = { ...TURNS_FLOOR };
 
 /** THE vLLM `turns` CELL — the ONE arm that does not inherit the fail-closed floor, because it is the ONE
  *  wire we can measure end to end: our engine, our vendored template
- *  (`scripts/dev/qwen3_gen_thinking_serve.jinja`, served by `genArgv`), reachable from a dev box for free.
+ *  (`packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja`, served by `genArgv`), reachable from a dev box for free.
  *  D143 is what makes that a decision rather than an optimization: on this source capability varies per
  *  CHECKPOINT and is undetectable, so the descriptor errs OPEN and the user's preset decides — the same
  *  ruling that put every effort level back on `VLLM_REASONING`.
@@ -163,7 +163,7 @@ export const NON_CACHING_TURNS: Turns = { ...TURNS_FLOOR };
  *  appended the template's own `<|im_start|>assistant` header after the last message, so a delivered
  *  trailing-assistant row became a completed prior turn rather than a prefix the model continues, and the
  *  cell said so. That template is gone; the vendored one it replaced it with has a continuation arm
- *  (`scripts/dev/qwen3_gen_thinking_serve.jinja` :240), and the bit follows the render, not its own history.
+ *  (`packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja` :240), and the bit follows the render, not its own history.
  *
  *  THE TWO ARMS, verbatim tails of the 2026-08-19 `/tokenize` renders (3 rows: system, user,
  *  assistant "The rain fell"):

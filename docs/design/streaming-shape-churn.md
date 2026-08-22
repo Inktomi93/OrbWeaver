@@ -460,7 +460,7 @@ wrong.** The gen engine launches with
 `--default-chat-template-kwargs {"enable_thinking": false, "preserve_thinking": true}`
 (`build-argv.ts:286`). Two independent gates read that value:
 
-- the CHAT TEMPLATE (`scripts/dev/qwen3_gen_thinking_serve.jinja:6/:18`, prefill at `:324-329`), and
+- the CHAT TEMPLATE (`packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja:6/:18`, prefill at `:324-329`), and
 - the REASONING PARSER: `vllm/parser/qwen3.py:226` —
   `self.thinking_enabled = chat_kwargs.get("enable_thinking", True)` — with `:252`
   `if not self.thinking_enabled: return None, model_output`.

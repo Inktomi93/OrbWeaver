@@ -90,3 +90,13 @@ export interface RollDiceResult {
   readonly total: number;
   readonly stamp: string;
 }
+
+/** The raw result of ONE roll (`tools/dice.ts::rollNotation`) — the per-die faces BEFORE the modifier plus the
+ *  summed total WITH it. The unbaked half of {@link RollDiceResult}: the verb stamps and echoes the notation
+ *  over this. Homed here rather than in `tools/dice.ts` since 2026-08-22 (#408 — the `no-inline-types`
+ *  `/tools/` clause was exempting the rpg tool subsystem by string accident; §7.4 puts a domain-internal shape
+ *  in the domain's `contract/`). */
+export interface DiceRoll {
+  readonly faces: readonly number[];
+  readonly total: number;
+}

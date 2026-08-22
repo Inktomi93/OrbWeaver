@@ -263,6 +263,11 @@ export interface ServicesResult {
    *  to `createApp`, which registers `/api/_debug/rpg/traces` only when it is present (the route's own
    *  `rpgTrace === undefined ⇒ not registered` contract, `foundation/observability/debug/routes.ts`). */
   readonly rpgTrace: RpgTraceRecorder | undefined;
+  /** #412 — whether THIS compose actually wired the provider wire-capture request sink (`deps.wireCapture`
+   *  OR the env flag). `lifecycle.ts` hands it to `createApp`, which publishes it on
+   *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
+   *  because the decision lives HERE and nothing downstream can re-derive the force-flag half. */
+  readonly wireCaptureOn: boolean;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
@@ -1008,5 +1013,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     recallRecorder,
     toolUse,
     chatRpgOps: chatCompose.rpgChatOps,
+    wireCaptureOn,
   };
 }
