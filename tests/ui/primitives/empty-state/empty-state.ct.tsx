@@ -98,16 +98,13 @@ test("decoration WINS over icon when both are passed (head slot is the brand gly
   await expect(page.locator('[data-slot="empty-state-icon"]')).toHaveCount(0);
 });
 
-// ── issue 483: the two OPT-INS a section LANDING needs, and a pane-internal state must not take ───
-// (the issue number is spelled out, never `#`-prefixed: `ui-primitive-structure` reads a `#nnn` in a ui
-// `.ct.tsx` as a hardcoded 3-digit hex COLOR literal — a false positive worth knowing about, and cheaper to
-// route around in a title than to argue with in a gate.)
+// ── #483: the two OPT-INS a section LANDING needs, and a pane-internal state must not take ───────
 // A state that IS its pane's content leaves `main` with zero headings and reads its teaching copy at a
 // 42.5ch measure (side-eye 2026-08-22 P3-1, measured on Presets). Both are opt-in because the honest answer
 // depends on the host: a second `h2` under a pane that already has one invents structure, and a 60ch measure
 // in a 307px LIST pane is not a measure at all.
 
-test("issue 483 — the title is a <p> by default and a real HEADING only when the host asks", async ({ mount, page }) => {
+test("#483 — the title is a <p> by default and a real HEADING only when the host asks", async ({ mount, page }) => {
   const plain = await mount(<EmptyState title="No characters yet" />);
   await expect(plain.locator(TITLE)).toHaveJSProperty("tagName", "P");
   // Default: nothing claims heading structure the host did not ask for.
@@ -120,7 +117,7 @@ test("issue 483 — the title is a <p> by default and a real HEADING only when t
   await expect(headed.locator(TITLE)).toHaveJSProperty("tagName", "H2");
 });
 
-test("issue 483 — `measure=wide` gives the description the focal reading measure", async ({ mount }) => {
+test("#483 — `measure=wide` gives the description the focal reading measure", async ({ mount }) => {
   const copy = "A preset shapes generation; it doesn't pick the model, and this sentence exists to run past the default measure.";
   const narrow = await mount(
     <div style={{ width: 720 }}>
