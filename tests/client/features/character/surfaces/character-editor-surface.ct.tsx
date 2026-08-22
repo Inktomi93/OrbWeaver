@@ -371,6 +371,8 @@ const MORE_BUTTON_RE = /more$/;
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 const TOKEN_TOTAL_RE = /\d+ total/;
 const TOKEN_PERMANENT_RE = /permanent — sent every turn/;
+/** The content header's own gloss (#493) — the pointer half of the same explanation. */
+const TOKEN_SENT_EVERY_TURN_RE = /sent every turn/;
 const INSPECT_HINT_RE = /to inspect it here/;
 
 /** Twelve pending suggestions on this character (`TagSuggestionView` = a TagView + its characterId). */
@@ -468,6 +470,21 @@ const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
     updatedAt: 1_750_000_200_000,
   },
 ];
+
+// #493 (side-eye 2026-08-22 rail-characters P2-4) — `1257 total · 1017 permanent` is the first thing on the
+// editor and its jargon had NO explanation on this surface: `title`, `aria-label` and `aria-describedby` all
+// verified null, while the only copy that says what "permanent" means ("sent every turn") lives in the
+// CONTEXT pane, 300px away and closed by default. The datum now carries its own gloss where it is read.
+test("#493 the editor header's token census glosses its own jargon", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.get": () => OVERVIEW_CARD, "chat.listChats": chatListResponder([]) });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const census = component.getByText(TOKEN_TOTAL_RE).first();
+  await expect(census).toBeVisible();
+  // The SPOKEN name explains the split; the visible mono line is untouched (it is the glanceable one).
+  await expect(census).toHaveAttribute("aria-label", TOKEN_PERMANENT_RE);
+  await expect(census).toHaveAttribute("title", TOKEN_SENT_EVERY_TURN_RE);
+});
 
 test("F4 the Field tab rests on the overview card, not a full-height empty state", async ({ mount, page }) => {
   await routeTrpc(page, {

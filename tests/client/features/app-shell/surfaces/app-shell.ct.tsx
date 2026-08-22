@@ -25,6 +25,7 @@ import {
   AppShellDropGuardStory,
   AppShellListPrimaryStory,
   AppShellMobileRuleStory,
+  AppShellNamedListBandStory,
   AppShellNoticeBandStory,
   AppShellOnSectionStory,
   AppShellStory,
@@ -858,6 +859,30 @@ test("landmark uniqueness: exactly ONE main, distinct complementary labels, one 
   // Uniqueness: no two asides share the same accessible name
   expect(new Set(names).size).toBe(names.length);
 });
+
+// #493 (side-eye 2026-08-22 rail-characters P2-3) — the LIST landmark's name was derived from the ACTIVE
+// SECTION, so it could only ever describe the section. The Characters LIST pane swaps its whole contents to
+// a character's CHATS when one is opened (the projection design's D2 arm); the visible band followed, the
+// landmark did not, and navigating by landmark announced "Characters list, complementary" over a chat
+// roster. The landmark is named BY THE BAND now, so whatever the band says, it says.
+//
+// Two arms, because "it follows" is the claim: the same shell, two band identities.
+test("#493 the LIST landmark is named by its own band, and follows it when the pane swaps", async ({ mount, page }) => {
+  const picker = await mount(<AppShellNamedListBandStory title="Characters" />);
+  await expect(page.getByRole("complementary", { name: "Characters", exact: true })).toBeVisible();
+  await picker.unmount();
+
+  // The SWAPPED pane — the band reads `CHATS · SABINE VEYRA`, and so does the landmark.
+  await mount(<AppShellNamedListBandStory accent="Sabine Veyra" title="Chats" />);
+  await expect(page.getByRole("complementary", { name: "Chats · Sabine Veyra", exact: true })).toBeVisible();
+  // …and the stale section-derived name is gone, not merely joined.
+  await expect(page.getByRole("complementary", { name: "Chats list", exact: true })).toHaveCount(0);
+});
+
+// The FALLBACK arm, and it is load-bearing rather than belt-and-braces: a section whose band is not a
+// `ListPaneHeader` (refinery) renders no such heading, and an `aria-labelledby` that resolves to nothing
+// falls through to `aria-label` per the accessible-name computation. `AppShellStory` supplies no band at
+// all, which is exactly that case — the landmark-uniqueness pin above is the proof it still holds.
 
 // ── THE SKIP (side-eye 2026-08-16 F9) ────────────────────────────────────────────────────────────────
 // The skip control's contract is entirely POSITIONAL — "first focusable inside the grid" — and a positional

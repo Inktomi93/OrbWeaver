@@ -1,5 +1,6 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { slugifyHandle } from "@orb/kit/slug";
 
 // Character CT fixtures — plain client read-model literals matching `CharacterSummary`'s wire shape
 // (packages/server/src/domain/character/contract/views.ts). Kept as plain literals with STRING ids (not
@@ -137,11 +138,18 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
   };
 }
 
-/** A fully-valid `CharacterSummary` literal (the client read model — the library-list row). */
+/** A fully-valid `CharacterSummary` literal (the client read model — the library-list row).
+ *
+ *  THE HANDLE IS DERIVED FROM THE NAME unless the caller pins one (#492). It used to be the fixed
+ *  `char_ct_1` for every row, which is a shape the product cannot produce: the server mints a handle by
+ *  slugifying the name (`@orb/kit/slug`), so `Bolt` is `bolt`. That mattered the moment the row started
+ *  spending its handle as an accessible-name disambiguator ONLY when the handle is not derivable — under
+ *  the old default every fixture row looked like a collision and announced one. A fixture whose shape the
+ *  server cannot mint is a fixture that tests a product nobody ships. Pin `handle` explicitly to build the
+ *  case that MATTERS: two rows with the same name and different handles. */
 export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture> = {}): CharacterSummaryFixture {
-  return {
+  const base = {
     id: "char_ct_1",
-    handle: castId<CharacterHandle>("char_ct_1"),
     name: "Aria",
     starred: false,
     archived: false,
@@ -158,6 +166,7 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     lastChattedAt: null,
     ...overrides,
   };
+  return { ...base, handle: overrides.handle ?? castId<CharacterHandle>(slugifyHandle(base.name)) };
 }
 
 /** One `character.list` page (`ListCharactersResult`) — `totalCount` is the server's census over the

@@ -91,6 +91,26 @@ test("clearCharacterFilters drops favorites + tags in one act, and leaves the ar
   await expect(state).toContainText("tags=none");
 });
 
+// #491 — the filter rail's vocabulary is a DISCLOSURE, and its posture is a browse PREFERENCE: it survives
+// the pane swap (opening a character unmounts the whole library surface) and a reload, exactly like the sort
+// and the view mode beside it. Default `false`: the collapsed rail is what gave the 327-character library
+// back its vertical space and its keyboard.
+test("toggleFiltersOpen flips the rail's disclosure, and the posture PERSISTS (it is a preference, not a mode)", async ({ mount, page }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("filtersOpen=false");
+
+  await probe.getByRole("button", { name: "toggle filters open" }).click();
+  await expect(state).toContainText("filtersOpen=true");
+
+  // …and it reaches the persisted blob (unlike `bulkMode`/`browseOffset`, which are transient by design).
+  const stored = await page.evaluate((key) => globalThis.localStorage.getItem(key), STORAGE_KEY);
+  expect(stored ?? "").toContain('"filtersOpen":true');
+
+  await probe.getByRole("button", { name: "toggle filters open" }).click();
+  await expect(state).toContainText("filtersOpen=false");
+});
+
 // #255: the browse-offset round trip. The getter is a one-shot mount-time READ (never a hook — see the
 // store's own header), so the probe fires it on demand rather than rendering it reactively; that is exactly
 // how the real caller (the list's remount) uses it. `browseOffset` is transient BY DESIGN — a reload is a

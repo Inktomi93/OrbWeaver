@@ -22,7 +22,32 @@ export interface CharacterCategorizedListProps<T extends { readonly id: string }
   readonly renderRow: (item: T) => ReactNode;
   readonly hasNextPage: boolean;
   readonly isLoadingMore: boolean;
+  /** The SCOPE sentence the buckets below are true of (`partialGroupingLabel`), or `null` when the loaded
+   *  set is the whole matched set (#493). See {@link PartialGroupingNotice}. */
+  readonly partialNotice: string | null;
   readonly onLoadMore: () => void;
+}
+
+/**
+ * THE GROUPS DESCRIBE THE LOADED PAGE, AND NOW THEY SAY SO (#493, side-eye 2026-08-22 rail-characters P2-2).
+ *
+ * Measured on the owner's 327-character library: switching Group on produced
+ * `ADVENTURE 1 · CAN BE WHOLESOME, CAN BE SEXY 2 · FANTASY 1 · UNCATEGORIZED 27` — four counts summing to
+ * the 30 rows paged in, presented as library facts. `ADVENTURE 1` reads as "you own one adventure
+ * character" over a library with 551 tags, and the buckets re-form and re-count under the reader as
+ * scrolling pages more rows in. A grouping whose buckets change while you look at them is worse than no
+ * grouping, because it looks authoritative.
+ *
+ * The review offered two arms. Server-side group counts is the other one and it is NOT this: the tag
+ * vocabulary read (`tag.listTagFilterVocabulary`) carries a per-tag `characters` census, but it is a census
+ * over the LIBRARY, not over the current search + chip lens, and there is no census at all for the
+ * Uncategorized bucket — which is the biggest number on screen and the biggest lie. Printing a
+ * lens-blind census beside lens-filtered members would be a second wrong answer with more authority than
+ * the first. So the honest arm ships: the mode states its scope, in the mode's own header, wherever the
+ * loaded set is a strict subset of what matched.
+ */
+function PartialGroupingNotice({ notice }: { readonly notice: string }): ReactElement {
+  return <Text voice="gloss">{notice}</Text>;
 }
 
 /** Grouped collapsible rows + a "Load more" tail-fetch. */
@@ -31,10 +56,12 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
   renderRow,
   hasNextPage,
   isLoadingMore,
+  partialNotice,
   onLoadMore,
 }: CharacterCategorizedListProps<T>): ReactElement {
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto" gap="block">
+      {partialNotice === null ? null : <PartialGroupingNotice notice={partialNotice} />}
       {/* C9-1d: the tag's `folderType` decides each group's FIRST paint (OPEN ⇒ expanded, plain/CLOSED ⇒
           collapsed behind its name + count) — `defaultOpen`, so the user's own toggle wins from then on and
           the section never fights them back. */}

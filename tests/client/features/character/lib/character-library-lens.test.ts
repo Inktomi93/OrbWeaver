@@ -15,6 +15,8 @@ import type { LibraryChipTag } from "../../../../../packages/client/src/features
 import {
   effectiveTagFilter,
   knownTagIds,
+  loadedProgressLabel,
+  partialGroupingLabel,
   resultCountLabel,
   tagIdsInState,
   tagVocabulary,
@@ -40,9 +42,33 @@ test("resultCountLabel: with every match loaded it states one number, pluralised
   expect(resultCountLabel(0, 0)).toBe("0 characters");
 });
 
-test("resultCountLabel: a partially-loaded page says BOTH numbers — never the loaded one alone", () => {
-  // The keyset defect in one assertion: "30 characters" over a 412-match library is a false statement.
-  expect(resultCountLabel(30, 412)).toBe("30 of 412 characters");
+// THE RULING SURVIVES — ITS INPUT CHANGED (#493, side-eye 2026-08-22 rail-characters P2-1). The half that
+// held: the number here is the SERVER's census, never "loaded so far" — "30 characters" over a 412-match
+// library is a false statement and always was. The half that died: printing BOTH numbers here. At rest the
+// line read `30 of 327 characters` — the page size (`character.list {limit:30}`) worded as a result count,
+// 230px under a band already reading `CHARACTERS 327` — and the natural reading is "only 30 of your
+// characters match", which is false in the state everybody sees.
+test("resultCountLabel: a partially-loaded page states the CENSUS, not the page size", () => {
+  expect(resultCountLabel(30, 412)).toBe("412 characters");
+  expect(resultCountLabel(30, 1)).toBe("1 character");
+});
+
+// …and the loaded number is not lost: it moves to the foot of the list, beside the tail-fetch sentinel,
+// which is where "how much of it have I got" is the question being asked.
+test("loadedProgressLabel: reports the loaded fraction only while there IS one", () => {
+  expect(loadedProgressLabel(30, 327)).toBe("30 of 327 loaded");
+  // Complete, or no census yet — a progress line with nothing to report is noise.
+  expect(loadedProgressLabel(30, 30)).toBeNull();
+  expect(loadedProgressLabel(30, null)).toBeNull();
+});
+
+// GROUP-BY-TAG'S BUCKETS DESCRIBE THE LOADED PAGE (#493 P2-2). `ADVENTURE 1 · … · UNCATEGORIZED 27` summed
+// to the 30 rows paged in and read as library facts over a 327-character, 551-tag library — and re-counted
+// under the reader as scrolling paged more in. The mode states its scope wherever the set is partial.
+test("partialGroupingLabel: names the scope while partial, and says nothing when the buckets are complete", () => {
+  expect(partialGroupingLabel(30, 327)).toContain("Grouping the 30 of 327 characters loaded so far");
+  expect(partialGroupingLabel(30, 30)).toBeNull();
+  expect(partialGroupingLabel(30, null)).toBeNull();
 });
 
 test("resultCountLabel: before the census lands, the loaded count is the only honest thing to say", () => {

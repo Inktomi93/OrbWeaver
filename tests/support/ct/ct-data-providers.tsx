@@ -473,6 +473,10 @@ export interface CtFakeSection {
    *  supplies avatars + name + a member chip here, and it is what fills the topbar's LEAD. A story that
    *  measures the row needs it, or the lead is one control wide and the defect cannot appear. */
   readonly header?: ReactNode;
+  /** The section-owned LIST chrome band (`SectionDefinition.listHeader`). A story needs it whenever the
+   *  assertion is about the band itself — since #493 the LIST landmark is NAMED BY the band's heading
+   *  (`LIST_PANE_TITLE_ID`), so a story with no band exercises only the `aria-label` fallback. */
+  readonly listHeader?: ReactNode;
   /** The section's `useSelectionTitle` for the story — absent ⇒ the REAL one when the section has it, else
    *  a `null` stand-in (the shell falls back to the section label). */
   readonly selectionTitle?: () => string | null;
@@ -512,7 +516,12 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
   // the fake honours all three instead of casting around them, so a story exercises the same shell rule
   // production does. A story-injected list over a section with no real seam gets the never-selected
   // stand-in, whose title is `null` (the shell then prints the section label).
-  return { ...base, list: (): ReactNode => slot.list, selection: slot.selection ?? real.selection ?? CT_NEVER_SELECTED };
+  return {
+    ...base,
+    list: (): ReactNode => slot.list,
+    selection: slot.selection ?? real.selection ?? CT_NEVER_SELECTED,
+    ...(slot.listHeader === undefined ? {} : { listHeader: (): ReactNode => slot.listHeader }),
+  };
 }
 
 /** The shell-isolation registry — real rail/placeholder, story-injected list/content per section. */
