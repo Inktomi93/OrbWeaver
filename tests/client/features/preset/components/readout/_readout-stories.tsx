@@ -25,6 +25,7 @@ import {
   useActiveChatId,
   useActiveSection,
 } from "@orb/client/state";
+import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -404,6 +405,33 @@ export function PromptReadoutDisclosureStory(): ReactElement {
     <CtDataProviders>
       <div data-readout-scroller="" style={{ height: 300, overflowY: "auto", width: 380 }}>
         <PromptReadout boundChatId={null} presetId={STORY_PRESET} sections={DEFAULT_PROMPT_CONFIG.sections} selectedSectionId={null} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** THE SKEWED BUDGET the meter column has to survive (side-eye 2026-08-22 P2-7) — the live shape, minted
+ *  rather than sampled so it cannot drift: ONE section owning the scale (`Instructions`, ~400 of ~505
+ *  tokens — the report measured ~393 of ~896), several two-and-three-token rows whose linear fill rounds to
+ *  a 0.7px sliver on the 146px rail, and one DISABLED row that is far from negligible. The last is the
+ *  finding's core: "off" and "costs almost nothing" drew the same empty track, and they are opposite
+ *  decisions.
+ *
+ *  The width is the disclosure story's (380px) because that is the CONTEXT panel's real docked width, which
+ *  is what makes the rail 146px and the sliver sub-pixel. */
+const METER_SECTIONS: readonly PromptSection[] = [
+  { type: "literal", id: "sec_big", name: "Instructions", role: "system", content: "x".repeat(1600), enabled: true },
+  { type: "literal", id: "sec_tiny_a", name: "Tiny A", role: "system", content: "12345678", enabled: true },
+  { type: "literal", id: "sec_tiny_b", name: "Tiny B", role: "system", content: "123456789012", enabled: true },
+  { type: "literal", id: "sec_off", name: "Off big", role: "system", content: "y".repeat(400), enabled: false },
+  { type: "marker", id: "sec_pivot", name: "Chat history", marker: "chat_history", role: "system", enabled: true },
+];
+
+export function PromptReadoutMeterStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <PromptReadout boundChatId={null} presetId={STORY_PRESET} sections={METER_SECTIONS} selectedSectionId={null} />
       </div>
     </CtDataProviders>
   );
