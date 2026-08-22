@@ -23060,6 +23060,75 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-verify-271-334.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 384,
+      "bytes": 25617,
+      "sha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-verify-271-334.md",
+        "assignedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+        "verifiedCommit": "b43fb76ad0670a91c1069177763d96b60ff50484",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-385 by the orchestrator (2026-08-22) before attestation",
+          "26 rendered receipts under reports/snaps/vv-* (gitignored snap artifacts); findings filed as board rows"
+        ],
+        "summary": "side-eye verification of #271 + #334: both CONFIRMED fixed (Delete single-homed across 3 collections; picker Start footer real+D123 clean). 5 new findings: P1 mobile footer clip (introduced), P1 dead initial focus (pre-existing), P2 disabled-Start contrast, P2 WI Rename two homes, P3 duplicate kebab accnames; plus a negative-overflow instrument blind spot.",
+        "claims": [
+          {
+            "claim": "Both verified rows are fixed on main and closed with this report as evidence, and every new finding is tracked as a live board row.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#439"
+              },
+              {
+                "kind": "issue",
+                "target": "#440"
+              },
+              {
+                "kind": "issue",
+                "target": "#441"
+              },
+              {
+                "kind": "issue",
+                "target": "#442"
+              },
+              {
+                "kind": "issue",
+                "target": "#443"
+              },
+              {
+                "kind": "issue",
+                "target": "#444"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx:118"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
       "lane": "reviews",
       "issue": 7,

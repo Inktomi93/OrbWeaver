@@ -362,7 +362,7 @@
           ]
         }
       ],
-      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation \u2014 R1-R5 costed options for the owner pick.",
       "evidence": [
         "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
         "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
@@ -378,7 +378,7 @@
       "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
       "verifiedAt": "2026-08-18",
       "evidence": [
-        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 \u2014 the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
         "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
       ],
       "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
@@ -431,7 +431,7 @@
       "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
       "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session \u2014 lane lens-triage #210; 70 hits classified with path:line receipts)",
         "pnpm check:docs (2026-08-19: green)"
       ],
       "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
@@ -895,7 +895,7 @@
       "verifiedAt": "2026-08-21",
       "evidence": [
         "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
+        "verdict + receipts are Codex's, captured on its 611754905 stage \u2014 receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
         "#363 confirmed live on the board at recovery"
       ],
       "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
@@ -966,6 +966,98 @@
         "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
       ],
       "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
+      "assignedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
+      "verifiedCommit": "3343705939fe2bc48ed9bb45994e8513a596ed6f",
+      "verifiedAt": "2026-08-22",
+      "claims": [
+        {
+          "claim": "At pointer:coarse the shipped 48x44 Switch reads as a crescent, not a switch; the recommended arm is a coarse-only --spacing-switch-track widening (4rem) that keeps fine/unknown arms byte-identical and auto-scales travel to 32px; tracked as issue #420.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#420"
+            },
+            {
+              "kind": "code",
+              "target": "packages/ui/src/styles/theme.css:183"
+            }
+          ]
+        },
+        {
+          "claim": "The #285 fork's premise is dead on the current tree: the ruled glow carrier landed in 73fda94b3 and renders on all three waiting surfaces; the glow axis is sub-perceptual everywhere (max 3/255 on the flagship carrier) and the visible maximal-preset delta is the colorization axis (0.51% vs glow 0.03%).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#285"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/styles/globals.css:451"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"
+      ],
+      "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-verify-271-334.md",
+      "assignedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+      "verifiedCommit": "b43fb76ad0670a91c1069177763d96b60ff50484",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-385 by the orchestrator (2026-08-22) before attestation",
+        "26 rendered receipts under reports/snaps/vv-* (gitignored snap artifacts); findings filed as board rows"
+      ],
+      "summary": "side-eye verification of #271 + #334: both CONFIRMED fixed (Delete single-homed across 3 collections; picker Start footer real+D123 clean). 5 new findings: P1 mobile footer clip (introduced), P1 dead initial focus (pre-existing), P2 disabled-Start contrast, P2 WI Rename two homes, P3 duplicate kebab accnames; plus a negative-overflow instrument blind spot.",
+      "claims": [
+        {
+          "claim": "Both verified rows are fixed on main and closed with this report as evidence, and every new finding is tracked as a live board row.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#439"
+            },
+            {
+              "kind": "issue",
+              "target": "#440"
+            },
+            {
+              "kind": "issue",
+              "target": "#441"
+            },
+            {
+              "kind": "issue",
+              "target": "#442"
+            },
+            {
+              "kind": "issue",
+              "target": "#443"
+            },
+            {
+              "kind": "issue",
+              "target": "#444"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx:118"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
@@ -1265,10 +1357,10 @@
         "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
         "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
       ],
-      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 — awaiting detailed-mockup sign-off (#159), nothing builds before it.",
+      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 \u2014 awaiting detailed-mockup sign-off (#159), nothing builds before it.",
       "claims": [
         {
-          "claim": "Owner picked Observatory V1; detailed mockups gate any build — mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
+          "claim": "Owner picked Observatory V1; detailed mockups gate any build \u2014 mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
           "evidence": [
             {
               "kind": "issue",
@@ -1295,7 +1387,7 @@
         "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
         "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
       ],
-      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
+      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) \u2014 all resolved at merge.",
       "claims": [
         {
           "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
@@ -1400,7 +1492,9 @@
       "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
       "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
       "verifiedAt": "2026-08-21",
-      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
+      "evidence": [
+        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"
+      ],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
       "claims": [
         {
@@ -1436,7 +1530,7 @@
         "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
         "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
         "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
-        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97"
+        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) \u2014 re-attested post-merge 0cecddf97"
       ],
       "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
       "claims": [
@@ -1470,16 +1564,16 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
-        "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
+        "the two ZEROES are graded in the document itself \u2014 a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
         "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
         "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
-        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)",
-        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section — 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
+        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING \u00a74.5)",
+        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section \u2014 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
       ],
       "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
       "claims": [
         {
-          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row — a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
+          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row \u2014 a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
           "evidence": [
             {
               "kind": "issue",
@@ -1496,7 +1590,7 @@
           ]
         },
         {
-          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row — the §3 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
+          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row \u2014 the \u00a73 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
           "evidence": [
             {
               "kind": "gate",
@@ -1545,46 +1639,6 @@
       ]
     },
     {
-      "path": "docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
-      "assignedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
-      "verifiedCommit": "3343705939fe2bc48ed9bb45994e8513a596ed6f",
-      "verifiedAt": "2026-08-22",
-      "claims": [
-        {
-          "claim": "At pointer:coarse the shipped 48x44 Switch reads as a crescent, not a switch; the recommended arm is a coarse-only --spacing-switch-track widening (4rem) that keeps fine/unknown arms byte-identical and auto-scales travel to 32px; tracked as issue #420.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#420"
-            },
-            {
-              "kind": "code",
-              "target": "packages/ui/src/styles/theme.css:183"
-            }
-          ]
-        },
-        {
-          "claim": "The #285 fork's premise is dead on the current tree: the ruled glow carrier landed in 73fda94b3 and renders on all three waiting surfaces; the glow axis is sub-perceptual everywhere (max 3/255 on the flagship carrier) and the visible maximal-preset delta is the colorization axis (0.51% vs glow 0.03%).",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#285"
-            },
-            {
-              "kind": "code",
-              "target": "packages/client/src/styles/globals.css:451"
-            }
-          ]
-        }
-      ],
-      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
-      "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
-    },
-    {
       "path": "docs/reviews/tooling/2026-08-22-research-zone-assessment.md",
       "assignedSha256": "19e500dae25ed0ad8cbf53d407098daa80724472babfe3adbca772e2b367f1be",
       "disposition": "current",
@@ -1595,7 +1649,7 @@
       "verifiedAt": "2026-08-22",
       "claims": [
         {
-          "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 — SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
+          "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 \u2014 SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
           "evidence": [
             {
               "kind": "issue",
