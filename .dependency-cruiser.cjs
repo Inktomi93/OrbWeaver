@@ -26,7 +26,7 @@
  *
  * FEATURES USED beyond the forbidden-list: `reachable` (the transitive credential firewall),
  * `dependencyTypesNot:["type-only"]` (the contract-vs-coupling discriminator), `tsPreCompilationDeps`
- * (so type-only edges exist to discriminate), `skipAnalysisNotInRules` (speed), content-strategy `cache`,
+ * (so type-only edges exist to discriminate), `skipAnalysisNotInRules` (speed),
  * the `archi`/`dot` collapse reporters + the package.json graph scripts (`depcruise:graph` mermaid,
  * `:focus`, `:reaches`, `:affected`), and `--output-type err-long` on the validator so a violation prints
  * its WHY (the rule comment) — load-bearing since agents are the authors.
@@ -698,8 +698,14 @@ module.exports = {
     // matches `node_modules/<lib>/dist/`, dropping the sealed-lib import edges (minisearch/echarts/shiki/…)
     // so the satellite-seal rules silently stop firing on their fixtures.
     exclude: { path: ["routeTree\\.gen\\.ts$", "(^|/)__g_", "^packages/[^/]+/dist/"] },
-    // content strategy (not git-metadata) so caching works in CI checkouts without full history.
-    cache: { strategy: "content" },
+    // NO RESULT CACHE (removed 2026-08-22, #393 P6 — planted-control receipt below). It was
+    // `cache: { strategy: "content" }`, and a WARM cruise is BLIND TO A NEWLY-ADDED FILE: planting
+    // `packages/kit/src/__dc/node.ts` with `import "node:fs"` and cruising warm reported 0 violations;
+    // dropping the cache dir and cruising the SAME tree reported exactly 1 — `kit-no-node-builtins`. That
+    // is a false green in the `imports:depcruise` COMMIT stage (a new boundary-violating file is the most
+    // common shape there is), and it is what made tests/tooling/dependency-cruiser.int.test.ts — which
+    // plants 60-odd fixtures and cruises — fail 59/60 whenever any earlier cruise had warmed the cache.
+    // MEASURED before removing: warm 4.25s vs cold 4.28s over `packages tooling`. The cache bought 0.03s.
     reporterOptions: {
       dot: { collapsePattern: COLLAPSE },
       archi: { collapsePattern: COLLAPSE },
