@@ -108,7 +108,9 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
  *
  * GET is untouched — it carries no content-type, and tRPC's method map admits GET for queries and
  * subscriptions only. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
- * and the refusal still carries `X-Request-Id` (observability is mounted above this).
+ * and the refusal still carries `X-Request-Id` (observability is mounted above this — and since #480 it
+ * stamps the id on `c.res.headers` AFTER `next()`, so the header rides EVERY response through this mount,
+ * including the tRPC handler's own Response objects, not just the context-built refusals like this one).
  */
 const trpcJsonOnly: MiddlewareHandler = (c, next) => {
   const contentType = c.req.header("content-type");
