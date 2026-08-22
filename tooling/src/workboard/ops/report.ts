@@ -70,6 +70,45 @@ export function list(status?: string): void {
   print(JSON.stringify({ items }, null, 2));
 }
 
+/** The whole board on one screen, numbers guaranteed — the orchestrator's board-read ritual verb.
+ *  Every status is shown (a queue the reader forgot exists is exactly the blindness this verb kills,
+ *  2026-08-22); Done is count-only, every other status lists `#N [prio] title (lane|wake)`. */
+export function overview(): void {
+  const rows = withProjectContext((context) => listItems(context.projectId));
+  const byStatus = new Map<string, ListRow[]>();
+  for (const row of rows) {
+    const status = fieldOf(row.fields, "Status") ?? "(no status)";
+    const bucket = byStatus.get(status);
+    if (bucket === undefined) {
+      byStatus.set(status, [row]);
+    } else {
+      bucket.push(row);
+    }
+  }
+  // Working-queue statuses first, in lifecycle order; anything unexpected still prints (never hidden).
+  const order = ["Triage", "Ready", "Running", "Review", "Verify", "Needs owner", "Blocked", "Parked", "Done"];
+  const names = [...byStatus.keys()].toSorted((a, b) => {
+    const ai = order.indexOf(a);
+    const bi = order.indexOf(b);
+    return (ai === -1 ? order.length : ai) - (bi === -1 ? order.length : bi);
+  });
+  for (const status of names) {
+    const bucket = byStatus.get(status) ?? [];
+    print(`${status} (${bucket.length})`);
+    if (status === "Done") {
+      continue;
+    }
+    const sorted = bucket.toSorted((l, r) => (l.content?.number ?? Number.MAX_SAFE_INTEGER) - (r.content?.number ?? Number.MAX_SAFE_INTEGER));
+    for (const row of sorted) {
+      const n = row.content?.number === undefined ? "draft" : `#${row.content.number}`;
+      const priority = fieldOf(row.fields, "Priority");
+      const tail = status === "Parked" ? fieldOf(row.fields, "Wake condition") : fieldOf(row.fields, "Lane");
+      const title = (row.content?.title ?? fieldOf(row.fields, "Title") ?? "").slice(0, 90);
+      print(`  ${n}${priority === undefined ? "" : ` [${priority}]`} ${title}${tail === undefined ? "" : ` (${tail})`}`);
+    }
+  }
+}
+
 function createdIssueNumber(output: string): number {
   const number = ISSUE_URL_RE.exec(output)?.[1];
   if (number === undefined) {
@@ -114,6 +153,7 @@ export function create(command: CreateCommand): void {
 export function help(): void {
   print(`work:item — Project 1 operator path
 show <issue>
+overview  (the whole board: every status, counts + numbered rows — the board-read ritual verb)
 list [--status <status>]
 create <work|bug|decision|program|evidence> --title <title> --body-file <file>
 ready <issue> | claim <issue> --lane <lane> | review <issue> | needs-owner <issue> | set <issue> <field> <value>

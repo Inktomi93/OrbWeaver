@@ -80,7 +80,13 @@ export interface ListCommand {
   readonly status?: string;
 }
 
-export type WorkCommand = { readonly kind: "help" } | { readonly kind: "show"; readonly issue: number } | ListCommand | CreateCommand | LifecycleCommand;
+export type WorkCommand =
+  | { readonly kind: "help" }
+  | { readonly kind: "overview" }
+  | { readonly kind: "show"; readonly issue: number }
+  | ListCommand
+  | CreateCommand
+  | LifecycleCommand;
 
 export type GraphqlVariables = Readonly<Record<string, string | number>>;
 
