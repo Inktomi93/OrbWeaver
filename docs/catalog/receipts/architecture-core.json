@@ -9,13 +9,14 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "259e3faa8135ca4bfaa235560426e29bc2e7eeabe8665544eb280677a77fab48",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "ccae97094827d3fc3d5ff0cc30967f103ef82416efccee556e4ff529c335b172",
+      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
         "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
-        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact constitution blob"
+        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact constitution blob",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
       ],
       "claims": [
         {
@@ -76,13 +77,14 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "bcf85f63d5f7c52045db20a97d8919e74b34b4aced58c9245785b861334fc9f7",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "396606219526d26f6f6fcddf39a5ae62069d8ccc24978f20e823b9383c459d69",
+      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
       ],
       "claims": [
         {
@@ -103,13 +105,14 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "504f54ac1d15d874d1266292727b9cecaa9b1d4309a5b03a35614502c2ed6686",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "7e83f54f68243ae0154d845f3e143bba9f8e6ee29b48bf80b7b1d6a6f0448e28",
+      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
       ],
       "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
@@ -146,8 +149,8 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "cdc2ad10f1a102106a40d9d176a213115624609bde6ba4c510b59bfcf9ad6fbc",
-      "verifiedCommit": "e3ff0f3af4b915ef119026ef71f371f369d9a5a9",
+      "verifiedSha256": "455b3990ef2403312c68a2ef9dd2bc325823b0c41ab0807f1ddc21f3c48ada53",
+      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
       "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -157,7 +160,8 @@
         "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
         "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green",
         "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)",
-        "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree"
+        "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
       ],
       "claims": [
         {
@@ -246,9 +250,9 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "702620dec7477eb4d3c0c1ce538cd625958a34ed10135003bafd640229958c5c",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "9cf78c677e7324fde1bde35d461c7f7f194f2e6a3d2fb954d1d6c94f0660b183",
+      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
         "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
@@ -259,7 +263,8 @@
         "D143 rider: VLLM_TURNS measured cell (#200/#201, 56a979d44)",
         "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)",
         "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)",
-        "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed"
+        "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
       ],
       "claims": [
         {
@@ -373,13 +378,14 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "e9ca7a0b364e30adb8ddda772b300b97460a87e4246a851f667473bf7b649d75",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "79f86cd18a3544b63b233021c3d812ab86ee26744c109dc1e8adb65807aad51e",
+      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, source-comment, and direct rule-import routing reconciled",
         "docs/architecture/core/Core-Path-Registry.md:523-533 carries the standing D139-D141 rulings",
-        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact law blob"
+        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact law blob",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
       ],
       "claims": [
         {
@@ -536,13 +542,14 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "2b0ad5c6adfc790a109343aea9115015a03d3afaaa1b5ec7896b9840a78500e7",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "401ac4d4115c6aceb266e62caee12c838823e4cd5957aa2c861a2cad89fa824c",
+      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
       ],
       "claims": [
         {
