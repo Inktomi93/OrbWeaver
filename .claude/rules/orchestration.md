@@ -119,6 +119,16 @@ a11y → `side-eye`; both if the change spans both.
   acceptance — every IDENTIFIED issue gets fixed or filed with a receipt; but do not score-chase
   perfection (no re-review loops hunting points; the finding list, not the number, is the deliverable).
   Findings → file-claim-fix per lifecycle; fixes verified by the side-eye lens before Done.
+- **CLAUDE-B OVERFLOW (owner, 2026-08-22): if — and ONLY if — a WEEKLY-usage sentinel reports ≥85%,
+  lane-class work may delegate to the second Claude account.** The trigger is exclusively that explicit
+  harness sentinel in context — never a self-estimate, never the 5-hour window, never any other signal.
+  Spelling (the bashrc `claude-b` function is invisible to non-interactive shells):
+  `CLAUDE_CONFIG_DIR="$HOME/.claude-b" claude -p "<full cold brief>"` — verified alive 2026-08-22.
+  A claude-b invocation shares NOTHING (no context, no memory, no conversation): every delegation is a
+  complete cold brief to executor standard (goal, constraints, paths, done-criteria, hazards, the WHY,
+  §L discipline, scoped floors), and its output returns on stdout — treat it like any lane report:
+  verify receipts, never trust bare claims. Same permission boundaries as any lane: nothing denied here
+  may be routed there.
 - **Local `main` is the worktree base.** The owner pushes manually, so `origin/main` can be far behind.
   Spawn and rebase from the latest local `main`; never "refresh" a lane onto the remote branch.
 - **Never push `origin` without fresh owner authorization for that exact push.** A prior or conditional
