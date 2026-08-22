@@ -23001,6 +23001,71 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-home.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 475,
+      "bytes": 31695,
+      "sha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-rail-home.md",
+        "assignedSha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
+        "verifiedCommit": "7c25eb4d52a0c36139d10956ff38b6330b4ac1e1",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-477 by the orchestrator (2026-08-22) before attestation",
+          "receipts under reports/ (snaps, perf-meter, recordings, lighthouse — gitignored artifacts, referenced by path); 9 retractions published in-report"
+        ],
+        "summary": "Rail sweep 1/10 — home: SHIP WITH FIXES (32/40); a11y/contrast layers held (Lighthouse a11y 100 both devices, 13 contrast handles 0 FAIL); findings filed as #453 #454 #457 #458 with #455/#456 owner forks; empty/error states unreached read-only (seeded first-run pass recommended).",
+        "claims": [
+          {
+            "claim": "Every finding the review identifies is tracked as a live board row or an owner decision, and the two coverage gaps (empty/first-run, error state) are stated in-report rather than papered over.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#453"
+              },
+              {
+                "kind": "issue",
+                "target": "#454"
+              },
+              {
+                "kind": "issue",
+                "target": "#455"
+              },
+              {
+                "kind": "issue",
+                "target": "#456"
+              },
+              {
+                "kind": "issue",
+                "target": "#457"
+              },
+              {
+                "kind": "issue",
+                "target": "#458"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
       "lane": "reviews",
       "issue": 7,
