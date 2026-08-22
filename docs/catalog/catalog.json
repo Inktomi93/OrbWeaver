@@ -421,8 +421,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 353,
-      "bytes": 165309,
-      "sha256": "b065b2a704c679d4f39ef3ac81473f5e6c864c4ebedc3666492bf4b2f30dadf9",
+      "bytes": 165502,
+      "sha256": "cdc2ad10f1a102106a40d9d176a213115624609bde6ba4c510b59bfcf9ad6fbc",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -439,9 +439,9 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "b065b2a704c679d4f39ef3ac81473f5e6c864c4ebedc3666492bf4b2f30dadf9",
-        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "cdc2ad10f1a102106a40d9d176a213115624609bde6ba4c510b59bfcf9ad6fbc",
+        "verifiedCommit": "e3ff0f3af4b915ef119026ef71f371f369d9a5a9",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -13053,9 +13053,9 @@
       "path": "docs/design/tooling-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 535,
-      "bytes": 84981,
-      "sha256": "2f82c75bf4f9c52e1957322e2d4195737fb739007db7306332e0d6745583c214",
+      "lines": 536,
+      "bytes": 86163,
+      "sha256": "9a1faf786f2628cfdaad27c1602e17572a4e916ee7d33a79f7524076ecf29060",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13072,9 +13072,9 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "2f82c75bf4f9c52e1957322e2d4195737fb739007db7306332e0d6745583c214",
-        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "9a1faf786f2628cfdaad27c1602e17572a4e916ee7d33a79f7524076ecf29060",
+        "verifiedCommit": "e3ff0f3af4b915ef119026ef71f371f369d9a5a9",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
@@ -23934,6 +23934,109 @@
               {
                 "kind": "test",
                 "target": "tests/tooling/design-audit-walker.ct.tsx:407"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/tooling/2026-08-22-gate-stance-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 297,
+      "bytes": 29531,
+      "sha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/tooling/2026-08-22-gate-stance-census.md",
+        "assignedSha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
+        "verifiedCommit": "aabad445994dc02fd866faef511da0d987bfa9a7",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
+          "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
+          "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
+          "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
+          "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)"
+        ],
+        "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
+        "claims": [
+          {
+            "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row — a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#393"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/lib/loader.ts:45"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/contract/gate.ts:158"
+              }
+            ]
+          },
+          {
+            "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row — the §3 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/scrubber-home.ts:85"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/no-raw-intl-time.ts:32"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/own-tables-only.ts:355"
+              }
+            ]
+          },
+          {
+            "claim": "`verify-registry-parity` is the one genuine dual-home: its three standalone cases duplicate arms its own fsBacked conformance rows already drive.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/verify-registry-parity.ts:141"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/run.int.test.ts:532"
+              }
+            ]
+          },
+          {
+            "claim": "`__g_` fixture planting should stay IN-PLACE: a staging root is mechanically possible but every stale arm is guarded on a REAL sibling anchor, so a synthetic tree would make those guards pass for the wrong reason. The available win is per-suite sentinel segments.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/tooling-instrument-proof.ts:107"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/lib/pass.ts:331"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/structure.int.test.ts:57"
               }
             ]
           }

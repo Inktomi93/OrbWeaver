@@ -146,9 +146,9 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "b065b2a704c679d4f39ef3ac81473f5e6c864c4ebedc3666492bf4b2f30dadf9",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "cdc2ad10f1a102106a40d9d176a213115624609bde6ba4c510b59bfcf9ad6fbc",
+      "verifiedCommit": "e3ff0f3af4b915ef119026ef71f371f369d9a5a9",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",

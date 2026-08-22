@@ -870,6 +870,37 @@
       "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
+      "assignedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "full read 1-77 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+        "receipts are Codex's gitignored snap artifacts; not re-verified here"
+      ],
+      "summary": "Codex's command-palette canonical graduation: palette passes all visual/state/semantic/geometry rows (160 matrix rows); HOLD is #363 only; earlier compact no-results P2 retracted post-#355."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
+      "assignedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+        "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
+        "#363 confirmed live on the board at recovery"
+      ],
+      "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md",
       "assignedSha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
       "disposition": "current",
@@ -920,6 +951,21 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
+      "assignedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "full read 1-88 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+        "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
+      ],
+      "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
     },
     {
       "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
@@ -1346,6 +1392,39 @@
       ]
     },
     {
+      "path": "docs/reviews/stickler/2026-08-21-codex-final-merge.md",
+      "assignedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
+      "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"
+      ],
+      "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
+      "claims": [
+        {
+          "claim": "The Select motion allowance in Codex's final merge is Select-only and structurally consumed-once, product motion is unchanged, and the three confirmed LOW findings are tracked as issue #405.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#405"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/select-entrance-evidence.ts:34"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/engine/engine.ts:1273"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
       "assignedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
       "disposition": "current",
@@ -1383,81 +1462,88 @@
       ]
     },
     {
-      "path": "docs/reviews/stickler/2026-08-21-codex-final-merge.md",
-      "assignedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
+      "path": "docs/reviews/tooling/2026-08-22-gate-stance-census.md",
+      "assignedSha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
-      "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
-      "verifiedAt": "2026-08-21",
-      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
-      "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
+      "verifiedSha256": "a00fd2c53a96f073567ab1a01dd8d002cb518407c0b905397930430d5910d5f7",
+      "verifiedCommit": "aabad445994dc02fd866faef511da0d987bfa9a7",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
+        "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
+        "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
+        "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
+        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)"
+      ],
+      "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
       "claims": [
         {
-          "claim": "The Select motion allowance in Codex's final merge is Select-only and structurally consumed-once, product motion is unchanged, and the three confirmed LOW findings are tracked as issue #405.",
+          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row — a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
           "evidence": [
             {
               "kind": "issue",
-              "target": "#405"
+              "target": "#393"
             },
             {
               "kind": "code",
-              "target": "packages/client/src/lib/select-entrance-evidence.ts:34"
+              "target": "tooling/src/verify/lib/loader.ts:45"
             },
             {
               "kind": "code",
-              "target": "packages/server/src/domain/chat/engine/engine.ts:1273"
+              "target": "tooling/src/verify/contract/gate.ts:158"
+            }
+          ]
+        },
+        {
+          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row — the §3 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/scrubber-home.ts:85"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/no-raw-intl-time.ts:32"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/own-tables-only.ts:355"
+            }
+          ]
+        },
+        {
+          "claim": "`verify-registry-parity` is the one genuine dual-home: its three standalone cases duplicate arms its own fsBacked conformance rows already drive.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/verify-registry-parity.ts:141"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/run.int.test.ts:532"
+            }
+          ]
+        },
+        {
+          "claim": "`__g_` fixture planting should stay IN-PLACE: a staging root is mechanically possible but every stale arm is guarded on a REAL sibling anchor, so a synthetic tree would make those guards pass for the wrong reason. The available win is per-suite sentinel segments.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/tooling-instrument-proof.ts:107"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/lib/pass.ts:331"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/structure.int.test.ts:57"
             }
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
-      "assignedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
-      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-      "verifiedAt": "2026-08-21",
-      "evidence": [
-        "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
-        "#363 confirmed live on the board at recovery"
-      ],
-      "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
-      "assignedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
-      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-      "verifiedAt": "2026-08-21",
-      "evidence": [
-        "full read 1-77 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "receipts are Codex's gitignored snap artifacts; not re-verified here"
-      ],
-      "summary": "Codex's command-palette canonical graduation: palette passes all visual/state/semantic/geometry rows (160 matrix rows); HOLD is #363 only; earlier compact no-results P2 retracted post-#355."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
-      "assignedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
-      "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-      "verifiedAt": "2026-08-21",
-      "evidence": [
-        "full read 1-88 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
-      ],
-      "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
     }
   ]
 }
