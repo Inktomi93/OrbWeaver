@@ -22,12 +22,6 @@ export interface RailButtonProps {
   readonly icon: LucideIcon;
   /** Active (current section) — Ember tint + `aria-current="page"`. Modal/footer triggers pass `false`. */
   readonly active?: boolean;
-  /** The tab HOSTS the current section without BEING it — the You tab while you stand in a section its
-   *  sheet is the only door to. A visual hint ONLY, deliberately: `aria-current="page"` on a tab that is
-   *  not the page is a lie a reader acts on ("You, current page" while looking at the Corpus roster —
-   *  side-eye leg-4). Where-am-I for those sections is answered by the TOPBAR, which names the section and
-   *  (since the mobile DOM-order fix) reads before this nav. @defaultValue false */
-  readonly containsCurrent?: boolean;
   readonly onClick: () => void;
   /** The entry's mobile fate — `"sheet"` entries are `display:none` on the mobile bar (folded into the
    *  You sheet); `"tab"` entries stay. Desktop shows every entry regardless. Defaults to `"sheet"`. */
@@ -42,17 +36,7 @@ export interface RailButtonProps {
   readonly modalId?: ModalSlotId;
 }
 
-export function RailButton({
-  label,
-  icon,
-  active = false,
-  containsCurrent = false,
-  onClick,
-  mobile = "sheet",
-  mobileOnly = false,
-  badge,
-  modalId,
-}: RailButtonProps): ReactElement {
+export function RailButton({ label, icon, active = false, onClick, mobile = "sheet", mobileOnly = false, badge, modalId }: RailButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -63,7 +47,6 @@ export function RailButton({
             aria-label={label}
             aria-current={active ? "page" : undefined}
             data-active={active ? "" : undefined}
-            data-contains-current={containsCurrent ? "" : undefined}
             data-mobile={mobile}
             data-modal-trigger={modalId}
             data-rail-mobile-only={mobileOnly ? "" : undefined}
@@ -78,7 +61,7 @@ export function RailButton({
                 design-audit interactive-text floor (11px, `undersized-ui-text` ×4 on the home route at
                 coarse pointer, issue #86 lead 3), and the ramp has no step between the two (D5 refused an
                 11px step). `size`, not `voice="label"` — voice would pin the ink to `text-foreground` and
-                kill the muted/active/contains-current colour states shell.css owns. */}
+                kill the muted/active colour states shell.css owns. */}
             <Text as="span" size="label" className="shell-rail-button-label">
               {label}
             </Text>

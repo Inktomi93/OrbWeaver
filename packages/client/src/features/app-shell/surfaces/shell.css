@@ -1032,13 +1032,8 @@
   .shell-rail .shell-rail-button[data-active]::after {
     content: none;
   }
-  /* HOSTS the current section without BEING it (the You tab over a `mobile:"sheet"` section). Deliberately
-   * WEAKER than `data-active`'s full primary: it is a "your place is behind this door" hint, not a claim of
-   * currency — and it carries no `aria-current`, because a tab that is not the page may not say it is
-   * (side-eye leg-4: readers heard "You, current page" on five sections). */
-  .shell-rail .shell-rail-button[data-contains-current]:not([data-active]) {
-    color: var(--color-foreground);
-  }
+  /* (The `data-contains-current` hint that used to sit here is GONE with #484: the current section now holds
+   * a bar slot of its own, so no tab ever stands in for a place it is not — the state was unreachable.) */
   .shell-rail-button-label {
     display: block;
   }

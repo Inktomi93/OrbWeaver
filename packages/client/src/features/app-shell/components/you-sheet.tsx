@@ -4,7 +4,8 @@
 //   · `rail.end` MODAL entries (theme, settings) → a row that opens the modal in the shared slot;
 //   · `rail.end` WIDGET entries (the persona identity) → its own `body("sheet")` lens inline (this is
 //     where mobile persona switching + the Account strip live — §B);
-//   · `rail.nav` sections curated `mobile:"sheet"` → a row that routes + closes the sheet.
+//   · `rail.nav` sections whose EFFECTIVE curation is `"sheet"` → a row that routes + closes the sheet
+//     (effective, not declared: the bar swaps the current section in and the tab it displaces out, #484).
 // Add a chrome entry once at the door → desktop rail, mobile bar, AND this sheet all pick it up. The sheet
 // stays a REAL modal (the `you` Drawer slot — portal/focus-trap/scrim); CSS cannot fake that (§C).
 
@@ -14,7 +15,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Heading } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry } from "#state";
-import { closeModal, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
+import { closeModal, mobileBarCuration, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
 
 /** The overflow group's heading id — the group points its `aria-labelledby` at it, so the heading names the
  *  block once instead of the group restating the word. Static: this sheet renders exactly one. */
@@ -45,7 +46,12 @@ export function YouSheet(): ReactElement {
   const activeSection = useActiveSection();
   const entries = useChromeRegistry().list();
   const footerEntries = entries.filter((e) => e.zone === "rail.end");
-  const overflowSections = entries.filter((e) => e.zone === "rail.nav" && e.mobile === "sheet");
+  // The overflow list is the bar's EFFECTIVE curation, never the declared `mobile` field (#484): while you
+  // stand in an overflow section it holds a bar slot and drops out of here, and the tab it displaced lands
+  // here for the duration. ONE derivation shared with the bar (`mobileBarCuration`, #state) — the door and
+  // its contents may not disagree about who is a tab, or a section becomes reachable from neither.
+  const curation = mobileBarCuration(entries, activeSection);
+  const overflowSections = entries.filter((e) => e.zone === "rail.nav" && curation.get(e.id) === "sheet");
   // …and the TOPBAR widgets a phone's row cannot afford (the notifications inbox). They declare the same
   // `mobile: "sheet"` curation the overflow sections do, and render their own sheet lens here. The filter
   // is SHARED (`sheetOverflowChrome`, #state) because the mobile bar's You tab badges these same entries'

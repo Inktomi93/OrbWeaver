@@ -373,14 +373,40 @@ export function RailStory(): ReactElement {
   );
 }
 
-/** The Rail standing in a `mobile:"sheet"` OVERFLOW section (corpus) — the state where the You tab is the
- *  section's only door on the bar. It may HINT that (`data-contains-current`); it may not claim to BE the
- *  page (side-eye leg-4 P2: readers heard "You, current page" on five sections). */
+/** The Rail standing in a `mobile:"sheet"` OVERFLOW section (corpus) — the state the bar used to render as
+ *  four unlit tabs with `aria-current="page"` on a 0×0 node (#484). The section now TAKES the last standing
+ *  tab's slot, so exactly one visible tab is current and the displaced one is a tap away in the You sheet. */
 export function RailOverflowSectionStory(): ReactElement {
   return (
     <CtFakeSectionRegistry>
       <CtStandInChromeRegistry>
         <Rail activeSection="corpus" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+      </CtStandInChromeRegistry>
+    </CtFakeSectionRegistry>
+  );
+}
+
+/** The same swap from a DIFFERENT group (analytics is `insight`, corpus is `primary`) — the review found
+ *  the defect on five sections across three groups, so the pin covers more than the one it was found on. */
+export function RailAnalyticsSectionStory(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <CtStandInChromeRegistry>
+        <Rail activeSection="analytics" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+      </CtStandInChromeRegistry>
+    </CtFakeSectionRegistry>
+  );
+}
+
+/** The OTHER HALF of the swap (#484): the You sheet while an overflow section holds a bar slot. The section
+ *  on the bar drops out of "More" and the tab it displaced drops IN — nothing may become unreachable, which
+ *  is why one derivation feeds both surfaces. Real sections (the stand-in chrome), real store. */
+export function YouSheetSwapStory(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <CtStandInChromeRegistry>
+        <LandOn section="corpus" />
+        <YouSheet />
       </CtStandInChromeRegistry>
     </CtFakeSectionRegistry>
   );
