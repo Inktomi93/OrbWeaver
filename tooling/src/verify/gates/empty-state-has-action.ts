@@ -5,7 +5,7 @@
 // both-directions ratchet (no-interactive-role-in-features precedent).
 import type { JsxAttributeLike, JsxSelfClosingElement } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const TAG_NAME = "EmptyState";
@@ -18,59 +18,84 @@ const TAG_NAME = "EmptyState";
 const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
 
 /** Current dead-end files → reason. See no-interactive-role-in-features.ts for the ratchet contract. */
-const ALLOWLIST: Record<string, string> = {
-  "packages/client/src/features/app-shell/components/section-placeholder.tsx":
-    "the generic unbuilt-section placeholder (modal-body-not-placeholder's SectionPlaceholder sibling) " +
-    "— has no section-specific next step to offer; the flag is on the eventual real section body, not here.",
-  "packages/client/src/features/settings/components/settings-pane-placeholder.tsx": "the settings equivalent of section-placeholder.tsx — same reasoning.",
-  "packages/client/src/features/preset/components/preset-library-welcome.tsx":
-    'the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown ' +
-    "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
-    "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
-  "packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx":
-    "the GONE arm — the open book was deleted on another device (the world-info verbs are bus-driven, so the " +
-    "roster refetches under the editor). The next step is picking another row in the sibling roster, which is " +
-    "on screen; the tag/regex member-editor twins above, same species. (The retired World Info CONTENT " +
-    "welcome's row died with the rail section at R2 — the workspace's own welcome is the config host's now.)",
-  "packages/client/src/features/config/components/config-context-body.tsx":
-    "the Configuration CONTEXT pane's two no-next-step arms: the no-selection state (the next step is picking a row in the " +
-    "sibling LIST, which is on screen whenever this is — the preset-section-inspector precedent) and a collection that " +
-    'declares `context: {kind:"none"}` ("Nothing to attach" — a tag applies wherever you put it; there is genuinely ' +
-    "nothing to manage here, and the copy is the COLLECTION's own, not a host generic).",
-  "packages/client/src/features/tag/surfaces/tag-member-surface.tsx":
-    "the GONE arm — the open tag was deleted on another device (the tag verbs are bus-driven, so the list refetches " +
-    "under the editor). The next step is picking another row in the sibling roster, which is on screen; the " +
-    "member-card-viewer NOT_FOUND precedent, same species.",
-  "packages/client/src/features/regex/surfaces/regex-member-surface.tsx":
-    "the regex twin of the tag member editor's GONE arm above — same species, same reasoning.",
-  "packages/client/src/features/regex/components/regex-context-body.tsx":
-    "the regex CONTEXT pane's GONE arm (the script was deleted while its context was open) — the member-editor twin above.",
-  "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx":
-    'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
-  "packages/client/src/features/chat/components/member-card-viewer.tsx":
-    'the D22 NOT_FOUND gone-arm ("This card isn\'t available" — the character left the chat / no access) has no next step; the ' +
-    "dialog's own Close is the only affordance, so this state legitimately carries no action of its own.",
-  "packages/client/src/features/chat/components/variant-wire-viewer.tsx":
-    "the RAWVIEW inspector's two statements of FACT — a variant that captured no prompt (an authored/imported/seeded row never ran " +
-    "one) and the NOT_FOUND gone-arm (the message was deleted). Neither has a next step the host could take; the dialog's own Close " +
-    "is the only affordance (the member-card-viewer precedent, same species).",
-  "packages/client/src/features/world-info/components/world-info-context-body.tsx":
-    "the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on " +
-    "screen. (Its predecessor, the rail section's 'No book open' arm, retired with the section at R2: a " +
-    '`{kind:"body"}` collection arm is only ever called WITH a member, and the no-selection copy is the ' +
-    "config host's own `context.empty`.) The next step is picking another row in the sibling roster, which is " +
-    "on screen; the regex-context-body twin above, same species.",
-  "packages/client/src/features/databank/components/databank-context-body.tsx":
-    "the databank CONTEXT pane's two no-next-step arms: the NO-SELECTION arm (a `single` context body is " +
-    "mounted unconditionally and must render the section's own `context.empty` copy itself — the next step " +
-    "is picking a row in the sibling LIST, which is on screen whenever this is; the config-context-body " +
-    "precedent) and the GONE arm (the open document was deleted while its activation panel was up — the " +
-    "world-info/tag/regex context twins above, same species).",
-  "packages/client/src/features/databank/surfaces/databank-detail-surface.tsx":
-    "the Databank CONTENT teaching state — a 'pick a document on the left, or add one' nudge shown alongside " +
-    "the library list, which itself carries BOTH create doors (the band's Add primary and the empty bank's " +
-    "own CTA). The next step lives in the sibling list, so this state legitimately has no action of its own: " +
-    "the preset-library-welcome.tsx precedent, same species, same reasoning.",
+const ALLOWLIST: ExemptionTable = {
+  "packages/client/src/features/app-shell/components/section-placeholder.tsx": {
+    why:
+      "the generic unbuilt-section placeholder (modal-body-not-placeholder's SectionPlaceholder sibling) " +
+      "— has no section-specific next step to offer; the flag is on the eventual real section body, not here.",
+  },
+  "packages/client/src/features/settings/components/settings-pane-placeholder.tsx": {
+    why: "the settings equivalent of section-placeholder.tsx — same reasoning.",
+  },
+  "packages/client/src/features/preset/components/preset-library-welcome.tsx": {
+    why:
+      'the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown ' +
+      "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
+      "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
+  },
+  "packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx": {
+    why:
+      "the GONE arm — the open book was deleted on another device (the world-info verbs are bus-driven, so the " +
+      "roster refetches under the editor). The next step is picking another row in the sibling roster, which is " +
+      "on screen; the tag/regex member-editor twins above, same species. (The retired World Info CONTENT " +
+      "welcome's row died with the rail section at R2 — the workspace's own welcome is the config host's now.)",
+  },
+  "packages/client/src/features/config/components/config-context-body.tsx": {
+    why:
+      "the Configuration CONTEXT pane's two no-next-step arms: the no-selection state (the next step is picking a row in the " +
+      "sibling LIST, which is on screen whenever this is — the preset-section-inspector precedent) and a collection that " +
+      'declares `context: {kind:"none"}` ("Nothing to attach" — a tag applies wherever you put it; there is genuinely ' +
+      "nothing to manage here, and the copy is the COLLECTION's own, not a host generic).",
+  },
+  "packages/client/src/features/tag/surfaces/tag-member-surface.tsx": {
+    why:
+      "the GONE arm — the open tag was deleted on another device (the tag verbs are bus-driven, so the list refetches " +
+      "under the editor). The next step is picking another row in the sibling roster, which is on screen; the " +
+      "member-card-viewer NOT_FOUND precedent, same species.",
+  },
+  "packages/client/src/features/regex/surfaces/regex-member-surface.tsx": {
+    why: "the regex twin of the tag member editor's GONE arm above — same species, same reasoning.",
+  },
+  "packages/client/src/features/regex/components/regex-context-body.tsx": {
+    why: "the regex CONTEXT pane's GONE arm (the script was deleted while its context was open) — the member-editor twin above.",
+  },
+  "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx": {
+    why: 'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
+  },
+  "packages/client/src/features/chat/components/member-card-viewer.tsx": {
+    why:
+      'the D22 NOT_FOUND gone-arm ("This card isn\'t available" — the character left the chat / no access) has no next step; the ' +
+      "dialog's own Close is the only affordance, so this state legitimately carries no action of its own.",
+  },
+  "packages/client/src/features/chat/components/variant-wire-viewer.tsx": {
+    why:
+      "the RAWVIEW inspector's two statements of FACT — a variant that captured no prompt (an authored/imported/seeded row never ran " +
+      "one) and the NOT_FOUND gone-arm (the message was deleted). Neither has a next step the host could take; the dialog's own Close " +
+      "is the only affordance (the member-card-viewer precedent, same species).",
+  },
+  "packages/client/src/features/world-info/components/world-info-context-body.tsx": {
+    why:
+      "the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on " +
+      "screen. (Its predecessor, the rail section's 'No book open' arm, retired with the section at R2: a " +
+      '`{kind:"body"}` collection arm is only ever called WITH a member, and the no-selection copy is the ' +
+      "config host's own `context.empty`.) The next step is picking another row in the sibling roster, which is " +
+      "on screen; the regex-context-body twin above, same species.",
+  },
+  "packages/client/src/features/databank/components/databank-context-body.tsx": {
+    why:
+      "the databank CONTEXT pane's two no-next-step arms: the NO-SELECTION arm (a `single` context body is " +
+      "mounted unconditionally and must render the section's own `context.empty` copy itself — the next step " +
+      "is picking a row in the sibling LIST, which is on screen whenever this is; the config-context-body " +
+      "precedent) and the GONE arm (the open document was deleted while its activation panel was up — the " +
+      "world-info/tag/regex context twins above, same species).",
+  },
+  "packages/client/src/features/databank/surfaces/databank-detail-surface.tsx": {
+    why:
+      "the Databank CONTENT teaching state — a 'pick a document on the left, or add one' nudge shown alongside " +
+      "the library list, which itself carries BOTH create doors (the band's Add primary and the empty bank's " +
+      "own CTA). The next step lives in the sibling list, so this state legitimately has no action of its own: " +
+      "the preset-library-welcome.tsx precedent, same species, same reasoning.",
+  },
 };
 
 const MESSAGE =

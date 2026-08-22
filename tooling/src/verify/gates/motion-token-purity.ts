@@ -5,7 +5,7 @@
 // both-directions ratchet (no-off-token-radius-shadow precedent); `shell.css` is deliberately NOT allowlisted — it must stay raw-value-free.
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 import { blankCssComments } from "../lib/comment-spans.ts";
 
@@ -18,11 +18,13 @@ const ANCHOR = "packages/ui/src/tokens/index.ts";
 
 /** Current legit raw-motion files → reason (continuous loop / isolated hover / the a11y kill-switch — no
  *  coordination partner to desync from; not worth a token migration). */
-const ALLOWLIST: Record<string, string> = {
-  "packages/client/src/styles/globals.css": "`orb-weave-shimmer 3s ease-in-out` — a continuous decorative loop; nothing coordinates with it.",
-  "packages/ui/src/styles/globals.css":
-    "the reduced-motion floor's `0.01ms !important` duration killers (a11y kill-switch, must be a raw " +
-    "sub-frame value) + the media-grid spotlight's `ease-out` (isolated hover effect).",
+const ALLOWLIST: ExemptionTable = {
+  "packages/client/src/styles/globals.css": { why: "`orb-weave-shimmer 3s ease-in-out` — a continuous decorative loop; nothing coordinates with it." },
+  "packages/ui/src/styles/globals.css": {
+    why:
+      "the reduced-motion floor's `0.01ms !important` duration killers (a11y kill-switch, must be a raw " +
+      "sub-frame value) + the media-grid spotlight's `ease-out` (isolated hover effect).",
+  },
 };
 
 const MESSAGE =
@@ -93,7 +95,7 @@ function offenceLines(text: string): number[] {
 
 /** The offender scan over every CSS file in the two src trees (fs, not ts-morph — CSS isn't in the
  *  project). Returns new-offender violations + which allowlisted files still carry a raw motion value. */
-function scanCss(root: string, allowlist: Record<string, string>): { violations: Violation[]; seenAllowlisted: Set<string> } {
+function scanCss(root: string, allowlist: ExemptionTable): { violations: Violation[]; seenAllowlisted: Set<string> } {
   const violations: Violation[] = [];
   const seenAllowlisted = new Set<string>();
   const files = [...globSync("packages/ui/src/**/*.css", { cwd: root }), ...globSync("packages/client/src/**/*.css", { cwd: root })];

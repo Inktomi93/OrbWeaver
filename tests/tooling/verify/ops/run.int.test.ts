@@ -7,24 +7,19 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
-import { Project } from "ts-morph";
-import { gate as verifyRegistryParityGate } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
-import type { Finding, StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
+import type { StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
 import {
   aggregateExit,
   asViolations,
-  canonicalSort,
   eslintScheme,
   failReason,
   ownScheme,
   parse,
   REGISTRY,
   resolveSelection,
-  runPass,
   stagesForTier,
 } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { withTree } from "../../_support.ts";
 
 /** A parse result that IS a misuse error (what main() maps to exit 3). */
 function isMisuse(argv: readonly string[]): boolean {
@@ -510,53 +505,13 @@ test("every manual-tier stage carries a reason", () => {
   expect(manualWithoutReason).toEqual([]);
 });
 
-// ── V4 verify-registry-parity (§3.6) — "a forgotten script is a structural violation" ──
-// Run the fsBacked gate over a real temp-dir package.json against the REAL registry (imported by the gate).
-
-function runParityGate(pkgScripts: Readonly<Record<string, string>>): readonly Finding[] {
-  let findings: readonly Finding[] = [];
-  withTree({ "package.json": JSON.stringify({ scripts: pkgScripts }) }, (root) => {
-    const project = new Project({ skipAddingFilesFromTsConfig: true });
-    const result = runPass([verifyRegistryParityGate], {
-      root,
-      project,
-      scope: { kind: "project" },
-      files: project.getSourceFiles(),
-      checker: () => project.getTypeChecker(),
-    });
-    findings = canonicalSort(result.gates.find((g) => g.name === verifyRegistryParityGate.name)?.findings ?? []);
-  });
-  return findings;
-}
-
-test("verify-registry-parity: a verification-shaped script with no tier is a violation (arm 1 bites)", () => {
-  // `verify` present so arm 2 (dead-row) is guarded off; the bogus test:* script is unplaced → RED.
-  const findings = runParityGate({ verify: "x", "test:visual-regression": "playwright test" });
-  const arm1 = findings.filter((f) => (f.message ?? "").includes("not a `pnpm verify` stage"));
-  expect(arm1).toHaveLength(1);
-});
-
-test("verify-registry-parity: an allowlisted writer/inspector is NOT flagged (no over-bite)", () => {
-  // format (writer) + check:show (inspector) are on the NON_STAGE_ALLOWLIST.
-  const findings = runParityGate({
-    verify: "x",
-    format: "biome format --write .",
-    "check:show": "node tooling/src/verify/cli.ts show",
-    // A real registered stage name → arm 2 (dead-row) would fire for the OTHER registered scripts absent
-    // here, so we omit `verify`'s dead-row trigger by… keeping only allowlisted + non-verify scripts. The
-    // dead-row arm only runs when `verify` is present AND a registered script is missing — here every
-    // registered script IS missing, so this asserts arm-1 stays quiet on the allowlist (the dead-row noise
-    // is arm 2, exercised separately by the real-tree run, not this near-miss).
-  });
-  const arm1 = findings.filter((f) => (f.message ?? "").includes("not a `pnpm verify` stage"));
-  expect(arm1).toHaveLength(0);
-});
-
-test("verify-registry-parity: a dev-only package.json (no verify host) is fully clean (arm 2 guarded)", () => {
-  // No `verify` script → arm 2 no-ops; no verification-shaped script → arm 1 quiet. Total clean — the
-  // synthetic near-miss the gate's own mustPass asserts.
-  expect(runParityGate({ dev: "vite", build: "vite build" })).toEqual([]);
-});
+// ── V4 verify-registry-parity (§3.6) — ONE HOME, and it is the gate's own conformance rows ──
+// The three standalone cases that used to sit here (arm 1 bites · arm 1 no-over-bite on the allowlist ·
+// arm 2 guarded on a dev-only package.json) were deleted 2026-08-22 (#417 F5): the gate is `fsBacked`, so
+// the conformance runner already materializes a real temp dir and drives every one of those behaviors
+// through the SAME dispatcher — tooling/src/verify/gates/verify-registry-parity.ts's mustFlag/mustPass.
+// The one behavior conformance did not yet carry (the `check:show` INSPECTOR half of the allowlist) moved
+// into that gate's first mustPass row in the same commit; nothing was dropped.
 
 // ── the stage transcript (#259) — the log/excerpt a failure is READ from ──
 // The stage runner used to capture with spawnSync and store `stdout + stderr` (whole-stream CONCATENATION).

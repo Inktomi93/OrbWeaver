@@ -166,12 +166,15 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        // Only NON-verification-shaped scripts (dev/build) + an allowlisted writer → nothing to reconcile
-        // against the real registry, so this passes. (A registry-registered script name here would need the
-        // real package.json's whole script set; the empty-of-verify-scripts case is the honest near-miss.)
-        "package.json": '{ "scripts": { "dev": "vite", "format": "biome format --write ." } }\n',
+        // Only NON-verification-shaped scripts (dev/build) + BOTH allowlisted species — a WRITER (`format`)
+        // and an INSPECTOR (`check:show`, verification-SHAPED but read-only) → nothing to reconcile against
+        // the real registry, so this passes. (A registry-registered script name here would need the real
+        // package.json's whole script set; the empty-of-verify-scripts case is the honest near-miss.)
+        // The inspector half moved here from `tests/tooling/verify/ops/run.int.test.ts` when the standalone
+        // triple-pin was deleted (#417 F5) — conformance is the one home for these behaviors.
+        "package.json": '{ "scripts": { "dev": "vite", "format": "biome format --write .", "check:show": "node tooling/src/verify/cli.ts show" } }\n',
       },
-      why: "no verification-shaped script beyond the allowlisted `format` writer — nothing unplaced, passes",
+      why: "no unplaced verification-shaped script: the allowlisted WRITER (`format`) and the allowlisted INSPECTOR (`check:show` — verification-shaped by name, read-only by nature) both pass, which is the no-over-bite half of arm 1",
     },
     {
       files: {

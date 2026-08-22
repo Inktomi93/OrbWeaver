@@ -5,7 +5,7 @@
 // type) and `users.externalId` (an external IdP subject, not an orbweaver-table reference). The allowlist is a two-direction ratchet.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
@@ -14,17 +14,17 @@ const ID_KEY = /Id$/u;
 const COLUMN_ROOTS = new Set(["text", "integer"]);
 
 /** `table.column` (JS key) pairs sanctioned to be an id-shaped column with NO FK, each with its cite. */
-export const SOFT_REF_ALLOWLIST: Readonly<Record<string, string>> = {
+export const SOFT_REF_ALLOWLIST: ExemptionTable = {
   // The append-only audit log must outlive an arbitrary referent of unknown type — the ONE D24 soft ref.
-  "audit_logs.entityId": "D24 the sole sanctioned soft-ref (append-only log, polymorphic referent)",
+  "audit_logs.entityId": { why: "D24 the sole sanctioned soft-ref (append-only log, polymorphic referent)" },
   // An external IdP subject identifier (the SSO `sub`), not a reference to any orbweaver table.
-  "users.externalId": "external IdP subject string, not an orbweaver-table FK",
+  "users.externalId": { why: "external IdP subject string, not an orbweaver-table FK" },
   // The Claude Agent SDK's OWN resume handle (the prompt-cache lineage id the SDK returns) — an
   // EXTERNAL identifier, not a reference to any orbweaver table (D8/D25).
-  "session_entries.sdkSessionId": "external agent-sdk resume handle, not an orbweaver-table FK",
+  "session_entries.sdkSessionId": { why: "external agent-sdk resume handle, not an orbweaver-table FK" },
   // The upstream OpenRouter generation handle (`gen-…`) a variant billed under — an EXTERNAL provider id
   // (`connection.orGenerationCost`'s key, PD-137), not a reference to any orbweaver table (D24).
-  "message_variants.generationId": "external OpenRouter generation handle, not an FK",
+  "message_variants.generationId": { why: "external OpenRouter generation handle, not an FK" },
 };
 
 const SOFT_MESSAGE = (pair: string): string =>
