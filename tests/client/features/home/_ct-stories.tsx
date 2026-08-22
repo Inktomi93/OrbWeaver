@@ -347,6 +347,38 @@ export function HomeScrollCueFittingStory(): ReactElement {
   return <ScrollCueStory tiles={SCROLL_CUE_FITTING_TILES} />;
 }
 
+// ── The FOLD REACH (#499, the residual half of #455) ────────────────────────────────────────────────
+// #455 folded the roadmap block, which sits BELOW the databank tile in the shelf at a narrow pane — so it
+// could not move the thing the finding was about: both of the databank empty state's calls to action were
+// still under the cut (`Open Databank` top=819 against a 800px fold, measured live at 1280×800). This
+// story is the instrument for that question, and it differs from `HomeBalanceStory` in the two ways that
+// decide the answer: the pane is a REAL SCROLLER with the production content box, and the bank is EMPTY
+// (the arm that renders the CTAs at all — a populated tile renders four rows and no buttons).
+//
+// `display: grid` on the host, not a bare height: `HomeSurface`'s scroller is `h-full`, so it needs an
+// ancestor with a resolved height, and a grid ITEM stretches on both axes where a block child would take
+// its content's height and overflow nothing.
+
+/** The production content box at a 1280×800 viewport (side-eye rail-home P2-1's own measurement: a 752px
+ *  scroller inside the 1224px pane the 56px rail leaves). The spec drives both for the width matrix. */
+const FOLD_PANE_PX = { inline: 1224, block: 752 };
+
+/** The shipped home in a REAL scrolling pane over an EMPTY bank — the fold-reach instrument (#499). */
+export function HomeFoldStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div data-home-fold-pane={true} style={{ display: "grid", inlineSize: FOLD_PANE_PX.inline, blockSize: FOLD_PANE_PX.block }}>
+          <HomeSurface
+            onNewChat={(): void => undefined}
+            tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
+          />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The shipped home, tile for tile, at the shipped width. No box memory is seeded, so every tile is on
  *  its DECLARED reservation — a first-ever boot. */
 export function HomeShippedFirstBootStory(): ReactElement {

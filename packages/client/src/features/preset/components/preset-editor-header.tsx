@@ -45,7 +45,8 @@ export interface PresetEditorHeaderProps {
   readonly isSystemDefault: boolean;
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
   readonly onActivate: () => void;
-  /** Commit a new name — the `preset.update {id, name}` name-only write the LIST kebab's Rename also calls.
+  /** Commit a new name — the `preset.update {id, name}` name-only write. Since #506 this is the verb's ONLY
+   *  caller (the list-row kebab's Rename is gone; see the door below).
    *  The DIALOG lives here with its door (the reset door's own posture); the WRITE is the surface's. */
   readonly onRename: (name: string) => void;
   readonly saveState: AutosaveSaveState;
@@ -122,18 +123,22 @@ export function PresetEditorHeader({
                     first thing a new user does, and on mobile the LIST is a closed sheet, so from here the
                     name could not be changed at all.
 
-                    THIS FORKS A RECORDED ONE-HOME RULING AND SAYS SO — the orchestrator owns the
-                    reconciliation. The ruling, recorded two elements down and quoted whole: Export "lived in
-                    BOTH this kebab and the LIST row's… ONE home — the list-row kebab, matching the
-                    characters/chats precedent that lifecycle lives list-side" (O-16★, owner). #481 applied
-                    the same test to the Activate echo. Read strictly, Rename is a kebab item too, so this is
-                    a second door.
-                    Why it lands anyway, on the band's OWN recorded grammar: the Activate affordance three
-                    elements up survives here for exactly this reason — "a status naming an actionable state
-                    must be able to act" when "on mobile the LIST is a closed sheet". The NAME is that band's
-                    other stated truth (the h2 is the one thing the pane is about), and it is the one the
-                    editor cannot act on. Export is genuinely lifecycle (it produces a FILE, not a change to
-                    the open artifact); renaming is editing the thing you have open.
+                    IT FORKED A RECORDED ONE-HOME RULING, SAID SO, AND THE FORK IS NOW RESOLVED THE OTHER WAY
+                    (#506, on #442's ruling for the same verb on world-info: "rename single-homes in the
+                    EDITOR" — the posture tags and regex already ship). The ruling it read against, recorded
+                    two elements down and quoted whole: Export "lived in BOTH this kebab and the LIST row's…
+                    ONE home — the list-row kebab, matching the characters/chats precedent that lifecycle
+                    lives list-side" (O-16★, owner). #481 applied the same test to the Activate echo. Read
+                    strictly, Rename was a kebab item too, so this WAS a second door — and one-home was
+                    settled by deleting the LIST's item, not this one, which is the arm this comment argued
+                    for below. THE O-16★ RULING SURVIVES INTACT: it is a rule about LIFECYCLE, and the line
+                    it draws is exactly the one #442 draws — Export produces a FILE (lifecycle, list-side);
+                    renaming EDITS the artifact you have open.
+                    Why the editor is the home, on the band's OWN recorded grammar: the Activate affordance
+                    three elements up survives here for exactly this reason — "a status naming an actionable
+                    state must be able to act" when "on mobile the LIST is a closed sheet". The NAME is that
+                    band's other stated truth (the h2 is the one thing the pane is about), and it was the one
+                    the editor could not act on.
                     Why an icon door and NOT the title itself (the report's own phrasing was "the h2 title is
                     inert"): three recorded rulings pin what that heading's accessible name must be — F-28
                     (heading navigation must find the thing being edited), the 2026-08-19 shell-identity

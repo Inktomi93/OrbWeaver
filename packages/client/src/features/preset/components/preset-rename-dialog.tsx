@@ -1,7 +1,12 @@
-// The LIST-hub Rename flow (BUILD-SPEC §4.3) — a SMALL single-field Dialog (a lone rename stays controlled +
+// The preset Rename flow (BUILD-SPEC §4.3) — a SMALL single-field Dialog (a lone rename stays controlled +
 // no form factory, §13.4 "single rename" allowlist). Confirming writes `preset.update {id, name}` (the name-
-// only path; config untouched). Owns its overlay (a component, not the surface — surface-purity). The surface
+// only path; config untouched). Owns its overlay (a component, not the surface — surface-purity). The caller
 // passes the current name (seed) + `onRename`; local input state is committed on submit.
+//
+// ITS ONE MOUNT IS THE EDITOR HEADER (#506). It was minted for the LIST hub and mounted in both places for a
+// day; #442 ruled this verb's home for the whole class ("rename single-homes in the EDITOR" — the posture
+// tags and regex already ship) and the list-row kebab's item went. Nothing about the dialog changed; only
+// who opens it.
 
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";

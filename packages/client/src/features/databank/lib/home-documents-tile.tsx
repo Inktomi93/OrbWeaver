@@ -44,6 +44,17 @@ import { Database } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
 import { HomeDocumentsTileAction, HomeDocumentsTileBody, RECENT_DOCUMENTS_LIMIT } from "../components/home-documents-tile-body.tsx";
 
+/** LAST on the shelf, which makes this tile the shelf's FOOT — the block `home-surface.tsx` pairs with the
+ *  roadmap fold at a wide pane.
+ *
+ *  MOVING IT UP WAS MEASURED AND REFUSED (#499, 2026-08-22). Promoting it to 25 (above Temp chat) lifts the
+ *  empty bank's calls to action 133px clear of the 1280×800 fold — but the foot is then Temp chat's, and the
+ *  foot is where the SHELF hides a tall block's height behind the doorway group's own. Trading the tall tile
+ *  into flow for the short one cost the #226 column-balance fence three wide-pane cells (1920/defaults
+ *  11→22px, 1920/compact 3→36px, 2560/compact 3→20px of column void, measured on
+ *  `home-column-balance.suite.ct.tsx`), i.e. it paid for a narrow pane with a worse wide one — the exact
+ *  trade that fence's never-regress table exists to catch. The fold recovery that costs nothing lives in the
+ *  BODY instead (see `home-documents-tile-body.tsx`: the empty arm leads with its doors). */
 const DOCUMENTS_TILE_ORDER = 50;
 
 /** The FIRST-BOOT skeleton box (#92): the health line, then `RECENT_DOCUMENTS_LIMIT` document rows —
