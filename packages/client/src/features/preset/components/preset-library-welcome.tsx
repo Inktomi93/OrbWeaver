@@ -4,14 +4,27 @@
 
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, SlidersHorizontal } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
+import { useTRPC } from "#data";
+import { LIST_OFF_SCREEN_HINT, usePresetSearchQuery, useSectionListMode } from "#state";
+import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 /** What this pane teaches whatever the panes are doing — the instruction, and the boundary with Connections
  *  a preset is most often confused across. The footnote appended beside it while the list is off screen is
  *  `LIST_OFF_SCREEN_HINT` — ONE spelling for all four section welcomes, homed beside the signal (#446). */
 const TEACHING =
   "Pick a preset to edit its sampling, reasoning, output and prompt structure, or create a new one. A preset shapes generation; it doesn't pick the model (that's Connections).";
+
+/** …and what it says when the LIST has been filtered to nothing (side-eye 2026-08-22 P3-2). "Pick a preset"
+ *  is an act the reader cannot perform over an empty filtered list — the same class of dishonesty #434 fixed
+ *  for the off-screen list, one state over. The list pane's own no-match state is excellent and owns the way
+ *  OUT ("Clear search" · "New preset"), so this pane states the fact and names that affordance verbatim
+ *  (WCAG 2.5.3 — the reader says what is written); it mints no second door. The boundary sentence survives
+ *  in both arms: it is what the pane teaches, and a filter does not make it less true. */
+const NO_MATCHES =
+  "No preset matches your search, so there is nothing to pick right now — Clear search brings your presets back. A preset shapes generation; it doesn't pick the model (that's Connections).";
 
 /** The teaching welcome shown in Presets CONTENT when nothing is selected.
  *
@@ -43,15 +56,46 @@ const TEACHING =
  *  instruction and nothing else, and a reader without it is told a fact rather than handed an "if".
  *
  *  `!== "collapsed"`, never `=== "docked"`: an `overlay` list is on screen — floating over this pane — so
- *  telling that reader to bring the list back would be the same lie one regime over. */
+ *  telling that reader to bring the list back would be the same lie one regime over.
+ *
+ *  #483 / side-eye 2026-08-22 P3-1 + P3-2 — THREE MORE THINGS THE PANE OWED ITS READER:
+ *
+ *  1. THE TITLE IS A HEADING. In this state `main "Presets content"` held ZERO headings, so heading
+ *     navigation dead-ended in the pane the reader was looking at. (The EDITOR state has been an `h2` since
+ *     F-28; only the landing was missed.) `titleAs="h2"` — the level is right because this block IS the
+ *     pane's content and the shell's own landmarks are above it.
+ *  2. THE MEASURE IS THE FOCAL ONE. The default 24rem measure ran this copy to four ragged centered lines at
+ *     42.5ch, half the §2 65–75ch band. `measure="wide"` is 32rem ≈ 60ch.
+ *  3. THE BLOCK IS CENTERED IN THE PANE, not top-anchored — the chats landing's own idiom
+ *     (`chat-landing-surface.tsx`: `h-full … justify-center`). Measured before: 219px of content
+ *     top-anchored in a 752px pane, i.e. 71% void that grows with the pane. What this pane does NOT do is
+ *     fill that space with recent presets or its own create door: the rows would be the LIST pane repeated
+ *     row-for-row (the doubling P2-7 files one tab over) and the create verbs have ONE home in the list band
+ *     (`preset-list-header.tsx`). Centering is the fix for an unbalanced pane; a second copy of another pane
+ *     is not. */
 export function PresetLibraryWelcome(): ReactElement {
   const listMode = useSectionListMode("presets");
+  const trpc = useTRPC();
+  // The SAME cache the list pane and the band's census read (a non-suspending `useQuery` — this pane must
+  // not suspend on a fact that only changes its wording), through the SAME predicate (`filterPresetsByName`),
+  // so the three readers cannot drift into three answers about one list.
+  const { data: presets } = useQuery(trpc.preset.list.queryOptions());
+  const needle = presetSearchNeedle(usePresetSearchQuery());
+  // NEEDLE FIRST, deliberately: an unlanded/failed read leaves `presets` undefined, and "0 rows" would then
+  // be a claim about the REQUEST, not about the filter. With no needle there is no filtered-to-nothing state
+  // to report, whatever the read is doing.
+  const filteredToNothing = needle !== "" && filterPresetsByName(presets ?? [], needle).length === 0;
+  const teaching = filteredToNothing ? NO_MATCHES : TEACHING;
   return (
-    <EmptyState
-      description={listMode === "collapsed" ? `${TEACHING}${LIST_OFF_SCREEN_HINT}` : TEACHING}
-      icon={<Icon icon={SlidersHorizontal} size="lg" />}
-      title="Tune how the model generates"
-      titleStep="focal"
-    />
+    <Stack align="center" className="h-full min-h-0 justify-center">
+      <EmptyState
+        description={listMode === "collapsed" ? `${teaching}${LIST_OFF_SCREEN_HINT}` : teaching}
+        icon={<Icon icon={SlidersHorizontal} size="lg" />}
+        measure="wide"
+        title="Tune how the model generates"
+        titleAs="h2"
+        titleStep="focal"
+      />
+    </Stack>
   );
 }

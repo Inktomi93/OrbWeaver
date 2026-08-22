@@ -55,7 +55,7 @@ import { setPresetEditorView, usePresetEditorView } from "#state";
 import { PresetEditorHeader } from "../components/preset-editor-header.tsx";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.tsx";
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
-import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
+import { useResetPreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
@@ -124,6 +124,10 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const reset = useResetPreset({ trpc, invalidation });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
+  // The name-only write behind the header's rename door (#483) — the SAME `preset.update` verb the LIST
+  // kebab's Rename calls, with `config` untouched, so a rename can never race the autosave's config write
+  // into one merged patch.
+  const update = useUpdatePreset({ trpc, invalidation });
 
   // The LIVE resolved chat capability — the SAME `(model, source, api)` a real turn resolves (incl. the
   // vLLM engine's self-reported window), not a hand-built key off `roleDefaults.chat` (often unset on the
@@ -173,6 +177,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             active={active}
             isSystemDefault={preset.isSystemDefault}
             onActivate={onActivate}
+            onRename={(name): void => update.mutate({ id: presetId, name })}
             capability={capability}
             capabilityError={capabilityError}
             effective={effectiveQuery.data ?? undefined}
@@ -207,6 +212,8 @@ interface PresetEditorBodyProps {
   readonly isSystemDefault: boolean;
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
   readonly onActivate: () => void;
+  /** Commit a new name (#483) — the header owns the door + its dialog; this is the write. */
+  readonly onRename: (name: string) => void;
   readonly capability: ModelCapability | undefined;
   /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
   readonly capabilityError: ReadFailure | null;
@@ -222,6 +229,7 @@ function PresetEditorBody({
   active,
   isSystemDefault,
   onActivate,
+  onRename,
   capability,
   capabilityError,
   effective,
@@ -274,6 +282,7 @@ function PresetEditorBody({
           active={active}
           isSystemDefault={isSystemDefault}
           onActivate={onActivate}
+          onRename={onRename}
           saveState={saveState}
           onRetrySave={retrySave}
           onConfirmReset={confirmReset}

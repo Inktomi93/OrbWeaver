@@ -1418,3 +1418,50 @@ test("no absolutely-positioned box escapes the preset editor's scroller (the con
 
   expect(await readPhantomScrollers(page)).toEqual([]);
 });
+
+// ── #483: the open preset can be RENAMED from where you are standing ─────────────────────────────
+// THE DEFECT (side-eye 2026-08-22, flow verdict 1): `New` mints a preset called "New preset", opens THIS
+// editor, and the only rename door was the OTHER pane's row kebab — a control far from where its effect
+// shows, on the very first thing a new user does, and unreachable at all on a phone (the LIST is a closed
+// sheet there). The band's own recorded grammar already sanctions exactly this for Activate: "a status
+// naming an actionable state must be able to act".
+//
+// The pin is the WIRE: a name-only `preset.update` carrying the OPEN preset's id — a rename that wrote the
+// config too could clobber the autosave, and a rename that wrote nothing would be a dialog that lies.
+// The dialog renders in a PORTAL, so it is located on `page`, not the mounted component.
+
+interface RenameCall {
+  readonly id?: string;
+  readonly name?: string;
+  readonly config?: unknown;
+}
+
+const RENAME_DOOR = "Rename preset";
+
+test("#483 the editor header renames the open preset — one name-only update against its own id", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "connection.resolveChatCapability": () => CAPABILITY,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await expect(component.getByRole("heading", { level: 2, name: "Preset A" })).toBeVisible();
+
+  // O-3 anatomy: the icon door's accessible name and its native tooltip are ONE string.
+  const door = component.getByRole("button", { name: RENAME_DOOR, exact: true });
+  await expect(door).toHaveAttribute("title", RENAME_DOOR);
+  await door.click();
+
+  // The dialog seeds with the CURRENT name — a rename that starts empty is a retype, not an edit.
+  const field = page.getByRole("textbox", { name: "Preset name" });
+  await expect(field).toHaveValue("Preset A");
+  await field.fill("Renamed in the editor");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+
+  await expect
+    .poll(() => (trpc.inputs("preset.update") as RenameCall[]).filter((call) => call.name !== undefined))
+    .toEqual([{ id: PRESET_A, name: "Renamed in the editor" }]);
+});

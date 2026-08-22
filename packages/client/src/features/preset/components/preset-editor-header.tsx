@@ -1,5 +1,5 @@
-// The preset editor's sticky band — the artifact's identity (name + the ACTIVE truth), its two header
-// commands (Activate, Reset to starter), the live autosave status, and the ONE view-tab strip. Split out of
+// The preset editor's sticky band — the artifact's identity (name + its rename door + the ACTIVE truth), its
+// two header commands (Activate, Reset to starter), the live autosave status, and the ONE view-tab strip. Split out of
 // `preset-editor-surface.tsx` (#496) when the union of two same-day merges crossed the 450-line
 // component-size cap; every ruling recorded against this band moved WITH it, verbatim.
 //
@@ -19,7 +19,7 @@
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 // `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is lane B's shared content-column ruling.
-import { Icon, RotateCcw, Zap } from "@orb/ui/icons";
+import { Icon, Pencil, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Heading } from "@orb/ui/text";
@@ -30,9 +30,12 @@ import type { AutosaveSaveState } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { useScrollFadeX } from "#lib";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
+import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
 
 /** ONE string for the reset door's accessible name AND its hover tooltip (the O-3 icon-door anatomy). */
 const RESET_LABEL = "Reset to starter arrangement";
+/** …and one for the rename door beside the name (same anatomy — see the door's own note). */
+const RENAME_LABEL = "Rename preset";
 
 export interface PresetEditorHeaderProps {
   readonly presetName: string;
@@ -42,6 +45,9 @@ export interface PresetEditorHeaderProps {
   readonly isSystemDefault: boolean;
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
   readonly onActivate: () => void;
+  /** Commit a new name — the `preset.update {id, name}` name-only write the LIST kebab's Rename also calls.
+   *  The DIALOG lives here with its door (the reset door's own posture); the WRITE is the surface's. */
+  readonly onRename: (name: string) => void;
   readonly saveState: AutosaveSaveState;
   /** Re-run the pending save — the session's `retrySave`. */
   readonly onRetrySave: () => void;
@@ -54,6 +60,7 @@ export function PresetEditorHeader({
   active,
   isSystemDefault,
   onActivate,
+  onRename,
   saveState,
   onRetrySave,
   onConfirmReset,
@@ -64,6 +71,7 @@ export function PresetEditorHeader({
   useScrollFadeX(stripRef);
 
   const [resetOpen, setResetOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
 
   return (
     <>
@@ -108,6 +116,36 @@ export function PresetEditorHeader({
                 <Heading className="min-w-24 shrink truncate" data-shell-identity="defer" level={2}>
                   {presetName}
                 </Heading>
+                {/* THE NAME HAS A DOOR HERE (#483, side-eye 2026-08-22 flow verdict 1). `New` mints a preset
+                    called "New preset", opens THIS editor, and until now the only way to name it was the
+                    OTHER pane's row kebab — a control far from where its effect shows (§13), on the very
+                    first thing a new user does, and on mobile the LIST is a closed sheet, so from here the
+                    name could not be changed at all.
+
+                    THIS FORKS A RECORDED ONE-HOME RULING AND SAYS SO — the orchestrator owns the
+                    reconciliation. The ruling, recorded two elements down and quoted whole: Export "lived in
+                    BOTH this kebab and the LIST row's… ONE home — the list-row kebab, matching the
+                    characters/chats precedent that lifecycle lives list-side" (O-16★, owner). #481 applied
+                    the same test to the Activate echo. Read strictly, Rename is a kebab item too, so this is
+                    a second door.
+                    Why it lands anyway, on the band's OWN recorded grammar: the Activate affordance three
+                    elements up survives here for exactly this reason — "a status naming an actionable state
+                    must be able to act" when "on mobile the LIST is a closed sheet". The NAME is that band's
+                    other stated truth (the h2 is the one thing the pane is about), and it is the one the
+                    editor cannot act on. Export is genuinely lifecycle (it produces a FILE, not a change to
+                    the open artifact); renaming is editing the thing you have open.
+                    Why an icon door and NOT the title itself (the report's own phrasing was "the h2 title is
+                    inert"): three recorded rulings pin what that heading's accessible name must be — F-28
+                    (heading navigation must find the thing being edited), the 2026-08-19 shell-identity
+                    defer, and crunch-13's title step. A control's name would have to say what it DOES, and a
+                    heading's must say what it IS; making one element carry both means one of them lies. The
+                    O-3 icon-door anatomy (`aria-label` and the native `title` from ONE string, so tooltip
+                    and accessible name cannot drift) is what the Reset door beside it already speaks. */}
+                {isSystemDefault ? null : (
+                  <Button aria-label={RENAME_LABEL} intent="ghost" onClick={(): void => setRenameOpen(true)} size="icon" title={RENAME_LABEL} type="button">
+                    <Icon icon={Pencil} size="sm" />
+                  </Button>
+                )}
                 {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
                     verbatim (one state, one reading); its not-active twin is an AFFORDANCE, because a status
                     that only ever says "not active" is a dead end when the LIST is a closed sheet.
@@ -205,6 +243,9 @@ export function PresetEditorHeader({
           </Stack>
         </Container>
       </Stack>
+
+      {/* The rename dialog is the LIST's own component, mounted here — ONE flow, one write, two doors. */}
+      <PresetRenameDialog currentName={presetName} onOpenChange={setRenameOpen} onRename={onRename} open={renameOpen} />
 
       <ConfirmDialog
         open={resetOpen}
