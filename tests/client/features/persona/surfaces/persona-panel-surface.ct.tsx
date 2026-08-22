@@ -26,7 +26,11 @@ const NOVA = "persona_nova";
 const TRAVELER_OLD = "persona_traveler_old";
 const TRAVELER_NEW = "persona_traveler_new";
 
-const SEEDED_TITLE = "Your default persona";
+// The prose that CLAIMS default. It was the SEEDER's title until #462 (owner ruling 2026-08-22) replaced the
+// seeded copy with the descriptor "Your first persona" — precisely because a state sentence in user-editable
+// prose goes false and stays displayed. The literal stays HERE verbatim: this fence is about what the client
+// does when N rows claim default in prose, and a user can still type this sentence into any persona's title.
+const DEFAULT_CLAIMING_TITLE = "Your default persona";
 
 const ACTIONS_LABEL = /^Actions for /;
 const SWITCH_LABEL = /^Switch to /;
@@ -37,8 +41,9 @@ const QUALIFIED_TRAVELER = /^Actions for "Traveler" · .+/;
 // one of two rows the current one, and the current arm's label differs by construction. With a third row
 // holding "current", both Travelers are switch-targets and the collision is reachable on both controls.
 //
-// Both Travelers carry the SEEDED title verbatim (the live receipt: two byte-identical seeded rows) so the
-// crown fence below runs against the exact prose that contradicted it on screen.
+// Both Travelers carry the default-CLAIMING title (the live receipt: two byte-identical seeded rows, seeded
+// before #462 retired that copy) so the crown fence below runs against the exact prose that contradicted it
+// on screen.
 const PERSONAS = [
   {
     id: NOVA,
@@ -55,7 +60,7 @@ const PERSONAS = [
   {
     id: TRAVELER_OLD,
     name: "Traveler",
-    title: SEEDED_TITLE,
+    title: DEFAULT_CLAIMING_TITLE,
     description: "",
     starred: false,
     avatarAssetId: null,
@@ -67,7 +72,7 @@ const PERSONAS = [
   {
     id: TRAVELER_NEW,
     name: "Traveler",
-    title: SEEDED_TITLE,
+    title: DEFAULT_CLAIMING_TITLE,
     description: "",
     starred: false,
     avatarAssetId: null,
@@ -195,6 +200,6 @@ test("exactly ONE row wears the crown, however many rows CLAIM default in their 
   await mount(<PersonaYouSheetStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
-  await expect(page.getByText(SEEDED_TITLE)).toHaveCount(2);
+  await expect(page.getByText(DEFAULT_CLAIMING_TITLE)).toHaveCount(2);
   await expect(page.getByRole("img", { name: "Your default" })).toHaveCount(1);
 });
