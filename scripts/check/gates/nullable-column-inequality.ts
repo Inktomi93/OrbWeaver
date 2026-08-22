@@ -3,11 +3,12 @@
 // every NULL row silently VANISHES from the result; widening a NOT NULL FK to nullable turns every such
 // predicate into a silent row-dropper with no typecheck, no test and no other gate seeing it (the D124 class).
 // Nullability is DERIVED from the schema sources. LIMITS: no `not(eq())`; a `.primaryKey()` column counts NOT NULL.
+
+import { compositePrimaryKeyColumns, isSchemaFile, schemaTables } from "@orb/tooling/_shared/schema-read";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 import { repoRel } from "../pass.ts";
-import { compositePrimaryKeyColumns, isSchemaFile, schemaTables } from "../schema-read.ts";
 
 const DRIZZLE_MODULE = "drizzle-orm";
 // The two predicates whose SQL form is an INEQUALITY over a column — the shapes NULL silently defeats.
@@ -303,7 +304,7 @@ export const gate: GateDescriptor = {
         file: GATE_SELF,
         line: 1,
         column: 0,
-        message: `the drizzle schema barrel ${REAL_TREE_ANCHOR} resolves but yielded ZERO tables — the reader in scripts/check/schema-read.ts no longer matches the schema shape, so this gate is a silent no-op. Repoint it.`,
+        message: `the drizzle schema barrel ${REAL_TREE_ANCHOR} resolves but yielded ZERO tables — the reader in tooling/src/_shared/schema-read.ts no longer matches the schema shape, so this gate is a silent no-op. Repoint it.`,
       });
     }
   },

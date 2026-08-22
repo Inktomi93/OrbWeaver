@@ -9,7 +9,7 @@ import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionRow, GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
-import { schemaTables } from "../schema-read.ts";
+import { schemaTables } from "@orb/tooling/_shared/schema-read";
 
 const SCHEMA_DIR = "packages/db/src/schema/";
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";

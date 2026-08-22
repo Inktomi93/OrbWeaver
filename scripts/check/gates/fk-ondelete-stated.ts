@@ -24,7 +24,7 @@
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import { isSchemaFile } from "../schema-read.ts";
+import { isSchemaFile } from "@orb/tooling/_shared/schema-read";
 
 const REFERENCES = "references";
 const ON_DELETE = "onDelete";

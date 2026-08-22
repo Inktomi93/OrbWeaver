@@ -481,16 +481,6 @@
       }
     },
     {
-      "includes": ["scripts/codemods/codemod-kit.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noProcessEnv": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["packages/client/**"],
       "linter": {
         "rules": {

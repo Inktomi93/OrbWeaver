@@ -1,0 +1,179 @@
+// dead: the composite evidence-ladder verdict for ONE symbol.
+import type { Project, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { print } from "../../_shared/artifacts.ts";
+import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
+import { emit, hitOf } from "../lib/emit.ts";
+import { declKey } from "../lib/keys.ts";
+import { scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
+import { buildLiveness } from "../lib/liveness.ts";
+import { publicMarkerOf } from "../lib/public-markers.ts";
+import { isTestPath } from "../lib/root.ts";
+import { declSite } from "./stringy.ts";
+import { byProdFirst, collectSwallowedCandidates, relPath } from "./swallowed.ts";
+import { declarationsNamed } from "./symbols.ts";
+
+/** How many sites a `dead` row names before it collapses to a count. */
+const DEAD_SITES_SHOWN = 3;
+
+/** A file path plausibly VENDORED — third-party code kept in-tree. There is no structural marker for
+ *  this in the repo (informational only, unlike `@public`/`@swallowed-ok`): a `/vendor/` directory, or
+ *  the file's own header comment saying so (the `build-argv.ts` chat-template convention). Vendored code
+ *  can still be genuinely dead — this arm is context for the reader, never a verdict input. */
+const VENDORED_PATH_RE = /\/vendor\//u;
+
+const VENDORED_HEADER_RE = /\bvendored\b/iu;
+
+/** `<repo-rel file>:<line>`, deduped and sorted prod-first, for a set of reference nodes. */
+function siteListOf(nodes: readonly Node[]): string[] {
+  return [...new Set(nodes.map((n) => `${relPath(n.getSourceFile().getFilePath())}:${n.getStartLineNumber()}`))].sort(byProdFirst);
+}
+
+/** `decl`'s own file lives under a `/vendor/` directory, or its FILE-level leading comment (the header,
+ *  never the declaration's own leading comment) says "vendored". */
+function isVendoredHome(decl: Node): boolean {
+  if (VENDORED_PATH_RE.test(decl.getSourceFile().getFilePath())) {
+    return true;
+  }
+  const header = decl.getSourceFile().getStatements()[0];
+  return header?.getLeadingCommentRanges().some((range) => VENDORED_HEADER_RE.test(range.getText())) ?? false;
+}
+
+/** Raw COMMENT-TEXT mentions of `name` anywhere in `sf` — the one arm in this file that deliberately
+ *  reads comments (every other lens excludes them by construction). Informational only: a TODO or design
+ *  note naming a symbol is not liveness, but it is context a deletion call should read before acting.
+ *  Comment ranges are deduped by start position — a range can attach as both one node's trailing trivia
+ *  and the next node's leading trivia. */
+function commentMentionsOf(sf: SourceFile, name: string): number {
+  const seen = new Set<number>();
+  let mentions = 0;
+  sf.forEachDescendant((node) => {
+    for (const range of [...node.getLeadingCommentRanges(), ...node.getTrailingCommentRanges()]) {
+      if (seen.has(range.getPos())) {
+        continue;
+      }
+      seen.add(range.getPos());
+      if (range.getText().includes(name)) {
+        mentions += 1;
+      }
+    }
+  });
+  return mentions;
+}
+
+/** The evidence-priority verdict (see the section header): ALIVE beats SWALLOWED-ONLY beats TAGGED-KEEP
+ *  beats TEST-ANCHORED beats CANDIDATE. */
+function deadVerdictOf(prodCount: number, swallowed: boolean, tagged: boolean, testCount: number): DeadVerdict {
+  if (prodCount > 0) {
+    return "ALIVE";
+  }
+  if (swallowed) {
+    return "SWALLOWED-ONLY";
+  }
+  if (tagged) {
+    return "TAGGED-KEEP";
+  }
+  return testCount > 0 ? "TEST-ANCHORED" : "CANDIDATE";
+}
+
+/** A reference that is only a re-export PASS-THROUGH (`export { X } from "./y"`, no `from`-less local
+ *  re-export) — `findReferencesAsNodes` counts the specifier as a "reference", but `buildLiveness`
+ *  deliberately does NOT (the MemoryLogEntry class: a file re-exporting its own symbol must not read as
+ *  using it). Excluding this class is what keeps `dead`'s ALIVE verdict agreeing with `testonly`'s: a
+ *  barrel that only re-exports a test-only export must not read as a production consumer of it. */
+function isReexportPassthroughRef(ref: Node): boolean {
+  const spec = ref.getFirstAncestorByKind(SyntaxKind.ExportSpecifier);
+  const exportDecl = spec?.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
+  return exportDecl?.getModuleSpecifier() !== undefined;
+}
+
+/** The whole evidence ladder for ONE declaration. Reuses the SAME collector `swallowed` calls
+ *  (`collectSwallowedCandidates`), scoped to just this declaration's own file, so the two lenses can
+ *  never disagree about what "namespace-swallowed" means. */
+export function deadEvidenceFor(project: Project, decl: Node, name: string, live: Liveness): DeadEvidence {
+  const sf = decl.getSourceFile();
+  const refs = Node.isReferenceFindable(decl)
+    ? decl
+        .findReferencesAsNodes()
+        .filter((r) => !(r.getSourceFile() === sf && r.getParent()?.getStart() === decl.getStart()))
+        .filter((r) => !isReexportPassthroughRef(r))
+    : [];
+  const prodNodes = refs.filter((r) => !isTestPath(r.getSourceFile().getFilePath()));
+  const testNodes = refs.filter((r) => isTestPath(r.getSourceFile().getFilePath()));
+  const swallowed = collectSwallowedCandidates(project, live, (fp) => fp === sf.getFilePath()).find((c) => declKey(c.decl) === declKey(decl));
+  const publicMarker = publicMarkerOf(decl);
+  return {
+    verdict: deadVerdictOf(prodNodes.length, swallowed !== undefined, publicMarker !== undefined, testNodes.length),
+    prodRefs: siteListOf(prodNodes).slice(0, DEAD_SITES_SHOWN),
+    prodCount: prodNodes.length,
+    testRefs: siteListOf(testNodes).slice(0, DEAD_SITES_SHOWN),
+    testCount: testNodes.length,
+    swallowedSites: swallowed?.sites ?? [],
+    publicMarker,
+    vendored: isVendoredHome(decl),
+    commentMentions: commentMentionsOf(sf, name),
+  };
+}
+
+/** `<name>` for a `twin`/`future`/`bare` marker — the one field each kind carries. */
+function publicMarkerText(marker: PublicMarker | undefined): string {
+  if (marker === undefined) {
+    return "none";
+  }
+  return marker.kind === "twin" ? `twin — ${marker.value}` : `${marker.kind} — ${marker.reason}`;
+}
+
+/** `N (site, site, … +M more)` — the `dead` table's reference-count cell. */
+function deadRefsCell(count: number, sites: readonly string[]): string {
+  if (count === 0) {
+    return "0";
+  }
+  const more = count > sites.length ? ` +${count - sites.length} more` : "";
+  return `${count} (${sites.join(", ")}${more})`;
+}
+
+/** `  <label> <value>` — the `dead` table's fixed left-column width. */
+const DEAD_LABEL_PAD = 20;
+
+function deadRow(label: string, value: string): string {
+  return `  ${label.padEnd(DEAD_LABEL_PAD)} ${value}`;
+}
+
+function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence): void {
+  print(`dead ${name} @ ${declSite(decl)}`);
+  print(deadRow("production refs:", deadRefsCell(evidence.prodCount, evidence.prodRefs)));
+  print(deadRow("test-only refs:", deadRefsCell(evidence.testCount, evidence.testRefs)));
+  const swallowedCell =
+    evidence.swallowedSites.length === 0 ? "no" : `YES — namespace-swallowed by ${evidence.swallowedSites.slice(0, DEAD_SITES_SHOWN).join(", ")}`;
+  print(deadRow("swallowed:", swallowedCell));
+  print(deadRow("@public marker:", publicMarkerText(evidence.publicMarker)));
+  print(deadRow("vendored home:", evidence.vendored ? "yes (informational)" : "no"));
+  print(deadRow("comment mentions:", `${evidence.commentMentions} (informational — raw comment text, never liveness)`));
+  print(deadRow("VERDICT:", evidence.verdict));
+}
+
+/** A composite evidence-ladder verdict for ONE symbol: production refs / test-only refs / namespace-
+ *  swallowed consumption / the `@public` marker / a vendored-file home / raw comment mentions, then a
+ *  verdict — ALIVE / TEST-ANCHORED / SWALLOWED-ONLY / TAGGED-KEEP / CANDIDATE. CANDIDATE lens — see the
+ *  section header above. Multiple declarations of the same name (a collision) are each classified. */
+export function cmdDead(project: Project, name: string, flags: Flags): void {
+  const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
+  if (decls.length === 0) {
+    print(`dead ${name}: no declaration found — try \`pnpm ast ident ${name}\``);
+    emit([], flags, `dead ${name}`);
+    return;
+  }
+  const live = buildLiveness(project);
+  const hits: Hit[] = [];
+  for (const decl of decls) {
+    const evidence = deadEvidenceFor(project, decl, name, live);
+    printDeadEvidence(name, decl, evidence);
+    const h = hitOf(decl, `dead-${evidence.verdict.toLowerCase()}`);
+    h.text = `${name}  —  ${evidence.verdict}  —  ${h.text}`;
+    hits.push(h);
+  }
+  print(
+    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (production refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
+  );
+  emit(hits, flags, `dead ${name} (${decls.length} declaration(s))`);
+}

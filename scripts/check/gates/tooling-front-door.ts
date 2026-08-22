@@ -8,8 +8,21 @@ import { posix } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const TOOLING_PREFIX = "tooling/src/";
+
+/** ROOT-CONFIG imports (P4 of #393, docs/design/tooling-package.md §4.2): a tool may import a repo-root
+ *  CONFIG whose data would otherwise be re-spelled — the exact one-home violation this tree exists to
+ *  kill. Each row is the RESOLVED root-relative target + the consumer that justifies it. Two-sided: a
+ *  row nothing imports any more is dead vocabulary — the stale sweep below REDs it (same posture as the
+ *  plumbing gate's allowlists). NOT a general escape: anything else relative out of tooling/ stays RED. */
+const ROOT_CONFIG_IMPORTS: ReadonlyMap<string, string> = new Map([
+  ["knip.ts", "ast/ops/prodonly derives its entry closure from the ONE knip workspace-entry config — re-spelling the globs is the one-home violation"],
+]);
+
+/** Root-config rows CONSUMED this run — the stale-row `run` sweep's evidence (below). */
+const seenRootConfigImports = new Set<string>();
 
 /** repo-relative posix path of `sf`, or null when outside tooling/src (conformance uses virtual /repo roots). */
 function toolingRel(sf: SourceFile): string | null {
@@ -35,6 +48,10 @@ function verdict(rel: string, spec: string): string | null {
   }
   const resolved = posix.normalize(posix.join(posix.dirname(rel), spec));
   if (!resolved.startsWith(TOOLING_PREFIX)) {
+    if (ROOT_CONFIG_IMPORTS.has(resolved)) {
+      seenRootConfigImports.add(resolved);
+      return null;
+    }
     return `a tooling module imports outside the tree by relative path ("${spec}") — cross-package needs go through @orb/* package specifiers`;
   }
   const to = toolOf(resolved);
@@ -83,10 +100,30 @@ export const gate: GateDescriptor = {
   fix: "import the sibling's index.ts (or #<tool>); re-export what the cli needs from the tool's index.ts; use @orb/* specifiers for anything outside tooling/.",
   scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
   kinds: [SyntaxKind.ImportDeclaration],
+  begin: () => {
+    seenRootConfigImports.clear();
+  },
   visit: (node, sf, ctx) => {
     const hit = checkImport(node, sf);
     if (hit !== null) {
       ctx.report(node, { token: hit.spec, offset: 0 });
+    }
+  },
+  run: (ctx) => {
+    // The root-config rows' two-sided sweep, anchored on the real tree (a conformance mini-project
+    // never loads the anchor, so fixtures exercise the node arms only — the plumbing gate's posture).
+    if (!fileLoaded(ctx, "tooling/src/_shared/exit-contract.ts")) {
+      return;
+    }
+    for (const [target, why] of ROOT_CONFIG_IMPORTS) {
+      if (!seenRootConfigImports.has(target)) {
+        ctx.report({
+          file: target,
+          line: 0,
+          column: 0,
+          message: `stale ROOT_CONFIG_IMPORTS row — no tooling module imports "${target}" any more (row why: ${why}). Delete the row (docs/design/tooling-package.md §4.2).`,
+        });
+      }
     }
   },
   mustFlag: [
@@ -130,6 +167,13 @@ export const gate: GateDescriptor = {
         "tooling/src/aa/index.ts": "export const api = 1;\n",
       },
       why: "cli.ts consuming its own index.ts — the sanctioned cli shape",
+    },
+    {
+      files: {
+        "tooling/src/aa/ops/x.ts": 'import cfg from "../../../../knip.ts";\nexport const x = cfg;\n',
+        "knip.ts": "export default { workspaces: {} };\n",
+      },
+      why: "a ROOT_CONFIG_IMPORTS row (knip.ts) — the one-home config read the exemption exists for; anything else outside tooling/ stays RED (the escape mustFlag above)",
     },
   ],
 };

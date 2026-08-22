@@ -1,4 +1,4 @@
-// Self-test for the `pnpm ast` rot lenses (scripts/codemods/ast.ts) — unwired, clientgap, the orphan
+// Self-test for the `pnpm ast` rot lenses (tooling/src/ast) — unwired, clientgap, the orphan
 // substrate, swallowed, respell, typeonly-alive, columns, regkeys, chains, and stringy. Each drives the pure
 // enumeration substrate over a tiny synthetic project (a server router with one WIRED and one UNWIRED
 // procedure; a namespace-swallowed schema barrel; a derived-vs-hand-spelled contract pair; a value export
@@ -14,7 +14,7 @@
 import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { ApiSurfaceEntry, ChainCandidate, DeadEvidence, Hit, Liveness, NearPairCandidate, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
+import type { ApiSurfaceEntry, ChainCandidate, DeadEvidence, Hit, Liveness, NearPairCandidate, SwallowedCandidate } from "../../../tooling/src/ast/index.ts";
 import {
   assignabilityChecker,
   buildLiveness,
@@ -56,8 +56,8 @@ import {
   spellingIndex,
   testOnlyClassOf,
   toolingConfigNames,
-} from "../../scripts/codemods/ast.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+} from "../../../tooling/src/ast/index.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 
@@ -376,7 +376,7 @@ describe("ast prodonly lens (tooling entry points)", () => {
     // The defect this replaces: ONE hardcoded anchor named `src/tokens/tokens.build.ts`, a path that stopped
     // existing when the file moved to the package root, and a hardcoded `add()` on a missing file is a silent
     // no-op. `packages/ui`'s own `tokens:build` script names the file; reading the script cannot go stale.
-    expect(scriptEntryPaths(fileURLToPath(new URL("../../packages/ui", import.meta.url)))).toContain("tokens.build.ts");
+    expect(scriptEntryPaths(fileURLToPath(new URL("../../../packages/ui", import.meta.url)))).toContain("tokens.build.ts");
   });
 });
 
