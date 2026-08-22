@@ -25,6 +25,11 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const AST_CLI = fileURLToPath(new URL("../../../tooling/src/ast/cli.ts", import.meta.url));
 const SPAWN_TIMEOUT_MS = 120_000;
+/** The two TYPED whole-workspace rows (`columns --all`, `rot ui`) genuinely exceed the default spawn cap
+ *  on a loaded box — measured 2026-08-22 at load-avg ~20: 122s and 175s, both exiting 0. A spawn killed by
+ *  its own wall clock returns `status: null`, which reads as a lens failure and is NOT a verdict (the
+ *  exit-2 discipline), so those rows get a budget that matches what they actually cost. */
+const HEAVY_TIMEOUT_MS = 300_000;
 
 interface AstRun {
   stdout: string;
@@ -34,6 +39,7 @@ interface AstRun {
 }
 
 const EPILOGUE_LANGS_TS_RE = /\bts:\d+/u;
+const EPILOGUE_LANGS_TSX_RE = /\btsx:\d+/u;
 const EPILOGUE_STATUS_OK_RE = /^(complete|partial)$/u;
 const COLUMNS_ALL_SWEPT_RE = /columns --all: swept \d+ table\(s\), \d+ carrying a finding\./u;
 const REGKEYS_ALL_SWEPT_RE = /regkeys --all: swept \d+ registry\/registries, \d+ carrying a finding\./u;
@@ -55,7 +61,7 @@ function parseEpilogue(stderr: string): Record<string, string> {
   return fields;
 }
 
-function runAst(argv: readonly string[]): AstRun {
+function runAst(argv: readonly string[], timeoutMs: number = SPAWN_TIMEOUT_MS): AstRun {
   // The TYPED whole-workspace verbs — `columns --all` above all — load the full type graph AND row-shape
   // scan every table; past ~86 tables (#273's `image_index_skips` landing) the sweep's peak exceeds node's
   // default old-space ceiling and aborts (SIGABRT → status null, ~5.6GB RSS). Raise the heap to match the
@@ -64,7 +70,7 @@ function runAst(argv: readonly string[]): AstRun {
   const res = spawnSync(process.execPath, ["--max-old-space-size=8192", AST_CLI, ...argv], {
     cwd: REPO_ROOT,
     encoding: "utf8",
-    timeout: SPAWN_TIMEOUT_MS,
+    timeout: timeoutMs,
   });
   const stdout = res.stdout ?? "";
   const stderr = res.stderr ?? "";
@@ -243,13 +249,13 @@ test(
 test(
   "columns --all sweeps every table and receipts the count, without changing the class-summary totals",
   () => {
-    const run = runAst(["columns", "--all", "--max", "3"]);
+    const run = runAst(["columns", "--all", "--max", "3"], HEAVY_TIMEOUT_MS);
     expect(run.status).toBe(0);
     expect(run.stdout).toMatch(COLUMNS_ALL_SWEPT_RE);
     // Every table gets a line, healthy or not — at least one recognizable real table shows up.
     expect(run.stdout).toContain("rpg_games (rpgGames):");
   },
-  SPAWN_TIMEOUT_MS,
+  HEAVY_TIMEOUT_MS,
 );
 
 test(
@@ -264,9 +270,9 @@ test(
 );
 
 // ── the two live blind-spot repros, pinned on the REAL TREE (2026-08-14) ────────────────────────────────
-// `rot ui` is the TYPED arm (loads the full ui-package type graph) — slower than every other row in this
-// file, so it gets its own longer spawn timeout.
-const ROT_UI_TIMEOUT_MS = 180_000;
+// `rot ui` is the TYPED arm (loads the full ui-package type graph) — the slowest row in this file, so it
+// runs on HEAVY_TIMEOUT_MS. Its test budget used to be 180s while its SPAWN was still capped at 120s: the
+// child died first and the row failed on `status: null`, which looks like a lens defect and is not one.
 
 test(
   "rot ui no longer flags CodeEditor test-only — its lazy `.then((m) => m.CodeEditor)` consumers now count",
@@ -276,12 +282,92 @@ test(
     // follows relative specifiers, so this package-aliased dynamic import never reached `markModuleAlive`
     // before the fix — `dead CodeEditor` (language-service `findReferences`) already saw the real
     // consumers; `rot ui` did not.
-    const run = runAst(["rot", "ui"]);
+    const run = runAst(["rot", "ui"], HEAVY_TIMEOUT_MS);
     expect(run.status).toBe(0);
     expect(run.stdout).not.toContain("CodeEditor");
     expect(run.epilogue["status"]).toMatch(EPILOGUE_STATUS_OK_RE);
   },
-  ROT_UI_TIMEOUT_MS,
+  HEAVY_TIMEOUT_MS,
+);
+
+// ── #452: the jsx verb + ARGV HYGIENE (the silent false-clean class) ────────────────────────────────
+// The live report: `pnpm ast jsx --name Button` printed `matches=0 status=complete` at scanned=5433
+// while the tree holds 242 files with a real `<Button>`. The LENS was innocent — `--name` was read as
+// the positional NAME (a component literally called "--name"), and `Button` fell through parseFlags'
+// silent unknown-token drop. Two arms, so a repeat of either shape is RED:
+//   • the lens matches BOTH JSX element kinds (paired + self-closing) — the positive controls below;
+//   • a flag-shaped positional and an unknown flag REFUSE (exit 3, EXIT.misuse) instead of searching.
+
+test(
+  "jsx matches PAIRED elements — the positive control the false-clean report needed (#452)",
+  () => {
+    // `Button` is the reported query. immersive-card.tsx carries a real `<Button …>…</Button>` pair
+    // (JsxOpeningElement), so a zero here means the lens went blind, not that the tree is empty.
+    const run = runAst(["jsx", "Button", "--files"]);
+    expect(run.status).toBe(0);
+    expect(Number(run.epilogue["matches"])).toBeGreaterThan(0);
+    expect(run.stdout).toContain("packages/ui/src/content/immersive-card/immersive-card.tsx");
+    // The TS≠TSX trap made visible: a JSX lens that scanned no .tsx is not a verdict.
+    expect(run.epilogue["langs"]).toMatch(EPILOGUE_LANGS_TSX_RE);
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
+  "jsx matches SELF-CLOSING elements too — the arm a JsxOpeningElement-only sweep would miss (#452)",
+  () => {
+    // `Skeleton` has ZERO `</Skeleton>` closing tags anywhere on the tree (verified by literal sweep),
+    // so every one of its usages is a JsxSelfClosingElement: this row FAILS outright if that kind is
+    // dropped, where a `Button` row would still look healthy on its paired sites alone.
+    const run = runAst(["jsx", "Skeleton", "--files"]);
+    expect(run.status).toBe(0);
+    expect(Number(run.epilogue["matches"])).toBeGreaterThan(0);
+    expect(run.stdout).toContain("packages/ui/src/stream/shimmer.tsx");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
+  "a flag-shaped positional REFUSES (exit 3) instead of searching for a component named --name (#452)",
+  () => {
+    const run = runAst(["jsx", "--name", "Button"]);
+    expect(run.status).toBe(3);
+    expect(run.stderr).toContain("ARG ERROR");
+    expect(run.stderr).toContain("POSITIONALLY");
+    // The refusal names the repair, so the next reader does not re-derive it.
+    expect(run.stderr).toContain("pnpm ast jsx Button");
+    // …and it never pretends to have answered. (stdout DOES carry the usage block — which itself quotes
+    // the phrase "no results" — so the assertion is on the ANSWER line and the epilogue, not that word.)
+    expect(run.stdout).not.toContain("RESULT ast jsx");
+    expect(run.stderr).not.toContain("matches=0");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
+  "an unknown flag REFUSES instead of being silently dropped (#452)",
+  () => {
+    // The other half of the same defect: `Button` was swallowed by parseFlags without a word. A typo'd
+    // flag must never degrade a run into a quiet wrong answer.
+    const run = runAst(["jsx", "Button", "--fles"]);
+    expect(run.status).toBe(3);
+    expect(run.stderr).toContain("ARG ERROR");
+    expect(run.stderr).toContain("--fles");
+    expect(run.stdout).not.toContain("RESULT ast jsx");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
+  "the known flags still parse — the refusal arm cannot have eaten the vocabulary (#452)",
+  () => {
+    const run = runAst(["jsx", "Skeleton", "--in", "packages/ui/src", "--max", "5", "--json"]);
+    expect(run.status).toBe(0);
+    const parsed = JSON.parse(run.stdout) as { total: number; hits: { file: string }[] };
+    expect(parsed.total).toBeGreaterThan(0);
+    expect(parsed.hits.every((h) => h.file.includes("packages/ui/src"))).toBe(true);
+  },
+  SPAWN_TIMEOUT_MS,
 );
 
 test(

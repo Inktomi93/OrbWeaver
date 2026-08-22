@@ -50,15 +50,31 @@ interface Invocation {
   readonly flagTokens: readonly string[];
 }
 
-/** Resolve verb + scope arg + flag tokens, throwing the misuse door for an unknown verb or a missing
- *  required arg. Argless verbs take an OPTIONAL scope — a leading FLAG is not a scope (`pnpm ast
- *  respell --max 60` used to read "--max" as the domain name and exit 2 on it). */
+/** #452 — the flag-shaped-positional refusal. A REQUIRED-arg verb given `--something` first used to
+ *  SEARCH FOR THE FLAG: `pnpm ast jsx --name Button` looked for a component literally named "--name",
+ *  printed `matches=0 status=complete` over a 5433-file scan, and dropped `Button` in `parseFlags`'
+ *  (now-closed) silent unknown-token hole — a false clean from the constitution's mandated structural
+ *  instrument. ast has NO `--name`/`--component` flag: every verb's subject is positional and first. */
+function flagAsArgMessage(verb: string, arg: string, rest: readonly string[]): string {
+  const next = rest[0];
+  const repair = next === undefined || next.startsWith("--") ? `\`pnpm ast ${verb} <subject>\`` : `\`pnpm ast ${verb} ${next}\``;
+  return `verb ${verb} takes its subject POSITIONALLY, and ${JSON.stringify(arg)} is not a flag this tool knows — searching for it would print a silent false clean. Did you mean ${repair}? — see the usage above`;
+}
+
+/** Resolve verb + scope arg + flag tokens, throwing the misuse door for an unknown verb, a missing
+ *  required arg, or a flag where a required subject belongs. Argless verbs take an OPTIONAL scope — a
+ *  leading FLAG is not a scope there (`pnpm ast respell --max 60` used to read "--max" as the domain
+ *  name and exit 2 on it), which is exactly why the required-arg verbs need the refusal above. */
 function resolveInvocation(verb: string, arg: string | undefined, rest: readonly string[]): Invocation {
   if (VERBS[verb] === undefined) {
     print(USAGE);
     throw new UsageError(`unknown verb ${JSON.stringify(verb)} — see the usage above`);
   }
   const argless = ARGLESS_VERBS.has(verb);
+  if (!argless && arg?.startsWith("--") === true) {
+    print(USAGE);
+    throw new UsageError(flagAsArgMessage(verb, arg, rest));
+  }
   const argIsFlag = argless && arg?.startsWith("--") === true;
   const effectiveArg = argIsFlag ? "" : (arg ?? (argless ? "" : undefined));
   if (effectiveArg === undefined) {
@@ -87,7 +103,9 @@ function mapKnownError(e: unknown): number {
 
 async function main(): Promise<number> {
   const [verb, arg, ...rest] = process.argv.slice(2);
-  if (verb === undefined) {
+  // The usage door, both spellings: bare, and the `--help` every other CLI on this box answers to (#452 —
+  // an instrument whose doc is undiscoverable is how a caller invents `--name` in the first place).
+  if (verb === undefined || verb === "--help" || verb === "-h") {
     print(USAGE);
     return EXIT.clean;
   }
