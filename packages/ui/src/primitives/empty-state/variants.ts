@@ -20,7 +20,11 @@ export const emptyStateVariants = tv({
     decoration: "",
     icon: "text-muted-foreground",
     title: "font-medium text-foreground text-title leading-title @max-sm:text-body @max-sm:leading-body",
-    description: "max-w-cq-sm text-body text-muted-foreground leading-body @max-sm:text-label @max-sm:leading-label",
+    // NO `max-w-*` IN THE BASE — the measure is the `measure` variant's alone. A base width plus a variant
+    // width is the tailwind-merge custom-token trap (`twMerge("max-w-cq-sm","max-w-cq-md")` cannot see
+    // through the registered custom scale reliably, so the pair would resolve by stylesheet order); one
+    // home, one class, no merge to lose.
+    description: "text-body text-muted-foreground leading-body @max-sm:text-label @max-sm:leading-label",
     action: "pt-row @max-sm:pt-field",
   },
   variants: {
@@ -28,6 +32,15 @@ export const emptyStateVariants = tv({
       default: {},
       focal: { title: "font-semibold" },
     },
+    // THE READING MEASURE (side-eye 2026-08-22 P3-1). `default` (24rem ≈ 42.5ch) is the right measure for a
+    // teaching line in a LIST pane or a ribbon — short, centered, two or three lines. It is the WRONG one for
+    // a section's focal CONTENT welcome, where the same copy runs to four ragged centered lines at half the
+    // §2 65–75ch band; `wide` (32rem ≈ 60ch) is that surface's arm. Opt-in per site, because the correct
+    // measure is a property of the pane the state lands in, not of the pattern.
+    measure: {
+      default: { description: "max-w-cq-sm" },
+      wide: { description: "max-w-cq-md" },
+    },
   },
-  defaultVariants: { titleStep: "default" },
+  defaultVariants: { titleStep: "default", measure: "default" },
 });

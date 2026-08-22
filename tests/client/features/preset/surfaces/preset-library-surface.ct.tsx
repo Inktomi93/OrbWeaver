@@ -30,6 +30,7 @@ import {
   PresetLibraryAnnouncedStory,
   PresetLibraryDockedStory,
   PresetLibrarySurfaceStory,
+  PresetLibraryWelcomeFilteredStory,
   PresetLibraryWelcomeListModeStory,
   PresetLibraryWelcomeNarrowStory,
   PresetLibraryWelcomeWideStory,
@@ -803,6 +804,94 @@ test("G6 the kebab EXPORT downloads the bundle's own orb.preset bytes for that r
   // The ENVELOPE is `buildPresetFile`'s (schemaKind + the export-time schemaVersion + name + config) — the
   // same shape `preset.importFile` strict-parses on the way back in.
   expect(file).toMatchObject({ schemaKind: "orb.preset", name: EDITED_ONE_NAME, config });
+});
+
+// ── #483 / P3-1: the landing is a real welcome, not a paragraph parked at the top of a void ──────
+// Three measured defects in one state (`scratchpad/09-geom`, docked-both, live): `main "Presets content"`
+// held ZERO headings so heading navigation dead-ended in the pane the reader was looking at; the teaching
+// copy ran to four ragged centered lines at a 42.5ch measure against §2's 65–75ch band; and the 219px block
+// sat top-anchored in a 752px pane, i.e. 71% void that grows with the pane.
+
+const EMPTY_STATE_ROOT = '[data-slot="empty-state-root"]';
+const EMPTY_STATE_TITLE = '[data-slot="empty-state-title"]';
+const EMPTY_STATE_DESCRIPTION = '[data-slot="empty-state-description"]';
+const WELCOME_TITLE = "Tune how the model generates";
+/** The `wide` measure is `--container-cq-md` = 32rem = 512px ≈ 60ch at this surface's 8.58px ch. The floor
+ *  is stated below it (paint rounding, and a scrollbar the pane may take) and far above the old 384px. */
+const MIN_MEASURE_PX = 480;
+
+test("#483 P3-1 the landing title is a real heading — heading navigation finds the pane's own subject", async ({ mount }) => {
+  const welcome = await mount(<PresetLibraryWelcomeWideStory />);
+  // The heading IS the visible title (not a second, hidden one bolted on for AT).
+  const heading = welcome.getByRole("heading", { name: WELCOME_TITLE });
+  await expect(heading).toBeVisible();
+  await expect(welcome.locator(EMPTY_STATE_TITLE)).toHaveAttribute("data-title-step", "focal");
+  const tag = await welcome.locator(EMPTY_STATE_TITLE).evaluate((el) => el.tagName);
+  expect(tag, "the focal title element itself is the heading, not a <p> beside one").toBe("H2");
+});
+
+test("#483 P3-1 the landing's teaching copy reads at the focal measure, not a list-pane measure", async ({ mount }) => {
+  const welcome = await mount(<PresetLibraryWelcomeWideStory />);
+  const description = welcome.locator(EMPTY_STATE_DESCRIPTION);
+  await expect(description).toBeVisible();
+  const width = await description.evaluate((el) => el.getBoundingClientRect().width);
+  expect(width, "the measure is the focal one (≈60ch), not the 24rem list-pane step").toBeGreaterThan(MIN_MEASURE_PX);
+});
+
+test("#483 P3-1 the landing block is centered in its pane, not top-anchored above a void", async ({ mount }) => {
+  const welcome = await mount(<PresetLibraryWelcomeWideStory />);
+  const block = welcome.locator(EMPTY_STATE_ROOT);
+  await expect(block).toBeVisible();
+  // Measured against the MOUNT's own box, so the pin holds at any story height.
+  const offsets = await welcome.evaluate((pane, selector) => {
+    const target = pane.querySelector(selector) as HTMLElement;
+    const paneBox = pane.getBoundingClientRect();
+    const blockBox = target.getBoundingClientRect();
+    return { paneCenter: paneBox.top + paneBox.height / 2, blockCenter: blockBox.top + blockBox.height / 2, paneHeight: paneBox.height };
+  }, EMPTY_STATE_ROOT);
+  expect(offsets.paneHeight, "the story must give the pane real height, or centering is unobservable").toBeGreaterThan(400);
+  expect(
+    Math.abs(offsets.blockCenter - offsets.paneCenter),
+    `block center ${String(offsets.blockCenter)} vs pane center ${String(offsets.paneCenter)}`,
+  ).toBeLessThan(24);
+});
+
+// ── #483 / P3-2: the same state-honesty #434 minted, extended to the ZERO-RESULTS list ────────────
+// #434 made this pane stop instructing a reader to pick from a list that is off screen. The same sentence
+// was still being printed over a list filtered to NOTHING — "Pick a preset … or create a new one" beside an
+// empty rail. The list pane's own no-match state is excellent and owns the way out, so this pane states the
+// fact and names that affordance; it mints no second door.
+const NO_MATCH_SENTENCE = /No preset matches your search/u;
+
+test("#483 P3-2 the welcome stops saying 'Pick a preset' once the list is filtered to nothing", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const welcome = await mount(<PresetLibraryWelcomeFilteredStory />);
+  // The unfiltered arm: the teaching instruction, and no no-match claim.
+  await expect(welcome.getByText(TEACHING_SENTENCE)).toBeVisible();
+  await expect(welcome.getByText(NO_MATCH_SENTENCE)).toHaveCount(0);
+
+  await welcome.getByRole("button", { name: "filter to nothing" }).click();
+  await expect(welcome.getByText(NO_MATCH_SENTENCE)).toBeVisible();
+  // The instruction is REPLACED, not appended: an "or create a new one" beside "nothing matched" is the
+  // same dead end in two sentences.
+  await expect(welcome.getByText(TEACHING_SENTENCE)).toHaveCount(0);
+
+  await welcome.getByRole("button", { name: "clear the filter" }).click();
+  await expect(welcome.getByText(TEACHING_SENTENCE)).toBeVisible();
+  await expect(welcome.getByText(NO_MATCH_SENTENCE)).toHaveCount(0);
+});
+
+test("#483 P3-2 the band keeps the library TOTAL when the filter matches nothing", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  const band = page.getByTestId("list-band");
+  await expect(band.getByText(String(PRESETS.length), { exact: true })).toBeVisible();
+
+  await component.getByRole("textbox", { name: "Search presets" }).fill("zzzz-no-such-preset");
+  await expect(component.getByText("No matches", { exact: true })).toBeVisible();
+  // The census still reports what the pane SHOWS (the leading 0 — the 2026-08-19 P2 ruling stands); what it
+  // no longer does is VANISH, taking the total with it exactly when the number would reassure.
+  await expect(band.getByText(`0 of ${String(PRESETS.length)}`, { exact: true })).toBeVisible();
 });
 
 test("G6 the BUILT-IN row offers no Export — the bundle excludes the system default", async ({ mount, page }) => {

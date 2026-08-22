@@ -10,7 +10,7 @@
 
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";
-import { __resetPresetSelection, selectPreset, setFocusMode, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
+import { __resetPresetSelection, selectPreset, setFocusMode, setPresetSearchQuery, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -144,23 +144,57 @@ export function PresetLibraryDockedStory(): ReactElement {
  *  (`useSectionListMode`), which resolves the section DEFINITION's `panelDefaults` — so a story that mounts it
  *  bare would be asking the registry a question with no registry to ask. Nothing is collapsed here, so both
  *  arms render the section's boot layout (LIST docked), which is what the #379 hierarchy pins measure. */
+/*  UNDER `CtDataProviders` since #483: the welcome also reads the LIST's own filtered census now (it must
+ *  stop saying "Pick a preset" over a list filtered to nothing — side-eye 2026-08-22 P3-2), through the same
+ *  non-suspending `preset.list` query the band's census uses, so it needs a TRPC provider to ask. These two
+ *  arms route nothing: with no search needle there is no filtered-to-nothing state whatever the read does,
+ *  which is exactly the ordering the component guards on. */
 export function PresetLibraryWelcomeWideStory(): ReactElement {
   return (
-    <CtRealSectionRegistry>
-      <div style={{ height: 720, width: 720 }}>
-        <PresetLibraryWelcome />
-      </div>
-    </CtRealSectionRegistry>
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 720, width: 720 }}>
+          <PresetLibraryWelcome />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
   );
 }
 
 export function PresetLibraryWelcomeNarrowStory(): ReactElement {
   return (
-    <CtRealSectionRegistry>
-      <div style={{ height: 720, width: 320 }}>
-        <PresetLibraryWelcome />
-      </div>
-    </CtRealSectionRegistry>
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 720, width: 320 }}>
+          <PresetLibraryWelcome />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The teaching state driven by the LIST SEARCH (#483 / P3-2) — the CONTENT pane's half of the no-match
+ *  state. The needle goes through its PRODUCTION store door (`setPresetSearchQuery`, the one writer the
+ *  band and the rows both read), never a prop, so what the CT proves is the projection.
+ *
+ *  Both arms in ONE mount, like the #434 story above: the finding is that the SAME pane must say different
+ *  things. The reset button matters as much as the filter — a needle that stays set would leak into every
+ *  later test in the page (the search store is module-global). */
+export function PresetLibraryWelcomeFilteredStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button type="button" onClick={(): void => setPresetSearchQuery("zzzz-no-such-preset")}>
+          filter to nothing
+        </button>
+        <button type="button" onClick={(): void => setPresetSearchQuery("")}>
+          clear the filter
+        </button>
+        <div style={{ height: 720, width: 720 }}>
+          <PresetLibraryWelcome />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
   );
 }
 
@@ -177,17 +211,19 @@ export function PresetLibraryWelcomeNarrowStory(): ReactElement {
  *  section's real boot layout. */
 export function PresetLibraryWelcomeListModeStory(): ReactElement {
   return (
-    <CtRealSectionRegistry>
-      <button type="button" onClick={(): void => setFocusMode(true)}>
-        take the list off screen
-      </button>
-      <button type="button" onClick={(): void => setFocusMode(false)}>
-        put the list back
-      </button>
-      <div style={{ height: 720, width: 720 }}>
-        <PresetLibraryWelcome />
-      </div>
-    </CtRealSectionRegistry>
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button type="button" onClick={(): void => setFocusMode(true)}>
+          take the list off screen
+        </button>
+        <button type="button" onClick={(): void => setFocusMode(false)}>
+          put the list back
+        </button>
+        <div style={{ height: 720, width: 720 }}>
+          <PresetLibraryWelcome />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
   );
 }
 
