@@ -20,10 +20,26 @@
 // placement travels with the tile that makes it, which is the same rule `sectionId` follows.
 //
 // THE DORMANT DOORWAYS ARE GROUPED, not framed one by one (the mockup's right-rail move): every tile
-// whose body is the `{dormant}` arm lands under ONE "Not yet" kicker at the foot of the shelf. That is a
+// whose body is the `{dormant}` arm lands under ONE band at the foot of the shelf. That is a
 // PRESENTATION decision home is entitled to make — the arm is already declared in the contract, so
 // nothing is imported and no feature is consulted — and it is what keeps the diet honest: two doorways
 // wearing two bands and two badges is more chrome than the thing they are doorways to.
+//
+// …AND THAT BAND IS NOW A FOLD (#455, owner-ruled 2026-08-22: FOLD, not cut). The group was four
+// paragraphs of roadmap prose in the smallest voice on the page, sitting below the fold at the most
+// common laptop height — the least-read real estate on the screen carrying the most words. Three
+// findings converged on it (side-eye rail-home P2-1 below-fold cue · P3-6 type voice · the taste
+// verdict's prose weight), plus #226's open ~370px shelf residual and the +28px of shelf #457's ramp
+// step had just added. Collapsed it is ONE control line saying what it holds; expanded it is exactly
+// what shipped — #457's h3 titles and ramped teasers are untouched INSIDE the panel, which is what
+// makes this a fold rather than a cut. `CollapsiblePanel` unmounts its content while closed, so the
+// shelf really does get the height back rather than hiding it under a clip.
+//
+// NO PERSISTENCE, deliberately (the brief's fork, taken): the house device-local disclosure precedent
+// (`config-group-open-store`) is a whole persisted store + a `persistence-boundary` registration, and
+// what it would remember here is a glance at a list of things that do not exist yet — not a working
+// posture like "tags open, regex closed" on a roster you return to. Collapsed every boot IS the ruled
+// default, and re-opening costs one keypress.
 //
 // THE RAIL GETS A SECOND BREATH AT >=100rem (side-eye 2026-08-16 F3). The `lead` split already widens the
 // rail there; the shape's other half — the rail's two footnote blocks side by side — was unbuilt, so a
@@ -58,9 +74,11 @@
 // here — at most one per screen (section-placeholder.tsx); every other surface keeps the muted sparkle.
 
 import { Button } from "@orb/ui/button";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Container, Grid, Section, Stack, Surface } from "@orb/ui/layout";
+import { Heading } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { ContributorRegistry } from "#lib";
@@ -76,6 +94,12 @@ export interface HomeSurfaceProps {
 }
 
 const WEAVE_SIZE = 64;
+
+/** The doorway group's ONE name — the fold's trigger, its region's accessible name, and the teaser a
+ *  collapsed group leads with. Forward-facing on purpose (#455, the owner's own wording): "Not yet" named
+ *  the group from the inside of a band you were already reading, and reads as a refusal on a line whose
+ *  whole job is to invite the press. */
+const DOORWAY_GROUP_LABEL = "What's coming";
 
 /** One declared doorway, already narrowed off its tile — the surface groups doorways under a single band,
  *  so it needs the pair, and narrowing ONCE here is what keeps the render free of a re-check whose other
@@ -186,14 +210,30 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       <HomeTile key={tile.id} tile={tile} />
                     ))}
                     {doorways.length === 0 ? null : (
-                      // ONE band over every declared doorway. `<Section kicker>` is the sanctioned band
-                      // anatomy (caps micro + a hairline to the edge), and `level={2}` makes it a PEER of
-                      // home's other blocks in the document outline rather than a child of whichever one
-                      // precedes it (side-eye F6 — it rendered h3 beside six h2s).
-                      <Section aria-label="Not yet" kicker="Not yet" level={2}>
-                        {doorways.map((entry) => (
-                          <HomeDoorway doorway={entry.doorway} key={entry.tile.id} tile={entry.tile} />
-                        ))}
+                      // ONE FOLD over every declared doorway (#455). The band's `<Section kicker>` anatomy
+                      // (caps micro + a hairline to the edge) is what a group you can READ gets; a group
+                      // you have to OPEN is a control, so the kicker retires and its h2 becomes the
+                      // disclosure's own name. The `<h2>` WRAPS the trigger rather than sitting inside it —
+                      // that is the canonical disclosure shape (a button's content model is phrasing, so a
+                      // heading inside one is invalid HTML), and it keeps F6's ruling intact: this block is
+                      // still a PEER of home's other h2 blocks in the outline, and the doorways' own h3
+                      // titles are still its children. `voice="label"` + `size="control"` because the
+                      // trigger is a CONTROL, not a kicker (side-eye 2026-08-22 P2-4, the ruling #482
+                      // landed on the params deck's `Advanced`): the micro caps step measured under WCAG
+                      // 2.5.8's 24×24 floor on the one thing you can press.
+                      <Section aria-label={DOORWAY_GROUP_LABEL}>
+                        <Collapsible className="gap-block">
+                          <Heading level={2} voice="label">
+                            <CollapsibleTrigger size="control">{DOORWAY_GROUP_LABEL}</CollapsibleTrigger>
+                          </Heading>
+                          <CollapsiblePanel>
+                            <Stack gap="block">
+                              {doorways.map((entry) => (
+                                <HomeDoorway doorway={entry.doorway} key={entry.tile.id} tile={entry.tile} />
+                              ))}
+                            </Stack>
+                          </CollapsiblePanel>
+                        </Collapsible>
                       </Section>
                     )}
                   </Grid>
