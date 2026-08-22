@@ -31,6 +31,10 @@
 // refused rather than budgeted around: distributing the slack into the short column's two gaps means
 // 208px gaps on defaults and 385px on reading (the `airGap` bound above), and growing its LAST block
 // means the 91px section-jump grid becoming a 460px one.
+// (#455, 2026-08-22: the doorway group became a collapsed-by-default FOLD, which takes the whole roadmap
+// block out of the shelf's DOM at rest. That halves the narrow-pane residual — 396px → 223px on
+// 1280/defaults — and closes the 1920 defaults/compact states outright; it does not change the mechanism
+// this fence describes, and the residual is still #226's open owner fork.)
 // So: the ≤120px bar is asserted exactly where the mechanism can deliver it (`footTracks === 2`, read off
 // the rendered layout, never a list of widths), and EVERY state — including the narrow panes the fix does
 // not reach — is fenced against its own pre-fix measurement. The narrow-pane residual is an open owner
@@ -95,30 +99,34 @@ const AIR_GAP_BUDGET_PX = 160;
  *  hundreds of px and a single worst-case bound would let eleven of them rot silently. Sub-pixel layout
  *  rounding only in the tolerance; a real improvement is expected to redefine these DOWN.
  *
- *  RE-BASELINED 2026-08-22, UPWARD, and that is a COST being recorded rather than a fence being loosened
- *  (side-eye rail-home P3-6). The "Not yet" doorway teasers were two-line explanatory paragraphs set at the
- *  10.5px micro step — the same size as the kicker above them — and the ruled fix is the `prose` length
- *  modifier, which lifts them one ramp stop. That is +28px of SHELF, and the shelf is the column #226's
- *  open residual says is already structurally ~370px too tall below the `pairWide` step. So exactly the
- *  seven cells in the OPEN regime move (`footTracks === 1`: 1280 and 1440 in all three arms, plus
- *  1920/reading, where `--font-scale` 1.25 pushes 100rem out to a 2000px pane); every cell in the CLOSED
- *  regime is unchanged, because there the shelf reflows and absorbs it. What is NOT relaxed: `VOID_BUDGET_PX`
- *  still binds wherever the mechanism can deliver it, and `AIR_GAP_BUDGET_PX` is untouched — the fix pays in
- *  a taller block, never in padding.
- *  The two findings converge on the same 28px, and neither this lane nor this fence owns the answer: #455
- *  (cut or fold "Not yet") is an owner decision, and taking it would erase this row AND #226's residual. */
+ *  RE-BASELINED 2026-08-22 (a), UPWARD, and that was a COST being recorded rather than a fence being
+ *  loosened (side-eye rail-home P3-6): the doorway teasers stepped up one ramp stop, +28px of SHELF, on the
+ *  column #226's open residual already calls ~370px too tall. That row is superseded by (b) below and is
+ *  kept only as provenance for why the numbers it raised are now lower than either state.
+ *
+ *  RE-BASELINED 2026-08-22 (b), DOWNWARD, ELEVEN of twelve cells — #455, owner-ruled: the doorway group is
+ *  a FOLD now, collapsed by default, and `CollapsiblePanel` UNMOUNTS its content while closed, so the shelf
+ *  genuinely loses the block rather than clipping it. This is the "a real improvement is expected to
+ *  redefine these DOWN" case the paragraph above reserves, so the table is ratcheted to what the tree
+ *  MEASURES rather than left as slack. It reaches further than the seven open-regime cells #457's ramp
+ *  step touched, because the group is also one half of the foot's `pairWide` subgrid — the CLOSED regime
+ *  loses it too (2560/reading 228 → 11). The two cells that do not move (2560 defaults/compact) were
+ *  already at the sub-pixel floor. What changed for the WORSE: nothing. What this does NOT close: the
+ *  1280/1440 open-regime residual is still hundreds of px and is still #226's open owner fork — the fold
+ *  roughly halves it (396 → 223 on defaults), it does not resolve it.
+ *  Measured on this instrument at the folding commit; `VOID_BUDGET_PX` and `AIR_GAP_BUDGET_PX` untouched. */
 const BASELINE_VOID_PX: Readonly<Record<string, number>> = {
-  "1280/defaults": 396,
-  "1280/reading": 807,
-  "1280/compact": 402,
-  "1440/defaults": 396,
-  "1440/reading": 757,
-  "1440/compact": 438,
-  "1920/defaults": 180,
-  "1920/reading": 545,
-  "1920/compact": 192,
+  "1280/defaults": 223,
+  "1280/reading": 540,
+  "1280/compact": 237,
+  "1440/defaults": 223,
+  "1440/reading": 540,
+  "1440/compact": 273,
+  "1920/defaults": 11,
+  "1920/reading": 328,
+  "1920/compact": 3,
   "2560/defaults": 11,
-  "2560/reading": 228,
+  "2560/reading": 11,
   "2560/compact": 3,
 };
 const BASELINE_TOLERANCE_PX = 2;
