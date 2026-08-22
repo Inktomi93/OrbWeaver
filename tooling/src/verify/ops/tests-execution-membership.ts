@@ -10,8 +10,8 @@
 //
 // EVIDENCE SOURCE, NOT RE-IMPLEMENTATION: rather than hand-parsing each config's glob strings (which drifts
 // the instant a config changes — the exact disease this stage exists to prevent), it asks each runner its
-// OWN `--list` view: `vitest list --filesOnly --json` (all six projects in one call — unit/integration/
-// integration-serial/contract/types/parity), `playwright test --list --reporter=json -c playwright.config.ts`
+// OWN `--list` view: `vitest list --filesOnly --json` (all five projects in one call — unit/integration/
+// integration-serial/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
 // (e2e; run with `E2E_LIVE=1` so the `@live`-gated specs, which the runner reaches structurally but skips by
 // grep at routine-run time, still count as "reachable" — a grep filter is a SELECTION policy, not a
 // membership question), and the same `--list` against `playwright-ct.config.ts` (CT). Each `--list` also
@@ -26,7 +26,7 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 // Most-specific suffix first (so `.int.test.ts` isn't mis-stripped as `.test.ts`) — mirrors test-layout.ts's
 // KIND list (the ONE canonical suffix taxonomy; `.suite.*` files are covered by their base suffix's runner,
 // same lane, just a mirror-exemption — no separate runner glob to enumerate here).
-const RUNNER_SUFFIXES: readonly string[] = [".int.test.ts", ".contract.test.ts", ".parity.test.ts", ".test-d.ts", ".ct.tsx", ".spec.ts", ".test.ts"];
+const RUNNER_SUFFIXES: readonly string[] = [".int.test.ts", ".contract.test.ts", ".test-d.ts", ".ct.tsx", ".spec.ts", ".test.ts"];
 
 // Non-mirror trees test-layout.ts already exempts from the SOURCE-mirror requirement — `tests/support/**`
 // (fixtures/factories, no runner suffix by construction) needs no membership check either; enumerated here
@@ -61,8 +61,8 @@ function enumerateTestFiles(root: string): readonly string[] {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
-/** `vitest list --filesOnly --json` — the six node projects (unit/integration/integration-serial/contract/
- *  types/parity) in ONE call. Absolute paths; normalized to repo-relative posix. */
+/** `vitest list --filesOnly --json` — the five node projects (unit/integration/integration-serial/contract/
+ *  types) in ONE call. Absolute paths; normalized to repo-relative posix. */
 function vitestFiles(root: string): RunnerFiles {
   const res = runNicedSync(process.execPath, [join(root, "node_modules", "vitest", "vitest.mjs"), "list", "--filesOnly", "--json"], {
     cwd: root,
@@ -147,7 +147,7 @@ function playwrightFiles(root: string, config: string, testDirRel: string, extra
 }
 
 const FIX_HINT =
-  "a test-suffixed file must be matched by the union of every runner's --list view (vitest's six projects, " +
+  "a test-suffixed file must be matched by the union of every runner's --list view (vitest's five projects, " +
   "playwright.config.ts's e2e testMatch, playwright-ct.config.ts's CT testMatch) — else it never runs " +
   "(the silent-green disease). Add it under a runner's testDir/include, or fix the mismatched suffix/path.";
 
@@ -181,7 +181,7 @@ export function runTestsExecutionMembership(root: string): number {
   // ── direction 1: GLOB→FILE — every runner's --list view must be non-empty (an empty match is the
   // marinara silent-no-op disease: the config resolves, the runner exits 0, and NOTHING ran). ──
   const runnerViews: readonly { readonly label: string; readonly files: ReadonlySet<string> }[] = [
-    { label: "vitest (unit/integration/integration-serial/contract/types/parity)", files: vitestFilesOk.files },
+    { label: "vitest (unit/integration/integration-serial/contract/types)", files: vitestFilesOk.files },
     { label: "playwright e2e (playwright.config.ts)", files: e2eFilesOk.files },
     { label: "playwright-ct (playwright-ct.config.ts)", files: ctFilesOk.files },
   ];
