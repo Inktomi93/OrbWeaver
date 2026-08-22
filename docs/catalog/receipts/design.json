@@ -284,11 +284,12 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "87ca6443bc2d20f4456c22fcc5aa9abe823dd1d23ce72832eef275f5c7d46dff",
-      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedSha256": "91c30972de9dac1a33d52768080c80904cb50675075d9289cbb832a6b897a7ac",
+      "verifiedCommit": "1b60c51dd8ffea32def2b1905a775856ca0ca0c6",
       "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/design/containerize-build-plan.md:1 (design; active)",
+        "delta re-verify 2026-08-22 (#415, lane srv-data): the ONE changed passage is the gpu-image coupled-site bullet, re-derived against the tree — the three qwen3_*_serve.jinja templates moved to packages/server/src/infra/providers/vllm/engine/templates/ and the Dockerfile's per-template COPY line is gone (the app-files packages/server/src copy carries them)",
         "git log --oneline -1 -- docs/design/containerize-build-plan.md: fd4ae9119 feat(deploy): production container — 2-profile Dockerfile + compose + the D2 external-engine code arms",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
         "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
@@ -1482,10 +1483,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "636ea7d7c9cfb7b8f437d92fe9cce95f7e7b6866138f9db98d32767cfd68f542",
-      "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "582c48a28f5c693dc0160168f31de7343ab59a8514dee4e39bbe9c2cc4d7cdcd",
+      "verifiedCommit": "1b60c51dd8ffea32def2b1905a775856ca0ca0c6",
+      "verifiedAt": "2026-08-22",
       "evidence": [
+        "delta re-verify 2026-08-22 (#415, lane srv-data): the ONE changed line is the §7.5 chat-template cite, repointed from scripts/dev/ to packages/server/src/infra/providers/vllm/engine/templates/ — same file, same line numbers, verified against the moved template",
         "docs/design/streaming-shape-churn.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence; 2026-08-21 delta is the §recipe invocation repoint (node scripts/probes/snap.ts -> the pnpm snap front door, #393 P2)",
         "git:1c0c8df6ef45e867501bc70bf0811b447071030b contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
@@ -1529,10 +1531,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "7e99a43e3e9f1e639a4d6e56656093cb845349497ad3b265e4f207f60015339f",
-      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedSha256": "62fe43191ef3400c37c0fb0b37ad5770406f97066251e65882dfaca1e1fec751",
+      "verifiedCommit": "1b60c51dd8ffea32def2b1905a775856ca0ca0c6",
       "verifiedAt": "2026-08-22",
       "evidence": [
+        "delta re-verify 2026-08-22 (lane srv-data): three deferral rows closed in place — §2.6's stack row and §9's roster-row lesson record the #415 template move, §3.2a records the #408 `/tools/` clause deletion. Each was re-derived against the landed change, not copied from the issue text",
         "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
         "single-pass clean on the P3 tree with all six INSTRUMENT_TOOLS members proof-carrying (reports/check-structure.json)",

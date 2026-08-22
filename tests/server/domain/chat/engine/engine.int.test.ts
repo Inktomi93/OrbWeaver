@@ -808,6 +808,32 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     ]);
   });
 
+  // #405 F1 — the MERGED/narrator early-return branch of `resolveSpeakerMemory` is the DEFAULT solo-chat
+  // shape, and every other emitting test above rides `cardScope: "scoped"`. Deleting the early branch's
+  // `emitMemoryRerankWarningOnce` therefore left every suite green while making mixC degrade SILENT for
+  // ordinary chats — exactly what the #332 "not a silent fallback" ruling forbids. This is the pin for the
+  // branch nobody was covering: a merged turn whose round-level gather already degraded must still warn.
+  test("a MERGED turn (the default shape) warns when the round-level recall already degraded", async () => {
+    const chatId = await seedChat(db, "rerankwarn-merged");
+    await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
+    const h = harness(db);
+
+    const episode = createMemoryRecallWarningEpisode();
+    episode.reportRerankUnavailable(); // the round-level gather degraded; no per-speaker recall will re-run
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        speakerCharacterId: aria,
+        shape: { output: "per-speaker", cardScope: "merged", scopedTargetId: null, speakerName: "aria", speakerRef: { kind: "character", characterId: aria } },
+        memoryConfig: { mode: "off" },
+        memoryRecall: { groupCharacterId: aria, recent: [], names: new Map<CharacterId, string>(), config: { mode: "mixC" }, warningEpisode: episode },
+      }),
+    );
+
+    expect(h.events.filter((event) => event.type === "warning")).toEqual([{ type: "warning", chatId, code: "memory_rerank_unavailable" }]);
+  });
+
   test("the memory build succeeding never emits warning(memory_build_failed)", async () => {
     const chatId = await seedChat(db, "memok");
     const h = harness(db);

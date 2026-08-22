@@ -479,6 +479,8 @@ export function createLifecycle(): Lifecycle {
                 }) ?? [],
             },
           }),
+      // #412: compose's wire-capture request-sink decision, published as `enabled` on the captures probe.
+      wireCapture: built.wireCaptureOn,
       // #250: the memory-recall ring's read half. Unconditional (the recorder always exists); the brand is
       // applied HERE at the entry seam, same as the rpg recorder above — foundation's port speaks raw query
       // strings and learns no chat type (`recent` returns `object[]`).
