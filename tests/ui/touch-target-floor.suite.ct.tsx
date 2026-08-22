@@ -116,6 +116,10 @@ test("icon Button is a square control meeting the floor on both axes", async ({ 
 // strictly STRONGER than the union — a union can be satisfied by invisible overflow, a visible box
 // cannot. The pseudo survives as the unknown-pointer fallback, so it keeps its own pin; without it a
 // silent removal of TOUCH_TARGET_PSEUDO from the root would leave this case green.
+// THE FLOOR IS NOT THE WHOLE COARSE CONTRACT (#420): this case is satisfied by a SQUARE, and for three
+// weeks it was — a 48x44 root read as a crescent moon and nothing went red, because the only aspect pin
+// ran at a fine pointer. The coarse SHAPE lives with the control's own seal, in switch.ct.tsx's
+// `at a COARSE pointer` describe. Neither pin is sufficient alone; do not delete one as redundant.
 test("Switch: the VISIBLE track carries the floor at a coarse pointer (::before stays as the fallback)", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" />);
   const control = page.getByRole("switch");

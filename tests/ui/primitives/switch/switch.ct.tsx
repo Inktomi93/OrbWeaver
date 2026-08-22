@@ -61,6 +61,64 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
   await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
 });
 
+// ── THE COARSE-POINTER SHAPE PIN (side-eye #420, 2026-08-22). The two pins that existed before this
+// block — the aspect pin above (fine context) and the height floor in touch-target-floor.suite.ct.tsx:119
+// — were JOINTLY SATISFIABLE BY THE DEFECT: a 48x44 root with a 32px thumb inset 6/6 clears the 44px
+// floor AND leaves the >1.4 aspect pin green, because that pin never runs at a coarse pointer. What
+// shipped was a 1.091-aspect near-circle with track painting on all four sides of the thumb — read as a
+// crescent moon, not a switch, on every touch surface. This block closes that hole: the SAME relations
+// the fine arm promises, asserted in a coarse context. Relations, not literals — a later token retune
+// may move 64/44, but a switch that stops reading as a switch fails here.
+const COARSE_FLOOR = 44;
+const MIN_ASPECT = 1.4;
+
+test.describe("at a COARSE pointer", () => {
+  // `hasTouch` is what flips `matchMedia("(pointer: coarse)")` in chromium — `page.emulateMedia` exposes
+  // no `pointer` feature (touch-target-floor.suite.ct.tsx:23-28). Scoped to this describe so every other
+  // case in this file keeps its fine-pointer context byte-for-byte.
+  test.use({ hasTouch: true });
+
+  test("the emulation really is coarse (this block's pins are vacuous at a fine pointer)", async ({ page }) => {
+    // Hoisted, not inlined into expect(): a MEDIA-QUERY read is settled the instant the context exists
+    // (it is context configuration, not a live DOM read), and the ct-no-oneshot gate reads the SHAPE
+    // `expect(await …)`. Same spelling as the sibling probe at touch-target-floor.suite.ct.tsx:96-101.
+    const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+    const fine = await page.evaluate(() => matchMedia("(pointer: fine)").matches);
+    expect(coarse, "hasTouch must make the @media(pointer:coarse) branch win").toBe(true);
+    expect(fine, "the fine override must NOT apply under a coarse pointer").toBe(false);
+  });
+
+  test("the track stays a RECTANGLE while carrying the 44px floor, and the thumb travels the full track", async ({ mount, page }) => {
+    await mount(<Switch aria-label="Streaming" />);
+    const control = page.getByRole("switch");
+    const thumb = control.locator('[data-slot="switch-thumb"]');
+    const track = await control.boundingBox();
+    const width = track?.width ?? 0;
+    const height = track?.height ?? 1;
+
+    // BOTH halves, together — either alone is satisfied by the crescent that shipped.
+    expect(height, "the coarse root carries the ≥44px touch floor (pointer-coarse:h-touch-target)").toBeGreaterThanOrEqual(COARSE_FLOOR);
+    expect(
+      width / height,
+      "…and it must still READ as a switch: a taller root needs a wider track, or the thumb sits in a near-circular field and the control reads as a crescent moon",
+    ).toBeGreaterThan(MIN_ASPECT);
+
+    // Travel is the other half of the read: the thumb must cross the track, not shuffle inside it.
+    // Measured against the TOKENS' own static literals (which ARE the coarse values — the generator is
+    // coarse-first and narrows fine in an @media block, tokens.build.ts:104), so a retune moves the
+    // expectation with the design instead of pinning a constant.
+    const rem = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize));
+    const remPx = (value: string): number => Number.parseFloat(value) * rem;
+    const expectedTravel = Math.round(remPx(TOKENS["spacing.switch-track"].value) - remPx(TOKENS["spacing.switch-thumb"].value));
+    const offX = (await thumb.boundingBox())?.x ?? 0;
+    await control.click();
+    await expect(control).toHaveAttribute("aria-checked", "true");
+    // SETTLED, not mid-transition: the thumb has a 130ms transform transition and a same-tick rect read
+    // reports a partial translate (the side-eye retracted exactly that false negative on this control).
+    await expect.poll(async () => Math.round(((await thumb.boundingBox())?.x ?? 0) - offX), { intervals: [20, 50, 100, 150] }).toBe(expectedTravel);
+  });
+});
+
 // ── tone axis (north-star §5 PP1 precedent; owner-sanctioned 2026-07-16). `accent` (default) keeps
 // the ember-on-checked skin — the ONE sanctioned accent toggle per surface. `quiet` spends no accent, so
 // a rack of per-row switches never multiplies it. The on/off signal stays position-carried (thumb travel)

@@ -91,7 +91,7 @@
   --spacing-avatar-md: 2rem;
   --spacing-avatar-lg: 2.5rem;
   --spacing-avatar-hero: 4rem;
-  --spacing-switch-track: 3rem;
+  --spacing-switch-track: 4rem;
   --spacing-switch-thumb: 2rem;
   --spacing-checkbox: 1.125rem;
   --spacing-slider-thumb: 1.5rem;
@@ -186,6 +186,7 @@
     --spacing-control-sm: 2rem;
     --spacing-control-md: 2.125rem;
     --spacing-control-lg: 2.5rem;
+    --spacing-switch-track: 3rem;
   }
 }
 
