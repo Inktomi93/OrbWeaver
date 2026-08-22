@@ -1520,20 +1520,21 @@
     },
     {
       "path": "docs/design/tooling-package.md",
-      "assignedSha256": "9db451b587ccfccbe3da8afb55dc175218f6e6be10882665f71d951947508b72",
+      "assignedSha256": "75376d9571ced9375dcc9d66866863d0545b1d43632ee06229848713e935449d",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "9db451b587ccfccbe3da8afb55dc175218f6e6be10882665f71d951947508b72",
-      "verifiedCommit": "8931a886cb03a6d2eb10bb6f015beae015465e6e",
+      "verifiedSha256": "75376d9571ced9375dcc9d66866863d0545b1d43632ee06229848713e935449d",
+      "verifiedCommit": "4440032c40e4a0a610bd872fb02671248ca2ce4f",
       "verifiedAt": "2026-08-21",
       "evidence": [
-        "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "single-pass clean on the P3 tree with all six INSTRUMENT_TOOLS members proof-carrying (reports/check-structure.json)",
-        "P4 re-attest (2026-08-21): §2.4 schema-read row, §2.6 ast+codemod LANDED rows incl. the export-rot-cleanup deletion deviation, §9.2a P4 replay + knip/depcruise residue-detector lessons, §9.3 json-formatter variant — bound to P4 commit 8931a886cb03a6d2eb10bb6f015beae015465e6e; structure exit 0 + knip 0 + depcruise 0 on the P4 tree, five pinned parity queries byte-identical"
+        "docs/design/tooling-package.md:1 full read; P7 truth-repairs authored in commit 4440032c4 (§2.8 rewritten as the landed record: the dead-CSS tokenizer merged to @orb/kit/dead-css and the single LoAF observer, plus the accname and devlog premise-kills with their receipts; the §6 P7 row restated to match)",
+        "packages/kit/src/dead-css/index.ts:1 + tooling/src/snap/ops/dead-css.ts:1 + packages/client/src/lib/motion-dead-class-flagger.ts:1 — the one dead-class definition and its two consumers",
+        "packages/client/src/lib/motion-stats.ts:1 + packages/client/src/lib/long-task-tracer.ts:1 — the one long-animation-frame observer and its subscribing channels",
+        "tests/support/ct/accessible-names.ts:6-13 + tooling/src/ui-audit/lib/checks-a11y.ts:44-45 — the two recorded rulings the accname row was refused against",
+        "floor on the P7 tree: check:structure clean, depcruise clean (3222 modules), knip clean, 99 node tests + 24 CT green"
       ],
-      "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
+      "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and the P3 replay ledger, §2.8 the P7 one-definition record (two merges landed, two premises killed).",
       "claims": [
         {
           "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",

@@ -1,19 +1,18 @@
 // The `[css]` arm of the dev-only motion flagger pack: one initial class census, followed by
 // MutationObserver-scoped cooperative scans. Split from motion-flaggers.ts at the client source cap;
 // that parent still owns the shared ring, console vocabulary, budgets, and installation door.
+//
+// WHAT "DEAD" MEANS IS NOT DECIDED HERE — the tokenizer and the marker-namespace tables are
+// `@orb/kit/dead-css`, the one home this flagger shares with `pnpm snap --dead-css`'s in-page scan
+// (`tooling/src/snap/ops/dead-css.ts`). Only the DOM half — which sheets to walk, which elements to
+// visit, and on what clock — is local, because that is the half the two consumers genuinely differ on.
 
+import { classTokensInSelector, isDeadCssMarkerClass } from "@orb/kit/dead-css";
 import { isExternalDevtoolsElement } from "./motion-animation-state.ts";
 
 const initialScan = Promise.withResolvers<void>();
 let initialScanSettled = false;
 
-// Marker-only classes that legitimately ship no rules (kept VERBATIM from snap.ts's scan so the live
-// flagger and the probe agree about what "dead" means — two definitions would produce two bug reports).
-const CSS_MARKER_PREFIXES = ["group/", "peer/", "lucide", "TanStack", "tsqd-"];
-const CSS_MARKER_EXACT = new Set(["echarts-for-react", "group", "peer"]);
-// A class selector's token, un-escaped: a literal dot then a run of escaped-char-or-ident-char.
-const CLASS_TOKEN_RE = /\.((?:\\.|[A-Za-z0-9_-])+)/gu;
-const CLASS_ESCAPE_RE = /\\(.)/gu;
 // A throttled scan is still capable of monopolizing one rendered frame under CPU pressure. Keep each
 // idle slice bounded even when the browser reports a timed-out deadline; the next idle task resumes the
 // same lazy tree walk rather than rebuilding a candidate array.
@@ -37,23 +36,17 @@ function markMotionFlaggersSettled(): void {
   }
 }
 
-function isMarkerClass(token: string): boolean {
-  return CSS_MARKER_EXACT.has(token) || CSS_MARKER_PREFIXES.some((prefix) => token.startsWith(prefix));
-}
-
 /** Every class token any loaded stylesheet DEFINES a rule for. Walks nested rules (Tailwind v4 emits
- * variants as nesting) and tolerates cross-origin sheets. */
+ * variants as nesting) and tolerates cross-origin sheets. The per-selector tokenizer is `@orb/kit`'s
+ * (`dead-css`), shared with `pnpm snap --dead-css` so both scans mean the same thing by "dead". */
 function definedClassTokens(): ReadonlySet<string> {
   const defined = new Set<string>();
   const walk = (rules: CSSRuleList): void => {
     for (const rule of rules) {
       const selector = (rule as CSSStyleRule).selectorText;
       if (typeof selector === "string") {
-        CLASS_TOKEN_RE.lastIndex = 0;
-        let match = CLASS_TOKEN_RE.exec(selector);
-        while (match !== null) {
-          defined.add((match[1] ?? "").replace(CLASS_ESCAPE_RE, "$1"));
-          match = CLASS_TOKEN_RE.exec(selector);
+        for (const token of classTokensInSelector(selector)) {
+          defined.add(token);
         }
       }
       // `instanceof`, not a cast + a null check: CSSStyleRule extends CSSGroupingRule in the current
@@ -78,7 +71,7 @@ function scanElement(el: Element, defined: ReadonlySet<string>, onDeadClass: Dea
     return;
   }
   for (const token of el.classList) {
-    if (!(defined.has(token) || isMarkerClass(token))) {
+    if (!(defined.has(token) || isDeadCssMarkerClass(token))) {
       onDeadClass(token, el);
     }
   }

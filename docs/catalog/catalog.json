@@ -189,8 +189,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 352,
-      "bytes": 31286,
-      "sha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
+      "bytes": 31289,
+      "sha256": "ba69dcd2a3cdf0581af6b5d2fefab81f1fe1aae14dd3700b6ad18c230383aa2c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -203,18 +203,17 @@
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
+        "assignedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
-        "verifiedCommit": "8931a886cb03a6d2eb10bb6f015beae015465e6e",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "ba69dcd2a3cdf0581af6b5d2fefab81f1fe1aae14dd3700b6ad18c230383aa2c",
+        "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
+        "verifiedAt": "2026-08-19",
         "evidence": [
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
           "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
-          "git:8931a886cb03a6d2eb10bb6f015beae015465e6e contains the exact constitution blob",
-          "P4 re-attest (2026-08-21): §7 structural-search + codemod cites repointed to tooling/src/ast + tooling/src/codemod (P4 of #393); no other change — bound to P4 commit 8931a886cb03a6d2eb10bb6f015beae015465e6e"
+          "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact constitution blob"
         ],
         "claims": [
           {
@@ -422,8 +421,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 353,
-      "bytes": 165196,
-      "sha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
+      "bytes": 165077,
+      "sha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -436,12 +435,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
+        "assignedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
-        "verifiedCommit": "8931a886cb03a6d2eb10bb6f015beae015465e6e",
+        "verifiedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
+        "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -451,8 +450,7 @@
           "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
           "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green",
           "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)",
-          "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree",
-          "P4 re-attest (2026-08-21): tooling-front-door row gains ROOT_CONFIG_IMPORTS typed exemption + two-sided stale sweep; schema-read cite repointed to tooling/src/_shared/schema-read.ts — bound to P4 commit 8931a886cb03a6d2eb10bb6f015beae015465e6e"
+          "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree"
         ],
         "claims": [
           {
@@ -13055,9 +13053,9 @@
       "path": "docs/design/tooling-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 447,
-      "bytes": 71965,
-      "sha256": "9db451b587ccfccbe3da8afb55dc175218f6e6be10882665f71d951947508b72",
+      "lines": 434,
+      "bytes": 70545,
+      "sha256": "75376d9571ced9375dcc9d66866863d0545b1d43632ee06229848713e935449d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13070,20 +13068,21 @@
       },
       "receipt": {
         "path": "docs/design/tooling-package.md",
-        "assignedSha256": "9db451b587ccfccbe3da8afb55dc175218f6e6be10882665f71d951947508b72",
+        "assignedSha256": "75376d9571ced9375dcc9d66866863d0545b1d43632ee06229848713e935449d",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9db451b587ccfccbe3da8afb55dc175218f6e6be10882665f71d951947508b72",
-        "verifiedCommit": "8931a886cb03a6d2eb10bb6f015beae015465e6e",
+        "verifiedSha256": "75376d9571ced9375dcc9d66866863d0545b1d43632ee06229848713e935449d",
+        "verifiedCommit": "4440032c40e4a0a610bd872fb02671248ca2ce4f",
         "verifiedAt": "2026-08-21",
         "evidence": [
-          "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-          "single-pass clean on the P3 tree with all six INSTRUMENT_TOOLS members proof-carrying (reports/check-structure.json)",
-          "P4 re-attest (2026-08-21): §2.4 schema-read row, §2.6 ast+codemod LANDED rows incl. the export-rot-cleanup deletion deviation, §9.2a P4 replay + knip/depcruise residue-detector lessons, §9.3 json-formatter variant — bound to P4 commit 8931a886cb03a6d2eb10bb6f015beae015465e6e; structure exit 0 + knip 0 + depcruise 0 on the P4 tree, five pinned parity queries byte-identical"
+          "docs/design/tooling-package.md:1 full read; P7 truth-repairs authored in commit 4440032c4 (§2.8 rewritten as the landed record: the dead-CSS tokenizer merged to @orb/kit/dead-css and the single LoAF observer, plus the accname and devlog premise-kills with their receipts; the §6 P7 row restated to match)",
+          "packages/kit/src/dead-css/index.ts:1 + tooling/src/snap/ops/dead-css.ts:1 + packages/client/src/lib/motion-dead-class-flagger.ts:1 — the one dead-class definition and its two consumers",
+          "packages/client/src/lib/motion-stats.ts:1 + packages/client/src/lib/long-task-tracer.ts:1 — the one long-animation-frame observer and its subscribing channels",
+          "tests/support/ct/accessible-names.ts:6-13 + tooling/src/ui-audit/lib/checks-a11y.ts:44-45 — the two recorded rulings the accname row was refused against",
+          "floor on the P7 tree: check:structure clean, depcruise clean (3222 modules), knip clean, 99 node tests + 24 CT green"
         ],
-        "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
+        "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and the P3 replay ledger, §2.8 the P7 one-definition record (two merges landed, two premises killed).",
         "claims": [
           {
             "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",
@@ -16186,7 +16185,7 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "tooling/src/ast/lib/fields.ts:146"
+                "target": "scripts/codemods/ast.ts:4638"
               }
             ]
           }
