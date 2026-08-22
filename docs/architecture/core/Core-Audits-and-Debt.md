@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-08-14
+updated: 2026-08-22
 ---
 
 # Audits-and-Debt (live: Promotion / Relocation Debt Registry)
@@ -233,11 +233,11 @@ would be a boundary that looks like a control without being one. The marker's re
 a filter; it has been rewritten to name the suite above and the exact admitted set. **The exemption still ends
 if the admitted set ever widens BELOW admin** — turn that suite red before widening anything.
 
-**Known degradation (accepted):** `scripts/dev/stack-prod.ts::probeDebug` used a 200 from an un-credentialed
+**Known degradation (accepted):** the stack tool's `probeDebug` (`tooling/src/stack/ops/prod-state.ts:126`) used a 200 from an un-credentialed
 `/api/_debug/info` as "the STRONGEST instance identity available" (the serving process's own `pid`). On an
 armed stack that probe now gets 401, so identity falls back to the `ss` socket table via
 `debug.pid ?? listenerPid(port)`. Degrades, does not break. The `DebugPosture` doc comments in
-`scripts/dev/_kit/stack-mode.ts` were truth-repaired in the same commit: `open` is now an alarm, not the
+`tooling/src/stack/contract/types.ts` were truth-repaired in the same commit: `open` is now an alarm, not the
 normal dev posture.
 
 ---

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-22
 ---
 
 # Orbweaver — structure & enforcement (the constitution)
@@ -179,8 +179,9 @@ is RED.
 
 **The mirror rule (one line, fully enforceable):** a test for `packages/<pkg>/src/<path>.ts` lives at
 `tests/<pkg>/<path>.<kind>.test.ts`. **Path = prefix-swap** (`packages/X/src/` ↔ `tests/X/`); the
-`test-layout` gate exempts the three non-mirror trees `support/` + `e2e/` + `tooling/` and the
-`.parity`/`.suite` kinds. **Kind by suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) ·
+`test-layout` gate exempts the non-mirror trees `support/` + `e2e/` and the `.parity`/`.suite` kinds;
+`tooling/` is CONDITIONAL — `tests/tooling/<dir>/` mirrors `tooling/src/<dir>/` whenever that tool dir
+exists (§9), and only flat files + dirs with no tool twin stay exempt. **Kind by suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) ·
 `.contract.test.ts` (golden/surface) · `.test-d.ts` (types) · `.parity.test.ts` (differential oracle —
 slow, opt-in) · `.suite.test.ts`/`.suite.int.test.ts` (cross-cutting property suites — mirror-exempt).
 The **node** lanes are Vitest `test.projects` selected by suffix in ONE config. **Browser lanes are
@@ -255,3 +256,67 @@ Promoted here from code comments so they are discoverable; the code stays the so
 | **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |
 | **Settings: one KV primitive, tenant-owned meaning** — `defineVersionedConfig` owns the versioned-blob mechanism; each settings tenant owns its blob's schema/meaning (settings never interprets a tenant blob). | `domain/settings`; detail: `Spine-Config-and-Serialization.md` |
 | **`users`-read chokepoint + audit-ordering** — only `admin` + `sessions` + `entry` read the `users` table (every admin read gates first); audit ordering is check→write→audit, so a refused write leaves NO phantom audit row. | `domain/admin` (read side: `no-direct-users-read` gate) |
+
+## 9. The tooling tree — `@orb/tooling`, ABOVE the cake
+
+`tooling/` is a ROOT tree beside `packages/`, one private workspace package (`@orb/tooling`) holding the
+entire durable tool fleet: the verification system, the rendered-surface instruments, the AST/codemod
+engines, the operator CLIs, the dev-stack launchers. It is deliberately NOT inside `packages/`, so every
+`packages/*` glob in the repo keeps meaning "the cake" unchanged and "tools sit above the cake" is legible
+from the path alone.
+
+**One-way glass.** `@orb/tooling` may import ANY app package; **nothing in `packages/**` may ever import
+tooling.** Primary enforcement is resolver physics (no package declares the dep, so the import cannot
+resolve); the `packages-no-tooling` dep-cruiser stanza is the deep-relative-escape backstop, the `ui-cake`
+posture. The one surface still sealed AGAINST tooling is the provider FAMILIES
+(`infra/providers/backends/<x>`, where the credential firewall lives) — `tooling-no-provider-families`.
+
+**The five-slot tool template** (`tooling/src/<tool>/` — the domain template's tooling twin; learn one,
+know all):
+
+```
+tooling/src/<tool>/
+├── cli.ts        argv parse + dispatch ONLY (cap 200 lines; enters through _shared/run-tool.ts)
+├── index.ts      programmatic API — tests import THIS; cli.ts consumes it
+├── contract/     result shapes, config schemas, typed exit data
+├── ops/          one file per command family / capability
+└── lib/          tool-internal pure helpers
+```
+
+Two sanctioned departures: **`_shared/`** is the ONE plumbing floor (flat modules — the browser bootstrap,
+the ts-morph workspace loader, the artifact filer, the argv idioms, the exit contract, the process door),
+the plan's explicit exception to §1 principle 3's no-`_shared` rule, and it reaches UP to no tool
+(`tooling-shared-floor`); **`gates/`** is a SIXTH slot inside `verify/` only — the fs-discovered gate
+corpus is neither a command family nor tool-internal helpers, and it is cap-exempt. A bash-fronted tool
+(`stack/`) carries its `.sh` entrypoints at the tool root under a typed exemption row, and its node half is
+an `ops/*-entry.ts`, never a second `cli.ts`.
+
+**Every tool is reached by its pnpm script name, never by path** — the script names are the front door and
+did not change when the fleet moved.
+
+| Rule | Enforcer |
+| - | - |
+| top-level entries are tool DIRS; each carries `cli.ts` + `index.ts`; tool roots admit only the five slots | `tooling-slot-template` |
+| a cross-tool import enters through the sibling's front door (`#<tool>`), never its `ops`/`lib`/`contract` | `tooling-front-door` (shape) + `tooling-internal-direction` + `tooling-cli-via-index` (resolved edges) |
+| no file >450 lines; no `cli.ts` >200 (`verify/gates/**` cap-exempt) | `tooling-size` |
+| ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-shared-plumbing` (arms A-F2) |
+| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `_shared/instruments.ts`) |
+| `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |
+
+**Two fleet-wide doors, both in `_shared/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
+toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `cli.ts` enters through:
+crash ≠ verdict (an uncaught throw becomes a hard `toolError`, never a silent 1), verdicts set
+`process.exitCode` so stdout drains, and a verdict never downgrades. `proc.ts` is the ONE
+`node:child_process` door — every spawn rides `nice -n 19` because the box co-hosts other services; an
+un-niced spawn needs a cited census row stating why nice is wrong there.
+
+**`scripts/` is the research zone, not a second tool tree** — explicitly throwaway probes, one-shot lenses,
+launcher shims, and operator scripts; KISS/YAGNI apply there and only there. It MAY import
+`@orb/tooling` (the glass is one-way against `packages/`, not against research). Roster + retention
+rationale: `scripts/README.md`. A research script that becomes load-bearing for verification is promoted
+into `tooling/src/<tool>/` under the template, original deleted — never a compat stub.
+
+> The deep record is the program design `../../design/tooling-package.md` (the tool roster, the coupled-site
+> census, the per-phase move playbook) plus the code's own file headers. Gate authoring law:
+> `../../../tooling/src/verify/gates/GATE-AUTHORING.md`. Live gate catalog:
+> `Core-Enforcement-Active-Gates.md`.

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-21
+updated: 2026-08-22
 ---
 
 # Orbweaver — Spine: Testing (one centralized tree, suffix-selected lanes, Playwright for browser)
@@ -53,11 +53,11 @@ tests/
 │   ├── ct/                 Playwright-CT substrate (ct-providers + page.route tRPC stubs) — §7
 │   └── parity-runner.ts    drives the steady clone — §6
 ├── kit/ contracts/ db/ server/ ui/ client/   mirror packages/<pkg>/src 1:1
-├── tooling/            tests of root configs + the scripts/check gates (NOT a mirror)
+├── tooling/            tests of root configs + @orb/tooling (mirrors tooling/src/<tool>/ per tool)
 └── e2e/                full-stack Playwright .spec.ts (NOT a mirror)
 ```
 
-`support/`, `e2e/`, `tooling/` are the three non-mirror trees; the mirror gate (`tooling/src/verify/gates/test-layout.ts`) exempts exactly those, exempts the `.parity`/`.suite` KINDS (§1), and treats every other path as a strict prefix-swap mirror. The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root — separate runners, not Vitest projects.
+`support/` and `e2e/` are unconditional non-mirror trees; **`tooling/` is CONDITIONAL** — `tests/tooling/<dir>/` prefix-swap-mirrors `tooling/src/<dir>/` whenever that tool dir exists, and only flat files plus dirs with no `tooling/src/` twin stay exempt (they test root configs and the research zone). The mirror gate (`tooling/src/verify/gates/test-layout.ts`) enforces exactly that, exempts the `.parity`/`.suite` KINDS (§1), and treats every other path as a strict prefix-swap mirror. The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root — separate runners, not Vitest projects.
 
 ## 3. Determinism + mock doctrine
 

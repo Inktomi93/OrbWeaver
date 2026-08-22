@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-14
+updated: 2026-08-22
 ---
 
 # Containerize — build plan (the forge lane's phase-1 artifact)
@@ -72,7 +72,7 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
   the whole transitive set flat at top level; pnpm's default isolated layout does not.
 - **The workspace shape:** `CLIENT_DIST_DIR` defaults to `./packages/client/dist`
   (`foundation/env/index.ts:191`), the spec's own §2 CMD is the workspace path, and profile 1's fleet
-  spawn runs `bash <cwd>/scripts/dev/engines.sh start` (`supervisor.ts:246`, repoRoot =
+  spawn runs `bash <cwd>/tooling/src/stack/engines.sh start` (`supervisor.ts:246`, repoRoot =
   `process.cwd()` per `lifecycle.ts:222`).
 - `#*` subpath imports resolve via each package's own `package.json` (`imports: {"#*":
   "./src/*/index.ts"}`); migrations ride inside the tree `@orb/db` (`packages/db/src/migrations`,
@@ -88,17 +88,20 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
    pins `vllm>=0.22,<0.23`; its `--torch-backend=auto` inspects the DRIVER, which a build container does
    not have, so the image pins `--torch-backend=cu130` (the measured live backend) instead of `auto`.
 2. **Three container coupled-sites the spec never enumerated, all in the profile-1 spawn path:**
-   - `engines.sh:33` hardcodes `TSX="$REPO/node_modules/.bin/tsx"` — tsx is a ROOT devDependency, absent
-     from a pruned prod `node_modules`. Fix (in-lane, dev-behavior-identical): fall back to `node` when
-     the tsx binary is absent (node 26 runs `.ts` source; the same mechanism the server itself uses).
-   - `scripts/dev/engines.ts:32-44` + `engines-ctl.ts:18-34` import `@orb/server/...` BY PACKAGE NAME —
-     `pnpm deploy` output contains the server's deps but not `@orb/server` itself. Fix: the gpu image
-     adds `node_modules/@orb/server -> ../../packages/server` (one symlink; the package's exports map
-     `"./*": "./src/*/index.ts"` then resolves both scripts).
-   - `build-argv.ts:152-153` references `scripts/dev/qwen3_vl_{embedding,reranker}_serve.jinja` relative
-     to repoRoot — the gpu image must carry the two templates (plus `engines.sh/engines.ts/
-     engines-ctl.ts/vllm-setup.sh`; the rest of `scripts/dev` stays out).
-   - Related env arrangement (no code change): `engines.sh:79` checks the venv at
+   - `tooling/src/stack/engines.sh:33` hardcodes `TSX="$REPO/node_modules/.bin/tsx"` — tsx is a ROOT
+     devDependency, absent from a pruned prod `node_modules`. Fix (in-lane, dev-behavior-identical):
+     fall back to `node` when the tsx binary is absent (node 26 runs `.ts` source; the same mechanism
+     the server itself uses).
+   - `tooling/src/stack/ops/engines.ts:28-40` + `ops/engines-ctl.ts:17-33` import `@orb/server/...` BY
+     PACKAGE NAME — `pnpm deploy` output contains the server's deps but not `@orb/server` itself. Fix:
+     the gpu image adds `node_modules/@orb/server -> ../../packages/server` (one symlink; the package's
+     exports map `"./*": "./src/*/index.ts"` then resolves both).
+   - `build-argv.ts:167-168` references `scripts/dev/qwen3_vl_{embedding,reranker}_serve.jinja` relative
+     to repoRoot — the two templates are server RUNTIME data and deliberately stayed in `scripts/dev/`
+     when the tool fleet moved (#393 P5), so the gpu image must carry them from there, plus the stack
+     tool's `engines.sh`/`ops/engines.ts`/`ops/engines-ctl.ts` from `tooling/src/stack/` and
+     `scripts/dev/vllm-setup.sh`; the rest of both trees stays out.
+   - Related env arrangement (no code change): `tooling/src/stack/engines.sh:41,82` checks the venv at
      `$VLLM_STORE_ROOT/.cache/vllm/venv` and IGNORES `VLLM_BIN` — so the image bakes the venv exactly
      there (`VLLM_STORE_ROOT=/opt/vllm-store`) and relocates the model/compile caches onto the volume
      via explicit `HF_HOME=/models/hf` + `VLLM_CACHE_ROOT=/models/vllm-cache`, keeping the baked venv
@@ -141,7 +144,7 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
 | `internalBackendHostPorts` keys off the host | `infra/network/egress.ts:81-83` | `tests/server/infra/network/egress.int.test.ts` — new describe: relocated host `127.0.0.2` ⇒ `127.0.0.2:8701` passes, `127.0.0.2:9998` blocked, `127.0.0.1:8701` blocked (the set READS env, never accumulates). Red on old source (first arm SSRF\_BLOCKED). |
 | `effectiveVllmDisabled(posture, gpuPresent)` | `foundation/env/posture.ts` (new pure fn) + `entry/lifecycle.ts:201-203` uses it | `tests/server/foundation/env/posture.test.ts` — 6-row truth table; red via a cp-scratch of posture.ts carrying the OLD formula (`!(registers && gpu)`) — the `adopt-only × no-GPU` row flips. |
 | Supervisor idle-gate manages-scoped | `infra/providers/vllm/engine/supervisor.ts:291` | `tests/server/infra/providers/vllm/engine/supervisor.test.ts` — harness gains a `gpuAbsent` switch on the existing `execFileSync` mock; adopt-only × no-GPU must NOT idle (statuses probe-driven), manager × no-GPU still idles. Red on old source (adopt-only arm reads "no GPU on this host"). |
-| `engines.sh` tsx→node fallback | `scripts/dev/engines.sh:33` | dev tooling (constitution's KISS carve-out); shellcheck + unchanged-dev-path reasoning; no vitest suite exists for the shim |
+| `engines.sh` tsx→node fallback | `tooling/src/stack/engines.sh:33` | dev tooling (constitution's KISS carve-out); shellcheck + unchanged-dev-path reasoning; no vitest suite exists for the shim |
 
 Shared-value sweep: `VLLM_ENGINE_HOST` has zero pre-existing test references; the default keeps every
 `127.0.0.1` assertion true — proven by running the WHOLE engine suite dir + the egress/env/posture/
@@ -179,7 +182,7 @@ lifecycle suites cold, plus a repo-wide grep of `127.0.0.1:87` / `no GPU on this
 HOST**: real `pnpm deploy --legacy --prod` output + client dist assembled into the §1.4 layout in
 scratch, `NODE_ENV=production` boot on a free port, `/healthz` 200, SIGTERM clean drain — proving the
 pruned node\_modules + workspace-shaped sources + migrations + SPA serve + node-26-runs-TS end to end
-(spec A4/Fork E), and `node scripts/dev/engines-ctl.ts status` under the same layout proving the
+(spec A4/Fork E), and `node tooling/src/stack/ops/engines-ctl.ts status` under the same layout proving the
 `@orb/*` symlinks + node-runs-scripts arm (it read the live fleet + both GPUs correctly).
 
 **NOT verifiable here (owner's sequenced live step):** the actual `docker build` of both targets (GPU

@@ -300,6 +300,13 @@ function trimPathToken(raw: string): string {
   return base.replace(TRIM_CROSSREF_RE, "");
 }
 
+/** A workspace package's tree root. Every `@orb/*` package lives at `packages/<pkg>` EXCEPT `@orb/tooling`,
+ *  which is the root `tooling/` tree ABOVE the cake (pnpm-workspace.yaml carries it as a second entry) —
+ *  hard-coding `packages/` here made every core-doc mention of `@orb/tooling` read as a phantom path. */
+function pkgRoot(pkg: string): string {
+  return pkg === "tooling" ? "tooling" : `packages/${pkg}`;
+}
+
 /** Resolve the shorthand prefix to its real repo-relative home (§6 arm 1's resolver, kept total). */
 function shorthandTarget(ref: string): string | undefined {
   if (ref.startsWith("packages/") || ref.startsWith("docs/") || ref.startsWith("scripts/") || ref.startsWith("tests/")) {
@@ -315,9 +322,9 @@ function shorthandTarget(ref: string): string | undefined {
     const rest = ref.slice("@orb/".length); // "<pkg>" or "<pkg>/<mod...>"
     const slash = rest.indexOf("/");
     if (slash === -1) {
-      return `packages/${rest}`;
+      return pkgRoot(rest);
     }
-    return `packages/${rest.slice(0, slash)}/src/${rest.slice(slash + 1)}`;
+    return `${pkgRoot(rest.slice(0, slash))}/src/${rest.slice(slash + 1)}`;
   }
   // biome-ignore lint/complexity/noUselessReturn: false positive — sibling branches return a value, so tsconfig's noImplicitReturns needs this fallthrough to explicitly return too (TS7030 without it)
   return;
@@ -359,7 +366,7 @@ function basenameIndex(root: string, pkg: string): Set<string> {
     return cached;
   }
   const out = new Set<string>();
-  walkBasenames(join(root, "packages", pkg, "src"), out);
+  walkBasenames(join(root, pkgRoot(pkg), "src"), out);
   basenameIndexCache.set(key, out);
   return out;
 }
@@ -377,7 +384,8 @@ function orbPkgModExists(root: string, target: string, pkg: string, mod: string)
 const ARM3_MSG = (ref: string): string =>
   `backticked path \`${ref}\` in a core doc resolves to no file/dir on disk (shorthand: domain·entry·infra·` +
   "transport·foundation → packages/server/src/…; kit/<x> → packages/kit/src/<x>; @orb/<pkg>/<mod> → " +
-  "packages/<pkg>/src/<mod>). A phantom path is drift the amnesiac reader can't tell from a real home — " +
+  "packages/<pkg>/src/<mod>, and @orb/tooling/<mod> → tooling/src/<mod>). A phantom path is drift the " +
+  "amnesiac reader can't tell from a real home — " +
   "repoint it or delete the mention.";
 
 /** Mask `~~struck~~` spans (same length, blanked) so backticks purely inside deliberately-struck prose never
@@ -410,11 +418,11 @@ function shorthandExists(root: string, ref: string): boolean {
     const rest = ref.slice("@orb/".length);
     const slash = rest.indexOf("/");
     if (slash === -1) {
-      return pathExists(root, `packages/${rest}`);
+      return pathExists(root, pkgRoot(rest));
     }
     const pkg = rest.slice(0, slash);
     const mod = rest.slice(slash + 1);
-    return orbPkgModExists(root, `packages/${pkg}/src/${mod}`, pkg, mod);
+    return orbPkgModExists(root, `${pkgRoot(pkg)}/src/${mod}`, pkg, mod);
   }
   // `kit/<x>` is ambiguous prose shorthand: the top-level `@orb/kit` package AND server's own internal
   // `infra`-adjacent `kit/` subdirectory (`packages/server/src/kit/<x>`) both exist on the tree — try both.
@@ -764,6 +772,15 @@ export const gate: GateDescriptor = {
         "packages/kit/src/__g_ok/index.ts": "export const y = 1;\n",
       },
       why: "arm 3: domain/ and @orb/kit/ shorthands whose resolved targets are planted — both resolve, no false flag",
+    },
+    {
+      // SELF-CONTAINED: `@orb/tooling` is the ONE package NOT under packages/ — it is the root `tooling/`
+      // tree above the cake. A `packages/`-hard-coded resolver read every core-doc mention as a phantom.
+      files: {
+        "docs/architecture/core/__probe3b.md": "---\nkind: law\n---\n\nSee `@orb/tooling` and `@orb/tooling/__g_ok`.\n",
+        "tooling/src/__g_ok/index.ts": "export const z = 1;\n",
+      },
+      why: "arm 3: the @orb/tooling shorthand resolves against the ROOT tooling/ tree, not packages/tooling — no false flag",
     },
     {
       // SELF-CONTAINED: the const the doc cites is planted as a real declaration in the shared workspace.

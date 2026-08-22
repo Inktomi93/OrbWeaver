@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-19
+updated: 2026-08-22
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -54,7 +54,8 @@ updated: 2026-08-19
 | **identity / auth / sessions / agents** | `Spine-Identity-and-Auth.md` + ledger D17/D18/D40/D60/D65 → route the work to `security-executor` |
 | **providers / backends / a new model source** | `Tier-3b-Providers.md` + the `domain/connection` code + D31/D39/D67 |
 | **db schema / a migration** | `Tier-1-DB.md` + D15/D20/D23/D24/D28 |
-| **a gate / an enforcement change** | `Core-Enforcement-Active-Gates.md` + `Core-0` §7 |
+| **a gate / an enforcement change** | `Core-Enforcement-Active-Gates.md` + `Core-0` §7 → `../../../tooling/src/verify/gates/GATE-AUTHORING.md` IN FULL |
+| **a tool / an instrument** (anything under `tooling/`) | `Core-0` §9 → `../../design/tooling-package.md` (§2 shape · §4 gates · §9 move playbook) → the tool's own file headers |
 | **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the owning Project issue and linked program doc |
 | **a `@orb/ui` primitive** | `ui-package-design.md` + `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | **types / unions / dispatch** | `Spine-TypeScript-and-Patterns.md` |
@@ -284,6 +285,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | Topic | Home |
 | - | - |
 | package cake · server tiers · 8-slot feature template · partitioning table · the 13 legibility gates | `Core-0-Architecture-and-Structure.md` |
+| the tooling tree (`@orb/tooling` ABOVE the cake · five-slot tool template · `_shared` plumbing floor · the five tooling gates + cruiser stanzas · `scripts/` as the research zone) | `Core-0-Architecture-and-Structure.md` §9 → the program design `../../design/tooling-package.md` · `../../../scripts/README.md` |
 | the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
 | build phases · checkpoints · stack + version pins | Project 1 (current work) · `../history/Core-BUILD-PLAN.md` (frozen phase archaeology) · the pnpm catalog (version pins) |
 | build cursor / status | `Core-STATUS.md` |
