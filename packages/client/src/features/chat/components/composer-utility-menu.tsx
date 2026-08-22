@@ -28,6 +28,9 @@ import { REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
+// The picker's file-type filter is DERIVED from the shared attach vocabulary (#376) — the drop and paste
+// gestures gate on the same tuple, so the dialog filter and the runtime gate cannot drift.
+import { ATTACH_MEDIA_ACCEPT } from "../lib/attach-media.ts";
 
 /** The image controls re-homed into the ✨ utility menu (owner) — attach + generate-from-text. Owned by the
  *  composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders them. Homed
@@ -269,11 +272,6 @@ function PlotSteersSubmenu({ onSteer }: { readonly onSteer: (kind: GuidedGameSte
     </MenuSubmenuRoot>
   );
 }
-
-// The picker's file-type filter (#317): every image family plus the two video containers the upload
-// boundary's magic sniff verifies (`domain/assets/substrate/mime.ts` — mp4's ftyp box, webm's EBML header).
-// Animated gif rides `image/*` and is classified video-for-the-model at the server resolve seam.
-const ATTACH_MEDIA_ACCEPT = "image/*,video/mp4,video/webm";
 
 // Attach images & video — the sanctioned FileDropzone picker (a raw file input is gate-banned in features).
 // The input is kept OUT of the menuitem's accessible-name subtree (P1-C): it renders hidden (aria-hidden +
