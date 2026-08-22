@@ -59,6 +59,10 @@ Sessions:
   --contexts <N>          isolated fixture users (no watch/baseline/diff)
   --as <handle>           one named fixture user
   --isolated | --dirty    warm isolated stage from HEAD or working tree
+  --stage-status          what holds the stage band, how long since it was used
+  --stage-down [--force]  tear down the active stage; --force is required for a LIVE stage owned by
+                          another checkout (it kills that checkout's run — measured, #447)
+  --stage-sweep           reap a stage nothing has used past the idle TTL + prune orphan dirs
   --scenario <json>       sequential checkpoints in one browser lifetime
   --matrix                desktop/mobile × light/dark × motion/reduced motion
 
@@ -215,7 +219,9 @@ function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPa
     [args.contexts > 1 && args.as !== null, "--as cannot be combined with --contexts greater than 1"],
     [contextsMode && args.isolated, "--contexts/--as use the fixture stack and cannot be combined with --isolated/--dirty/--ref"],
     [contextsMode && (args.watchMs > 0 || args.baseline || args.diff), "--contexts/--as do not support --watch, --baseline, or --diff"],
-    [args.stageDown && args.stageStatus, "--stage-down and --stage-status are mutually exclusive"],
+    // The three stage-admin modes each print and exit; two of them in one argv is an ambiguous ask, not a
+    // sequence, and silently honouring the first would hide the half the caller also meant.
+    [[args.stageDown, args.stageStatus, args.stageSweep].filter(Boolean).length > 1, "--stage-down, --stage-status and --stage-sweep are mutually exclusive"],
     [
       args.matrix && (args.pages > 1 || contextsMode || args.watchMs > 0 || args.baseline || args.diff),
       "--matrix does not combine with --pages/--contexts/--as/--watch/--baseline/--diff",
@@ -326,6 +332,8 @@ export function parseSnapArgs(argv: string[]): Args {
     dirty: false,
     stageDown: false,
     stageStatus: false,
+    stageSweep: false,
+    force: false,
   };
   const rest = [...argv];
   while (rest.length > 0) {

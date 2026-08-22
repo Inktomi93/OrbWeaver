@@ -19,12 +19,15 @@
 //
 // THE COLD-BOOT LONG FRAME IS NOT THIS COMPONENT'S — ACCEPTED WITH A MEASUREMENT (#429, 2026-08-22).
 // The dev console accuses the splash on every cold load (`[frame] long frame 139-172ms · blocking
-// 89-122ms @ main.tsx`, `[reflow] style/layout ran inside that frame`, `[drop] …ms rendered frame
-// mid-animation · svg[aria-label=Orbweaver] · [data-slot=weave-veil]`). Three channels, ONE frame,
+// 89-122ms @ main.tsx`, `[drop] …ms rendered frame
+// mid-animation · svg[aria-label=Orbweaver] · [data-slot=weave-veil]`). Two channels, ONE frame,
 // and the veil is its victim, not its cause. Measured on the live dev stack, cold context per run:
 //   • The frame is the BOOT ENTRY MODULE SCRIPT evaluating — LoAF `invokerType: "module-script"`,
 //     invoker `/src/main.tsx`, 139-166ms of the 144-172ms frame. Its per-script
-//     `forcedStyleAndLayoutDuration` is **0** in every sample: nothing in it reads layout.
+//     `forcedStyleAndLayoutDuration` is **0** in every sample: nothing in it reads layout. (A third
+//     channel, `[reflow] style/layout ran inside that frame`, used to ride along on that same frame —
+//     it was the #432 false positive, firing on `styleAndLayoutStart > 0` against the very zero this
+//     line measures. Fixed at the source; the trio is a pair.)
 //   • THIS VEIL DOES NOT EXIST YET WHEN IT RUNS. Polled at 50ms: the long frame spans t≈490-682ms and
 //     `[data-slot="weave-veil"]` first appears at t≈693ms — after React's first commit, which is the
 //     frame's own tail. A component that has not mounted cannot have dropped the frame.

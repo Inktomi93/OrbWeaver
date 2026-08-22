@@ -9,7 +9,7 @@ import { print, routeSlug } from "../../_shared/artifacts.ts";
 import { buildUrl } from "../../_shared/browser.ts";
 import type { Args } from "../contract/types.ts";
 import { ensureStage } from "./stage.ts";
-import { stageStatus, teardownStage } from "./stage-status.ts";
+import { stageStatus, sweepStages, teardownStage } from "./stage-status.ts";
 
 // --file: resolve the (possibly relative) path to an absolute one + its file:// URL + the default artifact
 // slug (the file's basename, so `--file …/config-rail/workspace.html` writes reports/snaps/workspace.png).
@@ -70,7 +70,11 @@ export function configureStage(opts: Args): number | null {
     return 0;
   }
   if (opts.stageDown) {
-    print(`[snap-stage] ${teardownStage()}`);
+    print(`[snap-stage] ${teardownStage(opts.force)}`);
+    return 0;
+  }
+  if (opts.stageSweep) {
+    print(`[snap-stage] ${sweepStages()}`);
     return 0;
   }
   if (opts.isolated) {

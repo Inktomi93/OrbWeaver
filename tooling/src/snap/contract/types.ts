@@ -230,6 +230,14 @@ export interface Args {
   /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the
    *  engines:status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
   stageStatus: boolean;
+  /** Reap a STRANDED stage (a stage-rooted band process nothing has used inside the idle TTL) and prune
+   *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left
+   *  standing; use --stage-down to tear down one you know you are finished with. Ignores the route. */
+  stageSweep: boolean;
+  /** Consent for --stage-down to tear down a stage owned by ANOTHER checkout while its band is still
+   *  bound (#447 follow-on) — the #108 cross-checkout teardown is unchanged, it just says so out loud
+   *  now. No effect on your own stage, an idle one, or a dead one. */
+  force: boolean;
 }
 
 export interface CaptureOutcome {

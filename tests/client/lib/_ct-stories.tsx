@@ -29,7 +29,7 @@ import { installAppReadySignal } from "../../../packages/client/src/lib/agent-br
 import { __resetBootReads, setBootReadPending } from "../../../packages/client/src/lib/boot-reads.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
-import { installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
+import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
 import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
 import { motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
 import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS } from "../../../packages/client/src/lib/motion-flaggers.ts";
@@ -706,8 +706,12 @@ const REFLOW_WIDTH_SPREAD_PX = 40;
  *  installs are now required for either channel to say anything, and that new coupling is exactly what this
  *  stage exists to catch (MotionFlaggersSlowInputStory installs the tracer ALONE and can only ever exercise
  *  `[input]`). It also publishes the motion snapshot, so one test can prove the shared LoAF ring RECEIVED
- *  the frame it is judging. Two plants: a pure blocking script, and the same block interleaved with
- *  write→read style thrash so the frame additionally runs style/layout (`styleAndLayoutStart` > 0). */
+ *  the frame it is judging. THREE plants, because `[reflow]` is a two-armed claim: a pure blocking script;
+ *  the same block interleaved with write→read style thrash so a script FORCES synchronous layout
+ *  (`forcedStyleAndLayoutDuration` > 0); and — the negative arm — a style WRITE with no read back, which
+ *  makes the frame run style/layout at its end (`styleAndLayoutStart` > 0) while no script forced
+ *  anything. That third shape is what every ordinary rendering frame looks like, and it is what the
+ *  `styleAndLayoutStart`-gated `[reflow]` line mis-accused (#432). */
 export function MotionFrameReflowStory(): ReactElement {
   const thrashRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -746,6 +750,35 @@ export function MotionFrameReflowStory(): ReactElement {
         }}
       >
         plant forced reflow
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          const target = thrashRef.current;
+          if (target === null) {
+            return;
+          }
+          // A style WRITE and NOTHING read back: the browser runs style/layout for this frame at its end
+          // (so `styleAndLayoutStart` > 0), but no script forced a synchronous layout, so every script's
+          // `forcedStyleAndLayoutDuration` stays 0. The block is what makes the frame long enough to be
+          // published at all — the frame is otherwise an ordinary render.
+          target.style.width = `${REFLOW_WIDTH_BASE_PX + REFLOW_WIDTH_SPREAD_PX}px`;
+          blockMainThread(LONG_FRAME_PLANT_MS);
+        }}
+      >
+        plant render frame
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          // BOTH floors: motion-stats owns the ring + the publish floor, the tracer owns its own console
+          // floor on top. The negative arm needs a checkpoint so a mount-time frame cannot answer for the
+          // frame the test plants.
+          __resetMotionStats();
+          __resetLongTaskEvidence();
+        }}
+      >
+        reset frame evidence
       </button>
       <div ref={thrashRef} data-testid="reflow-target" style={{ width: REFLOW_WIDTH_BASE_PX }}>
         reflow target

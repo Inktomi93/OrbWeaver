@@ -13,6 +13,7 @@ import { parseViewport, splitFirstEq, splitLastEq } from "../../_shared/argv.ts"
 import { DEFAULT_BASE } from "../../_shared/browser.ts";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "../../_shared/theme.ts";
 import type { Args, NavAction, PagedExpr, Step } from "../contract/types.ts";
+import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
 
 export const MS_PER_SECOND = 1000;
 
@@ -353,27 +354,9 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--map": (a, rest, page) => {
     mapFlag(a, rest, page);
   },
-  "--isolated": (a) => {
-    a.isolated = true;
-  },
-  "--ref": (a, rest) => {
-    a.ref = rest.shift() ?? null;
-    a.isolated = true;
-  },
-  "--fresh": (a) => {
-    a.fresh = true;
-    a.isolated = true;
-  },
-  "--dirty": (a) => {
-    a.dirty = true;
-    a.isolated = true;
-  },
-  "--stage-down": (a) => {
-    a.stageDown = true;
-  },
-  "--stage-status": (a) => {
-    a.stageStatus = true;
-  },
+  // The isolated-stage family lives in its own module (ops/flags-stage.ts) — seven flags about the same
+  // subsystem, split out when this table crossed the tooling line cap.
+  ...STAGE_FLAG_HANDLERS,
 };
 
 export const REQUIRED_VALUE_FLAGS = new Set([

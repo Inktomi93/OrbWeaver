@@ -85,8 +85,10 @@ Prefixed, low-noise, IS\_DEV-gated — read via `preview_console_logs` or a cons
   dedupes per offender, so a repeating defect prints once. The pull half is `__orb.flags()`; budgets
   live in ONE table, `MOTION_BUDGETS` (`motion-flaggers.ts`), which the CTs assert against.
   - **`[frame]`** / **`[reflow]`** / **`[input]`** (`long-task-tracer.ts`) — a frame over 100ms with its
-    costliest script; whether that frame also ran style/layout (the forced-reflow diagnosis); an
-    interaction over 200ms with its target element.
+    costliest script; a script in that frame that BLOCKED on synchronous style/layout, with the forced
+    cost and the forcing script (per-script `forcedStyleAndLayoutDuration` — not the frame-level
+    `styleAndLayoutStart`, which is >0 on every rendering frame, #432); an interaction over 200ms with
+    its target element.
   - **`[anim]`** (`motion-flaggers.ts`) — an animation/transition animating a NON-compositor property,
     caught at start (`__orb.animations()` samples, so it cannot see a finished 130ms transition).
   - **`[drop]`** — a rendered frame over 50ms *while something is animating* (a stutter a user can feel).
