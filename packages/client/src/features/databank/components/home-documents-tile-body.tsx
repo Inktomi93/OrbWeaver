@@ -230,7 +230,24 @@ export function HomeDocumentsTileBody(): ReactElement {
  *  same cache entry the band header and the tile's own health line read, non-suspensefully (no new key, no
  *  second fetch, no boundary of its own — home renders the action in the tile FRAME, outside the body's
  *  QueryBoundary) — and stays visible while that read is in flight: the steady state is a bank with
- *  documents in it, and flashing the link out and back in would be its own defect. */
+ *  documents in it, and flashing the link out and back in would be its own defect.
+ *
+ *  THAT RULING SURVIVES AND IS NOW PRICED (#465, measured 2026-08-22 on the live stack at 1280x800).
+ *  On the EMPTY-bank arm the assume-populated pending state is a layout shift: when `bankHealth` lands
+ *  `total === 0` the band loses this button, so the whole `databank.documents` region moves 0px,-10px
+ *  (the `h2` 806,738 → 806,728) and the band's flex-1 `Separator` re-lays out into the vacated span
+ *  (0,0,0,0 → 875,735,373,1), for a layout-shift value of **0.00034** — reproducible on EVERY boot,
+ *  including boots 2-4 with the home box memory present. It was mis-diagnosed as an appearance/type-ramp
+ *  reflow landing after `settings.getUserSettings` (#465's premise); it is neither. Three appearance arms
+ *  (`--appearance chatWidthPct 60|100`, `density compact + fontScale 1.25`) leave this entry BYTE-identical
+ *  while the real appearance reflow appears as a separate 0.2623 shift after it, so no
+ *  `appearanceSettingsSchema` key and no boot-hint coverage gap is involved here.
+ *
+ *  NOT FIXED, deliberately: while the census is unknown the row can either reserve this control (a shift
+ *  on the empty arm, what we pay) or not (a shift on the POPULATED arm, i.e. the steady state, which the
+ *  ruling above refuses). There is no third arm — a hidden placeholder still collapses on the empty arm —
+ *  and the cost sits an order of magnitude under the flagger's own 0.002 reporting floor
+ *  (`lib/motion-stats.ts` MIN_REPORTED_SHIFT), which is why it never appeared in a `[cls]` console line. */
 export function HomeDocumentsTileAction(): ReactElement | null {
   const trpc = useTRPC();
   const { data: census } = useQuery(trpc.databank.bankHealth.queryOptions());
