@@ -37,8 +37,9 @@ function modelProjectionSeeds(project: Project): { readonly names: Set<string>; 
   return { names, registries };
 }
 
-/** `projectJsonSchema(forgeDesignEnvelopeSchema)` seeds a NAME; `projectJsonSchema(REFINERY_STAGE_PAYLOADS
- *  .score)` seeds the REGISTRY, expanded one level by {@link modelProjectedSchemas}. */
+/** `projectJsonSchema(forgeDesignEnvelopeSchema)` seeds a NAME;
+ *  `projectJsonSchema(REFINERY_STAGE_PAYLOADS.score)` seeds the REGISTRY, expanded one level by
+ *  {@link modelProjectedSchemas}. */
 function projectionCallSeeds(sf: SourceFile, names: Set<string>, registries: Set<string>): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     if (!MODEL_PROJECTION_CALLEES.has(calleeName(call.getExpression()))) {

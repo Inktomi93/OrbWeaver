@@ -150,8 +150,9 @@ function contractCountViolations(doc: string, activeCount: number): Violation[] 
 
 /** The count has ONE home. A SECOND copy of it in another core law doc is ungated by construction (this
  *  gate reads exactly one file), and `client-architecture-lockdown.md` carried "133 registered gates" for a
- *  month past the real 207 — a law doc lying about the enforcement inventory. Any other `docs/architecture/
- *  core/*.md` stating a NUMBER of registered gates is RED: cite the doc, never restate the figure. */
+ *  month past the real 207 — a law doc lying about the enforcement inventory. Any other
+ *  `docs/architecture/core/*.md` stating a NUMBER of registered gates is RED: cite the doc, never
+ *  restate the figure. */
 function secondCountHomeViolations(root: string): Violation[] {
   const dir = join(root, CORE_DOCS_REL);
   if (!existsSync(dir)) {

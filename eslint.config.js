@@ -134,11 +134,37 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // syntactic and structurally cannot see any of these. All live violations were fixed in the landing lane;
 // nothing here is suppressed or allowlisted.
 //
-// THREE MEASURED RULES ARE NOT ON THIS SURFACE YET — tsdoc/syntax (110), strict-boolean-expressions (61),
-// no-unnecessary-condition (41). They are REAL findings, not false positives, and they are tracked as a
-// sweep at issue #472: the fix wave is behaviour-touching (nullable-conditional rewrites) or 110 comment
-// edits, so it lands as its own lane rather than riding this one. This is a tracked population, NOT a
-// ruling that the rules do not belong here — turn them on with that sweep.
+// THE THREE DEFERRED RULES ARE BEING LANDED BY THE #472 SWEEP, one family per commit. They were REAL
+// findings, never false positives — the deferral was about the fix wave's shape (behaviour-touching
+// nullable-conditional rewrites; 111 comment edits), not about whether the rules belong here.
+//   tsdoc/syntax — LANDED. Re-measured 111 on the current tree (the survey said 110); all 111 fixed and
+//     the rule is ON below for tooling/src + tests/tooling. Every finding was in tooling/src; tests/tooling
+//     measured 0, and the rule is on there anyway so the zero cannot rot. Four classes, no suppressions:
+//     a bare `@orb/…` package name in prose (→ a code span, the packages/**  house spelling), an unescaped
+//     `<`/`>`/`{`/`}` that TSDoc reads as an HTML tag or an inline-tag opener (→ a code span, or `\>` where
+//     the text is a genuine comparison), a code span WRAPPED across two comment lines (TSDoc code spans are
+//     single-line — reflowed, never truncated), and a markdown ``…`` double-backtick span (TSDoc has no
+//     such form and no in-span escape — rewritten as backslash-escaped prose).
+//   no-unnecessary-condition — LANDED, all 41 fixed, ON below for tooling/src + tests/tooling. Two
+//     classes, and telling them apart was the whole job. (a) A GENUINELY dead check: ts-morph's
+//     `getParent()`/`getExpression()`/`getDeclarations()` are non-optional on the node types these
+//     call sites hold, a `matchAll` match always carries `.index`, and `exec` returns `null` and never
+//     `undefined` — those guards are deleted. (b) A check the rule called dead because THE TYPE LIED,
+//     which is a type-modelling defect and NOT a delete: node types `spawnSync`'s stdout/stderr as
+//     `string` though a spawn that never starts returns null (the two int-test helpers now annotate
+//     `SpawnSyncReturns<string | null>`), `process.stdout.columns` is typed non-optional but only
+//     exists on a tty, and `MeterWindow.__perfMeter` was non-optional even though #409 exists BECAUSE
+//     the in-page meter can be absent. Those seams were re-typed and every guard kept.
+//   strict-boolean-expressions — LANDED. 61 at the survey, 59 after the no-unnecessary-condition pass
+//     removed two of them; all 59 fixed, ON below for tooling/src + tests/tooling. This is the
+//     behaviour-adjacent family, so every rewrite names the ARM the site wants: an optional `boolean`
+//     flag wants "explicitly true" (`=== true`), a `x?.pred()` guard wants "present AND true"
+//     (`x !== undefined && x.pred()` — spelled out so the ts-morph type predicate still narrows), and
+//     an optional STRING used as a presence switch wants "present AND non-empty" (`""` stays falsey —
+//     a mechanical `!== undefined` there would have been a defect: an empty `--mask ""` would start
+//     pushing an empty selector, and a blank plan note would render an empty pair of parens). The 17
+//     copies of that last shape in `codemod/lib` collapsed into one `noteSuffix()` in `lib/plans.ts`.
+//   THE WAVE IS COMPLETE — all three rules are on and there is no deferred tooling population left.
 //
 // Scope note: the react/tailwind/query/router blocks above stay off tooling by construction (node-context
 // tools render nothing). What tooling gets is the ASYNC-SAFETY + dispatch + deprecation set — exactly the
@@ -370,12 +396,40 @@ export default tseslint.config(
     },
   },
   {
+    // #472 family 2, TOOLING ONLY — not the whole SAFETY_SURFACE. A condition the type system says can
+    // never flip is either a dead guard or a LIE in the type, and on a tool tree that walks ASTs and
+    // spawns processes it is regularly the second (the SAFETY_SURFACE header names the three seams it
+    // caught that way). Measured 41 here, all fixed, none suppressed. The #473 dirs (tests/server &
+    // co, 1,276 files) were NEVER surveyed for this rule, so they stay outside until someone measures
+    // them — turning it on there sight-unseen is how a rule lands with a suppression wave attached.
+    files: [TOOLING_SRC, TOOLING_TESTS],
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      // #472 family 3. JS truthiness collapses "absent" and "empty"/"zero" into one arm, which on this
+      // tree is regularly NOT what the site means — the rewrites had to state the arm each time (see
+      // the SAFETY_SURFACE header). Measured 59 at the landing, all fixed, none suppressed. Same
+      // tooling-only scope and the same reason: the #473 dirs were never surveyed for it.
+      "@typescript-eslint/strict-boolean-expressions": "error",
+    },
+  },
+  {
     // require-await is TOOL-SOURCE ONLY, never `tests/**` — the 26/26 test-double triage in the
     // SAFETY_SURFACE header. Here it keeps its real meaning: a tool function declared `async` with
     // nothing to await is a mis-signaled sync function, and a caller may skip awaiting it.
     files: [TOOLING_SRC],
     plugins: { "@typescript-eslint": tseslint.plugin },
     rules: { "@typescript-eslint/require-await": "error" },
+  },
+  {
+    // The Documentation-Law doc-comment gate over the tooling surface (#472, the first family of the
+    // deferred wave — see the SAFETY_SURFACE header for the four fix classes). Same rule the typed-API
+    // packages carry above: tooling's file headers ARE its per-domain law (the per-domain prose was
+    // gutted), so a malformed doc comment there is exactly as load-bearing as one in `packages/server`.
+    // Purely syntactic (the TSDoc parser), so it needs no program — but these files have one anyway.
+    files: [TOOLING_SRC, TOOLING_TESTS],
+    plugins: { tsdoc },
+    rules: { "tsdoc/syntax": "error" },
   },
   {
     // react-hooks: rules-of-hooks + React Compiler diagnostics. The full recommended set IS what we

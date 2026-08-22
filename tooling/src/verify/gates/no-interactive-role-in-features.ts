@@ -11,7 +11,7 @@ import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
-/** ARIA roles that mint an INTERACTIVE widget — a feature must reach for the matching @orb/ui primitive,
+/** ARIA roles that mint an INTERACTIVE widget — a feature must reach for the matching `@orb/ui` primitive,
  *  never hand-roll one of these on a div/layout component. Structural + live-region roles are absent by
  *  design (they describe document structure, not a widget the kit shouldn't be forging). */
 const WIDGET_ROLES: ReadonlySet<string> = new Set([

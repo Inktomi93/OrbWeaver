@@ -99,8 +99,8 @@ function terminalUtility(token: string): string {
   return (segments.at(-1) ?? token).replace(IMPORTANT_RE, "");
 }
 
-/** Strip a literal's delimiters: StringLiteral is `"text"`, NoSubstitutionTemplateLiteral is `` `text` ``,
- *  TemplateHead is `` `text${ ``, TemplateMiddle is `` }text${ ``, TemplateTail is `` }text` `` — one char
+/** Strip a literal's delimiters: StringLiteral is `"text"`, NoSubstitutionTemplateLiteral is \`text\`,
+ *  TemplateHead is \`text$\{, TemplateMiddle is \}text$\{, TemplateTail is \}text\` — one char
  *  off each end in every case. */
 function stripDelimiters(text: string): string {
   return text.slice(1, -1);

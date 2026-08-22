@@ -249,7 +249,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--mask": (a, rest) => {
     const sel = rest.shift();
-    if (sel) {
+    if (sel !== undefined && sel !== "") {
       a.mask.push(sel);
     }
   },
@@ -318,13 +318,13 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--eval": (a, rest, page) => {
     const expr = rest.shift();
-    if (expr) {
+    if (expr !== undefined && expr !== "") {
       pushEval(a, { expr, page });
     }
   },
   "--contrast": (a, rest, page) => {
     const sel = rest.shift();
-    if (sel) {
+    if (sel !== undefined && sel !== "") {
       a.contrast.push({ selector: sel, page });
     }
   },

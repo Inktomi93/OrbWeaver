@@ -317,7 +317,7 @@ export interface ActionDoorInput {
   /** The accessible name as a COMPARISON KEY: case-folded, whitespace-collapsed, trailing punctuation
    *  stripped. Never empty — an unnamed control is the `aria-name` rule's finding, not this one. */
   readonly name: string;
-  /** The chain of tag@data-slot.classes signatures from this control up to `<body>`, POSITION-FREE.
+  /** The chain of `tag@data-slot.classes` signatures from this control up to `<body>`, POSITION-FREE.
    *  Two doors sharing a path are one component rendered per datum; two doors with different paths are two
    *  homes. */
   readonly path: string;

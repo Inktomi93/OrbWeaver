@@ -3,14 +3,15 @@
 
 import type { Node } from "ts-morph";
 import type { CodemodContext, OperationOptions, Plan, TextReplacement } from "../contract/types.ts";
-import { absolutePath, assert, repoRelative } from "./plans.ts";
+import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
  * THE one-true pattern for arbitrary text replacements in a single file.
  *
  * Why: `sourceFile.replaceText([s, e], txt)` invalidates every previously
- * held AST node reference. A naive `for (node of getDescendants()) node
- * .replaceWithText(...)` loop crashes on the second iteration.
+ * held AST node reference. A naive
+ * `for (node of getDescendants()) node.replaceWithText(...)` loop crashes
+ * on the second iteration.
  *
  * How: collect ALL plans up front as `{ filePath, start, end, text }`,
  * sort end-DESCENDING (so earlier offsets stay valid as we apply later
@@ -47,7 +48,7 @@ export function applyTextReplacements(ctx: CodemodContext, replacements: readonl
   }
 
   return {
-    description: `Apply ${replacements.length} text replacement(s) across ${byFile.size} file(s)${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Apply ${replacements.length} text replacement(s) across ${byFile.size} file(s)${noteSuffix(opts)}`,
     touchedFiles: [...byFile.keys()],
     transform(innerCtx): void {
       for (const [file, plans] of byFile) {

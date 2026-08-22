@@ -133,7 +133,7 @@ export interface GateDescriptor {
   readonly scanRoot?: (repoRelPath: string) => boolean;
 
   // ---- the NODE SUBSCRIPTION (per-node gates) --------------------------------
-  /** SyntaxKinds this gate wants. The loader builds Map<SyntaxKind, Gate[]> from these.
+  /** SyntaxKinds this gate wants. The loader builds `Map<SyntaxKind, Gate[]>` from these.
    *  Omit for file-level / fs-level gates. */
   readonly kinds?: readonly SyntaxKind[];
   /** The per-node check. MUST be read-only. May accumulate into module-local state consumed by `finalize`. */

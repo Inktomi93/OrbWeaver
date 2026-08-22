@@ -57,7 +57,7 @@ function reportAt(ctx: GateRunCtx, node: Node, token: string): void {
   ctx.report(node, { token, offset: 0 });
 }
 
-/** Is this ImportSpecifier a vector-table symbol imported from @orb/db? Returns the table name, else "". */
+/** Is this ImportSpecifier a vector-table symbol imported from `@orb/db`? Returns the table name, else "". */
 function vectorTableImport(node: Node): string {
   if (!node.isKind(SyntaxKind.ImportSpecifier)) {
     return "";
@@ -83,7 +83,7 @@ function vectorWrite(node: Node): string {
     return "";
   }
   const [firstArg] = node.getArguments();
-  const isTableArg = firstArg?.isKind(SyntaxKind.Identifier) && VECTOR_TABLES.has(firstArg.getText());
+  const isTableArg = firstArg !== undefined && firstArg.isKind(SyntaxKind.Identifier) && VECTOR_TABLES.has(firstArg.getText());
   return isTableArg ? `.${callee.getName()}(${firstArg.getText()})` : "";
 }
 

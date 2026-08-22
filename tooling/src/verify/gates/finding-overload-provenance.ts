@@ -129,8 +129,9 @@ function enclosingFunction(node: Node): Node | undefined {
 
 /** Is this object literal a `Finding` — or a gate-local violation RECORD that becomes one? SHAPE, not type:
  *  `file` + `line` + (`column` | `message`). Shape is what survives a record being built three functions
- *  away from `ctx.report` — the exact hop every previous sweep of this class fell through. A `{file, line,
- *  name}` bookkeeping record (gate-ignore-inventory's PendingMarker) is NOT one, hence the third clause. */
+ *  away from `ctx.report` — the exact hop every previous sweep of this class fell through. A
+ *  `{file, line, name}` bookkeeping record (gate-ignore-inventory's PendingMarker) is NOT one, hence the
+ *  third clause. */
 function isFindingLiteral(obj: Node): boolean {
   if (propOf(obj, "file") === undefined || propOf(obj, "line") === undefined) {
     return false;
@@ -250,7 +251,7 @@ function readBaseline(root: string): Readonly<Record<string, number>> {
 }
 
 /** Detected sites minus the ones a well-formed marker absolved, grouped by file — recording marker
- *  CONSUMPTION so the two-sided arms can judge each marker (0 = stale, >1 = over-exempting). */
+ *  CONSUMPTION so the two-sided arms can judge each marker (0 = stale, \>1 = over-exempting). */
 function resolveMarkers(consumed: Map<string, number>): Map<string, Site[]> {
   const byFile = new Map<string, Site[]>();
   for (const site of passSites) {

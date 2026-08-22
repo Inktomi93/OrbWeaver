@@ -242,7 +242,7 @@ function visitAlias(node: Node, ctx: GateRunCtx): void {
 /** Arm B candidates — accumulate a non-alias UnionType / a z.enum([...]) for finalize reconciliation. */
 function visitRespellCandidate(node: Node, root: string): void {
   if (Node.isUnionTypeNode(node)) {
-    if (node.getParent()?.getKind() === SyntaxKind.TypeAliasDeclaration) {
+    if (node.getParent().getKind() === SyntaxKind.TypeAliasDeclaration) {
       return; // arm A owns aliases
     }
     const members = unionStringMembers(node);

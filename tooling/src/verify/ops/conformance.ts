@@ -28,7 +28,7 @@ function defaultPathFor(gate: GateDescriptor): string {
   if (gate.scanRoot === undefined) {
     return DEFAULT_EXAMPLE_PATH;
   }
-  return EXAMPLE_PATH_CANDIDATES.find((p) => gate.scanRoot?.(p)) ?? DEFAULT_EXAMPLE_PATH;
+  return EXAMPLE_PATH_CANDIDATES.find((p) => gate.scanRoot?.(p) === true) ?? DEFAULT_EXAMPLE_PATH;
 }
 
 /** The example's (repo-relative path → source) map, resolving the single-snippet form to its `at`. */

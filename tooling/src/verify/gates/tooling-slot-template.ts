@@ -21,7 +21,7 @@ const BASH_FRONTED_TOOLS: ExemptionTable = {
   },
 };
 
-/** Tools carrying ONE extra slot dir beyond {contract,ops,lib} because their subject is a PLUGIN CORPUS
+/** Tools carrying ONE extra slot dir beyond `{contract,ops,lib}` because their subject is a PLUGIN CORPUS
  *  the tool loads rather than code the tool calls. Stale arm F reds a row whose tool or slot dir is gone.
  *  Deliberately keyed tool → slot name (never a bare "allow any extra dir"): the exemption names exactly
  *  which corpus is sanctioned, so a second stray dir under the same tool is still RED. */

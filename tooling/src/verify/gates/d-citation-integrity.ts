@@ -78,7 +78,7 @@ function danglingCitesIn(sf: SourceFile, root: string, ids: Set<number>, reserve
   const text = sf.getFullText();
   for (const m of text.matchAll(CITE_RE)) {
     const raw = m[1];
-    if (raw === undefined || m.index === undefined) {
+    if (raw === undefined) {
       continue;
     }
     const n = Number(raw);

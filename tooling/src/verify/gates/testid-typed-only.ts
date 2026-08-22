@@ -5,7 +5,7 @@ import { readStringValue } from "../lib/ast-read.ts";
 const SCOPE = /\/packages\/client\/src\//u;
 
 /** Does this `data-testid` initializer carry a FREEFORM string value — a bare `="foo"` StringLiteral, or a
- *  braced `={"foo"}` / `={"foo" as string}` / `={\`foo\`}` literal — as opposed to the typed
+ *  braced `={"foo"}` / `={"foo" as string}` / a braced template literal — as opposed to the typed
  *  `={testId("key")}` call (a non-literal expression, undefined) which is the sanctioned shape. */
 function freeformTestidValue(init: Node | undefined): boolean {
   if (init === undefined) {

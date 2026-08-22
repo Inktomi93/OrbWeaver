@@ -43,13 +43,16 @@ async function dispatchStep(run: StepRun, step: Exclude<Step, { kind: "pause" }>
     } else {
       await loc.click({ timeout: STEP_TIMEOUT_MS });
     }
-  } else if (step.kind === "hover") {
-    await loc.hover();
+  } else if (step.kind === "fill") {
+    await loc.fill(step.value);
   } else if (step.kind === "wheel") {
     await loc.hover();
     await page.mouse.wheel(0, step.dy);
-  } else if (step.kind === "fill") {
-    await loc.fill(step.value);
+  } else {
+    // `hover` is the only kind left (`pause` is Excluded from the parameter type), so a
+    // `step.kind === "hover"` test here would be a condition that cannot be false. The `hover`
+    // arm is the one that reads no kind-specific field, which is why it is the residue.
+    await loc.hover();
   }
 }
 

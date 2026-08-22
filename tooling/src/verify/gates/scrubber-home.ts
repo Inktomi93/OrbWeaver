@@ -61,7 +61,7 @@ const HOME_NOUN = "hidden-span scrubber construction home";
 const MESSAGE =
   "hidden-span stream scrubber constructed outside its producer home — per-subscription scrub state cannot survive replay→live handoffs (a cold scrubber mid-`<lie>` forwards the secret's tail; ed2aafc5); the producer stamp is the one home: domain/chat/substrate/member-visibility.ts.";
 
-/** Arm 1: an ImportSpecifier of the scrubber factory from @orb/kit/content. */
+/** Arm 1: an ImportSpecifier of the scrubber factory from `@orb/kit/content`. */
 function scrubberImport(node: Node): boolean {
   if (!node.isKind(SyntaxKind.ImportSpecifier) || node.getName() !== SCRUBBER_SYMBOL) {
     return false;

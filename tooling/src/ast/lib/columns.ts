@@ -137,8 +137,8 @@ function sqlColumnName(init: Node | undefined, jsProp: string): string {
 }
 
 /** Every `sqliteTable("<sql>", { … })` under `packages/db/src/schema/`, as the lens's TableDef. The
- *  "what does this `sqliteTable(...)` declare" READER is NOT re-spelled here — it is `tooling/src/verify/
- *  schema-read.ts`, the ONE home the db gates (`fk-columns-indexed`, `fk-ondelete-stated`,
+ *  "what does this `sqliteTable(...)` declare" READER is NOT re-spelled here — it is
+ *  `tooling/src/verify/schema-read.ts`, the ONE home the db gates (`fk-columns-indexed`, `fk-ondelete-stated`,
  *  `table-explicit-primary-key`) already read through. This function adds only what those gates have no use
  *  for and this lens cannot work without: the SQL column NAME (the migration's spelling, so a reader can
  *  grep the baseline) and the table's declaration KEY (so a writer's identifier resolves to one table
@@ -202,8 +202,8 @@ function drizzleWriteTarget(receiver: Node): Node | undefined {
   let cur: Node | undefined = receiver;
   while (cur !== undefined && target === undefined) {
     const node: Node = cur;
-    const inner: Node | undefined = Node.isCallExpression(node) ? node.getExpression() : node;
-    if (inner === undefined || !Node.isPropertyAccessExpression(inner)) {
+    const inner: Node = Node.isCallExpression(node) ? node.getExpression() : node;
+    if (!Node.isPropertyAccessExpression(inner)) {
       cur = undefined; // not a member access at all — the chain is not a drizzle write chain; stop.
       continue;
     }
@@ -318,7 +318,7 @@ function recordWriteCall(call: Node, byKey: ReadonlyMap<string, TableDef>, perCo
   }
 }
 
-/** Every raw-SQL text in the workspace, concatenated — a `sql\`…\`` tagged template's full text and a
+/** Every raw-SQL text in the workspace, concatenated — a `sql` tagged template's full text and a
  *  `sql.raw(<literal>)` argument. TABLE-AGNOSTIC by construction (see the header's blind spot 1): the blob is
  *  searched for a column's SQL NAME only, because an alias-qualified `m.character_id` cannot be mapped back to
  *  its table by any cheap pass. */

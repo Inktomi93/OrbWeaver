@@ -2,8 +2,9 @@
 // supplies a `BusCoverageSpec` and THIS is the one home for it. Homed in contract/ per the five-slot type
 // law (docs/design/tooling-package.md §2.5).
 
-/** How a bus's `*_EVENT_TYPES` belt is written: an object literal (`{ delta: true } satisfies
- *  Record<X["type"], true>`) or an array literal (`[…] as const satisfies readonly X["type"][]`). */
+/** How a bus's `*_EVENT_TYPES` belt is written: an object literal
+ *  (`{ delta: true } satisfies Record<X["type"], true>`) or an array literal
+ *  (`[…] as const satisfies readonly X["type"][]`). */
 type BusKeyShape = "object" | "array";
 
 export interface BusCoverageSpec {

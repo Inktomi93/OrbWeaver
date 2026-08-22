@@ -56,7 +56,7 @@ function rel(path: string): string {
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-/** The `Dialog` root named-import specifier node from @orb/ui/dialog, or undefined when absent. */
+/** The `Dialog` root named-import specifier node from `@orb/ui/dialog`, or undefined when absent. */
 function dialogRootImport(sf: SourceFile): Node | undefined {
   return sf
     .getImportDeclarations()

@@ -122,7 +122,7 @@ function recordUnionName(decl: { getInitializer: () => TsNode | undefined }): st
   return Node.isIndexedAccessTypeNode(el) ? el.getObjectTypeNode().getText() : undefined;
 }
 
-/** Every `X_EVENT_TYPES` const in @orb/contracts shaped `satisfies Record<Union["type"], true>` — the
+/** Every `X_EVENT_TYPES` const in `@orb/contracts` shaped `satisfies Record<Union["type"], true>` — the
  *  belt-set's producer side (bus-coverage.ts's own home). Vacuous on a synthetic tree with no contracts. */
 function findEventTypesConsts(files: readonly SourceFile[]): EventTypesConst[] {
   const found: EventTypesConst[] = [];

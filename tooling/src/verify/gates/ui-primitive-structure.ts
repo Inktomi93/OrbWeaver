@@ -225,7 +225,7 @@ function jsxElements(sf: SourceFile): { tag: string; line: number }[] {
   }));
 }
 
-/** Clause 6 — no inline <*Provider> in a .ct.tsx/.fixtures.tsx (drawer-local allowlisted). */
+/** Clause 6 — no inline `<*Provider>` in a .ct.tsx/.fixtures.tsx (drawer-local allowlisted). */
 function clauseNoInlineProvider(ctx: CheckContext): Violation[] {
   const out: Violation[] = [];
   for (const sf of ctx.project.getSourceFiles()) {

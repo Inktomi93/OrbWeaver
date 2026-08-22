@@ -30,10 +30,10 @@ function markModuleAlive(target: SourceFile, bucket: Set<string>, record: ArmRec
   }
 }
 
-/** Resolve one named-import specifier to its ORIGIN decls and mark them alive. `getExportedDeclarations()
- *  .get(<the name the CONSUMER wrote>)` follows the re-export chain — including renames — to the real
- *  declarations; those declaration nodes ARE the key the candidate side uses, so the consumer's spelling
- *  never enters the identity. */
+/** Resolve one named-import specifier to its ORIGIN decls and mark them alive.
+ *  `getExportedDeclarations().get(<the name the CONSUMER wrote>)` follows the re-export chain — including
+ *  renames — to the real declarations; those declaration nodes ARE the key the candidate side uses, so the
+ *  consumer's spelling never enters the identity. */
 function markNamedAlive(target: SourceFile, name: string, bucket: Set<string>, record: ArmRecorder): void {
   const decls = target.getExportedDeclarations().get(name);
   if (decls === undefined) {
@@ -84,8 +84,9 @@ interface ConsumptionSink {
 /** Same-file references: an export used within its own module (a component using its own `*Props`, a
  *  worker's exported-for-test helper called by the file's live loop) is NOT an orphan. Cheap identifier
  *  scan of the declaring file; the declaration's own name node is excluded by the `n > 1` count.
- *  Both spellings are scanned because a file may rename its own export (`const Inner = …; export { Inner
- *  as Outer }`): the export-map name is `Outer` while every in-file use says `Inner`. */
+ *  Both spellings are scanned because a file may rename its own export
+ *  (`const Inner = …; export { Inner as Outer }`): the export-map name is `Outer` while every in-file
+ *  use says `Inner`. */
 export function isReferencedInOwnFile(sf: SourceFile, name: string, decl: Node): boolean {
   // The declaration's OWN symbol name (a TS sentinel such as `__function` for anonymous shapes simply
   // never matches an identifier, so no special-casing is needed).
