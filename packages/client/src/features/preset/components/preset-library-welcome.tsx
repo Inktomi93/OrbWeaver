@@ -5,16 +5,13 @@
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, SlidersHorizontal } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import { useSectionListMode } from "#state";
+import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
 
 /** What this pane teaches whatever the panes are doing — the instruction, and the boundary with Connections
- *  a preset is most often confused across. */
+ *  a preset is most often confused across. The footnote appended beside it while the list is off screen is
+ *  `LIST_OFF_SCREEN_HINT` — ONE spelling for all four section welcomes, homed beside the signal (#446). */
 const TEACHING =
   "Pick a preset to edit its sampling, reasoning, output and prompt structure, or create a new one. A preset shapes generation; it doesn't pick the model (that's Connections).";
-
-/** The footnote, rendered ONLY while the LIST is off screen — so it states a FACT rather than a condition the
- *  reader has to evaluate. "Show list panel" is the shell topbar's own string, verbatim (see the header). */
-const LIST_OFF_SCREEN = " The list isn't on screen right now — Show list panel in the top bar brings it back.";
 
 /** The teaching welcome shown in Presets CONTENT when nothing is selected.
  *
@@ -51,7 +48,7 @@ export function PresetLibraryWelcome(): ReactElement {
   const listMode = useSectionListMode("presets");
   return (
     <EmptyState
-      description={listMode === "collapsed" ? `${TEACHING}${LIST_OFF_SCREEN}` : TEACHING}
+      description={listMode === "collapsed" ? `${TEACHING}${LIST_OFF_SCREEN_HINT}` : TEACHING}
       icon={<Icon icon={SlidersHorizontal} size="lg" />}
       title="Tune how the model generates"
       titleStep="focal"
