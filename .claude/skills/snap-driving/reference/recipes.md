@@ -106,7 +106,7 @@ pnpm snap / --pages 2 --open-chat@0 <id> --open-chat@1 <id> \
 
 ## Multi-user: host vs member (fixture sidecar)
 
-The fixture must already be up (`bash scripts/dev/multi-user-fixture.sh up` — operator call, snap
+The fixture must already be up (`pnpm fixture up` — operator call, snap
 never boots it). Contexts are ISOLATED (own cookies), logged in as different dev users
 (roster order: owner, member); same `@<idx>` targeting, shots suffix `-u<idx>`:
 

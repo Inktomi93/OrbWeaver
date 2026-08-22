@@ -208,9 +208,9 @@ keyboard walk**):
   host-vs-member views / presence / visibility-floors in one run. Same `@<idx>` targeting as `--pages`
   (context 0 unsuffixed); shots suffix `-u<idx>`. `--as <handle>` picks which user a single context
   (`--contexts 1`, the default) logs in as. **This ALWAYS targets the multi-user FIXTURE stack**
-  (`scripts/dev/multi-user-fixture.sh`), never the shared :5173/:8788 (always single-user, no login
-  form) — bring the fixture up yourself first: `bash scripts/dev/multi-user-fixture.sh up` (same
-  8788/5173 ports as the shared stack — stop that first if it's running; `down`/`status` manage it).
+  (`tooling/src/stack/multi-user-fixture.sh`), never the shared :5173/:8788 (always single-user, no
+  login form) — bring the fixture up yourself first: `pnpm fixture up` (a SIDECAR on its own offset
+  pair, server :8790 / vite :5175, so it coexists with the shared stack; `down`/`status` manage it).
   A `--contexts N` bigger than the fixture's seeded roster (2 today: owner, member), or the fixture
   down/env-pin-mismatched, REFUSES loudly (`FIXTURE REFUSED …`) with the exact remedy line — never a
   silent fallback to the shared stack. Full flag doc: `scripts/probes/snap.ts` header; detection/

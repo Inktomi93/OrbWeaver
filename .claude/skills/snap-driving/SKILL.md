@@ -282,7 +282,7 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
   `--base http://localhost:<vitePort>`.
 - The multi-user fixture (`--contexts N` / `--as <handle>`) is a SIDECAR on its own pair
   (server :8790 / vite :5175, roster: `owner`, `member`). snap NEVER boots it — bringing it up
-  (`bash scripts/dev/multi-user-fixture.sh up`) is an operator call, and a down/mismatched fixture
+  (`pnpm fixture up`) is an operator call, and a down/mismatched fixture
   is a loud `FIXTURE REFUSED` with the exact remedy, never a silent fallback to the shared stack.
 
 ## §9 Refusals are answers; shared-stack manners

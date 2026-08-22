@@ -36,9 +36,7 @@ export function multiUserConfig(): MultiUserConfig {
   const env = process.env;
   const baseUrl = env["SEED_BASE_URL"];
   if (baseUrl === undefined || baseUrl === "") {
-    throw new UsageError(
-      "SEED_BASE_URL is required (no default — an unset default would target the operator's live dev stack). Run via: bash scripts/dev/multi-user-fixture.sh up",
-    );
+    throw new UsageError("SEED_BASE_URL is required (no default — an unset default would target the operator's live dev stack). Run via: pnpm fixture up");
   }
   return {
     baseUrl,

@@ -114,7 +114,7 @@ export interface Args {
    *  Default 1 (byte-identical single-page path). Steps/captures target a tab via `@<idx>`. */
   pages: number;
   /** `--contexts N` (2..4): N ISOLATED browser contexts, each authenticated as a DIFFERENT dev user
-   *  against the multi-user FIXTURE stack (scripts/dev/multi-user-fixture.sh) — own cookies/localStorage,
+   *  against the multi-user FIXTURE stack (`pnpm fixture up`) — own cookies/localStorage,
    *  so host-vs-member views/presence/visibility-floors can be captured in one run. Default 1 (the
    *  ordinary single-context path, untouched). Steps/captures target a context via the SAME `@<idx>`
    *  suffix `--pages` uses (unsuffixed = context 0); combining `--contexts >1` with `--pages >1` is

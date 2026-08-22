@@ -2,16 +2,17 @@
 # ── two-human local dev fixture (side-eye task #89) ──────────────────────────
 #
 # Boots orb as a REAL multi-human deployment so the invite / bell-inbox / People-panel / `/join`
-# surfaces render LIVE — no client-side fetch-mocking. It is a thin ENV RECIPE over the existing
-# `tooling/src/stack/stack.sh` (NOT a parallel stack system): it exports AUTH_MODE=local + a SEPARATE DB /
+# surfaces render LIVE — no client-side fetch-mocking. It is a thin ENV RECIPE over its sibling
+# `stack.sh` (NOT a parallel stack system): it exports AUTH_MODE=local + a SEPARATE DB /
 # ASSETS dir under .cache/ (so the normal single-user dev DB is never touched), starts the stack, then
 # runs `seed multi-user` (@orb/tooling) to flip the `LOCAL_MULTI_USER` AppSetting on and mint a second account.
 #
-#   bash scripts/dev/multi-user-fixture.sh up       boot the fixture + seed (owner + member, LOCAL_MULTI_USER on)
-#   bash scripts/dev/multi-user-fixture.sh down      stop the stack (leaves the fixture DB on disk)
-#   bash scripts/dev/multi-user-fixture.sh reset     stop + DELETE the fixture DB/assets (next `up` is fresh)
-#   bash scripts/dev/multi-user-fixture.sh seed       re-run the seed against an already-running fixture (idempotent)
-#   bash scripts/dev/multi-user-fixture.sh status     stack.sh status
+# The front door is the pnpm script (`fixture`), like every other tool in this tree:
+#   pnpm fixture up        boot the fixture + seed (owner + member, LOCAL_MULTI_USER on)
+#   pnpm fixture down      stop the stack (leaves the fixture DB on disk)
+#   pnpm fixture reset     stop + DELETE the fixture DB/assets (next `up` is fresh)
+#   pnpm fixture seed      re-run the seed against an already-running fixture (idempotent)
+#   pnpm fixture status    stack.sh status
 #
 # CREDENTIALS (dev-only, insecure by design):
 #   owner  : owner  / owner-dev-pass      (box owner; seeded from LOCAL_INITIAL_PASSWORD on first boot)
@@ -34,8 +35,9 @@
 # Snap it with two authenticated humans:  pnpm snap / --contexts 2 --text
 
 set -u
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-STACK="$REPO/tooling/src/stack/stack.sh"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../../.." && pwd)"
+STACK="$HERE/stack.sh"
 FIXTURE_DIR="$REPO/.cache/multi-user-fixture"
 
 # ── the offset port pair (see PORTS above) — exported so stack.sh + its vite child bind THESE ────────
@@ -97,7 +99,7 @@ case "${1:-up}" in
     echo "fixture: reset — deleted $FIXTURE_DIR (next 'up' is a fresh two-human box)"
     ;;
   *)
-    echo "usage: multi-user-fixture.sh {up|down|reset|seed|status}"
+    echo "usage: pnpm fixture {up|down|reset|seed|status}"
     exit 2
     ;;
 esac
