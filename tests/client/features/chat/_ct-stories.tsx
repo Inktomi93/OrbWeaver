@@ -1404,6 +1404,21 @@ export function NewChatPickerStory(): ReactElement {
   );
 }
 
+/** The picker at the NARROWEST REAL MOUNT — the mobile dialog's content box (430×932 viewport → dialog
+ *  x=32…398, i.e. 366px wide; side-eye 2026-08-22 #439). The action footer's two buttons are wider than
+ *  that box at desktop label lengths, and a `justify-end` overflow goes LEFT, so "Blank chat" painted
+ *  outside the dialog and was clipped. A CONTENT-SIZED mount root would agree with the bug — the width is
+ *  fixed here on purpose. */
+export function NarrowNewChatPickerStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-testid="narrow-picker-mount" style={{ height: 560, width: 366 }}>
+        <NewChatPicker />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** Mounts the picker only after the production temp-chat opener arms it. This catches React Strict Mode
  *  probe unmounts clearing creation intent before the user can act. */
 export function TemporaryNewChatPickerStory(): ReactElement {
