@@ -1524,8 +1524,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "1ff42a08e572401e5499576ef72acc0028bcfb40a09c0d4acaa63b899012736e",
-      "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
+      "verifiedSha256": "2f82c75bf4f9c52e1957322e2d4195737fb739007db7306332e0d6745583c214",
+      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
       "verifiedAt": "2026-08-21",
       "evidence": [
         "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",

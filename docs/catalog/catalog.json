@@ -189,8 +189,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 352,
-      "bytes": 31286,
-      "sha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
+      "bytes": 31297,
+      "sha256": "259e3faa8135ca4bfaa235560426e29bc2e7eeabe8665544eb280677a77fab48",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -207,9 +207,9 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
-        "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
-        "verifiedAt": "2026-08-19",
+        "verifiedSha256": "259e3faa8135ca4bfaa235560426e29bc2e7eeabe8665544eb280677a77fab48",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
           "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
@@ -221,7 +221,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/package-layout.ts:35"
+                "target": "tooling/src/verify/gates/package-layout.ts:35"
               }
             ]
           },
@@ -294,8 +294,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 257,
-      "bytes": 18686,
-      "sha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
+      "bytes": 18696,
+      "sha256": "bcf85f63d5f7c52045db20a97d8919e74b34b4aced58c9245785b861334fc9f7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -312,9 +312,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
-        "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "bcf85f63d5f7c52045db20a97d8919e74b34b4aced58c9245785b861334fc9f7",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -326,7 +326,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/package-layout.ts:35"
+                "target": "tooling/src/verify/gates/package-layout.ts:35"
               }
             ]
           }
@@ -340,8 +340,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 326,
-      "bytes": 69665,
-      "sha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
+      "bytes": 69670,
+      "sha256": "504f54ac1d15d874d1266292727b9cecaa9b1d4309a5b03a35614502c2ed6686",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -358,9 +358,9 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "504f54ac1d15d874d1266292727b9cecaa9b1d4309a5b03a35614502c2ed6686",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -375,8 +375,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 63,
-      "bytes": 3842,
-      "sha256": "4ae302b9c1a0bafaae70d90dca309fa2f3ba104169f40eddc256c753f127f1f6",
+      "bytes": 3850,
+      "sha256": "c6ba678533ef3e0db7d22f29e36d93222618a5752f6a6cc3dae1955b0ec672b6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -393,8 +393,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "4ae302b9c1a0bafaae70d90dca309fa2f3ba104169f40eddc256c753f127f1f6",
-        "verifiedCommit": "b4fbd25d75ad63f7bb8eae2304ea771a02b8a51c",
+        "verifiedSha256": "c6ba678533ef3e0db7d22f29e36d93222618a5752f6a6cc3dae1955b0ec672b6",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Docs-Formatting-Law.md:1 (full read; header/status evaluated)",
@@ -407,7 +407,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/verify-registry-parity.ts:31"
+                "target": "tooling/src/verify/gates/verify-registry-parity.ts:31"
               }
             ]
           }
@@ -421,8 +421,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 353,
-      "bytes": 165196,
-      "sha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
+      "bytes": 165309,
+      "sha256": "b065b2a704c679d4f39ef3ac81473f5e6c864c4ebedc3666492bf4b2f30dadf9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -439,8 +439,8 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
-        "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
+        "verifiedSha256": "b065b2a704c679d4f39ef3ac81473f5e6c864c4ebedc3666492bf4b2f30dadf9",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -458,7 +458,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/package-layout.ts:35"
+                "target": "tooling/src/verify/gates/package-layout.ts:35"
               }
             ]
           },
@@ -467,7 +467,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/ui-skin-fragment-purity.ts:35"
+                "target": "tooling/src/verify/gates/ui-skin-fragment-purity.ts:35"
               }
             ]
           }
@@ -481,8 +481,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 74,
-      "bytes": 9719,
-      "sha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
+      "bytes": 9724,
+      "sha256": "4344c0afbb051b0628c64c157c199d2077d99786ce6e3be5f9b3aba1f8d23829",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -499,9 +499,9 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
-        "verifiedCommit": "6ec3f22de10b5d2a2acfe5b84edde0c9e0d2187a",
-        "verifiedAt": "2026-08-17",
+        "verifiedSha256": "4344c0afbb051b0628c64c157c199d2077d99786ce6e3be5f9b3aba1f8d23829",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; the §PREBUILT table re-derived row by row)",
           "pnpm ast importers on each sealed barrel (scanned=4924): charts/meter + @orb/ui/diff have live consumers and lost their markers; stream/stream-text + primitives/status-chip have none outside their own CT and keep theirs",
@@ -597,8 +597,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 246430,
-      "sha256": "f9b05abf330cc3ac14a0a8ed09c5fea394da92784f5c5efdc932cf7d36588f4e",
+      "bytes": 246440,
+      "sha256": "702620dec7477eb4d3c0c1ce538cd625958a34ed10135003bafd640229958c5c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -615,8 +615,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "f9b05abf330cc3ac14a0a8ed09c5fea394da92784f5c5efdc932cf7d36588f4e",
-        "verifiedCommit": "b4fbd25d75ad63f7bb8eae2304ea771a02b8a51c",
+        "verifiedSha256": "702620dec7477eb4d3c0c1ce538cd625958a34ed10135003bafd640229958c5c",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -838,8 +838,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 217,
-      "bytes": 26748,
-      "sha256": "d247631e0c55cf74585da41488995e897b1a6a739eb89c4ec8fb275a816a0436",
+      "bytes": 26753,
+      "sha256": "e9ca7a0b364e30adb8ddda772b300b97460a87e4246a851f667473bf7b649d75",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -856,8 +856,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "d247631e0c55cf74585da41488995e897b1a6a739eb89c4ec8fb275a816a0436",
-        "verifiedCommit": "b4fbd25d75ad63f7bb8eae2304ea771a02b8a51c",
+        "verifiedSha256": "e9ca7a0b364e30adb8ddda772b300b97460a87e4246a851f667473bf7b649d75",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, source-comment, and direct rule-import routing reconciled",
@@ -979,8 +979,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 24861,
-      "sha256": "b54c627dae9d2f021e50ba737910f458bf65b7e8eb541ea8f02ddf6726cae786",
+      "bytes": 24871,
+      "sha256": "8f032c39f2157d3d06e028be042f032bca4d8b641638d434d1678cb22ac7532e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -997,9 +997,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "b54c627dae9d2f021e50ba737910f458bf65b7e8eb541ea8f02ddf6726cae786",
-        "verifiedCommit": "621ac2218f767d8cb3b4313276b20199740465ad",
-        "verifiedAt": "2026-08-19",
+        "verifiedSha256": "8f032c39f2157d3d06e028be042f032bca4d8b641638d434d1678cb22ac7532e",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
           "invariant #9 re-derived: the tRPC CSRF gate keys on via==='cookie' only (packages/server/src/transport/trpc/trpc.ts:141), legitimate ONLY because of the load-bearing content-type belt at the mount (entry/app.ts trpcJsonOnly — refuses any /api/trpc/* POST not selecting tRPC's JSON handler); the four CORS-simple byte-ingest registrars gate via!=='header' (upload.ts:88 for /api/assets/upload+/api/databank/upload+/api/import, import-tree.ts:101, import-chat.ts:142, import.ts /api/import/bundle)",
@@ -1077,8 +1077,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 234,
-      "bytes": 26182,
-      "sha256": "69dc218ba22513ec0f06498c860c66fe9fcb68bd01dc57e35827c330963f58f9",
+      "bytes": 26213,
+      "sha256": "2b0ad5c6adfc790a109343aea9115015a03d3afaaa1b5ec7896b9840a78500e7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1095,9 +1095,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "69dc218ba22513ec0f06498c860c66fe9fcb68bd01dc57e35827c330963f58f9",
-        "verifiedCommit": "405d8787e1232f551a524a004c7c83cc3f42e067",
-        "verifiedAt": "2026-08-18",
+        "verifiedSha256": "2b0ad5c6adfc790a109343aea9115015a03d3afaaa1b5ec7896b9840a78500e7",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1109,7 +1109,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/test-layout.ts:118"
+                "target": "tooling/src/verify/gates/test-layout.ts:118"
               }
             ]
           }
@@ -1123,8 +1123,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 135,
-      "bytes": 14977,
-      "sha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
+      "bytes": 14997,
+      "sha256": "f91b819784e0ead35df4f744cf37957b872fa397c4ced03d65fbc0fe7c0102cd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1141,9 +1141,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f91b819784e0ead35df4f744cf37957b872fa397c4ced03d65fbc0fe7c0102cd",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Spine-TypeScript-and-Patterns.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1169,8 +1169,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 174,
-      "bytes": 21196,
-      "sha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
+      "bytes": 21209,
+      "sha256": "4237c177275ec8dfcb8b18d0776b08ac969069244c0f61169b9bf44e9f7e1f09",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1187,9 +1187,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4237c177275ec8dfcb8b18d0776b08ac969069244c0f61169b9bf44e9f7e1f09",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1201,7 +1201,7 @@
             "evidence": [
               {
                 "kind": "test",
-                "target": "tests/tooling/schema-baseline-parity.int.test.ts:18"
+                "target": "tests/tooling/verify/ops/db-baseline-parity.int.test.ts:18"
               }
             ]
           }
@@ -1463,8 +1463,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 434,
-      "bytes": 55355,
-      "sha256": "c1944519e72205cef3f3ca43c9232acae26925bcd7f4326a9c70d2097e3a7a9f",
+      "bytes": 55365,
+      "sha256": "9f621987b67252c498c5a2b1cee1c90a85eadf2cafb2f52adf1ac4c8eb34eecc",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1481,9 +1481,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c1944519e72205cef3f3ca43c9232acae26925bcd7f4326a9c70d2097e3a7a9f",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "9f621987b67252c498c5a2b1cee1c90a85eadf2cafb2f52adf1ac4c8eb34eecc",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
@@ -1509,8 +1509,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 345,
-      "bytes": 29552,
-      "sha256": "41c8855299fafa1c469f15b9dcfbdce630b0da670edcb85594c0bce6523fb062",
+      "bytes": 29578,
+      "sha256": "85e0f1e2a60179bf4f61aa283c36897830dc91b3aa7752592c1f1ce0aedd5fb9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1527,9 +1527,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "41c8855299fafa1c469f15b9dcfbdce630b0da670edcb85594c0bce6523fb062",
-        "verifiedCommit": "8095a88078273acd0a4658ebdcdab8cf94038d44",
-        "verifiedAt": "2026-08-18",
+        "verifiedSha256": "85e0f1e2a60179bf4f61aa283c36897830dc91b3aa7752592c1f1ce0aedd5fb9",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1541,7 +1541,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+                "target": "tooling/src/verify/gates/ui-primitive-structure.ts:410"
               }
             ]
           }
@@ -1555,8 +1555,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 203,
-      "bytes": 26952,
-      "sha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
+      "bytes": 26957,
+      "sha256": "0ac6fdbf552d33c384a8a7acc6732f333a70fdcdcb653e431d9f9db2db5a85ed",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1573,9 +1573,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "0ac6fdbf552d33c384a8a7acc6732f333a70fdcdcb653e431d9f9db2db5a85ed",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/UI-Primitives-and-Reuse.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1587,7 +1587,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+                "target": "tooling/src/verify/gates/ui-primitive-structure.ts:410"
               }
             ]
           }
@@ -1601,8 +1601,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 123,
-      "bytes": 23333,
-      "sha256": "ab3a200b21cefd807f8e03be2a728570cbf93f4b541c2f94669f75075ce9a807",
+      "bytes": 23353,
+      "sha256": "014bb5e1bd0d3b3763f28135d1e3ec0bd4e42c373e41f3aa67165b2f7bda164d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1619,9 +1619,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ab3a200b21cefd807f8e03be2a728570cbf93f4b541c2f94669f75075ce9a807",
-        "verifiedCommit": "e3efc08baf7601f1be23694babcbb2eeba94bf32",
-        "verifiedAt": "2026-08-16",
+        "verifiedSha256": "014bb5e1bd0d3b3763f28135d1e3ec0bd4e42c373e41f3aa67165b2f7bda164d",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); §12.2 truth-repaired against the tree",
           "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
@@ -1662,8 +1662,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 279,
-      "bytes": 22127,
-      "sha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
+      "bytes": 22234,
+      "sha256": "87ef3ced7c7bcf6199ff12a20dc1c5031903139ed30a1c78cb2f1632a57b25e3",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1680,9 +1680,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "87ef3ced7c7bcf6199ff12a20dc1c5031903139ed30a1c78cb2f1632a57b25e3",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1694,7 +1694,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/verify-registry-parity.ts:31"
+                "target": "tooling/src/verify/gates/verify-registry-parity.ts:31"
               }
             ]
           }
@@ -1708,8 +1708,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 711,
-      "bytes": 126103,
-      "sha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
+      "bytes": 126113,
+      "sha256": "f501f36c790af83a248421c68978f686a24a152fc031342499d3b2785e98416d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1726,9 +1726,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
-        "verifiedCommit": "800937aebae1eafafef458eab57ae64115ac5c68",
-        "verifiedAt": "2026-08-15",
+        "verifiedSha256": "f501f36c790af83a248421c68978f686a24a152fc031342499d3b2785e98416d",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
           "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
@@ -1814,8 +1814,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 523,
-      "bytes": 52293,
-      "sha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
+      "bytes": 52308,
+      "sha256": "e262c7f14d538409747b13bf382a33f69e7535aee9765fe4cf8735ca5e6dd27c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1832,9 +1832,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "e262c7f14d538409747b13bf382a33f69e7535aee9765fe4cf8735ca5e6dd27c",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/ui-package-design.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -11156,7 +11156,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/density-tier.ts:1"
+                "target": "tooling/src/verify/gates/density-tier.ts:1"
               },
               {
                 "kind": "issue",
@@ -13053,9 +13053,9 @@
       "path": "docs/design/tooling-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 481,
-      "bytes": 79346,
-      "sha256": "1ff42a08e572401e5499576ef72acc0028bcfb40a09c0d4acaa63b899012736e",
+      "lines": 535,
+      "bytes": 84981,
+      "sha256": "2f82c75bf4f9c52e1957322e2d4195737fb739007db7306332e0d6745583c214",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13072,8 +13072,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "1ff42a08e572401e5499576ef72acc0028bcfb40a09c0d4acaa63b899012736e",
-        "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
+        "verifiedSha256": "2f82c75bf4f9c52e1957322e2d4195737fb739007db7306332e0d6745583c214",
+        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
@@ -13091,7 +13091,7 @@
               },
               {
                 "kind": "code",
-                "target": "scripts/check/gates/test-presence-client.ts:268"
+                "target": "tooling/src/verify/gates/test-presence-client.ts:268"
               },
               {
                 "kind": "issue",
@@ -15355,7 +15355,7 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "scripts/verify/registry.ts:293"
+                "target": "tooling/src/verify/lib/registry.ts:228"
               }
             ]
           }
@@ -23700,7 +23700,7 @@
             "evidence": [
               {
                 "kind": "gate",
-                "target": "scripts/check/gates/ui-skin-fragment-purity.ts:35"
+                "target": "tooling/src/verify/gates/ui-skin-fragment-purity.ts:35"
               }
             ]
           }
