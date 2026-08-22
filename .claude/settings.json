@@ -47,6 +47,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-onboard.sh",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   },
   "worktree": {
