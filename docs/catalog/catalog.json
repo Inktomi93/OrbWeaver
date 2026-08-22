@@ -189,8 +189,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 352,
-      "bytes": 31289,
-      "sha256": "ba69dcd2a3cdf0581af6b5d2fefab81f1fe1aae14dd3700b6ad18c230383aa2c",
+      "bytes": 31286,
+      "sha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -203,12 +203,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
+        "assignedSha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "ba69dcd2a3cdf0581af6b5d2fefab81f1fe1aae14dd3700b6ad18c230383aa2c",
-        "verifiedCommit": "039e33ca3afee08a73754bd0a9ee3d5958d74fe4",
+        "verifiedSha256": "4cb54af9ec991be660fb3d62691bcc4fd8b8c95e41b097892d32a337ea5b187f",
+        "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
         "verifiedAt": "2026-08-19",
         "evidence": [
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
@@ -421,8 +421,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 353,
-      "bytes": 165077,
-      "sha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
+      "bytes": 165196,
+      "sha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -435,12 +435,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
+        "assignedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "82fc750260a617efdaa3291144e3b5f88e9e6300826ef5a947f86743099b773d",
-        "verifiedCommit": "1c0c8df6ef45e867501bc70bf0811b447071030b",
+        "verifiedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
+        "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -13053,9 +13053,9 @@
       "path": "docs/design/tooling-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 458,
-      "bytes": 72652,
-      "sha256": "de1e133e2f8ff3362ec063a253add637e4888f1271d47e3ef89249362730a621",
+      "lines": 481,
+      "bytes": 79346,
+      "sha256": "1ff42a08e572401e5499576ef72acc0028bcfb40a09c0d4acaa63b899012736e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13068,12 +13068,12 @@
       },
       "receipt": {
         "path": "docs/design/tooling-package.md",
-        "assignedSha256": "de1e133e2f8ff3362ec063a253add637e4888f1271d47e3ef89249362730a621",
+        "assignedSha256": "1ff42a08e572401e5499576ef72acc0028bcfb40a09c0d4acaa63b899012736e",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "de1e133e2f8ff3362ec063a253add637e4888f1271d47e3ef89249362730a621",
-        "verifiedCommit": "b4fbd25d75ad63f7bb8eae2304ea771a02b8a51c",
+        "verifiedSha256": "1ff42a08e572401e5499576ef72acc0028bcfb40a09c0d4acaa63b899012736e",
+        "verifiedCommit": "c809fb73f58c6b51a3f239c059b6c099589d1bfd",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
@@ -16183,7 +16183,7 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "scripts/codemods/ast.ts:4638"
+                "target": "tooling/src/ast/lib/fields.ts:146"
               }
             ]
           }

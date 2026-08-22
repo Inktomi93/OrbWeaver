@@ -100,7 +100,7 @@ export function foreignStageRefusal(active: ActiveStage, livePid: number | null,
     `(stage ${active.shortSha}, owner pid ${active.ownerPid ?? "unknown"}, band pid ${livePid ?? "none"}, started ${describeStageAge(active.startedAt, nowMs)} ago). ` +
     "THE BAND IS ONE FIXED PAIR: rebuilding/re-syncing/--fresh here would kill that stage. Either wait, tear " +
     "it down deliberately with `pnpm snap --stage-down` (works from any checkout), or boot a private stack on " +
-    "a free pair (VITE_PORT/VITE_API_TARGET into scripts/dev/stack.sh) and drive it with `snap --base`."
+    "a free pair (VITE_PORT/VITE_API_TARGET into tooling/src/stack/stack.sh) and drive it with `snap --base`."
   );
 }
 
