@@ -231,6 +231,21 @@ export function ChatSummaryRow({
       onClick={(): void => onSelect(chat.id)}
       selected={selected}
       subtitle={subtitle}
+      // THE SCENT LINE IS THE ROW'S POINT, SO IT TAKES THE LABEL STEP (#500 item 1, side-eye 2026-08-22
+      // rail-chats P3). Measured at 896-chat density: the title ran 13px/600/oklch(0.955) and the subtitle
+      // 10.5px/400/oklch(0.74) — the instrument tier's micro gloss, the same voice as the "CHATS" /
+      // "FILTER BY CHARACTER" chrome kickers. On an imported corpus the titles share a leading token
+      // (twelve consecutive rows reading `Mira — Jun 15, 2026`, `… (2)`, `… (3)`), so the LOUDEST element
+      // in each row was the part identical across rows while the only discriminating content — the snippet
+      // this file's own derivation calls the SCENT line, "what was last said, which is what the row is
+      // for" — was the quietest thing on the surface. Hierarchy, not legibility: every one of those steps
+      // passed contrast (subtitle 8.66:1).
+      // `subtitleStep="label"` is the ratified lever for exactly this ("functional prose inside a row owes
+      // the readable label floor", tiers.css) — it lifts the line to `--text-label` without inventing a
+      // step, and the title keeps the hierarchy on WEIGHT + tone (600/foreground vs 400/muted) rather than
+      // on size alone. Set on the ONE row anatomy so the chats pane, the character projection and the
+      // landing strip cannot drift (this file's own no-fork rule).
+      subtitleStep="label"
       title={title}
       titleStep={titleStep}
       // An archived chat recedes so the live rows read first — the "Archived" badge above is the datum,

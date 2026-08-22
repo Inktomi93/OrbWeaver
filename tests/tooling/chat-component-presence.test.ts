@@ -87,6 +87,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "composer-guided-cluster",
     why: "the ✨ utility menu renders inside the cluster; composer-guided-cluster.ct drives its Simple-send item + the menu.",
   },
+  "composer-drop-target": {
+    coveredBy: "composer",
+    why: "the drop target IS the composer card (a #376 size-cap extraction of composer.tsx's own surface, rendering `data-slot=composer`), so it exists only as Composer's root and cannot be mounted standalone without re-creating the drag seam it wraps; composer.ct drives its every arm on the real card — the FILE-drag arm (data-drag-over + the affordance's copy and its span-the-surface geometry), the depth-counter disarm on dragleave, the TEXT-drag refusal, image/mp4 drops riding the send, and the mixed-batch refusal-by-name.",
+  },
   "composer-send-control": {
     coveredBy: "composer",
     why: "the row-2 Send/Stop control renders only inside Composer; composer.ct drives it end-to-end — the #54 honest-refusal gate (aria-disabled + title, no chat.send fires), the disabled/empty send arms, and Stop/stopping/second-click.",
