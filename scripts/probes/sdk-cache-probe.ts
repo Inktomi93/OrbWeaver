@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 /**
  * pnpm sdk:cache-probe [--scenario s1,s2,…] [--model <id>] [--verbose]
  *
