@@ -1,5 +1,5 @@
 // Gate: zod-modern-spellings — the anti-backslide ratchet for the zod 4.4.3 leverage audit
-// (docs/reviews/stickler/2026-08-02-zod-leverage-audit.md). Every arm here is a RULED finding whose
+// (docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md). Every arm here is a RULED finding whose
 // remedy already landed on the tree; the gate exists so the old spelling cannot creep back in through a
 // copy-paste from an older file, a stale comment, or an agent's zod-3 muscle memory. Three of the four
 // arms land at ZERO on the tree at landing — which is the only honest thing a ratchet can be — and the
@@ -127,7 +127,7 @@ const ISSUES_ALLOWLIST: ExemptionTable = {
 // die. Each occurrence's token says which arm it is.
 const MESSAGE =
   "a superseded zod spelling — the zod 4.4.3 leverage audit ruled each of these and its remedy already " +
-  "landed on the tree (docs/reviews/stickler/2026-08-02-zod-leverage-audit.md). `strict-object`: `.strict()` " +
+  "landed on the tree (docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md). `strict-object`: `.strict()` " +
   "on a `z.object(…)` is legacy-compat (F2 — the documented reason to avoid `z.strictObject` claimed it " +
   "inflates the inferred type with an index-signature tag; that is FALSE on 4.4.3, where `$strict` is " +
   "byte-identical to `$strip`). `literal-union`: an all-literal `z.union` emits a nested `invalid_union` " +
@@ -265,7 +265,7 @@ function visitCall(node: Node, ctx: GateRunCtx): void {
 
 export const gate: GateDescriptor = {
   name: "zod-modern-spellings",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — docs/reviews/stickler/2026-08-02-zod-leverage-audit.md §F2/F4/F5/F7",
+  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md §F2/F4/F5/F7",
   status: "active",
   scopeSafety: "incremental-safe", // per-file verdicts; the ARM-C ratchet self-guards in finalize
   message: MESSAGE,

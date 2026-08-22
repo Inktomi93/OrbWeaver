@@ -288,6 +288,33 @@ export function MotionFlaggersSpaceStory(): ReactElement {
   );
 }
 
+/** The §3.7 INTERACTIVE-STATE CARVE-OUT stage (owner ruling 2026-08-22, #456). Two surfaces, one hover
+ * each, so the exemption and the thing it must NOT weaken are proven on the same mount:
+ *  · `carve-out-colour-card` reproduces the ratified Card primitive affordance
+ *    (`@orb/ui` card/variants.ts — `transition-colors` + `hover:bg-accent`): a paint-only colour
+ *    transition driven by `:hover`. The flagger must stay silent on BOTH legs (hover in AND out).
+ *  · `carve-out-geometry-card` is the POSITIVE CONTROL: the identical `:hover` trigger driving `width`,
+ *    which moves geometry and is exactly what §3.7 still forbids. It must still fire, or the carve-out
+ *    has blinded the channel instead of narrowing it.
+ * Real `:hover` CSS rules (not inline styles) because the trigger IS the subject. */
+export function MotionFlaggersInteractiveColourStory(): ReactElement {
+  useEffect(() => {
+    installMotionFlaggers();
+  }, []);
+  return (
+    <div>
+      <style>
+        {`.orb-ct-colour-card { background-color: rgb(0 0 255); transition: background-color 120ms linear; width: 120px; height: 40px }
+          .orb-ct-colour-card:hover { background-color: rgb(255 0 0) }
+          .orb-ct-geometry-card { background-color: rgb(0 0 255); transition: width 120ms linear; width: 120px; height: 40px }
+          .orb-ct-geometry-card:hover { width: 260px }`}
+      </style>
+      <div className="orb-ct-colour-card" data-testid="carve-out-colour-card" />
+      <div className="orb-ct-geometry-card" data-testid="carve-out-geometry-card" />
+    </div>
+  );
+}
+
 /** A deliberately dirty color transition. Under the global reduced-motion floor (`transition-property:
  * none !important`, #257) the colour change emits no transition at all, so the flagger has nothing to
  * judge — which is what the reduced-motion spec asserts. */

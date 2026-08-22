@@ -139,7 +139,7 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
           {(field): ReactElement => (
             <field.SelectField
               label="Surface texture"
-              description="A subtle film-grain overlay on panels and cards that breaks up flat-color banding. Off by default; never on message text."
+              description="A subtle film-grain overlay across the whole app that breaks up flat-color banding. Off by default; dropped automatically if your system asks for higher contrast."
               items={SURFACE_TEXTURE_ITEMS}
             />
           )}

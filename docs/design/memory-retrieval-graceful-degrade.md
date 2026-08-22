@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-21
+updated: 2026-08-22
 ---
 
 # Memory retrieval controls and graceful rerank degradation
@@ -10,10 +10,10 @@ updated: 2026-08-21
 
 - The admin picker currently exposes the raw retrieval enum and a terse legend; its numeric hints use implementation vocabulary instead of consequences (`packages/client/src/features/user-admin/components/memory-tuning-section.tsx:35-46, 142-149`).
 - `SelectOption.description` already provides the required per-option visible gloss while keeping the selected trigger single-line and the gloss in `aria-describedby`, not the option name (`packages/ui/src/primitives/select/select.tsx:26-42, 61-91`). No new picker primitive is needed.
-- `digests` computes the CSLS/experimental-recency order, cuts it to `retrieveK`, then hands that already-retrieved array to `applyRerank` (`packages/server/src/domain/search/verbs/digests.ts:125-140`). `applyRerank` deliberately propagates a runner rejection for every other caller (`packages/server/src/domain/search/substrate/rerank.ts:1-3, 37-41`).
+- `digests` computes the CSLS order, cuts it to `retrieveK`, then hands that already-retrieved array to `applyRerank` (`packages/server/src/domain/search/verbs/digests.ts:125-140`). `applyRerank` deliberately propagates a runner rejection for every other caller (`packages/server/src/domain/search/substrate/rerank.ts:1-3, 37-41`).
 - A round-level recall is built once in gather and its `MemoryRecallInputs` object is reused by every scoped per-speaker engine recall (`packages/server/src/domain/chat/substrate/assemble-gather.ts:243-286`; `packages/server/src/domain/chat/engine/engine.ts:1260-1281`; `packages/server/src/domain/chat/engine/round.ts:104-132`). That existing shared object is the natural lifetime for once-per-turn/outage state.
 - D41 requires a typed warning with a real domain emit site; the active `warning-code-coverage` gate scans `packages/server/src/domain/chat/**` for every `CHAT_WARNING_CODES` member (`docs/architecture/core/Core-Path-Registry.md:97`; `tooling/src/verify/gates/warning-code-coverage.ts:24-42, 73-83`). The client warning mapper is exhaustive (`packages/client/src/features/chat/lib/warning-notice.ts:23-34, 75-79`).
-- The #321 recency control is an experimental order-only probe applied before `retrieveK`; `recencyBias: 0` leaves CSLS ordering byte-identical. The UI must state that truth and must not present the current probe formula as production policy (`packages/server/src/domain/search/verbs/digests.ts:8-15, 45-68, 125-130`).
+- DEAD CONSTRAINT (superseded 2026-08-22). This section previously required the UI to label the #321 recency control as an experimental order-only probe. The owner ran that probe on the real corpus 2026-08-20 (222-message conversation, biases 0…1) and measured no human-relevance gain — an identical mixC top three at every bias and a net loss at a smaller `retrieveK` — then ruled the knob REMOVED rather than blessed with a production blend. `recencyBias` no longer exists in `AppSettings.memoryDefaults`, on `MemoryQueryOptions`, in `digests`, or on the admin surface (AppSettings schema v7→v8 drops the stored key). There is no recency copy left to make honest; the honesty requirement is satisfied by the control's absence.
 
 The structural search covered 3,747 TypeScript and 1,125 TSX files under `packages` and `tests`. It found one live property-read call to `searchDigests`, in recall; optional-chain and bracket-read forms had zero matches. A second literal sweep found the compose binding plus two evaluation harness bindings. Thus the callback seam below has four coupled callers/binders, not an unknown wider runtime graph.
 
@@ -23,7 +23,7 @@ The structural search covered 3,747 TypeScript and 1,125 TSX files under `packag
 
 Keep the canonical values in `MEMORY_RETRIEVAL_MODES`, but derive the select items through a total `Record<MemoryRetrievalMode, {label, description}>`. The trigger and deployment-floor copy use the human label; each open option uses the existing description slot for its benefit, cost, and appropriate-use guidance. No raw `mixA`/`mixB`/`mixC`/`tiered` value appears in rendered copy.
 
-Rewrite the numeric hint strings in consequence-first language. In particular, recency says it is experimental, changes only candidate order before the recall limit, and zero preserves semantic ordering. The controls and persisted enum values do not change.
+Rewrite the numeric hint strings in consequence-first language. (The recency hint this section once specified is gone with its control — see the dead-constraint bullet above.) The remaining controls and persisted enum values do not change.
 
 ### 2. Keep fallback local to digest recall
 

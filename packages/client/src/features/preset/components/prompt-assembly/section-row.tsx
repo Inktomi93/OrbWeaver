@@ -178,17 +178,32 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
       }
       className={section.enabled ? "" : "opacity-60"}
       clickable={true}
-      leading={
-        // SOFT, not solid (side-eye F-17): nine solid `info` discs were the loudest thing in the pane. The
-        // 15% tint + hue text IS the mock's `.glyph` treatment (13% of info / warning), and the glyph
-        // itself is now per-marker so the column finally carries the information its brightness was
-        // claiming. The HUE PAIR is the mock's own (`--color-info` setup / `--color-warning` post) — the
-        // crunch-item-14 blue sweep re-tints the SATURATED families (solid discs, filled chips, macro
-        // pills), not this deliberate zone accent.
-        <Badge intent={zone === "post" ? "warning" : "info"} size="sm" tone="soft">
-          <Icon icon={sectionGlyphIcon(section)} size="sm" />
-        </Badge>
-      }
+      // A LITERAL ROW HAS NO DISC (side-eye 2026-08-22 P3-6). F-17's fix below made the glyph PER-MARKER so
+      // the column would carry information — and it does, for markers. A literal has no marker, so it fell
+      // back to one Pencil meaning "the author wrote this", which every literal shares: measured on an
+      // ST-import preset (the common shape), the first FOURTEEN rows were fourteen identical Pencil discs in
+      // one hue. That is a column of decoration wearing the badge grammar the surface uses for information.
+      // The disc now appears only where it DISCRIMINATES; a literal is the rack's default row, and the zone
+      // still reads off its cue badges and its readout bar.
+      //
+      // It costs the literal rows their shared x with the marker rows, which is the SAME trade the presets
+      // LIST already ratified for the built-in's lock (crunch item 17: a FIXED glyph marking a KIND on some
+      // rows, not a variable-width status badge stealing the name's width on all of them).
+      {...(section.type === "literal"
+        ? {}
+        : {
+            leading: (
+              // SOFT, not solid (side-eye F-17): nine solid `info` discs were the loudest thing in the pane.
+              // The 15% tint + hue text IS the mock's `.glyph` treatment (13% of info / warning), and the
+              // glyph itself is per-marker so the column carries the information its brightness was
+              // claiming. The HUE PAIR is the mock's own (`--color-info` setup / `--color-warning` post) —
+              // the crunch-item-14 blue sweep re-tints the SATURATED families (solid discs, filled chips,
+              // macro pills), not this deliberate zone accent.
+              <Badge intent={zone === "post" ? "warning" : "info"} size="sm" tone="soft">
+                <Icon icon={sectionGlyphIcon(section)} size="sm" />
+              </Badge>
+            ),
+          })}
       markers={<SectionCues section={section} />}
       onClick={(): void => onSelect(section.id)}
       selected={selected}

@@ -3,7 +3,15 @@
 // the buttons are keyboard-focusable in order.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RailBrandActiveStory, RailBrandNavStory, RailOverflowSectionStory, RailSheetBadgeStory, RailStory } from "../_ct-stories.tsx";
+import type { Locator } from "@playwright/test";
+import {
+  RailAnalyticsSectionStory,
+  RailBrandActiveStory,
+  RailBrandNavStory,
+  RailOverflowSectionStory,
+  RailSheetBadgeStory,
+  RailStory,
+} from "../_ct-stories.tsx";
 
 test("renders every section + footer action as a named button; active = aria-current", async ({ mount }) => {
   const rail = await mount(<RailStory />);
@@ -91,11 +99,11 @@ test("rail buttons are keyboard-focusable", async ({ mount }) => {
   await expect(chats).toBeFocused();
 });
 
-// ── A TAB THAT IS NOT THE PAGE DOES NOT SAY IT IS (side-eye leg-4 P2) ────────────────────────────────
+// ── A TAB THAT IS NOT THE PAGE DOES NOT SAY IT IS (side-eye leg-4 P2, standing) ──────────────────────
 // Standing in a `mobile:"sheet"` section, the You tab used to carry `aria-current="page"` — so a reader
-// heard "You, current page" while looking at the Corpus roster (five sections: corpus · presets ·
-// analytics · refinery · databank). The sighted HINT survives; the claim does not. Where-am-I for those
-// sections is answered by the topbar, which names the section and reads before this nav on a phone.
+// heard "You, current page" while looking at the Corpus roster. That ruling survives; its INPUT is gone
+// (#484): the current section now holds a bar slot of its own, so the tab represents nobody and the sighted
+// `data-contains-current` hint it wore was deleted with the state that produced it.
 // The You tab is `mobileOnly` — `display:none` on the desktop icon column — so this reads it where it
 // exists: the bottom bar. (Mobile geometry needs the coarse pointer; the tab's own reflow rules are keyed
 // off the shell's one viewport @media, and `hasTouch` is what makes Chromium report `pointer: coarse`.)
@@ -122,14 +130,12 @@ test.describe("the mobile bottom bar", () => {
     await expect(you.locator('[data-slot="badge"]')).toHaveCount(1);
   });
 
-  test("the You tab HINTS at an overflow section without claiming to be the current page", async ({ mount }) => {
+  test("the You tab claims nothing — it is a door, and the current section is not behind it any more", async ({ mount }) => {
     const rail = await mount(<RailOverflowSectionStory />);
     const you = rail.getByRole("button", { name: "You", exact: true });
 
     await expect(you).toBeVisible();
     await expect(you).not.toHaveAttribute("aria-current", "page");
-    // …and the visual hint is still there, so the bar does not read as five unlit tabs in a fifth place.
-    await expect(you).toHaveAttribute("data-contains-current", "");
   });
 
   // #86 lead 3. The bar's labels are the PRIMARY names of primary-nav controls, and they rode `micro`
@@ -186,6 +192,62 @@ test.describe("the mobile bottom bar", () => {
         ),
       )
       .toEqual([]);
+  });
+});
+
+// ── THE CURRENT SECTION HOLDS A BAR SLOT (#484, owner-ruled) ─────────────────────────────────────────
+// The bar renders 4 of 9 sections. Standing in one of the other five, the current section's button was in
+// the DOM at 0×0 carrying `aria-current="page"` — AT was told the current page is a control no finger can
+// reach, and not one VISIBLE tab was marked. The ruled fix is a SWAP: the current section takes the last
+// standing section slot for the duration, and the tab it displaces folds into the You sheet (proven in
+// you-sheet.ct.tsx — nothing may become unreachable). 430px is the review's own width; `hasTouch` is what
+// makes Chromium report `pointer: coarse`, and the bar's reflow rules are keyed off the shell's @media.
+test.describe("the current section on the mobile bar", () => {
+  test.use({ viewport: { width: 430, height: 900 }, hasTouch: true });
+
+  /** The names of the tabs a THUMB can actually reach, in bar order — a `display:none` sibling measures 0×0.
+   *  Polled by the callers: the claim is about painted geometry, and a name list makes a failure diagnose
+   *  itself. */
+  const visibleTabNames = (rail: Locator): Promise<string[]> =>
+    rail
+      .locator(".shell-rail-button, .shell-rail-brand-button")
+      .evaluateAll((elements) => elements.filter((el) => el.getBoundingClientRect().width > 0).map((el) => el.getAttribute("aria-label") ?? ""));
+
+  /** …and of those, the ones claiming to BE the page. Exactly one, always. */
+  const visibleCurrentNames = (rail: Locator): Promise<string[]> =>
+    rail
+      .locator('[aria-current="page"]')
+      .evaluateAll((elements) => elements.filter((el) => el.getBoundingClientRect().width > 0).map((el) => el.getAttribute("aria-label") ?? ""));
+
+  test("an overflow section (corpus) takes a slot and is the ONE visible current tab", async ({ mount }) => {
+    const rail = await mount(<RailOverflowSectionStory />);
+    await expect(rail.getByRole("button", { name: "You", exact: true })).toBeVisible();
+
+    const corpus = rail.getByRole("button", { name: "Corpus", exact: true });
+    await expect(corpus).toBeVisible();
+    await expect(corpus).toHaveAttribute("aria-current", "page");
+    await expect.poll(() => visibleCurrentNames(rail)).toEqual(["Corpus"]);
+    // The slot it took is the LAST standing one (characters), not the brand or the everyday chats tab.
+    await expect.poll(() => visibleTabNames(rail)).toEqual(["Home", "Chats", "Corpus", "You"]);
+  });
+
+  test("…and from another group (analytics), by the same derivation", async ({ mount }) => {
+    const rail = await mount(<RailAnalyticsSectionStory />);
+    await expect(rail.getByRole("button", { name: "You", exact: true })).toBeVisible();
+
+    await expect(rail.getByRole("button", { name: "Analytics", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect.poll(() => visibleCurrentNames(rail)).toEqual(["Analytics"]);
+    await expect.poll(() => visibleTabNames(rail)).toEqual(["Home", "Chats", "Analytics", "You"]);
+  });
+
+  // A FENCE, not a defect proof (it passed before the swap existed): standing in a section that already
+  // holds a tab must leave the bar exactly as it was — the swap is for the overflow case alone.
+  test("the standing four are untouched when the current section already has a tab", async ({ mount }) => {
+    const rail = await mount(<RailStory />);
+    await expect(rail.getByRole("button", { name: "You", exact: true })).toBeVisible();
+
+    await expect.poll(() => visibleTabNames(rail)).toEqual(["Home", "Chats", "Characters", "You"]);
+    await expect.poll(() => visibleCurrentNames(rail)).toEqual(["Chats"]);
   });
 });
 

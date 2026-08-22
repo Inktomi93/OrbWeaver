@@ -11,7 +11,8 @@
 # tests/**.tsx file is checked against its real owner (client/ui), never a wrong InferredProject.
 # A hook-PRIVATE tsBuildInfoFile keeps this off the real lanes' caches. FAIL-SOFT: any tsgo tooling
 # error is swallowed (a broken hook must never block an edit); only real type diagnostics surface.
-# Exit 2 surfaces findings to Claude; a clean file exits 0 silently.
+# Exit 2 surfaces findings to Claude; a clean file exits 0 silently. A block whose finding text has no
+# VISIBLE content prints a self-diagnosis receipt instead of a bare banner (#498) — see that arm below.
 set -uo pipefail
 
 file=$(jq -r '.tool_input.file_path // empty')
@@ -65,8 +66,8 @@ owning_tsconfig() {
   echo ""
 }
 
-bout=$(mktemp); dout=$(mktemp); tout=$(mktemp)
-trap 'rm -f "$bout" "$dout" "$tout"' EXIT
+bout=$(mktemp); dout=$(mktemp); tout=$(mktemp); diag=$(mktemp)
+trap 'rm -f "$bout" "$dout" "$tout" "$diag"' EXIT
 
 # nice'd + POOL-LIMITED: under a multi-agent swarm dozens of these run concurrently, and each
 # single-file biome check pays whole-project module-graph resolution (~400% CPU) — they must lose
@@ -83,7 +84,11 @@ pool_run() { # pool_run <name> <cmd...>: try slots 1-4, else skip
     local rc=$?
     [ "$rc" -ne 99 ] && return "$rc"
   done
-  return 0 # all slots busy — skip (fail-soft)
+  # All slots busy ⇒ skip (fail-soft). The skip is INDISTINGUISHABLE from success in the return code (both
+  # 0 with an empty output file), so it is recorded for the self-diagnosis block: pool_run runs inside a
+  # background subshell, so a shell variable could not carry this back — the note goes to a file.
+  printf 'pool: all 4 %s slots busy — that leg was SKIPPED (no output is expected from it)\n' "$name" >>"$diag"
+  return 0
 }
 pool_run biome pnpm exec biome check --reporter=concise --diagnostic-level=error \
   --max-diagnostics=20 --no-errors-on-unmatched "$rel" >"$bout" 2>&1 &
@@ -116,11 +121,17 @@ if [[ -n "$owner" && -x "$tsgo_bin" && -f "$root/$owner" ]]; then
   tpid=$!
 fi
 
-wait "$bpid" || true
-[ -n "$dpid" ] && wait "$dpid" || true
-# Reap the tsgo child; its exit code is intentionally IGNORED — the diagnostic-line match below is the
-# sole gate (tsgo exits 1 for tooling errors too, so exit code is no type-vs-tooling signal).
-[ -n "$tpid" ] && wait "$tpid" || true
+# Each leg's exit code is CAPTURED (never `|| true`-discarded) purely so a block can explain itself —
+# see the self-diagnosis arm below. No code path GATES on these: the finding text remains the sole gate,
+# exactly as before. `set -e` is not in effect, so a non-zero `wait` cannot abort the hook.
+wait "$bpid"; brc=$?
+drc="not-run"
+if [ -n "$dpid" ]; then wait "$dpid"; drc=$?; fi
+# Reap the tsgo child; its exit code is intentionally NOT a gate — the diagnostic-line match below is the
+# sole gate (tsgo exits 1 for tooling errors too, so exit code is no type-vs-tooling signal). Recorded
+# for the diagnosis block only.
+trc="not-run"
+if [ -n "$tpid" ]; then wait "$tpid"; trc=$?; fi
 
 # Strip each tool's timing/summary footer; what survives is the actionable findings.
 biome_f=$(grep -vE '^(Checked |Found |check )|Some errors were emitted|^[[:space:]]*$' "$bout" || true)
@@ -138,6 +149,52 @@ dep_f=$(awk '/no-orphans/{skip=1;next} skip&&/^[[:space:]]/{next} {skip=0} !/dep
 tsgo_f=$(grep -E '\.(ts|tsx|mts|cts)\([0-9]+,[0-9]+\): error TS' "$tout" 2>/dev/null | grep -F "$rel" || true)
 
 [ -z "$biome_f" ] && [ -z "$dep_f" ] && [ -z "$tsgo_f" ] && exit 0
+
+# ── SELF-DIAGNOSIS (#498) ──────────────────────────────────────────────────────────────────────────
+# This hook once blocked a Write having printed the biome + dep-cruiser BANNERS with ZERO findings under
+# them, and could not be reproduced afterwards. The banner is printed per NON-EMPTY finding variable, and
+# the all-empty case exits 0 above — so that block had a finding variable that was non-empty yet carried
+# nothing a reader could see (whitespace/control bytes only: an ANSI-only line, a lone \r, a partially
+# stripped footer). The cause is NOT known and is deliberately NOT guessed at here: the gate below is
+# unchanged and still blocks, because silently downgrading to exit 0 would swallow a real finding whose
+# only sin was an odd encoding. What changes is that the next occurrence carries its OWN receipt —
+# per-stage exit codes, raw byte counts, and the raw bytes rendered with `cat -v` so invisible content
+# becomes visible — instead of a bare banner nobody can act on.
+# "Visible" = what survives stripping ANSI CSI sequences, then whitespace and control bytes. The ANSI
+# strip is NOT redundant with `tr -d '[:cntrl:]'`: only the leading ESC of `\033[0m` is a control byte —
+# `[0m` is printable ASCII, so a colour-code-only line reads as content to every byte-wise test while
+# rendering as nothing at all. That was the shape a planted control reproduced.
+# LC_ALL=C is LOAD-BEARING, not hygiene: `[@-~]` (the CSI final-byte range) matches NOTHING under this
+# box's en_US.UTF-8 collation and everything under C — the strip silently no-op'd, and a no-op strip reads
+# exactly like "there was nothing to strip". Verified both ways before this line was trusted.
+visible=$(printf '%s%s%s' "$biome_f" "$dep_f" "$tsgo_f" \
+  | LC_ALL=C sed -E 's/\x1b\[[0-9;?]*[@-~]//g' \
+  | tr -d '[:space:][:cntrl:]')
+if [ -z "$visible" ]; then
+  {
+    printf '── biome-check.sh SELF-DIAGNOSIS: blocked with no VISIBLE findings (#498) ──\n'
+    printf 'The finding text below is non-empty but contains only whitespace/control bytes, so the\n'
+    printf 'banners would have printed with nothing under them. Report this block on issue #498.\n\n'
+    printf 'file : %s\n' "$rel"
+    printf 'root : %s\n' "$root"
+    printf 'owner: %s\n' "${owner:-<none — file is in no TS program>}"
+    printf 'exit codes  : biome=%s depcruise=%s tsgo=%s   (0=clean 1=findings 2=config; not-run=leg skipped)\n' \
+      "$brc" "$drc" "$trc"
+    printf 'raw bytes   : biome=%s depcruise=%s tsgo=%s\n' \
+      "$(wc -c <"$bout")" "$(wc -c <"$dout")" "$(wc -c <"$tout")"
+    printf 'post-filter : biome=%s dep=%s tsgo=%s (chars surviving each tool filter)\n' \
+      "${#biome_f}" "${#dep_f}" "${#tsgo_f}"
+    [ -s "$diag" ] && cat "$diag"
+    printf '\n── raw biome output (cat -v, first 2000 bytes) ──\n'
+    head -c 2000 "$bout" | cat -v
+    printf '\n── raw dep-cruiser output (cat -v, first 2000 bytes) ──\n'
+    head -c 2000 "$dout" | cat -v
+    printf '\n── raw tsgo output (cat -v, first 2000 bytes) ──\n'
+    head -c 2000 "$tout" | cat -v
+    printf '\n'
+  } >&2
+  exit 2
+fi
 
 # Grouped like `pnpm verify`: a labelled header per non-empty tool block, blank-line separated, so a
 # reader (and the agent) sees WHICH tool flagged WHAT at a glance. Diagnostic lines stay unindented so

@@ -148,7 +148,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   // cluster renders its Stop off (a draft commit that precedes the stream is not cancellable — there is no
   // subscription yet, and the room is already being written). Cancelling KEEPS the partial fill already in
   // the composer: a deliberate divergence from ST, which clears the draft at start and overwrites per tick
-  // (docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md) — ours is a review flow, so a half-drafted line
+  // (docs/history/reviews/misc/2026-08-01-st-impersonate-anatomy.md) — ours is a review flow, so a half-drafted line
   // the user stopped BECAUSE they liked its start is the thing they wanted to keep.
   const [stopImpersonation, setStopImpersonation] = useState<(() => void) | null>(null);
 

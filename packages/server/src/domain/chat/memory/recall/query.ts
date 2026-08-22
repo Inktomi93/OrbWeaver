@@ -28,7 +28,6 @@ export function buildRecallQuery(
     scopedCharacterId: scope.scopedCharacterId,
     mode: cfg.mode,
     keywordMatch: cfg.keywordMatch,
-    recencyBias: cfg.recencyBias,
     minScore: cfg.minScore,
     retrieveK: cfg.retrieveK,
     rerankTo: cfg.rerankTo,

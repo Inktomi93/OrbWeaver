@@ -11,7 +11,7 @@
 // ref that stops resolving, a scroll container that stops being an ancestor) reds here.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PromptReadoutDisclosureStory } from "./_readout-stories.tsx";
+import { PromptReadoutDisclosureStory, PromptReadoutMeterStory } from "./_readout-stories.tsx";
 
 const SHOW = "Show assembled preview";
 const HIDE = "Hide assembled preview";
@@ -88,4 +88,55 @@ test("the assembled preview cues the main-prompt block's narrator arm — and on
   await expect(preview.getByText(NARRATOR_CUE)).toHaveCount(1);
   // …and the cue is not the drill-in's sentence re-printed into the preview.
   await expect(page.getByText("Anything you write here replaces it on every turn")).toHaveCount(0);
+});
+
+// ── #483 / P2-7: the meter column has to be able to say something ────────────────────────────────
+// THE DEFECT, measured live on a 146px rail: of the first 17 rows, SEVEN fills were 0px and SIX were 0.7px
+// — a 0.5% sliver, sub-pixel at DPR 1 — because one section owns the scale and flattens the rest. So a
+// disabled row (fill 0) and a two-token enabled row (fill 0.7) drew the SAME empty track, and the one thing
+// the column could usefully say — which sections are actually costing you — was exactly what it could not.
+//
+// TWO PINS, because the fix has two halves and either alone would pass for the wrong reason:
+//   1. no enabled row paints a sub-pixel sliver (a visible floor, LINEAR above it);
+//   2. an OFF row is structurally distinct — it draws no rail at all, so "switched off" cannot be mistaken
+//      for "costs almost nothing".
+// Both are read off the RENDERED boxes, never off the model.
+
+const TRACK_BAR = '[data-slot="track-bar"]';
+const TRACK_FILL = '[data-slot="track-bar-fill"]';
+
+test("#483 P2-7 no budget bar paints a sub-pixel fill — a tiny section is visibly smaller, never invisible", async ({ mount }) => {
+  const readout = await mount(<PromptReadoutMeterStory />);
+  await expect(readout.getByText("Instructions", { exact: true })).toBeVisible();
+
+  // The census the report ran, as a vector: every fill's rendered width, in DOM order.
+  const fills = await readout.locator(TRACK_FILL).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+  expect(fills.length, "the story must actually render bars, or this proves nothing").toBeGreaterThan(2);
+  // A fill is either NOTHING (a row that genuinely costs zero) or a fill the eye can see. The old code drew
+  // 0.7px here for the two- and three-token rows.
+  expect(
+    fills.filter((width) => width > 0 && width < 1),
+    `sub-pixel fills: ${fills.map((width) => width.toFixed(2)).join(",")}`,
+  ).toEqual([]);
+  // …and the scale is still LINEAR at the top: the dominant section owns (nearly) the whole rail, so the
+  // floor did not become a log scale by the back door.
+  const rail = await readout
+    .locator(TRACK_BAR)
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().width);
+  expect(Math.max(...fills), "the largest section still fills its rail").toBeGreaterThan(rail * 0.9);
+});
+
+test("#483 P2-7 a DISABLED row draws no rail at all — off is not a very small number", async ({ mount }) => {
+  const readout = await mount(<PromptReadoutMeterStory />);
+  const offRow = readout.locator("button", { hasText: "Off big" }).first();
+  const tinyRow = readout.locator("button", { hasText: "Tiny A" }).first();
+  await expect(offRow).toBeVisible();
+
+  // ABSENT, not empty: the two states used to be one picture.
+  await expect(offRow.locator(TRACK_BAR), "an off row's meter is removed, not zeroed").toHaveCount(0);
+  await expect(tinyRow.locator(TRACK_BAR), "…and an enabled row still has one").toHaveCount(1);
+  // The DATUM survives the meter's removal, struck — which is what carries "off" now (F-26: the row stays
+  // in the budget list; a disabled section still has a size).
+  await expect(offRow.getByText("~100", { exact: true })).toHaveCSS("text-decoration-line", "line-through");
 });
