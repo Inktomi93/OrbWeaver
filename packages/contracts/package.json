@@ -9,6 +9,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
+    "./settings/appearance": "./src/settings/appearance.ts",
     "./*": "./src/*/index.ts"
   },
   "imports": {
