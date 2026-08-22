@@ -4,6 +4,11 @@
 // controls (attach + generate-from-text) live inside Message tools; attach still uploads local images to CAS
 // and rides the send as attachmentAssetIds.
 //
+// ATTACH HAS THREE GESTURES (#376), one seam: the ✨ menu's picker, a file DRAGGED onto the composer card,
+// and a clipboard PASTE. All three land in `receiveAttachFiles` → `triageAttachFiles` (lib/attach-media.ts),
+// which owns the accepted-type vocabulary and both byte ceilings — the picker's `accept` attribute only
+// filters the OS dialog, so drop/paste need that gate made explicit rather than re-spelled per gesture.
+//
 // EMPTY-ENTER (PD-146 continue + W-E generate): a bare Enter on an empty composer either extends the tail
 // assistant reply (`continueOnSend`) or prompts a fresh reply on a committed non-assistant tail
 // (`generateOnEmptySend`) — the pure `resolveEmptySendAction` picks the arm; the ▷ Response icon is the
@@ -30,23 +35,25 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
-import { cn, IMAGE_GEN_NEEDS_TEXT, notify, oversizeUploadMessage, testId } from "#lib";
+import { IMAGE_GEN_NEEDS_TEXT, notify, oversizeUploadMessage, testId } from "#lib";
 import { setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
+import { useComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
-import { CHAT_TRACK } from "../lib/chat-track.ts";
+import { ATTACH_BUSY_MESSAGE, triageAttachFiles } from "../lib/attach-media.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashCompletionAria } from "../lib/slash-command.ts";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
+import { ComposerDropTarget } from "./composer-drop-target.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
@@ -146,8 +153,6 @@ function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string
 function resolveImageGenReason(hasText: boolean): string | undefined {
   return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
 }
-
-const VIDEO_MIME_PREFIX = "video/";
 
 export interface ComposerProps {
   /** The room this composer belongs to — also its composer-draft SCOPE KEY (a room's id is stable for the
@@ -317,27 +322,36 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
     });
   };
 
-  // The picker's own rejection line is invisible here (it renders `hidden` inside the ✨ menu), so size
-  // rejections surface as warn toasts instead of silently vanishing — both the dropzone's own (over the
-  // route cap) and the per-file IMAGE cap check (the admin-tunable `maxImageBytes` is image-only; a video
-  // rides the route cap the dropzone already enforced).
+  // The ONE attach seam all three gestures converge on (#376): the ✨ picker, a drop onto the composer, a
+  // clipboard paste. `triageAttachFiles` owns the type gate and both byte ceilings, so no gesture can drift
+  // in what it accepts; every refusal surfaces as a warn toast (the picker's own rejection line is invisible
+  // — it renders `hidden` inside the ✨ menu — so a silent vanish is the failure mode being closed).
+  // A drop landing mid-send is refused with its reason rather than queued: the send's own commit signal
+  // clears the strip, which would swallow it (the picker row is `disabled` in that window for the same reason).
+  const receiveAttachFiles = (files: readonly File[]): void => {
+    if (sendMessage.isPending) {
+      notify.warn(ATTACH_BUSY_MESSAGE);
+      return;
+    }
+    const { accepted, refusals } = triageAttachFiles(files, uploadCaps);
+    for (const refusal of refusals) {
+      notify.warn(refusal);
+    }
+    if (accepted.length > 0) {
+      addFiles({ accepted: [...accepted], rejected: [] });
+    }
+  };
+  // The picker's adapter: the dropzone already split its batch on the route cap, so its rejections are
+  // reported here and its accepted half re-enters the shared triage (idempotent for size, load-bearing for
+  // the image cap).
   const addAttachmentFiles = (result: FileDropzoneResult): void => {
     for (const rejection of result.rejected) {
       notify.warn(oversizeUploadMessage(rejection.file, maxAttachmentBytes) ?? `${rejection.file.name} couldn't be attached`);
     }
-    const accepted: File[] = [];
-    for (const file of result.accepted) {
-      const overImageCap = file.type.startsWith(VIDEO_MIME_PREFIX) ? undefined : oversizeUploadMessage(file, uploadCaps.image);
-      if (overImageCap !== undefined) {
-        notify.warn(overImageCap);
-        continue;
-      }
-      accepted.push(file);
-    }
-    if (accepted.length > 0) {
-      addFiles({ accepted, rejected: [] });
-    }
+    receiveAttachFiles(result.accepted);
   };
+  // Drag-drop onto the composer surface + Ctrl/Cmd+V in the textarea, both feeding the seam above.
+  const mediaDrop = useComposerMediaDrop(receiveAttachFiles);
 
   // The image controls, re-homed OFF the composer bar and INTO the ✨ utility menu (owner). Attach still uses
   // the sanctioned FileDropzone picker; generate-from-text still clears only on a green settle (F-P1). The
@@ -373,18 +387,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
         <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
         {/* TWO ROWS (wand v2): the guided cluster sits ABOVE the textarea so the busy controls aren't crammed
             beside it. One outer card holds both rows so the focus-lift/backing spans the whole composer. */}
-        <Stack
-          gap="field"
-          data-slot="composer"
-          // Reading-surface rule (D44 §12.1): the composer carries its OWN opaque backing (`bg-card`), never
-          // leaning on the background scrim for legibility — the translucent `bg-input` tint left the typed
-          // text unreadable over a bright background picture with scrim=0 (side-eye, 2026-07-18). The
-          // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
-          className={cn(
-            CHAT_TRACK,
-            "rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
-          )}
-        >
+        <ComposerDropTarget dragActive={mediaDrop.dragActive} dropTargetProps={mediaDrop.dropTargetProps}>
           {/* ROW 1 — four truthful action homes on explicit container-responsive tracks. */}
           <ComposerGuidedCluster
             chatId={chatId}
@@ -430,12 +433,15 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
                 onChange(e.target.value);
               }}
               onKeyDown={onKeyDown}
+              // Ctrl/Cmd+V attach (#376). Deliberately does NOT preventDefault: a clipboard carrying text
+              // AND an image must attach the image and still paste the text (see the hook's header).
+              onPaste={mediaDrop.onPaste}
               disabled={sendMessage.isPending}
               className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
             />
           </Row>
-        </Stack>
+        </ComposerDropTarget>
       </Stack>
     </footer>
   );
