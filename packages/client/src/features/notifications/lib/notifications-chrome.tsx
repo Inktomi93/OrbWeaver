@@ -20,6 +20,20 @@ export const notificationsChrome: ChromeEntry = {
   // the phone topbar and renders its `body("sheet")` lens INLINE in the You sheet, which is where every
   // other phone-overflow affordance lives. Nothing becomes unreachable; the inbox gets more room, not less.
   mobile: "sheet",
+  // THE NO-FLASH RULING SURVIVES AND IS NOW PRICED (#465, measured 2026-08-22 on the live stack at
+  // 1280x800). `/api/auth/config` is fetched at app-root MOUNT, so on a multi-human deployment this gate
+  // is `false` for the first ~90ms of shell life and the bell then MOUNTS INTO the topbar trail:
+  // `.shell-topbar-trail` goes 1169,8,99,32 → 1127,7,141,34 (x -42px), a layout-shift value of
+  // **0.00015**, on every boot including boots 2-4. It was mis-diagnosed as an appearance/type-ramp
+  // reflow landing after `settings.getUserSettings` (#465's premise); it is neither — three appearance
+  // arms (`--appearance chatWidthPct 60|100`, `density compact + fontScale 1.25`) leave this entry
+  // BYTE-identical, and the appearance boot hint carries no key that touches it.
+  // NOT FIXED, deliberately: while the capability is unknown the trail can either reserve a control it may
+  // never render (a gap that collapses on every SINGLE-human deployment — the majority arm) or render
+  // nothing (this shift, on the multi-human arm only). The cost is an order of magnitude under the
+  // flagger's own 0.002 reporting floor (`lib/motion-stats.ts` MIN_REPORTED_SHIFT), which is why no `[cls]`
+  // console line ever named it. A device-local remembered answer (the `appearance-boot-hint` pattern) would
+  // close it and is the escalation if this ever grows teeth; it is not worth a new persisted store today.
   useVisible: (): boolean => useAuthConfig().data?.multiHumanCapable === true,
   // THE PHONE'S UNREAD SIGNAL (side-eye home re-score 2026-08-18, #214 residue). Curating this widget into
   // the You sheet gave the inbox room, and cost it its only phone-side TELL: the desktop bell badges the
