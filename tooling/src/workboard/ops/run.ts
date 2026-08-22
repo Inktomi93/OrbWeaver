@@ -2,7 +2,7 @@
 import { print } from "../../_shared/artifacts.ts";
 import type { WorkCommand } from "../contract/types.ts";
 import { runLifecycle } from "./lifecycle.ts";
-import { create, help, list, show } from "./report.ts";
+import { create, help, list, overview, show } from "./report.ts";
 
 export function runWorkCommand(command: WorkCommand): void {
   if (command.kind === "help") {
@@ -15,6 +15,10 @@ export function runWorkCommand(command: WorkCommand): void {
   }
   if (command.kind === "list") {
     list(command.status);
+    return;
+  }
+  if (command.kind === "overview") {
+    overview();
     return;
   }
   if (command.kind === "create") {

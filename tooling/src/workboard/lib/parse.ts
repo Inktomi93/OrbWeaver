@@ -108,5 +108,11 @@ export function parseWorkCommand(argv: readonly string[]): WorkCommand {
   if (name === "list") {
     return parseList(rawIssue === undefined ? rest : [rawIssue, ...rest]);
   }
+  if (name === "overview") {
+    if (rawIssue !== undefined || rest.length > 0) {
+      throw new UsageError("overview does not accept arguments");
+    }
+    return { kind: "overview" };
+  }
   return parseLifecycle(name, issueNumber(rawIssue), rest);
 }
