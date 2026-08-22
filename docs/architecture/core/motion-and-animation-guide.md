@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-21
+updated: 2026-08-22
 ---
 
 # Motion & Animation Guide
@@ -265,6 +265,31 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    layout/paint. Base UI ships `--accordion-panel-height` / `--collapsible-panel-height` as
    *measured* vars so you can transition `height` without a measure-loop, but that IS a layout
    property — scope it to occasional expand/collapse, never anything high-frequency.
+
+   **AMENDED 2026-08-22 (owner ruling, #456) — the interactive-state colour carve-out.**
+   A **paint-only colour** transition whose trigger is an interactive STATE — `hover` / `active`
+   / `focus` — is ALLOWED: `color`, `fill`, `stroke` and any `*-color` longhand
+   (`background-color`, `border-*-color`, `outline-color`, …). It repaints; it never moves
+   geometry, and it is the most conventional affordance feedback there is. **Everything that
+   moves geometry stays under the paragraph above** — `transform`/`opacity`
+   (+ standalone `scale`/`translate`) remain the whole permitted set for anything that moves,
+   whatever triggers it, and a colour animation the user did NOT trigger (mount, a data change,
+   a poll landing) is still a §3.7 violation. This closes the collision between §3.7's
+   unqualified "transform/opacity only" and §2/§4.2 item 9, which have always prescribed
+   `transition-colors` for state changes. **What forced it:** the ONE core Card primitive's
+   `hover:bg-accent` (`packages/ui/src/primitives/card/variants.ts`) made the app's own `[anim]`
+   flagger print `animating non-compositor backgroundColor (guide §3.7) · OVER BUDGET` on every
+   interactive-card hover, app-wide — a live instrument accusing ratified behaviour
+   (`docs/reviews/side-eye/2026-08-22-rail-home.md` P3-2).
+
+   The enforcing flagger is `packages/client/src/lib/motion-flaggers.ts` (`[anim]`), and its
+   predicate is **narrower than this text by construction**: an animation event carries a
+   property name and a target, never the CSS rule that fired it, so the flagger reads the
+   property set plus a live `Element.matches(":hover, :active, :focus, :focus-visible,
+   :focus-within")` on the element itself. Its stated blind spots — self-only (a `group-hover:`
+   descendant still fires), the latch that keeps the hover-OUT leg silent, and the sampler
+   (`__orb.animations()`) it deliberately does not touch — are documented at that carve-out's
+   own comment. Read them before treating a flagger verdict as this law's verdict.
 
 8. **When NOT to animate.** Litmus: seen 100+ times daily → don't animate (keystroke feedback,
    every row a power user scrolls past). Also: motion the user did NOT cause (another user's

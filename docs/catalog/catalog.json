@@ -1790,30 +1790,33 @@
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 446,
-      "bytes": 28787,
-      "sha256": "d64a5a935cba88273a5a4003f8813fffe8ee58689ed6c7df479c44f22d11ff79",
+      "lines": 471,
+      "bytes": 30855,
+      "sha256": "2fde919a85aa8d378f0465cff0134518eb876e8812ace0e7ca68419a2a90254c",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-21"
+          "updated": "2026-08-22"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/motion-and-animation-guide.md",
-        "assignedSha256": "d64a5a935cba88273a5a4003f8813fffe8ee58689ed6c7df479c44f22d11ff79",
+        "assignedSha256": "2fde919a85aa8d378f0465cff0134518eb876e8812ace0e7ca68419a2a90254c",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "d64a5a935cba88273a5a4003f8813fffe8ee58689ed6c7df479c44f22d11ff79",
-        "verifiedCommit": "b75860a08476cdf9276337b5009d003bd0ab31eb",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "2fde919a85aa8d378f0465cff0134518eb876e8812ace0e7ca68419a2a90254c",
+        "verifiedCommit": "09f76110c1c53bb6f1d66c689f71ece5e9b80437",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/motion-and-animation-guide.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
+          "delta re-verify 2026-08-22 (#456, commit 09f76110c1c53bb6f1d66c689f71ece5e9b80437): re-read IN FULL at the amended bytes — §3.7 gains the owner-ruled interactive-state colour carve-out (paint-only colour on hover/active/focus allowed; geometry unchanged), which resolves its standing collision with §2's state-transition row and §4.2 item 9's transition-colors. No other claim in this document moved.",
+          "packages/client/src/lib/motion-flaggers.ts:134 the [anim] channel's carve-out predicate (property set + live interactive-state match + hover-out latch) with its stated blind spots",
+          "tests/client/lib/motion-flaggers.ct.tsx:224 pins the carve-out in both directions: a :hover colour transition stays silent (hover-in and hover-out) while the same :hover driving width still fires",
           "packages/client/src/lib/select-entrance-evidence.ts:217 installs the sealed Select entrance observer",
           "scripts/probes/motion-audit.ts:379 selects one chronological primary confirmed LoAF per first entrance before the fixed allowance is applied",
           "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat Select entrance evidence",
@@ -1840,9 +1843,22 @@
                 "target": "tests/tooling/motion-audit/index.test.ts:91"
               }
             ]
+          },
+          {
+            "claim": "§3.7's 2026-08-22 carve-out allows paint-only colour transitions on an interactive state and nothing else: the [anim] flagger stays silent across both hover legs of a colour transition and still fires on the same :hover driving width.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/lib/motion-flaggers.ts:134"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/lib/motion-flaggers.ct.tsx:224"
+              }
+            ]
           }
         ],
-        "summary": "Active motion law reverified against the sealed Select evidence ledger, one-shot first-entrance allowance, attribution veto, and browser plus tooling controls."
+        "summary": "Active motion law reverified against the sealed Select evidence ledger, one-shot first-entrance allowance, attribution veto, browser plus tooling controls, and the owner-ruled interactive-state colour carve-out with its two-directional pin."
       },
       "receiptCurrent": true
     },
