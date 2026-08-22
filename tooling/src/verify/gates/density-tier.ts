@@ -53,7 +53,10 @@ const ELEVATED_ALLOW: readonly string[] = [
   "packages/ui/src/primitives/selection-bar/",
   "packages/ui/src/primitives/toast/",
   "packages/ui/src/content/immersive-card/",
-  "packages/client/src/features/chat/components/composer.tsx",
+  // THE composer card — D6 names the composer in the elevated family. The `rounded-card` site moved here
+  // from composer.tsx (#376) when the card + its media drop affordance were extracted; the gate's own
+  // stale-arm caught the old row the same run, so this is a MOVE, never a widened exemption.
+  "packages/client/src/features/chat/components/composer-drop-target.tsx",
   // THE chat bubble's box, single-homed here so the theme editor's preview paints the same one (a runtime
   // cross-feature import is dep-cruiser RED, so lib/ is the shared home). The row skins consume it.
   "packages/client/src/lib/message-bubble-class.ts",

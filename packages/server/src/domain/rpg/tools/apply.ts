@@ -32,16 +32,9 @@ import type {
 } from "@orb/contracts/rpg";
 import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, rpgCastSlug, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
 import type { RpgQuestId } from "@orb/kit/ids";
-import type { StagedJournalEntry } from "../contract/params.ts";
+import type { ExtractionMints, RosterRefIndex, ScenePatch, StagedJournalEntry } from "../contract/params.ts";
 import type { RpgStateDelta } from "../contract/service.ts";
 import { emptyActorEntry } from "../substrate/actor-ops.ts";
-
-/** A name→actor-ref index over the roster (character/user members by their gather-surfaced display name,
- *  lowercased), so a model `targetRef` NAME resolves to the roster member's canonical ref key. Built once per
- *  apply from the resolved roster (`tools/index.ts`/the extraction fold thread `ctx.resolveRoster`). A tool
- *  write on a roster member then lands under `character:<id>`/`user:<id>` — the SAME key `buildTrackerView` +
- *  the steering reminder read (stickler F2), never an orphan `cast:<name>` the panel can't render. */
-export type RosterRefIndex = ReadonlyMap<string, RpgActorRef>;
 
 /** The universal self-aliases a model reaches for when it means the human player — resolved to the player
  *  (user-kind) roster actor so a "player"/"you"/"self" targetRef lands on the real ref, never a phantom
@@ -264,20 +257,6 @@ export function applyUpdateInventory(
 
   const volatile: RpgActorVolatile = { ...actor, inventory, wallet };
   return { actorState: withActor(state.actorState, { actor: { ...resolved.actor, volatile }, index: resolved.index }) };
-}
-
-/** The state patch `update_scene` produces — an ambient/presence/identity/beat overlay under the [merge-clear]
- *  contract. Since R2 a cast write touches TWO planes: `presentCharacters` (who is on stage — a flat
- *  `actorRefKey` list) and `actorState` (the NPC's own identity half, retained across departures). */
-export interface ScenePatch {
-  clock?: RpgSnapshotState["clock"];
-  location?: string;
-  calendarDate?: string;
-  weather?: RpgSnapshotState["weather"];
-  presentCharacters?: RpgSnapshotState["presentCharacters"];
-  actorState?: RpgActorEntry[];
-  recentEvents?: readonly string[];
-  plot?: RpgSnapshotState["plot"];
 }
 
 /** Pick the field that WINS a cast merge: the tool's value if provided, else the existing value, else the
@@ -574,14 +553,6 @@ export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtractio
   }
   const named = [...extraction.party, ...extraction.inventory].map((e) => e.targetRef);
   return [...new Set(named.filter((n) => !known.has(n.toLowerCase())))];
-}
-
-/** The id mints the extraction fold needs (inventory item ids + quest/objective ids) — injected for
- *  determinism (the impl passes `newId`/`ctx.ids.quest`, a test passes stable counters). */
-export interface ExtractionMints {
-  readonly item: () => string;
-  readonly quest: () => RpgQuestId;
-  readonly objective: () => string;
 }
 
 /** The ACTOR-plane arms of the fold (`party` + `inventory`) applied over the running state — hoisted out of

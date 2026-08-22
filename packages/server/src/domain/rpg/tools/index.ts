@@ -32,12 +32,12 @@ import {
 import type { ChatTurnId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
+import type { RosterRefIndex } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
 import { findGameByChat } from "../persistence/games.ts";
 import { resolveSnapshotForTurn } from "../persistence/snapshots.ts";
 import { defaultSnapshotState } from "../substrate/default-state.ts";
-import type { RosterRefIndex } from "./apply.ts";
 import {
   applySetTracker,
   applyUpdateInventory,

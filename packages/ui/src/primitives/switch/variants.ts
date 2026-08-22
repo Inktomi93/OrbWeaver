@@ -1,9 +1,23 @@
 import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
-// The fine-pointer track rides pointer-independent display tokens, so the desktop switch stays generous
-// rather than collapsing toward a near-square toggle. At a coarse pointer the root itself grows to the
-// ≥44px touch floor; the thumb stays on its display token so its travel remains legible. The pseudo stays
-// as the unknown-pointer fallback, but coarse target geometry no longer depends on invisible overflow.
+// The track is generous rather than collapsing toward a near-square toggle — and BOTH of its dimensions
+// are pointer-conditional, because only the pair keeps the silhouette. At a coarse pointer the root grows
+// to the ≥44px touch floor on its HEIGHT (`pointer-coarse:h-touch-target`) and `--spacing-switch-track`
+// widens to 64px to match (the token's own @media(pointer:fine) override narrows it back to 48 on the
+// desktop arm). Height alone was the shipped defect: a 48-wide track around a 32px thumb at 44 tall is a
+// 1.091-aspect near-circle with track painting on all four sides of the knob, which side-eye #420 measured
+// and read as a crescent moon rather than a switch. The thumb stays on its pointer-independent display
+// token, so travel = track − thumb scales with the width (32px coarse / 16px fine) and stays legible at
+// both. The pseudo stays as the unknown-pointer fallback, but coarse target geometry no longer depends on
+// invisible overflow. Both arms are pinned in tests/ui/primitives/switch/switch.ct.tsx (the fine aspect +
+// travel pins, and the `at a COARSE pointer` describe block).
+//
+// KNOWN, DELIBERATELY UNFIXED (side-eye #420 P3, pre-existing at BOTH pointers): the checked thumb sits
+// 1px proud of the track's right rim. The root is `border-box` with a 1px border, so its CONTENT box is
+// 2px narrower than `--spacing-switch-track`, while the translate below spends the full token. Every fix
+// is bigger than the defect — subtracting the border needs a raw `2px` (banned: tokens only) or a new
+// border-width token plus a re-spelling of `border` on the root, whose colour the invalid/checked
+// variants and a CT assertion already ride.
 //
 // `tone` rations the accent (north-star §5 rule 0.5, PP1's Badge `tone` precedent; owner-sanctioned
 // 2026-07-16): `accent` (default) is the byte-identical ember-on-checked skin — the ONE sanctioned

@@ -958,3 +958,167 @@ test("picking an image shows a removable preview and makes an attachment-only me
   await component.getByRole("button", { name: REMOVE_BTN }).click();
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(0);
 });
+
+// ── #376 drag-drop + clipboard paste attach ──────────────────────────────────────────────────────────
+// Two NEW entry points into the one attach seam (the picker above is the third). The gestures are driven
+// with real constructed DataTransfer/ClipboardEvent objects rather than a CDP drag, because a CT has no
+// OS-level drag source — what matters is that the composer's handlers read `dataTransfer.files` /
+// `clipboardData.files` and that the refusals are honest. The picker's `accept` attribute filters only the
+// OS dialog, so these two paths are the ones that need the type gate made explicit.
+const COMPOSER_SURFACE = '[data-slot="composer"]';
+const DROP_AFFORDANCE = '[data-slot="composer-drop-affordance"]';
+const NOTIFIED = '[data-testid="composer-notified"]';
+
+interface DropSpec {
+  readonly name: string;
+  readonly type: string;
+  readonly bytes: number;
+}
+
+/** Dispatches a file drag sequence at the composer surface; `stages` picks how far the gesture gets. */
+async function dragFiles(component: Locator, specs: readonly DropSpec[], stages: readonly string[]): Promise<void> {
+  await component.locator(COMPOSER_SURFACE).evaluate(
+    (el, args) => {
+      const transfer = new DataTransfer();
+      for (const spec of args.specs) {
+        transfer.items.add(new File([new Uint8Array(spec.bytes)], spec.name, { type: spec.type }));
+      }
+      for (const stage of args.stages) {
+        el.dispatchEvent(new DragEvent(stage, { dataTransfer: transfer, bubbles: true, cancelable: true }));
+      }
+    },
+    { specs, stages },
+  );
+}
+
+test("#376 drag: a FILE drag over the composer arms the surface and names what it will take", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  await expect(component.locator(DROP_AFFORDANCE)).toHaveCount(0);
+  await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragenter", "dragover"]);
+
+  // The affordance is an EMPTY STATE: it must name both accepted classes, not merely glow.
+  await expect(component.locator(DROP_AFFORDANCE)).toBeVisible();
+  await expect(component.locator(DROP_AFFORDANCE)).toContainText("Drop images or video to attach");
+  await expect(component.locator(COMPOSER_SURFACE)).toHaveAttribute("data-drag-over", "");
+  // done ≠ rendered: a visible-and-non-empty assertion still passes on a 0-height box. The affordance is a
+  // padded band spanning the composer's own width — assert against the SURFACE, never a hardcoded px.
+  const affordanceBox = await component.locator(DROP_AFFORDANCE).boundingBox();
+  const surfaceBox = await component.locator(COMPOSER_SURFACE).boundingBox();
+  expect(affordanceBox?.height ?? 0).toBeGreaterThan(0);
+  expect(affordanceBox?.width ?? 0).toBeGreaterThan((surfaceBox?.width ?? 0) / 2);
+
+  // Leaving the surface disarms it (the depth counter reaching zero, not the first descendant leave).
+  await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragleave"]);
+  await expect(component.locator(DROP_AFFORDANCE)).toHaveCount(0);
+});
+
+test("#376 drag: a TEXT drag never claims the composer (native text-drop into the textarea survives)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  await component.locator(COMPOSER_SURFACE).evaluate((el) => {
+    const transfer = new DataTransfer();
+    transfer.setData("text/plain", "dragged prose");
+    el.dispatchEvent(new DragEvent("dragenter", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+  });
+
+  await expect(component.locator(DROP_AFFORDANCE)).toHaveCount(0);
+  await expect(component.locator(COMPOSER_SURFACE)).not.toHaveAttribute("data-drag-over", "");
+});
+
+test("#376 drop: dropping an image attaches it and it rides the send as an attachment asset", async ({ mount, page }) => {
+  let uploadCalled = 0;
+  await page.route("**/api/assets/upload", async (route) => {
+    uploadCalled += 1;
+    await route.fulfill({ json: { assetId: STUB_ASSET_ID, hash: "cthash", size: PNG_1PX.length, created: true } });
+  });
+  let sendBody: string | null = null;
+  await routeTrpc(page, {});
+  await page.route("**/api/trpc/**", async (route) => {
+    const req = route.request();
+    if (!(req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send"))) {
+      await route.fallback();
+      return;
+    }
+    sendBody = req.postData();
+    await new Promise<void>(() => undefined); // held in flight
+  });
+
+  const component = await mount(<ComposerStory />);
+  await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: PNG_1PX.length }], ["dragenter", "dragover", "drop"]);
+
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
+  // The affordance retires the moment the drop lands — it describes an in-progress gesture, not a state.
+  await expect(component.locator(DROP_AFFORDANCE)).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Send message" })).toBeEnabled();
+
+  await component.getByRole("button", { name: "Send message" }).click();
+  await expect.poll(() => uploadCalled, { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => sendBody, { intervals: [20, 50, 100] }).not.toBeNull();
+  expect(sendBody).toContain(STUB_ASSET_ID);
+});
+
+test("#376 drop: dropping an mp4 attaches it with the VIDEO preview arm (never a broken <img>)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  await dragFiles(component, [{ name: "clip.mp4", type: "video/mp4", bytes: 8 }], ["dragenter", "dragover", "drop"]);
+
+  const preview = component.locator(ATTACHMENT_PREVIEW);
+  await expect(preview).toHaveCount(1);
+  await expect(preview.locator('[data-slot="background-video"]')).toBeVisible();
+});
+
+test("#376 drop: an unsupported type is refused BY NAME and nothing of it attaches (no silent drop)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  await dragFiles(
+    component,
+    [
+      { name: "resume.pdf", type: "application/pdf", bytes: 16 },
+      { name: "cat.png", type: "image/png", bytes: 4 },
+    ],
+    ["dragenter", "dragover", "drop"],
+  );
+
+  // The GOOD file in the same batch still lands — a mixed drop is not all-or-nothing.
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
+  // …and the refused one earns a named, actionable warn (the story's notify sink renders the last title).
+  await expect(component.locator(NOTIFIED)).toContainText("resume.pdf");
+  await expect(component.locator(NOTIFIED)).toContainText("isn't an image or video");
+});
+
+test("#376 paste: pasting a screenshot attaches it", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  await component.getByLabel("Message", { exact: true }).evaluate((el) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(4)], "screenshot.png", { type: "image/png" }));
+    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true }));
+  });
+
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
+});
+
+test("#376 paste: a clipboard carrying BOTH text and an image attaches the image without eating the text paste", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ComposerStory />);
+
+  // The handler must not preventDefault, or the browser never inserts the text half. A synthetic paste has
+  // no default ACTION to observe, so the proof is the flag the browser would have acted on.
+  const defaultSurvived = await component.getByLabel("Message", { exact: true }).evaluate((el) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(4)], "screenshot.png", { type: "image/png" }));
+    transfer.setData("text/plain", "and some prose");
+    const event = new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true });
+    el.dispatchEvent(event);
+    return !event.defaultPrevented;
+  });
+
+  expect(defaultSurvived).toBe(true);
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
+});

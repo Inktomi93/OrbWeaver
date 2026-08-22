@@ -7,6 +7,7 @@
 // v11.18 source at the move.
 import type { Server } from "node:http";
 import { createServer } from "node:http";
+import type { CliResult, ToolFixtures } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CLI_TIMEOUT_MS = 30_000;
@@ -116,4 +117,61 @@ test("a missing chatId is CLI misuse", async ({ runCli }) => {
 test("an unknown subcommand is CLI misuse", async ({ runCli }) => {
   const res = await runCli("wire-tap", ["tcpdump"]);
   expect(res).toExitWith(3);
+});
+
+// ── the captures op's RECORDER-STATE arms (#412) ────────────────────────────────────────────────────────
+// The whole point of the server-side `enabled` field: a zero row count means two opposite things, and until
+// the endpoint reported its own state this op could only caveat and exit clean on both. These three pins are
+// the exit contract for the three states — an off recorder and a pre-#412 server are apparatus absence
+// (exit 2, "the run is NOT a verdict"), a live recorder with no traffic is an honest zero (exit 0).
+
+/** A loopback stand-in for `/api/_debug/wire/captures` serving one scripted payload. */
+function capturesServer(payload: Record<string, unknown>): Promise<{ server: Server; port: number }> {
+  return new Promise((resolve) => {
+    const server = createServer((req, res) => {
+      if ((req.url ?? "").includes("/api/_debug/wire/")) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(payload));
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      resolve({ server, port: typeof addr === "object" && addr !== null ? addr.port : 0 });
+    });
+  });
+}
+
+async function runCaptures(runCli: ToolFixtures["runCli"], payload: Record<string, unknown>): Promise<CliResult> {
+  const { server, port } = await capturesServer(payload);
+  try {
+    // biome-ignore lint/style/useNamingConvention: WIRE_TAP_BASE is the op's own env-var spelling.
+    return await runCli("wire-tap", ["captures"], { env: { WIRE_TAP_BASE: `http://127.0.0.1:${port}` } });
+  } finally {
+    server.close();
+  }
+}
+
+test("recorder OFF is apparatus absence — exit 2, whatever the row count says", async ({ runCli }) => {
+  const res = await runCaptures(runCli, { enabled: false, count: 0, captures: [] });
+  expect(res.stderr).toContain("recorder is OFF");
+  expect(res.stdout).toContain("recorder=off");
+  expect(res).toExitWith(2);
+});
+
+test("recorder ON with zero rows is an HONEST empty — exit 0 with the count", async ({ runCli }) => {
+  const res = await runCaptures(runCli, { enabled: true, count: 0, captures: [] });
+  expect(res.stdout).toContain("recorder=on");
+  expect(res.stdout).toContain("rows=0");
+  expect(res.stderr).not.toContain("recorder is OFF");
+  expect(res).toExitWith(0);
+});
+
+test("a server that publishes NO enabled field cannot be interpreted — exit 2, named as such", async ({ runCli }) => {
+  const res = await runCaptures(runCli, { count: 0, captures: [] });
+  expect(res.stderr).toContain("no `enabled` field");
+  expect(res.stdout).toContain("recorder=unreported");
+  expect(res).toExitWith(2);
 });

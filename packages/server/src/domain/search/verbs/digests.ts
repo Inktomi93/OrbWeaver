@@ -14,6 +14,7 @@
 // the owner can MEASURE the re-ordering effect on the real corpus and rule; see `recencyBoostOrder`.
 
 import type { BlockKey } from "@orb/contracts/search";
+import { getLog } from "#foundation/observability";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DigestsParams } from "../contract/params.ts";
@@ -86,7 +87,13 @@ async function rerankOrKeep<T extends { readonly id: string; readonly sourceText
   }
   try {
     return await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, ctx.roleClients.rerank, params.rerankTo);
-  } catch {
+  } catch (rerankErr) {
+    // #405 F2: the CAUSE is logged before the degrade, matching both sibling degrade seams
+    // (`compaction_failed` / `memory_build_failed` in chat's engine, which `getLog().warn({ err })` first).
+    // `onRerankUnavailable()` carries no payload — it is a client-facing "you got mixB" bit — so without this
+    // line an operator diagnosing a rerank outage had ZERO server-side signal: the fallback is honest to the
+    // user and invisible to the person who has to fix it.
+    getLog().warn({ err: rerankErr }, "search: digest rerank unavailable — keeping the vector order (mixC → mixB)");
     events?.onRerankUnavailable();
     return retrieved;
   }

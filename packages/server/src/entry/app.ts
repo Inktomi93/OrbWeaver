@@ -178,6 +178,11 @@ export interface AppDeps {
   /** #250 — the memory-recall flight recorder's read half. Present in production compose (the recorder is
    *  built unconditionally); absent ⇒ `/api/_debug/memory/recalls` is not registered. */
   readonly memoryRecall?: MemoryRecallInspector;
+  /** #412 — compose's wire-capture REQUEST-SINK decision (`env.WIRE_CAPTURE === "on"` OR its force flag),
+   *  published on `/api/_debug/wire/captures` as `enabled` so `wire-tap captures` can tell "recorder off"
+   *  (apparatus absent → exit 2) from "recorder on, no traffic" (an honest zero). Absent ⇒ the route falls
+   *  back to the env half, which is the truth for a hand-built app that never forced the sink on. */
+  readonly wireCapture?: boolean;
 
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
    *  BYO pose byte-ingest. */
@@ -393,6 +398,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // answer rather than a 404 the caller has to tell apart from a typo. Gating it would mean threading the
     // resolved engines posture down here purely to withhold a truthful reading.
     vllmMetrics: { snapshot: fleetCapacitySnapshot },
+    // #412: the recorder-state publisher. Spread like rpgTrace so an absent dep leaves the route on its env
+    // fallback rather than pinning it to a `false` this app never actually decided.
+    ...(deps.wireCapture === undefined ? {} : { wireCaptureEnabled: (): boolean => deps.wireCapture === true }),
     auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
   });
 
