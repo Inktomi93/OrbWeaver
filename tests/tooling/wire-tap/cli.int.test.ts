@@ -81,6 +81,8 @@ test("the tap reports the planted frames frame-for-frame and exits clean on `ret
   }
 });
 
+// @instrument-absence-proof: a stream that delivered NO frames must report the empty population out loud,
+// never a bare clean exit that reads as "the wire was quiet and fine".
 test("a stream that delivered NO frames reports an empty population, never a bare clean exit", async ({ runCli }) => {
   // ZERO HYGIENE (#409): a silent tap is a LEGITIMATE outcome (a quiet-but-healthy room), so it is not
   // a tool error — but the run must say the frame population was empty, and repeat the withhold caveat
