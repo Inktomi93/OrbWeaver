@@ -17,7 +17,7 @@ import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/supp
 // A spec targets its mode by the Playwright PROJECT name (a project-scoped `test.describe` / the runner's
 // `--project=<name>`); the default `pnpm e2e` runs every project.
 //
-// The stack: `scripts/dev/stack.sh start-fg` — the SAME leader body the detached dev supervisor runs (one
+// The stack: `tooling/src/stack/stack.sh start-fg` — the SAME leader body the detached dev supervisor runs (one
 // source of truth), foreground so Playwright owns + reaps the child tree. Boot order inside it is server →
 // healthz-gated → vite, so vite answering (the baseURL origin) == everything-ready.
 
@@ -45,7 +45,7 @@ const projects = MODE_PROJECTS.map((mode) => ({
 // The actor clients target their stack via the spec's per-project Playwright `baseURL` (not an env), so no
 // `E2E_BASE_URL` threading is needed here.
 const webServers = MODE_PROJECTS.map((mode) => ({
-  command: "bash scripts/dev/stack.sh start-fg",
+  command: "bash tooling/src/stack/stack.sh start-fg",
   url: mode.baseUrl,
   reuseExistingServer: mode.name === SINGLE_USER.name && DEV_TARGET_ALLOWED && !inCI,
   timeout: 180_000,

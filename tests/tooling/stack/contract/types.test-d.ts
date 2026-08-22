@@ -1,0 +1,25 @@
+// Type-level pin for the stack grammar + identity vocabulary. Three properties no runtime test can see:
+//   • the shell's dispatch table is TOTAL over `StackVerb` — `formatDispatch` maps every verb to a
+//     stack.sh case label through a `Record<StackVerb, string>`, so a verb added to the tuple without a
+//     shell label fails tsc, never at 2am in a launcher;
+//   • the parse result is a DISCRIMINATED union — an `ok:false` result carries no `invocation`, so a
+//     caller cannot read one without narrowing (the shell exits 2 on the error arm);
+//   • every identity verdict the classifier can emit is a verdict the up/down deciders handle.
+import { expectTypeOf, test } from "vitest";
+import type { InstanceClassification, InstanceVerdict, STACK_VERBS, StackParse, StackVerb } from "../../../../tooling/src/stack/index.ts";
+
+test("StackVerb derives from the tuple — one axis, no re-spell", () => {
+  expectTypeOf<(typeof STACK_VERBS)[number]>().toEqualTypeOf<StackVerb>();
+});
+
+test("a failed parse cannot be read as an invocation", () => {
+  // FABRICATION-OK: a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property.
+  const parsed = {} as StackParse;
+  // @ts-expect-error — `invocation` exists only on the ok:true arm; the shell must narrow first.
+  void parsed.invocation;
+  expectTypeOf<Extract<StackParse, { ok: true }>["invocation"]["verb"]>().toEqualTypeOf<StackVerb>();
+});
+
+test("the classifier's verdicts are exactly the ones the deciders switch on", () => {
+  expectTypeOf<InstanceClassification["verdict"]>().toEqualTypeOf<InstanceVerdict>();
+});

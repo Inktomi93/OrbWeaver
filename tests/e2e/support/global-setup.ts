@@ -9,7 +9,7 @@
 //      an existing chat; seeding one model-free (chat.startChat) keeps the non-live suite MODEL-FREE.
 //   3. The routing roleDefaults pinned to the local vLLM engine (the @live specs' coherent chat wire).
 //   4. LOCAL mode ONLY: the multi-user seed (localMultiUser AppSetting on + a member account) by shelling the
-//      dev `scripts/dev/multi-user-seed.ts` — the ONE source of truth for that sequence, not a reimplementation.
+//      dev `seed multi-user` (@orb/tooling) — the ONE source of truth for that sequence, not a reimplementation.
 //
 // Seed via API, not UI — faster + more reliable, and it runs against the SAME running stack the specs hit.
 // The un-credentialed 127.0.0.1 owner-fallback seam resolves the owner in every mode (single-user always;
@@ -114,9 +114,8 @@ async function pinRouting(baseUrl: string): Promise<void> {
  *  seed sequence —
  *  resetPassword(owner) → updateAppSettings{localMultiUser:true} → createUser(member) → verify. */
 function seedMultiUser(mode: ModeProject): void {
-  // Invoke the tsx CLI's JS entry directly with node (the `.bin/tsx` shim is a bash script — running it via
-  // `process.execPath` would feed node a shell script). `tsx/dist/cli.mjs` is the real Node entry.
-  execFileSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "scripts/dev/multi-user-seed.ts"], {
+  // node runs the tool's source directly (type stripping); the tsx hop this used to take was launcher rot.
+  execFileSync(process.execPath, ["tooling/src/seed/cli.ts", "multi-user"], {
     stdio: "inherit",
     env: {
       ...process.env,

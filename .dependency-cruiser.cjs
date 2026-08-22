@@ -504,7 +504,7 @@ module.exports = {
       comment:
         "Code outside infra/providers may import ONLY the public surface — the front door (providers/index.ts), the role dispatchers (roles/), and the contract barrel (contract/). Reaching INTO a sealed family (backends/<x>) or the local engine (vllm/) is RED — the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. Wildcard match means new families inherit the seal. tests/support is exempt (mock runners instantiate family shapes). (tiers/providers.md invariants #1/#4.)",
       severity: "error",
-      from: { pathNot: [`${SRV}infra/providers/`, "^tests/support/"] },
+      from: { pathNot: [`${SRV}infra/providers/`, "^tests/support/", "^tooling/"] },
       to: {
         // Sealed: the families (backends/<x>), the local engine (vllm/), AND the contract internals —
         // outside callers reach contract/index.ts (the barrel), never contract/<file> (providers.md #4).
@@ -599,6 +599,17 @@ module.exports = {
       severity: "error",
       from: { path: "^tooling/src/_shared/" },
       to: { path: "^tooling/src/", pathNot: "^tooling/src/_shared/" },
+    },
+    {
+      name: "tooling-no-provider-families",
+      comment:
+        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (tooling-package.md §1), and the fleet launcher MUST share `vllm/engine`'s spawn-spec/wake-budget builders with the in-server supervisor or the two owners drift — that shared-builder invariant is the whole point of the ownership inversion (A.4). What stays SEALED against tooling is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. A tool reaching either is RED. (tooling-package.md §1/§4.6; providers invariants #1/#4.)",
+      severity: "error",
+      from: { path: "^tooling/" },
+      to: {
+        path: "^packages/server/src/infra/providers/(backends|contract)/",
+        pathNot: "^packages/server/src/infra/providers/contract/index\\.ts$",
+      },
     },
 
     // ════════════════════════════ Hygiene ═══════════════════════════════════════════════════════

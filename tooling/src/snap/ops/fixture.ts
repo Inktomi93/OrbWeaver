@@ -1,7 +1,7 @@
 // ── fixture: the multi-user FIXTURE stack door for `snap --contexts`/`--as` ──────────────────────────
 //
 // WHY THIS EXISTS: `--contexts N` needs ≥2 DIFFERENT authenticated dev users to prove multi-human chat
-// states (host vs member views). The SHARED dev stack (:5173/:8788, scripts/dev/stack.sh) always boots
+// states (host vs member views). The SHARED dev stack (:5173/:8788, tooling/src/stack/stack.sh) always boots
 // AUTH_MODE=single-user — one user, no login form, nothing to authenticate AS. The only door with a real
 // local-login form + a second user is `scripts/dev/multi-user-fixture.sh`. This module never boots/stops
 // that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture is up and

@@ -274,7 +274,7 @@ const envSchema = z
     // first-run persona ask. It stays a self-stamp otherwise (`/healthz`), and nothing else branches on it.
     E2E_HARNESS: z.enum(["on", "off"]).default("off"),
     // The DEV-STACK SEED stamp — the dev twin of `E2E_HARNESS` for automation-started stacks. `on` is set by
-    // `scripts/dev/stack.sh` (host export wins, so `DEV_SEED=off pnpm stack restart` rehearses a REAL first
+    // `tooling/src/stack/stack.sh` (host export wins, so `DEV_SEED=off pnpm stack restart` rehearses a REAL first
     // sign-in). It enables the default-persona seeder's auto-create arm: without it every dev DB regen would
     // greet the operator with the forced first-run persona dialog, which is exactly the constraint that kept
     // the forced ask from shipping. Default off ⇒ a real deployment ASKS (D107's zero-personas trigger holds).
@@ -561,7 +561,7 @@ const envSchema = z
     // OWNER RULING 2026-08-19 (the HELD discriminator decision): KEEP NODE_ENV, do NOT add a PUBLIC_DEPLOYMENT
     // flag. The ruling SURVIVES the launch-centralize consolidation (#309) — its INPUT changed: `pnpm start`
     // was removed, so BOTH supported prod launchers now route through `buildProdSpawnPlan`
-    // (`scripts/dev/_kit/stack-mode.ts` — `env: {...inherited, NODE_ENV: "production", ...}`, in the spawn plan
+    // (`tooling/src/stack/lib/spawn-plan.ts` — `env: {...inherited, NODE_ENV: "production", ...}`, in the spawn plan
     // itself, not just the status log): `pnpm stack up prod` (detached) and `pnpm stack start-fg prod`
     // (foreground). The discriminator bites on every real prod path even more cleanly than before; a second
     // flag would only be a source of disagreement. The one residual (a bare
