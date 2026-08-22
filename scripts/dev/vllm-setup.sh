@@ -6,7 +6,7 @@
 # NVIDIA driver and selects matching CUDA wheels — no system CUDA toolkit,
 # no index-URL archaeology, nothing outside this repo (cache pinned below).
 #
-# Called automatically by `pnpm engines` (scripts/dev/engines.sh) when the venv
+# Called automatically by `pnpm engines` (tooling/src/stack/engines.sh) when the venv
 # is missing; safe to run by hand (`bash scripts/dev/vllm-setup.sh`). Re-runs
 # are no-ops unless the pin changes.
 #

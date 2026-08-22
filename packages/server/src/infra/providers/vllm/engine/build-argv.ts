@@ -1,7 +1,7 @@
 // buildEngineArgv — THE per-engine `vllm serve` incantation, as a PURE function. Formerly the case-arms of
 // scripts/dev/vllm-engine.sh; now the ONE home both engine owners share:
 //   • the in-server adoptive supervisor (spawnOwned) — composes EffectiveAppConfig, passes the launch slice;
-//   • the standalone dev launcher (scripts/dev/engines.ts) — resolves the same layering, calls this.
+//   • the standalone dev launcher (tooling/src/stack/ops/engines.ts) — resolves the same layering, calls this.
 // Keeping it pure (config injected, never reading env/DB itself) makes it argv-snapshot unit-testable and
 // keeps the two owners from ever drifting (the old "keep flags in the .sh" comment is now a type).
 //

@@ -1,5 +1,5 @@
 // The fleet sleep/wake control library — the ONE home for the sleep/wake HTTP + the hold-marker + the wake
-// DECISION, shared by the CLI front door (scripts/dev/engines-ctl.ts, works server-down) AND the in-server
+// DECISION, shared by the CLI front door (tooling/src/stack/ops/engines-ctl.ts, works server-down) AND the in-server
 // auto-wake gate (client.ts). Budget math stays one-homed in wake-budget.ts; this composes it with the hold
 // marker into the full "may this engine wake?" verdict.
 //

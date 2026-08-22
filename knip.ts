@@ -44,14 +44,13 @@ const config: KnipConfig = {
       entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // verify-run.int.test.ts asserts missing-binary handling with a deliberately fake binary name.
-      // ss is a system binary the stage/stack scripts shell out to for port probing; ps dropped off this
-      // list at P2 of #393 — it now rides runNicedSync spawn args (tooling/src/snap/ops/stage-status.ts),
-      // invisible to knip's binary lens, and knip's own hint flags a dead ignore row.
-      // pgrep is the GPU-owner guard in scripts/dev/model-ab.ts (refuse-to-boot over the quantize job/fleet).
+      // ps/ss/pgrep all dropped off this list across #393 (P2 ps, P5 ss + pgrep): every system-binary
+      // shell-out now rides the _shared/proc doors as SPAWN ARGS, which knip's binary lens cannot see — so
+      // the ignore rows became dead and knip's own hint flagged them.
       // orb-fake-probe-bin: tool-fixtures' fakeBin proof spawns a PATH-shimmed temp executable by that
       // name (tests/support/tool-fixtures.test.ts) — never a real dependency.
-      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin", "ss", "pgrep"],
-      // pino-pretty is spawned as a BINARY by scripts/dev/dev.sh (the dev-log pretty-pipe), never imported —
+      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin"],
+      // pino-pretty is spawned as a BINARY by tooling/src/stack/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
       // invisible to import analysis.
@@ -68,7 +67,12 @@ const config: KnipConfig = {
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; _shared modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
-    tooling: { entry: ["src/*/cli.ts", "src/*/index.ts", "src/_shared/*.ts"], project: ["src/**/*.ts"] },
+    tooling: {
+      // The three BASH-SPAWNED entries are invisible to the import graph: `stack` is a bash-fronted tool
+      // (tooling-package.md §4.1) whose .sh entrypoints exec these by path, so nothing imports them.
+      entry: ["src/*/cli.ts", "src/*/index.ts", "src/_shared/*.ts", "src/stack/ops/prod-entry.ts", "src/stack/ops/engines.ts", "src/stack/ops/engines-ctl.ts"],
+      project: ["src/**/*.ts"],
+    },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/db": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },

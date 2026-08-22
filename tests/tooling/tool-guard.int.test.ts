@@ -428,7 +428,7 @@ const ROWS: Row[] = [
     null,
     "(setsid nohup bash -c 'rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx > /tmp/ct.log 2>&1' &)",
   ],
-  ["pass", null, 'setsid bash -c "cd /repo && bash scripts/dev/stack.sh restart dev > /tmp/stack.log 2>&1"'],
+  ["pass", null, 'setsid bash -c "cd /repo && bash tooling/src/stack/stack.sh restart dev > /tmp/stack.log 2>&1"'],
   // benign substitutions stay silent — the overwhelming majority of real `$( … )` use
   ["pass", null, 'echo "$(date)"'],
   ["pass", null, 'cd "$(git rev-parse --show-toplevel)" && pnpm check'],
@@ -603,9 +603,9 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   const ct = writeScript(dir, "lane-ct.sh", REAL_CT_WRAPPER);
   const clean = writeScript(dir, "lane-clean.sh", "#!/usr/bin/env bash\necho hello\nls packages\n");
   const nested = writeScript(dir, "lane-nested.sh", `#!/usr/bin/env bash\nbash ${evil}\n`);
-  // the depth cap is about UNREVIEWED bodies: a wrapper that ends in `exec bash scripts/dev/stack.sh`
+  // the depth cap is about UNREVIEWED bodies: a wrapper that ends in `exec bash tooling/src/stack/stack.sh`
   // reaches a TRACKED script, and asking about that is pure wolf-crying (25 corpus false positives)
-  const nestedTracked = writeScript(dir, "lane-stage.sh", `#!/usr/bin/env bash\nexec bash ${REPO}/scripts/dev/stack.sh start\n`);
+  const nestedTracked = writeScript(dir, "lane-stage.sh", `#!/usr/bin/env bash\nexec bash ${REPO}/tooling/src/stack/stack.sh start\n`);
   const big = writeScript(dir, "lane-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
   // tracked-ness is the ONLY variable here: a throwaway repo holding the SAME bytes as `evil`. (`git add`
   // is enough — ls-files reads the index.) No script tracked in THIS repo classifies dirty, so an in-repo
@@ -634,7 +634,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`bash ${join(dir, "does-not-exist.sh")}`, "pass", null], // the command would fail anyway
     [`bash ${dir}`, "pass", null], // a directory is not a script
     [`bash ${tracked}`, "pass", null], // TRACKED: reviewed code, body not read — same bytes as `evil`
-    [`bash ${REPO}/scripts/dev/stack.sh restart`, "pass", null], // the real-world tracked case
+    [`bash ${REPO}/tooling/src/stack/stack.sh restart`, "pass", null], // the real-world tracked case
     // `bash -c '<string>'` is the SIBLING visibility gap, closed 2026-08-14 by the nested-command pass:
     // the operand is a command, not a file, so there is no body to read — it is extracted and classified
     // instead. Kept here beside the script rows because the two are one family.

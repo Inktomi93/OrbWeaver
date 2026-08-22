@@ -305,7 +305,7 @@ export const REGISTRY: readonly StageDef[] = [
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "check:docs"],
     classify: ownScheme,
-    scopedArgv: (sel) => (sel.docsPaths.length === 0 ? "skip-empty" : ["tsx", "scripts/docs/format-md.ts", "--check", ...sel.docsPaths]),
+    scopedArgv: (sel) => (sel.docsPaths.length === 0 ? "skip-empty" : ["node", "tooling/src/doc-catalog/cli.ts", "format", "--check", ...sel.docsPaths]),
   },
   {
     name: "docs:catalog",
