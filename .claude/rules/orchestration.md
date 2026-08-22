@@ -124,11 +124,21 @@ a11y → `side-eye`; both if the change spans both.
   harness sentinel in context — never a self-estimate, never the 5-hour window, never any other signal.
   Spelling (the bashrc `claude-b` function is invisible to non-interactive shells):
   `CLAUDE_CONFIG_DIR="$HOME/.claude-b" claude -p "<full cold brief>"` — verified alive 2026-08-22.
-  A claude-b invocation shares NOTHING (no context, no memory, no conversation): every delegation is a
-  complete cold brief to executor standard (goal, constraints, paths, done-criteria, hazards, the WHY,
-  §L discipline, scoped floors), and its output returns on stdout — treat it like any lane report:
-  verify receipts, never trust bare claims. Same permission boundaries as any lane: nothing denied here
-  may be routed there.
+  A claude-b invocation shares the project MEMORY and hooks (symlinked — verified 2026-08-22) but no
+  conversation context: every delegation is a complete cold brief to executor standard (goal,
+  constraints, paths, done-criteria, hazards, the WHY, §L discipline, scoped floors), and its output
+  returns on stdout — treat it like any lane report: verify receipts, never trust bare claims. Same
+  permission boundaries as any lane: nothing denied here may be routed there.
+  **WHICH ACCOUNT AM I? (both accounts load THIS file — test before acting on this clause):**
+  `echo "${CLAUDE_CONFIG_DIR:-primary}"` — if it names `.claude-b`, YOU ARE CLAUDE-B: this overflow
+  clause does not apply to you (never delegate onward — that is recursion), you identify as claude-b
+  in every board comment / commit trailer context / lane name (prefix `cb-`), and your session is
+  driven by the primary via `-p`/`--resume` — report on stdout and check the bridge (below).
+  **THE BRIDGE (cross-account messages — the session registries are per-config-dir, so SendMessage
+  cannot span accounts):** `~/.claude/bridge/` holds `to-b/` and `to-primary/` inboxes. A message is
+  one markdown file `NNN-<slug>.md` (frontmatter: from/at/re + body); the reader ACKS BY MOVE into
+  the inbox's `done/` subdir after acting. Check your inbox at session start and at every merge
+  window; never edit another message, only move it.
 - **Local `main` is the worktree base.** The owner pushes manually, so `origin/main` can be far behind.
   Spawn and rebase from the latest local `main`; never "refresh" a lane onto the remote branch.
 - **Never push `origin` without fresh owner authorization for that exact push.** A prior or conditional
