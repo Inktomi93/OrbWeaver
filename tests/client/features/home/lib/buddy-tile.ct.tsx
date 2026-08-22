@@ -13,12 +13,16 @@ const BUDDY_TEASER_RE = /Your companion/u;
 /** The state line, in the USER's terms (rail sweep P1-3): the shipped copy used to be the repo-internal
  *  citation "waiting on: domain/buddy (not in the retro tree) · the agent-role connection". */
 const BUDDY_REASON_RE = /^Not started yet/u;
+/** The group's fold trigger (#455) — the doorways are behind a disclosure, collapsed by default, so a
+ *  tile-level contract is asserted on the OPENED panel. The fold itself is pinned in home-surface.ct.tsx. */
+const GROUP_LABEL = "What's coming";
 
 test("buddy renders as a doorway — name, teaser, tracked reason, ZERO controls", async ({ mount }) => {
   // The per-doorway `Dormant` BADGE went with #102: home now collects every declared doorway under one
-  // "Not yet" band, so the group's name says once what a badge per doorway said N times. That band is
+  // band, so the group's name says once what a badge per doorway said N times. That band is
   // pinned in home-surface.ct.tsx; what stays THIS tile's own contract is everything below.
   const home = await mount(<HomeRealDoorwaysStory />);
+  await home.getByRole("button", { name: GROUP_LABEL }).click();
   const tile = home.locator('[data-home-tile="buddy"]');
 
   await expect(tile.getByText("Buddy", { exact: true })).toBeVisible();
@@ -30,6 +34,7 @@ test("buddy renders as a doorway — name, teaser, tracked reason, ZERO controls
 
 test("the doorways sort LAST — they never push a working tile below the fold", async ({ mount }) => {
   const home = await mount(<HomeRealDoorwaysStory />);
+  await home.getByRole("button", { name: GROUP_LABEL }).click();
 
   const tiles = home.locator("[data-home-tile]");
   await expect(tiles).toHaveCount(2);

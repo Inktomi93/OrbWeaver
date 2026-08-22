@@ -215,7 +215,7 @@ function structuredReply(view: ChatCompletionResult, toolName: string): { readon
 // schema SHAPE, never the endpoint-routing knob.
 //
 // Measured 2026-08-09 with the owner's key, 23 live calls, three families (receipts:
-// `docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md`):
+// `docs/history/reviews/misc/2026-08-09-openrouter-structured-output-probe.md`):
 //   • the SAME `response_format` field that 400'd in 2026-08-02 is 200 on anthropic-, openai- AND
 //     google-family endpoints when the schema rides the ALL-REQUIRED shape (`scrubWireSchema(…,
 //     "strict-compatible")`) with `strict:true`. openai's 400 was literally "'required' is required to be

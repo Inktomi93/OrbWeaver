@@ -527,7 +527,7 @@ const envSchema = z
     // `fallback === "owner"` BEFORE the mode's unconditional origin arm — so this combination
     // authenticates nobody and EVERY request 401s. Left unfenced it is a box that boots healthy and
     // serves no one, which is how it shipped as the container image's default env
-    // (docs/reviews/security/2026-08-08-containerize-surface-review.md F1, three docs asserting the knob
+    // (docs/history/reviews/security/2026-08-08-containerize-surface-review.md F1, three docs asserting the knob
     // was inert here). Scoped to the pair: `deny` stays the SSO modes' secure default.
     if (val.AUTH_MODE === "single-user" && val.AUTH_FALLBACK === "deny") {
       ctx.addIssue({

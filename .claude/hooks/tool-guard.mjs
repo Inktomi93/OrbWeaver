@@ -354,15 +354,31 @@ const SELF_OPERAND = /^[\w./@:+$-]+$/;
 const SELF_UNSAFE = /[()&]/;
 const WORKTREE_PATH = /\.claude\/worktrees\/([^\s/;&|)]+)/;
 const CD_WORKTREE = /\b(?:cd|pushd)\s+[^\s;&|]*\.claude\/worktrees\/([^\s/;&|]+)/;
+// GLOBAL OPTIONS sit between `git` and its subcommand — and §L MANDATES the most common one (`git -C
+// <worktree>` on EVERY lane git call), so a bare `\bgit\s+stash\b` rule was blind to exactly the spelling
+// this repo orders every agent to use (#497). Evidence, reports/tool-guard/decisions.jsonl (40 git-ish
+// rows of 69,937): `git -C .claude/worktrees/<lane> checkout --ours packages/client/…/use-count-up.ts`
+// and `git -C "$MAIN" checkout --theirs docs/…/Core-Enforcement-Active-Gates.md` both PASSED, while every
+// bare-`git` row denied correctly — the ban read as enforced and was decorative for lanes.
+// The loop consumes only FLAG-SHAPED tokens plus at most one value each, so a non-flag first token stops
+// it dead: `git log --oneline -5 -- .claude` and `git diff -- restore.ts` can never reach a subcommand
+// match. A QUOTED value (`-C "$WT"`) is already blanked to whitespace by blankQuoted, contributing no
+// token at all — hence the value group is optional, and JS backtracking covers the boolean-flag case
+// (`git --no-pager stash`: the value group first eats `stash`, fails, then gives it back).
+const GIT_GLOBAL_OPTS = String.raw`(?:-{1,2}[A-Za-z][^\s;|&]*\s+(?:[^\s;|&-][^\s;|&]*\s+)?)*`;
 // stash: read-only subcommands (list/show) destroy nothing and pass; everything else is the ban.
-const GIT_STASH = /\bgit\s+stash\b(?:\s+(list|show))?/;
+const GIT_STASH = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}stash\b(?:\s+(list|show))?`);
 // restore: `--staged` WITHOUT `--worktree`/-W only unstages (index-only) — safe; all else destroys.
-const GIT_RESTORE = /\bgit\s+restore\b([^\n;|&]*)/;
+const GIT_RESTORE = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}restore\b([^\n;|&]*)`);
 const RESTORE_WORKTREE_ARM = /--worktree|(^|\s)-W\b|(^|\s)-[a-zA-Z]*W/;
 const RESTORE_STAGED = /--staged|(^|\s)-S\b/;
-const GIT_CHECKOUT = /\bgit\s+checkout\s+(.*)/;
+const GIT_CHECKOUT = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}checkout\s+(.*)`);
+// `--ours`/`--theirs` is a CONFLICT-RESOLUTION checkout: it overwrites the worktree file with one merge
+// side, discarding any hand-edit already made there. Named explicitly (not left to the extension list)
+// because the pathspec is often extension-less or an unlisted suffix — and refused UNIFORMLY per #497:
+// the house spelling `git show MERGE_HEAD:<path> > <path>` covers the legitimate merge case.
 const CHECKOUT_PATHISH =
-  /(^|\s)(--(\s|$)|\.(\s|$)|\S+\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|md|css|html|sql|sh|yml|yaml|txt|svg|png|lock)\b)/;
+  /(^|\s)(--(\s|$)|--(ours|theirs)\b|\.(\s|$)|\S+\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|md|css|html|sql|sh|yml|yaml|txt|svg|png|lock)\b)/;
 const BIOME_WRITE_MODE = /\bbiome\s+(?:check|lint|format)\b[^\n;|&]*--(?:write|fix|apply|unsafe)\b/;
 const BIOME_SUBCOMMAND = /\bbiome\s+(?:check|lint|format)\b/;
 const BIOME_ONLY_SCOPED = /--only=\S/;
@@ -517,7 +533,7 @@ const REASONS = {
   harnessSwallowed:
     "`|| true` (or `; true`) after a harness command erases the failure — the tool reports success even when the gate was red. Let it exit non-zero; the failure list is already in reports/verify.json / reports/test-report.json.",
   gitDestructive:
-    "`git stash` / `git restore` / `git checkout <path>` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface (doctrine ban; near-zero legitimate sightings in 133k calls). Read an old version with `git show HEAD:<path>`; undo a probe by `rm`-ing the throwaway file; protect a risky edit with `cp <f> <f>.bak` first.",
+    "`git stash` / `git restore` / `git checkout <path>` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface (doctrine ban; near-zero legitimate sightings in 133k calls). Read an old version with `git show HEAD:<path>` (redirect it to write one: `git show HEAD:<path> > <path>`); undo a probe by `rm`-ing the throwaway file; protect a risky edit with `cp <f> <f>.bak` first, then `mv <f>.bak <f>` to revert. A GLOBAL OPTION does not exempt the spelling — `git -C <worktree> checkout -- <path>` destroys exactly as much as the bare form. In an ACTIVE MERGE, `checkout --ours/--theirs <path>` is refused the same way (it discards any hand-edit already in the worktree file): take one side with `git show MERGE_HEAD:<path> > <path>` (theirs) or `git show HEAD:<path> > <path>` (ours). Read-only inspection still passes: `git stash list` / `git stash show`, and `git restore --staged <path>` (index-only, no `--worktree`).",
   biomeWrite:
     "A whole-tree biome fix-all (`--write` with no explicit paths, or `.`; `pnpm lint:fix`) applies EVERY autofix including INFO-level ones that change behavior — the `/u` unicode-regex wave crashed server boot (doctrine ban). Scope it: name the paths and/or a single rule (`biome check --write --only=<rule> <paths>`), or fix ERROR-level diagnostics by hand.",
   cdWorktree:

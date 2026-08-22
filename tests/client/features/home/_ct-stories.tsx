@@ -120,7 +120,7 @@ const REGION_TILES: readonly HomeTileContribution[] = [
 ];
 
 /** All three regions + both real doorways: the masthead above the split, one tile per column, the
- *  unplaced tile defaulting to the shelf, and the two doorways collected under ONE "Not yet" band. */
+ *  unplaced tile defaulting to the shelf, and the two doorways collected under ONE fold (#455). */
 export function HomeRegionStory(): ReactElement {
   return <Story tiles={REGION_TILES} />;
 }

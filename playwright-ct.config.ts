@@ -1,3 +1,4 @@
+import path from "node:path";
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -63,6 +64,14 @@ export default defineConfig({
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
       // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.
       plugins: [tailwindcss() as never],
+      // The client's static assets, served at the same absolute paths the stylesheets author. Without
+      // this the CT harness resolves `/grain.svg` (client globals.css's film-grain tile) to a 404, so the
+      // grain overlay computes exactly as production while painting NOTHING — a computed-style assertion
+      // stays green and a framebuffer one can never see the film (#435 hit this: the pixel receipt read
+      // zero noise on both arms). Vite's default publicDir is `<root>/public`, and CT's root is its own
+      // generated cache dir, so the default is always empty here — and for the same reason the path must
+      // be ABSOLUTE (vite resolves a relative publicDir against that cache root, not against this file).
+      publicDir: path.resolve(import.meta.dirname, "packages/client/public"),
       // The esbuild pinned for the CT vite transform (vite@6 → esbuild 0.25.12) maxes at target es2024.
       // vite:esbuild reads tsconfig.base's `target: "es2025"` and passes it as
       // `tsconfigRaw.compilerOptions.target` to esbuild.transform PER FILE — SEPARATE from the `esbuild`

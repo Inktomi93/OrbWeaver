@@ -343,8 +343,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 326,
-      "bytes": 69709,
-      "sha256": "7e83f54f68243ae0154d845f3e143bba9f8e6ee29b48bf80b7b1d6a6f0448e28",
+      "bytes": 70736,
+      "sha256": "911e694e6c2e84a3f244469119f3dbbb4f3f76753b03f5651cb35af0a03c8aa2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -361,14 +361,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "7e83f54f68243ae0154d845f3e143bba9f8e6ee29b48bf80b7b1d6a6f0448e28",
-        "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+        "verifiedSha256": "911e694e6c2e84a3f244469119f3dbbb4f3f76753b03f5651cb35af0a03c8aa2",
+        "verifiedCommit": "5c8ae092de2038a9b95c837ac38a1f2caeacbbf1",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "delta re-verify 2026-08-22 (#321, owner ruling): re-read at the removal commit; the ONE changed line is the PD-35 row's new sub-flag-closed note recording recencyBias as CLOSED-REMOVED (probe measured 2026-08-20, removed end-to-end 2026-08-22), re-derived against the tree"
         ],
         "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
       },
@@ -425,8 +426,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 353,
-      "bytes": 165624,
-      "sha256": "455b3990ef2403312c68a2ef9dd2bc325823b0c41ab0807f1ddc21f3c48ada53",
+      "bytes": 165640,
+      "sha256": "60b1007df2d8789218d5e53fd1242c56c6d47b4613a6e5f45eee082cc493d73c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -439,12 +440,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "051fee9d8a1726e619ce8889fa4d3112d36700dc0fde5e125730b4fd8b5628d3",
+        "assignedSha256": "60b1007df2d8789218d5e53fd1242c56c6d47b4613a6e5f45eee082cc493d73c",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "455b3990ef2403312c68a2ef9dd2bc325823b0c41ab0807f1ddc21f3c48ada53",
-        "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+        "verifiedSha256": "60b1007df2d8789218d5e53fd1242c56c6d47b4613a6e5f45eee082cc493d73c",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -455,7 +456,8 @@
           "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green",
           "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)",
           "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed."
         ],
         "claims": [
           {
@@ -603,8 +605,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 246501,
-      "sha256": "fd2c77e0d42e56d131ed16b0c8e8a4cf741e30e513b1def385a5dce489474dd7",
+      "bytes": 246581,
+      "sha256": "3dda2faac8ef63d0ef42af9c64107ebdb0b147ff174ac7b8d3ee9abab512e6e3",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -617,12 +619,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "f9b05abf330cc3ac14a0a8ed09c5fea394da92784f5c5efdc932cf7d36588f4e",
+        "assignedSha256": "3dda2faac8ef63d0ef42af9c64107ebdb0b147ff174ac7b8d3ee9abab512e6e3",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "fd2c77e0d42e56d131ed16b0c8e8a4cf741e30e513b1def385a5dce489474dd7",
-        "verifiedCommit": "bd1f126f657bc0d9e0275e2a04778f8bb4714baa",
+        "verifiedSha256": "3dda2faac8ef63d0ef42af9c64107ebdb0b147ff174ac7b8d3ee9abab512e6e3",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -636,7 +638,8 @@
           "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)",
           "delta re-verify 2026-08-21 (P3 #393): the D62-P1 tap-target cite repointed to tooling/src/ui-audit/lib/checks-a11y.ts with the pre-#393 home noted as provenance — a cite repair, no ruling text changed",
           "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the macro-model row drops the oracle half of its evidence pair; the S1–S4 matrix test still stands. No other claim in this document moved."
+          "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the macro-model row drops the oracle half of its evidence pair; the S1–S4 matrix test still stands. No other claim in this document moved.",
+          "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed."
         ],
         "claims": [
           {
@@ -11578,15 +11581,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 446,
-      "bytes": 42156,
-      "sha256": "8ce8d0c8d7c47e8992e231a402f739671775fe326a3c30c8f920021a4ffd0f81",
+      "bytes": 42537,
+      "sha256": "0f3b9fd5b6ccf5eca08f6a9dd66def58eb6b45f5f66402a001478037d475337d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-21"
+          "updated": "2026-08-22"
         },
         "errors": []
       },
@@ -11596,8 +11599,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "8ce8d0c8d7c47e8992e231a402f739671775fe326a3c30c8f920021a4ffd0f81",
-        "verifiedCommit": "b59d7fff93d0248e88402adfcea0cfd323b88c2f",
+        "verifiedSha256": "0f3b9fd5b6ccf5eca08f6a9dd66def58eb6b45f5f66402a001478037d475337d",
+        "verifiedCommit": "5c8ae092de2038a9b95c837ac38a1f2caeacbbf1",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/design/memory-retrieval-graceful-degrade.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
@@ -11610,12 +11613,13 @@
           "tests/client/lib/motion-flaggers.ct.tsx:278 verifies CDP still sees a planted dropped-frame failure while duplicate dev collection is paused",
           "tests/tooling/motion-audit.test.ts:91 proves the first-open allowance cannot renew onto a second app-owned block",
           "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21",
-          "delta re-verify 2026-08-21 (P3 #393): the three motion-audit tool cites repointed scripts/probes/motion-audit.ts -> tooling/src/motion-audit (the tool moved; its verdict surface and ownership claims are unchanged)"
+          "delta re-verify 2026-08-21 (P3 #393): the three motion-audit tool cites repointed scripts/probes/motion-audit.ts -> tooling/src/motion-audit (the tool moved; its verdict surface and ownership claims are unchanged)",
+          "delta re-verify 2026-08-22 (#321, owner ruling): re-read in full at the removal commit; the recency-honesty constraint is marked DEAD (its control no longer exists) and the two coupled sentences repaired — every other section re-derived and unchanged"
         ],
         "summary": "Memory retrieval guidance, graceful rerank fallback, responsive picker behavior, and the sealed Select motion-audit calibration are verified together without changing Base UI or product motion.",
         "claims": [
           {
-            "claim": "Memory retrieval modes use human consequence-first labels and exact experimental recency guidance; mixC rerank failure preserves retrieved order with one turn-scoped warning; the sealed Base UI Select keeps its product behavior while motion-audit classifies only its confirmed entrance lifetime.",
+            "claim": "Memory retrieval modes use human consequence-first labels and no longer expose the retired experimental recency control (#321); mixC rerank failure preserves retrieved order with one turn-scoped warning; the sealed Base UI Select keeps its product behavior while motion-audit classifies only its confirmed entrance lifetime.",
             "evidence": [
               {
                 "kind": "code",
@@ -13963,6 +13967,40 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/history/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 239,
+      "bytes": 17958,
+      "sha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-07-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
+        "assignedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md:1-233 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/history/reviews/misc/2026-07-25-compose-services-seam-map.md",
       "lane": "history",
       "issue": 9,
@@ -14163,6 +14201,40 @@
           "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
         ],
         "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-01-st-impersonate-anatomy.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 60,
+      "bytes": 4483,
+      "sha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-07-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-08-01-st-impersonate-anatomy.md",
+        "assignedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md:1-54 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
       },
       "receiptCurrent": true
     },
@@ -14473,6 +14545,74 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 261,
+      "bytes": 26599,
+      "sha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md",
+        "assignedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/misc/2026-08-03-export-rot-dispositions.md:1-261 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-03-registry-map.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 83,
+      "bytes": 6070,
+      "sha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-08-03-registry-map.md",
+        "assignedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/misc/2026-08-03-registry-map.md:1-77 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/history/reviews/misc/2026-08-03-structured-output-docs.md",
       "lane": "history",
       "issue": 9,
@@ -14711,6 +14851,145 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/history/reviews/misc/2026-08-09-api-surface-classification.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 687,
+      "bytes": 75848,
+      "sha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "complete",
+          "updated": "2026-08-09"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-08-09-api-surface-classification.md",
+        "assignedSha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-14",
+        "evidence": [
+          "docs/reviews/misc/2026-08-09-api-surface-classification.md:1-687 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-09-openrouter-structured-output-probe.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 76,
+      "bytes": 4969,
+      "sha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-09"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-08-09-openrouter-structured-output-probe.md",
+        "assignedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md:1-76 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-18-silent-reader-audit.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 375,
+      "bytes": 30848,
+      "sha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-18"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-08-18-silent-reader-audit.md",
+        "assignedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-18",
+        "evidence": [
+          "docs/reviews/misc/2026-08-18-silent-reader-audit.md authored+full-read this session (owner-ordered #183 reader-no-producer hunt; 754 cols/297 typed fields/2296 contract fields/207 regkeys swept, probe-validated instruments)",
+          "git log --oneline -1 -- docs/reviews/misc/2026-08-18-silent-reader-audit.md: 0efa54de9 (lane silent-readers)"
+        ],
+        "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-19-lan-auth-unification.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 260,
+      "bytes": 32891,
+      "sha256": "b695f52c891c13c63d07da77322032a2f79a1b57d716f1f9cf5017eab92d102e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/misc/2026-08-19-lan-auth-unification.md",
+        "assignedSha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "b695f52c891c13c63d07da77322032a2f79a1b57d716f1f9cf5017eab92d102e",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "docs/reviews/misc/2026-08-19-lan-auth-unification.md:1-260 read in full (line 1 to END), then every present-tense claim re-derived against the current tree rather than accepted from the prose",
+          "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) — packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
+          "Truth-repaired at f4733a44b BEFORE archiving (a stale security doc reads as live truth): a STATUS block naming what shipped, plus PRE-FIX markers on the three superseded sections (the bypass mechanism, the CSRF corollary, the TODAY matrix)",
+          "Re-verified STILL TRUE and named as such in the repair: the OIDC-on-LAN blockers (the redirect-URI proto defaults to https in entry/http/auth-routes.ts; the session cookie is __Host- + Secure), so the analysis half of the document remains usable",
+          "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent"
+        ],
+        "summary": "Historical review evidence: the pre-fix LAN owner-bypass analysis whose recommended arm shipped on 2026-08-19. Truth-repaired and marked PRE-FIX before archiving; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/history/reviews/misc/engine-tooling-sync-and-sleep-mode.md",
       "lane": "history",
       "issue": 9,
@@ -14741,6 +15020,248 @@
           "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
         ],
         "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-07-fork-host-plane-strip.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 195,
+      "bytes": 14580,
+      "sha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-07"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/security/2026-08-07-fork-host-plane-strip.md",
+        "assignedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/security/2026-08-07-fork-host-plane-strip.md:1-195 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 283,
+      "bytes": 22302,
+      "sha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-07"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md",
+        "assignedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md:1-283 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-08-containerize-surface-review.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 195,
+      "bytes": 19136,
+      "sha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/security/2026-08-08-containerize-surface-review.md",
+        "assignedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/security/2026-08-08-containerize-surface-review.md:1-195 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-08-refinery-r0-security-pass.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 414,
+      "bytes": 30702,
+      "sha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/security/2026-08-08-refinery-r0-security-pass.md",
+        "assignedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md:1-414 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 201,
+      "bytes": 15344,
+      "sha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md",
+        "assignedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md:1-201 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 306,
+      "bytes": 22177,
+      "sha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
+        "assignedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md:1-308 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-19-lan-auth-impl-review.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 284,
+      "bytes": 22911,
+      "sha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/security/2026-08-19-lan-auth-impl-review.md",
+        "assignedSha256": "d884d66054b0f936ec737fc2271ab9702b6ce4e6b4624688402e39104bea508f",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "docs/reviews/security/2026-08-19-lan-auth-impl-review.md:1-284 read in full (line 1 to END); each of its three findings and its eight SOUND verdicts re-derived against the current tree",
+          "P1 CLOSED: d6886c5ec (ancestor of HEAD) changed packages/server/src/entry/http/import.ts to gate the /api/import/bundle CSRF check on via !== \"header\", with a red-first via:\"fallback\" regression case in tests/server/entry/http/portability-routes.suite.int.test.ts",
+          "P2 doc CLOSED: the same commit added the STOP/BYPASS-the-front-proxy instruction to the break-glass docblock in packages/server/src/entry/auth/seam.ts and to the Break-glass section of docs/design/containerize-prod-image-spec.md",
+          "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk — the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
+          "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight — SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
+          "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning"
+        ],
+        "summary": "Historical security-review evidence: all three findings closed (two fixed, one owner-ruled) and one of its own verdicts since REFUTED and corrected in the document before archiving; no mutable work state is duplicated in this archive receipt."
       },
       "receiptCurrent": true
     },
@@ -14813,6 +15334,142 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/history/reviews/side-eye/2026-08-03-combined-nightly.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 317,
+      "bytes": 18406,
+      "sha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-03"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-03-combined-nightly.md",
+        "assignedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-03-combined-nightly.md:1-311 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-03-preset-shell-reverify.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 499,
+      "bytes": 35350,
+      "sha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-03"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-03-preset-shell-reverify.md",
+        "assignedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:1-493 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-03-scoped-recheck.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 419,
+      "bytes": 29567,
+      "sha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-03-scoped-recheck.md",
+        "assignedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-03-scoped-recheck.md:1-413 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-07-days-merges-rendered.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 327,
+      "bytes": 21924,
+      "sha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-07"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-07-days-merges-rendered.md",
+        "assignedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md:1-321 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/history/reviews/side-eye/2026-08-07-rpg-graduation.md",
       "lane": "history",
       "issue": 9,
@@ -14843,6 +15500,143 @@
           "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
         ],
         "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-09-refinery-graduation.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 109,
+      "bytes": 7579,
+      "sha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-09"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-09-refinery-graduation.md",
+        "assignedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-09-refinery-graduation.md:1-103 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-20-command-palette-canonical.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 77,
+      "bytes": 7016,
+      "sha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-21"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-20-command-palette-canonical.md",
+        "assignedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-21",
+        "evidence": [
+          "full read 1-77 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+          "receipts are Codex's gitignored snap artifacts; not re-verified here"
+        ],
+        "summary": "Codex's command-palette canonical graduation: palette passes all visual/state/semantic/geometry rows (160 matrix rows); HOLD is #363 only; earlier compact no-results P2 retracted post-#355."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-20-integrated-final-shell.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 181,
+      "bytes": 12669,
+      "sha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-21"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-20-integrated-final-shell.md",
+        "assignedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-21",
+        "evidence": [
+          "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+          "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
+          "#363 confirmed live on the board at recovery"
+        ],
+        "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 88,
+      "bytes": 8274,
+      "sha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "archived",
+          "updated": "2026-08-21"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
+        "assignedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-21",
+        "evidence": [
+          "full read 1-88 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
+          "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
+        ],
+        "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
       },
       "receiptCurrent": true
     },
@@ -14911,6 +15705,108 @@
           "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
         ],
         "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 271,
+      "bytes": 49775,
+      "sha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
+        "assignedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md:1-265 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-07-25-join-history-visibility-model.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 440,
+      "bytes": 33858,
+      "sha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-07-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-07-25-join-history-visibility-model.md",
+        "assignedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md:1-434 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-07-25-knob-drift-gates.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 491,
+      "bytes": 37083,
+      "sha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-07-25-knob-drift-gates.md",
+        "assignedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-07-25-knob-drift-gates.md:1-485 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
       },
       "receiptCurrent": true
     },
@@ -15085,6 +15981,40 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/history/reviews/stickler/2026-08-01-visual-blech-audit.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 282,
+      "bytes": 19981,
+      "sha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-07-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-01-visual-blech-audit.md",
+        "assignedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-01-visual-blech-audit.md:1-276 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/history/reviews/stickler/2026-08-02-actor-state-model.md",
       "lane": "history",
       "issue": 9,
@@ -15221,6 +16151,210 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 418,
+      "bytes": 29936,
+      "sha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md",
+        "assignedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md:1-412 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-03-client-architecture.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 367,
+      "bytes": 30365,
+      "sha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-03-client-architecture.md",
+        "assignedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-03-client-architecture.md:1-361 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-03-collection-contribution.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 433,
+      "bytes": 31429,
+      "sha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-03-collection-contribution.md",
+        "assignedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-03-collection-contribution.md:1-427 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-03-handoff-card-ownership.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 340,
+      "bytes": 26373,
+      "sha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-03-handoff-card-ownership.md",
+        "assignedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md:1-340 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-03-lifecycle-portability-model.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 434,
+      "bytes": 39422,
+      "sha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-03-lifecycle-portability-model.md",
+        "assignedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md:1-428 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-03-persona-model.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 471,
+      "bytes": 37245,
+      "sha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-03-persona-model.md",
+        "assignedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-03-persona-model.md:1-465 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/history/reviews/stickler/2026-08-03-persona-rpg-and-history.md",
       "lane": "history",
       "issue": 9,
@@ -15251,6 +16385,74 @@
           "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
         ],
         "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-03-regex-model.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 521,
+      "bytes": 42258,
+      "sha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-03-regex-model.md",
+        "assignedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-03-regex-model.md:1-515 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-03-role-authority-model.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 518,
+      "bytes": 39061,
+      "sha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-03-role-authority-model.md",
+        "assignedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-03-role-authority-model.md:1-512 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
       },
       "receiptCurrent": true
     },
@@ -15319,6 +16521,244 @@
           "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
         ],
         "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-08-canon-message-identity.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 937,
+      "bytes": 68343,
+      "sha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-07"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-08-canon-message-identity.md",
+        "assignedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-08-canon-message-identity.md:1-931 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 506,
+      "bytes": 39236,
+      "sha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md",
+        "assignedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md:1-500 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-08-card-refinery-port-study.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 473,
+      "bytes": 40545,
+      "sha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-08-card-refinery-port-study.md",
+        "assignedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md:1-467 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-08-group-chat-coherence.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 476,
+      "bytes": 39080,
+      "sha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-08-group-chat-coherence.md",
+        "assignedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-08-group-chat-coherence.md:1-470 full read against frozen foundation",
+          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        ],
+        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-16-home-hearth-room.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 282,
+      "bytes": 20664,
+      "sha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-16"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-16-home-hearth-room.md",
+        "assignedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-16",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-16-home-hearth-room.md:1-282 authored+full-read this session (fresh-context frontier review of 96d458324+861de3e58+db242f066)",
+          "git log --oneline -1 -- docs/reviews/stickler/2026-08-16-home-hearth-room.md: fdfac09d5 docs(reviews): stickler frontier review of the Hearth Room home build"
+        ],
+        "summary": "Completed frontier review of the Hearth Room home rebuild (point-in-time evidence, no mutable work state duplicated); 7 findings ceiling P2, none merge-blocking, routed to fixes/follow-ups."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-19-memory-system-verify.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 192,
+      "bytes": 15628,
+      "sha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-19"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-19-memory-system-verify.md",
+        "assignedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-19",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-19-memory-system-verify.md:1-192 full read; all five modes, the 222-message live/scratch probe, and the 172-test behavioral floor were rechecked",
+          "git:af41b36499646bb1cc1c05d8b877cc84ab1bf0ed contains the exact review blob; follow-up implementation landed separately under #320 and #321"
+        ],
+        "summary": "Completed point-in-time memory-system verification retained as review evidence; findings and follow-up implementation live in GitHub rather than this archived receipt."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 149,
+      "bytes": 9390,
+      "sha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md",
+        "assignedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
+        "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
+        "verifiedAt": "2026-08-20",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md:1-149 full read on integrated main",
+          "git:3a3ffccba8013268f3ee5a9153f1dac4c6540b70 contains the exact review blob; reviewed commits are integrated as 4a6c54cdf and 6cdeb23df"
+        ],
+        "summary": "Completed point-in-time merge-train review: PanelChrome deferral and amended tooling instruments were mergeable with zero confirmed findings; exact integrated behavioral and static receipts are recorded in the report."
       },
       "receiptCurrent": true
     },
@@ -15431,74 +16871,6 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 239,
-      "bytes": 17958,
-      "sha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-07-31"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
-        "assignedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md:1-233 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 60,
-      "bytes": 4483,
-      "sha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-07-31"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md",
-        "assignedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md:1-54 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
       "path": "docs/reviews/misc/2026-08-03-archive-rescue-audit.md",
       "lane": "reviews",
       "issue": 7,
@@ -15544,74 +16916,6 @@
             ]
           }
         ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-03-export-rot-dispositions.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 261,
-      "bytes": 26599,
-      "sha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-08-03-export-rot-dispositions.md",
-        "assignedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
-        "verifiedCommit": "1f8d727c1417c732fa45eac0b54e424bfec8f6a9",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/misc/2026-08-03-export-rot-dispositions.md:1-261 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-03-registry-map.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 83,
-      "bytes": 6070,
-      "sha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-08-03-registry-map.md",
-        "assignedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/misc/2026-08-03-registry-map.md:1-77 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
       },
       "receiptCurrent": true
     },
@@ -15710,74 +17014,6 @@
             ]
           }
         ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-09-api-surface-classification.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 687,
-      "bytes": 75848,
-      "sha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "complete",
-          "updated": "2026-08-09"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-08-09-api-surface-classification.md",
-        "assignedSha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
-        "evidence": [
-          "docs/reviews/misc/2026-08-09-api-surface-classification.md:1-687 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 76,
-      "bytes": 4969,
-      "sha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-09"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md",
-        "assignedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md:1-76 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
       },
       "receiptCurrent": true
     },
@@ -16122,77 +17358,6 @@
             ]
           }
         ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-18-silent-reader-audit.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 375,
-      "bytes": 30848,
-      "sha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-18"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-08-18-silent-reader-audit.md",
-        "assignedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
-        "verifiedCommit": "6491b9522f35a5b70643e53fb0603cbe35b571ed",
-        "verifiedAt": "2026-08-18",
-        "evidence": [
-          "docs/reviews/misc/2026-08-18-silent-reader-audit.md authored+full-read this session (owner-ordered #183 reader-no-producer hunt; 754 cols/297 typed fields/2296 contract fields/207 regkeys swept, probe-validated instruments)",
-          "git log --oneline -1 -- docs/reviews/misc/2026-08-18-silent-reader-audit.md: 0efa54de9 (lane silent-readers)"
-        ],
-        "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-19-lan-auth-unification.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 260,
-      "bytes": 32891,
-      "sha256": "b695f52c891c13c63d07da77322032a2f79a1b57d716f1f9cf5017eab92d102e",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "archived",
-          "updated": "2026-08-22"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/misc/2026-08-19-lan-auth-unification.md",
-        "assignedSha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "b695f52c891c13c63d07da77322032a2f79a1b57d716f1f9cf5017eab92d102e",
-        "verifiedCommit": "f4733a44bd01726a3cd3c3fb31ae5f9116940fb9",
-        "verifiedAt": "2026-08-22",
-        "evidence": [
-          "docs/reviews/misc/2026-08-19-lan-auth-unification.md:1-260 read in full (line 1 to END), then every present-tense claim re-derived against the current tree rather than accepted from the prose",
-          "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) — packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
-          "Truth-repaired at f4733a44b BEFORE archiving (a stale security doc reads as live truth): a STATUS block naming what shipped, plus PRE-FIX markers on the three superseded sections (the bypass mechanism, the CSRF corollary, the TODAY matrix)",
-          "Re-verified STILL TRUE and named as such in the repair: the OIDC-on-LAN blockers (the redirect-URI proto defaults to https in entry/http/auth-routes.ts; the session cookie is __Host- + Secure), so the analysis half of the document remains usable",
-          "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent"
-        ],
-        "summary": "Historical review evidence: the pre-fix LAN owner-bypass analysis whose recommended arm shipped on 2026-08-19. Truth-repaired and marked PRE-FIX before archiving; no mutable work state is duplicated in this archive receipt."
       },
       "receiptCurrent": true
     },
@@ -22265,176 +23430,6 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/reviews/security/2026-08-07-fork-host-plane-strip.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 195,
-      "bytes": 14580,
-      "sha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-07"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/security/2026-08-07-fork-host-plane-strip.md",
-        "assignedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/security/2026-08-07-fork-host-plane-strip.md:1-195 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 283,
-      "bytes": 22302,
-      "sha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-07"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md",
-        "assignedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md:1-283 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/security/2026-08-08-containerize-surface-review.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 195,
-      "bytes": 19136,
-      "sha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-08"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/security/2026-08-08-containerize-surface-review.md",
-        "assignedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/security/2026-08-08-containerize-surface-review.md:1-195 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 414,
-      "bytes": 30702,
-      "sha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-08"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md",
-        "assignedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md:1-414 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 201,
-      "bytes": 15344,
-      "sha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-08"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md",
-        "assignedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md:1-201 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
       "lane": "reviews",
       "issue": 7,
@@ -22578,78 +23573,6 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 306,
-      "bytes": 22177,
-      "sha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-14"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
-        "assignedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md:1-308 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/security/2026-08-19-lan-auth-impl-review.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 284,
-      "bytes": 22911,
-      "sha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "archived",
-          "updated": "2026-08-22"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/security/2026-08-19-lan-auth-impl-review.md",
-        "assignedSha256": "d884d66054b0f936ec737fc2271ab9702b6ce4e6b4624688402e39104bea508f",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
-        "verifiedCommit": "f4733a44bd01726a3cd3c3fb31ae5f9116940fb9",
-        "verifiedAt": "2026-08-22",
-        "evidence": [
-          "docs/reviews/security/2026-08-19-lan-auth-impl-review.md:1-284 read in full (line 1 to END); each of its three findings and its eight SOUND verdicts re-derived against the current tree",
-          "P1 CLOSED: d6886c5ec (ancestor of HEAD) changed packages/server/src/entry/http/import.ts to gate the /api/import/bundle CSRF check on via !== \"header\", with a red-first via:\"fallback\" regression case in tests/server/entry/http/portability-routes.suite.int.test.ts",
-          "P2 doc CLOSED: the same commit added the STOP/BYPASS-the-front-proxy instruction to the break-glass docblock in packages/server/src/entry/auth/seam.ts and to the Break-glass section of docs/design/containerize-prod-image-spec.md",
-          "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk — the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
-          "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight — SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
-          "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning"
-        ],
-        "summary": "Historical security-review evidence: all three findings closed (two fixed, one owner-ruled) and one of its own verdicts since REFUTED and corrected in the document before archiving; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
       "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
       "lane": "reviews",
       "issue": 7,
@@ -22706,245 +23629,6 @@
             ]
           }
         ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-03-combined-nightly.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 317,
-      "bytes": 18406,
-      "sha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-03"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-03-combined-nightly.md",
-        "assignedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/side-eye/2026-08-03-combined-nightly.md:1-311 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 499,
-      "bytes": 35350,
-      "sha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-03"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md",
-        "assignedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:1-493 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-03-scoped-recheck.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 419,
-      "bytes": 29567,
-      "sha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-03-scoped-recheck.md",
-        "assignedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/side-eye/2026-08-03-scoped-recheck.md:1-413 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 327,
-      "bytes": 21924,
-      "sha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-07"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md",
-        "assignedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md:1-321 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-09-refinery-graduation.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 109,
-      "bytes": 7579,
-      "sha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-09"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-09-refinery-graduation.md",
-        "assignedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/side-eye/2026-08-09-refinery-graduation.md:1-103 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 77,
-      "bytes": 7016,
-      "sha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "archived",
-          "updated": "2026-08-21"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-20-command-palette-canonical.md",
-        "assignedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "ceb88fb4e4d8fcb4240104a902f00e80a8aa668879a52cb61797d3686d60720a",
-        "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-        "verifiedAt": "2026-08-21",
-        "evidence": [
-          "full read 1-77 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-          "receipts are Codex's gitignored snap artifacts; not re-verified here"
-        ],
-        "summary": "Codex's command-palette canonical graduation: palette passes all visual/state/semantic/geometry rows (160 matrix rows); HOLD is #363 only; earlier compact no-results P2 retracted post-#355."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 181,
-      "bytes": 12669,
-      "sha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "archived",
-          "updated": "2026-08-21"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-20-integrated-final-shell.md",
-        "assignedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "e6cbf6f1277b3de9fcddb3c0555f24a96337748209c40f60d1d42ecbc9e0f9e0",
-        "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-        "verifiedAt": "2026-08-21",
-        "evidence": [
-          "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-          "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
-          "#363 confirmed live on the board at recovery"
-        ],
-        "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
       },
       "receiptCurrent": true
     },
@@ -23020,36 +23704,173 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
+      "path": "docs/reviews/side-eye/2026-08-22-colorization-evidence.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 88,
-      "bytes": 8274,
-      "sha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
+      "lines": 188,
+      "bytes": 13388,
+      "sha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "review",
-          "status": "archived",
-          "updated": "2026-08-21"
+          "status": "active",
+          "updated": "2026-08-22"
         },
         "errors": []
       },
       "receipt": {
-        "path": "docs/reviews/side-eye/2026-08-20-overlay-theme-graduation.md",
-        "assignedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
-        "disposition": "archive",
+        "path": "docs/reviews/side-eye/2026-08-22-colorization-evidence.md",
+        "assignedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
+        "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "478ce80b96e4c3efa5d8401dacdbd44ff7b16497d2d9a67056dfa3270bd53e80",
-        "verifiedCommit": "4ceac692e3c06a0b1f8434d0bbff26ad691f2ee2",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
+        "verifiedCommit": "3762fc4a4260c28319cb6f944a7bc8e4d03483e1",
+        "verifiedAt": "2026-08-22",
         "evidence": [
-          "full read 1-88 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-          "receipts are Codex's gitignored snap/perf artifacts; not re-verified here"
+          "full read 1-189 by the orchestrator (2026-08-22) before attestation",
+          "9 evidence pairs under reports/snaps/ce-* (gitignored); decode scripts reports/tmp-color-evidence/; no verdict offered by design — the owner rules"
         ],
-        "summary": "Codex's overlay-theme graduation: picker + builder SHIP visually on 611754905; historical DO-NOT-SHIP + dev-only motion P1 retracted (production receipt); the false-Saved P2 documented with its fix shape."
+        "summary": "Colorization-axis evidence for #431: the axis = two border tokens (alpha ×3.5, neutral→amber); chrome-only on every surface except the histogram/heatmap family (grid contrast +43% dark/+19% light; heatmap low-end IS the border token so ON collapses its hue ramp); no text contrast moves; design-audit blind to the axis; one independent defect found (charts don't repaint on toggle — #503).",
+        "claims": [
+          {
+            "claim": "The evidence is attached to the live decision row and the independent defect is tracked.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#431"
+              },
+              {
+                "kind": "issue",
+                "target": "#503"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 474,
+      "bytes": 29720,
+      "sha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
+        "assignedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+        "verifiedCommit": "ad82980ad1654e54042b17bbd23f6a1b1ca4c8cd",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-END by the orchestrator (2026-08-22) before attestation",
+          "reports/ receipts gitignored, referenced by path; retractions published in-report"
+        ],
+        "summary": "Rail sweep 4/10 — Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
+        "claims": [
+          {
+            "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#491"
+              },
+              {
+                "kind": "issue",
+                "target": "#492"
+              },
+              {
+                "kind": "issue",
+                "target": "#493"
+              },
+              {
+                "kind": "issue",
+                "target": "#501"
+              },
+              {
+                "kind": "issue",
+                "target": "#502"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-chats.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 543,
+      "bytes": 34659,
+      "sha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-rail-chats.md",
+        "assignedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+        "verifiedCommit": "a6d2224a3402c06090338f1d15642ca89de1f4c2",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-END by the orchestrator (2026-08-22) before attestation",
+          "reports/ receipts gitignored, referenced by path; retractions published in-report"
+        ],
+        "summary": "Rail sweep 3/10 — Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
+        "claims": [
+          {
+            "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#487"
+              },
+              {
+                "kind": "issue",
+                "target": "#488"
+              },
+              {
+                "kind": "issue",
+                "target": "#489"
+              },
+              {
+                "kind": "issue",
+                "target": "#490"
+              },
+              {
+                "kind": "issue",
+                "target": "#500"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
@@ -23308,550 +24129,6 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 271,
-      "bytes": 49775,
-      "sha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-01"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
-        "assignedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md:1-265 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 440,
-      "bytes": 33858,
-      "sha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-07-31"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md",
-        "assignedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md:1-434 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-07-25-knob-drift-gates.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 491,
-      "bytes": 37083,
-      "sha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-01"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-07-25-knob-drift-gates.md",
-        "assignedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-07-25-knob-drift-gates.md:1-485 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-01-visual-blech-audit.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 282,
-      "bytes": 19981,
-      "sha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-07-31"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-01-visual-blech-audit.md",
-        "assignedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-01-visual-blech-audit.md:1-276 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 418,
-      "bytes": 29936,
-      "sha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-01"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md",
-        "assignedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md:1-412 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-client-architecture.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 367,
-      "bytes": 30365,
-      "sha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-03-client-architecture.md",
-        "assignedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-03-client-architecture.md:1-361 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-collection-contribution.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 433,
-      "bytes": 31429,
-      "sha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-03-collection-contribution.md",
-        "assignedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-03-collection-contribution.md:1-427 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 340,
-      "bytes": 26373,
-      "sha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md",
-        "assignedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md:1-340 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 434,
-      "bytes": 39422,
-      "sha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md",
-        "assignedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md:1-428 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-persona-model.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 471,
-      "bytes": 37245,
-      "sha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-03-persona-model.md",
-        "assignedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-03-persona-model.md:1-465 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-regex-model.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 521,
-      "bytes": 42258,
-      "sha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-03-regex-model.md",
-        "assignedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-03-regex-model.md:1-515 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-03-role-authority-model.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 518,
-      "bytes": 39061,
-      "sha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-02"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-03-role-authority-model.md",
-        "assignedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-03-role-authority-model.md:1-512 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-canon-message-identity.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 937,
-      "bytes": 68343,
-      "sha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-07"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-08-canon-message-identity.md",
-        "assignedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-08-canon-message-identity.md:1-931 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 506,
-      "bytes": 39236,
-      "sha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-08"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md",
-        "assignedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md:1-500 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 473,
-      "bytes": 40545,
-      "sha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-08"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md",
-        "assignedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md:1-467 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-08-group-chat-coherence.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 476,
-      "bytes": 39080,
-      "sha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-08"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-08-group-chat-coherence.md",
-        "assignedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
-        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
-        "verifiedAt": "2026-08-15",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-08-group-chat-coherence.md:1-470 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
-        ],
-        "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
       "path": "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md",
       "lane": "reviews",
       "issue": 7,
@@ -23897,40 +24174,6 @@
             ]
           }
         ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-16-home-hearth-room.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 282,
-      "bytes": 20664,
-      "sha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-16"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-16-home-hearth-room.md",
-        "assignedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
-        "verifiedCommit": "fdfac09d59aa50f733dfe44c4bd969750015b0a1",
-        "verifiedAt": "2026-08-16",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-16-home-hearth-room.md:1-282 authored+full-read this session (fresh-context frontier review of 96d458324+861de3e58+db242f066)",
-          "git log --oneline -1 -- docs/reviews/stickler/2026-08-16-home-hearth-room.md: fdfac09d5 docs(reviews): stickler frontier review of the Hearth Room home build"
-        ],
-        "summary": "Completed frontier review of the Hearth Room home rebuild (point-in-time evidence, no mutable work state duplicated); 7 findings ceiling P2, none merge-blocking, routed to fixes/follow-ups."
       },
       "receiptCurrent": true
     },
@@ -24038,74 +24281,6 @@
             ]
           }
         ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-19-memory-system-verify.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 192,
-      "bytes": 15628,
-      "sha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-19"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-19-memory-system-verify.md",
-        "assignedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "e4106ad88eb3df222a67635f4d7935335cf022f79915c029a12b773e8b75bb40",
-        "verifiedCommit": "af41b36499646bb1cc1c05d8b877cc84ab1bf0ed",
-        "verifiedAt": "2026-08-19",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-19-memory-system-verify.md:1-192 full read; all five modes, the 222-message live/scratch probe, and the 172-test behavioral floor were rechecked",
-          "git:af41b36499646bb1cc1c05d8b877cc84ab1bf0ed contains the exact review blob; follow-up implementation landed separately under #320 and #321"
-        ],
-        "summary": "Completed point-in-time memory-system verification retained as review evidence; findings and follow-up implementation live in GitHub rather than this archived receipt."
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 149,
-      "bytes": 9390,
-      "sha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "review",
-          "status": "active",
-          "updated": "2026-08-20"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md",
-        "assignedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
-        "disposition": "archive",
-        "authority": "review",
-        "fullRead": true,
-        "verifiedSha256": "e81dba95387b3204a5211e1e927292c191747a77a638280bacc373780070460e",
-        "verifiedCommit": "3a3ffccba8013268f3ee5a9153f1dac4c6540b70",
-        "verifiedAt": "2026-08-20",
-        "evidence": [
-          "docs/reviews/stickler/2026-08-20-merge-train-panel-and-instruments.md:1-149 full read on integrated main",
-          "git:3a3ffccba8013268f3ee5a9153f1dac4c6540b70 contains the exact review blob; reviewed commits are integrated as 4a6c54cdf and 6cdeb23df"
-        ],
-        "summary": "Completed point-in-time merge-train review: PanelChrome deferral and amended tooling instruments were mergeable with zero confirmed findings; exact integrated behavioral and static receipts are recorded in the report."
       },
       "receiptCurrent": true
     },
