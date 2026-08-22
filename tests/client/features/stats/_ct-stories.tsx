@@ -12,7 +12,7 @@ import {
   AnalyticsPersonasTab,
   AnalyticsTimeTab,
 } from "@orb/client/features/stats";
-import { clearAnalyticsSelection, selectAnalyticsCharacter, useSectionRegistry } from "@orb/client/state";
+import { clearAnalyticsSelection, selectAnalyticsCharacter, setActiveSection, setPanelMode, useSectionRegistry } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -34,13 +34,49 @@ export function AnalyticsListSurfaceStory(): ReactElement {
 }
 
 /** The Analytics OVERVIEW dashboard over the real data layer (four suspense reads + the recompute
- *  mutation). */
+ *  mutation). Wrapped in `CtRealSectionRegistry` (#451): the top-character subtitle reads
+ *  `useSectionListMode("analytics")`, which needs the real registry to resolve. */
 export function AnalyticsOverviewSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 640, width: 720 }}>
-        <AnalyticsOverviewSurface />
-      </div>
+      <CtRealSectionRegistry>
+        <div style={{ height: 640, width: 720 }}>
+          <AnalyticsOverviewSurface />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The same OVERVIEW dashboard with the LIST panel driver exposed (#451) — the top-character subtitle's two
+ *  arms: named-affordance while collapsed, plain while the list is docked. `setActiveSection` first, because
+ *  `setPanelMode` writes the CURRENT active section's override. */
+export function AnalyticsOverviewSurfaceListModeStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button
+          onClick={(): void => {
+            setActiveSection("analytics");
+            setPanelMode("list", "collapsed");
+          }}
+          type="button"
+        >
+          collapse the list
+        </button>
+        <button
+          onClick={(): void => {
+            setActiveSection("analytics");
+            setPanelMode("list", "docked");
+          }}
+          type="button"
+        >
+          dock the list
+        </button>
+        <div style={{ height: 640, width: 720 }}>
+          <AnalyticsOverviewSurface />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

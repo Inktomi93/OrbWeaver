@@ -26,7 +26,7 @@ export const CONFIG_WELCOME = {
  *  opposite thing: there something IS selected and simply has nothing to attach. */
 export const CONFIG_CONTEXT_EMPTY = {
   title: "Nothing selected",
-  description: "Pick something on the left and this panel shows where it applies.",
+  description: "Pick something from the list and this panel shows where it applies.",
 } as const;
 
 /**

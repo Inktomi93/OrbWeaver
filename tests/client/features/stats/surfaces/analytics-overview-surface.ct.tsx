@@ -9,7 +9,7 @@ import type { Page } from "@playwright/test";
 import { readCanvasBandInk, solidColumns } from "../../../../support/ct/canvas-ink.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
-import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
+import { AnalyticsOverviewSurfaceListModeStory, AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 
 const COMPUTED_AT = 1_750_000_000_000;
 /** A four-digit year — the tell that the `title=` carries the ABSOLUTE stamp, whatever the runner's locale. */
@@ -53,6 +53,8 @@ const WRAPPED = {
 };
 
 const MOMENTUM = { latestMonth: null, prevMonth: null, rising: [], falling: [] };
+
+const SHOW_LIST_PANEL_RE = /Show list panel/u;
 
 /** The report's own live shape: a small rise beside a large fall. Independently auto-scaled, +10 and −184
  *  drew as near-identical full-width bars in the same colour. */
@@ -335,4 +337,24 @@ test("no absolutely-positioned box escapes the analytics overview scroller (the 
   await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
 
   expect(await readPhantomScrollers(page)).toEqual([]);
+});
+
+// #451: the top-character subtitle's two arms — the list defaults COLLAPSED here, so "open the list" read
+// right by default and wrong once a reader docks it; and its collapsed wording must name the real
+// affordance verbatim ("Show list panel", the topbar toggle) rather than "open the list" (WCAG 2.5.3).
+test("the top-character subtitle names the real affordance while collapsed and drops it once the list is docked", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => ({ ...WRAPPED, topCharacter: { name: "Azarael", assistantTurns: 12 } }),
+    "stats.momentum": () => MOMENTUM,
+  });
+
+  const component = await mount(<AnalyticsOverviewSurfaceListModeStory />);
+  await component.getByRole("button", { name: "collapse the list" }).click();
+  await expect(component.getByText("Your most-played character — Show list panel to drill into any character")).toBeVisible();
+
+  await component.getByRole("button", { name: "dock the list" }).click();
+  await expect(component.getByText("Your most-played character", { exact: true })).toBeVisible();
+  await expect(component.getByText(SHOW_LIST_PANEL_RE)).toHaveCount(0);
 });

@@ -26,7 +26,7 @@ import { SectionPlaceholder } from "./section-placeholder.tsx";
 // A section states its OWN no-selection arm through `context.empty` (`ContextEmptyArm`) and this is what a
 // section that has not stated one still gets — deliberately generic, so an un-swept pane reads as un-swept
 // rather than as a considered answer.
-const CONTEXT_PLACEHOLDER = <SectionPlaceholder title="Nothing selected" description="Pick something on the left and its details appear here." />;
+const CONTEXT_PLACEHOLDER = <SectionPlaceholder title="Nothing selected" description="Pick something from the list and its details appear here." />;
 
 /** The section's OWN no-selection arm when it declares one, else the generic fallback above (F-12). */
 function contextEmpty(context: SectionDefinition["context"]): ReactNode {
