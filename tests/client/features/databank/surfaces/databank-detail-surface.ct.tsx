@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
-import { DatabankDetailStory, DatabankDetailWideStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
+import { DatabankDetailListModeStory, DatabankDetailStory, DatabankDetailWideStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
 import { INDEXING_DOC, READY_DOC, SOURCE_TEXT, stubDatabank } from "../fixtures.ts";
 
 /** The row bodies open a document — matched loosely because the row's accessible name carries its scent
@@ -27,6 +27,10 @@ const ADD_ANOTHER_INVITE = "or add another";
 /** The side-agnostic pointer, and the directional one it replaced (top-level — `useTopLevelRegex`). */
 const FROM_THE_LIST = /from the list/u;
 const DIRECTIONAL_COPY = /on the left/u;
+
+/** The shell affordance the empty-bank arm names when the LIST is off screen — the topbar's own string,
+ *  verbatim (WCAG 2.5.3: a voice-control user says exactly what is written). */
+const LIST_PANEL_DOOR = /Show list panel in the top bar/u;
 
 /** The Details readout as label→value PAIRS, read off the rendered grid. A pair, never a bare value: the
  *  workspace story also mounts the LIST, whose rows print the same numbers inside their scent lines. */
@@ -65,16 +69,73 @@ test("CONTENT with nothing open TEACHES what the bank is — never a blank pane"
 // SLOT renders it, never a second wording. Driven in ONE mount, because simultaneity is the whole finding.
 // The second half is the two-Add-doors trim: this pane used to end "…or add another" with no button under
 // it, 226px from the LIST's real one.
+// #434 EXTENDS THAT RULING ONE NOTCH — the SLOT fix left the two panes still saying the same THING (an empty
+// state each, one glance apart) with only one of them able to act. On an empty bank this pane now stands
+// down entirely while the LIST is on screen: one empty state, one first step, one Add door.
 test("the two empty panes do not print the same sentence, and only ONE offers Add (taste)", async ({ mount, page }) => {
   await stubDatabank(page, { "databank.listGlobal": () => [] }, []);
   const workspace = await mount(<DatabankWorkspaceStory />);
-  await expect(workspace.getByText("Your databank")).toBeVisible();
   await expect(workspace.getByText("No documents yet")).toBeVisible();
+  // The CONTENT pane's welcome is GONE on an empty bank: "Pick a document from the list" names an act the
+  // reader cannot perform, beside a list that is already teaching the real one.
+  await expect(workspace.getByText("Your databank")).toHaveCount(0);
+  await expect(workspace.getByText(FROM_THE_LIST)).toHaveCount(0);
 
   // The teaching gloss survives exactly once, in the pane that owns the first step.
   await expect(workspace.getByText(INGEST_GLOSS_TAIL)).toHaveCount(1);
   await expect(workspace.getByText(ADD_ANOTHER_INVITE)).toHaveCount(0);
   await expect(workspace.getByRole("button", { name: "Add a document" })).toHaveCount(1);
+});
+
+// …AND THE STAND-DOWN IS CONDITIONED ON THE LIST BEING ON SCREEN, not on the bank alone. `panelDefaults.list`
+// is `docked`, but the shell auto-collapses a docked default in the narrow-desktop band and focus mode hides
+// both panes — deferring to a pane that is not there would leave a blank CONTENT region and no door at all.
+// The REFUSED arm is pinned in the same breath: the way out is the NAMED shell affordance, never a second Add
+// button minted in this pane (the two-Add-doors finding).
+test("#434 on an empty bank the CONTENT pane stands down — unless the LIST is off screen, where it names the door", async ({ mount, page }) => {
+  await stubDatabank(page, { "databank.listGlobal": () => [] }, []);
+  const content = await mount(<DatabankDetailListModeStory />);
+  // Boot layout: the LIST is docked (on screen), so this pane says nothing at all.
+  await expect(content.getByRole("button", { name: "take the list off screen" })).toBeVisible();
+  await expect(content.getByText("Your databank")).toHaveCount(0);
+
+  await content.getByRole("button", { name: "take the list off screen" }).click();
+  await expect(content.getByText("Your databank")).toBeVisible();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toBeVisible();
+  // No second Add door: the invitation names the shell control that reaches the one real door.
+  await expect(content.getByRole("button", { name: "Add a document" })).toHaveCount(0);
+  // And it does not re-print the LIST's teaching sentence — the one-home copy fix is not being forked.
+  await expect(content.getByText(INGEST_GLOSS_TAIL)).toHaveCount(0);
+
+  await content.getByRole("button", { name: "put the list back" }).click();
+  await expect(content.getByText("Your databank")).toHaveCount(0);
+});
+
+// The POPULATED arm still teaches: with rows in the bank and nothing open, the pane says what it will show —
+// an empty CONTENT pane reads as unbuilt, and that ruling is extended above, not reversed.
+//
+// #445 — AND IT NAMES THE DOOR WHEN THE LIST IS OFF SCREEN. "Pick a document from the list" presupposes a
+// list on screen, which is false in the narrow-desktop auto-collapse, in focus mode and after a hand
+// collapse — the F-28 class the Presets welcome was fixed for, left standing here by #434's empty-bank
+// scope. The instruction is unchanged for the reader who can see the list; the footnote is an addition.
+test("#434/#445 with documents in the bank and nothing selected, the welcome teaches — and names the list door only while the list is off screen", async ({
+  mount,
+  page,
+}) => {
+  await stubDatabank(page);
+  const content = await mount(<DatabankDetailListModeStory />);
+  await expect(content.getByText("Your databank")).toBeVisible();
+  await expect(content.getByText(FROM_THE_LIST)).toBeVisible();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
+
+  await content.getByRole("button", { name: "take the list off screen" }).click();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toBeVisible();
+  // The instruction survives beside it, and no Add door is minted here (the two-Add-doors refusal holds).
+  await expect(content.getByText(FROM_THE_LIST)).toBeVisible();
+  await expect(content.getByRole("button", { name: "Add a document" })).toHaveCount(0);
+
+  await content.getByRole("button", { name: "put the list back" }).click();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
 });
 
 // ARRIVAL FOCUS BELONGS TO THE PANE THE READER CAME FOR (side-eye 2026-08-19 ARIA) — the config workspace's

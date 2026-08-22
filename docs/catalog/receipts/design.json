@@ -318,15 +318,16 @@
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "2163243f6620f40168730a4f7ee8d67d360decb11ba098acd83e9308c77cf8e5",
-      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+      "verifiedSha256": "490d051ca21d373b6712fc3769023dc17d7bb018e71092d5d85f83b0f81868b6",
+      "verifiedCommit": "12a536adb24c3d34d0f259bf3d62b69cfaa92b1f",
       "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/design/containerize-prod-image-spec.md:1 (design; draft; full read 2026-08-19)",
         "the auth/env/engine path:line receipts were re-derived against merged main (6ef448dd6) and the stale ones repaired in place",
         "REPAIRED at fd71a395d: single-user's fallback is peer-gated, not unconditional (3.1); LOCAL_INITIAL_PASSWORD is optional, not boot-fatal (3.2/3.5); the D2 external-engine code changes are already BUILT (3.6); the Host-spoof exploit narrative in 4/7/8 is obsolete",
         "OPEN for the owner: the 2026-08-08 ruled image default (single-user + AUTH_FALLBACK=owner) no longer yields a usable first run in a container, because a published port is not a loopback peer",
-        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+        "delta re-verify 2026-08-22 (#325, bytes at 12a536adb): §1 fact 1 and the `.env`-interaction paragraph cited the removed `pnpm start`/`pnpm dev` scripts — repointed to the real launcher (`pnpm stack up prod` / `start-fg prod`, spawn built at tooling/src/stack/lib/spawn-plan.ts); no other line changed and the typed claims below are unaffected"
       ],
       "summary": "Production container image + deployment spec (all auth modes): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [

@@ -63,7 +63,7 @@ export type LifecycleCommand =
   | { readonly kind: "claim"; readonly issue: number; readonly lane: string }
   | { readonly kind: "ready" | "review" | "needs-owner"; readonly issue: number }
   | { readonly kind: "set"; readonly issue: number; readonly field: string; readonly value: string }
-  | { readonly kind: "verify" | "reverify" | "done"; readonly issue: number; readonly evidence: string }
+  | { readonly kind: "verify" | "reverify" | "done" | "refute"; readonly issue: number; readonly evidence: string }
   | { readonly kind: "park"; readonly issue: number; readonly wake: string }
   | { readonly kind: "block"; readonly issue: number; readonly blocker: number }
   | { readonly kind: "unblock"; readonly issue: number; readonly blocker: number };

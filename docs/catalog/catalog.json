@@ -1720,9 +1720,9 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 711,
-      "bytes": 126113,
-      "sha256": "f501f36c790af83a248421c68978f686a24a152fc031342499d3b2785e98416d",
+      "lines": 715,
+      "bytes": 128038,
+      "sha256": "de8ba707410d93fd888b8f7d5dcb0e5ced1607e4aa45d0b1b5c0493668aae530",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1739,13 +1739,13 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "f501f36c790af83a248421c68978f686a24a152fc031342499d3b2785e98416d",
-        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "de8ba707410d93fd888b8f7d5dcb0e5ced1607e4aa45d0b1b5c0493668aae530",
+        "verifiedCommit": "09b8ead41eae4ca5f878202fbc1e5def32644949",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
-          "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
-          "pnpm check:docs (2026-08-15 restamp — receipt sha/commit refresh, #73 red-fixes)"
+          "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-22; 09b8ead41)",
+          "pnpm check:docs (2026-08-22 re-attest after #433 — §3 count correction two -> FOUR composition-tier dir modules: the doc listed agent-nav/ and agent-seed/ only, agent-rpg/ was already unlisted and unwalled before this change, and agent-handles/ is the new DEV-only assembly; §7 gains the boot-chunk law for that arm and the kit/contracts/ui sideEffects declarations)"
         ],
         "claims": [
           {
@@ -10910,9 +10910,9 @@
       "path": "docs/design/containerize-prod-image-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 573,
-      "bytes": 46695,
-      "sha256": "2163243f6620f40168730a4f7ee8d67d360decb11ba098acd83e9308c77cf8e5",
+      "lines": 577,
+      "bytes": 46982,
+      "sha256": "490d051ca21d373b6712fc3769023dc17d7bb018e71092d5d85f83b0f81868b6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10929,15 +10929,16 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "2163243f6620f40168730a4f7ee8d67d360decb11ba098acd83e9308c77cf8e5",
-        "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
+        "verifiedSha256": "490d051ca21d373b6712fc3769023dc17d7bb018e71092d5d85f83b0f81868b6",
+        "verifiedCommit": "12a536adb24c3d34d0f259bf3d62b69cfaa92b1f",
         "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/design/containerize-prod-image-spec.md:1 (design; draft; full read 2026-08-19)",
           "the auth/env/engine path:line receipts were re-derived against merged main (6ef448dd6) and the stale ones repaired in place",
           "REPAIRED at fd71a395d: single-user's fallback is peer-gated, not unconditional (3.1); LOCAL_INITIAL_PASSWORD is optional, not boot-fatal (3.2/3.5); the D2 external-engine code changes are already BUILT (3.6); the Host-spoof exploit narrative in 4/7/8 is obsolete",
           "OPEN for the owner: the 2026-08-08 ruled image default (single-user + AUTH_FALLBACK=owner) no longer yields a usable first run in a container, because a published port is not a loopback peer",
-          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+          "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+          "delta re-verify 2026-08-22 (#325, bytes at 12a536adb): §1 fact 1 and the `.env`-interaction paragraph cited the removed `pnpm start`/`pnpm dev` scripts — repointed to the real launcher (`pnpm stack up prod` / `start-fg prod`, spawn built at tooling/src/stack/lib/spawn-plan.ts); no other line changed and the typed claims below are unaffected"
         ],
         "summary": "Production container image + deployment spec (all auth modes): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
         "claims": [
@@ -15285,16 +15286,16 @@
       "path": "docs/orbweaver-card-debug-handoff.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 515,
-      "bytes": 30252,
-      "sha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
+      "lines": 520,
+      "bytes": 30739,
+      "sha256": "9da1c5b32a6bcddfad7cef9c7a378ea8a4f22db3a2d76ca2cf1762ca2efa5cdb",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "handoff",
           "status": "superseded",
-          "updated": "2026-08-14"
+          "updated": "2026-08-22"
         },
         "errors": []
       },
@@ -15304,13 +15305,14 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
-        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
-        "verifiedAt": "2026-08-15",
+        "verifiedSha256": "9da1c5b32a6bcddfad7cef9c7a378ea8a4f22db3a2d76ca2cf1762ca2efa5cdb",
+        "verifiedCommit": "12a536adb24c3d34d0f259bf3d62b69cfaa92b1f",
+        "verifiedAt": "2026-08-22",
         "evidence": [
           "docs/orbweaver-card-debug-handoff.md:1",
           "git log --oneline -5 -- docs",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "re-attest 2026-08-22 (#325, bytes at 12a536adb): the removed `pnpm start` cites are repointed to the launcher that replaced them (`pnpm stack up prod` / `start-fg prod`), the refusal table's FALSE `start-fg prod` row is corrected against tooling/src/stack/lib/argv.ts:34+110 (only `_leader` is dev-only), and three stack-tool paths that moved to tooling/src/stack/ at P5 are repointed"
         ],
         "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
       },
@@ -23054,6 +23056,75 @@
         ],
         "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
         "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-verify-271-334.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 384,
+      "bytes": 25617,
+      "sha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-verify-271-334.md",
+        "assignedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+        "verifiedCommit": "b43fb76ad0670a91c1069177763d96b60ff50484",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-385 by the orchestrator (2026-08-22) before attestation",
+          "26 rendered receipts under reports/snaps/vv-* (gitignored snap artifacts); findings filed as board rows"
+        ],
+        "summary": "side-eye verification of #271 + #334: both CONFIRMED fixed (Delete single-homed across 3 collections; picker Start footer real+D123 clean). 5 new findings: P1 mobile footer clip (introduced), P1 dead initial focus (pre-existing), P2 disabled-Start contrast, P2 WI Rename two homes, P3 duplicate kebab accnames; plus a negative-overflow instrument blind spot.",
+        "claims": [
+          {
+            "claim": "Both verified rows are fixed on main and closed with this report as evidence, and every new finding is tracked as a live board row.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#439"
+              },
+              {
+                "kind": "issue",
+                "target": "#440"
+              },
+              {
+                "kind": "issue",
+                "target": "#441"
+              },
+              {
+                "kind": "issue",
+                "target": "#442"
+              },
+              {
+                "kind": "issue",
+                "target": "#443"
+              },
+              {
+                "kind": "issue",
+                "target": "#444"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx:118"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
