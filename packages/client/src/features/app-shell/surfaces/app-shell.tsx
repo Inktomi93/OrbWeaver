@@ -137,6 +137,20 @@ function CommandChip({
               }}
             >
               <Kbd>⌘K</Kbd>
+              {/* THE SEPARATING TEXT NODE (side-eye rail-home P3-3, 2026-08-22) — and it is not cosmetic.
+                  axe's `label-content-name-mismatch` reads the VISIBLE LABEL by concatenating the button's
+                  own text nodes, which is `textContent`, not `innerText`: with the chip and the word as two
+                  adjacent ELEMENTS and no text node between them, that concatenation was the literal string
+                  "⌘Kjump" (measured on the live landing), which is not a substring of the name "⌘K jump —
+                  the command menu" — so WCAG 2.5.3 failed in letter on both the desktop and the mobile
+                  Lighthouse run while the aria-label looked right. The ruling above (the name must CONTAIN
+                  the rendered string) survives untouched; what changed is that the rendered string now has
+                  the space the name always claimed it had.
+                  It costs NOTHING in layout: a whitespace-only anonymous child of a flex container is not
+                  rendered as a flex item, so the chip-to-word distance is still the Button's own `gap`.
+                  The prior CT read this through `innerText`, which inserts a line break between two flex
+                  items and therefore normalised to "⌘K jump" whichever way the DOM was built — it passed for
+                  the wrong reason. Its replacement reads `textContent`, the way axe does. */}{" "}
               {/* THE LABEL STEP, not micro (side-eye rail sweep P3-13, 2026-08-17). This word is the only
                   prose on a CONTROL, and it rendered at 10.5px — under the 11px functional floor a control
                   label owes, on the topbar affordance a first-time visitor is most likely to squint at. The
@@ -312,9 +326,20 @@ export function AppShell(): ReactElement {
                 the first focusable is a second tab stop, not a skip. It moves focus to the `<main>` scroll
                 container (already `tabIndex={-1}` and already named by the active section) rather than to a
                 control inside it, so the next Tab lands on the section's first real affordance whatever
-                that section is. `absolute` keeps it out of the shell grid's track flow when revealed. */}
+                that section is. `absolute` keeps it out of the shell grid's track flow when revealed.
+
+                `not-focus-visible:sr-only`, NOT `sr-only focus-visible:not-sr-only` (side-eye rail-home
+                P3-7, 2026-08-22). The pair reads right and renders wrong: Tailwind's `not-sr-only` is a
+                RESET, and its reset includes `padding: 0` and `height: auto` — which land in the same layer
+                at the same specificity as the Button's own `h-control-sm px-block` and beat them, so the
+                REVEALED control measured 94x18 with a computed padding of "0px", i.e. bare text with a
+                border and no box, under the WCAG 2.5.8 24x24 floor on its block axis. The `not-*` variant
+                removes the fight instead of trying to win it: at rest the clip applies, and on focus NOTHING
+                from `sr-only` applies at all, so the control is simply the `sm` Button it already declares
+                itself to be. The rest posture is unchanged and the CT still reads it through the resolved
+                `clip-path: inset(50%)`. */}
             <Button
-              className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:start-row focus-visible:top-row focus-visible:z-(--z-overlay)"
+              className="not-focus-visible:sr-only focus-visible:absolute focus-visible:start-row focus-visible:top-row focus-visible:z-(--z-overlay)"
               intent="secondary"
               onClick={(): void => mainRef.current?.focus()}
               size="sm"

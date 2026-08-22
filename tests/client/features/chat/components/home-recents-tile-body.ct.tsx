@@ -503,3 +503,46 @@ test("#205 a NARROW island keeps its whole width for the prose — the bleed is 
   const width = await home.locator('[data-slot="art-bleed"]').evaluate((el) => el.getBoundingClientRect().width);
   expect(width).toBe(0);
 });
+
+// ── RED-FIRST (side-eye rail-home P3-4): the hero is a NATIVE button, not a div wearing role=button ──
+// The finding was filed as a robustness note, not a defect: the synthesized pair on `Card interactive`
+// (role + tabIndex + a hand-written Enter/Space handler) was VERIFIED WORKING on the live surface before it
+// was filed. That is exactly why this pin asserts BOTH halves — the element KIND (which is what changed)
+// and the activation + the accessible name (which are what must not). Asserted through the rendered tag and
+// a real keypress, so it compiles and fails against the old source rather than against a new API.
+test("P3-4 the hero is a real <button> — and Enter and Space still activate, with the verb name intact", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  const hero = home.locator('[data-home-hearth="chat_recent"]');
+
+  // The KIND. `div[role=button]` fails here; a native button carries the role implicitly, so the role
+  // assertion below holds in both arms and only the tag name separates them.
+  await expect.poll(() => hero.evaluate((el) => el.tagName)).toBe("BUTTON");
+  // …and it is a plain button, never a submit — a card inside a form must not post it.
+  await expect.poll(() => hero.evaluate((el) => (el as HTMLButtonElement).type)).toBe("button");
+  await expect(hero).toHaveRole("button");
+  // The ruling this must not disturb (side-eye 2026-08-16 F5): the name is the VERB, not the room.
+  await expect(hero).toHaveAccessibleName("Resume A grand adventure");
+
+  // BOTH activation keys, through the real keyboard — the behaviour the div arm hand-rolled and the
+  // platform now owns. `press` on a focused control is the seam a user meets; the island survives it.
+  await hero.focus();
+  await hero.press("Enter");
+  await expect(hero).toBeVisible();
+  await hero.focus();
+  await hero.press(" ");
+  await expect(hero).toBeVisible();
+});
+
+// The UA reset the `as="button"` arm owes (card.tsx): a browser ships a button `inline-block` with
+// `text-align: center`, and Tailwind's preflight resets a button's font and background but NEITHER of
+// those — so an un-reset arm would render the hero's title, excerpt and credit line CENTRED. Read off the
+// resolved style, because the class string could survive a variant change that stopped resetting.
+test("P3-4 the native hero still reads left-aligned — the UA button centring is reset", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  const align = await home.locator('[data-home-hearth="chat_recent"]').evaluate((el) => globalThis.getComputedStyle(el).textAlign);
+  expect(align).not.toBe("center");
+});

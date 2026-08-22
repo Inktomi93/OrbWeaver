@@ -143,7 +143,18 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   TWO LINES, not one truncated one (P3-18): the shelf has the vertical room, and a pitch cut
                   at ~20 characters mid-word ("A legendary, apocal…") taught nothing about the character. */}
               {caption === null ? null : (
-                <Text as="span" className="line-clamp-2 whitespace-normal" id={captionId} prose={true} voice="gloss">
+                // AND IT RESERVES ITS TWO LINES, like the name above it (side-eye rail-home P3-5,
+                // 2026-08-22). The filed finding was "the name band has a ragged bottom edge"; measured on
+                // the live shelf that half is RETRACTED — every name element is 43px and every cell bottom
+                // in a row is identical, because #216-d already moved the name to `lines={2}`. What is
+                // still a clamp-without-a-reservation is THIS line: a one-line pitch and a two-line pitch
+                // end their cells at different baselines in the same row, which is the same defect one row
+                // down. `lines={2}` is the same sanctioned variant and carries the same `whitespace-normal`
+                // the clamp needs inside the `whitespace-nowrap` Button base, so this is a swap, not an
+                // addition. A cell with NO pitch at all (#119 — no line beats a slug) still ends short, and
+                // that is left alone deliberately: reserving a box for copy that does not exist is the
+                // invented-second-line the ladder ruling refuses.
+                <Text as="span" id={captionId} lines={2} prose={true} voice="gloss">
                   {caption}
                 </Text>
               )}
