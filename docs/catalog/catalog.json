@@ -23103,6 +23103,67 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-rail-presets.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 748,
+      "bytes": 50106,
+      "sha256": "d8135fcc53bc4141c7e945d38649cf75ca25fe4a3966b4e5b5e1b93e300e9449",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-22"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-22-rail-presets.md",
+        "assignedSha256": "d8135fcc53bc4141c7e945d38649cf75ca25fe4a3966b4e5b5e1b93e300e9449",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "d8135fcc53bc4141c7e945d38649cf75ca25fe4a3966b4e5b5e1b93e300e9449",
+        "verifiedCommit": "db9de12944dc3cd33f3158281cb4beacb40f1b5b",
+        "verifiedAt": "2026-08-22",
+        "evidence": [
+          "full read 1-748 by the orchestrator (2026-08-22) before attestation",
+          "wedge-window receipts discarded and re-taken per the report's own timing section; 6 retractions published incl. the reviewer's own Light-theme misread"
+        ],
+        "summary": "Rail sweep 2/10 — Presets: SHIP WITH FIXES (29/40); P1 keyboard-activation hazard + 9 P2s incl. a re-opened header-width ruling; findings filed as #481-#484 with #485 the ListRow-accent owner fork; contrast/overflow/motion/perf layers all held under an 8-variant matrix.",
+        "claims": [
+          {
+            "claim": "Every finding is tracked as a live board row or an owner decision; the two axe/design-audit systemic questions are dispositioned (accent → #485; label-content-name FP → sweep-brief boilerplate).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#481"
+              },
+              {
+                "kind": "issue",
+                "target": "#482"
+              },
+              {
+                "kind": "issue",
+                "target": "#483"
+              },
+              {
+                "kind": "issue",
+                "target": "#484"
+              },
+              {
+                "kind": "issue",
+                "target": "#485"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
       "lane": "reviews",
       "issue": 7,
