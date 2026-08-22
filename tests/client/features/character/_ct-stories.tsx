@@ -17,6 +17,7 @@ import {
   CharacterFacetInspector,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
+  CharacterLibraryWelcome,
   CharacterOptionsTab,
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
@@ -24,6 +25,7 @@ import { createContributorRegistry } from "@orb/client/lib";
 import {
   clearCharacterSelection,
   selectCharacter,
+  setFocusMode,
   useActiveChatId,
   useActiveSection,
   useSectionRegistry,
@@ -430,6 +432,34 @@ export function CharactersScreenStory({ deepLinkCharacterId }: CharactersScreenS
           Open via deep link
         </button>
         <CharactersScreenHarness />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The Characters CONTENT teaching hero with a live driver for the shell's LIST MODE (#446). Both arms in
+ *  ONE mount, because a CT mounts once per test and the finding is which arm the SAME pane shows.
+ *
+ *  THE DRIVER IS FOCUS MODE — the shell's ONE flag for "no side panel is showing" (item 20): regime-free,
+ *  section-independent and SYNCHRONOUS, where `setPanelMode` writes the ACTIVE section's override and
+ *  `setActiveSection` defers its write through `withViewTransition` (a story doing both in one handler
+ *  lands the override on the previous section — measured, #434). The pane reads the RESOLVED mode, so any
+ *  regime resolving `collapsed` exercises it; the override path's own resolution is pinned in
+ *  `shell-store.ct` / `section-list-projection.ct`. Under the REAL registry, because the projection reads
+ *  this section's declared `panelDefaults`. */
+export function CharacterLibraryWelcomeListModeStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button onClick={(): void => setFocusMode(true)} type="button">
+          take the list off screen
+        </button>
+        <button onClick={(): void => setFocusMode(false)} type="button">
+          put the list back
+        </button>
+        <div style={{ height: 640, width: 720 }}>
+          <CharacterLibraryWelcome />
+        </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
   );

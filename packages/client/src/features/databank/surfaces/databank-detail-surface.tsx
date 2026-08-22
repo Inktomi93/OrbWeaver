@@ -31,7 +31,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
-import { useSectionListMode, useSelectedDocumentId } from "#state";
+import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
 import {
@@ -83,10 +83,6 @@ export function DatabankDetailSurface(): ReactElement {
  *  a docked column, a slide-over, or collapsed — "on the left" is wrong in three of those and wrong on every
  *  phone, where the panes stack. */
 const PICK_A_DOCUMENT = "Pick a document from the list to see what was extracted, how much of it is indexed, and where it fires.";
-
-/** The footnote appended ONLY while the LIST is off screen — the Presets welcome's sentence, verbatim, because
- *  it is the same fact about the same shell control and this app says one thing one way. */
-const LIST_OFF_SCREEN = " The list isn't on screen right now — Show list panel in the top bar brings it back.";
 
 /**
  * The no-selection arm — what this PANE will show once a document is open, and NOTHING AT ALL while the bank
@@ -148,7 +144,7 @@ function DatabankWelcome(): ReactElement | null {
   }
   return (
     <EmptyState
-      description={listMode === "collapsed" ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN}` : PICK_A_DOCUMENT}
+      description={listMode === "collapsed" ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN_HINT}` : PICK_A_DOCUMENT}
       icon={<Icon icon={FileText} size="lg" />}
       title="Your databank"
     />

@@ -55,6 +55,7 @@ import {
   openNewChatPicker,
   SlashCommandRegistryProvider,
   selectChat,
+  setFocusMode,
   startEditingMessage,
   toggleMessageSelected,
   useActiveSection,
@@ -1281,14 +1282,28 @@ function ChatListInner({ activeChatId, width }: { readonly activeChatId: string 
 // ── Landing + HOME-TILE stories ───────────────────────────────────────────────────────────────────
 
 /** The Chats-section NO-SELECTION state after the launcher MOVED to home (owner decision H1 = D-1): a
- *  slim empty state with the section's own primary. It reads nothing, so there is no data layer here. */
+ *  slim empty state with the section's own primary. It reads no DATA, so there is no query layer here —
+ *  but it does read the shell's LIST MODE (#446), which resolves this section's declared `panelDefaults`,
+ *  so it mounts under the REAL section registry.
+ *
+ *  The two buttons drive that mode through FOCUS — the shell's ONE flag for "no side panel is showing"
+ *  (item 20): synchronous and section-independent, where `setPanelMode` writes the ACTIVE section's
+ *  override and `setActiveSection` defers its write through `withViewTransition` (measured, #434). */
 export function ChatLandingSurfaceStory(): ReactElement {
   const [newCount, setNewCount] = useState(0);
   return (
-    <div style={{ height: 640, width: 720 }}>
-      <ChatLandingSurface onNewChat={(): void => setNewCount((n) => n + 1)} />
-      <p data-testid="new-count">{String(newCount)}</p>
-    </div>
+    <CtRealSectionRegistry>
+      <button onClick={(): void => setFocusMode(true)} type="button">
+        take the list off screen
+      </button>
+      <button onClick={(): void => setFocusMode(false)} type="button">
+        put the list back
+      </button>
+      <div style={{ height: 640, width: 720 }}>
+        <ChatLandingSurface onNewChat={(): void => setNewCount((n) => n + 1)} />
+        <p data-testid="new-count">{String(newCount)}</p>
+      </div>
+    </CtRealSectionRegistry>
   );
 }
 
