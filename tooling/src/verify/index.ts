@@ -30,6 +30,7 @@ export type {
 } from "./contract/gate.ts";
 export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
+export type { RunManifest } from "./contract/run-manifest.ts";
 export type { ConformanceFailure, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
 export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, VerifyReport } from "./contract/stage.ts";
@@ -53,7 +54,8 @@ export {
 export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
 export { getProject } from "./lib/harness.ts";
-export { loadGates } from "./lib/loader.ts";
+export type { GateCorpus } from "./lib/loader.ts";
+export { loadGateCorpus, loadGates } from "./lib/loader.ts";
 export { canonicalSort, fileLoaded, projectCtx, repoRel, runPass, stripProbeFindings, zeroScanGates } from "./lib/pass.ts";
 export { programsFor, staticPrograms } from "./lib/program-routing.ts";
 export { manualStages, REGISTRY, stagesForTier } from "./lib/registry.ts";

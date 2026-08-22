@@ -43,7 +43,18 @@ interface GateReport {
   readonly violations: readonly Violation[];
   readonly scan?: GateScanView;
 }
+/** The run manifest (#410). OPTIONAL here on purpose: this view also reads artifacts written before the
+ *  manifest existed, and a MISSING manifest is a pre-#410 artifact (readable), while a manifest that says
+ *  `complete: false` is a run that DIED (refused). The two are not the same fact. */
+interface RunManifestView {
+  readonly runId: string;
+  readonly complete: boolean;
+  readonly ran: number;
+  readonly active: number;
+  readonly incompleteReasons?: readonly string[];
+}
 interface StructureReport {
+  readonly run?: RunManifestView;
   readonly gates: readonly GateReport[];
   /** Optional: absent in pre-2026-08-03 artifacts. A gate that THREW (exit 2) — without rendering
    *  these, an ok:false report with zero violations displayed as inexplicably empty. */
@@ -164,6 +175,26 @@ function printGate(g: GateReport, violations: readonly Violation[], f: Filter): 
   print("");
 }
 
+/** #410: an artifact whose run did not finish (or did not reconcile) is NOT a verdict at any exit code —
+ *  it is either the in-flight stub a killed run left behind, or a pass that ran fewer gates than the corpus
+ *  holds. Returns the operator line to print, or null when the artifact is consumable. */
+function refuseIncomplete(report: StructureReport): string | null {
+  const run = report.run;
+  if (run === undefined) {
+    return null; // a pre-#410 artifact carries no manifest — readable, just older
+  }
+  if (run.complete && (run.incompleteReasons ?? []).length === 0) {
+    return null;
+  }
+  const why = run.complete
+    ? (run.incompleteReasons ?? []).map((r) => `      ‼ ${r}`).join("\n")
+    : `      ‼ the run never finished — this is the IN-FLIGHT stub (ran ${run.ran}/${run.active}); it was killed, OOM-aborted or timed out`;
+  return ANSI.red(
+    `✗ reports/check-structure.json is NOT a verdict (run ${run.runId})\n${why}\n` +
+      "      Re-run `pnpm check:structure`. See tooling/src/verify/contract/run-manifest.ts (#410).",
+  );
+}
+
 /** The failure header + the thrown-gate rows. A thrown gate is a broken CHECKER, not a violation —
  *  rendered before the gate list so an otherwise-empty failing report explains itself. */
 function printVerdictAndToolErrors(report: StructureReport): void {
@@ -197,6 +228,11 @@ export function runShow(root: string, argv: readonly string[]): number {
     return EXIT.clean;
   }
   const report = readReport(root);
+  const incomplete = refuseIncomplete(report);
+  if (incomplete !== null) {
+    print(incomplete);
+    return EXIT.toolError;
+  }
   const filtersActive = filter.gate !== null || filter.file !== null;
 
   if (report.ok && !filtersActive) {

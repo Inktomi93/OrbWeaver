@@ -60,12 +60,25 @@ function assertDescriptor(gate: unknown, rel: string): asserts gate is GateDescr
   assertBehavior(g, rel);
 }
 
-/** Discover every contract-form gate in the gates dir, sorted by path, with fail-closed validation. */
-export async function loadGates(root: string): Promise<readonly GateDescriptor[]> {
+/** What one corpus load SAW, not only what it produced (#410). The counts are the denominator the run
+ *  manifest reconciles against; without them a corpus file that stopped registering just makes the report
+ *  one entry shorter, and nothing anywhere notices. */
+export interface GateCorpus {
+  readonly gates: readonly GateDescriptor[];
+  /** Every `.ts` in the corpus dir the loader considered. */
+  readonly files: readonly string[];
+  /** The files that exported no `gate` — the loader's silent `continue`, made visible. */
+  readonly unregistered: readonly string[];
+}
+
+/** Discover every contract-form gate in the gates dir, sorted by path, with fail-closed validation —
+ *  and REPORT what it walked (#410). */
+export async function loadGateCorpus(root: string): Promise<GateCorpus> {
   const files = globSync("tooling/src/verify/gates/*.ts", { cwd: root })
     .filter((f) => !D_TS_RE.test(f))
     .sort();
   const gates: GateDescriptor[] = [];
+  const unregistered: string[] = [];
   const seen = new Set<string>();
   for (const rel of files) {
     // Sequential-deterministic: a load/parse failure must attribute to its file, in sorted order — never
@@ -73,7 +86,8 @@ export async function loadGates(root: string): Promise<readonly GateDescriptor[]
     // biome-ignore lint/performance/noAwaitInLoops: deterministic per-file attribution is the requirement.
     const mod = (await import(pathToFileURL(`${root}/${rel}`).href)) as { gate?: unknown };
     if (mod.gate === undefined) {
-      continue; // not yet ported to the contract
+      unregistered.push(rel); // not yet ported to the contract — RECORDED, not swallowed (#410)
+      continue;
     }
     assertDescriptor(mod.gate, rel);
     if (seen.has(mod.gate.name)) {
@@ -82,5 +96,11 @@ export async function loadGates(root: string): Promise<readonly GateDescriptor[]
     seen.add(mod.gate.name);
     gates.push(mod.gate);
   }
-  return gates;
+  return { gates, files, unregistered };
+}
+
+/** The descriptor list alone — every caller that does not reconcile counts (conformance, the scoped run,
+ *  the suites). The real-tree structure entrypoint uses {@link loadGateCorpus}. */
+export async function loadGates(root: string): Promise<readonly GateDescriptor[]> {
+  return (await loadGateCorpus(root)).gates;
 }
