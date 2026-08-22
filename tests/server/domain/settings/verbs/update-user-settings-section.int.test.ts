@@ -3,11 +3,15 @@
 // serializer makes the read-merge-write atomic w.r.t. other same-user writes — without it last-write-wins
 // would silently drop one). Plus: a section patch deep-merges (doesn't clobber sibling sections/keys).
 
+import type { UserSettings } from "@orb/contracts/settings";
+import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
+import { userSettings } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("updateUserSettingsSection", () => {
   test("two concurrent patches on sibling sections BOTH land (serialized per user)", async () => {
@@ -143,6 +147,56 @@ describe("updateUserSettingsSection", () => {
     });
     const cleared = (await h.svc.getUserSettings({ principal: p })).config.prose;
     expect(cleared["chat.arbiter.system"]).toBeUndefined();
+  });
+
+  // #471 — THE WIPE CLASS. The read seam degrades an unreadable blob to schema defaults (correct for a
+  // render), and this verb is a read-modify-WRITE: before the guard, one transient bad read plus any
+  // section patch persisted the defaults and destroyed the user's whole settings blob, silently and
+  // permanently (the proven cause of the #461 latch loss). The assertion is on the RAW row, because a read
+  // back through `getUserSettings` degrades to defaults either way and would pass over the wipe.
+  test("an UNREADABLE stored blob refuses the write — the stored bytes survive (#471)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_corrupt" });
+    // A double-encoded write: the column holds a JSON *string*, not an object. `parseUserSettings` cannot
+    // read it and hands out DEFAULT_USER_SETTINGS.
+    const stored = '{"memory":{"enabled":true}}';
+    await db.insert(userSettings).values({
+      userId: u,
+      schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
+      // FABRICATION-OK: a non-object config column IS the corruption under test; no typed factory expresses it.
+      config: stored as unknown as UserSettings,
+      updatedAt: FROZEN_AT,
+    });
+
+    await expect(
+      h.svc.updateUserSettingsSection({
+        principal: principal(u, "user"),
+        input: { section: "memory", patch: { enabled: false } },
+      }),
+    ).rejects.toBeInstanceOf(DomainOperationError);
+
+    const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, u));
+    expect(row?.config).toBe(stored);
+    expect(row?.updatedAt).toBe(FROZEN_AT);
+    // The refusal happens BEFORE the side effects — no audit row claims a write that never landed.
+    expect(h.audits).toHaveLength(0);
+  });
+
+  // The other two arms of the same three-outcome decision: an ABSENT row is a legitimate first write, and a
+  // READABLE row patches exactly as before. Without these the guard could be "refuse everything".
+  test("an absent row still first-writes, and a readable row still patches (#471 non-arms)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_fresh" });
+    const p = principal(u, "user");
+    expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(0);
+    await h.svc.updateUserSettingsSection({ principal: p, input: { section: "memory", patch: { enabled: true } } });
+    expect((await h.svc.getUserSettings({ principal: p })).config.memory.enabled).toBe(true);
+    await h.svc.updateUserSettingsSection({ principal: p, input: { section: "worldInfo", patch: { scanDepth: 7 } } });
+    const view = await h.svc.getUserSettings({ principal: p });
+    expect(view.config.memory.enabled).toBe(true);
+    expect(view.config.worldInfo.scanDepth).toBe(7);
   });
 });
 
