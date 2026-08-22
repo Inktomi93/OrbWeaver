@@ -22,6 +22,14 @@ export const personaMetadataSchema = z
     inject: injectionDirectiveSchema.optional(),
     sourceCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
     swapMacros: z.boolean().optional(),
+    /** PROVENANCE: this row is the default-persona seeder's own artifact (`entry/boot/seed-default-persona`).
+     *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
+     *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
+     *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
+     *  (#461). Personas carry no unique key by design (same-named personas are supported, #458), so the
+     *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
+     *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
+    seededDefault: z.boolean().optional(),
   })
   .loose();
 export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;

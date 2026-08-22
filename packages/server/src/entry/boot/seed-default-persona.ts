@@ -1,7 +1,19 @@
 // Idempotent default-user-persona seeder (mirrors the default-character seeder). Called both at boot (the
-// deployment owner) and on first authed request (a new user). Idempotency is the persisted latch
-// `UserSettings.onboarding.defaultPersonaSeeded` — once true it never re-runs, which is also the
-// deletion-respect guard (a deleted default persona isn't resurrected). `ensureSeeded` never throws.
+// deployment owner) and on first authed request (a new user). `ensureSeeded` never throws.
+//
+// IDEMPOTENCY HAS TWO LAYERS (the character seeder's shape — #461 is what it cost to only have one):
+//   1. the persisted latch `UserSettings.onboarding.defaultPersonaSeeded` — once true it never re-runs, which
+//      is also the DELETION-RESPECT guard (a deleted default persona isn't resurrected);
+//   2. `ownsSeededDefault` — the seeder recognises its OWN artifact (`metadata.seededDefault`) in the library
+//      and heals the latch instead of minting a second one.
+// Layer 2 exists because layer 1 is a value in a settings BLOB and a blob can come back at schema defaults:
+// live dev-db receipt 2026-08-22, every `user_settings.config` section byte-identical to
+// DEFAULT_USER_SETTINGS 19.4h after a good seed, with zero audited settings writes in between — `isSeeded`
+// answered false and a second byte-identical "Traveler" was minted (the character pack survived the identical
+// boot untouched, on ITS layer 2: per-card handle-conflict tolerance against the db's own uniqueness).
+// Personas carry no unique key by design (same-named personas are supported, #458), so the artifact marker is
+// the persona analogue of that handle. Layer 2 is deliberately NOT "the user owns any persona": owning
+// UNRELATED personas has never suppressed the seed, and that arm is pinned by its own test.
 //
 // THE AUTO-CREATE ARM IS CONDITIONAL (owner ruling, 2026-08-03 — the forced-first-run redesign). Auto-seeding
 // a persona is what made the shipped `FirstRunPersonaDialog` dead by construction: its trigger is "the viewer
@@ -42,6 +54,9 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
   description:
     "This is you — the person on the other side of the conversation. Edit this description to tell characters who you are: your name, how you speak, what you're like, whatever you want them to react to. Until you do, you're simply {{user}}: curious, present, and here to see where the story goes.",
   starred: true,
+  // The layer-2 artifact marker (file header). Stamped at MINT so the row is self-identifying forever —
+  // independent of the name/title copy, which is owner-ruled and moves (#462).
+  metadata: { seededDefault: true },
 };
 
 export interface DefaultPersonaSeederDeps {
@@ -54,8 +69,14 @@ export interface DefaultPersonaSeederDeps {
   /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
   readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
   readonly isSeeded: (principal: Principal) => Promise<boolean>;
+  /** LAYER 2 (file header): does this user's library already hold a row this seeder minted
+   *  (`metadata.seededDefault`)? Consulted only when the latch says "not seeded", and a `true` means HEAL
+   *  the latch, create nothing. Deliberately narrower than "owns any persona" — an unrelated persona has
+   *  never suppressed the seed. */
+  readonly ownsSeededDefault: (principal: Principal) => Promise<boolean>;
   /** Persists the latch + (when the user has none yet) points seeds.defaultPersonaId/currentPersonaId at
-   *  the seeded persona. Never clobbers an explicit existing pick. */
+   *  the seeded persona. Never clobbers an explicit existing pick. `null` ⇒ latch only, no repoint (the
+   *  layer-2 heal path: there is no fresh id, and the user's pointers are not the seeder's to move). */
   readonly markSeeded: (principal: Principal, seededPersonaId: PersonaId | null) => Promise<void>;
 }
 
@@ -71,6 +92,14 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
 
   async function seed(principal: Principal): Promise<void> {
     if (await deps.isSeeded(principal)) {
+      return;
+    }
+    // LAYER 2: the latch is gone but the artifact is not. Heal the latch (so the next boot short-circuits on
+    // layer 1 again) and mint nothing. `null` — the surviving row's id is NOT handed over: pointing
+    // seeds.defaultPersonaId/currentPersonaId at it here would relitigate a pick the user may have made.
+    if (await deps.ownsSeededDefault(principal)) {
+      await deps.markSeeded(principal, null);
+      log.info({ userId: principal.userId }, "persona: default persona already present — latch healed, nothing seeded");
       return;
     }
     const avatarAssetId = await deps.storeAvatar(principal);
