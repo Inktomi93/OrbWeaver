@@ -3,7 +3,7 @@
 
 import type { ExportDeclaration } from "ts-morph";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
-import { absolutePath, assert, repoRelative } from "./plans.ts";
+import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
  * Add a re-export `export { X } from "Y"` idempotently into a barrel file.
@@ -30,7 +30,7 @@ export function addReExport(
   assert(sf !== undefined, `addReExport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
 
   return {
-    description: `Add re-export { ${named.isTypeOnly ? "type " : ""}${named.name}${named.alias ? ` as ${named.alias}` : ""} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Add re-export { ${named.isTypeOnly === true ? "type " : ""}${named.name}${named.alias === undefined ? "" : ` as ${named.alias}`} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
       // Same type-only vs value ambiguity as addNamedImport — match the value declaration only.
@@ -79,7 +79,7 @@ export function removeReExport(
   assert(sf !== undefined, `removeReExport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
 
   return {
-    description: `Remove re-export { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Remove re-export { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
       // Same type-only vs value ambiguity as removeNamedImport — match the value declaration only.
@@ -131,7 +131,7 @@ export function dedupeReExports(ctx: CodemodContext, filePath: string, opts: Ope
   const sf = ctx.project.getSourceFile(abs);
   assert(sf !== undefined, `dedupeReExports: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   return {
-    description: `Dedupe re-exports in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Dedupe re-exports in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
       const seen = new Set<string>();

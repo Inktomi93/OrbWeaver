@@ -31,7 +31,7 @@ const MESSAGE = (tableSql: string, columnSql: string): string =>
 
 function isAssetsTableIdentifier(id: Identifier): boolean {
   const decl = id.getSymbol()?.getDeclarations()[0];
-  if (decl?.isKind(SyntaxKind.ImportSpecifier)) {
+  if (decl !== undefined && decl.isKind(SyntaxKind.ImportSpecifier)) {
     const importedName = decl.getName();
     const moduleSpecifier = decl.getImportDeclaration().getModuleSpecifierValue();
     return importedName === "assets" && ASSETS_MODULE_RE.test(moduleSpecifier);
@@ -76,7 +76,7 @@ function findColumnSqlName(init: Expression): string {
     const callee = call.getExpression();
     if (callee.isKind(SyntaxKind.Identifier) && BUILDER_FNS.has(callee.getText())) {
       const [arg0] = call.getArguments();
-      if (arg0?.isKind(SyntaxKind.StringLiteral)) {
+      if (arg0 !== undefined && arg0.isKind(SyntaxKind.StringLiteral)) {
         return arg0.getLiteralText();
       }
     }
@@ -160,7 +160,7 @@ function retainingKeyOf(el: Expression): string | undefined {
 function namedArrayLiteral(sf: SourceFile, exactName: string): ArrayLiteralExpression | undefined {
   const decl = sf.getVariableDeclarations().find((d) => d.getName() === exactName);
   const init = decl?.getInitializer();
-  return init?.isKind(SyntaxKind.ArrayLiteralExpression) ? init : undefined;
+  return init !== undefined && init.isKind(SyntaxKind.ArrayLiteralExpression) ? init : undefined;
 }
 
 function collectRetaining(sf: SourceFile): Set<string> {

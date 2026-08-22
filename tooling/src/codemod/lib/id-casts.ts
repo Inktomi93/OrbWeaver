@@ -77,7 +77,7 @@ function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOption
   if (literal !== undefined) {
     return literal;
   }
-  if (!opts.includeStringVars) {
+  if (opts.includeStringVars !== true) {
     return;
   }
   // Non-literal initializer (`id: charId`, `characterId: opts.id`): cast ONLY when its type is

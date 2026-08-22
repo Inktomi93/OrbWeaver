@@ -69,7 +69,7 @@ function pairedPipelineFrames(events: readonly TraceEvent[]): PairedFrame[] {
 function selectEntranceRanges(events: readonly TraceEvent[]): TraceRange[] {
   const phases = new Map<number, Partial<Record<"start" | "confirmed" | "end", number>>>();
   for (const event of events) {
-    if (event.ph !== "I" || event.ts === undefined || !event.cat?.split(",").includes("blink.user_timing")) {
+    if (event.ph !== "I" || event.ts === undefined || event.cat?.split(",").includes("blink.user_timing") !== true) {
       continue;
     }
     const match = event.name?.match(SELECT_TRACE_MARK);

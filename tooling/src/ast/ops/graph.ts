@@ -17,7 +17,7 @@ function resolvedGraph(project: Project, prefix: string): Map<string, string[]> 
     const edges: string[] = [];
     for (const d of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
       const target = d.getModuleSpecifierSourceFile()?.getFilePath();
-      if (target?.includes(prefix) && target !== from) {
+      if (target?.includes(prefix) === true && target !== from) {
         edges.push(target);
       }
     }

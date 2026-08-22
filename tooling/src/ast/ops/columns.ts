@@ -76,7 +76,9 @@ function printStaleColumnTags(candidates: readonly ColumnCandidate[]): void {
 export function cmdColumns(project: Project, arg: string, flags: Flags): void {
   const all = collectSchemaTables(project);
   const tables =
-    arg === "" ? all : all.filter((t) => t.sqlName.includes(arg) || t.varName.includes(arg) || t.columns[0]?.decl.getSourceFile().getFilePath().includes(arg));
+    arg === ""
+      ? all
+      : all.filter((t) => t.sqlName.includes(arg) || t.varName.includes(arg) || t.columns[0]?.decl.getSourceFile().getFilePath().includes(arg) === true);
   noteUnits("tables", tables.length);
   if (tables.length === 0) {
     exitToolError(

@@ -155,8 +155,16 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 //     `SpawnSyncReturns<string | null>`), `process.stdout.columns` is typed non-optional but only
 //     exists on a tty, and `MeterWindow.__perfMeter` was non-optional even though #409 exists BECAUSE
 //     the in-page meter can be absent. Those seams were re-typed and every guard kept.
-//   strict-boolean-expressions (61 at the survey, 59 after the two above removed two sites) — still
-//     tracked at #472.
+//   strict-boolean-expressions — LANDED. 61 at the survey, 59 after the no-unnecessary-condition pass
+//     removed two of them; all 59 fixed, ON below for tooling/src + tests/tooling. This is the
+//     behaviour-adjacent family, so every rewrite names the ARM the site wants: an optional `boolean`
+//     flag wants "explicitly true" (`=== true`), a `x?.pred()` guard wants "present AND true"
+//     (`x !== undefined && x.pred()` — spelled out so the ts-morph type predicate still narrows), and
+//     an optional STRING used as a presence switch wants "present AND non-empty" (`""` stays falsey —
+//     a mechanical `!== undefined` there would have been a defect: an empty `--mask ""` would start
+//     pushing an empty selector, and a blank plan note would render an empty pair of parens). The 17
+//     copies of that last shape in `codemod/lib` collapsed into one `noteSuffix()` in `lib/plans.ts`.
+//   THE WAVE IS COMPLETE — all three rules are on and there is no deferred tooling population left.
 //
 // Scope note: the react/tailwind/query/router blocks above stay off tooling by construction (node-context
 // tools render nothing). What tooling gets is the ASYNC-SAFETY + dispatch + deprecation set — exactly the
@@ -396,7 +404,14 @@ export default tseslint.config(
     // them — turning it on there sight-unseen is how a rule lands with a suppression wave attached.
     files: [TOOLING_SRC, TOOLING_TESTS],
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: { "@typescript-eslint/no-unnecessary-condition": "error" },
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      // #472 family 3. JS truthiness collapses "absent" and "empty"/"zero" into one arm, which on this
+      // tree is regularly NOT what the site means — the rewrites had to state the arm each time (see
+      // the SAFETY_SURFACE header). Measured 59 at the landing, all fixed, none suppressed. Same
+      // tooling-only scope and the same reason: the #473 dirs were never surveyed for it.
+      "@typescript-eslint/strict-boolean-expressions": "error",
+    },
   },
   {
     // require-await is TOOL-SOURCE ONLY, never `tests/**` — the 26/26 test-double triage in the

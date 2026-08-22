@@ -126,7 +126,7 @@ export function fixtureStatus(target: FixtureTarget): FixtureStatus {
   if (config === null) {
     return { up: false, reason: `${target.serverUrl}/api/auth/config unreachable` };
   }
-  if (!(config.localEnabled && config.multiHumanCapable)) {
+  if (config.localEnabled !== true || config.multiHumanCapable !== true) {
     return {
       up: false,
       reason: `${target.serverUrl}/api/auth/config reports localEnabled=${String(config.localEnabled)} multiHumanCapable=${String(config.multiHumanCapable)} (expected true/true — that origin is a SINGLE-USER stack, not the fixture)`,

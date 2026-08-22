@@ -153,7 +153,7 @@ function tablesIn(sf: SourceFile): Table[] {
       continue;
     }
     const [nameArg, colsArg] = call.getArguments();
-    if (nameArg?.isKind(SyntaxKind.StringLiteral) && colsArg !== undefined) {
+    if (nameArg !== undefined && nameArg.isKind(SyntaxKind.StringLiteral) && colsArg !== undefined) {
       out.push({ sqlName: nameArg.getLiteralText(), colsObj: colsArg });
     }
   }

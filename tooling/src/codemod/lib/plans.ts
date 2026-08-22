@@ -2,7 +2,7 @@
 // ── §5 ─ Plans ───────────────────────────────────────────────────────────────
 
 import { isAbsolute, normalize, relative, resolve, sep } from "node:path";
-import type { Plan } from "../contract/types.ts";
+import type { OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 
 /** Compose multiple plans into one. Useful for helpers that internally batch
@@ -25,12 +25,22 @@ export function composePlans(description: string, plans: readonly Plan[]): Plan 
   };
 }
 
+/** The ` (note)` tail every plan description carries. ONE home for the rule, which is that an
+ *  ABSENT note and a BLANK one render the same (nothing) — a blank one would print an empty pair
+ *  of parens into the preview. Seventeen description builders spelled this inline before #472. */
+export function noteSuffix(opts: OperationOptions): string {
+  return opts.note === undefined || opts.note === "" ? "" : ` (${opts.note})`;
+}
+
 // ── §6 ─ Validation helpers ──────────────────────────────────────────────────
 
-/** Assert that `cond` is truthy. On failure throw CodemodError with `msg`
- *  and a hint. Prefer this over bare `if (...) throw` so failures look
- *  consistent in the harness output. */
-export function assert(cond: unknown, msg: string, hint = "(no hint)"): asserts cond {
+/** Assert `cond`. On failure throw CodemodError with `msg` and a hint. Prefer
+ *  this over bare `if (...) throw` so failures look consistent in the harness
+ *  output. `boolean`, not `unknown`: every call site already passes a comparison
+ *  (`sf !== undefined`, `paths.length > 0`, `existsSync(abs)`), and an `unknown`
+ *  parameter turns the body's `!cond` into a JS-truthiness read of a value nobody
+ *  ever passes. */
+export function assert(cond: boolean, msg: string, hint = "(no hint)"): asserts cond {
   if (!cond) {
     throw new CodemodError(msg, hint);
   }

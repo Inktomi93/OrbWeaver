@@ -5,7 +5,7 @@ import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
-import { absolutePath, assert, repoRelative } from "./plans.ts";
+import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
  * Find every node in the project that references the named declaration
@@ -103,7 +103,7 @@ export function renameExportedSymbol(
   const sf = ctx.project.getSourceFile(abs);
   assert(sf !== undefined, `renameExportedSymbol: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   return {
-    description: `Rename symbol "${oldName}" → "${newName}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
+    description: `Rename symbol "${oldName}" → "${newName}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     // Only the declaring file is knowable up front; the reference set is a language-service
     // question that can only be asked once the earlier plans have settled. The transform declares
     // it below (`ctx.snapshot`) before the rename touches a byte.

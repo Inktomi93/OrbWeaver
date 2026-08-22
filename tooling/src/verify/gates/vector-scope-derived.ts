@@ -83,7 +83,7 @@ function vectorWrite(node: Node): string {
     return "";
   }
   const [firstArg] = node.getArguments();
-  const isTableArg = firstArg?.isKind(SyntaxKind.Identifier) && VECTOR_TABLES.has(firstArg.getText());
+  const isTableArg = firstArg !== undefined && firstArg.isKind(SyntaxKind.Identifier) && VECTOR_TABLES.has(firstArg.getText());
   return isTableArg ? `.${callee.getName()}(${firstArg.getText()})` : "";
 }
 

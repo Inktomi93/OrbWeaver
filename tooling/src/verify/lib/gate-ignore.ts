@@ -175,7 +175,7 @@ export function findGateIgnore(node: Node, gateName: string, token: string | und
       line = node.getSourceFile().getLineAndColumnAtPos(hit).line;
       break;
     }
-    const kindName = typeof scanNode.getKindName === "function" ? scanNode.getKindName() : "";
+    const kindName: string = typeof scanNode.getKindName === "function" ? scanNode.getKindName() : "";
     if (kindName === "SourceFile" || kindName.includes("Statement")) {
       break;
     }

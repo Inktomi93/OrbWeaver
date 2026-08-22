@@ -18,7 +18,7 @@ export const gate: GateDescriptor = {
   visit: (node, _sf, ctx) => {
     const tagNameNode = node.getFirstChildByKind(SyntaxKind.Identifier);
     const tagName = tagNameNode?.getText();
-    if (tagName && BANNED_TAGS.has(tagName)) {
+    if (tagName !== undefined && BANNED_TAGS.has(tagName)) {
       ctx.report(node);
     }
   },
