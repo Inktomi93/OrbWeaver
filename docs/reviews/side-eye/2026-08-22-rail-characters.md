@@ -470,5 +470,7 @@ P1s collapse into one layout decision.
 
 **Environment:** live dev stack `:5173` / `:8788`, `AUTH_MODE=oidc` effective, read-only throughout — no
 character created, edited, deleted, or saved. Two of my own probe steps failed and are noted as *my*
-errors, not product defects: a `--wait-for characters` (that flag takes literal visible text) and a
+errors, not product defects: a `--wait-for characters` (that flag takes a SELECTOR — rendered text
+needs the `text=` prefix; a bare phrase parses as a CSS type chain, #550 — this line originally
+asserted the opposite and is truth-repaired) and a
 mixed selector-engine `--contrast` (`[css] >> nth=0`, which the map's own NOTE warns against).
