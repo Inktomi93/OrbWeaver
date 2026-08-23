@@ -1627,6 +1627,15 @@ export const TEMPLATE_DEFS = [
     cluster: "tools",
   },
   {
+    id: "rpg.extract.tool.rollDice",
+    kind: "extract",
+    label: "Roll dice",
+    fires: "The roll_dice tool's model-facing description",
+    caps: [],
+    defaultSlot: "rpg.extract.tool.rollDice",
+    cluster: "tools",
+  },
+  {
     id: "rpg.extract.tool.upsertQuest",
     kind: "extract",
     label: "Quest update",
@@ -1669,6 +1678,15 @@ export const TEMPLATE_DEFS = [
     fires: "Opens the cheap tool round's system prompt",
     caps: [],
     defaultSlot: "rpg.extract.toolRoundHeader",
+    cluster: "round",
+  },
+  {
+    id: "rpg.extract.userPrompt.latestBeatLabel",
+    kind: "extract",
+    label: "Latest-beat label",
+    fires: "Closes the extraction user-turn body on every window/full call",
+    caps: [],
+    defaultSlot: "rpg.extract.userPrompt.latestBeatLabel",
     cluster: "round",
   },
   {

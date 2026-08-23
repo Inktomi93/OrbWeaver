@@ -560,6 +560,11 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "rpg.extract.refs.gameTrackerKeys",
     "rpg.extract.refs.conditions",
     "rpg.extract.refs.closing",
+    // JOINED 2026-08-23: the #578 debt-prose burn homed the latest-beat label and the roll_dice tool
+    // description as preset-editable slots — both land in the Templates tab (TEMPLATE_DEFS rows added
+    // in the same change; drain-time coupled-fixture reconcile after the wave-2/3 merges).
+    "rpg.extract.userPrompt.latestBeatLabel",
+    "rpg.extract.tool.rollDice",
     "rpg.populate.systemHeader",
     "rpg.populate.identity",
     "rpg.populate.doctrine",
