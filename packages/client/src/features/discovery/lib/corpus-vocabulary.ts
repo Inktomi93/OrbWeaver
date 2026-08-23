@@ -1,5 +1,6 @@
-// HOW A RAW ANALYTICS VALUE IS SPOKEN ON THE CORPUS SURFACE — the two display rules the distillation and
-// caption passes hand this section, in one home (side-eye corpus re-pass 2026-08-19, P3-2 + P3-4).
+// HOW A RAW ANALYTICS VALUE IS SPOKEN ON THE CORPUS SURFACE — the display rules the distillation and
+// caption passes hand this section, in one home (side-eye corpus re-pass 2026-08-19, P3-2 + P3-4; the
+// census rule joined them for #535).
 //
 // Both exist because the wire's vocabulary is a MACHINE's: the distiller writes lower-case facet tokens
 // (`fantasy`, `melancholic`) and the VL breakdown writes the literal token `none` for an image it could not
@@ -8,6 +9,8 @@
 //
 // The VALUES DO NOT CHANGE. These are display projections at the render edge only: the label a filter
 // matches on, the key a chart groups by, and everything the server stores stay exactly the token they were.
+
+import { formatCount } from "./corpus-analysis-state.ts";
 
 /**
  * A 0-1 similarity as THE surface's one similarity spelling — a whole percent (P2-5).
@@ -49,4 +52,23 @@ export function sentenceCase(value: string): string {
  *  else is sentence-cased. The underlying value is untouched — this is the last step before the pixels. */
 export function facetLabel(value: string): string {
   return UNCLASSIFIED_TOKENS.has(value.trim().toLowerCase()) ? UNCLASSIFIED_LABEL : sentenceCase(value.trim());
+}
+
+/**
+ * THE CORPUS CENSUS — a distilled count that NAMES ITS BASE (issue #535, the one-pass denominator rule).
+ *
+ * THE DEFECT, in one frame on the populated library: the LIST band read `CORPUS 313`, the CONTEXT band read
+ * `Corpus 313`, and the overview's h1 between them read "327 characters". Three numbers, two of them bare,
+ * none of them saying what it was OUT OF — so the only available reading is that two of them disagree about
+ * the size of the library. They do not: 313 is how many cards the distiller has read, 327 is how many the
+ * user owns, and the 14 in between are the fact the surface was hiding. The rail's family row was fixed the
+ * same way in the same pass (`corpus-analysis-state.ts`: `8 families · 242 of 327 characters`); this is that
+ * rule applied to the two bands, from the `discovery.catalog` payload all four surfaces already share.
+ *
+ * A COMPLETE library prints the bare number. `313 of 313` is a denominator that says nothing and costs the
+ * band eight characters of a 48px chrome row — the base only earns its place while it differs, which is the
+ * same rule `chartLabelWithDenominator` and the nearest-pairs cap already follow.
+ */
+export function distilledCensus(distilled: number, characters: number): number | string {
+  return distilled < characters ? `${formatCount(distilled)} of ${formatCount(characters)}` : distilled;
 }

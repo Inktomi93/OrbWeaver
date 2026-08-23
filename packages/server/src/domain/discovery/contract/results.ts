@@ -249,6 +249,13 @@ export interface CatalogStats {
   readonly topTags: TagCount[];
   readonly tagPairs: TagPair[];
   readonly totalDistilled: number;
+  /** THE BASE `totalDistilled` IS OUT OF (issue #535, the one-pass denominator rule). Every corpus surface
+   *  that prints the distilled count reads THIS payload — the LIST band, the CONTEXT band, the browse
+   *  view — and each printed a bare `313` beside an overview whose h1 said `327 characters`. Two true
+   *  numbers of two different things, neither naming the other, in one frame. The catalog is the read all
+   *  four share, so the denominator travels WITH the numerator rather than being joined per surface off a
+   *  heavier overview read (`discovery.home`) that a LIST band has no other reason to hold. */
+  readonly totalCharacters: number;
 }
 
 /** One side of a `compareCharacters` diff — the card identity + its headline distilled facets. */

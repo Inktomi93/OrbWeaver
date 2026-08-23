@@ -9,6 +9,12 @@
 // subject would misrepresent the tabs as being about that one character. So the band names the SECTION's
 // true subject — the corpus itself, with its distilled-card count — the honest identity for a library-wide
 // analytics panel. The count shares the `discovery.catalog` cache (plain useQuery — never suspends the band).
+//
+// AND IT NAMES ITS BASE (issue #535, the one-pass denominator rule). This band printed a bare `Corpus 313`
+// — the DISTILLED total — one pane away from the LIST band printing the same bare 313 and an h1 reading
+// "327 characters": three numbers in one viewport, two of them unlabelled, reading as a contradiction. The
+// census projection is shared with the LIST band (`lib/corpus-vocabulary.ts`) rather than re-spelled here,
+// so the two bands of one section cannot drift into two answers.
 
 import { Icon, Library } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -16,17 +22,19 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
+import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 
 export function CorpusContextHeader(): ReactElement {
   const trpc = useTRPC();
   const { data: catalog } = useQuery(trpc.discovery.catalog.queryOptions());
-  const count = catalog?.totalDistilled ?? 0;
+  const distilled = catalog?.totalDistilled ?? 0;
+  const count = distilledCensus(distilled, catalog?.totalCharacters ?? 0);
 
   return (
     <Row align="center" gap="field" className="min-w-0">
       <Icon icon={Library} size="sm" />
       <Text className="truncate text-title leading-title font-semibold">Corpus</Text>
-      {count > 0 ? (
+      {distilled > 0 ? (
         <Text voice="gloss" className="font-mono">
           {count}
         </Text>

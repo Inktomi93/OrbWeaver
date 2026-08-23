@@ -123,7 +123,15 @@ export {
   selectCollectionMemberFromList,
   useCollectionSelection,
 } from "./config-selection-store.ts";
-export { compareCorpusPair, setCorpusCompareA, setCorpusCompareB, useCorpusCompareA, useCorpusCompareB } from "./corpus-compare-store.ts";
+export {
+  compareCorpusPair,
+  setCorpusCompareA,
+  setCorpusCompareB,
+  useCorpusCompareA,
+  useCorpusCompareAName,
+  useCorpusCompareB,
+  useCorpusCompareBName,
+} from "./corpus-compare-store.ts";
 export { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "./corpus-search-store.ts";
 export {
   clearCorpusSelection,

@@ -69,9 +69,20 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
           disturbing the hairline-row geometry the P2-1 reversal above settled. */}
       <Stack aria-label="Analysis passes" role="list">
         {stages.map((stage) => (
+          // THE PASS'S NAME IS NEVER THE SHRINK VICTIM (#535 N1, a regression of the row's own fix).
+          // The datum grew a denominator ("8 families · 242 of 327 characters") while the row was
+          // `label: min-w-0 truncate` beside `datum: shrink-0` — so at the 1280px context-closed width the
+          // only thing that could give was the LABEL, and "Visual families" rendered as "Visu…". A rail
+          // whose whole job is to name what has and has not run cannot ellipsise the name: it is the half
+          // of the row that is not re-derivable from anything else on the surface, and the reader who most
+          // needs it is the one meeting the pass for the first time.
+          // So the row WRAPS instead of truncating: `flex-wrap` lets the datum drop to its own line when
+          // the two cannot share one, the label keeps its intrinsic width (no `truncate`), and the datum
+          // keeps `shrink-0` so a measurement never breaks mid-number. At every width both facts are whole;
+          // what varies is how many lines the row spends, which is the honest thing to trade.
           <Row
             align="center"
-            className="border-border border-b py-field last:border-b-0"
+            className="flex-wrap border-border border-b py-field last:border-b-0"
             data-slot="readiness-stage"
             gap="row"
             justify="between"
@@ -80,7 +91,7 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
           >
             <Row className="min-w-0" gap="field">
               <Icon className={stage.done ? "text-primary" : "text-muted-foreground"} icon={stage.done ? Check : Circle} size="xs" />
-              <Text as="span" className="min-w-0 truncate" voice="label">
+              <Text as="span" className="min-w-0" voice="label">
                 {stage.label}
               </Text>
             </Row>
