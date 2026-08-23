@@ -718,6 +718,51 @@
       }
     },
     {
+      "includes": [
+        "packages/contracts/src/character/index.ts",
+        "packages/contracts/src/imagery/index.ts",
+        "packages/contracts/src/preset/index.ts",
+        "packages/contracts/src/settings/index.ts",
+        "packages/kit/src/macro/builtin-metadata.ts",
+        "packages/server/src/kit/serde/card/index.ts",
+        "packages/server/src/kit/serde/chat/index.ts",
+        "packages/server/src/domain/imagery/substrate/mode.ts",
+        "packages/server/src/domain/imagery/substrate/size.ts",
+        "packages/server/src/domain/imagery/substrate/templates.ts",
+        "packages/server/src/domain/chat/assembly/macros.ts",
+        "packages/server/src/entry/http/auth-routes.ts",
+        "packages/client/src/features/chat/lib/imagery-templates-model.ts",
+        "packages/client/src/features/workloads/lib/workloads-model.ts",
+        "packages/client/src/features/refinery/lib/reason-copy.ts",
+        "packages/client/src/features/refinery/lib/builtin-hints.ts",
+        "packages/client/src/features/refinery/components/context-tabs.tsx",
+        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "requireAscii": true,
+                "conventions": [
+                  {
+                    "selector": { "kind": "objectLiteralProperty" },
+                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": { "kind": "typeProperty" },
+                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["docs/catalog/catalog.json", "docs/catalog/catalog.tmp.json"],
       "files": {
         "maxSize": 4194304

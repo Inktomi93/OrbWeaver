@@ -133,7 +133,6 @@ export interface SideGenPosture {
   readonly maxOutputTokens?: number;
 }
 
-// biome-ignore-start lint/style/useNamingConvention: the map key IS the SideGenKind string (snake_case vocabulary)
 export const SIDE_GEN_POSTURES = {
   // Smart 7b arbitration: a deterministic-ish classify (pick ONE next speaker) — a tiny output budget
   // because we want a name, not prose (the roster-validating parse + fallback cover the non-determinism).
@@ -178,7 +177,6 @@ export const SIDE_GEN_POSTURES = {
   // `finish_reason:"length"`, i.e. a failed forge that looked like a bad model.
   schema_forge: { temperature: 0.2, maxOutputTokens: 2048 },
 } as const satisfies Record<SideGenKind, SideGenPosture>;
-// biome-ignore-end lint/style/useNamingConvention: the map key IS the SideGenKind string (snake_case vocabulary)
 
 // The user-INTENT effort vocabulary (adds `none` = thinking-disabled) — derived from connection's
 // `EffortLevel` set (never redeclared) so the two can't diverge.
@@ -406,7 +404,6 @@ export const guidedActionsSchema = z.object({
   // chat-turn injection) but kept for schema uniformity. The keys ARE the `GuidedActionKind` strings (the
   // schema map is keyed by kind, so key === kind avoids a translation layer); the audit-ratified vocabulary
   // is snake_case.
-  // biome-ignore-start lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
   greeting_rewrite: guidedActionConfigSchema.default({
     prompt: GREETING_REWRITE_DEFAULT_PROMPT,
     role: GUIDED_DEFAULT_ROLE,
@@ -415,7 +412,6 @@ export const guidedActionsSchema = z.object({
     prompt: GREETING_NEW_DEFAULT_PROMPT,
     role: GUIDED_DEFAULT_ROLE,
   }),
-  // biome-ignore-end lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
 });
 export type GuidedActionsConfig = z.infer<typeof guidedActionsSchema>;
 
@@ -426,10 +422,8 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
   rewrite: { prompt: REWRITE_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
   opening: { prompt: OPENING_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
   continue: { prompt: CONTINUE_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
-  // biome-ignore-start lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
   greeting_rewrite: { prompt: GREETING_REWRITE_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
   greeting_new: { prompt: GREETING_NEW_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
-  // biome-ignore-end lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2653,7 +2647,6 @@ const ST_NAMES_BEHAVIOR: Record<number, NamesBehavior> = {
 };
 
 // ST wire field names are snake_case — they must match the foreign JSON verbatim.
-// biome-ignore-start lint/style/useNamingConvention: SillyTavern wire field names (snake_case)
 const stPromptSchema = z
   .object({
     identifier: z.string(),
@@ -2681,7 +2674,6 @@ const stPresetSchema = z
     prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) })).optional(),
   })
   .loose();
-// biome-ignore-end lint/style/useNamingConvention: SillyTavern wire field names (snake_case)
 
 export interface StDroppedField {
   field: string;
