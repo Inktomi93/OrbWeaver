@@ -7,11 +7,19 @@
 // format-only `/^oklch\(/` passes. Every other string scans, interpolated titles included.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { CallExpression, SourceFile, VariableDeclaration } from "ts-morph";
+import type { CallExpression, SourceFile, Node as TsMorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { CheckContext, Violation } from "../contract/harness.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";
+
+/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
+ *  node carries its own position, and `token` folds the per-occurrence detail the gate's static `message`
+ *  can't. */
+interface Hit {
+  readonly node: TsMorphNode;
+  readonly token: string;
+}
 
 const UI_SRC = "/packages/ui/src/";
 const PRIMITIVES = "packages/ui/src/primitives";
@@ -124,8 +132,11 @@ function isTvCall(decl: VariableDeclaration): boolean {
   return init !== undefined && Node.isCallExpression(init) && init.getExpression().getText() === "tv";
 }
 
-/** Clause 2 — each primitive variants.ts exports exactly one `tv()` named `{camelName}Variants`. */
-function clauseVariantsNaming(ctx: CheckContext): Violation[] {
+/** Clause 2a — each primitive variants.ts exports exactly one `tv()` const. FILE-LEVEL by nature (no tv
+ *  export at all is nothing to anchor a node on) — kept in its OWN function, deliberately not sharing scope
+ *  with a position-API call, so finding-overload-provenance's node-position-in-scope arm cannot mistake this
+ *  literal for one (GATE-AUTHORING.md §1). */
+function clauseVariantsCount(ctx: CheckContext): Violation[] {
   const out: Violation[] = [];
   for (const name of primitiveDirs(ctx.root)) {
     if (VARIANTS_EXEMPT.has(name)) {
@@ -137,31 +148,47 @@ function clauseVariantsNaming(ctx: CheckContext): Violation[] {
       continue; // clause 1 already reports a missing variants.ts
     }
     const tvExports = sf.getVariableDeclarations().filter((d) => d.isExported() && isTvCall(d));
-    const expected = `${camelCase(name)}Variants`;
-    const only = tvExports[0];
-    if (tvExports.length !== 1 || only === undefined) {
+    if (tvExports.length !== 1) {
+      const expected = `${camelCase(name)}Variants`;
       out.push({
         file: relPath(ctx.root, abs),
         line: 1,
         message: `variants.ts must export exactly one tv() const (found ${tvExports.length}); the one styled primitive per dir owns one styling contract named ${expected} (UI-Primitives-and-Reuse.md §13.7).`,
-      });
-      continue;
-    }
-    const actual = only.getName();
-    if (actual !== expected) {
-      out.push({
-        file: relPath(ctx.root, abs),
-        line: only.getStartLineNumber(),
-        message: `tv export is '${actual}' — must be '${expected}' ({camelName}Variants, UI-Primitives-and-Reuse.md §13.7).`,
       });
     }
   }
   return out;
 }
 
-/** Clause 3 — no index.ts re-exports from ./variants (variants stays internal, §2.2). */
-function clauseNoLeak(ctx: CheckContext): Violation[] {
-  const out: Violation[] = [];
+/** Clause 2b — the one `tv()` export is named `{camelName}Variants`. NODE-anchored (the declaration). */
+function clauseVariantsNamingHits(ctx: CheckContext): Hit[] {
+  const out: Hit[] = [];
+  for (const name of primitiveDirs(ctx.root)) {
+    if (VARIANTS_EXEMPT.has(name)) {
+      continue;
+    }
+    const abs = join(ctx.root, PRIMITIVES, name, "variants.ts");
+    const sf = ctx.project.getSourceFile(abs);
+    if (sf === undefined) {
+      continue;
+    }
+    const tvExports = sf.getVariableDeclarations().filter((d) => d.isExported() && isTvCall(d));
+    const only = tvExports[0];
+    if (tvExports.length !== 1 || only === undefined) {
+      continue; // clauseVariantsCount already reports this
+    }
+    const expected = `${camelCase(name)}Variants`;
+    const actual = only.getName();
+    if (actual !== expected) {
+      out.push({ node: only, token: `tv-export-name:${actual}` });
+    }
+  }
+  return out;
+}
+
+/** Clause 3 — no index.ts re-exports from ./variants (variants stays internal, §2.2). NODE-anchored. */
+function clauseNoLeakHits(ctx: CheckContext): Hit[] {
+  const out: Hit[] = [];
   for (const sf of ctx.project.getSourceFiles()) {
     const path = sf.getFilePath();
     if (!path.includes(UI_SRC)) {
@@ -173,11 +200,7 @@ function clauseNoLeak(ctx: CheckContext): Violation[] {
     for (const exp of sf.getExportDeclarations()) {
       const spec = exp.getModuleSpecifierValue();
       if (spec !== undefined && VARIANTS_SPEC_RE.test(spec)) {
-        out.push({
-          file: relPath(ctx.root, path),
-          line: exp.getStartLineNumber(),
-          message: "index.ts re-exports './variants' — the cva is internal; never leak it through the public front door (UI-Primitives-and-Reuse.md §13.7).",
-        });
+        out.push({ node: exp, token: "variants-leak" });
       }
     }
   }
@@ -415,12 +438,11 @@ function clauseDataSlot(ctx: CheckContext): Violation[] {
   return out;
 }
 
-/** The 9-clause scan (5 fs + 4 AST) shared by the legacy Check and the single-pass `run` descriptor. */
+/** The 9-clause scan (5 fs + 4 AST) the single-pass `run` descriptor reports. */
 function scanUiPrimitiveStructure(ctx: CheckContext): Violation[] {
   return [
     ...clauseTrio(ctx.root),
-    ...clauseVariantsNaming(ctx),
-    ...clauseNoLeak(ctx),
+    ...clauseVariantsCount(ctx),
     ...clauseTest(ctx.root),
     ...clauseNoColorLiterals(ctx),
     ...clauseNoInlineProvider(ctx),
@@ -428,6 +450,11 @@ function scanUiPrimitiveStructure(ctx: CheckContext): Violation[] {
     ...clauseOverlayAnatomy(ctx),
     ...clauseDataSlot(ctx),
   ];
+}
+
+/** The NODE-anchored clauses (2b/3), reported through `ctx.report(node, …)`, never the Finding overload. */
+function scanUiPrimitiveStructureHits(ctx: CheckContext): Hit[] {
+  return [...clauseVariantsNamingHits(ctx), ...clauseNoLeakHits(ctx)];
 }
 
 /** TWO-SIDED (GATE-AUTHORING.md §4.4): all four exemption tables ratchet DOWN. Each is keyed on a NAME —
@@ -492,6 +519,9 @@ export const gate: GateDescriptor = {
     for (const v of [...scanUiPrimitiveStructure(checkCtx), ...staleExemptionRows(checkCtx)]) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
+    for (const hit of scanUiPrimitiveStructureHits(checkCtx)) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
+    }
   },
   mustFlag: [
     {
@@ -510,7 +540,7 @@ export const gate: GateDescriptor = {
         "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const wrongVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
-      expect: { messageIncludes: "tv export is 'wrongVariants'" },
+      expect: { token: "tv-export-name:wrongVariants" },
       why: "clause 2 — a mis-named tv() export (must be {camelName}Variants) — §13.7",
     },
     {
@@ -534,7 +564,7 @@ export const gate: GateDescriptor = {
         "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
-      expect: { messageIncludes: "re-exports './variants'" },
+      expect: { token: "variants-leak" },
       why: "clause 3 — index.ts leaks the internal ./variants module — §13.7",
     },
     {

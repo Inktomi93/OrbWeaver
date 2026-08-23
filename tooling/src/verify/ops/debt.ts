@@ -43,7 +43,6 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
-import { BASELINE_REL as OVERLOAD_BASELINE_REL } from "../gates/finding-overload-provenance.ts";
 import { BASELINE_REL as MODEL_PROSE_BASELINE_REL } from "../gates/no-hardcoded-model-prose.ts";
 import { BASELINE_REL as FABRICATION_BASELINE_REL } from "../gates/no-test-fabrication.ts";
 import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
@@ -90,13 +89,6 @@ export const LEDGERS: readonly Ledger[] = [
     shape: "budget-map",
     unit: "door(s) on the plane",
     why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
-  },
-  {
-    owner: "finding-overload-provenance",
-    rel: OVERLOAD_BASELINE_REL,
-    shape: "budget-map",
-    unit: "node-anchored Finding literal(s)",
-    why: "gate findings built through the Finding overload, which bypasses @orb-gate-ignore. Ends per gate when the arm reports node-anchored or takes the `@finding-overload-ok` marker. Terminal state `{}` + delete the baseline, its generator AND its reader.",
   },
   {
     owner: "no-hardcoded-model-prose",

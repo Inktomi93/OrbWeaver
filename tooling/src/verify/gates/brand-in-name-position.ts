@@ -187,10 +187,17 @@ function hasForeignOk(markers: ReturnType<typeof resolveMarkers>, lineNo: number
 
 const POSITION_KINDS = [SyntaxKind.Parameter, SyntaxKind.PropertySignature, SyntaxKind.PropertyDeclaration] as const;
 
+/** A NODE-anchored A1 hit — never a `{file,line,column}` Finding literal (finding-overload-provenance): the
+ *  node carries its own position and `token` is the brand this position should have carried. */
+interface BrandHit {
+  readonly node: Node;
+  readonly token: string;
+}
+
 /** A1 — every branded name position declared a bare `string` in one file, UNMARKED, in line order. */
-function brandPositionFindings(sf: SourceFile, rel: string, positions: ReadonlyMap<string, string>): Finding[] {
+function brandPositionFindings(sf: SourceFile, positions: ReadonlyMap<string, string>): BrandHit[] {
   const markers = resolveMarkers(sf.getFullText().split("\n"));
-  const out: Finding[] = [];
+  const out: BrandHit[] = [];
   for (const kind of POSITION_KINDS) {
     for (const node of sf.getDescendantsOfKind(kind)) {
       const name = simpleName(node);
@@ -203,15 +210,10 @@ function brandPositionFindings(sf: SourceFile, rel: string, positions: ReadonlyM
       if (hasForeignOk(markers, line, name ?? "")) {
         continue;
       }
-      out.push({
-        file: rel,
-        line,
-        column: node.getStart() - node.getStartLinePos() + 1,
-        message: `\`${name}\` is declared \`${typeText}\` while \`${brand}\` is minted in @orb/kit/ids (${IDS_MODULE}).`,
-      });
+      out.push({ node, token: brand });
     }
   }
-  return out.sort((a, b) => a.line - b.line || a.column - b.column);
+  return out;
 }
 
 /** `line → the branded names declared a bare string on it`, BEFORE the marker filter — what the stale arm
@@ -243,7 +245,7 @@ function staleMarkerFindings(sf: SourceFile, rel: string, positions: ReadonlyMap
     if (name !== undefined && markable.get(guards)?.has(name) === true) {
       continue; // guarding a real position — the detector reads it there.
     }
-    out.push({ file: rel, line, column: 1, message: name === undefined ? STALE_MARKER_MALFORMED : STALE_MARKER_STALE(name) });
+    out.push({ file: rel, line, column: 0, message: name === undefined ? STALE_MARKER_MALFORMED : STALE_MARKER_STALE(name) });
   }
   return out;
 }
@@ -286,8 +288,8 @@ export const gate: GateDescriptor = {
     for (const finding of staleMarkerFindings(sf, rel, passPositions)) {
       ctx.report(finding);
     }
-    for (const finding of brandPositionFindings(sf, rel, passPositions)) {
-      ctx.report(finding);
+    for (const hit of brandPositionFindings(sf, passPositions)) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
   },
   finalize: (ctx) => {
@@ -307,7 +309,7 @@ export const gate: GateDescriptor = {
         [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',
         "packages/server/src/domain/chat/verbs/post.ts": "export function post(chatId: string, text: string): void {\n  void chatId;\n  void text;\n}\n",
       },
-      expect: { count: 1, messageIncludes: "`ChatId` is minted" },
+      expect: { count: 1, token: "ChatId" },
       why: "the founding shape — a server signature taking `chatId: string` while ChatId exists: every wrong-id call site type-checks",
     },
     {
@@ -332,7 +334,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/lib/log.ts": "// @foreign-id-ok\nexport interface Entry {\n  readonly chatId: string;\n}\n",
       },
       // TWO findings: the unexempted position AND the malformed marker that failed to exempt it.
-      expect: { count: 2, messageIncludes: "`ChatId` is minted" },
+      expect: { count: 2, token: "ChatId" },
       why: "a marker with neither a named position nor a reason exempts nothing — the position still REDs, and the marker reds beside it instead of sitting there looking like protection",
     },
     {
@@ -350,7 +352,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/infra/providers/backends/agent-sdk/session/store.ts":
           "export class S {\n  // @foreign-id-ok(sessionId): the SDK's own session id. Ends if it ever carries one of our rows.\n  record(chatId: string, sessionId: string): void {\n    void chatId;\n    void sessionId;\n  }\n}\n",
       },
-      expect: { count: 1, messageIncludes: "`ChatId` is minted" },
+      expect: { count: 1, token: "ChatId" },
       why: "THE reason the marker names its position — the live agent-sdk `record(chatId, sessionId)` line: the foreign sessionId is exempt, OUR chatId beside it is still RED. A line-scoped marker would have laundered both",
     },
     {

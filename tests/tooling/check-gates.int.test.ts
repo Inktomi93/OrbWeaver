@@ -510,11 +510,11 @@ function writeFixtures(): void {
   // packages/; no `gate` export, so the loader skips it as un-ported).
   fx("tooling/src/verify/gates/__g_diaglegi.ts", 'export const stub = { message: "a bare diagnostic with no home" };\n');
   // finding-overload-provenance: a NEW gate-corpus module building a node-anchored `Finding` literal (a
-  // derived column) with no marker and no baseline row — the authoring-time red this gate exists for. Like
-  // the diagnostic-legibility fixture above it lives in the gate corpus (that is this gate's scanRoot) and
-  // exports no `gate`, so the loader skips it. It carries a pointer in its message so it does not ALSO trip
-  // diagnostic-legibility, and it is deliberately absent from finding-overload-provenance.baseline.json —
-  // a `__g_` path can never earn a budget, which is exactly what makes it prove the unbaselined case.
+  // derived column) with no marker — the authoring-time red this gate exists for (born-compliant since
+  // its ratchet baseline reached `{}` and was deleted, GATE-AUTHORING.md §4.8: nothing absolves it any
+  // more). Like the diagnostic-legibility fixture above it lives in the gate corpus (that is this gate's
+  // scanRoot) and exports no `gate`, so the loader skips it. It carries a pointer in its message so it
+  // does not ALSO trip diagnostic-legibility.
   fx(
     "tooling/src/verify/gates/__g_findprov.ts",
     'export function gFindProv(node: N, ctx: C): void {\n  ctx.report({ file: rel, line: node.getStartLineNumber(), column: 7, message: "see tooling/src/verify/gates/GATE-AUTHORING.md" });\n}\n',
@@ -1105,7 +1105,6 @@ test("derives a non-trivial gate registry from report.ts (not silently empty)", 
 // Any glyph, then the scan suffix — a status line that carries no count fails this.
 const SCANNED_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
 const DENSITY_ADMITTED_RE = /^ {2}[✓✗⚠] density-tier.*admitted-by-ratchet: \d+/mu;
-const PROVENANCE_ADMITTED_RE = /^ {2}[✓✗⚠] finding-overload-provenance.*admitted-by-ratchet: \d+/mu;
 
 test("every gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
   // A verdict without a denominator cannot be audited: ✓ reads identically whether the gate examined
@@ -1122,10 +1121,11 @@ test("no active gate scanned ZERO files on the real tree (the zero-scan placebo)
 });
 
 test("a ratchet gate names the debt it admits in normal output (Codex GA-H-02)", () => {
-  // green ≠ clean population: both live ratchets carry a committed per-file budget, and until 2026-08-13
-  // the only way to learn the number was to run the generator.
+  // green ≠ clean population: a live ratchet carries a committed per-file budget, and until 2026-08-13
+  // the only way to learn the number was to run the generator. finding-overload-provenance's own ratchet
+  // reached `{}` and was deleted (GATE-AUTHORING.md §4.8) — it is born-compliant now, so it carries no
+  // admitted-by-ratchet line any more.
   expect(cleanRun).toMatch(DENSITY_ADMITTED_RE);
-  expect(cleanRun).toMatch(PROVENANCE_ADMITTED_RE);
 });
 
 test("every registered structural gate fires on its fixture (anti-drift)", () => {

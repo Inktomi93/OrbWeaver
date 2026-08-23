@@ -32,8 +32,18 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { JsxOpeningElement, JsxSelfClosingElement, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments } from "../lib/comment-spans.ts";
+
+/** A NODE-anchored hit — never a `{file,line,column}` Finding literal (finding-overload-provenance): the
+ *  node carries its own position; `line`/`column` are kept ONLY as the deterministic sort key
+ *  `densityFindings`'s budget-slice depends on, never handed to `ctx.report`. */
+interface Hit {
+  readonly node: Node;
+  readonly token: string;
+  readonly line: number;
+  readonly column: number;
+}
 
 /** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
  *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
@@ -171,18 +181,18 @@ function hasRoundedCardClassSite(sf: SourceFile): boolean {
 }
 
 /** A1 — `rounded-card` outside the elevated allowlist. */
-function radiusFindings(sf: SourceFile, rel: string): Finding[] {
+function radiusFindings(sf: SourceFile, rel: string): Hit[] {
   if (ELEVATED_ALLOW.some((allowed) => rel.startsWith(allowed))) {
     return [];
   }
-  const out: Finding[] = [];
+  const out: Hit[] = [];
   for (const kind of CLASS_STRING_KINDS) {
     for (const node of sf.getDescendantsOfKind(kind)) {
       if (!isClassStringSite(node)) {
         continue;
       }
       for (const _offset of radiusHits(node.getText())) {
-        out.push({ file: rel, line: node.getStartLineNumber(), column: node.getStart() - node.getStartLinePos() + 1, token: A1_TOKEN });
+        out.push({ node, line: node.getStartLineNumber(), column: node.getStart() - node.getStartLinePos() + 1, token: A1_TOKEN });
       }
     }
   }
@@ -195,8 +205,8 @@ function radiusFindings(sf: SourceFile, rel: string): Finding[] {
  *  IS the JsxElement whose `getOpeningElement()` is that same tag, so walking from there made every
  *  paired box report ITSELF as its own ancestor (a self-closing box did not — which is why the fixtures
  *  missed it). Fixed 2026-08-01 (S2); the `mustPass` twin below pins both tag forms. */
-function boxInBoxFindings(sf: SourceFile, rel: string): Finding[] {
-  const out: Finding[] = [];
+function boxInBoxFindings(sf: SourceFile): Hit[] {
+  const out: Hit[] = [];
   for (const element of jsxElements(sf)) {
     if (!isBox(ownClassText(element))) {
       continue;
@@ -213,18 +223,18 @@ function boxInBoxFindings(sf: SourceFile, rel: string): Finding[] {
       ancestor = ancestor.getParent();
     }
     if (nested) {
-      out.push({ file: rel, line: element.getStartLineNumber(), column: element.getStart() - element.getStartLinePos() + 1, token: "box-in-box" });
+      out.push({ node: element, line: element.getStartLineNumber(), column: element.getStart() - element.getStartLinePos() + 1, token: "box-in-box" });
     }
   }
   return out;
 }
 
 /** A3 — a FEATURE passing an `@orb/ui`-internal type axis to `<Text>`/`<Heading>`. */
-function textVoiceFindings(sf: SourceFile, rel: string): Finding[] {
+function textVoiceFindings(sf: SourceFile, rel: string): Hit[] {
   if (!rel.startsWith(FEATURES_DIR)) {
     return [];
   }
-  const out: Finding[] = [];
+  const out: Hit[] = [];
   for (const element of jsxElements(sf)) {
     if (!TEXT_TAGS.has(element.getTagNameNode().getText())) {
       continue;
@@ -233,7 +243,7 @@ function textVoiceFindings(sf: SourceFile, rel: string): Finding[] {
       const jsxAttr = attr.asKind(SyntaxKind.JsxAttribute);
       const name = jsxAttr?.getNameNode().getText() ?? "";
       if (jsxAttr !== undefined && INTERNAL_TEXT_PROPS.has(name)) {
-        out.push({ file: rel, line: jsxAttr.getStartLineNumber(), column: jsxAttr.getStart() - jsxAttr.getStartLinePos() + 1, token: name });
+        out.push({ node: jsxAttr, line: jsxAttr.getStartLineNumber(), column: jsxAttr.getStart() - jsxAttr.getStartLinePos() + 1, token: name });
       }
     }
   }
@@ -241,20 +251,14 @@ function textVoiceFindings(sf: SourceFile, rel: string): Finding[] {
 }
 
 /** A4 — the tier attribute, written anywhere but the Surface primitive. NOT budgeted: born sealed. */
-function tierWriterFindings(sf: SourceFile, rel: string): Finding[] {
+function tierWriterFindings(sf: SourceFile, rel: string): readonly Node[] {
   if (rel === TIER_WRITER) {
     return [];
   }
-  const out: Finding[] = [];
+  const out: Node[] = [];
   for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
     if (attr.getNameNode().getText() === "data-surface-tier") {
-      out.push({
-        file: rel,
-        line: attr.getStartLineNumber(),
-        column: attr.getStart() - attr.getStartLinePos() + 1,
-        token: "data-surface-tier",
-        message: `data-surface-tier is written outside ${TIER_WRITER} — the tier attribute has exactly ONE writer (<Surface tier>), or two surfaces disagree about the density map (density-pass-spec.md §4.1).`,
-      });
+      out.push(attr);
     }
   }
   return out;
@@ -303,31 +307,26 @@ function slotAttributes(sf: SourceFile): { readonly slot: string; readonly attr:
 }
 
 /** A6a — a tier-MAPPED slot name stamped outside `packages/ui/src/`. NOT budgeted: born sealed. */
-function rogueSlotFindings(sf: SourceFile, rel: string, mapped: ReadonlyMap<string, number>): Finding[] {
+function rogueSlotFindings(sf: SourceFile, rel: string, mapped: ReadonlyMap<string, number>): Hit[] {
   if (rel.startsWith(UI_SRC)) {
     return [];
   }
-  const out: Finding[] = [];
+  const out: Hit[] = [];
   for (const { slot, attr } of slotAttributes(sf)) {
     if (!mapped.has(slot)) {
       continue;
     }
-    out.push({
-      file: rel,
-      line: attr.getStartLineNumber(),
-      column: attr.getStart() - attr.getStartLinePos() + 1,
-      // No `token` — the renderer prints the token INSTEAD of a per-occurrence message, and this arm's
-      // whole legibility is in the message (tooling/src/verify/lib/render.ts occurrenceSuffix).
-      message: `data-slot="${slot}" is a slot the tier map keys on (${TIER_MAP_REL}), stamped outside ${UI_SRC} — only @orb/ui primitives emit a mapped slot, or an arbitrary element silently inherits tier padding/type without the primitive that owns the slot (density-pass-spec.md §4.2).`,
-    });
+    // NODE-anchored: the token names the mapped slot (finding-overload-provenance forbids a per-occurrence
+    // `message` on a node-anchored literal — the general reason lives on the gate's static `message`).
+    out.push({ node: attr, line: attr.getStartLineNumber(), column: attr.getStart() - attr.getStartLinePos() + 1, token: `data-slot=${slot}` });
   }
   return out;
 }
 
 /** The BUDGETED arms (A1–A3) of one file, in a deterministic order so `slice(budget)` reports the same
  *  excess on every run. */
-export function densityFindings(sf: SourceFile, rel: string): Finding[] {
-  return [...radiusFindings(sf, rel), ...boxInBoxFindings(sf, rel), ...textVoiceFindings(sf, rel)].sort((a, b) => a.line - b.line || a.column - b.column);
+export function densityFindings(sf: SourceFile, rel: string): Hit[] {
+  return [...radiusFindings(sf, rel), ...boxInBoxFindings(sf), ...textVoiceFindings(sf, rel)].sort((a, b) => a.line - b.line || a.column - b.column);
 }
 
 export function loadBaseline(root: string): Record<string, number> {
@@ -373,8 +372,8 @@ export const gate: GateDescriptor = {
   },
   visitFile: (sf, ctx) => {
     const rel = repoRel(sf.getFilePath());
-    for (const finding of tierWriterFindings(sf, rel)) {
-      ctx.report(finding);
+    for (const attr of tierWriterFindings(sf, rel)) {
+      ctx.report(attr, { token: "data-surface-tier", offset: 0 });
     }
     if (rel.startsWith(UI_SRC)) {
       for (const { slot } of slotAttributes(sf)) {
@@ -385,8 +384,8 @@ export const gate: GateDescriptor = {
     if (elevatedPrefix !== undefined && hasRoundedCardClassSite(sf)) {
       passSeenElevatedAllow.add(elevatedPrefix);
     }
-    for (const finding of rogueSlotFindings(sf, rel, passMappedSlots)) {
-      ctx.report(finding);
+    for (const hit of rogueSlotFindings(sf, rel, passMappedSlots)) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
     const findings = densityFindings(sf, rel);
     passActualCounts.set(rel, findings.length);
@@ -394,8 +393,8 @@ export const gate: GateDescriptor = {
     // The budget-absolved head is DECLARED DEBT, not absence: without this the ratchet's live population
     // is invisible behind a ✓ and only the generator ever knows the number (Codex GA-H-02).
     ctx.scan({ admitted: Math.min(budget, findings.length) });
-    for (const finding of findings.slice(budget)) {
-      ctx.report(finding);
+    for (const hit of findings.slice(budget)) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
   },
   finalize: (ctx) => {
@@ -456,7 +455,7 @@ export const gate: GateDescriptor = {
     {
       files: `export const G = <div className="rounded-base border border-border bg-card"><span className="rounded-base border border-border bg-muted" /></div>;\n`,
       at: "packages/client/src/features/deep/nested/components/inner/box.tsx",
-      expect: { messageIncludes: "nested inside another" },
+      expect: { token: "box-in-box" },
       why: "A2 at a DEEPLY NESTED path (proves the matcher, §5.1): a box inside a box — chrome diet CD2",
     },
     {
@@ -468,7 +467,7 @@ export const gate: GateDescriptor = {
     {
       files: `export const G = <div data-surface-tier="instrument" />;\n`,
       at: "packages/client/src/features/x/rogue.tsx",
-      expect: { messageIncludes: "exactly ONE writer" },
+      expect: { token: "data-surface-tier" },
       why: "A4: a second writer of the tier attribute — born sealed, no baseline, zero tolerance",
     },
     {
@@ -482,7 +481,7 @@ export const gate: GateDescriptor = {
         "packages/ui/src/primitives/card/card.tsx": `export const Card = (): unknown => <div data-slot="card-root" />;\n`,
         "packages/client/src/features/x/rogue-slot.tsx": `export const G = <div data-slot="card-root" />;\n`,
       },
-      expect: { messageIncludes: "only @orb/ui primitives emit a mapped slot" },
+      expect: { token: "data-slot=card-root" },
       why: "A6a: a feature stamping a MAPPED slot name — it would inherit tier steps without the primitive that owns the slot",
     },
     {
