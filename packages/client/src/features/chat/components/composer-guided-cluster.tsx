@@ -19,6 +19,15 @@
 // `opening:"generate"`; impersonate carried a force-commit. The room exists from the creation click, so both
 // are ordinary turns and the cluster takes a `chatId`, not a phase.
 //
+// ONE SPEAK-AS DOOR (#539, the #520/#532 duplicate-action-door class). `Their reply` used to host a FIFTH
+// control — the standalone `SpeakAsSelect` dropdown — beside Response, ~150px apart, both offering
+// "Auto + one item per character" and both firing `chat.generate` with a `speakerCharacterId`. They were not
+// two features: the Response submenu is a strict SUPERSET (it carries the composer's typed steer as `guided`
+// and the `afterAssistant` responseNudge), and the standalone one silently DISCARDED both — it was the
+// LOSING arm of the 2026-07-25 parity audit's F5 fork ("speak-as consumes the draft as steer, OR the wand's
+// Response grows a speaker submenu"), left standing after the submenu arm shipped. Retired here; the
+// Response tooltip names the speaker choice in a multi-character room so the affordance stays legible.
+//
 // THE ONE CONDITIONAL CONTROL (IMP-2): while the impersonate STREAM fills the composer, its Stop belongs
 // beside Draft your line inside `Your message` because both govern the same user-draft operation. The
 // terminal turn Stop remains in `Attach and send`: it aborts a chat TURN, which an impersonation is not.
@@ -60,8 +69,6 @@ export interface ComposerGuidedClusterProps {
   readonly sendUnavailableReason: string | undefined;
   /** The room-level action that leads the four-home action grid. */
   readonly chatControl: ReactNode;
-  /** The character speaker picker belongs to Their reply; owning it here keeps semantics and wrapping aligned. */
-  readonly speakerControl: ReactNode;
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
   readonly sendControl: ReactNode;
 }
@@ -69,19 +76,7 @@ export interface ComposerGuidedClusterProps {
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const {
-    chatId,
-    value,
-    onChange,
-    busy = false,
-    tailIsAssistant,
-    imageControls,
-    sendUnavailable,
-    sendUnavailableReason,
-    chatControl,
-    speakerControl,
-    sendControl,
-  } = props;
+  const { chatId, value, onChange, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason, chatControl, sendControl } = props;
   const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
   const utilities = useComposerUtilities(chatId);
   const trimmed = value.trim();
@@ -164,7 +159,6 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             buttonTestId="composerGuidedContinue"
             onFire={(): void => fireAndClear(guided.fireContinue)}
           />
-          {speakerControl}
         </Row>
         <Row aria-label="Attach and send" className="shrink-0 justify-self-end @max-md:ms-auto" data-slot="composer-attach-actions" gap="field" role="group">
           <ComposerGuidedUtilityMenu

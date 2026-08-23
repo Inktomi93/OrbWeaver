@@ -441,3 +441,22 @@ export const characterCardV3Schema = z
 
 /** The ST V3 card object the serde emits/parses (the shape `buildCardV3` returns + `writeCardChunk` writes). */
 export type CharacterCardV3 = z.infer<typeof characterCardV3Schema>;
+
+// ── Character operation reason codes — the WIRE vocabulary a refusal is keyed on ─────────────────────────
+// The `TURN_ABORTED_OP_CODE`/`TURN_LOCKED_OP_CODE` precedent (`#chat`), for the same reason and by the same
+// mechanism: the transport's error formatter rides a `DomainOperationError.code` on `data.reason`
+// (`transport/trpc/error-mapping.ts`), so a client that wants to say something HONEST about a refusal keys
+// on that structured field and never on message text — and the code therefore has to live BELOW both
+// packages, not inside `domain/character/contract/errors.ts` where the client cannot reach it. That is
+// exactly how `character.create` came to answer a `handle_conflict` with "Couldn't create the character."
+// (#542): the server's refusal was already typed and already on the wire; nothing downstream could read it.
+// The server's own constants derive from these.
+
+/** A per-owner handle collision — the `characters` unique index fired on a create, or on a rename. The
+ *  refusal is TOTAL (no row was written / the other card is untouched) and the user can act on it: the
+ *  handle is derived from the name, so a different name resolves it. */
+export const CHARACTER_HANDLE_CONFLICT_OP_CODE = "handle_conflict" as const;
+
+/** A create/update tried to occupy the `__group__*` synthetic namespace, which the app mints for group
+ *  rooms and no user-authored card may claim. */
+export const CHARACTER_HANDLE_RESERVED_OP_CODE = "handle_reserved" as const;

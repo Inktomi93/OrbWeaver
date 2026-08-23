@@ -1,7 +1,7 @@
 {
   "chats::chat.continueTurn": 2,
   "chats::chat.deleteMessages": 2,
-  "chats::chat.generate": 3,
+  "chats::chat.generate": 2,
   "chats::chat.revertContinue": 2,
   "chats::chat.swipe": 2,
   "chats::chat.undoContinue": 2

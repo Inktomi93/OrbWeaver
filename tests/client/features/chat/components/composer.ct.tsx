@@ -118,7 +118,7 @@ test("#54: engine-off idles the guided fire actions with the engine-off reason (
   // THE REASON'S CARRIER IS THE TOOLTIP, not a native `title` (side-eye 2026-08-21 — the guided icons are
   // TooltipTriggers, and carrying both stacked Chrome's OS tooltip on the rendered popup). The claim is
   // unchanged: the idled control names the engine-off cause, and it does so on FOCUS, which is what
-  // `focusableWhenDisabled` keeps it in the tab order for. #206 below pins the same pairing for all eight.
+  // `focusableWhenDisabled` keeps it in the tab order for. #206 below pins the same pairing for every control.
   await response.focus();
   await expect(page.getByRole("tooltip", { name: `Generate reply — ${ENGINE_OFF_REASON}`, exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Draft your line" })).toHaveAttribute("aria-disabled", "true");
@@ -170,7 +170,6 @@ const COMPOSER_ACTIONS = [
   { name: "Try another reply", group: "Their reply" },
   { name: "Generate reply", group: "Their reply" },
   { name: "Continue the reply", group: "Their reply" },
-  { name: "Speak as a character", group: "Their reply" },
   { name: "Message tools", group: "Attach and send" },
   { name: "Send message", group: "Attach and send" },
 ] as const;
@@ -183,7 +182,6 @@ const LIVE_COMPOSER_ACTIONS = [
   { name: "Continue the reply with this direction", group: "Their reply" },
   COMPOSER_ACTIONS[5],
   COMPOSER_ACTIONS[6],
-  COMPOSER_ACTIONS[7],
 ] as const;
 const REPLY_ACTION_NEEDS_REPLY = /Try another reply — needs an existing reply/iu;
 const PARTIAL_DRAFT = "I step into the tavern, ";
@@ -351,7 +349,7 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
   await expectExplicitCoarseRows(component);
 }
 
-test("#206: all eight icon controls expose plain-language names and tooltips on hover and focus", async ({ mount, page }) => {
+test("#206: every icon control exposes plain-language names and tooltips on hover and focus", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": groupedComposerChat,
     "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
@@ -363,9 +361,6 @@ test("#206: all eight icon controls expose plain-language names and tooltips on 
     { name: "Try another reply", tooltip: `Try another reply — ${ENGINE_OFF_REASON}` },
     { name: "Generate reply", tooltip: `Generate reply — ${ENGINE_OFF_REASON}` },
     { name: "Continue the reply", tooltip: `Continue the reply — ${ENGINE_OFF_REASON}` },
-    // #406 (owner ruling #397): speak-as fires a turn, so the send gate reaches it too — it no longer reads as
-    // an open invitation while every sibling in its own row is refusing.
-    { name: "Speak as a character", tooltip: `Choose who speaks next — ${ENGINE_OFF_REASON}` },
     { name: "Message tools", tooltip: "More message actions" },
     { name: "Send message", tooltip: ENGINE_OFF_REASON },
   ] as const;
@@ -1275,5 +1270,58 @@ test.describe("#531 the desktop composer keeps its four-track row", () => {
     expect(bar.rows).toBe(1);
     const template = await page.locator('[data-slot="composer-guided-cluster"]').evaluate((element) => getComputedStyle(element).gridTemplateColumns);
     expect(template.split(" ").filter(Boolean).length).toBe(4);
+  });
+});
+
+// ── #539 ONE SPEAK-AS DOOR, AND THE GROUP PHONE BAR IT PAID FOR ────────────────────────────────────────
+// The #531 arms above stub an EMPTY roster, so they never met the control this pins: a standalone
+// `Speak as a character` dropdown that rendered only at cast > 1, in the same `Their reply` home as Response
+// and ~150px from it, offering the identical "Auto + one row per character" and firing the identical
+// `chat.generate` + `speakerCharacterId` — minus the typed steer and the `afterAssistant` nudge the Response
+// submenu carries. Retired as a duplicate action door (#520/#532 class).
+//
+// The geometry is the receipt, measured on this exact story before the retirement: at 430px the group bar's
+// homes were 48+48+210+102 = 408px + 3 field gaps against a 392px bar, so a GROUP room paid a whole second
+// 48px control row that a solo room did not. Dropping the fifth control takes `Their reply` to 150px and the
+// homes to 348px + gaps — under the bar, one row. So this asserts BOTH halves: exactly one door in the home,
+// and the row count the removal bought.
+const GROUP_PHONE_STUB = {
+  "chat.getChat": (): unknown => ({
+    title: "Council",
+    viewerIsHost: true,
+    anchorPersonaId: null,
+    cast: [],
+    participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
+  }),
+};
+
+test.describe("#539 the group-room phone composer", () => {
+  test.use({ viewport: { width: 430, height: 932 }, hasTouch: true });
+
+  test("Their reply hosts ONE speaker door, and the group bar holds a single row", async ({ mount, page }) => {
+    await routeTrpc(page, GROUP_PHONE_STUB);
+    const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
+    const them = room.getByRole("group", { name: "Their reply", exact: true });
+    // SETTLED barrier: the roster query has landed and the home has painted its final control set — reading
+    // geometry or counting controls before this reads a bar that is still assembling.
+    await expect(them).toBeVisible();
+    await expect(room.getByRole("button", { name: "Send message" })).toBeVisible();
+    await expect(them.getByRole("button")).toHaveCount(3);
+    // The retired door by NAME, so a re-introduction anywhere in the composer reds here rather than only
+    // shifting a pixel count.
+    await expect(room.getByRole("button", { name: "Speak as a character" })).toHaveCount(0);
+    // …and the one that survived still opens the speaker choice in this room.
+    await room.getByRole("button", { name: "Generate reply", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Bryn" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+
+    const bar = await measureActionBar(page);
+    for (const height of bar.controlHeights) {
+      expect(height).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR);
+    }
+    const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * (bar.homeWidths.length - 1);
+    expect(needed, `a group room's four homes must fit a ${String(bar.barWidth)}px phone bar`).toBeLessThanOrEqual(bar.barWidth);
+    expect(bar.rows, "a group room must not buy a second action row for a duplicate door").toBe(1);
   });
 });

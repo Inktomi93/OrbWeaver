@@ -411,6 +411,59 @@ test("a SEARCH that matches nothing says NO MATCHES — never the library-empty 
   await expect(component.getByRole("button", { name: "Clear search" })).toBeVisible();
 });
 
+// #541a — EVERY ACTIVE NARROWING AXIS OWES A WAY OUT.
+//
+// This pane narrows on three axes (character · search · month) and its zero-result arms each offered exactly
+// ONE exit, named after whichever axis the arm was called after. With a search AND a month in force the empty
+// state said "Clear search" alone: clearing it left the reader in a still-empty list, one narrowing they were
+// never told about still applied, and the pane had already spent its single action. The copy already knew —
+// it said "No chat by June 2020 matches …" — so the actions were behind their own sentence.
+test("a search AND a month empty offers BOTH exits, and each one really widens the scope", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": CHARACTERS, "chat.listChats": datedChatListResponder([ADVENTURE]) });
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+
+  await component.getByLabel("Show chats from").fill("2020-06");
+  await component.getByRole("textbox", { name: "Search chats" }).fill("zzz-no-such-thread");
+
+  // SETTLED barrier: the debounced search has landed as its own empty page, so the arm below is the steady
+  // state rather than a frame between two queries.
+  await expect(component.getByText('No chat by June 2020 matches "zzz-no-such-thread".')).toBeVisible();
+  const clearSearch = component.getByRole("button", { name: "Clear search", exact: true });
+  const clearMonth = component.getByRole("button", { name: "Clear month", exact: true });
+  await expect(clearSearch).toBeVisible();
+  await expect(clearMonth).toBeVisible();
+
+  // The MONTH exit widens by exactly one axis: the month bound drops, the search's own claim stands, and the
+  // empty state re-states the narrowing that is actually still on.
+  await clearMonth.click();
+  await expect(component.getByLabel("Show chats from")).toHaveValue("");
+  await expect(component.getByText('No chat matches "zzz-no-such-thread".')).toBeVisible();
+
+  // …and the remaining exit is the last one, which restores the list.
+  await component.getByRole("button", { name: "Clear search", exact: true }).click();
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+});
+
+test("a month-only empty offers the CHARACTER exit too when a character scope is also on", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": CHARACTERS, "chat.listChats": datedChatListResponder([ADVENTURE]) });
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
+  await expect(component.getByText("Filtered:")).toBeVisible();
+  await component.getByLabel("Show chats from").fill("2020-06");
+
+  await expect(component.getByText("No chats with Aria Nightshade found by June 2020.")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Clear month", exact: true })).toBeVisible();
+  // The character axis is named in the SENTENCE, so it owes an action beside it — the chip's ✕ above is the
+  // primary door, but an empty state that names a cause and cannot undo it is the dead end #541 is about.
+  const clearCharacter = component.getByRole("button", { name: "Clear character filter", exact: true });
+  await expect(clearCharacter).toBeVisible();
+
+  await clearCharacter.click();
+  await expect(component.getByText("Filtered:")).toHaveCount(0);
+  await expect(component.getByText("No chats found by June 2020.")).toBeVisible();
+});
+
 test("the active chat's row is marked current", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
 

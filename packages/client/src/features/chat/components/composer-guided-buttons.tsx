@@ -19,7 +19,7 @@ import { Drama, Icon, Play, Square } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { IMPERSONATE_STOP_LABEL, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
+import { IMPERSONATE_STOP_LABEL, RESPONSE_CAST_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
 import type { filterCharacters } from "../lib/roster.ts";
 
 const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
@@ -71,11 +71,18 @@ function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: 
   return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
 }
 
-function responseTitle(label: string, hasText: boolean, disabledReason: string | undefined): string {
+/** The Response tooltip. `hasCast` is the multi-character room, where the trigger opens the SPEAKER submenu —
+ *  since #539 retired the standalone speak-as dropdown this control is the one door to "who replies next", so
+ *  an idle group-room tooltip says so rather than describing only the plain fire. The disabled reason and the
+ *  steer cue keep precedence: an off control explains itself first, and a typed steer is the nearer promise. */
+function responseTitle(label: string, hasText: boolean, disabledReason: string | undefined, hasCast: boolean): string {
   if (disabledReason !== undefined) {
     return `${label} — ${disabledReason}`;
   }
-  return hasText ? `${label} — ${STEER_CUE_RESPONSE}` : label;
+  if (hasText) {
+    return `${label} — ${STEER_CUE_RESPONSE}`;
+  }
+  return hasCast ? `${label} — ${RESPONSE_CAST_CUE}` : label;
 }
 
 /** The impersonation Stop remains a leaf of the cluster's `Your message` ARIA home. */
@@ -173,9 +180,12 @@ export function ResponseGuidedButton({
   readonly disabledReason: string | undefined;
 }): ReactElement {
   const label = "Generate reply";
-  const title = responseTitle(label, hasText, disabledReason);
+  // The submenu arm is the same size-gate the retired speak-as dropdown carried (D16 roster-of-1): a solo room
+  // has no "which character" choice, so the trigger fires Auto directly and its tooltip stays the plain label.
+  const hasCast = cast.length > 1;
+  const title = responseTitle(label, hasText, disabledReason, hasCast);
   const name = resolveGuidedName(label, hasText);
-  if (cast.length <= 1) {
+  if (!hasCast) {
     return (
       <Tooltip>
         <TooltipTrigger

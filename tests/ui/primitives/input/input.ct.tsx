@@ -110,12 +110,21 @@ test("layout=inline is a text-height box with the datum's inset, not the field c
  *  peak 255 either side and the comparison was structurally incapable of failing. The reading region is the
  *  leading edge, where the segmented value lives. */
 const DATETIME_EDIT_SHARE = 0.6;
+/** The TRAILING share of the control that is the UA's own `::-webkit-calendar-picker-indicator` (#541b). Kept
+ *  well inside the glyph's own box so the sample can only contain indicator and field plate — the segmented
+ *  value never reaches this far, so a bright reading here is the icon and nothing else. */
+const PICKER_INDICATOR_SHARE = 0.2;
 
-async function inkStats(page: Page, locator: Locator): Promise<{ peak: number; plate: number }> {
+/** Decode one END of a control's painted box. `leading` = the segmented datetime editor; `trailing` = the
+ *  UA's calendar-picker indicator. Both are PAINT — `getComputedStyle` on either pseudo lies (see above). */
+async function inkStats(page: Page, locator: Locator, region: "leading" | "trailing" = "leading"): Promise<{ peak: number; plate: number }> {
   const box = await locator.boundingBox();
   expect(box, "the control must be laid out before its pixels mean anything").not.toBeNull();
+  const boxWidth = box?.width ?? 0;
+  const boxX = box?.x ?? 0;
+  const width = region === "leading" ? boxWidth * DATETIME_EDIT_SHARE : boxWidth * PICKER_INDICATOR_SHARE;
   const shot = await page.screenshot({
-    clip: { height: box?.height ?? 0, width: (box?.width ?? 0) * DATETIME_EDIT_SHARE, x: box?.x ?? 0, y: box?.y ?? 0 },
+    clip: { height: box?.height ?? 0, width, x: region === "leading" ? boxX : boxX + boxWidth - width, y: box?.y ?? 0 },
   });
   // biome-ignore lint/nursery/useAwaitThenable: false positive — sharp ships `export =` CJS types biome's service cannot follow, so it reads the overload that returns `Promise<{data,info}>` (node_modules/sharp/lib/index.d.ts:681) as non-thenable. tsc resolves it correctly; `pnpm typecheck` is the receipt.
   const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
@@ -160,6 +169,43 @@ test("an unset month input's UA interior is painted in the placeholder tone, not
   expect(setInk.peak, "the filled month must print ink above its own field plate").toBeGreaterThan(setInk.plate + 20);
   expect(unsetInk.peak, "the unset dashes are still ink, just quieter").toBeGreaterThan(unsetInk.plate + 5);
   expect(unsetInk.peak, "the unset dashes recede below the value they stand in for").toBeLessThan(setInk.peak);
+});
+
+// #541b — AND THE PICKER GLYPH JOINS THE MUTED RAMP.
+//
+// #522 tinted `::-webkit-datetime-edit` and recorded, in its own stylesheet note, that "the native picker and
+// its indicator are untouched". The consequence was the finding this pins: `color` cannot reach an IMAGED
+// pseudo-element, so the UA's calendar icon kept painting pure white — measured 255 in BOTH arms while the
+// dashes it sits beside had just been muted, which made the loudest ink in a filter column the one glyph with
+// nothing to say. `opacity` on `::-webkit-calendar-picker-indicator` is the fix (globals.css).
+//
+// The claim is RELATIONAL and two-sided, never a remembered byte: the indicator must not out-shout the value
+// the field is for, and it must still be VISIBLE (a toned glyph that vanished would be a worse defect than a
+// loud one). Framebuffer for the same reason as above — a mask/image pseudo is invisible to computed style.
+test("the UA calendar-picker glyph is toned toward the muted ramp, and stays visible", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 240 }}>
+      <Input aria-label="month without a value" type="month" value="" onValueChange={(): void => undefined} />
+      <Input aria-label="month with a value" type="month" value="2026-06" onValueChange={(): void => undefined} />
+    </div>,
+  );
+  const unset = page.getByLabel("month without a value");
+  const set = page.getByLabel("month with a value");
+
+  const [unsetGlyph, unsetDashes, setValue] = await Promise.all([
+    inkStats(page, unset, "trailing"),
+    inkStats(page, unset, "leading"),
+    inkStats(page, set, "leading"),
+  ]);
+
+  // POSITIVE CONTROL: the glyph is still painted. A decode that found only the field plate would satisfy
+  // every ceiling below for free.
+  expect(unsetGlyph.peak, "the picker glyph must still print above its own field plate").toBeGreaterThan(unsetGlyph.plate + 20);
+  // THE DEFECT, PINNED: it used to read 255 — brighter than the SET value's own ink, and far brighter than
+  // the placeholder dashes it shares a box with.
+  expect(unsetGlyph.peak, "the picker glyph must not out-shout the value the field is for").toBeLessThan(setValue.peak);
+  // …and it lands on the muted ramp the dashes were moved to, rather than somewhere between the two tones.
+  expect(unsetGlyph.peak, "the picker glyph belongs on the same muted ramp as the unset dashes").toBeLessThanOrEqual(unsetDashes.peak + 10);
 });
 
 test("a text input never claims the date-family empty marker", async ({ mount }) => {
