@@ -1740,11 +1740,32 @@ test("without a bg image the swipe strip stays unbacked — don't chip what does
 //
 // The strip is an assistant-only affordance and the name row's actions are trailing for the assistant side,
 // so the two clusters share ONE right edge; the assertion is that shared edge, not a hardcoded coordinate.
+//
+// THE BODY IS SIZED FOR THE PRECONDITION, and that is not decoration (2026-08-23). The bubble family's row
+// outer carries `items-start`, so the row body SHRINK-WRAPS and the content column resolves to its widest
+// child — the #245 comment on `message-row.tsx` states exactly that. This pin therefore only observes
+// anything while the column's max-content is the BODY. #490 (462e47559) gave the pager a visible "Variant"
+// word, which grew the strip from ~123px to 177.5px — past the two-word default body's 167px bubble — so the
+// column collapsed ONTO the strip (measured: column 178 == strip 178 at BOTH 360px and 720px) and every
+// alignment assertion below became vacuous, then failed on its own "narrower than the column" guard. A body
+// long enough to reach the track is what restores the property under test, at both ends of the width matrix:
+// measured after this change, the column is 330px at a 360px mount and 558px at a 720px mount (the reading
+// measure's own cap), while the strip stays 177.5px and rides the trailing edge in both.
+const TRAILING_EDGE_BODY = "The pale light of the second moon slid across the courtyard flagstones, and Alice counted the guards again before she answered.";
+
 for (const width of [360, 720] as const) {
   test(`the swipe strip packs to the content column's trailing edge, with the row actions (#312, ${width}px)`, async ({ mount, page }) => {
     await routeTrpc(page, { "chat.listMessageVariants": () => [] });
     const component = await mount(
-      <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} width={width} />,
+      <MessageRowStory
+        chatStyle="bubble"
+        messageRole="assistant"
+        showSwipes={true}
+        characterId={ALICE_ID}
+        participants={[alice()]}
+        width={width}
+        content={TRAILING_EDGE_BODY}
+      />,
     );
     const strip = component.locator(SWIPE_STRIP);
     await expect(strip).toHaveCount(1);
