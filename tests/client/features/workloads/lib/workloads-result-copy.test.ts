@@ -28,6 +28,14 @@ test("an empty-input refusal reads as its stated reason, never as a 0-written ru
   expect(workloadResultSummary("compute-cooccurrence", { scanned: 0, written: 0, emptyReason: "no-digests" })).toBe(
     "No memory digests to read — run the memory backfill first",
   );
+  // #561: the similarity passes read the EMBEDDINGS plane, so their sentence names the index pass — sending
+  // this user to the memory backfill would be advice that cannot help.
+  expect(workloadResultSummary("csls", { scanned: 0, written: 0, emptyReason: "no-embeddings" })).toBe(
+    "Nothing embedded to compare — run the embeddings index first",
+  );
+  expect(workloadResultSummary("find-duplicates", { scanned: 0, written: 0, emptyReason: "no-embeddings" })).toBe(
+    "Nothing embedded to compare — run the embeddings index first",
+  );
   expect(workloadResultSummary("distill-characters", { scanned: 0, written: 0, emptyReason: "no-cards" })).toBe("No characters to read yet");
   // A REAL zero-change run keeps its counts — the discriminator is for refusals only.
   expect(workloadResultSummary("compute-cooccurrence", { scanned: 0, written: 0 })).toBe("0 rows · 0 written");
