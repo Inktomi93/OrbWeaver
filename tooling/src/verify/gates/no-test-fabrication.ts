@@ -19,7 +19,9 @@ const ESCAPE = "FABRICATION-OK";
  *  "if the collection is not an exemption, the name must not promise one"). The gate's real exemptions are
  *  the `FABRICATION-OK:` marker (reason mandatory) and the shrink-only baseline ratchet below. */
 const NON_FABRICATING_CAST_TARGETS: ReadonlySet<string> = new Set(["const", "any", "unknown"]);
-const BASELINE_REL = "tooling/src/verify/gates/no-test-fabrication.baseline.json";
+/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
+ *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
+export const BASELINE_REL = "tooling/src/verify/gates/no-test-fabrication.baseline.json";
 
 const DOUBLE_CAST_MSG =
   "`X as unknown as Y` double-cast in a test — fabricates a typed value that survives Y gaining/renaming a " +
@@ -121,6 +123,10 @@ export function createNoTestFabrication(baseline?: Record<string, number>): Chec
 // doesn't exist → an empty baseline (budget 0), so any fabrication is flagged. The baseline is loaded
 // once per run (begin).
 let passBaseline: Record<string, number> = {};
+/** The fabrications this run's committed budgets ABSOLVED — declared through `ctx.scan` in `run` so the
+ *  single-pass's "N finding(s) admitted by ratchet baselines" line includes this ledger. Without it a green
+ *  run understated the live population by this gate's whole baseline (#551; GATE-AUTHORING.md §1). */
+let passAdmitted = 0;
 
 export const gate: GateDescriptor = {
   name: "no-test-fabrication",
@@ -132,6 +138,10 @@ export const gate: GateDescriptor = {
   scanRoot: (p) => p.startsWith("tests/"),
   begin: (ctx: GateRunCtx) => {
     passBaseline = loadBaseline(ctx.root);
+    passAdmitted = 0;
+  },
+  run: (ctx) => {
+    ctx.scan({ admitted: passAdmitted });
   },
   visitFile: (sf, ctx) => {
     const rel = testsRel(sf.getFilePath());
@@ -140,6 +150,7 @@ export const gate: GateDescriptor = {
     }
     const sites = fabricationSites(sf);
     const budget = passBaseline[rel] ?? 0;
+    passAdmitted += Math.min(budget, sites.length);
     if (sites.length <= budget) {
       return;
     }

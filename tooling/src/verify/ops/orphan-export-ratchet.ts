@@ -70,7 +70,9 @@ import type { Node, Project } from "ts-morph";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:orphan-ratchet");
 
-const BASELINE_REL = "tooling/src/verify/ops/orphan-export-ratchet.baseline.json";
+/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this ratchet
+ *  admits instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
+export const BASELINE_REL = "tooling/src/verify/ops/orphan-export-ratchet.baseline.json";
 /** Every workspace package the ratchet judges. `ui` is absent BY LAW (ui-package-design.md R2) — see header. */
 const RATCHETED_PACKAGES = ["kit", "contracts", "db", "server", "client"] as const;
 /** The R2-sealed package, exempt as a whole; named here so the exemption is legible, not implicit. */
