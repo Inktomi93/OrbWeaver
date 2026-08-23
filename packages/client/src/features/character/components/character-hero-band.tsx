@@ -89,7 +89,7 @@ export function CharacterHeroBand({
           <Row align="center" gap="row" className="flex-wrap">
             <Stack className="min-w-0 flex-1" gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
-              <Text size="micro" tone="muted" className="font-mono">
+              <Text voice="gloss" className="font-mono">
                 @{detail.handle}
               </Text>
             </Stack>

@@ -112,7 +112,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
         <OverviewRow label="Last chat" value={lastMessageAt === null ? NEVER : timeLib.formatRelative(lastMessageAt)} mono={false} />
       </Stack>
 
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         Pick a field on{" "}
         <Text as="span" size="micro" weight="semibold">
           {data.name}
@@ -166,7 +166,7 @@ function LinkRow({ label, names }: { readonly label: string; readonly names: rea
 function Kicker({ children }: { readonly children: string }): ReactElement {
   return (
     <Row gap="field" align="center">
-      <Text size="micro" tone="muted" transform="caps" weight="semibold" className="truncate tracking-micro">
+      <Text voice="kicker" className="truncate">
         {children}
       </Text>
       <Separator className="flex-1" />
@@ -198,7 +198,7 @@ function OverviewRow({
         </Text>
       </Row>
       {gloss === undefined ? null : (
-        <Text size="micro" tone="muted" className="min-w-0 break-words">
+        <Text voice="gloss" className="min-w-0 break-words">
           {gloss}
         </Text>
       )}
