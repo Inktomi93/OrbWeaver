@@ -1,7 +1,7 @@
 ---
 kind: design
-status: draft
-updated: 2026-08-14
+status: archived
+updated: 2026-08-23
 ---
 
 # Persona ↔ character unification — the kind-polymorphic cast + the card-face substrate

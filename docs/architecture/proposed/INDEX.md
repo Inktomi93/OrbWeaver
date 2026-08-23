@@ -18,9 +18,9 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | - | - | - |
 | `connections/` | **REALIZED** | — |
 | `tool-use-design/` | **PARTIAL** | [#28](https://github.com/Inktomi93/orbweaver/issues/28) |
-| `agent-principal-design/` | **PARTIAL** | [#13](https://github.com/Inktomi93/orbweaver/issues/13) |
+| `agent-principal-design/` | **FUTURE** | [#13](https://github.com/Inktomi93/orbweaver/issues/13) |
 | `agent-tool-propose-spec.md` | **FUTURE** | [#14](https://github.com/Inktomi93/orbweaver/issues/14) |
-| `saved-rosters-design.md` | **PARTIAL** | [#26](https://github.com/Inktomi93/orbweaver/issues/26) |
+| `saved-rosters-design.md` | **FUTURE** | [#26](https://github.com/Inktomi93/orbweaver/issues/26) |
 | `hub-browse-design/` | **SUPERSEDED** | [#21](https://github.com/Inktomi93/orbweaver/issues/21) |
 | `imagery-design/` | **PARTIAL** | [#22](https://github.com/Inktomi93/orbweaver/issues/22) |
 | `expressions-design/` | **FUTURE** | [#20](https://github.com/Inktomi93/orbweaver/issues/20) |
