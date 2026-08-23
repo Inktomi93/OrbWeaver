@@ -446,13 +446,13 @@
     },
     {
       "path": "docs/design/density-pass-spec.md",
-      "assignedSha256": "bd9e51de8e500b8c5b3905ba1840eca4a1215b2ba188dacb26978ed21598451d",
+      "assignedSha256": "80ee1cf7404aaa7aa41e48609373d2ed2efe293e8bf10176f80b0069d2129471",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "bb47b6ccafe253c62afe78b954dc9931ef166e19a2dbf6310e83095af35bcf49",
-      "verifiedCommit": "a789c341eb23a0f0c6f89224f9f94c7641a554da",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "80ee1cf7404aaa7aa41e48609373d2ed2efe293e8bf10176f80b0069d2129471",
+      "verifiedCommit": "91b0a6c293499177e5dbfe45650bfacfe5ce9320",
+      "verifiedAt": "2026-08-23",
       "evidence": [
         "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
         "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 — the transcript + composer on the tier map, baseline 290 → 244",
@@ -460,7 +460,8 @@
         "docs/design/density-pass-spec.md §2.3 voice table amended by the #102 home build (758bafd5a, owner-ruled variant C + CD3 re-rule): reading/masthead/focal voices added — orchestrator re-attested full read of the delta 2026-08-16",
         "docs/design/density-pass-spec.md §2.3 back-filled the credit (861de3e58) + hero (2026-08-09) voice rows — stickler #130 F5; full read of the delta re-attested against 57de7e719 (2026-08-16)",
         "docs/design/density-pass-spec.md sect 4.3 amended by the #102 characters build (51fe04719, owner-ruled variant B): Section kickerLayout, Button outline/chip/selection layer, Toggle outline+command/chip/shape, CHIP_BOX — orchestrator re-read the delta in full 2026-08-17; verifier-characters confirmed all four deltas exist as declared axes",
-        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree"
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+        "delta re-verify 2026-08-23 (#573): §2.3 gains the quiet + datumMono voice members (owner-ruled), re-derived against packages/ui text/variants.ts on the tree"
       ],
       "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
