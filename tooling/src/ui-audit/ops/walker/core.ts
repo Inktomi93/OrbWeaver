@@ -8,7 +8,6 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
-  var CARD_CLASS_RE = /\\bcard\\b/i;
   var EXCLUDE_CARD_CONTEXT_RE = /\\b(dropdown|popover|tooltip|menu|modal|dialog)\\b/i;
   var HOVER_TRANSFORM_RE = /transform\\s*:\\s*(scale|rotate|translate|skew|matrix)/i;
   var TAILWIND_HOVER_TRANSFORM_RE = /^hover:(scale|rotate|translate-x|translate-y|skew-x|skew-y)-/;

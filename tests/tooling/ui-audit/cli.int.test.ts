@@ -111,6 +111,56 @@ test("a rounded-rect avatar seat inside a panel is NOT a nested card", async ({ 
   expect(Number(census)).toBeGreaterThan(0);
 });
 
+// ── the nested-card NAME arm and the control-shell wrapper (#552) ───────────
+
+// @instrument-proof: two FP classes that made `nested-card` fire on sanctioned shapes, each pinned in
+// BOTH directions. (1) `hasBorder` OR'd in /\bcard\b/i over the JOINED class string, so the colour
+// utility `text-card-foreground` — which the @orb/ui `Card nested` arm emits BESIDE `border-0` — read
+// as a border and outranked a measured zero on all four sides (8 of 10 findings on the populated corpus
+// surface). (2) `isInteractiveIsland` tested self + ancestors only, so a shell AROUND a control
+// (`[data-slot=autocomplete-input-group]`) was structurally unreachable while the code comment claimed
+// the case was covered. The red twins below are what keeps the fixes from eating the rule: a MEASURED
+// border still REDs even when the class carries the card word, and a panel that merely happens to offer
+// an action is still judged.
+const CARD_WORD_BORDERLESS_PANEL =
+  '<div class="text-card-foreground" style="border:0;border-radius:8px;background:#222;padding:12px;width:240px;height:96px"><p style="font-size:16px">the sanctioned nested arm: fill only, no border</p></div>';
+const CARD_WORD_BORDERED_PANEL =
+  '<div class="text-card-foreground" style="border:1px solid #666;border-radius:8px;background:#222;padding:12px;width:240px;height:96px"><p style="font-size:16px">a second bordered panel inside the first</p></div>';
+const CONTROL_SHELL =
+  '<div style="border:1px solid #666;border-radius:6px;background:#222;width:240px;height:32px"><input aria-label="Search your corpus" style="width:236px;height:28px;border:0;background:transparent;font-size:16px"></div>';
+const PANEL_WITH_AN_ACTION =
+  '<div style="border:1px solid #666;border-radius:8px;background:#222;padding:12px;width:240px;height:96px"><p style="font-size:16px">a decorative panel that also offers an action</p><button style="font-size:16px">Act on it</button></div>';
+
+test("a borderless panel whose class merely contains the card WORD is not a nested card", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "card-word.html"), panelInPanel(CARD_WORD_BORDERLESS_PANEL));
+  const res = await runCli("ui-audit", ["/card-word.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("nested-card");
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
+test("a MEASURED border still REDs when the class carries the card word — the name arm went, the box stayed", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "card-word-bordered.html"), panelInPanel(CARD_WORD_BORDERED_PANEL));
+  const res = await runCli("ui-audit", ["/card-word-bordered.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("nested-card");
+  await expect(res).toExitWith(1);
+});
+
+test("a shell whose only child is a control is not a nested card", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "control-shell.html"), panelInPanel(CONTROL_SHELL));
+  const res = await runCli("ui-audit", ["/control-shell.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("nested-card");
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
+test("a panel that merely CONTAINS a control is still judged — the wrapper arm stayed bounded", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "panel-with-action.html"), panelInPanel(PANEL_WITH_AN_ACTION));
+  const res = await runCli("ui-audit", ["/panel-with-action.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("nested-card");
+  await expect(res).toExitWith(1);
+});
+
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
   await expect(res).toExitWith(3);
