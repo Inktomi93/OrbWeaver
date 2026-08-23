@@ -466,6 +466,9 @@ describe("createTurnEngine — happy path", () => {
     );
 
     expect(captured).not.toBeNull();
+    // TS's control-flow narrowing can't see the closure mutation above (`captured = req`), so it narrows
+    // `captured` to `null` here regardless of the runtime value the assertion above proved non-null.
+    // FABRICATION-OK: narrowing-limitation cast, not a fabricated shape — see above.
     expect((captured as unknown as TurnRequest).ownerConsented).toBe(true);
   });
 });
@@ -1327,8 +1330,9 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
     const cleared = new Promise<void>((resolve) => {
       clearDone = resolve;
     });
-    // FABRICATION-OK: the abort path reaches only `onTurnAborted` (the `fireOrderRpg`/`gatherSpyRpg` precedent
-    // in tests/server/domain/chat/verbs/turn.int.test.ts).
+    // The abort path reaches only `onTurnAborted` (the `fireOrderRpg`/`gatherSpyRpg` precedent in
+    // tests/server/domain/chat/verbs/turn.int.test.ts).
+    // FABRICATION-OK: instrumentation double — see above.
     const rpg = {
       onTurnAborted: async () => {
         await Promise.resolve();
@@ -1599,7 +1603,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
   test("…and a RECOVERED turn logs the recovery instead of the refusal (the two classes stay apart)", async () => {
     const chatId = await seedChat(db, "empty-recovered-log");
     const toolCapable = testConnection();
-    const connection = { ...toolCapable, capability: { ...toolCapable.capability, tools: { silencesProse: false } } as typeof toolCapable.capability };
+    const connection = { ...toolCapable, capability: { ...toolCapable.capability, tools: { parallel: true, silencesProse: false } } };
     let call = 0;
     const h = harness(db, {
       runChatTurn: () => {

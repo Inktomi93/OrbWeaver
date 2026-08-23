@@ -62,6 +62,9 @@ import {
   testConnection,
 } from "../_support.ts";
 
+// A minimal `getCard` stub double — only `name`/`description` are load-bearing to this mirror's
+// assertions (speaker-name/prompt resolution); the rest of the full card schema is never read here.
+// FABRICATION-OK: see above.
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
@@ -2859,8 +2862,11 @@ const RPG_TOOLS = [{ name: "update_scene", description: "the scene", parameters:
 
 /** A TOOLS-capable connection — `testConnection`'s minimal descriptor has no `tools` axis, and the pipeline's
  *  terminal-tool gate keys on its presence (an incapable model gets a byte-identical tool-less request). */
+// Partial ModelCapability — only the belt-read fields (TEST_CAPABILITY, see _support.ts) plus the tools
+// axis under test are set.
 const TOOLS_CONNECTION: ResolvedConnection = {
   ...testConnection("vllm"),
+  // FABRICATION-OK: see above.
   capability: { ...TEST_CAPABILITY, tools: { parallel: true } } as unknown as ModelCapability,
 };
 
@@ -2868,6 +2874,7 @@ const TOOLS_CONNECTION: ResolvedConnection = {
  *  was handed back. FABRICATION-OK: the turn path reaches only these ops. */
 function foldedRpg(): { flushes: (readonly { name: string; arguments: string }[] | null)[]; rpg: NonNullable<ChatContext["rpg"]> } {
   const flushes: (readonly { name: string; arguments: string }[] | null)[] = [];
+  // FABRICATION-OK: the turn path reaches only these ops.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
