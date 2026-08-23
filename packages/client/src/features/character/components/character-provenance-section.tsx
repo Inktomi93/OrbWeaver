@@ -36,7 +36,7 @@ export function CharacterProvenanceSection({ importedFrom, importHash, extension
     <Stack gap="section">
       <Section heading="Card quality">
         {refinery === null || refinery.score === null ? (
-          <Text tone="muted">Not analyzed yet.</Text>
+          <Text voice="quiet">Not analyzed yet.</Text>
         ) : (
           <Suspense fallback={null}>
             <StatFigure label="Refinery score" value={refinery.score.toFixed(SCORE_DECIMALS)} />
@@ -61,14 +61,14 @@ export function CharacterProvenanceSection({ importedFrom, importHash, extension
   );
 }
 
-/** A muted read-only provenance row (label + mono value). */
+/** A muted read-only provenance row (`kicker` name + `datumMono` value). The name half takes the kicker's
+ *  semibold: it was micro-caps-muted at REGULAR weight, one axis short of the register it was imitating
+ *  (#573 — the near-kicker class the owner ruled takes semibold rather than a fifteenth voice). */
 function ProvenanceRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
     <Row gap="row" align="center" className="flex-wrap">
-      <Text size="micro" tone="muted" transform="caps">
-        {label}
-      </Text>
-      <Text size="code" tone="muted" className="break-all font-mono">
+      <Text voice="kicker">{label}</Text>
+      <Text voice="datumMono" className="break-all">
         {value}
       </Text>
     </Row>
@@ -84,7 +84,7 @@ function JsonViewer({ label, value }: { readonly label: string; readonly value: 
     <Collapsible>
       <CollapsibleTrigger>{label}</CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text as="div" size="code" tone="muted" className="relative overflow-auto whitespace-pre-wrap font-mono">
+        <Text as="div" voice="datumMono" className="relative overflow-auto whitespace-pre-wrap">
           {JSON.stringify(value, null, 2)}
         </Text>
       </CollapsiblePanel>

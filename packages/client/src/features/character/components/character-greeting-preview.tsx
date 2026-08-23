@@ -159,7 +159,7 @@ function GreetingBody({
         <ThemeScope tokens={themeOverride ?? {}}>
           <Stack gap="row" className={cn("rounded-base bg-ai-bubble p-block", spoilerBlur && "select-none blur-md")} data-slot="character-greeting-bubble">
             {active.trim() === "" ? (
-              <Text tone="muted">No first message yet.</Text>
+              <Text voice="quiet">No first message yet.</Text>
             ) : (
               <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
                 {active}
@@ -257,7 +257,10 @@ function GreetingActions({
         // The one-line explainer mirrors the draft-row dialog's description (the mount owns its copy) —
         // side-eye cold-read finding: without it, Rewrite-vs-Make-new is opaque in the primary home.
         <Stack gap="row">
-          <Text size="label" tone="muted">
+          {/* A SENTENCE, so it takes `gloss` + the `prose` length modifier (#573) rather than the raw
+              label/muted pair: `prose` lifts gloss's micro step to `label` — the step this line already
+              had — and relaxes the leading, which is the whole reason the modifier exists. */}
+          <Text prose={true} voice="gloss">
             Rewrite this greeting or make a new one — the result is saved to the character card.
           </Text>
           <GreetingStudio
@@ -315,7 +318,9 @@ function GreetingGroupOnlyToggle({ form, index }: { readonly form: CardForm; rea
       {(field): ReactElement => (
         <Row gap="field" align="center">
           <label htmlFor={switchId}>
-            <Text id={labelId} as="span" size="label" tone="muted">
+            {/* A control's visible name IS `label` (#573); its muted ink rides className because `tone` is
+                declared before `voice` and loses the merge. */}
+            <Text id={labelId} as="span" voice="label" className="text-muted-foreground">
               Group chats only
             </Text>
           </label>

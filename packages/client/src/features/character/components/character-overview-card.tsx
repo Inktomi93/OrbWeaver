@@ -66,7 +66,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   const personasQuery = useQuery(trpc.persona.listConnectedToCharacter.queryOptions({ characterId }));
 
   if (data === undefined) {
-    return <Text tone="muted">Loading…</Text>;
+    return <Text voice="quiet">Loading…</Text>;
   }
 
   const newest = chatsQuery.data?.items[0];
@@ -114,6 +114,9 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
 
       <Text voice="gloss">
         Pick a field on{" "}
+        {/* RATIFIED raw axes (#573): this is INLINE EMPHASIS inside another voice's run, not a voice of its
+            own — every voice re-spells size and color, so one here would break the sentence it sits in. It
+            carries `gloss`'s own micro step plus the weight and foreground ink that make the name stand out. */}
         <Text as="span" size="micro" weight="semibold">
           {data.name}
         </Text>{" "}
@@ -190,10 +193,14 @@ function OverviewRow({
   return (
     <Stack gap="field" data-slot="overview-row">
       <Row gap="block" align="baseline" justify="between">
-        <Text size="label" tone="muted" className="min-w-0 truncate">
+        {/* The grammar's name/value pair (#573): the row's own MUTED name rides className, because `tone`
+            is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
+            The value is a `datum` when it is mono/tabular and a `label` otherwise; both were spelled
+            `size="label"` before, which is the A3-red internal axis. */}
+        <Text voice="label" className="min-w-0 truncate text-muted-foreground">
           {label}
         </Text>
-        <Text size="label" className={mono ? "shrink-0 font-mono tabular-nums" : "shrink-0"}>
+        <Text voice={mono ? "datum" : "label"} className="shrink-0">
           {value}
         </Text>
       </Row>
