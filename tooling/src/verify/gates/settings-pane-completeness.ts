@@ -19,11 +19,19 @@
 // arrow/function initializer — a shape that stopped type-checking the day the union landed, so the arm was
 // matching nothing until this reconciliation (the `gate-scanroot-vs-getfilepath` class, on a type instead
 // of a path).
-import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
+import type { ObjectLiteralExpression, SourceFile, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 import { readStringValue } from "../lib/ast-read.ts";
+
+/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
+ *  node carries its own position, and `token` folds the per-occurrence detail the gate's static `message`
+ *  can't. */
+interface Hit {
+  readonly node: TsMorphNode;
+  readonly token: string;
+}
 
 const CLIENT_SRC = "/packages/client/src/";
 /** A co-located settings-pane definition file: `features/<owner>/lib/<id>-pane.{ts,tsx}`. */
@@ -143,7 +151,7 @@ function checkPaneDef(def: PaneDef, out: Violation[], seenIds: Map<string, Seen>
   }
 }
 
-function checkPaneDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>): void {
+function checkPaneDefs(sf: SourceFile, out: Violation[], hits: Hit[], seenIds: Map<string, Seen>): void {
   const path = sf.getFilePath();
   const coLocated = PANE_FILE_RE.test(path);
   for (const decl of sf.getVariableDeclarations()) {
@@ -153,11 +161,7 @@ function checkPaneDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Se
     }
     const line = decl.getStartLineNumber();
     if (!coLocated) {
-      out.push({
-        file: rel(path),
-        line,
-        message: `SettingsPaneDefinition "${decl.getName()}" is not co-located — a settings-pane definition lives only in a feature's lib pane file (features/*/lib/*-pane.{ts,tsx}; G4 keys on location) — client-architecture-lockdown.md §8.`,
-      });
+      hits.push({ node: decl, token: `${decl.getName()}-not-co-located` });
       continue;
     }
     const init = decl.getInitializer();
@@ -170,16 +174,11 @@ function checkPaneDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Se
 
 /** The settings host mounting a pane's own render surface directly (`<XSettingsSurface />`/similar JSX)
  *  instead of reading it off `useSettingsPaneRegistry()` — the de-god's whole point. */
-function checkHostImportsNoPaneBody(sf: SourceFile, out: Violation[]): void {
-  const rp = rel(sf.getFilePath());
+function checkHostImportsNoPaneBody(sf: SourceFile, hits: Hit[]): void {
   for (const imp of sf.getImportDeclarations()) {
     const spec = imp.getModuleSpecifierValue();
     if (SURFACE_IMPORT_RE.test(spec)) {
-      out.push({
-        file: rp,
-        line: imp.getStartLineNumber(),
-        message: `the settings host imports "${spec}" directly — a pane body arrives ONLY via the registry (\`registry.get(active).body()\`); a direct surface import re-forms the if-ladder — client-architecture-lockdown.md §8.`,
-      });
+      hits.push({ node: imp, token: `host-imports:${spec}` });
     }
   }
 }
@@ -194,26 +193,30 @@ export const gate: GateDescriptor = {
   fix: "co-locate the definition under features/*/lib/*-pane.{ts,tsx}; flag an unbuilt pane `body: { placeholder: true }` rather than rendering the teaching copy from a `surface` render; delete a skimmer's own `subcategories` (its nav derives from the sections contributed at its anchor); read the pane body off `useSettingsPaneRegistry()` in the host instead of importing a surface.",
   run: (ctx) => {
     const out: Violation[] = [];
+    const hits: Hit[] = [];
     const seenIds = new Map<string, Seen>();
     for (const sf of ctx.project.getSourceFiles()) {
       const path = sf.getFilePath();
       if (!path.includes(CLIENT_SRC)) {
         continue;
       }
-      checkPaneDefs(sf, out, seenIds);
+      checkPaneDefs(sf, out, hits, seenIds);
       if (path.endsWith(SETTINGS_HOST_SUFFIX)) {
-        checkHostImportsNoPaneBody(sf, out);
+        checkHostImportsNoPaneBody(sf, hits);
       }
     }
     for (const v of out) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+    for (const hit of hits) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
   },
   mustFlag: [
     {
       files: "export const xPane: SettingsPaneDefinition = { id: 'x' };\n",
       at: "packages/client/src/features/x/lib/not-a-pane-file.ts",
-      expect: { messageIncludes: "not co-located" },
+      expect: { token: "xPane-not-co-located" },
       why: "a SettingsPaneDefinition outside a `*-pane` file — the co-location arm",
     },
     {
@@ -248,7 +251,7 @@ export const gate: GateDescriptor = {
     {
       files: 'import { XSettingsSurface } from "./x-settings-surface";\nexport const G = XSettingsSurface;\n',
       at: "packages/client/src/features/settings/surfaces/settings-shell-surface.tsx",
-      expect: { messageIncludes: "imports" },
+      expect: { token: "host-imports:./x-settings-surface" },
       why: "the settings host importing a pane's own surface directly (a same-dir sibling import, the real shape) — the host-imports-no-pane-body arm",
     },
   ],

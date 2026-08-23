@@ -8,7 +8,15 @@
 import type { ArrowFunction, FunctionExpression, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
-import type { CheckContext, Violation } from "../contract/harness.ts";
+import type { CheckContext } from "../contract/harness.ts";
+
+/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
+ *  node carries its own position, and `token` folds the per-occurrence detail the gate's static `message`
+ *  can't (GATE-AUTHORING.md §1). */
+interface Hit {
+  readonly node: TsMorphNode;
+  readonly token: string;
+}
 
 const MAX_HELPER_DEPTH = 4;
 const ASSERTION_HELPER_RE = /^(?:expect|assert)[A-Z0-9]/u;
@@ -16,10 +24,6 @@ const TEST_FILE_RE = /\.test\.tsx?$/u;
 
 // Excludes `extend` (test.extend defines a fixture) so a local `it` (async-iterator pattern) isn't mistaken for a test.
 const TEST_MODIFIERS = new Set(["only", "skip", "todo", "concurrent", "sequential", "each", "for", "fails", "runIf", "skipIf"]);
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
 
 function getCalleeName(call: TsMorphNode): string | undefined {
   const expr = call.asKind(SyntaxKind.CallExpression)?.getExpression();
@@ -209,58 +213,41 @@ function findBareExpectStatements(node: TsMorphNode): TsMorphNode[] {
   return hits;
 }
 
-function auditDescribe(call: TsMorphNode, rel: string, out: Violation[]): void {
+function auditDescribe(call: TsMorphNode, out: Hit[]): void {
   const cb = callbackFromCall(call);
   if (cb !== undefined && !hasNestedTestOrIt(cb)) {
-    out.push({
-      file: rel,
-      line: call.getStartLineNumber(),
-      message: "describe() block has no nested test()/it() descendant (Spine-Testing.md §5)",
-    });
+    out.push({ node: call, token: "no-nested-test" });
   }
 }
 
-function auditLifecycleHook(call: TsMorphNode, rel: string, out: Violation[]): void {
+function auditLifecycleHook(call: TsMorphNode, out: Hit[]): void {
   const body = callbackFromCall(call)?.getBody();
   if (body === undefined || !Node.isBlock(body) || body.getStatements().length > 0) {
     return;
   }
-  out.push({
-    file: rel,
-    line: call.getStartLineNumber(),
-    message: `${getCalleeName(call)}() hook has empty body — delete the hook (Spine-Testing.md §5)`,
-  });
+  out.push({ node: call, token: `${getCalleeName(call) ?? "hook"}-empty-body` });
 }
 
-function auditTestCallback(call: TsMorphNode, rel: string, out: Violation[]): void {
+function auditTestCallback(call: TsMorphNode, out: Hit[]): void {
   const cb = callbackFromCall(call);
   if (cb === undefined) {
     return;
   }
-  const title = call.asKind(SyntaxKind.CallExpression)?.getArguments()[0]?.getText() ?? "<unknown>";
   if (!assertsViaExpectOrHelper(cb)) {
-    out.push({
-      file: rel,
-      line: call.getStartLineNumber(),
-      message: `test ${title}: no descendant expect(...).<matcher>() call — pure "doesn't throw" is not a test (Spine-Testing.md §5)`,
-    });
+    out.push({ node: call, token: "no-assertion" });
   }
   if (cb.isAsync() && !hasDescendantAwait(cb)) {
-    out.push({
-      file: rel,
-      line: call.getStartLineNumber(),
-      message: `test ${title}: async callback has no AwaitExpression — drop async OR add an await (Spine-Testing.md §5)`,
-    });
+    out.push({ node: call, token: "async-no-await" });
   }
 }
 
-function auditCall(call: TsMorphNode, rel: string, out: Violation[]): void {
+function auditCall(call: TsMorphNode, out: Hit[]): void {
   if (isDescribeCall(call)) {
-    auditDescribe(call, rel, out);
+    auditDescribe(call, out);
   } else if (isLifecycleHookCall(call)) {
-    auditLifecycleHook(call, rel, out);
+    auditLifecycleHook(call, out);
   } else if (isTestCall(call)) {
-    auditTestCallback(call, rel, out);
+    auditTestCallback(call, out);
   }
 }
 
@@ -268,26 +255,21 @@ function isTestFile(filePath: string): boolean {
   return filePath.includes("/tests/") && TEST_FILE_RE.test(filePath);
 }
 
-function scanAuditClientTests({ root, project }: CheckContext): Violation[] {
-  const violations: Violation[] = [];
+function scanAuditClientTests({ project }: CheckContext): Hit[] {
+  const hits: Hit[] = [];
   for (const sf of project.getSourceFiles()) {
     const filePath = sf.getFilePath();
     if (!isTestFile(filePath)) {
       continue;
     }
-    const rel = relPath(root, filePath);
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      auditCall(call, rel, violations);
+      auditCall(call, hits);
     }
     for (const stmt of findBareExpectStatements(sf)) {
-      violations.push({
-        file: rel,
-        line: stmt.getStartLineNumber(),
-        message: "bare `expect(x);` with no matcher chain — assertion incomplete (Spine-Testing.md §5)",
-      });
+      hits.push({ node: stmt, token: "bare-expect" });
     }
   }
-  return violations;
+  return hits;
 }
 
 export const gate: GateDescriptor = {
@@ -299,45 +281,45 @@ export const gate: GateDescriptor = {
     "a test file carries a structural anti-pattern — a test callback with no `expect(...).<matcher>()`, an async test with no await, a bare `expect(x);`, an empty describe() with no nested test, or an empty lifecycle hook (Spine-Testing.md §5).",
   fix: "add a matcher-chained expect (or await), delete the empty describe/hook, and complete any bare `expect(x)` with a matcher (Spine-Testing.md §5).",
   run: (ctx) => {
-    for (const v of scanAuditClientTests({ root: ctx.root, project: ctx.project })) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    for (const hit of scanAuditClientTests({ root: ctx.root, project: ctx.project })) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
   },
   mustFlag: [
     {
       files: 'test("does nothing", () => {\n  const x = 1;\n  void x;\n});\n',
       at: "tests/tooling/x.test.ts",
-      expect: { messageIncludes: "doesn't throw" },
+      expect: { token: "no-assertion" },
       why: 'a test callback with no expect(...).<matcher>() — pure "doesn\'t throw" is not a test (§5)',
     },
     {
       files: 'test("async no await", async () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/async.test.ts",
-      expect: { messageIncludes: "no AwaitExpression" },
+      expect: { token: "async-no-await" },
       why: "rule 2: an async callback with no AwaitExpression — drop async or add an await",
     },
     {
       files: 'test("bare", () => {\n  expect(1);\n});\n',
       at: "tests/tooling/bare.test.ts",
-      expect: { messageIncludes: "bare `expect(x);`" },
+      expect: { token: "bare-expect" },
       why: "rule 3: a bare expect(x) statement with no matcher chain — assertion incomplete",
     },
     {
       files: 'describe("a suite", () => {\n  const x = 1;\n  void x;\n});\n',
       at: "tests/tooling/empty-describe.test.ts",
-      expect: { messageIncludes: "no nested test()/it()" },
+      expect: { token: "no-nested-test" },
       why: "rule 4: a describe() block with no nested test()/it() descendant",
     },
     {
       files: "beforeEach(() => {});\n",
       at: "tests/tooling/empty-hook.test.ts",
-      expect: { messageIncludes: "empty body" },
+      expect: { token: "beforeEach-empty-body" },
       why: "rule 5: an empty lifecycle hook body — delete the hook",
     },
     {
       files: 'test("int no assert", async () => {\n  await Promise.resolve();\n});\n',
       at: "tests/server/domain/x.int.test.ts",
-      expect: { messageIncludes: "no descendant expect" },
+      expect: { token: "no-assertion" },
       why: "suffix scope: .int.test.ts is still a .test.ts suffix match — it is audited",
     },
   ],

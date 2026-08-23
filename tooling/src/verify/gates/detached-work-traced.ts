@@ -105,15 +105,6 @@ const BLIND =
   "exists and has gone silently green. Re-point the derivation in tooling/src/verify/gates/detached-work-traced.ts " +
   "(the name-keyed blindness tripwire, GATE-AUTHORING.md §4.6).";
 
-const A1_MESSAGE = (position: string, openers: readonly string[]): string =>
-  `\`${position}\` is dispatched fire-and-forget with a DISCARDING rejection handler and no detached root span ` +
-  `— its failure is invisible everywhere. Open one with ${openers.map((o) => `\`${o}\``).join(" / ")}.`;
-
-const A2_MESSAGE = (position: string, opener: string, what: string): string =>
-  `the ${what} on \`${position}\` is inside a \`${opener}\` callback and does not RETHROW — the span therefore ` +
-  'seals `status:"ok"` on every failure, so the trace surface reports success for work that failed ' +
-  "(packages/server/src/foundation/observability/tracing.ts).";
-
 const STALE_MARKER = (named: string): string =>
   `\`@swallowed-ok(${named})\` guards nothing — \`${named}\` is not a detached-work dispatch or a swallowing ` +
   "catch on the line this marker guards (the first code line below its comment block). It was traced, " +
@@ -343,15 +334,14 @@ function columnOf(node: Node): number {
 }
 
 interface GuardedSite {
+  readonly node: Node;
   readonly line: number;
   readonly column: number;
   readonly position: string;
-  readonly message: string;
 }
 
 /** A1 — statement-position fire-and-forget that absorbs its own rejection and opens no root. */
 function untracedDispatchSites(sf: SourceFile, openers: ReadonlySet<string>): GuardedSite[] {
-  const openerList = [...openers].sort();
   const out: GuardedSite[] = [];
   for (const stmt of sf.getDescendantsOfKind(SyntaxKind.ExpressionStatement)) {
     const raw = unwrapExpression(stmt.getExpression());
@@ -363,7 +353,7 @@ function untracedDispatchSites(sf: SourceFile, openers: ReadonlySet<string>): Gu
       continue;
     }
     const position = dispatchPosition(absorber);
-    out.push({ line: stmt.getStartLineNumber(), column: columnOf(stmt), position, message: A1_MESSAGE(position, openerList) });
+    out.push({ node: stmt, line: stmt.getStartLineNumber(), column: columnOf(stmt), position });
   }
   return out;
 }
@@ -377,7 +367,7 @@ function swallowingCatchSites(sf: SourceFile, openers: ReadonlySet<string>): Gua
       continue;
     }
     const position = clause.getVariableDeclaration()?.getName() ?? UNBOUND_CATCH_POSITION;
-    out.push({ line: clause.getStartLineNumber(), column: columnOf(clause), position, message: A2_MESSAGE(position, opener, "catch") });
+    out.push({ node: clause, line: clause.getStartLineNumber(), column: columnOf(clause), position });
   }
   return out;
 }
@@ -394,7 +384,7 @@ function blindedRejectionSites(sf: SourceFile, openers: ReadonlySet<string>): Gu
       continue;
     }
     const position = dispatchPosition(call);
-    out.push({ line: call.getStartLineNumber(), column: columnOf(call), position, message: A2_MESSAGE(position, opener, "discarded rejection") });
+    out.push({ node: call, line: call.getStartLineNumber(), column: columnOf(call), position });
   }
   return out;
 }
@@ -405,24 +395,38 @@ function guardedSites(sf: SourceFile, openers: ReadonlySet<string>): GuardedSite
   return [...untracedDispatchSites(sf, openers), ...swallowingCatchSites(sf, openers), ...blindedRejectionSites(sf, openers)];
 }
 
-/** Every finding in one file: the unmarked guarded sites (A1/A2) plus the stale/malformed markers (A3). */
-export function detachedWorkFindings(sf: SourceFile, rel: string, openers: ReadonlySet<string>): Finding[] {
+/** A NODE-anchored unmarked guarded site — never a `{file,line,column}` Finding literal
+ *  (finding-overload-provenance): the node carries its own position, and `token` is the guarded position
+ *  name (the gate's static `message` carries the general reason). */
+interface SiteHit {
+  readonly node: Node;
+  readonly token: string;
+}
+
+/** Every finding in one file: the unmarked guarded sites (A1/A2, NODE-anchored) plus the stale/malformed
+ *  markers (A3, file-anchored — comment-based, no node in scope). */
+export function detachedWorkFindings(
+  sf: SourceFile,
+  rel: string,
+  openers: ReadonlySet<string>,
+): { readonly siteHits: readonly SiteHit[]; readonly markerFindings: readonly Finding[] } {
   const sites = guardedSites(sf, openers);
   const markers = resolveMarkers(sf.getFullText().split("\n"));
-  const out: Finding[] = [];
+  const siteHits: SiteHit[] = [];
   for (const site of sites) {
     const exempt = markers.some((marker) => marker.guards === site.line && marker.name === site.position);
     if (!exempt) {
-      out.push({ file: rel, line: site.line, column: site.column, message: site.message });
+      siteHits.push({ node: site.node, token: site.position });
     }
   }
+  const markerFindings: Finding[] = [];
   for (const marker of markers) {
     const live = marker.name !== undefined && sites.some((site) => site.line === marker.guards && site.position === marker.name);
     if (!live) {
-      out.push({ file: rel, line: marker.line, column: 1, message: marker.name === undefined ? MALFORMED_MARKER : STALE_MARKER(marker.name) });
+      markerFindings.push({ file: rel, line: marker.line, column: 0, message: marker.name === undefined ? MALFORMED_MARKER : STALE_MARKER(marker.name) });
     }
   }
-  return out.sort((a, b) => a.line - b.line || a.column - b.column);
+  return { siteHits, markerFindings };
 }
 
 /** Repo-relative form of an absolute source path. */
@@ -456,7 +460,11 @@ export const gate: GateDescriptor = {
     if (passOpeners.size === 0) {
       return; // A4 speaks for the whole run; per-file findings from an empty vocabulary would be noise.
     }
-    for (const finding of detachedWorkFindings(sf, repoRel(sf.getFilePath()), passOpeners)) {
+    const { siteHits, markerFindings } = detachedWorkFindings(sf, repoRel(sf.getFilePath()), passOpeners);
+    for (const hit of siteHits) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
+    }
+    for (const finding of markerFindings) {
       ctx.report(finding);
     }
   },
@@ -479,7 +487,7 @@ export const gate: GateDescriptor = {
           "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
         "packages/server/src/domain/chat/verbs/turn.ts": "export function fire(ctx: C): void {\n  void ctx.rpg.onUserCommit(a, b).catch(() => undefined);\n}\n",
       },
-      expect: { count: 1, messageIncludes: "`onUserCommit` is dispatched fire-and-forget" },
+      expect: { count: 1, token: "onUserCommit" },
       why: "A1, the founding shape — the live `fireRpgUserCommit` this gate found on landing: a background snapshot-commit whose rejection is discarded, outside any span",
     },
     {
@@ -492,7 +500,7 @@ export const gate: GateDescriptor = {
           "  void withRequestSpan(id, NAME, {}, async () => {\n" +
           "    try {\n      await deps.build();\n    } catch (err) {\n      log.warn({ err }, 'failed');\n    }\n  }).catch(() => undefined);\n}\n",
       },
-      expect: { count: 1, messageIncludes: "does not RETHROW" },
+      expect: { count: 1, token: "err" },
       why: "A2, the defect riding on A1 — the memory/compaction catch that warned and returned, sealing the span `ok` on every failure. The dashboard showed green while the build failed",
     },
     {
@@ -504,7 +512,7 @@ export const gate: GateDescriptor = {
           "export function enqueue(w: W): void {\n" +
           "  void withRequestSpan(id, NAME, {}, async () => {\n    await w.start(a).catch(() => undefined);\n  }).catch(() => undefined);\n}\n",
       },
-      expect: { count: 1, messageIncludes: "the discarded rejection on `start`" },
+      expect: { count: 1, token: "start" },
       why: "A2's second shape — moving the discard INSIDE the callback would be the obvious way to 'fix' A1 while keeping the span permanently green. The span can only mark ERROR if the rejection reaches it",
     },
     {
@@ -540,7 +548,7 @@ export const gate: GateDescriptor = {
           "  // @swallowed-ok(cancel): stream teardown. Ends if it ever does traceable work.\n" +
           "  void a.cancel().catch(() => undefined); void b.destroy().catch(() => undefined);\n}\n",
       },
-      expect: { count: 1, messageIncludes: "`destroy` is dispatched" },
+      expect: { count: 1, token: "destroy" },
       why: "THE reason the marker names its position — two dispatches on ONE line: the named `cancel` is exempt, `destroy` beside it is still RED. A line-scoped marker would have laundered both",
     },
     {

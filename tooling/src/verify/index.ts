@@ -76,7 +76,6 @@ export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export { generateDensityBaseline } from "./ops/gen/density.ts";
 export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";
 export { generateFabricationBaseline } from "./ops/gen/fabrication.ts";
-export { generateFindingOverloadProvenanceBaseline } from "./ops/gen/finding-overload-provenance.ts";
 export { generateModelProseBaseline } from "./ops/gen/model-prose.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";

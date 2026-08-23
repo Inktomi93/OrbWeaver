@@ -77,14 +77,14 @@ members, because the finding record is routinely built two or three functions aw
 gate matches the FINDING LITERAL by SHAPE (`file` + `line` + `column`/`message`) wherever it is built, and
 its worse-than-silent failure mode is what makes it load-bearing: an author who writes the CORRECT
 `@orb-gate-ignore` on such a finding gets a DOUBLE red — the gate fires anyway, and `gate-ignore-inventory`
-reds the marker as stale. Two escapes, both two-sided: `// @finding-overload-ok: <reason>` at the literal
+reds the marker as stale. The one escape, two-sided: `// @finding-overload-ok: <reason>` at the literal
 for a PERMANENTLY non-suppressible arm (a blindness tripwire, a stale/ratchet arm, a ledger verdict — a
-malformed, stale, or over-exempting marker is itself RED), and the shrink-only
-`finding-overload-provenance.baseline.json` for the pre-existing tail (52 literals across 24 gates at mint;
-terminal state `{}` + delete the baseline and its generator). **A deliberately NON-suppressible node-anchored
-arm is legitimate and takes the marker, not a conversion** — `baseui-derives-not-respells` ARM A ("hard, no
-exemption") and `schema-banned-shapes` (a ledger verdict's only escape is contesting the D-cite) are the
-worked precedents.
+malformed, stale, or over-exempting marker is itself RED). The gate's OWN shrink-only baseline (52 literals
+across 24 gates at mint) reached its terminal state `{}` 2026-08-23 and the baseline + its generator were
+DELETED per this same §4.8 rule — the gate is born-compliant now, with no budget left to hide behind.
+**A deliberately NON-suppressible node-anchored arm is legitimate and takes the marker, not a conversion** —
+`baseui-derives-not-respells` ARM A ("hard, no exemption") and `schema-banned-shapes` (a ledger verdict's
+only escape is contesting the D-cite) are the worked precedents.
 
 **SCAN HEALTH — `ctx.scan`, and why a ✓ now carries a denominator** (2026-08-13, Codex GA-H-01/GA-H-02).
 The harness tallies, for EVERY gate, from the one walk: how many files the run offered (`candidates`), how
@@ -277,7 +277,8 @@ An exemption is a promise. This is how the promise is written.
    and a surviving reader implements a ratchet no sanctioned writer can produce (`gate-modernization`'s
    ledger hit `{}` in its own landing lane, but its reader — loader, suppression branch, two stale arms,
    one `mustPass` row — survived until 2026-08-23). Live precedents: `density-tier`,
-   `no-test-fabrication`, `suppressions`; the completed terminal-state walk is `gate-modernization`.
+   `no-test-fabrication`, `suppressions`; the completed terminal-state walks are `gate-modernization` and
+   `finding-overload-provenance` (2026-08-23).
 
 **BASELINES LIE WHEN THE MATCHER HAS BLIND SPOTS.** `ui-size-via-variant` declared its debt baseline terminal
 while 14 hits of its own incident class sat invisible — the matcher never stripped Tailwind's `!` important

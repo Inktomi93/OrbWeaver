@@ -152,7 +152,10 @@ function scanStaleAllowSkips(sf: SourceFile, rel: string, out: Violation[]): voi
   }
 }
 
-function scanForbiddenSkips(sf: SourceFile, rel: string, out: Violation[]): void {
+/** A NODE-anchored forbidden-skip hit — never a `{file,line,message}` Finding literal
+ *  (finding-overload-provenance): the call node carries its own position, and `token` folds the dynamic
+ *  `root.modifier` the gate's static `message` can't. */
+function scanForbiddenSkips(sf: SourceFile, onSite: (call: TsMorphNode, token: string) => void): void {
   const lines = sf.getFullText().split("\n");
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const expr = call.getExpression();
@@ -174,11 +177,7 @@ function scanForbiddenSkips(sf: SourceFile, rel: string, out: Violation[]): void
     if (hasAllowSkip(lines, line)) {
       continue;
     }
-    out.push({
-      file: rel,
-      line,
-      message: `\`${root}.${modifier}\` disables a test unconditionally — the suite can't go green by skipping. Gate it with \`.skipIf(cond)\` / Playwright's \`test.skip(cond, "reason")\` if it needs an env/engine, or add \`// allow-skip: <why + the condition that ends it>\` above the line if it's truly justified. The REASON is required — a bare \`// allow-skip\` exempts nothing (Spine-Testing.md §5).`,
-    });
+    onSite(call, `${root}.${modifier}`);
   }
 }
 
@@ -284,8 +283,11 @@ function scanDeletedTestFiles(root: string, out: Violation[]): void {
   }
 }
 
-/** The AST(+manifest-fs) scan shared by the legacy Check and the single-pass `run` descriptor. */
-function scanMonotonicTests({ root, project }: CheckContext): Violation[] {
+/** The AST(+manifest-fs) scan shared by the legacy Check and the single-pass `run` descriptor. `onSite` is
+ *  tooth 1's NODE-anchored sink (finding-overload-provenance) — the legacy `Check` consumer below has no
+ *  tooth-1 assertion (`monotonic-tests.residual.test.ts` covers tooth 2 only), so it passes the no-op
+ *  default and reports tooth 2/3 only. */
+function scanMonotonicTests({ root, project }: CheckContext, onSite: (call: TsMorphNode, token: string) => void = () => undefined): Violation[] {
   const violations: Violation[] = [];
   for (const sf of project.getSourceFiles()) {
     const filePath = sf.getFilePath();
@@ -293,7 +295,7 @@ function scanMonotonicTests({ root, project }: CheckContext): Violation[] {
       continue;
     }
     const rel = relPath(root, filePath);
-    scanForbiddenSkips(sf, rel, violations);
+    scanForbiddenSkips(sf, onSite);
     scanStaleAllowSkips(sf, rel, violations);
   }
   scanDeletedTestFiles(root, violations);
@@ -316,8 +318,12 @@ export const gate: GateDescriptor = {
     "a test is disabled unconditionally (`it.skip`/`test.only`/`.todo`/`.fixme` modifier), a baseline-manifest test file was deleted, or an `allow-skip` marker guards no skip — the suite must not go green by skipping or deleting tests, and its escape hatches must not rot (Spine-Testing.md §5).",
   fix: 'gate the skip on a condition (`.skipIf(cond)` / `test.skip(cond, "reason")`) or add `// allow-skip: <why + the condition that ends it>` (the reason is REQUIRED); delete a marker that no longer guards a skip; and never delete a baselined spec to go green (Spine-Testing.md §5).',
   run: (ctx) => {
-    for (const v of scanMonotonicTests({ root: ctx.root, project: ctx.project })) {
+    const siteHits: { readonly node: TsMorphNode; readonly token: string }[] = [];
+    for (const v of scanMonotonicTests({ root: ctx.root, project: ctx.project }, (call, token) => siteHits.push({ node: call, token }))) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+    for (const hit of siteHits) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
   },
   // Tooth 2's deleted-manifest FLAG needs a real temp-dir tree, so it lives in
@@ -326,25 +332,25 @@ export const gate: GateDescriptor = {
     {
       files: 'it.skip("later", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/x.test.ts",
-      expect: { messageIncludes: "unconditionally" },
+      expect: { token: "it.skip" },
       why: 'a bare `it.skip("title", fn)` modifier — an unconditional skip the suite can\'t go green by (§5)',
     },
     {
       files: 'test.only("focused", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/only.test.ts",
-      expect: { messageIncludes: "test.only" },
+      expect: { token: "test.only" },
       why: "test.only has no conditional variant — always the forbidden modifier form",
     },
     {
       files: 'test.todo("later");\n',
       at: "tests/tooling/todo.test.ts",
-      expect: { messageIncludes: "test.todo" },
+      expect: { token: "test.todo" },
       why: "test.todo has no conditional variant — always the forbidden modifier form",
     },
     {
       files: '// allow-skip\nit.skip("no reason given", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/bare-marker.test.ts",
-      expect: { messageIncludes: "unconditionally" },
+      expect: { token: "it.skip" },
       why: "a REASON-LESS `// allow-skip` exempts nothing (the marker requires `: <reason>`) — the skip still REDs",
     },
     {
