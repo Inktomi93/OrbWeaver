@@ -21,7 +21,7 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | `agent-principal-design/` | **PARTIAL** | [#13](https://github.com/Inktomi93/orbweaver/issues/13) |
 | `agent-tool-propose-spec.md` | **FUTURE** | [#14](https://github.com/Inktomi93/orbweaver/issues/14) |
 | `saved-rosters-design.md` | **PARTIAL** | [#26](https://github.com/Inktomi93/orbweaver/issues/26) |
-| `hub-browse-design/` | **PARTIAL** | [#21](https://github.com/Inktomi93/orbweaver/issues/21) |
+| `hub-browse-design/` | **SUPERSEDED** | [#21](https://github.com/Inktomi93/orbweaver/issues/21) |
 | `imagery-design/` | **PARTIAL** | [#22](https://github.com/Inktomi93/orbweaver/issues/22) |
 | `expressions-design/` | **FUTURE** | [#20](https://github.com/Inktomi93/orbweaver/issues/20) |
 | `databank-design/` | **REALIZED** | — |
@@ -29,8 +29,8 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | `rpg-design/` | **FUTURE** | [#25](https://github.com/Inktomi93/orbweaver/issues/25) |
 | `chat-crew-design/` | **FUTURE** | [#18](https://github.com/Inktomi93/orbweaver/issues/18) |
 | `plugin-design/` | **PARTIAL** | [#24](https://github.com/Inktomi93/orbweaver/issues/24) |
-| `autosave-form-doctrine.md` | **FUTURE** | [#16](https://github.com/Inktomi93/orbweaver/issues/16) |
-| `bg-video-background-mini-spec.md` | **FUTURE** | [#17](https://github.com/Inktomi93/orbweaver/issues/17) |
+| `autosave-form-doctrine.md` | **REALIZED** | — |
+| `bg-video-background-mini-spec.md` | **REALIZED** | — |
 | `message-reactions-mini-spec.md` | **FUTURE** | [#23](https://github.com/Inktomi93/orbweaver/issues/23) |
 | `spatial-maps-design-capture.md` | **FUTURE** | [#27](https://github.com/Inktomi93/orbweaver/issues/27) |
 | `world-state-clips-trackers-spec.md` | **FUTURE** | [#29](https://github.com/Inktomi93/orbweaver/issues/29) |
