@@ -132,6 +132,15 @@ export const workloads = sqliteTable(
     // The heartbeat: bumped on every in-flight lease tick; the reaper's stale-threshold key (a dead
     // worker stops bumping → the row is reaped to worker_died, freeing the kind's active slot).
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The BOOT-RESPAWN counter (#529): how many times the single-replica boot reclaim has re-queued this
+    // row after a process respawn WITHOUT the run reporting progress since. A resumable kind
+    // (`WorkloadContribution.resume !== "none"`) survives a respawn by going back to `queued` instead of
+    // terminal — the counter is what keeps that from being an unbounded crash loop: past the bound the
+    // reclaim stamps worker_died with the loop reason. RESET TO 0 by the lease UPDATE whenever a run
+    // reports a progress snapshot, so "N respawns" means N respawns that produced NOTHING; a job that is
+    // actually making progress can be respawned indefinitely. Terminal rows keep their last value as part
+    // of the never-deleted audit record.
+    respawns: integer("respawns").notNull().default(0),
   },
   (table) => [
     // SINGULAR lock: at most one active {queued,running,cancelling} SINGULAR row per
