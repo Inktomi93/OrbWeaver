@@ -15,7 +15,7 @@ interface Values {
 
 function headlessForm(): FormApi<Values, never, never, never, never, never, never, never, never, never, never, never> {
   const form = new FormApi({
-    defaultValues: { name: "", avatarAssetId: null } as Values,
+    defaultValues: { name: "", avatarAssetId: null } satisfies Values,
   });
   form.mount();
   return form as never;

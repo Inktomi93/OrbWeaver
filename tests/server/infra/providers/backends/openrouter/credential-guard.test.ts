@@ -23,6 +23,7 @@ function capture(fn: () => unknown): unknown {
 
 describe("requireOpenRouterApiKey", () => {
   test("returns the API key for an openrouter credential", () => {
+    // FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one.
     const cred = {
       source: "openrouter",
       apiKey: "sk-or-secret",

@@ -53,6 +53,7 @@ function fakeClient(contentFor?: (user: string) => string): { client: VllmEngine
       calls.push({ path, body: b, signal: postOpts?.signal });
       const user = String(b.messages.find((m) => m.role === "user")?.content ?? "");
       const content = contentFor !== undefined ? contentFor(user) : `<think>reasoning</think>summary of ${user}`;
+      // FABRICATION-OK: T is enginePost's unbound generic, resolved only by the caller — no fixed shape to satisfy.
       return Promise.resolve({
         choices: [{ message: { content } }],
         // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).

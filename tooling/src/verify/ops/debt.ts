@@ -50,7 +50,6 @@ import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
-import { BASELINE_REL as FABRICATION_BASELINE_REL } from "../gates/no-test-fabrication.ts";
 import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
@@ -79,12 +78,6 @@ export const LEDGERS: readonly Ledger[] = [
     rel: DOORS_BASELINE_REL,
     unit: "door(s) on the plane",
     why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
-  },
-  {
-    owner: "no-test-fabrication",
-    rel: FABRICATION_BASELINE_REL,
-    unit: "fabricated value(s)",
-    why: "test-side fabrication admitted at landing. Ends per test file when the fabricated values become factory/fixture-derived.",
   },
   {
     owner: "suppressions",
@@ -230,9 +223,9 @@ function rowLine(root: string, ledger: Ledger, row: RatchetRow, argv: DebtArgv):
 /** The LIVE half of one ledger's header — and the one place this walk must not read a zero as clean.
  *
  * `gates[].scan.admitted` DEFAULTS to 0 (pass.ts), so a ratchet gate that never calls `ctx.scan({ admitted })`
- * is indistinguishable in the artifact from one that admitted nothing. Measured 2026-08-23: two of the
- * (then seven, now five — `no-hardcoded-model-prose` reached terminal `{}` and was DELETED, #578)
- * committed ratchets (suppressions, no-test-fabrication) declare nothing, so the single-pass's own "N
+ * is indistinguishable in the artifact from one that admitted nothing. Measured 2026-08-23: one of the
+ * (then seven, now four — `no-hardcoded-model-prose` and `no-test-fabrication` reached terminal `{}` and
+ * were DELETED, #578/#590) committed ratchets (suppressions) declares nothing, so the single-pass's own "N
  * admitted by ratchet baselines" line counts only the ones that do. A `live: 0` beside a ledger that still
  * HAS rows is therefore AMBIGUOUS, and this says so with both readings instead of printing the reassuring one.
  */

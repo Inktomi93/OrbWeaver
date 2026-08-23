@@ -75,7 +75,6 @@ export { LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/de
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export { generateDensityBaseline } from "./ops/gen/density.ts";
 export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";
-export { generateFabricationBaseline } from "./ops/gen/fabrication.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";

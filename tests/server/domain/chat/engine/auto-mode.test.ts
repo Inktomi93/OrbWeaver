@@ -20,6 +20,7 @@ const sp = (k: string): CastName => ({ ref: charRef(k), name: k });
 let mintCounter = 0;
 function committed(): TurnOutcome {
   mintCounter += 1;
+  // FABRICATION-OK: minimal MessageView double — runAutoMode's max-turns loop only reads `messages[].id` off outcomes.
   const view = { id: castId<MessageId>(`message_${mintCounter}`) } as unknown as MessageView;
   return { messages: [view], aborted: false, abortReason: undefined };
 }

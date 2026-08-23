@@ -48,7 +48,9 @@ export function makeRow(
  *  the cross-feature env/binder are unused by the driver — casts at the test edge, per the workloads harness). */
 function makeRunnerDeps(overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
   return {
+    // FABRICATION-OK: the faked `run`/`nextRunnable` never dereference db — only threaded through.
     db: {} as Db,
+    // FABRICATION-OK: same — contributions is never dereferenced by the faked engine ops.
     contributions: {} as WorkloadContributions,
     audit: () => Promise.resolve(),
     now: () => T0,

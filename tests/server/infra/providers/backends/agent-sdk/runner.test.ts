@@ -801,6 +801,7 @@ describe("createAgentSdkBackend", () => {
     });
     expect(backend.runChatTurn).toBeDefined();
     const run = backend.runChatTurn as ChatTurn;
+    // FABRICATION-OK: deliberate wrong-api-shape probe of the fail-closed path.
     const wrongApi = { api: "chat-completions" } as unknown as ChatRequest;
     await expect(run(wrongApi)).rejects.toBeInstanceOf(ProviderError);
   });
