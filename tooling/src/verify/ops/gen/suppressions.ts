@@ -7,12 +7,10 @@
 // DERIVED per marker from the gate's `RATIFIED_RULES` table, never hand-declared, and the gate re-derives it
 // on every run and REDs a row whose declared partition the tree no longer earns. So a regenerate is the one
 // way the classification changes, and it changes for a reason the table already states.
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { serializeRow } from "@orb/tooling/_shared/ratchet-rows";
+import { serializeRow, writeLedgerFile } from "@orb/tooling/_shared/ratchet-rows";
 import { BASELINE_REL, classWhy, ratifiedSiteCount, srcRel, suppressionSites } from "../../gates/suppressions.ts";
 import { getProject } from "../../lib/harness.ts";
 
@@ -53,7 +51,7 @@ export function generateSuppressionsBaseline(root: string): number {
   }
 
   const sorted = Object.fromEntries(Object.entries(rows).sort(([a], [b]) => a.localeCompare(b)));
-  writeFileSync(join(root, BASELINE_REL), `${JSON.stringify(sorted, null, 2)}\n`);
+  writeLedgerFile(root, BASELINE_REL, sorted);
   process.stdout.write(
     `wrote ${Object.keys(sorted).length} files, ${total} sites (${total - ratifiedTotal} debt · ${ratifiedTotal} ratified) → ${BASELINE_REL}\n`,
   );

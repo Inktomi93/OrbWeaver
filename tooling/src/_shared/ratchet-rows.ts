@@ -23,6 +23,7 @@
 //     `{ "<subject>": { "count": 3, "ratified": 3, "why": "…", "cite": ["…"] } }`.
 //   • ENTRIES-MAP — the orphan ratchet's `{ "note": "…", "entries": { "<subject>": "<reason>" } }`, where a
 //     row is one membership (count 1) carrying its reason as its `why`.
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -268,8 +269,18 @@ export function writeBudgetLedger(root: string, rel: string, counts: Readonly<Re
     const ratified = prior === undefined ? 0 : Math.min(prior.ratified, count);
     out[subject] = serializeRow({ subject, count, ratified, debt: count - ratified, why: prior?.why ?? null, cite: prior?.cite ?? [] });
   }
-  writeFileSync(join(root, rel), `${JSON.stringify(out, null, 2)}\n`);
+  writeLedgerFile(root, rel, out);
   return Object.keys(out).length;
+}
+
+/** The ONE ledger file-writer (every ratchet ledger, including gen ops with their own row semantics).
+ *  The emitted JSON must match biome's formatter or the very next `pnpm check` reds on lint:biome
+ *  (paid 2026-08-23: stringify expands short `cite` arrays across lines; biome collapses them). One
+ *  formatter owns the style — run it on the file we just wrote rather than imitating its width rules. */
+export function writeLedgerFile(root: string, rel: string, value: unknown): void {
+  const abs = join(root, rel);
+  writeFileSync(abs, `${JSON.stringify(value, null, 2)}\n`);
+  execFileSync("pnpm", ["exec", "biome", "format", "--write", abs], { cwd: root, stdio: "ignore" });
 }
 
 /** Every `*.baseline.json` actually on disk under `tooling/src/`, repo-relative. Derived from the filesystem
