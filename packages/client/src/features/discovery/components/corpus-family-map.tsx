@@ -85,8 +85,24 @@ const GLOW =
 // asked — the labeller's, server-side; a family grouped by its members' missing art must never be called
 // "melancholic fantasy", and this component no longer has an opinion about it at all.)
 
+/**
+ * How many member names the gloss NAMES before it counts the rest (side-eye se-verify-4 N7).
+ *
+ * The gloss joined EVERY member and let `truncate` cut it, which on the populated library ellipsised
+ * mid-name on 8 of 8 plates — a column of ragged "… · Ael…" tails where the last name is always a
+ * fragment. An ellipsis is only honest when what it cut is unknowable; here the count is right there, so
+ * the line can end at a name boundary and say exactly how many it did not name. Two is what fits the
+ * 16rem plate floor's ~150px text column beside the census clause; the plate is not the place a full roster
+ * is read (the Archetypes tab is), and the CT pins the boundary rather than the number.
+ */
+const PLATE_NAME_CAP = 2;
+
+/** The member run: a bounded, boundary-ending list — `Elara · Bram +19 more`, never a cut-off name. */
 function memberNames(family: VisualFamily): string {
-  return family.members.map((member) => member.name).join(" · ");
+  const names = family.members.map((member) => member.name);
+  const shown = names.slice(0, PLATE_NAME_CAP);
+  const hidden = family.size - shown.length;
+  return hidden > 0 ? `${shown.join(" · ")} +${hidden.toString()} more` : shown.join(" · ");
 }
 
 function plateGloss(family: VisualFamily): string {

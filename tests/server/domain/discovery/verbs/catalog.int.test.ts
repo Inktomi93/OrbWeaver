@@ -73,9 +73,15 @@ describe("catalog", () => {
     });
     // A foreign owner's card must not leak into the aggregate.
     await seedCard(db, { id: "cf", ownerId: other, genre: "romance", tags: ["cozy"] });
+    // OWNED BUT NOT DISTILLED — the base `totalDistilled` is out of (#535). Without a row like this the
+    // two totals are equal and the denominator claim is untested.
+    await seedCharacter(db, { id: "c4", ownerId: owner, name: "c4" });
+    await seedCharacter(db, { id: "cf2", ownerId: other, name: "cf2" });
 
     const cat = await svcFor(db).catalog(owner);
     expect(cat.totalDistilled).toBe(3);
+    // 3 distilled + 1 undistilled, owner-scoped: the foreign owner's two cards are excluded from both.
+    expect(cat.totalCharacters).toBe(4);
     expect(cat.genres).toEqual([
       { value: "fantasy", count: 2 },
       { value: "horror", count: 1 },

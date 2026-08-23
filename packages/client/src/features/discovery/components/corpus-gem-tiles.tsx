@@ -22,18 +22,31 @@
 // only step a feature can spell inside a control (`size` is an @orb/ui-internal axis the density A3 arm reds
 // at any feature call site, and `focal` is the ONE-per-surface promotion voice this shelf must not spend).
 //
-// THE BAR SITS OUTSIDE THE BUTTON AND IS DECORATION. `TrackBar` is aria-hidden by contract — its own header
-// states the law: "the value TEXT is the accessible datum; bars are decorative, never colour-alone meaning",
-// and the magnitude is already stated in the tile's gloss. The alternative, `Meter`, is `role="meter"` (bar-as-datum)
-// and would announce the same magnitude a second time inside a named control. RECEIPTED DEVIATION on its
-// tint: the mockup paints the bar with `--color-primary` mixed toward muted, and TrackBar's palette arms are
-// the CATEGORICAL track ramp (vitality green — a hue this surface does not otherwise contain, which is the
-// exact complaint its own `accent` comment records) or a semantic zone accent. `info` at the arm's rationed
-// 55% is the honest closest; painting primary would take a change inside the sealed `@orb/ui`.
+// ── THE BAR IS GONE, AND THAT REVERSES A RULING THIS FILE RECORDED (side-eye #536 residual, taken 2026-08-23
+//    with the orchestrator's authorization; BOTH texts are kept, per the house fork idiom) ─────────────────
+//   THE OLD RULING (kept, verbatim in substance): "THE BAR SITS OUTSIDE THE BUTTON AND IS DECORATION.
+//     `TrackBar` is aria-hidden by contract — its own header states the law: 'the value TEXT is the
+//     accessible datum; bars are decorative, never colour-alone meaning', and the magnitude is already
+//     stated in the tile's gloss. The alternative, `Meter`, is `role='meter'` (bar-as-datum) and would
+//     announce the same magnitude a second time inside a named control. RECEIPTED DEVIATION on its tint:
+//     the mockup paints the bar with `--color-primary` mixed toward muted, and TrackBar's palette arms are
+//     the CATEGORICAL track ramp (vitality green — a hue this surface does not otherwise contain) or a
+//     semantic zone accent; `info` at the arm's rationed 55% is the honest closest."
+//   WHAT REFUTED IT ([P2-2]/#536, twice, and the second pass is why it goes): the shelf RANKS by the
+//     conjunction volume × how-long-quiet and the bar MEASURED tokens returned, so on the audited library
+//     row 2 read left→right 567,106 · 597,739 · 629,696 — bars climbing DOWN a descending list. The first
+//     fix added a shelf-wide legend clause saying so in words. A chart that needs a sentence explaining why
+//     it disagrees with the list it is drawn on is not decoration that happens to be quiet; it is the one
+//     element on the shelf whose only available reading is wrong, and the apology is the tell.
+//   RESOLUTION: no bar. Nothing is LOST — `gemMagnitudes` already prints the tokens figure as the tile's own
+//     datum, in words, with its provenance ("~", "not recorded"), which is strictly more than a length ever
+//     said; and the ordinal added in the same pass is what makes the RANK visibly the datum. What goes with
+//     it is the legend clause, because it existed only to explain the bar. The old ruling's MECHANISM — the
+//     value text is the accessible datum, bars are never colour-alone meaning — is untouched and is in fact
+//     what makes the removal free.
 
 import { Button } from "@orb/ui/button";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
-import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -75,11 +88,6 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
     // nothing the readiness rail already covers in one place.
     return null;
   }
-  // The shelf's own top value sets the bar scale — these are relative investments within YOUR library, and
-  // there is no external maximum a tokens-returned total could be a fraction of. An UNRECORDED gem
-  // contributes nothing to the scale and draws no bar: a zero-length bar for "we don't know" would be the
-  // same lie the gloss just stopped telling, in a shape that cannot carry the word "unrecorded".
-  const topTokensOut = Math.max(...gems.map((gem) => (gem.tokensOutProvenance === "unrecorded" ? 0 : (gem.tokensOut ?? 0))), 1);
 
   return (
     <Section kicker="Invested, but quiet" level={2}>
@@ -88,17 +96,20 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
           term was a tie-break on an integer with no ties, so it never fired and the headline gem was the
           character played six hours ago. The verb now ranks the CONJUNCTION (volume × how long quiet), and
           this line says so in the shelf's own words. */}
-      {/* AND THE BARS SAY WHAT THEY MEASURE (side-eye corpus re-pass #2, P3-5). `TrackBar` is aria-hidden
-          decoration by contract, which settles the SCREEN-READER half and nothing else: on screen, twelve
-          unlabelled bars under twelve tiles were a chart with no key, and the only place their quantity was
-          named was inside each tile's own gloss line. One clause here keys all of them, which is where a
-          shelf-wide legend belongs — repeating it per tile would be the label the primitive refuses. */}
+      {/* THE LEGEND CLAUSE WENT WITH THE BARS (#536 residual — the header states the fork). It read "Bars
+          compare tokens returned, so they do not descend with the rank": a sentence whose whole job was to
+          explain why one element disagreed with the list it sat on. With no bar there is nothing to
+          reconcile, and what is left is the shelf's own ranking rule, stated once. */}
       {/* BOUNDED BY THE READING MEASURE (side-eye populated arm, [P3-1] / #536's line-length half). At the
           shipped 869px pane this line is the surface's widest prose and `design-audit` measured the page's
-          worst paragraph at 145 chars against the 65-75ch law. Nothing about the sentence changed — only
-          the column it sets in. */}
-      <Text className="max-w-(--reading-measure)" voice="gloss">
-        Lifetime totals per character — the most played, longest left alone. Bars compare tokens returned, so they do not descend with the rank.
+          worst paragraph at 145 chars against the 65-75ch law. */}
+      {/* AND IT READS AT THE PROSE STEP (side-eye se-verify-4 N9). It rendered at 10.5px — the footnote
+          register — while this component's own header records lifting the TILE gloss off exactly that step
+          because 10.5px was one of 17 `undersized-ui-text` findings. The same argument reaches a SENTENCE
+          the reader is meant to read: `prose` is the length statement that lifts the step to 13px without
+          leaving the gloss voice, which is the lever the tiles below already use. */}
+      <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
+        Lifetime totals per character — the most played, longest left alone.
       </Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
           needs real `listitem` CHILDREN or the cells are generic to AT and the list announces empty. */}
@@ -162,7 +173,6 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                 </Stack>
               </Row>
             </Button>
-            {gem.tokensOut === null || gem.tokensOutProvenance === "unrecorded" ? null : <TrackBar accent="info" max={topTokensOut} value={gem.tokensOut} />}
           </Stack>
         ))}
       </Grid>

@@ -29,6 +29,12 @@ const TRUNCATION_NOTE = /Showing the closest \d+ of \d+ pairs/;
 /** The two pair rows the door tests click, by their rendered face. */
 const CHARACTER_PAIR = /Freya ↔ Frida/;
 const CHAT_PAIR = /Ayami — Aug 18, 2025 \(3\) ↔ Ayami — Aug 19, 2025 \(4\)/;
+/** N8: the chat door's destination, in the accessible NAME rather than a hover-only `title`. */
+const CHAT_PAIR_DESTINATION = /opens Ayami — Aug 18, 2025 \(3\)/;
+/** #564: a pairwise row naming a clique member — the expansion the collapse deletes. */
+const CLIQUE_PAIR_ROW = /Card A ↔ Card/;
+/** …and the one near-identical pair that must NOT collapse (0.97 is not a transitive relation). */
+const SUB_IDENTICAL_PAIR = /Yuki ↔ Yuuna/;
 
 /** More edges than any cap, ranked so the head is predictable. Proportional to the audited 1,782. */
 const EDGE_COUNT = 120;
@@ -168,6 +174,34 @@ test("#554: a character pair row is a door that LANDS in Compare, pre-filled", a
   await expect(component.getByText("Redundancy:", { exact: false })).toBeVisible();
 });
 
+test("#563: the Compare pickers NAME a seeded pair that is off the catalog page", async ({ mount, page }) => {
+  // THE DEFECT, exactly: a Select resolves its trigger text out of the `items` it was handed, and this tab
+  // reads ONE page of `browseCharacters`. A pair seeded from a 313-card similarity list routinely is not in
+  // it, so both triggers printed raw ULIDs over a body that named the same two characters in words. The
+  // fixture is the page WITHOUT the pair — which is the only arm the old code could fail.
+  await routeTrpc(page, {
+    ...POPULATED,
+    "discovery.browseCharacters": {
+      items: [{ characterId: "character_someone_else", name: "Someone Else", avatarHash: null, genre: null, tone: null, elevatorPitch: null }],
+      nextCursor: null,
+      totalCount: 1,
+    },
+  });
+  const component = await mount(<CorpusSimilarityToCompareStory />);
+  await settled(page);
+
+  await component.getByRole("button", { name: CHARACTER_PAIR }).click();
+  // Barrier on the settled landing, then read the triggers.
+  await expect(component.getByRole("heading", { name: "Facet diff" })).toBeVisible();
+
+  const first = component.getByRole("combobox", { name: "First character" });
+  const second = component.getByRole("combobox", { name: "Second character" });
+  await expect(first, "the picker names the character, never its database key").toContainText("Freya");
+  await expect(second).toContainText("Frida");
+  await expect(first).not.toContainText("character_");
+  await expect(second).not.toContainText("character_");
+});
+
 test("#554: a chat pair row is a control too, and names the room it opens", async ({ mount, page }) => {
   await routeTrpc(page, POPULATED);
   const component = await mount(<CorpusSimilarityTabStory />);
@@ -177,6 +211,37 @@ test("#554: a chat pair row is a control too, and names the room it opens", asyn
   // now inside a control instead of beside one.
   const row = component.getByRole("button", { name: CHAT_PAIR });
   await expect(row).toBeVisible();
-  await expect(row, "the badge and the score ride the accessible name, so the row speaks its own finding").toContainText("forked");
-  await expect(row).toHaveAttribute("title", "Opens Ayami — Aug 18, 2025 (3)");
+  await expect(row, "the badge and the score ride the visible face, so the row shows its own finding").toContainText("forked");
+  // N8: the destination used to live in a `title` tooltip — invisible to touch, to keyboard, and to a
+  // screen reader announcing the button's content. It is in the accessible NAME now, and the section says
+  // the rule once above the rows.
+  await expect(row).toHaveAccessibleName(CHAT_PAIR_DESTINATION);
+  await expect(component.getByText("opening a pair opens the first of the two chats", { exact: false })).toBeVisible();
+});
+
+test("#564: an identical-art clique is ONE finding, not C(n,2) pairwise rows", async ({ mount, page }) => {
+  // The audited section drew 82 rows / 3,572px because twelve cards sharing a placeholder portrait expand
+  // to 66 pairs at 100%. Four cards is the same defect at a size a fixture can state: C(4,2) = 6 rows.
+  const clique = ["a", "b", "c", "d"];
+  const cliquePairs = clique.flatMap((left, index) =>
+    clique.slice(index + 1).map((right) => ({
+      characterIdA: `character_${left}`,
+      nameA: `Card ${left.toUpperCase()}`,
+      characterIdB: `character_${right}`,
+      nameB: `Card ${right.toUpperCase()}`,
+      similarity: 1,
+    })),
+  );
+  await routeTrpc(page, { ...POPULATED, "discovery.imageDuplicates": [...cliquePairs, ...DUP_ART] });
+  const component = await mount(<CorpusSimilarityTabStory />);
+  await settled(page);
+
+  // ONE row states the group…
+  await expect(component.getByText("4 cards share this portrait")).toBeVisible();
+  // …and the six pairwise rows it replaced are gone: no ↔ row mentions a clique member.
+  await expect(component.getByRole("button", { name: CLIQUE_PAIR_ROW })).toHaveCount(0);
+  // …while every member stays reachable as its own door.
+  await expect(component.getByRole("button", { name: "Card D", exact: true })).toBeVisible();
+  // The unrelated sub-identical pair is untouched — that relation is not transitive and never collapses.
+  await expect(component.getByRole("button", { name: SUB_IDENTICAL_PAIR })).toBeVisible();
 });

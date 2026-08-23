@@ -7,6 +7,7 @@
 
 import {
   chartLabelWithDenominator,
+  chartSpread,
   disambiguateLabels,
   toBarItems,
   toGenreSeries,
@@ -133,4 +134,16 @@ test("chartLabelWithDenominator states the truncation, and says nothing when not
   // Defensive only in the sense that a caller passing a head LONGER than its total is a bug we must not
   // dress up as a truncation — `>=` is what keeps the honest arm honest.
   expect(chartLabelWithDenominator("Busiest routes", 12, 3, "routes")).toBe("Busiest routes");
+});
+
+test("chartSpread states a flat series' range, which is the whole of the N5 ruling", () => {
+  // The audited keyword head ran 6 down to 4 — every bar 67-100% of its track. The chart is accurate and
+  // reads as broken, so the label carries the ground it covers.
+  expect(chartSpread([6, 5, 5, 4], "uses")).toBe("6–4 uses");
+  // A genuinely flat series says so in words rather than printing "4–4".
+  expect(chartSpread([4, 4, 4], "uses")).toBe("4 uses each");
+  // No rows means no chart; the caller never renders one, and the clause has nothing to state.
+  expect(chartSpread([], "uses")).toBe("");
+  // Order-independent: it is a property of the series, not of the sort the caller happened to apply.
+  expect(chartSpread([2, 90, 30], "generations")).toBe("90–2 generations");
 });

@@ -115,22 +115,43 @@ export function CorpusNeverPlayedSection({
   );
 }
 
-/** The section's summary sentence: what the library actually did, and how far the cost column reaches.
- *  Separated from the component because it is the [P1-1] claim in one place — a coverage statement that
- *  drifts from the series beside it is the defect wearing a caption. */
+/**
+ * The section's summary sentence: what the library actually did, and how far the cost column reaches.
+ * Separated from the component because it is the [P1-1] claim in one place — a coverage statement that
+ * drifts from the series beside it is the defect wearing a caption.
+ *
+ * THE COST CLAUSE NAMES WHAT IT IS ABOUT, OR IT IS NOT SAID (side-eye se-verify-4 N6). It read "cost
+ * recorded for 1 of 142 routes" — true, and a dead end: the chart draws the twelve BUSIEST routes, the one
+ * priced route is nowhere near that head on a local-model library, so the sentence pointed at a row the
+ * surface never shows and no control on the page could reach. Two arms, and both are taken where they
+ * apply. When nothing is priced the clause is DROPPED (a coverage statement about an empty column is a
+ * sentence about nothing). When something is priced the clause carries the money — the total, and the
+ * route's own name while there is exactly one — so the reader meets the datum the clause is about instead
+ * of a promise that it exists somewhere.
+ */
 function economicsSummary(routes: readonly ModelRoute[]): string {
   const generations = routes.reduce((total, route) => total + route.generations, 0);
   const tokens = routes.reduce((total, route) => total + (route.tokensOut ?? 0), 0);
   const models = new Set(routes.map((route) => route.model)).size;
-  const priced = routes.filter((route) => route.costUsd !== null && route.costUsd > 0).length;
   const estimated = routes.some((route) => route.tokensOutProvenance === "estimated");
   return [
     `${formatCount(generations)} generations across ${formatCount(models)} models`,
     `${estimated ? "~" : ""}${formatCount(tokens)} tokens returned`,
-    // THE SPARSE METRIC STATES ITS REACH INSTEAD OF GATING THE SECTION. "Cost recorded for 1 of 142
-    // routes" is a fact about the accounting; "$0.08" alone was a claim about the library.
-    `cost recorded for ${formatCount(priced)} of ${formatCount(routes.length)} routes`,
+    ...costClause(routes),
   ].join(" · ");
+}
+
+/** The cost coverage clause, or nothing at all — see {@link economicsSummary} for why "1 of 142" alone was
+ *  a dead end. Returned as a 0-or-1 array so the caller's `join` has no empty segment to leave behind. */
+function costClause(routes: readonly ModelRoute[]): string[] {
+  const priced = routes.filter((route) => route.costUsd !== null && route.costUsd > 0);
+  if (priced.length === 0) {
+    return [];
+  }
+  const total = priced.reduce((sum, route) => sum + (route.costUsd ?? 0), 0);
+  const reach = `${money(total)} recorded across ${formatCount(priced.length)} of ${formatCount(routes.length)} routes`;
+  const only = priced[0];
+  return priced.length === 1 && only !== undefined ? [`${reach} (${only.genre} → ${modelDisplayName(only.model)})`] : [reach];
 }
 
 /** A route's bar label: the route, with its dollar cost ANNOTATED when the accounting has one. The cost is
