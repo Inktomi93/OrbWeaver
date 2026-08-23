@@ -4,12 +4,11 @@
 // finding. Re-run it at the END of every density sweep stage and commit the SHRINK in the same commit —
 // a baseline that GROWS in a diff is a review-blocking defect, and the terminal state is `{}` + this file
 // and the baseline deleted.
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { densityFindings } from "../../gates/density-tier.ts";
+import { writeBudgetLedger } from "@orb/tooling/_shared/ratchet-rows";
+import { BASELINE_REL, densityFindings, loadBaseline } from "../../gates/density-tier.ts";
 import { getProject } from "../../lib/harness.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline density");
@@ -34,10 +33,10 @@ export function generateDensityBaseline(root: string): number {
     }
   }
 
-  const sorted = Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)));
+  // The COUNTS are re-derived; each row's DEBT-vs-RATIFIED class rides through from the committed ledger
+  // (#569) — a regenerate must never silently demote a ruling to backlog, or promote one.
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
-  const out = join(root, "tooling/src/verify/gates/density-tier.baseline.json");
-  writeFileSync(out, `${JSON.stringify(sorted, null, 2)}\n`);
-  process.stdout.write(`wrote ${Object.keys(sorted).length} files, ${total} violations → ${out}\n`);
+  const rows = writeBudgetLedger(root, BASELINE_REL, counts, loadBaseline(root));
+  process.stdout.write(`wrote ${rows} files, ${total} violations → ${BASELINE_REL}\n`);
   return EXIT.clean;
 }

@@ -32,6 +32,13 @@
 import type { BindingElement, CallExpression, Identifier, Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 
+/** The `duplicate-action-doors` RATCHET LEDGER's ONE path home. It lives HERE, beside the shared door
+ *  resolver, because BOTH consumers of "what is a door" need it: the gate reads its budgets, and the
+ *  `ast subset-callers` lens reads its RATIFIED rows to annotate a flagged subset as already-ruled (#569).
+ *  A tool cannot import another tool, so a second spelling in the lens would be the rename-death this repo
+ *  keeps paying for. */
+export const DOORS_BASELINE_REL = "tooling/src/verify/gates/duplicate-action-doors.baseline.json";
+
 /** The two TanStack Query spellings a tRPC mutation door takes in this client. */
 const MUTATION_MEMBERS = new Set(["mutationOptions", "useMutation"]);
 /** The ONE mutation factory (packages/client/src/data/create-entity-mutation.ts). */

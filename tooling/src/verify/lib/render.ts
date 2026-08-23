@@ -2,6 +2,7 @@
 // only `{file,line,column,token}`; the reason lives once on the gate descriptor. This reporter groups by
 // gate, prints the reason once as the group header, then lists all occurrences beneath it as clickable
 // `path.ts:line:col` jump-links — like grouped eslint/tsc output.
+import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import type { Finding, GateDescriptor } from "../contract/gate.ts";
 import type { GatePassResult, GateScan, PassResult, ToolError } from "../contract/pass.ts";
 import { isBlindScan } from "./pass.ts";
@@ -51,7 +52,9 @@ function scanSuffix(scan: GateScan, alarm: boolean): string {
     }
   }
   if (scan.admitted > 0) {
-    parts.push(`admitted-by-ratchet: ${scan.admitted}`);
+    // SPLIT BY CLASS (#569): a ratified admission is permanent by a recorded ruling / documented tool-FP —
+    // printing one undifferentiated number made every ledger read as burnable backlog.
+    parts.push(`admitted-by-ratchet: ${scan.admitted} ${formatSplit(scan.admitted - scan.admittedRatified, scan.admittedRatified)}`);
   }
   return `  ·  ${parts.join(" · ")}`;
 }
@@ -106,8 +109,10 @@ export function renderPass(result: PassResult, gatesByName: ReadonlyMap<string, 
   let violationTotal = 0;
   let blind = 0;
   let admittedTotal = 0;
+  let ratifiedTotal = 0;
   for (const g of result.gates) {
     admittedTotal += g.scan.admitted;
+    ratifiedTotal += g.scan.admittedRatified;
     const isBlind = alarm && isBlindScan(g.scan);
     blind += isBlind ? 1 : 0;
     violationTotal += isBlind ? 0 : g.findings.length;
@@ -124,7 +129,11 @@ export function renderPass(result: PassResult, gatesByName: ReadonlyMap<string, 
     out.push(`single-pass: ${result.toolErrors.length} tool error(s) — the checker is broken`);
   }
   if (admittedTotal > 0) {
-    out.push(`single-pass: ${admittedTotal} finding(s) admitted by ratchet baselines — declared debt, still a live population`);
+    // The DEBT half is the burnable population a board row can claim; the RATIFIED half is permanent by a
+    // recorded ruling or a documented tool false positive (`pnpm debt` lists both, separately).
+    out.push(
+      `single-pass: ${admittedTotal} finding(s) admitted by ratchet baselines ${formatSplit(admittedTotal - ratifiedTotal, ratifiedTotal)} — the debt half is a live population, the ratified half is ruled permanent`,
+    );
   }
   if (violationTotal > 0) {
     out.push(`single-pass: ${violationTotal} violation(s)`);

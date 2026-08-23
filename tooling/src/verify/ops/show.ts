@@ -19,6 +19,7 @@ import process from "node:process";
 import { reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:show");
@@ -38,6 +39,9 @@ interface GateScanView {
   readonly candidates: number;
   readonly scanned: number;
   readonly admitted: number;
+  /** The RATIFIED subset of `admitted` (#569). Absent in pre-#569 artifacts — read as 0, which renders the
+   *  whole admission as debt: the honest reading of an artifact written before the class existed. */
+  readonly admittedRatified?: number;
   readonly declared?: { readonly unit: string; readonly candidates: number; readonly scanned: number };
 }
 interface GateReport {
@@ -155,7 +159,8 @@ function scanNote(scan: GateScanView | undefined): string {
     parts.push(`${scan.declared.scanned}/${scan.declared.candidates} ${scan.declared.unit}s`);
   }
   if (scan.admitted > 0) {
-    parts.push(`admitted-by-ratchet: ${scan.admitted}`);
+    const ratified = scan.admittedRatified ?? 0;
+    parts.push(`admitted-by-ratchet: ${scan.admitted} ${formatSplit(scan.admitted - ratified, ratified)}`);
   }
   return ANSI.dim(`  ·  ${parts.join(" · ")}`);
 }
@@ -242,7 +247,8 @@ export function runShow(root: string, argv: readonly string[]): number {
     // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
     // carrying, and "green" was the only thing this line said until 2026-08-13 (Codex GA-H-02).
     const admitted = report.gates.reduce((n, g) => n + (g.scan?.admitted ?? 0), 0);
-    const debt = admitted > 0 ? ANSI.dim(` · ${admitted} finding(s) admitted by ratchet baselines`) : "";
+    const ratified = report.gates.reduce((n, g) => n + (g.scan?.admittedRatified ?? 0), 0);
+    const debt = admitted > 0 ? ANSI.dim(` · ${admitted} finding(s) admitted by ratchet baselines ${formatSplit(admitted - ratified, ratified)}`) : "";
     print(`${ANSI.green(`✓ check:structure passed — ${report.gates.length} gates, 0 violations`)}${debt}`);
     return EXIT.clean;
   }

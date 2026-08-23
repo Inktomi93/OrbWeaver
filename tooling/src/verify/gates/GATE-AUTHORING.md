@@ -281,6 +281,29 @@ An exemption is a promise. This is how the promise is written.
    `no-test-fabrication`, `suppressions`; the completed terminal-state walks are `gate-modernization`,
    `finding-overload-provenance` (2026-08-23), and `no-hardcoded-model-prose` (#578, 2026-08-23).
 
+**EVERY BASELINE ROW CARRIES A CLASS (#569, 2026-08-23).** A ratchet ledger is not automatically backlog:
+some of what it admits is PERMANENT because a recorded ruling or a documented tool false positive made it so.
+An undifferentiated count reads as "a glut of backlog" (owner), which is how a ruled decision gets
+re-litigated every sweep. The row shape and every reader of it live at ONE home,
+`tooling/src/_shared/ratchet-rows.ts`:
+
+- **The class is a PARTITION, never a stored label.** A row is `3` (a bare count — class DEBT, the default
+  spelling) or `{ "count": 3, "ratified": 3, "why": "…", "cite": ["<repo-relative path>", …] }`. `debt` is
+  the remainder; `classOf` reads back `debt` \| `ratified` \| `mixed`. A stored class beside a count is two
+  facts that can disagree — a partition cannot.
+- **RATIFIED owes a `why` AND a resolving `cite`, and the promise is two-sided.** `ratchet-row-integrity`
+  REDs a ratified row with no why, and REDs the STALE-WHY case: a cite naming a path that is no longer on
+  the tree. A ratification must not outlive what justified it.
+- **A DERIVED classification beats a declared one.** Where the class can be re-derived from the tree (the
+  `suppressions` rule table), the gate re-derives it every run and REDs a row whose declared partition the
+  tree does not earn — in EITHER direction. Then no hand-edit can mint permanence.
+- **The generator carries the class through a regenerate** (`writeBudgetLedger`): counts are re-derived,
+  rulings ride through. A regenerate that reset the class would erase the classification on its first shrink.
+- **Every consumer splits the number.** `ctx.scan({ admitted, admittedRatified })` (the ratified half is a
+  SUBSET, never a number beside it); the per-gate line and the single-pass footer print
+  `N (D debt · R ratified)`; `pnpm debt` lists burnable rows separately from ruled ones; a gate diagnostic
+  about a ratified row appends `classNote(row)` — the RULING, not remediation advice for a decided question.
+
 **BASELINES LIE WHEN THE MATCHER HAS BLIND SPOTS.** `ui-size-via-variant` declared its debt baseline terminal
 while 14 hits of its own incident class sat invisible — the matcher never stripped Tailwind's `!` important
 modifier (both spellings: `!size-6` AND `size-6!`). When a ratchet reaches zero, RE-DERIVE the matcher's blind
