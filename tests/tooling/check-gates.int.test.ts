@@ -971,10 +971,9 @@ function writeFixtures(): void {
   // gate-modernization ARM A: a module in the gate corpus that exports no `gate` descriptor. The loader
   // SKIPS such a file (`mod.gate === undefined ⇒ continue`), so it enforces nothing forever with no signal
   // — the exact hole arm A closes. This is the ONE arm a throwaway file can drive: arm B needs a real
-  // one-sided exemption table (planting one would ALSO have to defeat the committed handoff baseline) and
-  // arm C needs a real doc whose §-anchor is missing. Both of those are proven by the gate's own conformance
-  // mustFlag rows + its three live catches at mint. The fixture leaves the real corpus untouched, so the
-  // baseline's stale-row arm keeps judging the REAL 16 tables.
+  // one-sided exemption table and arm C needs a real doc whose §-anchor is missing. Both of those are
+  // proven by the gate's own conformance mustFlag rows + its three live catches at mint. The fixture
+  // leaves the real corpus untouched (the handoff baseline and its reader are both gone — §4.8 terminal).
   // no-hardcoded-model-prose: a fresh ≥12-word model-facing teach authored at a SEAM (rpg substrate) — a
   // new file has no baseline budget, so the slot-that-escaped-the-registry shape reds immediately.
   fx(

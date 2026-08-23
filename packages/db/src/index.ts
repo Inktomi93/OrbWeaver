@@ -14,12 +14,13 @@
 // tables + the client.
 
 // The client + lifecycle (Db, createDb, the migration/integrity/backup/housekeeping helpers, LibSqlWrap).
-export type { BaselineCheck, Db, LibSqlWrap, ReadOnlyDb } from "./client/index.ts";
+export type { BaselineCheck, Db, DevDbResetForecast, LibSqlWrap, ReadOnlyDb } from "./client/index.ts";
 export {
   assertReferentialIntegrity,
   backupBeforeMigrate,
   checkBaseline,
   createDb,
+  forecastDevDbReset,
   hasPendingMigrations,
   localPath,
   optimizeDb,

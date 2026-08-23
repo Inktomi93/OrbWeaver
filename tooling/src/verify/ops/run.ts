@@ -121,6 +121,22 @@ function failureExcerpt(output: string): string {
   return lines.slice(-EXCERPT_LINES).join("\n");
 }
 
+/** The opt-in marker a stage prints to have a line SEEN on a green run (contract/stage.ts `notices`). */
+const NOTICE_MARKER = "[verify-notice]";
+
+/** Lift every `[verify-notice] …` line out of a stage's transcript. A green stage's output otherwise
+ *  reaches nobody — it lands in reports/verify/<stage>.log and the console shows one ✓ line. */
+export function noticesIn(output: string): string[] {
+  const out: string[] = [];
+  for (const line of output.split("\n")) {
+    const at = line.indexOf(NOTICE_MARKER);
+    if (at !== -1) {
+      out.push(line.slice(at + NOTICE_MARKER.length).trim());
+    }
+  }
+  return out;
+}
+
 async function runOneStage(root: string, stage: StageDef, selection: Selection | undefined, verbose: boolean): Promise<StageResult> {
   const plan = planStage(stage, selection);
   if (plan.mode === "deferred" || plan.mode === "skipped") {
@@ -134,6 +150,7 @@ async function runOneStage(root: string, stage: StageDef, selection: Selection |
       logFile: null,
       failureExcerpt: null,
       runsAt: plan.runsAt,
+      notices: [],
     };
   }
   const argv = plan.argv as readonly [string, ...string[]];
@@ -173,6 +190,7 @@ async function runOneStage(root: string, stage: StageDef, selection: Selection |
     logFile,
     failureExcerpt: null,
     runsAt: null,
+    notices: [],
   });
   // In compact mode, emit the per-stage ✓/✗ line the instant the stage finishes — the reader watches
   // progress accrue without the full output. (Verbose already streamed it; the summary block repeats it.)
@@ -189,6 +207,7 @@ async function runOneStage(root: string, stage: StageDef, selection: Selection |
     logFile,
     failureExcerpt: ok ? null : failureExcerpt(body),
     runsAt: null,
+    notices: noticesIn(body),
   };
 }
 
@@ -230,6 +249,7 @@ async function runTier(root: string, parsed: Parsed): Promise<VerifyReport> {
         logFile: null,
         failureExcerpt: null,
         runsAt: plan.runsAt,
+        notices: [],
       });
       continue;
     }
