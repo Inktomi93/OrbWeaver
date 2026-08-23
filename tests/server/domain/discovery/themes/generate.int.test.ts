@@ -86,6 +86,10 @@ describe("computeThemes", () => {
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
     const stats = await svc.computeThemes({ k: 1 });
     expect(stats.clustersWritten).toBe(0);
+    // The two counts are DIFFERENT facts and the caller's refusal branch reads the second (issue #558):
+    // digests exist, so "run the memory backfill" is the wrong sentence — none of them is a SOLO digest.
+    expect(stats.digestsRead).toBe(2);
+    expect(stats.soloDigestsRead).toBe(0);
   });
 
   test("content-collapse: identical-hash digests cluster as one rep but size + assignment count ALL (esoteric #3)", async () => {
@@ -196,7 +200,7 @@ describe("computeThemes", () => {
 
     const stats = await svc.computeThemes({ k: 2 });
 
-    expect(stats).toMatchObject({ ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: 0 });
+    expect(stats).toMatchObject({ ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: 0, soloDigestsRead: 0 });
     expect(summarize.calls).toHaveLength(0);
   });
 });

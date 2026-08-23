@@ -67,10 +67,14 @@ export interface ThemeComputeStats {
   readonly ownersProcessed: number;
   readonly clustersWritten: number;
   readonly digestsAssigned: number;
-  /** Memory digests the pass READ (its actual input plane), group rooms included. `0` is the pass's refusal
-   *  signal — the caller turns it into a stated "no digests" result rather than a 0-written success, and the
-   *  pass itself skips the atomic replace so nothing existing is destroyed (issue #166). */
+  /** Memory digests the pass READ, group rooms included. `0` is the pass's refusal signal — the caller turns
+   *  it into a stated "no digests" result rather than a 0-written success, and the pass itself skips the
+   *  atomic replace so nothing existing is destroyed (issue #166). */
   readonly digestsRead: number;
+  /** Of those, the SOLO digests — the pass's ACTUAL input plane (group-room digests belong to the synthetic
+   *  group character and are excluded before k-means). `0` with `digestsRead > 0` is its own refusal, and a
+   *  DIFFERENT one: the backfill has already run, so the fix is not to run it again (issue #558). */
+  readonly soloDigestsRead: number;
 }
 
 // ── distill (character summaries + staged tag suggestions) ───────────────────────────
@@ -211,6 +215,10 @@ export interface KeywordCount {
 /** The `computeCooccurrence` recompute summary. */
 export interface CooccurrenceStats {
   readonly ownersProcessed: number;
+  /** Tier-0 memory digests the pass READ — its input plane, and the same one `compute-themes` reads. `0` is
+   *  the refusal signal the caller turns into a stated "no digests" result instead of a 0-written success
+   *  (issue #558; the honest-accounting family of #166). */
+  readonly digestsRead: number;
   readonly pairsWritten: number;
   readonly charKeywordsWritten: number;
   readonly hubTokensDropped: number;

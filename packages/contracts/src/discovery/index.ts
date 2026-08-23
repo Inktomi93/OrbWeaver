@@ -102,9 +102,12 @@ export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkload
  * crossing the wire.
  *
  * `no-digests` — the input plane is empty: memory has never been backfilled (or memory is disabled).
+ * `no-solo-digests` — digests EXIST but every one belongs to a group room, and the theme passes cluster solo
+ *   digests only (a group room's digests belong to the synthetic group character). "Run the backfill" is the
+ *   wrong sentence there — it already ran (issue #558).
  * `no-cards` — the owner's library has nothing to read yet.
  */
-export const ANALYTICS_EMPTY_REASONS = ["no-digests", "no-cards"] as const;
+export const ANALYTICS_EMPTY_REASONS = ["no-digests", "no-solo-digests", "no-cards"] as const;
 export type AnalyticsEmptyReason = (typeof ANALYTICS_EMPTY_REASONS)[number];
 
 /** What every discovery analytics pass reports: rows examined, rows written, and — when it wrote nothing

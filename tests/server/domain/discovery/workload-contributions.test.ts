@@ -25,15 +25,16 @@ type Contributions = ReturnType<typeof createDiscoveryWorkloadContributions>;
 
 /** A fake discovery service — every verb a `vi.fn` returning the domain's RICHER stats shape, so a test
  *  asserts the contribution's projection down to `AnalyticsResult`, not a pass-through. */
-function fakeDiscovery(distill: DistillOverride = {}, themes: ThemesOverride = {}): Discovery {
+function fakeDiscovery(distill: DistillOverride = {}, themes: ThemesOverride = {}, cooccurrence: CooccurrenceOverride = {}): Discovery {
   // The contributions read ONLY the counts fields off each verb's stats — a full DiscoveryService factory
   // FABRICATION-OK: would state far more than these five run bodies touch.
   return {
-    // `digestsRead` is the pass's REFUSAL signal (issue #166) — the contribution branches on it, so the fake
-    // has to carry it or every test here silently exercises the `undefined` path.
-    computeThemes: vi.fn(async () => ({ digestsAssigned: 10, clustersWritten: 5, digestsRead: 10, ...themes })),
+    // `digestsRead`/`soloDigestsRead` are the pass's REFUSAL signals (issue #166, widened by #558) — the
+    // contribution branches on them, so the fake has to carry them or every test here silently exercises the
+    // `undefined` path.
+    computeThemes: vi.fn(async () => ({ digestsAssigned: 10, clustersWritten: 5, digestsRead: 10, soloDigestsRead: 10, ...themes })),
     distillCharacters: vi.fn(async () => ({ scanned: 8, distilled: 8, failed: 0, skipped: 0, tagsStaged: 0, ...distill })),
-    computeCooccurrence: vi.fn(async () => ({ charKeywordsWritten: 6, pairsWritten: 4 })),
+    computeCooccurrence: vi.fn(async () => ({ charKeywordsWritten: 6, pairsWritten: 4, digestsRead: 20, ...cooccurrence })),
     computeDuplicatePairs: vi.fn(async () => ({ charactersScanned: 7, pairsWritten: 1 })),
     computeChatDuplicatePairs: vi.fn(async () => ({ chatsScanned: 2, pairsWritten: 0 })),
     computeCharacterHubScores: vi.fn(async () => ({ rowsScored: 7 })),
@@ -44,8 +45,13 @@ function fakeDiscovery(distill: DistillOverride = {}, themes: ThemesOverride = {
  *  reads — a skipped/name-only card has no other reader). */
 type DistillOverride = Partial<{ scanned: number; distilled: number; failed: number; skipped: number; tagsStaged: number }>;
 
-/** The theme stats a test wants the fake pass to report — `digestsRead: 0` is the digest-less corpus. */
-type ThemesOverride = Partial<{ digestsAssigned: number; clustersWritten: number; digestsRead: number }>;
+/** The theme stats a test wants the fake pass to report — `digestsRead: 0` is the digest-less corpus, and
+ *  `soloDigestsRead: 0` with digests present is the group-rooms-only corpus (the pass clusters SOLO digests). */
+type ThemesOverride = Partial<{ digestsAssigned: number; clustersWritten: number; digestsRead: number; soloDigestsRead: number }>;
+
+/** The cooccurrence stats a test wants the fake pass to report — `digestsRead: 0` is the digest-less corpus
+ *  (the same input plane as compute-themes: tier-0 memory digests). */
+type CooccurrenceOverride = Partial<{ charKeywordsWritten: number; pairsWritten: number; digestsRead: number }>;
 
 /** One recorded terminal-fan emit (the `corpusRecomputed` freshness plane). */
 interface UserEventCall {
@@ -60,8 +66,9 @@ function build(
   settings: UserSettings = DEFAULT_USER_SETTINGS,
   distill: DistillOverride = {},
   themes: ThemesOverride = {},
+  cooccurrence: CooccurrenceOverride = {},
 ): { readonly discovery: Discovery; readonly contributions: Contributions; readonly userEvents: UserEventCall[] } {
-  const discovery = fakeDiscovery(distill, themes);
+  const discovery = fakeDiscovery(distill, themes, cooccurrence);
   const userEvents: UserEventCall[] = [];
   const contributions = createDiscoveryWorkloadContributions({
     discovery,
@@ -123,6 +130,25 @@ describe("compute-themes", () => {
     const { contributions } = build();
     expect(await contributions[0].run(ctx, {}, vi.fn(), sig())).toEqual({ scanned: 10, written: 5 });
   });
+
+  // ── issue #558: the refusal signal is the SOLO plane, not "any digest at all" ──────────────────────
+  test("GROUP-ROOMS ONLY: digests exist but none are solo — the result STATES that, not a bare success", async () => {
+    // The pass clusters SOLO digests (group-room digests belong to the synthetic group character, so
+    // `generate.ts` filters them out before k-means). Keying the refusal on `digestsRead` alone therefore
+    // left one live shape reporting `{scanned: 0, written: 0}` under a green Succeeded — the exact zero
+    // that #166 exists to kill, one input plane over.
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsRead: 12, soloDigestsRead: 0, digestsAssigned: 0, clustersWritten: 0 });
+    const result = await contributions[0].run(ctx, {}, vi.fn(), sig());
+    expect(result).toEqual({ scanned: 0, written: 0, emptyReason: "no-solo-digests" });
+  });
+
+  test("GROUP-ROOMS ONLY: the progress line names the SOLO requirement, not the backfill", async () => {
+    // A backfill has already run here — telling the user to run it again is the wrong fix sentence.
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsRead: 12, soloDigestsRead: 0, digestsAssigned: 0, clustersWritten: 0 });
+    const report = vi.fn();
+    await contributions[0].run(ctx, {}, report, sig());
+    expect(report).toHaveBeenCalledWith({ message: "only group-room digests to cluster — story themes come from solo chats" });
+  });
 });
 
 describe("distill-characters", () => {
@@ -180,6 +206,28 @@ describe("compute-cooccurrence", () => {
     const arg = vi.mocked(discovery.computeCooccurrence).mock.calls[0]?.[0];
     expect(arg).not.toHaveProperty("maxPairs");
     expect(arg).not.toHaveProperty("hubFraction");
+  });
+
+  // ── issue #558: cooccurrence reads the SAME memory-digest plane as compute-themes ─────────────────
+  test("NO DIGESTS: the result carries `emptyReason`, not a bare 0-written success", async () => {
+    // Keyword cooccurrence tallies tier-0 memory digests. With none, every counter is legitimately zero and
+    // the run console rendered "0 rows · 0 written" under a green Succeeded — a pass whose input does not
+    // exist yet, indistinguishable from one that ran and changed nothing.
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, {}, { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 0 });
+    const result = await contributions[2].run(ctx, {}, vi.fn(), sig());
+    expect(result).toEqual({ scanned: 0, written: 0, emptyReason: "no-digests" });
+  });
+
+  test("NO DIGESTS: the progress line names the fix", async () => {
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, {}, { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 0 });
+    const report = vi.fn();
+    await contributions[2].run(ctx, {}, report, sig());
+    expect(report).toHaveBeenCalledWith({ message: "no memory digests to tally — run the memory backfill first" });
+  });
+
+  test("a real run carries NO emptyReason — a zero-change tally is not a refusal", async () => {
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, {}, { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 20 });
+    expect(await contributions[2].run(ctx, {}, vi.fn(), sig())).toEqual({ scanned: 0, written: 0 });
   });
 });
 

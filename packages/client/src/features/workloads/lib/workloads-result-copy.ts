@@ -78,6 +78,9 @@ const indexSummary: WorkloadResultRenderer<"index"> = (result) =>
  */
 const ANALYTICS_EMPTY_COPY: Record<AnalyticsEmptyReason, string> = {
   "no-digests": "No memory digests to read — run the memory backfill first",
+  // A SEPARATE sentence, not a variant of the one above: the backfill has already run here, so repeating its
+  // instruction would send the user to a job that changes nothing (issue #558).
+  "no-solo-digests": "Only group-room digests to read — story themes come from solo chats",
   "no-cards": "No characters to read yet",
 };
 
