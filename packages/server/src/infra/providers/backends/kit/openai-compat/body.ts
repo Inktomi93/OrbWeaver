@@ -51,7 +51,6 @@ const MIN_SCRUBBABLE_SECRET_LEN = 8;
  * broadest server compatibility; a user can override the name via their endpoint's body transforms.
  */
 export function buildOpenAiSamplingFields(input: OpenAiSamplingInput): Record<string, unknown> {
-  // biome-ignore-start lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
   return {
     ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
     ...(input.topP !== undefined ? { top_p: input.topP } : {}),
@@ -66,7 +65,6 @@ export function buildOpenAiSamplingFields(input: OpenAiSamplingInput): Record<st
     ...(input.stop !== undefined ? { stop: input.stop } : {}),
     ...(input.maxTokens !== undefined ? { max_tokens: input.maxTokens } : {}),
   };
-  // biome-ignore-end lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
 }
 
 // ── The D48 raw-wire builders (tool-use-design/02 §4 / 04 §3 — custom-byo + vLLM share these) ──────

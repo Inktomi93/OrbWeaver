@@ -95,7 +95,6 @@ export const WORKLOAD_STATUS_LABELS: Record<WorkloadStatus, string> = {
   succeeded: "Succeeded",
   failed: "Failed",
   cancelled: "Cancelled",
-  // biome-ignore lint/style/useNamingConvention: the key IS the canonical D34 wire status member (`worker_died`, @orb/contracts/workloads) — a camelCase respell would break the exhaustive Record.
   worker_died: "Worker died",
 };
 
@@ -107,7 +106,6 @@ export const WORKLOAD_STATUS_INTENT: Record<WorkloadStatus, NonNullable<BadgePro
   succeeded: "success",
   failed: "danger",
   cancelled: "neutral",
-  // biome-ignore lint/style/useNamingConvention: the key IS the canonical D34 wire status member (`worker_died`, @orb/contracts/workloads) — a camelCase respell would break the exhaustive Record.
   worker_died: "danger",
 };
 

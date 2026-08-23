@@ -49,19 +49,13 @@ import { requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileVi
 import { RefineryChip } from "../components/refinery-chip.tsx";
 
 const VERDICT_TONE: Record<string, RenderHintTone> = {
-  // biome-ignore lint/style/useNamingConvention: the key IS the canonical wire verdict member (`REFINERY_VERDICTS`, @orb/contracts/refinery) — a camelCase respell would break the lookup.
   ACCEPT: "good",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   NEEDS_REFINEMENT: "warn",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   REGRESSION: "bad",
 };
 const VERDICT_WORD: Record<string, string> = {
-  // biome-ignore lint/style/useNamingConvention: the key IS the canonical wire verdict member (`REFINERY_VERDICTS`, @orb/contracts/refinery) — a camelCase respell would break the lookup.
   ACCEPT: "Accept",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   NEEDS_REFINEMENT: "Needs refinement",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   REGRESSION: "Regression",
 };
 

@@ -33,11 +33,8 @@ type SnapshotList = inferOutput<Trpc["character"]["listSnapshots"]>;
 
 const STAGE_TONE: Record<RefineryStage, RenderHintTone> = { score: "info", rewrite: "neutral", analyze: "warn" };
 const VERDICT_TONE: Record<string, RenderHintTone> = {
-  // biome-ignore lint/style/useNamingConvention: the key IS the canonical wire verdict member (`REFINERY_VERDICTS`, @orb/contracts/refinery) — a camelCase respell would break the lookup.
   ACCEPT: "good",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   NEEDS_REFINEMENT: "warn",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   REGRESSION: "bad",
 };
 const MS_PER_SECOND = 1000;

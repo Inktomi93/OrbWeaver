@@ -50,11 +50,9 @@ export function toImageryTemplatesPatch(values: ImageryTemplatesForm): Record<st
       scenario: fieldPatch(values.scenario),
       background: fieldPatch(values.background),
     },
-    // biome-ignore-start lint/style/useNamingConvention: the keys ARE the snake_case PROMPT_TEMPLATE_MODES literals (the wire vocabulary).
     captions: {
       character_multimodal: fieldPatch(values.characterMultimodal),
       face_multimodal: fieldPatch(values.faceMultimodal),
     },
-    // biome-ignore-end lint/style/useNamingConvention: see start marker
   };
 }
