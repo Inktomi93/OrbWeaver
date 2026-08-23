@@ -53,6 +53,7 @@ test("test-mirror: the `type` column accepts EXACTLY the contract union members"
   // Derive the canonical discriminant set from the closed union (the column's one home). A structural
   // cast reads each member's `type` literal without depending on zod's internal option typing.
   const unionTypes = notificationEventSchema.options
+    // FABRICATION-OK: reaches into zod's internal discriminated-union option shape — no typed accessor exists for this introspection.
     .map((member) => (member as unknown as { shape: { type: { value: NotificationType } } }).shape.type.value)
     .sort();
   expect(unionTypes).toEqual(["automation-notice", "deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked", "plugin-disabled"]);
@@ -81,6 +82,7 @@ test("notifications type CHECK rejects an out-of-union value", async () => {
     await db.insert(notifications).values({
       id: castId<NotificationId>("notification_badtype"),
       recipientUserId: userId,
+      // FABRICATION-OK: the invalid-input probe THIS test asserts the CHECK constraint rejects.
       type: "credential-leak" as unknown as NotificationEvent["type"],
       payload: inviteEvent(userId),
       seq: 1,
