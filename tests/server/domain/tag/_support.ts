@@ -127,6 +127,7 @@ export async function seedPreset(db: Db, ownerId: UserId, id = "preset_x"): Prom
     ownerId,
     name: id,
     kind: "roleplay",
+    // FABRICATION-OK: the tag tests only exercise the preset's tag-junction rows; config is opaque here.
     config: {} as unknown as PromptConfig,
   });
   return presetId;

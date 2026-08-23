@@ -65,6 +65,7 @@ describe("toPresetDetail (lenient parse seam)", () => {
   });
 
   test("a garbage params blob is bounded to {} while sections survive (the .catch({}) bound)", () => {
+    // FABRICATION-OK: deliberate corrupt-params probe of the lenient parse-seam bound.
     const corruptParams = {
       ...DEFAULT_PROMPT_CONFIG,
       params: { quality: "definitely-not-a-quality" },

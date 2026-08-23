@@ -26,6 +26,7 @@ const CAPABILITY: ModelCapability = {
   context: { window: 200_000 },
 };
 
+// FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",

@@ -172,6 +172,7 @@ test("deleting a character CASCADEs its snapshots and persona junctions", async 
   await db.insert(characterSnapshots).values({
     id: castId<CharacterSnapshotId>("character_snapshot_cascade"),
     characterId,
+    // FABRICATION-OK: the cascade-delete assertion below only checks the snapshot row disappears; content is opaque JSON here.
     content: { name: "snap" } as unknown as CharacterCard,
   });
 

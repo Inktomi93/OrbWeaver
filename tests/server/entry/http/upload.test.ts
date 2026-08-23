@@ -61,6 +61,7 @@ function uploadChains(deps: UploadDeps): Map<string, Handler[]> {
       return app;
     },
   };
+  // FABRICATION-OK: minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here.
   registerUpload(app as unknown as Parameters<typeof registerUpload>[0], deps);
   return routes;
 }

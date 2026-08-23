@@ -90,7 +90,7 @@ function chatReq(overrides: Partial<VllmChatRequest> = {}): VllmChatRequest {
     systemPrompt: { static: "you are terse", dynamic: "" },
     history: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
     ...overrides,
-  } as VllmChatRequest;
+  } satisfies VllmChatRequest;
 }
 
 // The body-recording client the sampler/wire assertions share (each test reads `sent.body` after the turn).

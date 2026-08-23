@@ -34,6 +34,7 @@ const TIER_MODELS = {
 // The exact cowork bundle `tools:[]` does NOT remove — must be stripped on EVERY spawn (translate.ts).
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"];
 
+// FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one.
 const cred = (value: Record<string, unknown>): ResolvedCredential => value as unknown as ResolvedCredential;
 
 const OR_CRED = cred({ source: "openrouter", apiKey: OR_KEY, credentialId: null });
