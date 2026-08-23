@@ -178,9 +178,21 @@ test("PROSE GEOMETRY — an over-cap value scrolls inside a capped box, and the 
   expect(cardHeights.length).toBeGreaterThan(1);
   expect(Math.max(...cardHeights)).toBeLessThan(viewportHeight);
 
-  // THE COUNTER IS ON SCREEN WITH THE FIELD. The FIELD is what gets scrolled into view (never the counter —
-  // that would scroll the very thing under test into place), exactly as a host editing this override does.
-  await arbiter.scrollIntoViewIfNeeded();
+  // THE COUNTER IS ON SCREEN WITH THE FIELD. The FIELD is what gets scrolled (never the counter — that would
+  // scroll the very thing under test into place), exactly as a host editing this override does.
+  //
+  // `block: "start"` rather than `scrollIntoViewIfNeeded()` (2026-08-23): "if needed" is a NO-OP whenever the
+  // field alone already fits, so this assertion was never reading the CAP — it was reading the arbiter card's
+  // ABSOLUTE page position, which no one owns. Measured on the failure: the capped 248px box sat fully
+  // visible at y=407 in a 720px viewport, nothing scrolled, and the counter landed at y=725 — FIVE pixels
+  // under the fold, with every structural assertion above still passing (box 248px of 4500 chars' content,
+  // tallest card 415px of a 720px viewport). Any px of chrome drift anywhere above this card decided the
+  // verdict. Bringing the field's own top to the top of the scrollport is what a host reading this field
+  // has, and it is STRICTLY stronger than the old spelling: it always scrolls, so the pre-cap 2333px box
+  // puts this counter ~2400px down and fails just as hard, while a five-pixel drift cannot flip it.
+  await arbiter.evaluate((el: HTMLTextAreaElement) => {
+    el.scrollIntoView({ block: "start" });
+  });
   const counter = card.getByText(`${String(OVERLONG.length)}/${String(PROSE_MAX_CHARS)}`);
   await expect(counter).toBeInViewport();
   // …and it reads as the BLOCK it is (P3): a muted grey count beside a red refusal was the one number on the
