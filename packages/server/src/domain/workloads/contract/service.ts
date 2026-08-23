@@ -63,8 +63,11 @@ export interface WorkloadRunnerDeps {
  *    the grace window (a genuinely wedged run, or one whose worker died between boots).
  *  - `worker_restart` — the boot reclaim: single replica, so every in-flight row is orphaned BY DEFINITION
  *    and the threshold is 0. The lease is typically seconds old; calling that "stale" is the false sentence.
+ *  - `respawn_loop` — the boot reclaim's BOUND (#529/#543): a row of a resumable kind that boot has already
+ *    re-queued `MAX_BOOT_RESPAWNS` times without the run reporting any progress in between. It is the one
+ *    death the operator can act on (the job itself is looping), so it must not read as one unlucky respawn.
  */
-const WORKLOAD_REAP_REASONS = ["heartbeat_stale", "worker_restart"] as const;
+const WORKLOAD_REAP_REASONS = ["heartbeat_stale", "worker_restart", "respawn_loop"] as const;
 export type WorkloadReapReason = (typeof WORKLOAD_REAP_REASONS)[number];
 
 /** The orphan sweep's args. `reason` is REQUIRED: a new reap call site must declare which death it records,
@@ -76,6 +79,15 @@ export interface ReapWorkloadsArgs {
   /** Grace window before a lease counts as stale; the boot reclaim passes 0 (every in-flight row is orphaned). */
   readonly staleThresholdMs?: number;
   readonly reason: WorkloadReapReason;
+}
+
+/** What the single-replica BOOT reclaim did with the orphans it found (#529). Two counters, not one: a
+ *  re-queued row is work that SURVIVED the respawn, and a reaped one is work that was lost — collapsing them
+ *  into a single "reclaimed" number is exactly the log line that made three worker-kills in one day look
+ *  like routine boot noise. */
+export interface BootReclaimReport {
+  readonly requeued: number;
+  readonly reaped: number;
 }
 
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */
