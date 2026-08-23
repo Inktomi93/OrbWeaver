@@ -239,18 +239,50 @@ export function DatabankWorkspaceStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <DatabankSettingsProbe />
-        <div style={{ display: "flex", height: 700 }}>
-          <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
-            <DatabankLibrarySurface />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <DatabankDetailSurface />
-          </div>
-          <div style={{ flex: "none", width: 320 }}>
-            <DatabankContextBody />
-          </div>
-        </div>
+        <DatabankTriPane />
       </CtRealSectionRegistry>
     </CtDataProviders>
+  );
+}
+
+/** The same tri-pane PLUS the list-mode driver `DatabankDetailListModeStory` uses — for the pins that must
+ *  count what the three panes render on an EMPTY bank.
+ *
+ *  WHY A DRIVER IS NEEDED TO COUNT A STAND-DOWN: since #434 the CONTENT pane renders NOTHING on an empty
+ *  bank with the list on screen — and it also renders nothing while its `databank.bankHealth` census is in
+ *  flight. Those two states are indistinguishable in the DOM, so a census taken at boot can pass while the
+ *  pane is merely late, which is exactly the vacuous green the N-4 pin exists to prevent. Flipping the list
+ *  OFF screen makes the pane print its welcome (a POSITIVE settle — the census has landed), and flipping it
+ *  back returns the boot layout with that fact established. */
+export function DatabankWorkspaceListModeStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <DatabankSettingsProbe />
+        <button onClick={(): void => setFocusMode(true)} type="button">
+          take the list off screen
+        </button>
+        <button onClick={(): void => setFocusMode(false)} type="button">
+          put the list back
+        </button>
+        <DatabankTriPane />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function DatabankTriPane(): ReactElement {
+  return (
+    <div style={{ display: "flex", height: 700 }}>
+      <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
+        <DatabankLibrarySurface />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <DatabankDetailSurface />
+      </div>
+      <div style={{ flex: "none", width: 320 }}>
+        <DatabankContextBody />
+      </div>
+    </div>
   );
 }

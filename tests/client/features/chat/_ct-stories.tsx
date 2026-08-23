@@ -1635,7 +1635,7 @@ export function CommandPaletteSurfaceStory({ commands = "door" }: CommandPalette
 
 // ── Chat-room story (the composed transcript + composer pane) ────────────────────────────────────
 
-function ChatRoomHarness(): ReactElement {
+function ChatRoomHarness({ height = 480 }: { readonly height?: number | string } = {}): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const busDeps: ChatBusDeps = {
@@ -1643,7 +1643,7 @@ function ChatRoomHarness(): ReactElement {
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
   };
   return (
-    <div style={{ height: 480 }}>
+    <div style={{ height }}>
       <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       {/* The clear-on-send signal: simulates the bus observing the caller's OWN user-row
           `messageCommitted`. Driven directly rather than through the SSE stub because the signal itself is
@@ -1747,6 +1747,23 @@ export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }
         <div data-testid="room-pane" style={paneStyle}>
           <ChatRoomHarness />
         </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** THE PHONE STAGE (#511): the same room pane at the height the shell leaves it on a phone — the viewport
+ *  minus the topbar and the bottom tab bar, handed in by the test so the budget is stated, not assumed.
+ *
+ *  The pane is the whole width here because that is what the shell gives it on a phone (both side panels
+ *  resolve `collapsed` below the mobile breakpoint), so the cast strip, the transcript and the composer
+ *  compete for one column exactly as they do on the device. What this stage exists to measure is that
+ *  competition: the chrome above the transcript is a fixed tax and the transcript is whatever survives it. */
+export function ChatRoomPhoneStory({ paneHeight }: { readonly paneHeight: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <ChatRoomHarness height={paneHeight} />
       </SocketHost>
     </CtDataProviders>
   );
