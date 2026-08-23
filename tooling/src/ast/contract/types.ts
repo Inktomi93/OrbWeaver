@@ -203,14 +203,22 @@ export interface SubsetCallSite {
   readonly door: string | null;
 }
 
+/** ONE fire site whose VERB the door resolver refused — the node so the reader gets a `file:line`, and the
+ *  reason so "unjudged" is a shape to act on rather than a number to shrug at. A bare count was the lens's
+ *  own claim to NAME its refusals going unhonoured (#576). */
+export interface SubsetUnjudgedFire {
+  readonly node: Node;
+  readonly reason: string;
+}
+
 /** WHICH DOOR CLASSES THE WALK COULD JUDGE — the zero-hygiene half of a client-door verdict. `factories` is
  *  the blindness denominator (zero on a real corpus means the client-door arm never ran, never "no doors");
- *  `unresolvedFires` counts the `.mutate(…)` sites whose receiver level-1 resolution could not follow, ANY
+ *  `unjudgedFires` NAMES the `.mutate(…)`/bare-`mutate(…)` sites whose door resolution could not follow, ANY
  *  of which could be another door on the subject; `procedures` is the distinct set the matched doors
  *  resolved to, so a bare member name that pooled two different verbs is visible instead of silent. */
 export interface SubsetDoorCensus {
   readonly factories: number;
-  readonly unresolvedFires: number;
+  readonly unjudgedFires: readonly SubsetUnjudgedFire[];
   readonly procedures: readonly string[];
 }
 
