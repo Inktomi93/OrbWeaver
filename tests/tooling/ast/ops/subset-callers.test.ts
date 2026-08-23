@@ -285,8 +285,10 @@ describe("ast subset-callers lens (the CLIENT-door arm)", () => {
       "continueTurn",
     );
     expect(audit.sites).toHaveLength(1);
-    expect(audit.doors.unresolvedFires).toBe(1);
+    expect(audit.doors.unjudgedFires).toHaveLength(1);
     expect(audit.doors.factories).toBe(1);
+    // NAMED, not merely counted — a bare tally is a number a triage reader cannot act on.
+    expect(audit.doors.unjudgedFires[0]?.reason).toContain("level-1 resolution");
   });
 
   test("a client door under only DIRECT supersets is marked CROSS-CLASS — the #568 noise, not the #539 class", () => {
@@ -347,6 +349,185 @@ describe("ast subset-callers lens (the CLIENT-door arm)", () => {
       "generate",
     );
     expect(audit.sites).toHaveLength(0);
-    expect(audit.doors.unresolvedFires).toBe(1);
+    expect(audit.doors.unjudgedFires).toHaveLength(1);
+    expect(audit.doors.unjudgedFires[0]?.reason).toContain("declared more than once");
+  });
+});
+
+// The LEVEL-2 arm (#576) — the DESTRUCTURED door. `const { mutate } = useX()` fires a BARE `mutate(…)`:
+// it names neither a receiver nor a verb, so before this arm it matched no fire tail at all and never even
+// reached the refusal census — invisible, not merely unresolved. PLANTED CONTROLS BOTH DIRECTIONS again: a
+// destructured strict subset FLAGS, an aliased binding resolves through the same index, a same-payload pair
+// does NOT flag, and a binding that ESCAPES its file is UNJUDGED with the escape named — because whatever
+// fires it out of sight can pass any payload, and calling that "agreement" is the false clean this lens
+// exists to refuse.
+describe("ast subset-callers lens (the LEVEL-2 destructured-door arm)", () => {
+  test("THE #539 SHAPE ON DESTRUCTURED DOORS: two bare `mutate(…)` doors of one verb, one passing a subset", () => {
+    const audit = auditFor(
+      {
+        "packages/client/src/features/chat/hooks/use-guided-actions.ts":
+          `${factory("useGuidedGenerateMutation", "chat.generate")}export function useGuidedActions() {\n` +
+          "  const { mutate } = useGuidedGenerateMutation({ trpc, invalidation });\n" +
+          "  return { fireResponse: () => mutate({ chatId, guided, speakerCharacterId, responseNudge }) };\n}\n",
+        "packages/client/src/features/chat/components/speak-as-select.tsx":
+          `${factory("useSpeakAsMutation", "chat.generate")}export function SpeakAsSelect() {\n` +
+          "  const { mutate } = useSpeakAsMutation({ trpc, invalidation });\n" +
+          "  return () => mutate({ chatId, speakerCharacterId });\n}\n",
+      },
+      "generate",
+    );
+
+    expect(audit.sites).toHaveLength(2);
+    expect(audit.resolved).toBe(2);
+    expect(audit.findings).toHaveLength(1);
+    expect(audit.findings[0]?.site.keys).toEqual(["chatId", "speakerCharacterId"]);
+    expect(audit.findings[0]?.missing).toEqual(["guided", "responseNudge"]);
+    // The chain names the DESTRUCTURE it came through, so the hop stays auditable rather than asserted.
+    expect(audit.findings[0]?.site.door).toBe("`mutate` ← { mutate } ← useSpeakAsMutation → trpc.chat.generate");
+    expect(audit.doors.procedures).toEqual(["chat.generate"]);
+  });
+
+  test("an ALIASED destructure (`{ mutate: fire }`) resolves through the same index, under its local name", () => {
+    const audit = auditFor(
+      {
+        "packages/client/src/features/chat/a.ts":
+          `${factory("useA", "chat.generate")}export const A = () => {\n` +
+          "  const { mutate: fireResponse } = useA({ trpc });\n" +
+          "  return () => fireResponse({ chatId, guided });\n};\n",
+        "packages/client/src/features/chat/b.ts": `${factory("useB", "chat.generate")}export const B = () => {\n  const { mutateAsync: send } = useB({ trpc });\n  return () => send({ chatId });\n};\n`,
+      },
+      "generate",
+    );
+    expect(audit.resolved).toBe(2);
+    expect(flagged(audit)).toEqual(["chatId"]);
+    expect(audit.findings[0]?.site.door).toBe("`send` ← { mutateAsync } ← useB → trpc.chat.generate");
+  });
+
+  test("ONE IDENTIFIER HOP: `const i = useX(); const { mutateAsync } = i;` resolves — the tree's live spelling", () => {
+    const audit = auditFor(
+      {
+        "packages/client/src/features/credentials/components/endpoint-inspector-dialog.tsx":
+          `${factory("useInspectEndpoint", "credentials.inspectEndpoint")}export function Dialog() {\n` +
+          "  const inspect = useInspectEndpoint({ trpc, invalidation });\n" +
+          "  const { mutateAsync } = inspect;\n" +
+          "  return () => mutateAsync({ credentialId });\n}\n",
+        "packages/client/src/features/credentials/components/row.tsx":
+          `${factory("useRowInspect", "credentials.inspectEndpoint")}export function Row() {\n` +
+          "  const { mutateAsync } = useRowInspect({ trpc, invalidation });\n" +
+          "  return () => mutateAsync({ credentialId, label });\n}\n",
+      },
+      "inspectEndpoint",
+    );
+    expect(audit.resolved).toBe(2);
+    expect(audit.findings).toHaveLength(1);
+    expect(audit.findings[0]?.missing).toEqual(["label"]);
+    expect(audit.findings[0]?.site.door).toBe("`mutateAsync` ← { mutateAsync } ← `inspect` ← useInspectEndpoint → trpc.credentials.inspectEndpoint");
+  });
+
+  test("NEGATIVE CONTROL — two destructured doors on ONE verb passing the SAME payload are not a finding", () => {
+    // The #568 ratified shape in its destructured spelling: two planes, one payload. A lens that flagged it
+    // would retire a live affordance — the exact accusation the direct and level-1 arms already refuse.
+    const audit = auditFor(
+      {
+        "packages/client/src/features/chat/hooks/use-composer-utilities.ts":
+          `${factory("useUndoContinueMutation", "chat.undoContinue")}export function useComposerUtilities(chatId) {\n` +
+          "  const { mutate } = useUndoContinueMutation({ trpc, invalidation });\n" +
+          "  return { undoContinue: (messageId) => mutate({ chatId, messageId }) };\n}\n",
+        "packages/client/src/features/chat/components/message-actions-row.tsx":
+          `${factory("useRowUndoContinueMutation", "chat.undoContinue")}export function MessageActionsRow() {\n` +
+          "  const { mutate: undoContinueRow } = useRowUndoContinueMutation({ trpc, invalidation });\n" +
+          "  return () => undoContinueRow({ chatId, messageId });\n}\n",
+      },
+      "undoContinue",
+    );
+    expect(audit.sites).toHaveLength(2);
+    expect(audit.resolved).toBe(2);
+    expect(flagged(audit)).toEqual([]);
+  });
+
+  test("NEGATIVE CONTROL — a destructured door on ANOTHER verb is not pooled under this subject", () => {
+    const audit = auditFor(
+      {
+        "packages/client/src/features/chat/a.ts": `${factory("useA", "chat.generate")}export const A = () => {\n  const { mutate } = useA({ trpc });\n  return () => mutate({ chatId });\n};\n`,
+        "packages/client/src/features/chat/b.ts": `${factory("useB", "chat.swipe")}export const B = () => {\n  const { mutate } = useB({ trpc });\n  return () => mutate({ chatId, guided });\n};\n`,
+      },
+      "generate",
+    );
+    expect(audit.sites).toHaveLength(1);
+    expect(audit.doors.procedures).toEqual(["chat.generate"]);
+    expect(flagged(audit)).toEqual([]);
+  });
+
+  test("an ESCAPING binding is UNJUDGED with its escape NAMED — and a hook DEPENDENCY list is not an escape", () => {
+    // The live shape (`endpoint-inspector-dialog.tsx`): the binding is handed to a helper, so the payload is
+    // written where this lens cannot read it. Counting the sibling door as "in agreement" would be a clean
+    // nobody measured. The dependency array holds the same identifier and fires nothing — React compares its
+    // identity — so admitting it would mark every honest destructured door unjudged.
+    const audit = auditFor(
+      {
+        "packages/client/src/features/credentials/components/endpoint-inspector-dialog.tsx":
+          `${factory("useInspectEndpoint", "credentials.inspectEndpoint")}export function Dialog({ open }) {\n` +
+          "  const { mutateAsync } = useInspectEndpoint({ trpc, invalidation });\n" +
+          "  useEffect(() => { runProbe(mutateAsync, credentialId); }, [open, mutateAsync, credentialId]);\n" +
+          "  return null;\n}\n",
+        "packages/client/src/features/credentials/components/row.tsx":
+          `${factory("useRowInspect", "credentials.inspectEndpoint")}export function Row() {\n` +
+          "  const { mutateAsync } = useRowInspect({ trpc, invalidation });\n" +
+          "  return () => mutateAsync({ credentialId });\n}\n",
+      },
+      "inspectEndpoint",
+    );
+    const unjudged = audit.sites.filter((s) => s.keys === null);
+    expect(unjudged).toHaveLength(1);
+    expect(unjudged[0]?.unresolved).toContain("ESCAPES");
+    expect(unjudged[0]?.unresolved).toContain("ARGUMENT to `runProbe(…)`");
+    expect(unjudged[0]?.door).toBe("`mutateAsync` ← { mutateAsync } ← useInspectEndpoint → trpc.credentials.inspectEndpoint");
+    // The escape is ADDITIVE: the sibling door still resolves and still gets compared.
+    expect(audit.resolved).toBe(1);
+    expect(audit.doors.unjudgedFires).toHaveLength(0);
+  });
+
+  test("a PARAMETER named after the binding, and a TYPE position, are not escapes — a measured false positive", () => {
+    // `runProbe(mutateAsync: ReturnType<typeof useInspectEndpoint>["mutateAsync"], …)` in the live dialog:
+    // the helper's own parameter NAME and the type query beside it are new bindings and type positions, not
+    // uses of the door. Reporting them made the escape census report three escapes where the file has two,
+    // and a census that cries wolf is one readers stop reading.
+    const audit = auditFor(
+      {
+        "packages/client/src/features/credentials/components/endpoint-inspector-dialog.tsx":
+          `${factory("useInspectEndpoint", "credentials.inspectEndpoint")}` +
+          "async function runProbe(mutateAsync: ReturnType<typeof useInspectEndpoint>, id) {\n  await mutateAsync({ credentialId: id });\n}\n" +
+          "export function Dialog() {\n  const { mutateAsync } = useInspectEndpoint({ trpc, invalidation });\n  return () => mutateAsync({ credentialId });\n}\n",
+      },
+      "inspectEndpoint",
+    );
+    // Two bare fires — the helper's own parameter and the door — and ZERO escapes: nothing left the file.
+    expect(audit.sites.filter((s) => s.keys === null)).toHaveLength(0);
+  });
+
+  test("a destructured binding whose HOOK cannot be reached is a NAMED refusal, never a silent skip", () => {
+    const audit = auditFor(
+      {
+        "packages/client/src/features/chat/hooks/use-thing.ts": `${factory("useIndexed", "chat.generate")}export const A = () => {\n  const { mutate } = useIndexed({ trpc });\n  return () => mutate({ chatId });\n};\n`,
+        "packages/client/src/features/chat/components/opaque.tsx":
+          "export const Opaque = ({ hook }) => {\n  const { mutate } = hook;\n  return () => mutate({ chatId });\n};\n",
+      },
+      "generate",
+    );
+    expect(audit.sites).toHaveLength(1);
+    expect(audit.doors.unjudgedFires).toHaveLength(1);
+    expect(audit.doors.unjudgedFires[0]?.reason).toContain("level 2 follows a hook CALL");
+  });
+
+  test("a destructured NON-fire member is not a door — `const { data } = …` never becomes a call site", () => {
+    const audit = auditFor(
+      {
+        "packages/client/src/features/chat/a.ts": `${factory("useA", "chat.generate")}export const A = () => {\n  const { data, isPending } = useA({ trpc });\n  return () => data({ chatId });\n};\n`,
+        "packages/client/src/features/chat/b.ts": `${factory("useB", "chat.generate")}export const B = () => {\n  const { mutate } = useB({ trpc });\n  return () => mutate({ chatId, guided });\n};\n`,
+      },
+      "generate",
+    );
+    expect(audit.sites).toHaveLength(1);
+    expect(audit.doors.unjudgedFires).toHaveLength(0);
   });
 });

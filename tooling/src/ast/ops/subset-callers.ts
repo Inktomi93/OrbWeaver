@@ -15,15 +15,24 @@
 // RECEIVER is resolved instead, through the ONE shared client-door resolver
 // (`tooling/src/_shared/trpc-doors.ts`, shared with the `duplicate-action-doors` gate so the census and the
 // lens can never disagree about what a door is), and the keys are pooled under the resolved verb.
-// The resolver is LEVEL 1 and states its own limits; this lens PRINTS them (the door census in the banner)
+// The resolver states its own limits at each level; this lens PRINTS them (the door census in the banner)
 // rather than letting an unfollowable fire site read as agreement.
+//
+// LEVEL 2 — the DESTRUCTURED door (#576). `const { mutate } = useX()` (and its aliased twin
+// `const { mutate: fire } = useX()`) fires a BARE `mutate(…)`/`fire(…)` that names neither a receiver nor a
+// verb, so before this level those doors were not merely unresolved — they matched no fire tail at all and
+// never reached the refusal census. They now resolve through the SAME factory index a receiver does, and a
+// binding that ESCAPES its file (an argument, a prop, an object, a return, an export) enters the walk as an
+// UNJUDGED SITE naming its escape, because the payload it eventually fires is written out of this lens's
+// sight. Every refused fire is now NAMED with its `file:line` and reason — the census used to print a bare
+// count, which is the lens's own "counted and NAMED" promise going unhonoured.
 import type { CallExpression, Node, ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { MutationFactoryIndex } from "../../_shared/trpc-doors.ts";
-import { indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../_shared/trpc-doors.ts";
-import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan } from "../contract/types.ts";
+import type { DestructuredFires, MutationFactoryIndex, ResolvedDoor, UnresolvedDoor } from "../../_shared/trpc-doors.ts";
+import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../_shared/trpc-doors.ts";
+import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan, SubsetUnjudgedFire } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
 
@@ -120,31 +129,66 @@ function siteOf(call: CallExpression, sf: SourceFile, door: string | null): Subs
   };
 }
 
-/** A fire site the level-1 resolver refused — counted, never a site of anything (it could be a door on ANY
- *  verb, so admitting it under this subject would invent a comparison). */
-const UNRESOLVED_FIRE = "unresolved-fire";
-
 /** What one call expression is to this subject: a site (with the verb a CLIENT door resolved to, or null
- *  for a direct call), a refused fire site, or nothing at all. */
-type CallVerdict = { readonly site: SubsetCallSite; readonly procedure: string | null } | typeof UNRESOLVED_FIRE | null;
+ *  for a direct call), a fire site the door resolver REFUSED (never a site of anything — it could be a door
+ *  on ANY verb, so admitting it under this subject would invent a comparison), or nothing at all. */
+type CallVerdict = { readonly site: SubsetCallSite; readonly procedure: string | null } | { readonly refused: string } | null;
 
-function classifyCall(call: CallExpression, sf: SourceFile, symbol: string, index: MutationFactoryIndex): CallVerdict {
+/** The two resolution inputs one file's calls are judged against: the corpus-wide factory index (level 1)
+ *  and that file's own destructured fire bindings (level 2). */
+interface CallDoors {
+  readonly index: MutationFactoryIndex;
+  readonly fires: DestructuredFires;
+}
+
+/** A resolved door under this subject becomes a site; one on another verb is not our business; a refusal is
+ *  NAMED. The single funnel both fire shapes — `<recv>.mutate(…)` and a destructured bare `mutate(…)` — pass
+ *  through, so the two levels can never disagree about what counts as judged. */
+function verdictOfDoor(door: ResolvedDoor | UnresolvedDoor, call: CallExpression, sf: SourceFile, symbol: string): CallVerdict {
+  if ("reason" in door) {
+    return { refused: door.reason };
+  }
+  return procedureMatches(door.procedure, symbol) ? { site: siteOf(call, sf, door.chain), procedure: door.procedure } : null;
+}
+
+function classifyCall(call: CallExpression, sf: SourceFile, symbol: string, doors: CallDoors): CallVerdict {
   const expr = call.getExpression();
   const tail = TsNode.isPropertyAccessExpression(expr) ? expr.getName() : expr.getText();
   if (tail === symbol) {
     return { site: siteOf(call, sf, null), procedure: null };
   }
+  // LEVEL 2 (#576): a BARE `mutate(…)`/`fire(…)` whose callee is a destructured fire binding of this file.
+  if (!TsNode.isPropertyAccessExpression(expr)) {
+    const destructured = doors.fires.byName.get(tail);
+    return destructured === undefined ? null : verdictOfDoor(destructured, call, sf, symbol);
+  }
   if (!MUTATION_FIRE_MEMBERS.has(tail)) {
     return null;
   }
-  const door = resolveFiredDoor(call, index);
-  if (door === null) {
-    return null;
+  const door = resolveFiredDoor(call, doors.index);
+  return door === null ? null : verdictOfDoor(door, call, sf, symbol);
+}
+
+/** A destructured fire binding that LEAVES its file is a door whose payload is written somewhere this
+ *  syntactic lens cannot read — so it enters the walk as an UNJUDGED SITE (chain + escape reason), never as
+ *  silence. Only bindings on THIS subject are admitted; a refused binding could be on any verb, so it is
+ *  admitted too rather than assumed innocent. */
+function escapeSites(fires: DestructuredFires, symbol: string): readonly SubsetCallSite[] {
+  const out: SubsetCallSite[] = [];
+  for (const leak of fires.escapes) {
+    const onSubject = "reason" in leak.door || procedureMatches(leak.door.procedure, symbol);
+    if (!onSubject) {
+      continue;
+    }
+    out.push({
+      node: leak.node,
+      keys: null,
+      unresolved: `the destructured binding ESCAPES here (${leak.reason}) — whatever fires it passes a payload outside this file's sight${"reason" in leak.door ? `; its door is unresolved too: ${leak.door.reason}` : ""}`,
+      via: null,
+      door: "reason" in leak.door ? null : leak.door.chain,
+    });
   }
-  if ("reason" in door) {
-    return UNRESOLVED_FIRE;
-  }
-  return procedureMatches(door.procedure, symbol) ? { site: siteOf(call, sf, door.chain), procedure: door.procedure } : null;
+  return out;
 }
 
 /**
@@ -153,23 +197,26 @@ function classifyCall(call: CallExpression, sf: SourceFile, symbol: string, inde
  *
  * DIRECT: bare (`send(…)`) and method-tail (`api.send(…)`) — the same match the `callers` verb makes.
  * CLIENT: a `.mutate(…)`/`.mutateAsync(…)` fire whose receiver resolves to a `createEntityMutation` hook
- * built against a procedure `symbol` names (its bare member or its full path). A fire site the resolver
- * cannot follow is NOT a site of anything — it is counted in `doors.unresolvedFires`, because it could be
- * a door on any verb and dropping it silently is the false clean this lens exists to refuse.
+ * built against a procedure `symbol` names (its bare member or its full path) — level 1 — and a BARE
+ * `mutate(…)` fired through a destructured binding of such a hook — level 2 (#576). A fire site the
+ * resolver cannot follow is NOT a site of anything: it is NAMED in `doors.unjudgedFires`, because it could
+ * be a door on any verb and dropping it silently is the false clean this lens exists to refuse.
  */
 export function collectSubsetCallSites(files: readonly SourceFile[], symbol: string): SubsetSiteScan {
   const index: MutationFactoryIndex = indexMutationFactories(files);
   const sites: SubsetCallSite[] = [];
   const procedures = new Set<string>();
-  let unresolvedFires = 0;
+  const unjudgedFires: SubsetUnjudgedFire[] = [];
   for (const sf of files) {
+    const doors: CallDoors = { index, fires: destructuredFires(sf, index) };
+    sites.push(...escapeSites(doors.fires, symbol));
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const verdict = classifyCall(call, sf, symbol, index);
+      const verdict = classifyCall(call, sf, symbol, doors);
       if (verdict === null) {
         continue;
       }
-      if (verdict === UNRESOLVED_FIRE) {
-        unresolvedFires += 1;
+      if ("refused" in verdict) {
+        unjudgedFires.push({ node: call, reason: verdict.refused });
         continue;
       }
       if (verdict.procedure !== null) {
@@ -178,7 +225,7 @@ export function collectSubsetCallSites(files: readonly SourceFile[], symbol: str
       sites.push(verdict.site);
     }
   }
-  return { sites, doors: { factories: index.size, unresolvedFires, procedures: [...procedures].sort((a, b) => a.localeCompare(b)) } };
+  return { sites, doors: { factories: index.size, unjudgedFires, procedures: [...procedures].sort((a, b) => a.localeCompare(b)) } };
 }
 
 /** `a` is a strict subset of `b`. */
@@ -284,11 +331,16 @@ function printUnresolved(sites: readonly SubsetCallSite[]): void {
 function printDoorClasses(symbol: string, doors: SubsetDoorCensus): void {
   print(
     `DOOR CLASSES — judged: DIRECT call sites (tail \`${symbol}\`) + CLIENT doors fired through the mutation factory ` +
-      `(${doors.factories} \`createEntityMutation\` hook(s) indexed; level 1 = a \`<const>.mutate(…)\` whose receiver is bound same-file to an indexed hook). ` +
-      `NOT judged: ${doors.unresolvedFires} \`.mutate()/.mutateAsync()\` fire site(s) whose receiver level-1 resolution could not follow ` +
-      "(a parameter, a cross-module binding, an ambiguous hook name) — ANY of them could be another door on this verb; " +
-      "and a DESTRUCTURED `const { mutate } = useX()` fires a bare `mutate(…)` this lens never sees as a door at all.",
+      `(${doors.factories} \`createEntityMutation\` hook(s) indexed; level 1 = a \`<const>.mutate(…)\` whose receiver is bound same-file to an indexed hook, ` +
+      "level 2 = a BARE `mutate(…)` fired through a destructured `const { mutate } = useX()` / `const { mutate: fire } = useX()` binding). " +
+      `NOT judged: ${doors.unjudgedFires.length} fire site(s) whose door resolution could not follow ` +
+      "(a receiver arriving as a parameter, a cross-module binding, an ambiguous hook name, a destructured binding whose hook this lens cannot reach) — " +
+      "ANY of them could be another door on this verb, so each is NAMED below; a destructured binding that ESCAPES its file is listed with the UNJUDGED sites instead.",
   );
+  for (const fire of doors.unjudgedFires) {
+    const hit = hitOf(fire.node, "unjudged-fire");
+    print(`  ? ${hit.file}:${hit.line}  ${fire.reason}`);
+  }
   if (doors.procedures.length > 1) {
     print(
       `  ! POOLED — the matched client doors resolved to ${doors.procedures.length} DIFFERENT procedures (${doors.procedures.join(", ")}): name the full path to separate them.`,

@@ -13,14 +13,23 @@
 //   • the FIRE site — `<receiver>.mutate(…)` / `.mutateAsync(…)` on the factory's result. It names NO
 //     verb, which is exactly why a bare `mutate` tail pools every unrelated verb in the tree.
 //
-// DECLARED LIMIT — fire→verb resolution is LEVEL 1 and purely SYNTACTIC (the lens runs on the no-type-graph
-// corpus, so there is no import resolution to lean on): a receiver identifier resolves through a same-file
-// variable declaration whose initializer CALLS a factory hook, and that hook is looked up by NAME in a
-// corpus-wide index of `createEntityMutation` declarations. A hook name declared twice against DIFFERENT
-// procedures is AMBIGUOUS and refuses rather than picking one. A destructured `const { mutate } = useX()`,
-// a receiver arriving as a parameter, or a hook re-exported under a second name are OUT of level 1 and come
-// back with their reason — a consumer that drops those silently is reporting a clean it never measured.
-import type { CallExpression, Node, SourceFile, VariableDeclaration } from "ts-morph";
+// DECLARED LIMIT — fire→verb resolution is purely SYNTACTIC (the lens runs on the no-type-graph corpus, so
+// there is no import resolution to lean on), in two levels:
+//   • LEVEL 1 — a RECEIVER identifier (`speakAs.mutate(…)`) resolves through a same-file variable
+//     declaration whose initializer CALLS a factory hook, and that hook is looked up by NAME in a
+//     corpus-wide index of `createEntityMutation` declarations.
+//   • LEVEL 2 (#576) — a DESTRUCTURED binding (`const { mutate } = useX()`, and its aliased twin
+//     `const { mutate: fire } = useX()`) fires a BARE `mutate(…)` that names neither a receiver nor a verb.
+//     The binding's PROPERTY name says it is a fire member, and its initializer resolves to a hook call
+//     through the SAME index — directly, or through one same-file identifier hop (`const i = useX(); const
+//     { mutateAsync } = i;`). Before this level those doors were not merely unresolved, they were INVISIBLE:
+//     a bare call matched no fire tail at all, so they never even reached the refusal census.
+// A hook name declared twice against DIFFERENT procedures is AMBIGUOUS and refuses rather than picking one.
+// A receiver arriving as a parameter, a cross-module binding, a hook re-exported under a second name, and a
+// destructured binding that ESCAPES its file (passed as an argument or a prop, stored, returned, exported —
+// a fire site elsewhere could pass any payload) are OUT of both levels and come back with their reason — a
+// consumer that drops those silently is reporting a clean it never measured.
+import type { BindingElement, CallExpression, Identifier, Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 
 /** The two TanStack Query spellings a tRPC mutation door takes in this client. */
@@ -183,10 +192,213 @@ export function resolveFiredDoor(call: CallExpression, index: MutationFactoryInd
     .find((i) => TsNode.isCallExpression(i));
   if (!TsNode.isCallExpression(init)) {
     return {
-      reason: `receiver \`${name}\` has no same-file declaration initialized by a hook call — a destructured \`{ mutate }\`, a parameter, or a cross-module binding is outside level-1 resolution`,
+      reason: `receiver \`${name}\` has no same-file declaration initialized by a hook call — a parameter, a cross-module binding, or a receiver itself destructured from something unfollowable is outside level-1 resolution`,
     };
   }
   return doorOfHookCall(init, index, `\`${name}\` ← `);
+}
+
+/** A hook CALL reached from a destructure's initializer, plus the hop text that proves how (empty when the
+ *  initializer IS the call). One identifier hop is followed — `const i = useX(); const { mutateAsync } = i;`
+ *  is the tree's live spelling — and anything further stays unfollowed rather than guessed. */
+function hookCallOf(expr: Node | undefined, sf: SourceFile): { readonly call: CallExpression; readonly hop: string } | null {
+  if (expr === undefined) {
+    return null;
+  }
+  if (TsNode.isCallExpression(expr)) {
+    return { call: expr, hop: "" };
+  }
+  if (!TsNode.isIdentifier(expr)) {
+    return null;
+  }
+  const name = expr.getText();
+  const init = declsNamed(sf, name)
+    .map((d) => d.getInitializer())
+    .find((i) => TsNode.isCallExpression(i));
+  return TsNode.isCallExpression(init) ? { call: init, hop: `\`${name}\` ← ` } : null;
+}
+
+/** ONE reference of a destructured fire binding that leaves this file's sight. The binding's DOOR is known
+ *  (or refused, with its reason); the PAYLOAD is not, because whatever fires it lives somewhere this
+ *  syntactic lens cannot read — which makes it an unjudged door, never an agreeing one. */
+export interface EscapedFire {
+  readonly node: Identifier;
+  readonly name: string;
+  readonly door: ResolvedDoor | UnresolvedDoor;
+  readonly reason: string;
+}
+
+/** The LEVEL-2 destructures in one file: every local binding that names a fire member, mapped to the door it
+ *  fires, plus the references of those bindings that ESCAPE the file. */
+export interface DestructuredFires {
+  /** local binding name → the door a bare `name(…)` call fires (or the refusal, with its reason). */
+  readonly byName: ReadonlyMap<string, ResolvedDoor | UnresolvedDoor>;
+  readonly escapes: readonly EscapedFire[];
+}
+
+const NO_DESTRUCTURED_FIRES: DestructuredFires = { byName: new Map(), escapes: [] };
+
+/** The React hook-name convention, the one shape whose LAST argument is a dependency list. */
+const HOOK_NAME = /^use[A-Z]/;
+
+/** The fire member a binding element destructures (`{ mutate }` → `mutate`; `{ mutate: fire }` → `mutate`),
+ *  or null when this element names no fire member. A COMPUTED property name (`{ [k]: fire }`) names nothing
+ *  statically, so it falls out here rather than resolving to a door nobody can prove. */
+function fireMemberOf(element: BindingElement): string | null {
+  const property = element.getPropertyNameNode();
+  const member = property === undefined ? element.getName() : property.getText();
+  return MUTATION_FIRE_MEMBERS.has(member) ? member : null;
+}
+
+/** A dependency-list reference is NOT an escape: React compares the identity of a hook's LAST-argument array
+ *  and never calls its elements, so counting it would mark every honest destructured door unjudged and train
+ *  readers to skip the census. Anything else that holds the binding — an argument, a prop, an object, a
+ *  return — genuinely can fire it out of sight. */
+function isHookDependency(ref: Node): boolean {
+  const array = ref.getParent();
+  if (!TsNode.isArrayLiteralExpression(array)) {
+    return false;
+  }
+  const call = array.getParent();
+  if (!TsNode.isCallExpression(call)) {
+    return false;
+  }
+  if (call.getArguments().at(-1)?.getStart() !== array.getStart()) {
+    return false;
+  }
+  return HOOK_NAME.test(call.getExpression().getText().split(".").at(-1) ?? "");
+}
+
+/** The declaration parents whose NAME slot spells an identifier that is a NEW binding, not a reference to the
+ *  destructured one — a parameter called `mutateAsync`, an interface member, a re-declaration. Reading those
+ *  as escapes was a measured false positive (`endpoint-inspector-dialog.tsx:31`, a helper's parameter name).
+ *  `ExportSpecifier` is deliberately ABSENT: `export { mutate }` genuinely is an escape. */
+const DECLARATION_NAME_PARENTS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.Parameter,
+  SyntaxKind.PropertySignature,
+  SyntaxKind.PropertyDeclaration,
+  SyntaxKind.MethodSignature,
+  SyntaxKind.MethodDeclaration,
+  SyntaxKind.FunctionDeclaration,
+  SyntaxKind.ClassDeclaration,
+  SyntaxKind.InterfaceDeclaration,
+  SyntaxKind.TypeAliasDeclaration,
+  SyntaxKind.TypeParameter,
+  SyntaxKind.EnumMember,
+  SyntaxKind.ImportSpecifier,
+  SyntaxKind.NamespaceImport,
+  SyntaxKind.VariableDeclaration,
+  SyntaxKind.PropertyAssignment,
+  SyntaxKind.LabeledStatement,
+]);
+
+/** An identifier that names a declaration or sits in a TYPE — neither is a use of the value, so neither can
+ *  fire the door. `{ fire: mutate }` still escapes: only the NAME slot (the first identifier child) is skipped. */
+function isDeclarationNameOrType(ref: Identifier): boolean {
+  const parent = ref.getParent();
+  if (TsNode.isTypeNode(parent)) {
+    return true;
+  }
+  return DECLARATION_NAME_PARENTS.has(parent.getKind()) && parent.getFirstChildByKind(SyntaxKind.Identifier)?.getStart() === ref.getStart();
+}
+
+/** HOW a reference escapes — named, because "unjudged" without the shape is a number a reader cannot act on. */
+function escapeReason(ref: Identifier): string {
+  const parent = ref.getParent();
+  if (TsNode.isCallExpression(parent)) {
+    return `passed as an ARGUMENT to \`${parent.getExpression().getText()}(…)\``;
+  }
+  if (TsNode.isJsxExpression(parent)) {
+    return "passed as a JSX PROP";
+  }
+  if (TsNode.isPropertyAssignment(parent) || TsNode.isShorthandPropertyAssignment(parent)) {
+    return "stored in an OBJECT literal";
+  }
+  if (TsNode.isArrayLiteralExpression(parent)) {
+    return "stored in an ARRAY literal";
+  }
+  if (TsNode.isReturnStatement(parent)) {
+    return "RETURNED from its scope";
+  }
+  if (TsNode.isExportSpecifier(parent)) {
+    return "RE-EXPORTED";
+  }
+  if (TsNode.isVariableDeclaration(parent)) {
+    return "re-bound to another name";
+  }
+  return `held by a ${parent.getKindName()}`;
+}
+
+/** The door ONE binding element fires, resolved through the same factory index a receiver uses — or null when
+ *  the element names no fire member at all (every other key a mutation result is destructured for). */
+function doorOfBinding(element: BindingElement, decl: VariableDeclaration, sf: SourceFile, index: MutationFactoryIndex): ResolvedDoor | UnresolvedDoor | null {
+  const member = fireMemberOf(element);
+  if (member === null) {
+    return null;
+  }
+  const name = element.getName();
+  const source = hookCallOf(decl.getInitializer(), sf);
+  if (source === null) {
+    return {
+      reason: `destructured \`{ ${member} }\` binding \`${name}\` has no initializer this lens can follow to a ${MUTATION_FACTORY} hook (level 2 follows a hook CALL, or ONE same-file identifier hop to one)`,
+    };
+  }
+  return doorOfHookCall(source.call, index, `\`${name}\` ← { ${member} } ← ${source.hop}`);
+}
+
+/** Every fire-member destructure in `sf`, by its LOCAL binding name (the name a bare fire call spells). */
+function fireBindingsOf(sf: SourceFile, index: MutationFactoryIndex): Map<string, ResolvedDoor | UnresolvedDoor> {
+  const byName = new Map<string, ResolvedDoor | UnresolvedDoor>();
+  for (const decl of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+    const pattern = decl.getNameNode();
+    if (!TsNode.isObjectBindingPattern(pattern)) {
+      continue;
+    }
+    for (const element of pattern.getElements()) {
+      const door = doorOfBinding(element, decl, sf, index);
+      if (door !== null) {
+        byName.set(element.getName(), door);
+      }
+    }
+  }
+  return byName;
+}
+
+/** A reference of a fire binding that is neither the declaration nor a bare FIRE call — the value left this
+ *  file's sight, so whatever fires it passes a payload nothing here can read. */
+function escapesOf(sf: SourceFile, byName: ReadonlyMap<string, ResolvedDoor | UnresolvedDoor>): readonly EscapedFire[] {
+  const escapes: EscapedFire[] = [];
+  for (const ref of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    const door = byName.get(ref.getText());
+    if (door === undefined) {
+      continue;
+    }
+    const parent = ref.getParent();
+    // A bare `name(…)` fire is a SITE the consumer judges, and the binding element is the declaration itself.
+    const isFireOrDeclaration = TsNode.isBindingElement(parent) || (TsNode.isCallExpression(parent) && parent.getExpression().getStart() === ref.getStart());
+    if (isFireOrDeclaration || isDeclarationNameOrType(ref) || isHookDependency(ref)) {
+      continue;
+    }
+    escapes.push({ node: ref, name: ref.getText(), door, reason: escapeReason(ref) });
+  }
+  return escapes;
+}
+
+/** Every fire-member destructure in `sf`, resolved through `index` (LEVEL 2), with its escapes.
+ *
+ * DECLARED LIMIT — the reference sweep is SAME-FILE and by NAME (the corpus carries no type graph), so a
+ * nested re-declaration SHADOWING the binding reads as the same binding: it can add an escape, and it can
+ * add a fire site that is really the shadow's. The live shape it was measured against passes the door itself
+ * down (`runProbe(mutateAsync, …)` takes a parameter of the same name), where attributing the call to the
+ * door is CORRECT; a genuinely unrelated shadow would over-report, which is the direction this lens errs in
+ * everywhere else too — over-reporting is auditable, silence is not. */
+export function destructuredFires(sf: SourceFile, index: MutationFactoryIndex): DestructuredFires {
+  // Nothing can destructure a fire member without spelling one — a cheap gate against walking every file.
+  if (![...MUTATION_FIRE_MEMBERS].some((member) => sf.getFullText().includes(member))) {
+    return NO_DESTRUCTURED_FIRES;
+  }
+  const byName = fireBindingsOf(sf, index);
+  return byName.size === 0 ? NO_DESTRUCTURED_FIRES : { byName, escapes: escapesOf(sf, byName) };
 }
 
 /** `chat.generate` answers to `generate` (the bare member) and to its full path — the two spellings a
