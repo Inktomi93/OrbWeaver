@@ -116,7 +116,7 @@
             },
             {
               "kind": "code",
-              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:331"
+              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:366"
             },
             {
               "kind": "issue",
@@ -593,17 +593,18 @@
     },
     {
       "path": "docs/design/list-pane-projection-proposal.md",
-      "assignedSha256": "5417b5a1b4ec187a6068d4ee10170e6dd9010db21427e04057904d16b8d0da17",
+      "assignedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "5417b5a1b4ec187a6068d4ee10170e6dd9010db21427e04057904d16b8d0da17",
-      "verifiedCommit": "54e813466f2a7ac3eceb448c4ba49cd85d677ec9",
-      "verifiedAt": "2026-08-19",
+      "verifiedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
+      "verifiedCommit": "0974b4cb416d049449a8a45c93a025c066a4ad37",
+      "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/design/list-pane-projection-proposal.md:1 (spec; archived, BUILT)",
         "git log --oneline -1 -- docs/design/list-pane-projection-proposal.md: 54e813466 docs(list-pane-projection): truth-repair D2 citation authority (#264)",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "as-built supersession note re-read 2026-08-22 (#501): §10 D2 self-recorded as a recommendation; the owner docked-library ruling supersedes it; swap machinery deleted in 23543697d"
       ],
       "summary": "LIST-PANE PROJECTION — the character screen's pane becomes her chats (face → history → play): full content read against frozen tree; landed-state record retained as historical evidence."
     },

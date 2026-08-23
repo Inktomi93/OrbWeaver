@@ -701,16 +701,17 @@
     },
     {
       "path": "docs/reviews/side-eye/2026-08-22-rail-chats.md",
-      "assignedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
+      "assignedSha256": "0c7e3d9a8a4ab860774fa748f7586f36920a9c558a8642678f9e33f12f77fed7",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "1c5cad0f19ddd0cd768f010ff5a5aa0fd0762545fa33067a3ce848cd4d418cad",
-      "verifiedCommit": "a6d2224a3402c06090338f1d15642ca89de1f4c2",
+      "verifiedSha256": "0c7e3d9a8a4ab860774fa748f7586f36920a9c558a8642678f9e33f12f77fed7",
+      "verifiedCommit": "2a385fcfe36073c5eb09fc7766b2825a378dca1e",
       "verifiedAt": "2026-08-22",
       "evidence": [
         "full read 1-END by the orchestrator (2026-08-22) before attestation",
-        "reports/ receipts gitignored, referenced by path; retractions published in-report"
+        "reports/ receipts gitignored, referenced by path; retractions published in-report",
+        "retraction block re-read 2026-08-22: the P1 arm table re-derived as a p50-glyph instrument artifact (#508, fixed in pixel-backdrop.ts); the BACKGROUND_DIM_MIN contract finding preserved as real (#487)"
       ],
       "summary": "Rail sweep 3/10 — Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
       "claims": [
@@ -866,7 +867,9 @@
           ]
         }
       ],
-      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
+      "evidence": [
+        "full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"
+      ],
       "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
     },
     {
@@ -1067,7 +1070,9 @@
       "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
       "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
       "verifiedAt": "2026-08-21",
-      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
+      "evidence": [
+        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"
+      ],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
       "claims": [
         {
@@ -1239,6 +1244,37 @@
         "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search"
       ],
       "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md",
+      "assignedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
+      "verifiedCommit": "4c345cef36c68d294066292f5ca5266eea0cd0ac",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md:1-191 full read at 4c345cef3 (authoring 367a6a6df + frontmatter vocab fix) (orchestrator transcribed the se-verify-1 lane's inline report verbatim; per-item receipts are the lane's live-driven measurements)",
+        "verdict SHIP: 7/7 chat items + #491/#493 CONFIRMED live; #492 half-refuted by documented design; 11 findings filed as GitHub issues #517-#525 (+#524 tooling)",
+        "GitHub issues #487 #490 #491 #492 #493 closed on this report's verdicts; residual rows #517-#525 carry the findings"
+      ],
+      "claims": [
+        {
+          "claim": "The wave-1 rail-sweep fixes (#487 #490 #491 #492 #493) render as claimed on live main post-merge; the residual defects are enumerated as filed issues, not left implicit.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:81"
+            },
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/settings/appearance.ts:59"
+            }
+          ]
+        }
+      ],
+      "summary": "se-verify-1 live verification of the wave-1 rail-sweep fix set (#487 #490 #491 #492 #493): SHIP — 7/7 chat items confirmed, #491/#493 confirmed with wording corrections, #492 half-refuted by documented design; 11 residual findings filed (#517-#525); also records the silent vite-watcher wedge (#524) cleared mid-pass."
     }
   ]
 }
