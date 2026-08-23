@@ -8,9 +8,9 @@
 // EVERY procedure rides `multiHumanProcedure` (the B4 capability belt): while the deployment cannot seat
 // a second human the whole router answers NOT_FOUND, leak-free. This router carries the human-membership
 // verbs + the owner≠host agent-seat REQUEST (a multi-human consent flow, the nominateHostHandoff shape).
-// Actual seating is NOT here — character seating (`chat.addCharacterToChat`) and agent seating
-// (`chat.seatAgent`, wired at P6) stay on the ungated chat surface (§9 ruling 3: multi-CHARACTER rooms +
-// an owner seating its OWN buddy work in every mode).
+// Actual seating is NOT here — character seating (`chat.addCharacterToChat`, built) and agent seating
+// (the D60 design's still-unbuilt seat verb, planned for P6) stay on the ungated chat surface (§9 ruling 3:
+// multi-CHARACTER rooms + an owner seating its OWN buddy work in every mode).
 //
 // TOKEN-CARRYING procedures (`previewInvite`/`redeemInvite`) are `.mutation()` even though preview is
 // semantically a read: tRPC queries ride GET with the input in the URL, which would put the RAW invite

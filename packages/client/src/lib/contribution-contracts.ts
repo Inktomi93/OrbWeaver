@@ -74,7 +74,9 @@ export interface CharacterDetailState {
 }
 
 /** The `editor-sections` arm of the character-detail contribution union — the review-cards region in the
- *  editor body (crew 07-client-ui §4.2 renders pending card-evolution proposals here). */
+ *  editor body. No current second consumer (`characterDetailContributors` ships empty); the anchor stands
+ *  on its own contract shape, not a promise of future crew integration (crew is dead by owner ruling
+ *  2026-07-30 — see `docs/design/context-panel-fidelity-findings.md` §2a). */
 interface CharacterDetailSectionsContribution {
   readonly id: string;
   readonly anchor: Extract<CharacterDetailAnchor, "editor-sections">;

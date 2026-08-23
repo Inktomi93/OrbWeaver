@@ -108,8 +108,8 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
     // Resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
     let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
-      // Invites are the human membership chokepoint — an agent enters a room only via `seatAgent`, never
-      // an invite.
+      // Invites are the human membership chokepoint — the D60 design routes an agent into a room via a
+      // dedicated (still-unbuilt) seat verb, never an invite.
       invitedUserId = await ctx.resolveHandle(input.invitedHandle);
       if (invitedUserId === null) {
         throw new DomainOperationError("invite_target_unknown", "no invitable user with that exact handle");

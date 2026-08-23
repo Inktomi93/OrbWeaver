@@ -514,8 +514,8 @@ async function seedJoinGreeting(
  *  that already holds a PRESENT seat returns that seat's view unchanged — the character half of the roster has
  *  no `(chatId, userId)` unique (SQLite ignores the NULL userId), so this present-seat check is the ONLY server
  *  floor against a double-add (two present rows → double arbitration weight + multi-row knob updates). It is the
- *  floor RP1's `applyToChat` re-apply idempotency stands on (saved-rosters §7). Matches the `seatAgent`/`kick`
- *  idempotent idiom — a re-add is a no-op, never a coded refusal. */
+ *  floor RP1's `applyToChat` re-apply idempotency stands on (saved-rosters §7). Matches `kick`'s idempotent
+ *  idiom (and the D60 design's still-unbuilt agent seat verb) — a re-add is a no-op, never a coded refusal. */
 function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     await requireHost(ctx, principal, chatId);
@@ -687,9 +687,9 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
  *  vice versa. For an AGENT seat it stamps leftSeq DIRECTLY: an agent principal is sessionless and has no
  *  inbox (D60, doc 06 §3/§4), so `notifications.record` refuses an agent recipient — coupling the unseat to
  *  a `kicked` notification would abort the whole unseat. kick stays the multi-human members-list agent
- *  containment path (doc 03 §5): userId-keyed, its agent branch shares the ONE stamp (`stampAgentUnseat`)
- *  with the symmetric `unseatAgent` verb — identical row state either way. A non-present target (or a
- *  characterId-only seat, which carries no userId) is an idempotent no-op. */
+ *  containment path (doc 03 §5): userId-keyed, its agent-seat handling is UNBUILT (the D60 seat/unseat
+ *  verbs don't exist yet — kick today only exercises the human leftSeq-stamp path above). A non-present
+ *  target (or a characterId-only seat, which carries no userId) is an idempotent no-op. */
 function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] {
   return async ({ principal, chatId, userId }: KickParticipantParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
