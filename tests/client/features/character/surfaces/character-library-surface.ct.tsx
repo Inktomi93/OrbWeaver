@@ -98,12 +98,32 @@ test("the search box asks the SERVER — a match beyond the loaded page is found
   await expect(component.getByText("Filler 0")).toHaveCount(0);
 });
 
-test("an empty library shows the 'no characters yet' empty state", async ({ mount, page }) => {
+// #532 — ONE New DOOR ON THE PLANE, the third instance of the `duplicate-action-door` class (#520 closed the
+// CONTENT hero's; this is the LIST pane's own). This body renders inside the list panel, and `PanelChrome`
+// renders the `.shell-panel-header` band with every panel that has a body (D66 A1) — so the band's New is
+// unconditionally directly above this state, and the pane's own New was unconditionally a second door.
+//
+// The story carries the section's REAL band above the surface, so the plane it mounts is the production one
+// and the count below is the whole plane's: exactly ONE New, and it is the band's. The teaching survives
+// intact and NAMES that primary by its visible label (WCAG 2.5.3 — a voice user says what is written).
+/** The empty-library invitation, and the pointer at the BAND's primary by its visible label (#532). */
+const EMPTY_LIBRARY_INVITATION = /Weave your first one to begin/u;
+const EMPTY_LIBRARY_BAND_DOOR = /use New at the top of this pane/u;
+
+test("#532 an empty library teaches and POINTS at the band's New — it never mints a second door", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": characterListResponder([]) });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
   await expect(component.getByText("No characters yet")).toBeVisible();
+  // THE DEFECT, FIRST: the plane carries exactly ONE New, and it is the band's — the empty state must not
+  // mint a second one ~200px below it.
+  await expect(component.getByRole("button", { name: "New", exact: true })).toHaveCount(1);
+  await expect(component.getByTestId("list-band").getByRole("button", { name: "New", exact: true })).toHaveCount(1);
+  // …and the teaching is not thinned to pay for it: the invitation survives verbatim, with the pointer at
+  // that surviving door ADDED to it, so the state is de-duplicated rather than emptied.
+  await expect(component.getByText(EMPTY_LIBRARY_INVITATION)).toBeVisible();
+  await expect(component.getByText(EMPTY_LIBRARY_BAND_DOOR)).toBeVisible();
 });
 
 test("a search with no matches shows the 'no matches' empty state", async ({ mount, page }) => {
