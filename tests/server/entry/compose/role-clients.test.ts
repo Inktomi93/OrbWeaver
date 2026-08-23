@@ -19,8 +19,7 @@
 // `createHostPrincipalResolver` over a stubbed `users` row and the REAL `mintMaxProSub` owner gate, so they
 // fail if the binder ever re-acquires a role literal.
 
-import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { ChatApi, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
@@ -87,13 +86,19 @@ function recordingExecutor(): {
   const executor: ProviderExecutor = {
     embed: (req) => {
       embedCalls.push(req);
-      return Promise.resolve({} as unknown as EmbedResult);
+      // A REAL minimal EmbedResult (the routing pin reads only which role fired, not the payload).
+      return Promise.resolve({ vectors: [], model: req.model, usage: { promptTokens: null, totalTokens: null } } satisfies EmbedResult);
     },
-    rerank: () => Promise.resolve({} as unknown as RerankResult),
-    imageEmbed: () => Promise.resolve({} as unknown as ImageEmbedResult),
+    rerank: () =>
+      // A REAL minimal RerankResult (see embed above).
+      Promise.resolve({ hits: [], model: "unused", usage: { totalTokens: null } } satisfies RerankResult),
+    imageEmbed: () =>
+      // A REAL minimal ImageEmbedResult (see embed above).
+      Promise.resolve({ vectors: [], model: "unused" } satisfies ImageEmbedResult),
     summarize: (req) => {
       summarizeCalls.push(req);
-      return Promise.resolve({} as unknown as SummarizeResult);
+      // A REAL minimal SummarizeResult (see embed above).
+      return Promise.resolve({ items: [], model: req.model } satisfies SummarizeResult);
     },
     structured: (req) => {
       structuredCalls.push(req);
@@ -115,12 +120,15 @@ function stubConnection(opts: { readonly structured?: boolean } = {}): Pick<Conn
       const resolved: ResolvedConnection = {
         api: "chat-completions" as ChatApi,
         model: castId<ModelId>(`model-${role}`),
-        credential: { source: "vllm" } as unknown as ResolvedCredential,
+        credential: makeResolvedCredential(),
         // The binder reads `capability.context.window` for the summarizer token-guard tag AND
         // `capability.output.structured` for the `auto` structured-output vehicle decision (task #36) —
         // supply BOTH. A double that omits a field the binder reads is a false green waiting to happen: the
         // vehicle arm read `undefined.structured` and threw, which is the double's bug, not the binder's.
-        capability: { context: { window: 32_000 }, output: { structured: opts.structured ?? true } } as unknown as ModelCapability,
+        capability: makeModelCapability({
+          context: { window: 32_000 },
+          output: { maxTokens: { min: 1, max: 8192 }, structured: opts.structured ?? true },
+        }),
       };
       return Promise.resolve(resolved);
     },

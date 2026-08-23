@@ -44,6 +44,7 @@ function isInvalidated(queryClient: QueryClient, queryKey: readonly unknown[]): 
  *  ONE home for the seed (the `as never` payload is irrelevant to this seam — only key MATCHING is). */
 function seedReads(queryClient: QueryClient, keys: Iterable<readonly unknown[]>): void {
   for (const key of keys) {
+    // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
     queryClient.setQueryData([...key], [] as never);
   }
 }
@@ -182,6 +183,9 @@ function eventOf(type: ChatBusEvent["type"]): ChatBusEvent {
   // `roomEntityChanged` is the ONE member whose handler reads a second field (`entity`, its dispatch axis),
   // so the minimal event carries it. Without it the Record lookup is `undefined` and the row would throw
   // rather than assert — the failure mode this note exists to stop a future editor from re-introducing.
+  // Deliberate minimal-shape probe — only `type`/`chatId`/`entity` are read by the filter dispatch under
+  // test; the other 20+ per-member fields are the `.test-d` contract's job, not this seam's.
+  // FABRICATION-OK: minimal-shape probe (see above).
   return { type, chatId: CHAT_ID, entity: "character" } as unknown as ChatBusEvent;
 }
 
@@ -379,6 +383,9 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
 // The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
 // on every event is harmless (only `chatsChanged` reads it), so one shape exercises every path.
 function userEventOf(type: UserBusEvent["type"]): UserBusEvent {
+  // Deliberate minimal-shape probe — mirrors `eventOf` above; only `type`/`chatId` are read by the
+  // filter dispatch under test.
+  // FABRICATION-OK: minimal-shape probe (see above).
   return { type, chatId: CHAT_ID } as unknown as UserBusEvent;
 }
 
@@ -416,6 +423,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         sessionsMe: trpc.sessions.me.queryKey(),
       };
       for (const key of Object.values(keys)) {
+        // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
         queryClient.setQueryData([...key], [] as never);
       }
 
@@ -440,6 +448,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
     // turn takes, so if the stats row rode only the lifecycle branch the dashboard would still never move.
     const stats = trpc.stats.overview.queryKey();
     for (const key of [chatList, character, chatGet, stats]) {
+      // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
       queryClient.setQueryData([...key], [] as never);
     }
 
@@ -485,6 +494,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.sessions.me.queryKey(),
     ];
     for (const key of roots) {
+      // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
       queryClient.setQueryData([...key], [] as never);
     }
 
@@ -557,6 +567,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry (the chat/
       // user belt idiom — the read types are heterogeneous objects, so the sanctioned `[] as never` seed).
       for (const key of Object.values(keys)) {
+        // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
         queryClient.setQueryData([...key], [] as never);
       }
 
@@ -578,6 +589,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       trpc.rpg.listTurnToolCalls.queryKey({ chatId: CHAT_ID }),
     ];
     for (const key of keys) {
+      // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
       queryClient.setQueryData([...key], [] as never);
     }
 
