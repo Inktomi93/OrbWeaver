@@ -24183,6 +24183,99 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-23-rail-corpus.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 693,
+      "bytes": 46128,
+      "sha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-23"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-23-rail-corpus.md",
+        "assignedSha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
+        "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
+        "verifiedAt": "2026-08-23",
+        "summary": "RAIL sweep 5/10 (Corpus): SHIP WITH FIXES 23/40 — reviewed the FIRST-RUN state because the dev db was auto-reset 5 min before the sweep (the gated populated-corpus premise destroyed; #533); P1 trio converges on the CONTEXT panel; 5 retractions + the nested-card walker FP row.",
+        "evidence": [
+          "URGENT half: identified the 01:27 db reset + the pruning risk on the pre-reset backup (rescued out-of-band, #533)",
+          "P1 x3 -> #535 · P2 x7 -> #536 · P3+ARIA -> #537 · nested-card avatar-stack FP (11/12 false) -> #538",
+          "5 retractions recorded incl. two instrument-limit kills; populated-arm re-sweep owed after #533 resolves"
+        ],
+        "claims": [
+          {
+            "claim": "The report's verdicts and findings are receipted as written; its filed issues carry the mutable lifecycle.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/gates/ui-primitive-structure.ts:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-23-verify-wave3.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 454,
+      "bytes": 28766,
+      "sha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-23"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-23-verify-wave3.md",
+        "assignedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
+        "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
+        "verifiedAt": "2026-08-23",
+        "summary": "se-verify-2 live verification of the wave-3 fix set: SHIP WITH FIXES — 11/12 confirmed, workloads item refuted by the 01:27 db reset; the load-bearing axe receipt reframes #512 as a list-row accname-contract decision; findings N1-N6 filed (#541 #542 + #512 riders).",
+        "evidence": [
+          "11/12 CONFIRMED with computed/pixel receipts (framebuffer decided #522 after a UA-shadow pseudo computed-style retraction)",
+          "Lighthouse 13.4.1 axe receipt: label-content-name-mismatch fires on ALL rows (subtitle-in-button, aria-describedby) — pre-existing list-row condition, #517 strict improvement",
+          "fixture caveat recorded: driven on the post-reset seed db (~100x smaller than lane measurements); Emily collision seeded to test #517",
+          "GitHub issues #501 #502 #511 #513 #517-#523 #525 closed on these verdicts; #512 reframed; #541 #542 filed"
+        ],
+        "claims": [
+          {
+            "claim": "The report's verdicts and findings are receipted as written; its filed issues carry the mutable lifecycle.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/gates/ui-primitive-structure.ts:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md",
       "lane": "reviews",
       "issue": 7,
