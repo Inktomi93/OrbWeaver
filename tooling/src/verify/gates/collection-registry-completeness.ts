@@ -154,7 +154,14 @@ function checkImportIsData(def: CollectionDef, out: Violation[]): void {
   }
 }
 
-function checkCollectionDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>, defSites: Map<string, DefSite>): void {
+interface ScanState {
+  readonly ctx: GateRunCtx;
+  readonly out: Violation[];
+  readonly seenIds: Map<string, Seen>;
+  readonly defSites: Map<string, DefSite>;
+}
+
+function checkCollectionDefs(sf: SourceFile, state: ScanState): void {
   const path = sf.getFilePath();
   const coLocated = COLLECTION_FILE_RE.test(path);
   for (const decl of sf.getVariableDeclarations()) {
@@ -164,13 +171,8 @@ function checkCollectionDefs(sf: SourceFile, out: Violation[], seenIds: Map<stri
     }
     const line = decl.getStartLineNumber();
     if (!coLocated) {
-      out.push({
-        file: rel(path),
-        line,
-        message:
-          `CollectionContribution "${decl.getName()}" is not co-located — a collection lives only in its OWNING feature's ` +
-          "lib collection file (features/*/lib/*-collection.tsx; the gate keys on location, never on name) — docs/design/config-rail-spec.md §3.",
-      });
+      // NODE-anchored (finding-overload-provenance): the declaration itself, not a {file,line} literal.
+      state.ctx.report(decl, { token: `${decl.getName()}-not-co-located`, offset: 0 });
       continue;
     }
     const init = decl.getInitializer();
@@ -178,10 +180,10 @@ function checkCollectionDefs(sf: SourceFile, out: Violation[], seenIds: Map<stri
       continue;
     }
     const def: CollectionDef = { name: decl.getName(), path, line, init };
-    defSites.set(def.name, { file: rel(path), line });
-    checkUniqueId(def, out, seenIds);
-    checkCreateIsData(def, out);
-    checkImportIsData(def, out);
+    state.defSites.set(def.name, { file: rel(path), line });
+    checkUniqueId(def, state.out, state.seenIds);
+    checkCreateIsData(def, state.out);
+    checkImportIsData(def, state.out);
   }
 }
 
@@ -201,19 +203,14 @@ function forEachAssembly(sf: SourceFile, visit: (call: Node, args: readonly Node
 }
 
 /** The anti-god-map arm: a `config-collections` assembly outside the composition root. */
-function checkAssembly(sf: SourceFile, out: Violation[]): void {
+function checkAssembly(sf: SourceFile, ctx: GateRunCtx): void {
   const path = sf.getFilePath();
   if (DOOR_RE.test(path)) {
     return;
   }
   forEachAssembly(sf, (call) => {
-    out.push({
-      file: rel(path),
-      line: call.getStartLineNumber(),
-      message:
-        `a second "${REGISTRY_NAME}" assembly outside the composition root — collections are assembled ONCE at the main.tsx door ` +
-        "(G8), so the config host consumes them blind and a feature can never register by importing the host — docs/design/config-rail-spec.md §3.",
-    });
+    // NODE-anchored: the assembly call itself.
+    ctx.report(call, { token: "second-assembly", offset: 0 });
   });
 }
 
@@ -277,17 +274,15 @@ export const gate: GateDescriptor = {
     "a config collection is dishonest: a CollectionContribution not co-located in its feature's lib collection file, a duplicate collection kind, a `create` that is not `{label, useRun}` data, a second `config-collections` assembly outside the door, or a co-located collection nobody registers — docs/design/config-rail-spec.md §3.",
   fix: 'co-locate the collection at features/<owner>/lib/<name>-collection.tsx; declare `create: { label: "New …", useRun }`; assemble collections ONCE at main.tsx and register the def there (an unregistered collection is dead wire).',
   run: (ctx) => {
-    const out: Violation[] = [];
-    const seenIds = new Map<string, Seen>();
-    const defSites = new Map<string, DefSite>();
+    const state: ScanState = { ctx, out: [], seenIds: new Map<string, Seen>(), defSites: new Map<string, DefSite>() };
     for (const sf of ctx.project.getSourceFiles()) {
       if (sf.getFilePath().includes(CLIENT_SRC)) {
-        checkCollectionDefs(sf, out, seenIds, defSites);
-        checkAssembly(sf, out);
+        checkCollectionDefs(sf, state);
+        checkAssembly(sf, ctx);
       }
     }
-    checkOrphans(ctx, defSites, out);
-    for (const v of out) {
+    checkOrphans(ctx, state.defSites, state.out);
+    for (const v of state.out) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
@@ -295,7 +290,7 @@ export const gate: GateDescriptor = {
     {
       files: "export const strayCollection: CollectionContribution = { id: 'x', create: { label: 'New x', useRun: () => () => undefined } };\n",
       at: "packages/client/src/features/x/lib/not-a-collection-file.ts",
-      expect: { messageIncludes: "not co-located" },
+      expect: { token: "strayCollection-not-co-located" },
       why: "a CollectionContribution outside a `*-collection` file — the co-location arm",
     },
     {
@@ -335,7 +330,7 @@ export const gate: GateDescriptor = {
     {
       files: "export const collections = createContributorRegistry('config-collections', []);\n",
       at: "packages/client/src/features/config/lib/compose-collections.ts",
-      expect: { messageIncludes: "second" },
+      expect: { token: "second-assembly" },
       why: "a config-collections assembly outside the composition root — the anti-god-map arm",
     },
     {

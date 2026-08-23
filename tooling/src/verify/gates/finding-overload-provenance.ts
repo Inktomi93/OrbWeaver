@@ -3,23 +3,17 @@
 // `@orb-gate-ignore` on such a finding is INERT — and an author who writes the correct marker gets a DOUBLE
 // red (the gate still fires, and gate-ignore-inventory reds the marker as stale). Three closing sweeps each
 // missed members because they matched report CALL SITES by regex; this gate matches the FINDING LITERAL by
-// SHAPE, wherever it is built. Escapes: a `finding-overload-ok: <reason>` comment marker (permanent,
-// two-sided — spelled with an `@` prefix, deliberately not written literally here per GATE-AUTHORING §5) and
-// the shrink-only baseline (pre-existing debt). Registered in Core-Enforcement-Active-Gates.md.
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+// SHAPE, wherever it is built. Escape: a `finding-overload-ok: <reason>` comment marker (permanent,
+// two-sided — spelled with an `@` prefix, deliberately not written literally here per GATE-AUTHORING §5).
+// BORN-COMPLIANT since 2026-08-23: the landing baseline (52 literals / 24 gates) reached `{}` and its
+// baseline + generator were DELETED per the declared terminal state (GATE-AUTHORING.md §4.8) — every
+// finding now reports directly, with no budget to hide behind. Registered in Core-Enforcement-Active-Gates.md.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
 const GATES_DIR = "tooling/src/verify/gates/";
 const GATE_SELF = `${GATES_DIR}finding-overload-provenance.ts`;
-/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
- *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
-export const BASELINE_REL = `${GATES_DIR}finding-overload-provenance.baseline.json`;
-// The single writer's DOOR, not its module path: `ops/gen/*.ts` is a library — running one directly loads
-// it, writes nothing and exits 0 (it now REFUSES; gate `tooling-ops-direct-invocation`). #526/#527.
-const GENERATOR = "node tooling/src/verify/cli.ts baseline finding-overload-provenance";
 
 /** The ts-morph position APIs. A finding whose location derives from one of these has NODE provenance —
  *  which is exactly what makes it suppressible, and therefore what makes the Finding overload wrong. */
@@ -70,17 +64,12 @@ const FIX =
   "the gate's `message` and any dynamic detail into the `token` (tooling/src/verify/gates/no-raw-intl-time.ts and " +
   "own-tables-only.ts are the worked examples). If the arm is genuinely file-level, or deliberately " +
   "NON-suppressible (a blindness tripwire, a stale/ratchet arm, a ledger verdict), keep the overload and write " +
-  `\`// @${MARKER_NAME}: <why it is correct + what would end it>\` at the literal. Pre-existing debt lives in ` +
-  `${BASELINE_REL} and only ever SHRINKS (regenerate with \`${GENERATOR}\`).`;
+  `\`// @${MARKER_NAME}: <why it is correct + what would end it>\` at the literal.`;
 
 const MSG_STALE_MARKER = `a \`@${MARKER_NAME}\` marker suppressed NOTHING this run — the arm it forgave no longer builds a node-anchored Finding literal, or moved. A standing exemption for a site that is gone is a LOADED GUN: the next Finding-overload written there inherits it. Delete the marker. See ${GATE_SELF} and tooling/src/verify/gates/GATE-AUTHORING.md §4.4.`;
 const MSG_OVER_EXEMPT = `one \`@${MARKER_NAME}\` marker absolved MORE THAN ONE Finding literal — it grants an exemption nobody reasoned about to every site but the one it was written for (§4.3a). Put one marker at each literal. See ${GATE_SELF}.`;
 const MSG_MALFORMED = `MALFORMED \`@${MARKER_NAME}\` marker — no \`: <reason>\`. The house grammar (tooling/src/verify/gates/GATE-AUTHORING.md §4.3) requires the reason, so this marker suppresses NOTHING while reading as an exemption. Write the reason (why it is correct + what would end it), or delete the marker.`;
 const MSG_BLIND = `blindness tripwire: the real gate corpus is loaded but ZERO \`Finding\`-shaped literals were found in it — the detector's shape predicate (file + line + column/message) has rotted past every gate, so this gate's verdict is unknowable. Re-derive it in ${GATE_SELF}. See tooling/src/verify/gates/GATE-AUTHORING.md §4.6.`;
-const MSG_STALE_BASELINE = (file: string, budget: number, actual: number): string =>
-  `${BASELINE_REL} budgets ${budget} node-anchored Finding literal(s) for \`${file}\` but only ${actual} remain — the ratchet only goes DOWN: regenerate it (\`${GENERATOR}\`) and commit the shrink.`;
-const MSG_DEAD_BASELINE = (file: string): string =>
-  `${BASELINE_REL} budgets \`${file}\`, which is no longer in the gate corpus (deleted or renamed) — the row names nothing at all. Regenerate the baseline (\`${GENERATOR}\`) and commit the shrink. See tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode (B).`;
 
 // ── detection ─────────────────────────────────────────────────────────────────────────────────────────
 
@@ -144,9 +133,7 @@ function isFindingLiteral(obj: Node): boolean {
 }
 
 /** The strongest provenance arm this literal trips, or undefined. ONE verdict per literal on purpose: two
- *  findings on one site would make a single correct marker read as an OVER-EXEMPTION. Module-private: the
- *  generator reaches it through `unmarkedSites`, which is the ONE exported derivation the baseline and the
- *  live verdict share. */
+ *  findings on one site would make a single correct marker read as an OVER-EXEMPTION. */
 function provenanceArm(obj: Node): ArmToken | undefined {
   if (!isFindingLiteral(obj)) {
     return;
@@ -211,25 +198,6 @@ function markersIn(sf: SourceFile): Map<number, boolean> {
   return out;
 }
 
-/** ONE file's UNFORGIVEN sites — the sites a well-formed marker did NOT absolve. The BASELINE GENERATOR's
- *  only entry point, so the committed budget and the live verdict are the same derivation (§4.8: the
- *  generator is the single WRITER; this is the single DERIVATION). */
-export function unmarkedSites(sf: SourceFile): readonly ArmToken[] {
-  const markers = markersIn(sf);
-  const out: ArmToken[] = [];
-  sf.forEachDescendant((node) => {
-    const arm = provenanceArm(node);
-    if (arm === undefined) {
-      return;
-    }
-    const line = markerLineFor(node);
-    if (line === undefined || markers.get(line) !== true) {
-      out.push(arm);
-    }
-  });
-  return out;
-}
-
 // ── pass state ────────────────────────────────────────────────────────────────────────────────────────
 
 interface Site {
@@ -244,14 +212,6 @@ let passLiterals = 0;
 
 function relOf(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-function readBaseline(root: string): Readonly<Record<string, number>> {
-  const abs = join(root, BASELINE_REL);
-  if (!existsSync(abs)) {
-    return {};
-  }
-  return JSON.parse(readFileSync(abs, "utf8")) as Record<string, number>;
 }
 
 /** Detected sites minus the ones a well-formed marker absolved, grouped by file — recording marker
@@ -303,30 +263,12 @@ function judgeMarkers(ctx: GateRunCtx, consumed: ReadonlyMap<string, number>): v
   }
 }
 
-/** The shrink-only baseline (§4.8): excess over a file's budget REDs at the site; a budget nothing spends
- *  any more REDs at the baseline (both staleness modes — a file that improved, and a file that is GONE). */
-function judgeBaseline(ctx: GateRunCtx, byFile: ReadonlyMap<string, Site[]>): void {
-  const baseline = readBaseline(ctx.root);
-  for (const [file, sites] of byFile) {
-    const budget = baseline[file] ?? 0;
-    // Declared debt, surfaced as `admitted-by-ratchet: N` beside the ✓ — a green ratchet gate still names
-    // the population it is carrying (Codex GA-H-02).
-    ctx.scan({ admitted: Math.min(budget, sites.length) });
-    for (const site of sites.slice(budget)) {
+/** BORN-COMPLIANT (§4.8): every unmarked site reports directly — the ratchet baseline reached `{}` and
+ *  was deleted with its generator, so there is no budget left to slice against. */
+function reportSites(ctx: GateRunCtx, byFile: ReadonlyMap<string, Site[]>): void {
+  for (const sites of byFile.values()) {
+    for (const site of sites) {
       ctx.report(site.node, { token: site.arm, offset: 0 });
-    }
-  }
-  if (passCorpus.size < REAL_CORPUS_MIN) {
-    return; // a mini-project holds none of the baselined files: "spent nothing" carries no information
-  }
-  for (const [file, budget] of Object.entries(baseline)) {
-    if (!passCorpus.has(file)) {
-      ctx.report({ file: BASELINE_REL, line: 1, column: 0, message: MSG_DEAD_BASELINE(file) });
-      continue;
-    }
-    const actual = byFile.get(file)?.length ?? 0;
-    if (actual < budget) {
-      ctx.report({ file: BASELINE_REL, line: 1, column: 0, message: MSG_STALE_BASELINE(file, budget, actual) });
     }
   }
 }
@@ -335,10 +277,9 @@ export const gate: GateDescriptor = {
   name: "finding-overload-provenance",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
   status: "active",
-  scopeSafety: "whole-project", // the marker + baseline ratchets are whole-corpus claims
+  scopeSafety: "whole-project", // the marker arms + the blindness tripwire are whole-corpus claims
   message: MESSAGE,
   fix: FIX,
-  fsBacked: true, // reads its own baseline JSON off disk
   scanRoot: (p) => p.startsWith(GATES_DIR),
   kinds: [SyntaxKind.ObjectLiteralExpression],
   begin: () => {
@@ -368,7 +309,7 @@ export const gate: GateDescriptor = {
     const consumed = new Map<string, number>();
     const byFile = resolveMarkers(consumed);
     judgeMarkers(ctx, consumed);
-    judgeBaseline(ctx, byFile);
+    reportSites(ctx, byFile);
     if (passCorpus.size >= REAL_CORPUS_MIN && passLiterals === 0) {
       ctx.report({ file: GATE_SELF, line: 1, column: 0, message: MSG_BLIND });
     }
