@@ -13,8 +13,10 @@ import {
   asViolations,
   eslintScheme,
   failReason,
+  noticesIn,
   ownScheme,
   parse,
+  printSummary,
   REGISTRY,
   resolveSelection,
   stagesForTier,
@@ -67,8 +69,62 @@ function failedStage(name: string, exitCode: number): StageResult {
     logFile: `reports/verify/${name.replace(/:/gu, "-")}.log`,
     failureExcerpt: null,
     runsAt: null,
+    notices: [],
   };
 }
+
+// ── the NOTICE channel (#534) — how a PASSING stage says something the reader must see ──
+// A green stage's output lands in reports/verify/<stage>.log and nowhere else: the console prints one ✓
+// line. That is exactly how the #533 dev-db drop happened — its only warning was a log line nobody read.
+// A stage opts in by printing `[verify-notice] …`; the runner lifts those lines and the TAIL block renders
+// them beside the verdict. A notice must NEVER move the verdict — that is the other half of the contract.
+
+test("noticesIn lifts `[verify-notice]` lines and nothing else", () => {
+  const transcript = ["db-baseline-parity — 214 statement(s)", "[verify-notice] THE NEXT RESPAWN WILL DROP THE DEV DB", "  ✓ baseline matches"].join("\n");
+  expect(noticesIn(transcript)).toEqual(["THE NEXT RESPAWN WILL DROP THE DEV DB"]);
+  expect(noticesIn("nothing to declare here\n  ✓ clean")).toEqual([]);
+});
+
+test("printSummary renders a notice in the TAIL block while the verdict stays PASS", () => {
+  const noticed: StageResult = { ...failedStage("structure:db-baseline", 0), ok: true, notices: ["THE NEXT RESPAWN WILL DROP THE DEV DB"] };
+  const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [noticed] } as const;
+  const written: string[] = [];
+  const original = process.stdout.write.bind(process.stdout);
+  // biome-ignore lint/suspicious/noExplicitAny: a one-call stdout capture — the write overloads are irrelevant to what is asserted.
+  (process.stdout as any).write = (chunk: string): boolean => {
+    written.push(chunk);
+    return true;
+  };
+  try {
+    printSummary(report);
+  } finally {
+    // biome-ignore lint/suspicious/noExplicitAny: restoring the captured write, same reason.
+    (process.stdout as any).write = original;
+  }
+  const out = written.join("");
+  expect(out).toContain("NOTICES (not failures)");
+  expect(out).toContain("THE NEXT RESPAWN WILL DROP THE DEV DB");
+  // The load-bearing half: a notice is presentation, never severity.
+  expect(out).toContain("VERDICT: PASS");
+});
+
+test("printSummary prints NO notices block when no stage declared one", () => {
+  const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [{ ...failedStage("lint:biome", 0), ok: true }] } as const;
+  const written: string[] = [];
+  const original = process.stdout.write.bind(process.stdout);
+  // biome-ignore lint/suspicious/noExplicitAny: a one-call stdout capture — the write overloads are irrelevant to what is asserted.
+  (process.stdout as any).write = (chunk: string): boolean => {
+    written.push(chunk);
+    return true;
+  };
+  try {
+    printSummary(report);
+  } finally {
+    // biome-ignore lint/suspicious/noExplicitAny: restoring the captured write, same reason.
+    (process.stdout as any).write = original;
+  }
+  expect(written.join("")).not.toContain("NOTICES");
+});
 
 test("failReason: an eslint exit-2 TOOL error renders as a tool-error (‼ · TOOL-ERROR), never a violation", () => {
   const line = failReason(failedStage("lint:eslint", eslintScheme(2)));

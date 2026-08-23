@@ -54,6 +54,18 @@ export interface StageResult {
   readonly failureExcerpt: string | null;
   /** For a deferred stage: the tier where it DOES run (so a scoped green names what it skipped). */
   readonly runsAt: string | null;
+  /**
+   * Lines a PASSING stage needs the reader to see. A green stage's output goes to its per-stage log and
+   * nowhere else — which is how a "warning printed at the decision point" becomes a warning nobody reads
+   * (issue #534: the dev db was dropped by a change whose only signal was a log line). A stage opts in by
+   * printing `[verify-notice] …` on its own stdout; the runner lifts those lines here and `printSummary`
+   * renders them in the TAIL block, beside the verdict.
+   *
+   * DELIBERATELY NOT a severity tier: a notice never changes `ok`, `exitCode`, or the verdict. Gates have
+   * no warn tier (GATE-AUTHORING §"no warn tier") and this does not smuggle one in — it is a PRESENTATION
+   * channel for something the stage already decided was not a violation.
+   */
+  readonly notices: readonly string[];
 }
 
 export interface VerifyReport {

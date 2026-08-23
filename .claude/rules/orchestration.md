@@ -358,6 +358,15 @@ Every lane, without being told per-brief:
   dead on this tree by construction: an `rgb(...)` regex (computed style passes `oklch` through
   VERBATIM) and anything reading `getComputedStyle`/`elementFromPoint` to see a `mask-image`
   (a mask is PAINT — only framebuffer sampling sees it).
+- **A SCHEMA-BASELINE edit DROPS the dev db at the next respawn — merge-window-scheduled, like a
+  recorder-dependent drive (2026-08-23, #533/#534).** Any change to `packages/db/src/migrations/**`
+  (hand-patch or regen) changes the baseline hash, and boot/migrate then RESETS the dev database — all
+  data, pre-launch by design. It cost a 1,242-chat ST import plus ten corpus passes (~8h GPU) once.
+  The tripwire is now a `[verify-notice]` line in `pnpm check`'s tail block ("THE NEXT SERVER RESPAWN
+  WILL DROP THE DEV DB") — READ IT; it never fails the run, so a green verdict does not mean nothing
+  happened. Before merging such a lane: schedule it like a merge window, and the moment the boot's
+  pre-migrate backup appears, PIN it (`touch data/orbweaver.db.backup-<stamp>.keep`) — a pinned backup
+  is exempt from `pruneDbBackups` forever; an unpinned one ages out of the recent-5/daily-7 budget.
 - **Seeded rows are never verification evidence, and a per-user-scoped empty read is evidence about
   WHICH PRINCIPAL asked** — not about whether the data exists. Verify against model-populated /
   real-principal state, and say which principal your receipt was taken as.

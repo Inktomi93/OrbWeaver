@@ -86,10 +86,63 @@ function printGroup(label: string, statements: readonly string[]): void {
   }
 }
 
+// ── the DEV-DB DROP TRIPWIRE (advisory — issue #534) ─────────────────────────────────────────────────
+// The gating arm above asks "does the committed baseline match the live SCHEMA". This one asks the other
+// question the same file governs: "does it match what the LIVE DEV DB recorded" — because when it does
+// not, the next server respawn DROPS EVERY ROW (pre-launch by design, boot/migrate.ts). On 2026-08-23
+// that cost a 1,242-chat import and ~8h of GPU passes, and the only signal was a server.log line read
+// hours later (#533).
+//
+// It is a NOTICE, never a violation, deliberately: regenerating the baseline is legitimate, routine work,
+// and a hard red would block it. What was missing is VISIBILITY at the decision point — so the line rides
+// the `[verify-notice]` channel, which `printSummary` renders in the tail beside the verdict.
+//
+// A lane worktree has no `data/` and gets `no-db` (silence); a fresh checkout gets `trivial` (silence);
+// an unreadable db gets `unknown`, which is REPORTED — "I could not measure" is never printed as clean.
+const DEV_DB_MIGRATIONS = "packages/db/src/migrations";
+const NOTICE = "[verify-notice]";
+const MIB = 1_048_576;
+const HASH_PREFIX = 12;
+const DEFAULT_DATABASE_URL = "file:./data/orbweaver.db"; // mirrors foundation/env's default.
+
+function noticeLine(text: string): void {
+  process.stdout.write(`${NOTICE} ${text}\n`);
+}
+
+/** Print the dev-db drop forecast, if there is anything to say. Never throws, never gates. */
+async function reportDevDbForecast(root: string): Promise<void> {
+  // biome-ignore lint/style/noProcessEnv: the dev db's URL is genuinely process env — this stage runs standalone, outside the server's env module.
+  const url = process.env["DATABASE_URL"] ?? DEFAULT_DATABASE_URL;
+  const { forecastDevDbReset } = await import("@orb/db");
+  let forecast: Awaited<ReturnType<typeof forecastDevDbReset>>;
+  try {
+    forecast = await forecastDevDbReset(url, join(root, DEV_DB_MIGRATIONS));
+  } catch (err) {
+    noticeLine(`could not read the dev db at ${url} to forecast a reset: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+  if (forecast.status === "unknown") {
+    noticeLine(`could not forecast a dev-db reset for ${forecast.path}: ${forecast.reason} — this check said nothing, which is not the same as "safe"`);
+    return;
+  }
+  if (forecast.status !== "will-reset") {
+    return;
+  }
+  const mib = Math.round(forecast.bytes / MIB);
+  noticeLine(
+    `THE NEXT SERVER RESPAWN WILL DROP THE DEV DB. ${forecast.path} (${mib} MiB) recorded baseline ` +
+      `${forecast.appliedHash.slice(0, HASH_PREFIX)}…, the committed 0000_baseline.sql is ${forecast.shippedHash.slice(0, HASH_PREFIX)}… — ` +
+      "boot/migrate resets a dev db whose baseline was regenerated (ALL DATA DROPPED, pre-launch by design). " +
+      "The boot takes ONE pre-migrate backup first: pin it the moment it exists " +
+      "(`touch data/orbweaver.db.backup-<stamp>.keep`) or the retention sweep will age it out.",
+  );
+}
+
 /** The `db-baseline` verb. ROOT is the caller's cwd, never a depth-derived `import.meta.dirname` walk —
  *  the up-count is a property of where the file SITS, and it silently changes at every move (playbook
  *  §9.1-4). */
 export async function runDbBaselineParity(root: string): Promise<number> {
+  await reportDevDbForecast(root);
   let result: SchemaBaselineComparison;
   try {
     result = await compareSchemaBaseline(root);

@@ -188,23 +188,54 @@ const KEEP_RECENT_BACKUPS = 5;
 const KEEP_DAILY_BACKUPS = 7;
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * The PIN marker: an empty sibling file `<db>.backup-<stamp>.keep` makes that backup exempt from the
+ * retention sweep, forever, in ADDITION to the recent/daily budget. Creating one is a bare
+ * `touch data/orbweaver.db.backup-<stamp>.keep` — deliberately no CLI: the marker IS the mechanism, and a
+ * tool that hides `touch` behind a verb is a tool that can rot.
+ *
+ * WHY IT EXISTS (2026-08-23, issue #534 — the #533 incident): a baseline-hash change auto-resets the dev
+ * db at the next respawn, and the ONLY copy of what was dropped is the boot's own pre-migrate backup —
+ * which the very next migrating boots age out. Eight hours of corpus analysis survived only because a
+ * human copied that file out of `data/` by hand. A pin is the in-tree version of that rescue: mark the
+ * backup, and the sweep can never take it.
+ *
+ * A marker for a stamp with no base copy pins nothing (the orphan sidecars are still swept); the marker
+ * file itself is never matched by the sweep's own pattern, so it is never deleted either — an intentional
+ * one-way act, removable only by hand.
+ */
+const PIN_SUFFIX = ".keep";
+
 // One backup instant: the base copy and/or its sqlite sidecars. `hasBase` false ⇒ orphaned sidecars.
 interface BackupGroup {
   readonly files: string[];
   hasBase: boolean;
 }
 
+/** The sweep's view of the db directory: the backup groups by stamp, and the stamps a `.keep` marker pins. */
+interface BackupInventory {
+  readonly groups: Map<number, BackupGroup>;
+  readonly pinned: Set<number>;
+}
+
 /**
  * Every `<db>.backup-<stamp>` file (+ sidecars) in the db's OWN directory, grouped by stamp — the narrow
- * match {@link pruneDbBackups} documents. `matchAll` over an anchored `g` pattern rather than `exec`: it
- * yields the single match or nothing, with no `null` branch for the type-aware lint to mis-read.
+ * match {@link pruneDbBackups} documents — plus the stamps a `<db>.backup-<stamp>.keep` marker pins.
+ * `matchAll` over an anchored `g` pattern rather than `exec`: it yields the single match or nothing, with
+ * no `null` branch for the type-aware lint to mis-read.
  */
-function collectBackupGroups(dir: string, base: string): Map<number, BackupGroup> {
-  const backupRe = new RegExp(`^${RegExp.escape(base)}\\.backup-(\\d+)(-wal|-shm)?$`, "g");
+function collectBackupInventory(dir: string, base: string): BackupInventory {
+  const escaped = RegExp.escape(base);
+  const backupRe = new RegExp(`^${escaped}\\.backup-(\\d+)(-wal|-shm)?$`, "g");
+  const pinRe = new RegExp(`^${escaped}\\.backup-(\\d+)${RegExp.escape(PIN_SUFFIX)}$`, "g");
   const groups = new Map<number, BackupGroup>();
+  const pinned = new Set<number>();
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isFile()) {
       continue;
+    }
+    for (const match of entry.name.matchAll(pinRe)) {
+      pinned.add(Number(match[1]));
     }
     for (const match of entry.name.matchAll(backupRe)) {
       const stamp = Number(match[1]);
@@ -214,15 +245,16 @@ function collectBackupGroups(dir: string, base: string): Map<number, BackupGroup
       groups.set(stamp, group);
     }
   }
-  return groups;
+  return { groups, pinned };
 }
 
 /**
- * The stamps to KEEP: the {@link KEEP_RECENT_BACKUPS} newest, plus the newest of each of the last
- * {@link KEEP_DAILY_BACKUPS} distinct days. Only stamps with a real base file are candidates — an orphan
- * sidecar group restores nothing, so it is never kept.
+ * The stamps to KEEP: every PINNED stamp ({@link PIN_SUFFIX}), plus the {@link KEEP_RECENT_BACKUPS}
+ * newest, plus the newest of each of the last {@link KEEP_DAILY_BACKUPS} distinct days. Only stamps with
+ * a real base file are candidates — an orphan sidecar group restores nothing, so it is never kept, pinned
+ * or not.
  */
-function retainedStamps(groups: ReadonlyMap<number, BackupGroup>): ReadonlySet<number> {
+function retainedStamps({ groups, pinned }: BackupInventory): ReadonlySet<number> {
   // Newest-first, so the first stamp seen for a day IS that day's newest. The day bucket is
   // floor(epoch-ms / 1 day): TZ-independent and clock-free.
   const stamps = [...groups]
@@ -230,6 +262,11 @@ function retainedStamps(groups: ReadonlyMap<number, BackupGroup>): ReadonlySet<n
     .map(([stamp]) => stamp)
     .sort((a, b) => b - a);
   const keep = new Set(stamps.slice(0, KEEP_RECENT_BACKUPS));
+  for (const stamp of stamps) {
+    if (pinned.has(stamp)) {
+      keep.add(stamp);
+    }
+  }
   const days = new Set<number>();
   for (const stamp of stamps) {
     const day = Math.floor(stamp / MS_PER_DAY);
@@ -246,10 +283,10 @@ function retainedStamps(groups: ReadonlyMap<number, BackupGroup>): ReadonlySet<n
 }
 
 /**
- * Delete stale `<db>.backup-<epoch>` copies (with their `-wal`/`-shm` sidecars), keeping the
- * {@link KEEP_RECENT_BACKUPS} newest plus the newest of each of the last {@link KEEP_DAILY_BACKUPS} days.
- * Returns the deleted paths. No-op for `:memory:` / non-file URLs. Called by the boot migrate step AFTER a
- * successful migration — never on a no-op boot.
+ * Delete stale `<db>.backup-<epoch>` copies (with their `-wal`/`-shm` sidecars), keeping every PINNED
+ * stamp ({@link PIN_SUFFIX}) plus the {@link KEEP_RECENT_BACKUPS} newest plus the newest of each of the
+ * last {@link KEEP_DAILY_BACKUPS} days. Returns the deleted paths. No-op for `:memory:` / non-file URLs.
+ * Called by the boot migrate step AFTER a successful migration — never on a no-op boot.
  *
  * This runs at BOOT against the LIVE db directory, so the match is deliberately narrow: an anchored,
  * regex-ESCAPED basename (its `.` separators must not wildcard onto a neighbour), `\d+` for the stamp (so
@@ -266,10 +303,10 @@ export function pruneDbBackups(url: string): readonly string[] {
   if (!existsSync(dir)) {
     return [];
   }
-  const groups = collectBackupGroups(dir, basename(path));
-  const keep = retainedStamps(groups);
+  const inventory = collectBackupInventory(dir, basename(path));
+  const keep = retainedStamps(inventory);
   const deleted: string[] = [];
-  for (const [stamp, group] of groups) {
+  for (const [stamp, group] of inventory.groups) {
     if (keep.has(stamp)) {
       continue;
     }
@@ -404,6 +441,83 @@ export async function checkBaseline(db: Db, migrationsFolder: string): Promise<B
     return { status: "current" };
   }
   return { status: "regenerated", appliedHash: applied.hash, currentHash: shipped.hash };
+}
+
+// ── the dev-db DROP FORECAST (issue #534, minted from #533) ──────────────────────────────────────────
+// The reset below is BY DESIGN pre-launch. What was missing is a tripwire at the DECISION point: on
+// 2026-08-23 a lane hand-edited `0000_baseline.sql`, the hash changed, and the next `node --watch` respawn
+// dropped a 1,242-chat import plus ten corpus-analysis passes (~8h GPU). The only warning was a server.log
+// line, read hours later. This is the same verdict {@link checkBaseline} gives the boot step, answerable
+// WITHOUT booting: any tool holding a database URL and the migrations folder can ask "would the next boot
+// wipe this?" and say so where the author is looking. `pnpm check`'s db-baseline stage is the live caller.
+//
+// READ-ONLY BY CONSTRUCTION: it opens a bare client (NO pragmas — not even the tuning block) and issues
+// two SELECTs. It never migrates, never writes, and never decides anything.
+const MIN_FORECAST_BYTES = 8_388_608; // 8 MiB — a freshly-migrated, never-used db is well under this.
+
+/**
+ * What the next boot would do to the dev db at this URL.
+ * · `no-db` — not a file URL, or nothing on disk yet.
+ * · `trivial` — smaller than {@link MIN_FORECAST_BYTES}; a fresh checkout's db is not worth a warning.
+ *   NOTE the direction: SQLite does not shrink on DROP, so a reset db keeps its pages and stays
+ *   "non-trivial" — this threshold silences a NEW db, it never certifies that a big one holds data.
+ * · `current` — the applied baseline matches the shipped one; nothing pending on this axis.
+ * · `will-reset` — the shipped baseline was regenerated since this db was built: the next respawn DROPS
+ *   EVERY ROW (pre-launch by design). The pre-migrate backup is the only copy; pin it (`.keep`).
+ * · `unknown` — the db could not be read (locked, corrupt, mid-write). A silence here would be a lie of
+ *   the "I could not measure" kind, so it is its own arm and the caller reports it.
+ */
+export type DevDbResetForecast =
+  | { readonly status: "no-db" }
+  | { readonly status: "trivial"; readonly path: string; readonly bytes: number }
+  | { readonly status: "current"; readonly path: string; readonly bytes: number }
+  | { readonly status: "will-reset"; readonly path: string; readonly bytes: number; readonly appliedHash: string; readonly shippedHash: string }
+  | { readonly status: "unknown"; readonly path: string; readonly reason: string };
+
+/** The applied (hash, folderMillis) read off a db FILE through a bare client — no pragmas, no drizzle. */
+async function readAppliedBaselineFromFile(url: string): Promise<{ hash: string; folderMillis: number } | undefined> {
+  const client = createClient({ url });
+  try {
+    const present = await client.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'");
+    if (present.rows.length === 0) {
+      return;
+    }
+    const rows = await client.execute("SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1");
+    const row = rows.rows[0];
+    if (row === undefined) {
+      return;
+    }
+    return { hash: String(row["hash"]), folderMillis: Number(row["created_at"]) };
+  } finally {
+    client.close();
+  }
+}
+
+/** Classify the db file at `url` against the shipped baseline — see {@link DevDbResetForecast}. */
+export async function forecastDevDbReset(url: string, migrationsFolder: string): Promise<DevDbResetForecast> {
+  const path = localPath(url);
+  if (path === undefined || !existsSync(path)) {
+    return { status: "no-db" };
+  }
+  const bytes = statSync(path).size;
+  if (bytes < MIN_FORECAST_BYTES) {
+    return { status: "trivial", path, bytes };
+  }
+  let applied: { hash: string; folderMillis: number } | undefined;
+  try {
+    applied = await readAppliedBaselineFromFile(url);
+  } catch (err) {
+    return { status: "unknown", path, reason: err instanceof Error ? err.message : String(err) };
+  }
+  if (applied === undefined) {
+    // A non-trivial file with no migrations bookkeeping is not a db this forecast can speak about.
+    return { status: "unknown", path, reason: "no __drizzle_migrations row" };
+  }
+  const shipped = shippedBaselineIdentity(migrationsFolder);
+  if (applied.hash === shipped.hash && applied.folderMillis === shipped.folderMillis) {
+    return { status: "current", path, bytes };
+  }
+  return { status: "will-reset", path, bytes, appliedHash: applied.hash, shippedHash: shipped.hash };
 }
 
 // The order objects are dropped in: dependents (triggers/views/indexes) before the tables they hang off,
