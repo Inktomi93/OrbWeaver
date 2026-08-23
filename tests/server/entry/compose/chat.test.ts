@@ -272,6 +272,29 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     expect(final?.kind === "final" && final.economics.modelCalls).toBe(4);
   });
 
+  // The bridge's push→pull pump ends the stream on the leaf's rejection. It used to decide "did it fail?" by
+  // asking whether the recorded rejection VALUE was non-nullish, so a runner rejecting with `undefined` ended
+  // the stream as a clean EOF: the turn committed whatever text had streamed and reported success. The pump now
+  // records the failure in a box, so presence is a different question from truthiness (#596).
+  test("a runner rejection carrying a NULLISH value fails the stream — never a silent, successful EOF", async () => {
+    const bridge = createRunChatTurnBridge({
+      // A non-Error rejection IS the case under test — a vendor SDK / abort path that rejects with nothing.
+      runChatTurn: (): Promise<ChatResult> => Promise.reject(undefined),
+      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+    });
+    const chunks: TurnStreamChunk[] = [];
+    let failed = false;
+    try {
+      for await (const chunk of bridge(wireRequest)) {
+        chunks.push(chunk);
+      }
+    } catch {
+      failed = true;
+    }
+    expect(failed).toBe(true);
+    expect(chunks).toEqual([]);
+  });
+
   test("non-warning runner events (rate_limit, model_downgrade) never become chunks", async () => {
     const chunks = await chunksFor([
       { kind: "rate_limit", at: 1000, status: "ok", rateLimitType: undefined, resetsAt: undefined, utilization: undefined, isUsingOverage: undefined },

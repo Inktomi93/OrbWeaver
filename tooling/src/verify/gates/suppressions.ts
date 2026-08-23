@@ -37,11 +37,21 @@ interface RatifiedRule {
 /** THE RATIFICATION TABLE (#569, seeded from the #575 triage that read all 346 markers across 184 files:
  *  0 fix-underlying, 0 stale). A marker whose rule is here is RATIFIED — permanent, not backlog — and the
  *  per-file rows in the baseline carry that partition so `pnpm debt` and the single-pass never print a
- *  ruled suppression as burnable debt. A rule ABSENT here is DEBT by default, which is how the 5
- *  `noExcessiveCognitiveComplexity` markers stay gray (splitting them would scatter one-home invariants —
- *  owner judgment, deliberately not promoted).
+ *  ruled suppression as burnable debt. A rule ABSENT here is DEBT by default.
+ *
+ *  RULING SUPERSEDED (#596). This header used to record that `noExcessiveCognitiveComplexity` was
+ *  DELIBERATELY left out — "the 5 markers stay gray, owner judgment, not promoted". The owner then ruled the
+ *  terminal state of the debt campaign to be ZERO burnable, every survivor carrying its ruling, which the
+ *  gray-by-omission posture cannot express: an unruled marker is indistinguishable from backlog nobody has
+ *  read. So the five were re-judged one at a time (#596): `entry/compose/chat.ts` DECOMPOSED (its turn bridge
+ *  really did hold two mappings and a push→pull pump behind one "adapter logic" excuse — the marker is gone,
+ *  and two more went with it), and the four that survived are ratified BY RULE below. The mechanism the old
+ *  ruling protected is untouched: the class is still DERIVED here and never hand-declared in a baseline row.
+ *
  *  TWO-SIDED (GATE-AUTHORING.md §4.4): a row matching ZERO live markers is RED — a ratification that
- *  absolves nothing is a loaded gun for the next marker written under that rule. */
+ *  absolves nothing is a loaded gun for the next marker written under that rule. Note what a ratification
+ *  does NOT do: the EXCEED arm still REDs any marker past a file's committed budget, so ratifying a RULE
+ *  absolves the decided set, never the next marker somebody writes under it. */
 const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
   "lint/performance/noAwaitInLoops": {
     kind: "ruling",
@@ -107,6 +117,17 @@ const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
   },
   "lint/a11y/noLabelWithoutControl": { kind: "tool-fp", why: "the control is nested INSIDE the label, which the rule's traversal misses" },
   "react-hooks/exhaustive-deps": { kind: "tool-fp", why: "the eslint twin of the value-keyed deps ruling above — same site, same reason" },
+  "lint/complexity/noExcessiveCognitiveComplexity": {
+    kind: "ruling",
+    why:
+      "flat ENUMERATIONS, not tangled control flow (#596): every increment is one independent column or step of a one-home inventory " +
+      "at real nesting depth 0 — a DB column list's `?? null` per column (canon-write `variantEconomics`, 20), the rebuild fold's signed " +
+      "mirror per column (stats-delta `canonMessageDelta`, 28), and the ordered boot/teardown protocol (entry/lifecycle, 45 + 20). " +
+      "Biome scores the enumeration's LENGTH and then DOUBLES every increment for a closure — nine null-guarded stops at depth 0 score 20 — " +
+      "so the number is not measuring what the rule is for. Splitting scatters the one-home shape the enumeration exists to show (the " +
+      "column list, the drift-gate mirror, the boot ordering). Each site states its own ruling at the marker; the EXCEED arm still REDs a " +
+      "NEW marker past the file's budget, so this ratifies the decided set and not the next one written.",
+  },
   "lint/complexity/useMaxParams": {
     kind: "ruling",
     why: "the signature MIRRORS an injected cross-feature contract (a positional delegate); narrowing it forks the contract",
