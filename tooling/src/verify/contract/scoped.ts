@@ -33,16 +33,30 @@ export interface SchemaBaselineComparison {
   readonly staleInBaseline: readonly string[];
 }
 
-/** What the client's built `dist/assets/` says about the boot chunk. `bytes === null` is the UNMEASURABLE
- *  state (no entry chunk, or more than one) — a TOOL error, never a clean verdict: a blind zero here would
- *  read as "the budget is fine" forever after a vite output-naming change. */
+/** One `dist/assets/*.js` file the emitted `index.html` puts on the boot path. */
+export interface BootChunkFile {
+  /** The asset's basename, e.g. `index-BsalMtFR.js` / `jsx-runtime-DUeIs9Gz.js`. */
+  readonly name: string;
+  /** Its size on disk. */
+  readonly bytes: number;
+}
+
+/** What the client's built `dist/` says about the BOOT PAYLOAD — the entry chunk PLUS every
+ *  `dist/assets/*.js` the emitted `index.html` references (module `src` + `modulepreload` `href`), because
+ *  the browser fetches a modulepreloaded sibling on the boot path too. `bytes === null` is the UNMEASURABLE
+ *  state — a TOOL error, never a clean verdict: a blind zero here would read as "the budget is fine"
+ *  forever after a vite output-naming change. */
 export interface BootChunkVerdict {
   /** The directory that was read, repo-relative — printed so an unmeasurable verdict names its scope. */
   readonly assetsDir: string;
   /** Every filename in `assetsDir` matching the entry-chunk pattern. Exactly one = measurable. */
   readonly candidates: readonly string[];
-  /** The entry chunk's size, or null when `candidates.length !== 1`. */
+  /** The whole boot set, sorted by name — empty when unmeasurable. Printed so a sum names its parts. */
+  readonly bootFiles: readonly BootChunkFile[];
+  /** The boot set's SUMMED size, or null when the tree could not be measured (see `unmeasurable`). */
   readonly bytes: number | null;
   /** The committed ceiling this run judged against (boot-chunk-ratchet.ts's calibration comment). */
   readonly ceilingBytes: number;
+  /** Why the measurement is impossible, or null when `bytes` is a real number. */
+  readonly unmeasurable: string | null;
 }
