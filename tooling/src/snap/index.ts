@@ -15,11 +15,13 @@ export type { Args, OverflowEscape, OverflowProbe, OverflowSide, SnapAction, Sna
 export { capEvalText } from "./lib/eval-text.ts";
 export { variantOut } from "./lib/out-names.ts";
 export { overflowAssertionLine } from "./lib/overflow-line.ts";
+export { SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "./lib/selector-shape.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
 export { splitTrailingEvals } from "./ops/drive.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
+export { OPTIONAL_SELECTOR_FLAGS } from "./ops/flags.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
 export { snapMatrix } from "./ops/matrix.ts";
 export { isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";

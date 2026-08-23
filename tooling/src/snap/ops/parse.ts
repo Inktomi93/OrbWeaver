@@ -7,6 +7,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { themeHelpBlock } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
 import { CROP_RE } from "../lib/out-names.ts";
+import { selectorRefusalForFlag } from "../lib/selector-shape.ts";
 import { DEFAULT_VIEWPORT, FLAG_HANDLERS, MS_PER_SECOND, OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -48,6 +49,8 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
     use after creating a room, since a fresh room is unlisted until the list refetches)
   --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
   Add @N to a page-targeted flag with --pages N, for example --click@1.
+  Every selector is CSS unless prefixed: a bare phrase ("choose who speaks next") is a type-selector
+  chain for tags that cannot exist, so snap REFUSES it. For rendered text write text=<phrase>.
 
 ${appearanceHelpBlock()}
 
@@ -127,6 +130,15 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
   }
 }
 
+/** REFUSE a selector that can never match rather than letting it time out as a false "not rendered"
+ *  (#550 — the whole reason lib/selector-shape.ts exists). */
+function validateSelectorFlagValue(flag: string, raw: string, errors: string[]): void {
+  const refusal = selectorRefusalForFlag(flag, raw);
+  if (refusal !== null) {
+    errors.push(refusal);
+  }
+}
+
 function validateFlagValue(flag: string, raw: string, errors: string[]): void {
   if (raw === "" && flag !== "--debug-token") {
     errors.push(`${flag} requires a non-empty value`);
@@ -135,6 +147,7 @@ function validateFlagValue(flag: string, raw: string, errors: string[]): void {
   validateNumericFlag(flag, raw, errors);
   validateEvidenceFlagValue(flag, raw, errors);
   validatePairFlagValue(flag, raw, errors);
+  validateSelectorFlagValue(flag, raw, errors);
 }
 
 function consumeRequiredArg(argv: readonly string[], index: number, flag: string, errors: string[]): number {
@@ -175,7 +188,13 @@ function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): 
   if (REQUIRED_VALUE_FLAGS.has(flag)) {
     return consumeRequiredArg(argv, index, flag, scan.errors);
   }
-  return OPTIONAL_SELECTOR_FLAGS.has(flag) && consumesOptionalSelector(argv, index) ? 1 : 0;
+  if (!(OPTIONAL_SELECTOR_FLAGS.has(flag) && consumesOptionalSelector(argv, index))) {
+    return 0;
+  }
+  // The optional inline selector never reaches validateFlagValue (it has no REQUIRED_VALUE_FLAGS row),
+  // so its unmatchable-shape refusal is applied here — `--map choose who speaks next` lied the same way.
+  validateSelectorFlagValue(flag, argv[index + 1] as string, scan.errors);
+  return 1;
 }
 
 function scanArgv(argv: readonly string[]): string[] {

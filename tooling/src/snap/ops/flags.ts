@@ -188,6 +188,9 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   // text; a bare phrase remains a CSS selector, so matching prose cannot falsely satisfy a missing
   // control. Text waiters must not accept a pre-existing hidden node: that was the databank "Fetch
   // and add" timeout class, where an attached placeholder was not yet the stable result a user could read.
+  // That CSS-not-text reading is right but was INVISIBLE at the call site — a bare phrase timed out for
+  // 10s and read as "the text is not rendered" (#550). It is now refused at parse time by
+  // SELECTOR_VALUE_FLAGS + lib/selector-shape.ts, which names the `text=` spelling instead.
   "--wait-for": (a, rest, page) => {
     pushStep(a, { kind: "waitfor", selector: rest.shift() ?? "", page });
   },
