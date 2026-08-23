@@ -246,22 +246,32 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   (owner ruling): the guardrail is built BEFORE the need, so the first post-launch incremental migration
   lands into an armed one rather than minting it under pressure. Whole-only (one migrations dir). The
   post-baseline procedure it guards is `Tier-1-DB.md` §"When we migrate for real".
-- **`quality:boot-chunk`** (`push`/`full`, #460 — `tooling/src/verify/ops/boot-chunk-ratchet.ts`) — builds
-  `@orb/client` for production and REDs when the emitted entry chunk
-  (`packages/client/dist/assets/index-<hash>.js`) exceeds a committed byte ceiling. It defends a win nothing
+- **`quality:boot-chunk`** (`push`/`full`, #460, re-scoped by #591 — `tooling/src/verify/ops/boot-chunk-ratchet.ts`) — builds
+  `@orb/client` for production and REDs when the BOOT PAYLOAD exceeds a committed byte ceiling. The measured
+  quantity is the entry chunk (`packages/client/dist/assets/index-<hash>.js`) PLUS every
+  `dist/assets/*.js` the emitted `dist/index.html` references (the module `<script src>` and every
+  `<link rel="modulepreload" href>`), because the browser fetches a preloaded sibling on the same boot path.
+  Summing is not a refinement, it is what stops the instrument LYING: commit 2b87a0d7c moved 36,584 B out of
+  the entry chunk into a modulepreloaded `jsx-runtime-<hash>.js`, which the entry-file-only read scored as a
+  −36,491 B win while the real payload moved +93 B — and the same blindness scores pushing 300 KB into a
+  preloaded sibling as a win while boot gets no cheaper. It defends a win nothing
   else on the ladder can see: #433 (−20.4%) and #448 (−19.0%) took the boot chunk 1,146,760 → 740,339 B, and
   the regression mechanism is ONE new barrel import inside `main.tsx`'s static graph — every other stage
   stays green while it re-pays the whole cost. A byte ceiling catches every mechanism (a barrel, a fat dep,
   a lost `import type`, a route that stopped being lazy) instead of enumerating the ones already seen. PUSH,
   not static: the build is 15.45s warm (measured 2026-08-22) — cheap by build standards, but a bundler
-  invocation is not the structural-fast commit bar. The ceiling (777,000 B = the measured 740,339 + 4.95%)
+  invocation is not the structural-fast commit bar. The ceiling (780,000 B = the measured 742,930 + 4.99%,
+  re-derived 2026-08-23 against the summed boot set)
   carries the `stryker.gate.config.json` `_thresholds_comment` calibration discipline in its own header:
   measured value, headroom arithmetic, re-calibrate conditions. UNMEASURABLE IS EXIT 2, never a pass — zero
-  matching chunks or more than one (a vite output-naming or chunking change, or a failed build) is "I could
+  matching entry chunks or more than one, an unreadable `index.html`, a module script that is not the entry
+  chunk, a referenced asset absent from disk, or an `/assets/*.js` referenced in a shape the boot-ref parser
+  does not recognize (an under-count is the same lie with a smaller number) is "I could
   not measure", so a blind `0 bytes` can never read as under budget (#409 zero-hygiene). Whole-only: the
-  boot chunk is a property of the entire static graph reachable from the entry, so no changed-file subset is
-  an honest partial. Pinned by `tests/tooling/verify/ops/boot-chunk-ratchet.test.ts` (all four measurement
-  arms over planted asset trees) + the registry pin in `run.int.test.ts`.
+  boot payload is a property of the entire static graph reachable from the entry, so no changed-file subset is
+  an honest partial. Pinned by `tests/tooling/verify/ops/boot-chunk-ratchet.test.ts` (the summing arm over a
+  planted 2b87a0d7c-shaped dist, the split-is-not-a-win symmetry, over/under, and every unmeasurable arm)
+  - the registry pin in `run.int.test.ts`.
 - **`deps:orphan-ratchet`** (`push`/`full` — `tooling/src/verify/ops/orphan-export-ratchet.ts`) — the export-rot
   lens as a standing verdict: every export of `kit`/`contracts`/`db`/`server`/`client` that NOTHING reaches
   (prod or test) and that is unused in its own file, judged against a checked-in baseline

@@ -1717,9 +1717,9 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 296,
-      "bytes": 24081,
-      "sha256": "e04e5eb31f7006b46de9a9224304c7a9e5015b70899e4862b1c4c558211d2326",
+      "lines": 306,
+      "bytes": 25066,
+      "sha256": "c7748c024cc536f699ffd6185dfb12c2106541f910badb97418cbc034c90f1a1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1736,15 +1736,16 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "e04e5eb31f7006b46de9a9224304c7a9e5015b70899e4862b1c4c558211d2326",
-        "verifiedCommit": "4b048de6d7664bc2db026c7ca5c8887450198f30",
-        "verifiedAt": "2026-08-22",
+        "verifiedSha256": "c7748c024cc536f699ffd6185dfb12c2106541f910badb97418cbc034c90f1a1",
+        "verifiedCommit": "0ae0cb4f18731043a26e379c6d5924a8be838ae7",
+        "verifiedAt": "2026-08-23",
         "evidence": [
           "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
           "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the `full`-tier table row and the §3.7 stage list drop `tests:parity`; the vitest project count corrects to five. No other claim in this document moved.",
-          "delta re-verify 2026-08-22 (#460, commit 4b048de6d): re-read at the ratchet bytes — §3.2's push row gains `quality:boot-chunk` and the previously-missing `quality:cpd` (promoted 2026-08-03), §3.7 gains the boot-chunk stage entry, and the static ordered set is corrected to include structure:agent-config and docs:catalog. No other claim in this document moved."
+          "delta re-verify 2026-08-22 (#460, commit 4b048de6d): re-read at the ratchet bytes — §3.2's push row gains `quality:boot-chunk` and the previously-missing `quality:cpd` (promoted 2026-08-03), §3.7 gains the boot-chunk stage entry, and the static ordered set is corrected to include structure:agent-config and docs:catalog. No other claim in this document moved.",
+          "delta re-verify 2026-08-23 (#591, commit 0ae0cb4f1): re-read at the re-scoped ratchet bytes — §3.7's `quality:boot-chunk` entry now states the measured quantity as the BOOT SET (entry chunk + every dist/assets/*.js the emitted index.html references), the re-derived 780,000 B ceiling, and the widened unmeasurable arms. Verified against the code (tooling/src/verify/ops/boot-chunk-ratchet.ts) and a real `pnpm check:boot-chunk` run reporting 742,930 B over two boot files. No other claim in this document moved."
         ],
         "claims": [
           {
