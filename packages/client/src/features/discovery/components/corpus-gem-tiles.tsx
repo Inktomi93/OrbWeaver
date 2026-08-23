@@ -93,11 +93,17 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
           unlabelled bars under twelve tiles were a chart with no key, and the only place their quantity was
           named was inside each tile's own gloss line. One clause here keys all of them, which is where a
           shelf-wide legend belongs — repeating it per tile would be the label the primitive refuses. */}
-      <Text voice="gloss">Lifetime totals per character — the most played, longest left alone. Bars compare tokens returned.</Text>
+      {/* BOUNDED BY THE READING MEASURE (side-eye populated arm, [P3-1] / #536's line-length half). At the
+          shipped 869px pane this line is the surface's widest prose and `design-audit` measured the page's
+          worst paragraph at 145 chars against the 65-75ch law. Nothing about the sentence changed — only
+          the column it sets in. */}
+      <Text className="max-w-(--reading-measure)" voice="gloss">
+        Lifetime totals per character — the most played, longest left alone. Bars compare tokens returned, so they do not descend with the rank.
+      </Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
           needs real `listitem` CHILDREN or the cells are generic to AT and the list announces empty. */}
       <Grid aria-label="Invested but quiet characters" cols="auto" gap="row" role="list">
-        {gems.map((gem) => (
+        {gems.map((gem, index) => (
           <Stack gap="tight" key={gem.characterId} role="listitem">
             {/* `role="listitem"` rides the layout WRAPPER, never the Button — an interactive element given a
                 non-interactive role is a lie to AT (and eslint's own no-interactive-element-to-noninteractive-role). */}
@@ -108,6 +114,22 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
               size="wrap"
             >
               <Row align="center" className="w-full min-w-0" gap="row">
+                {/* THE RANK IS A DATUM, NOT AN IMPLICATION (side-eye populated arm, [P2-2] / #536). The
+                    shelf ranks by the CONJUNCTION volume × how-long-quiet and BARS tokens returned, so at
+                    327 characters the audited row 2 read left→right 567,106 · 597,739 · 629,696 — bars
+                    climbing down a descending list. Every reader parses a ranked list's leading number as
+                    its sort key, and the only leading number here was the wrong one.
+                    The report's two arms were "display the quantity you rank by" or "render the rank
+                    ordinal so the sequence is visibly the datum". The first is unavailable without
+                    lying: `gemRank` is a composite the wire does not carry as a number, and re-sorting by
+                    tokens would throw away the ranking the verb was fixed to compute (corpus forensics
+                    §6). So the ordinal — which is also what makes the tiles' order survive a re-flow into
+                    2 or 4 columns, where "reading order" stops being obvious.
+                    INSIDE the button, so it rides the tile's accessible NAME: the rank is part of what
+                    this control is, not decoration beside it. */}
+                <Text as="span" className="shrink-0 font-mono text-muted-foreground" voice="datum">
+                  {index + 1}
+                </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />
                 <Stack className="min-w-0 flex-1" gap="tight">
                   {/* `block truncate`, not `line-clamp-1`: the Button base is `whitespace-nowrap`, and a

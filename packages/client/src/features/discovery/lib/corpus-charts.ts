@@ -16,6 +16,34 @@ export function toBarItems<T>(rows: readonly T[], label: (row: T) => string, val
   }));
 }
 
+/**
+ * The top `limit` rows by `value`, plus how many there were — a chart's HEAD and its denominator, together.
+ *
+ * WHY THE PAIR IS ONE RETURN VALUE (side-eye populated arm 2026-08-23, [P2-3] / [P1-1]). Two charts on the
+ * corpus overview drew their whole series: `topKeywords` painted 50 bars in a 1,616px canvas — 45% of the
+ * page, 28.69% accent share against a 10% cap, over values running 6 down to 2, where every bar is 72-100%
+ * of its track and no bar is distinguishable from its neighbour — and the economics chart's only guard was
+ * whether a route had SPENT anything, which on a local-model library reduced 142 routes to one $0.08 bar.
+ * A cap alone would just be a quieter lie: the reader has to be told what was left out, and a truncation
+ * whose denominator lives somewhere else drifts from it. So the slice and the total travel together, the
+ * same way `headlineFor` returns its sentence beside the figures it has spent
+ * (`corpus-analysis-state.ts`).
+ *
+ * SORTED HERE, not assumed: `toBarItems` treats array order as the rank and does not sort, and a caller
+ * that hands it a server order which is not the charted quantity is exactly the rank-vs-display defect
+ * [P2-2] names. Ties keep their input order (`toSorted` is stable), so a corpus charts identically twice.
+ */
+export function topRanked<T>(rows: readonly T[], value: (row: T) => number, limit: number): { readonly rows: readonly T[]; readonly total: number } {
+  return { rows: rows.toSorted((a, b) => value(b) - value(a)).slice(0, limit), total: rows.length };
+}
+
+/** A capped chart's label — `Top keywords · 12 of 50`, or the bare label when nothing was cut. The
+ *  denominator rides the chart's own accessible NAME rather than a sentence beside it, because
+ *  `LabeledChartFrame` names both the canvas and its screen-reader table with that one string. */
+export function chartLabelWithDenominator(label: string, shown: number, total: number, noun: string): string {
+  return shown >= total ? label : `${label} · ${shown.toString()} of ${total.toString()} ${noun}`;
+}
+
 // ── cluster-label disambiguation ──────────────────────────────────────────────
 /** One labelled cluster's inputs: the label k-means produced, and the facets that describe it. File-local
  *  (the exported surface is the function) — a caller passes the shape structurally, as `MapPoint`'s callers do. */

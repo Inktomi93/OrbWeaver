@@ -5,7 +5,13 @@
 // between a repeated k-means label and three bars a reader (or a screen reader) cannot tell apart. The
 // surfaces lean on all three; this asserts the shaping, not a trivial passthrough.
 
-import { disambiguateLabels, toBarItems, toGenreSeries } from "../../../../../packages/client/src/features/discovery/lib/corpus-charts.ts";
+import {
+  chartLabelWithDenominator,
+  disambiguateLabels,
+  toBarItems,
+  toGenreSeries,
+  topRanked,
+} from "../../../../../packages/client/src/features/discovery/lib/corpus-charts.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function point(id: string, genre: string | null): { id: string; label: string; x: number; y: number; genre: string | null } {
@@ -82,4 +88,49 @@ test("toGenreSeries yields a single Other series when every point is genre-less"
   const series = toGenreSeries([point("a", null), point("b", ""), point("c", null)]);
   expect(series.map((s) => s.name)).toEqual(["Other"]);
   expect(series[0]?.points.map((p) => p.id)).toEqual(["a", "b", "c"]);
+});
+
+// ── THE CAP AND ITS DENOMINATOR (side-eye populated arm 2026-08-23, [P2-3] / [P1-1]) ──────────────────
+// Two charts on the corpus overview drew their WHOLE series: 50 keyword bars in a 1,616px canvas (45% of
+// the page, 30.08% accent against a 10% cap, over values running 6 down to 2), and a route table whose
+// only guard was whether money had moved. Both fixes are the same pair — a ranked head, and a stated
+// total — so both live in one helper and are pinned here rather than in each caller.
+
+test("topRanked SORTS before slicing — the server's order is not the charted quantity", () => {
+  // `toBarItems` treats array order as the rank and does not sort, so a caller handing it a browsing order
+  // is exactly the rank-vs-display defect [P2-2] names. `modelRouting` really does arrive genre-major.
+  const routes = [
+    { route: "drama → a", generations: 10 },
+    { route: "fantasy → b", generations: 400 },
+    { route: "fantasy → c", generations: 90 },
+  ];
+  const top = topRanked(routes, (r) => r.generations, 2);
+  expect(top.rows.map((r) => r.route)).toEqual(["fantasy → b", "fantasy → c"]);
+  expect(top.total, "the denominator is the WHOLE series, not the slice").toBe(3);
+});
+
+test("topRanked keeps input order on ties, so one corpus charts identically twice", () => {
+  const rows = [
+    { id: "a", n: 5 },
+    { id: "b", n: 5 },
+    { id: "c", n: 5 },
+  ];
+  expect(topRanked(rows, (r) => r.n, 3).rows.map((r) => r.id)).toEqual(["a", "b", "c"]);
+});
+
+test("topRanked is a no-op slice when the series is already under the cap", () => {
+  const rows = [{ n: 2 }, { n: 9 }];
+  const top = topRanked(rows, (r) => r.n, 12);
+  expect(top.rows.map((r) => r.n)).toEqual([9, 2]);
+  expect(top.total).toBe(2);
+});
+
+test("chartLabelWithDenominator states the truncation, and says nothing when nothing was cut", () => {
+  // A capped chart that does not name its total is the never-played defect in another section's clothing:
+  // the reader takes the window for the whole.
+  expect(chartLabelWithDenominator("Top keywords", 12, 50, "keywords")).toBe("Top keywords · 12 of 50 keywords");
+  expect(chartLabelWithDenominator("Top keywords", 50, 50, "keywords")).toBe("Top keywords");
+  // Defensive only in the sense that a caller passing a head LONGER than its total is a bug we must not
+  // dress up as a truncation — `>=` is what keeps the honest arm honest.
+  expect(chartLabelWithDenominator("Busiest routes", 12, 3, "routes")).toBe("Busiest routes");
 });

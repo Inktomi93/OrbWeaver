@@ -36,6 +36,7 @@ import {
   clearSectionSaveStatus,
   clearWorldEntrySelection,
   closeModal,
+  compareCorpusPair,
   cycleTagFilter,
   dockListPanel,
   enterCreatedChat,
@@ -86,6 +87,8 @@ import {
   setChatListSearch,
   setComposerDraft,
   setContextTab,
+  setCorpusCompareA,
+  setCorpusCompareB,
   setCorpusSearchQuery,
   setCorpusSearchTarget,
   setDatabankPhaseFilter,
@@ -123,6 +126,8 @@ import {
   useComposerDraft,
   useComposerFocusRequest,
   useContextTab,
+  useCorpusCompareA,
+  useCorpusCompareB,
   useCorpusSearchQuery,
   useCorpusSearchTargetId,
   useDatabankPhaseFilter,
@@ -765,6 +770,36 @@ export function CorpusSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearCorpusSelection()}>
         clear corpus selection
+      </button>
+    </div>
+  );
+}
+
+/** CorpusComparePairProbe — the corpus-COMPARE store's two read hooks as text plus the three actions that
+ *  write it. A CT, not a unit test, for its two siblings' reason: the read surface is a hook and
+ *  `useSyncExternalStore` needs a real browser render.
+ *
+ *  WHAT THIS PINS THAT THE SURFACE CT CANNOT (#554). The pair is written by TWO surfaces that never render
+ *  together in the shell — the Similarity tab seeds it whole from a pair row, the Compare tab's own pickers
+ *  write one slot at a time — and the CONTEXT tab body is unmounted on the switch between them. So the two
+ *  facts this store exists for are that a whole-pair seed is ONE transition (a half-filled pair would fire a
+ *  diff for a pair nobody asked for) and that a single-slot write leaves its sibling alone. The end-to-end
+ *  hand-off is pinned at the surfaces, in
+ *  `tests/client/features/discovery/components/corpus-similarity-tab.ct.tsx`. */
+export function CorpusComparePairProbe(): ReactElement {
+  const a = useCorpusCompareA();
+  const b = useCorpusCompareB();
+  return (
+    <div>
+      <output>{`a=${a === "" ? "none" : a} b=${b === "" ? "none" : b}`}</output>
+      <button onClick={(): void => compareCorpusPair("character_freya", "character_frida")} type="button">
+        seed corpus pair
+      </button>
+      <button onClick={(): void => setCorpusCompareA("character_yuki")} type="button">
+        set corpus compare a
+      </button>
+      <button onClick={(): void => setCorpusCompareB("")} type="button">
+        clear corpus compare b
       </button>
     </div>
   );

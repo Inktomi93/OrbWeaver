@@ -23,8 +23,16 @@
 //
 // A FAMILY IS NOT NUMBERED. The mockup labels the plates "Family 1 … Family 8"; k-means assigns cluster
 // indices per run against a `k` the CONTEXT panel exposes as a knob, so that number is not an identity and
-// printing it as one invites a user to refer to something that will not survive the next pass. The plate is
-// named by WHO IS IN IT, which is stable, and by its label only when the labelling actually produced one.
+// printing it as one invites a user to refer to something that will not survive the next pass.
+//
+// A FAMILY IS NAMED BY ITS LABEL, ALWAYS — and its members are always the second line (side-eye populated
+// arm 2026-08-23, [P2-1]; the previous spelling, "named by WHO IS IN IT, and by its label only when the
+// labelling actually produced one", is kept here because it is the ruling this reverses). The label slot
+// goes through `facetLabel`, which is what makes "always" safe: an un-nameable group becomes
+// "Unclassified" rather than the VL pass's literal `none`. See the plate's own comment for the full fork —
+// the short version is that the un-nameable case stopped being real once the server started labelling that
+// family `Unanalysed portraits`, and the member-run arm was then displacing a name its sibling surface was
+// printing 30px away.
 //
 // PLATES ARE READ-ONLY. Selecting a whole family means nothing (there is no family dossier), and making
 // only the single-member plates operable would be a control that exists on some rows and not others. The
@@ -68,17 +76,14 @@ const FAMILY_FACE_SLOTS = 4;
 const GLOW =
   "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:shadow-glow before:content-['']";
 
-/** A family whose VISUAL labelling produced nothing to say, derived from the fields that produce a label
- *  rather than by matching a sentinel string across the wire.
- *
- *  THE CARD-TEXT FIELDS ARE NOT PART OF THIS TEST any more (issue #164). `genre`/`tone` describe a card's
- *  WRITING; they used to be the label's last-resort fallback, which is how the family grouped precisely by
- *  its members' MISSING art came to be called "melancholic fantasy". They still ride the payload as context
- *  chips for the Archetypes tab, but a family with story facets and no visual ones has nothing to say about
- *  how it LOOKS — which is the only thing this plate claims. */
-function isUnlabelled(family: VisualFamily): boolean {
-  return family.artStyle === null && family.mood === null && family.palette === null;
-}
+// THE `isUnlabelled` PREDICATE IS GONE (side-eye populated arm 2026-08-23, [P2-1]). It tested
+// `artStyle === null && mood === null && palette === null` — "this family's VISUAL labelling produced
+// nothing to say" — and was the plate's arm selector. Nothing branches on it here any more: `facetLabel`
+// answers the un-nameable case in the same words the Archetypes tab uses, so the plate has ONE anatomy and
+// a second predicate for the same question would be the two-names defect waiting to come back. (Issue
+// #164's rider that card-text `genre`/`tone` are NOT part of that test still holds where the question is
+// asked — the labeller's, server-side; a family grouped by its members' missing art must never be called
+// "melancholic fantasy", and this component no longer has an opinion about it at all.)
 
 function memberNames(family: VisualFamily): string {
   return family.members.map((member) => member.name).join(" · ");
@@ -86,7 +91,11 @@ function memberNames(family: VisualFamily): string {
 
 function plateGloss(family: VisualFamily): string {
   const members = `${family.size.toString()} ${family.size === 1 ? "member" : "members"}`;
-  return isUnlabelled(family) ? `${members} · grouped by portrait` : `${members} · ${memberNames(family)}`;
+  // ONE ANATOMY FOR EVERY PLATE (side-eye populated arm, [P2-1]). The unlabelled arm used to say
+  // "grouped by portrait" here because its label slot was carrying the member run; with the label back in
+  // its own slot the gloss carries the members, exactly as it does on every labelled sibling — which is
+  // also what makes the two arms comparable down a column instead of reading as two different components.
+  return `${members} · ${memberNames(family)}`;
 }
 
 function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElement {
@@ -117,9 +126,31 @@ function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElemen
               that token for art it could not classify, and the labeller passed it through — the audited
               library had a 21-member plate titled `none`, over a strip of `?` initials, which reads as a
               rendering fault rather than as "we could not name this group". `facetLabel` is a DISPLAY
-              projection: the wire value is untouched, and `isUnlabelled` above still decides the arm. */}
+              projection: the wire value is untouched.
+
+              THE RULING SURVIVES; ITS INPUT CHANGED — and both texts stay, because this REVERSES the arm
+              that ruling shipped (side-eye populated arm 2026-08-23, [P2-1]).
+                OLD RULING (kept, and still governing): a family is never called "none" — an unnameable
+                  group shows WHO IS IN IT rather than a junk token, because the member list is real
+                  information and `none` reads as a rendering fault. The arm was
+                  `isUnlabelled(family) ? memberNames(family) : facetLabel(family.label)`.
+                WHAT REFUTED ITS PREMISE: on a 12-card library the unlabelled family genuinely had no
+                  name. On the 327-card library it DOES — the server labels it `Unanalysed portraits`
+                  (`domain/discovery/image-analytics/retrieve.ts`), and the Archetypes tab 30px to the
+                  right renders exactly that through `facetLabel`. So the member-run arm was not rescuing
+                  a nameless group; it was DISPLACING a name the payload already carried, giving one
+                  family two names in one frame — a 120-character truncated run of names sitting in a
+                  column of one-word labels, and a reader with no way to tell the two surfaces were
+                  showing the same thing (§13 single-homing, Nielsen #4).
+                RESOLUTION: `facetLabel` unconditionally. It is the SAME function that enforces the old
+                  ruling — a genuinely unnameable family (`none`/`unknown`/empty) still becomes
+                  "Unclassified", never the raw token — so the ruling's mechanism is untouched and only
+                  its CONDITION moved: the member run is no longer the fallback for "we have no label",
+                  because `facetLabel` already answers that case and answers it in the same words on both
+                  surfaces. The names it displaced now ride the gloss on every plate (see `plateGloss`),
+                  and the `isUnlabelled` predicate is deleted rather than left beside its replacement. */}
           <Text as="span" className="truncate" voice="label">
-            {isUnlabelled(family) ? memberNames(family) : facetLabel(family.label)}
+            {facetLabel(family.label)}
           </Text>
           <Text as="span" className="truncate" voice="gloss">
             {plateGloss(family)}

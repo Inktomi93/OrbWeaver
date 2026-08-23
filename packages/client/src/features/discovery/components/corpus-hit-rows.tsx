@@ -21,7 +21,7 @@
 // The badge rendered `hit.score` — the server's CSLS-adjusted cosine DISTANCE, clamped at 0 — so every
 // genuinely relevant hit read `0.00` and only a nonsense query produced anything non-zero. It now reads
 // `hit.relevance` (`1 − distance`, higher = closer) as a percent. The ORDER is still the server's CSLS rank;
-// this seam only decides what the reader is shown, which is why there is exactly one `RelevanceBadge`.
+// this seam only decides what the reader is shown, which is why there is exactly one `HitRank` readout.
 //
 // NO `data-testid` ON A `ListRow`. Four of them once sat here and reached the DOM in exactly one place: the
 // primitive builds its body from named props and forwards no rest props, so `data-testid` on a `<ListRow>`
@@ -63,6 +63,7 @@ export function CharacterHitRow({
   tone,
   pitch,
   relevance,
+  rank,
 }: {
   readonly characterId: DiscoverHit["characterId"];
   readonly name: string;
@@ -73,6 +74,9 @@ export function CharacterHitRow({
   /** null on the LEXICAL branch: BM25 is an unbounded per-query score, not a similarity, so there is no
    *  honest percent to print for it — the rank order carries what a reader can use (R2a for that one arm). */
   readonly relevance: number | null;
+  /** This row's 1-based position in the server's ranking — printed, because the percent beside it is a
+   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link HitRank}). */
+  readonly rank: number;
 }): ReactElement {
   const facet = characterFacetLine(genre, tone);
   const subtitle = pitch ?? (facet === "" ? "No pitch distilled" : facet);
@@ -83,7 +87,7 @@ export function CharacterHitRow({
       leading={<CharacterAvatar id={characterId} name={name} hash={avatarHash} />}
       title={name}
       subtitle={subtitle}
-      actions={relevance === null ? undefined : <RelevanceBadge relevance={relevance} />}
+      actions={<HitRank rank={rank} relevance={relevance} />}
     />
   );
 }
@@ -103,7 +107,7 @@ export function CharacterHitRow({
  * titles — the shape of a heading, so the one drill-through on this branch read as a section label. The
  * vocabulary is the surface's own established door ("All families →"): left-aligned, muted, trailing arrow.
  */
-export function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
+export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; readonly rank: number }): ReactElement {
   const passages = groupEvidenceByPassage(hit.segments, hit.name);
   const rooms = new Set(hit.segments.map((segment) => segment.chatId)).size;
   // ONE ROOM SAID ONCE (side-eye corpus re-pass #3, P3-D). The ordinary case is three passages out of the
@@ -123,7 +127,7 @@ export function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactEle
         // (scrollWidth 282 vs 213): a sentence whose whole job is to say what the list below does NOT show,
         // cut before it could say it. The Memories row already wraps its body for the same reason.
         subtitleWrap={true}
-        actions={<RelevanceBadge relevance={hit.relevance} />}
+        actions={<HitRank rank={rank} relevance={hit.relevance} />}
       />
       <Stack className="pl-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {passages.map((passage) => (
@@ -190,12 +194,16 @@ export function DigestHitRow({
   scopedCharacterName,
   text,
   relevance,
+  rank,
 }: {
   readonly chatId: ChatId;
   readonly chatTitle: string | null;
   readonly scopedCharacterName: string | null;
   readonly text: string;
   readonly relevance: number;
+  /** This row's 1-based position in the server's ranking — printed, because the percent beside it is a
+   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link HitRank}). */
+  readonly rank: number;
 }): ReactElement {
   return (
     <ListRow
@@ -205,7 +213,7 @@ export function DigestHitRow({
       title={chatSubtitle(chatTitle, scopedCharacterName)}
       subtitle={snippetForDisplay(text)}
       subtitleWrap={true}
-      actions={<RelevanceBadge relevance={relevance} />}
+      actions={<HitRank rank={rank} relevance={relevance} />}
     />
   );
 }
@@ -233,12 +241,16 @@ export function ImageHitRow({
   characterId,
   characterName,
   relevance,
+  rank,
 }: {
   readonly hash: string;
   readonly caption: string | null;
   readonly characterId: CharacterId | null;
   readonly characterName: string | null;
   readonly relevance: number;
+  /** This row's 1-based position in the server's ranking — printed, because the percent beside it is a
+   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link HitRank}). */
+  readonly rank: number;
 }): ReactElement {
   if (characterId === null) {
     return (
@@ -258,7 +270,7 @@ export function ImageHitRow({
         }
         title={caption ?? "Uncaptioned image"}
         subtitle="No card uses this image — nothing to open"
-        actions={<RelevanceBadge relevance={relevance} />}
+        actions={<HitRank rank={rank} relevance={relevance} />}
       />
     );
   }
@@ -269,7 +281,7 @@ export function ImageHitRow({
       leading={<CharacterAvatar hash={hash} id={characterId} name={characterName ?? ""} />}
       title={characterName ?? "Untitled card"}
       subtitle={caption ?? "Uncaptioned image"}
-      actions={<RelevanceBadge relevance={relevance} />}
+      actions={<HitRank rank={rank} relevance={relevance} />}
     />
   );
 }
@@ -283,15 +295,27 @@ function openChat(chatId: ChatId): void {
 }
 
 // Quiet metadata (§6.3 P5): a relevance readout is a readout, not a pill — inline micro/mono/muted text,
-// matching the similarity-tab PairRow score and the N3 message-metadata treatment.
+// matching the similarity-tab pair score and the N3 message-metadata treatment.
 //
 // A WHOLE PERCENT, not two decimals of a unit nobody has: `relevance` is a cosine similarity, and the digit
 // that would distinguish 0.8813 from 0.8809 is noise a reader cannot act on. The percent also reads
 // higher-is-better without a legend, which the clamped distance it replaced never could.
-function RelevanceBadge({ relevance }: { readonly relevance: number }): ReactElement {
+//
+// AND THE RANK LEADS IT (side-eye populated arm 2026-08-23, [P2-2]). At 327 characters `dark sorceress`
+// returned twenty rows whose percents read 60, 52, **53**, 52, 49, **52**, 49, 44 — two visible inversions
+// in the first six rows. Both numbers are true: the ORDER is the server's CSLS rank (a hub-adjusted score
+// that deliberately holds back the library's most-connected cards), and the READOUT is the raw cosine, the
+// only one of the two a reader can use. Every reader parses a ranked list's leading number as its sort
+// key, so a column of percents that does not descend reads as a broken search. Re-sorting by the printed
+// percent would throw away the better ranking to make one column monotonic — the dossier's
+// "Similar characters" list already refused that trade and spent a sentence of prose defending it — so
+// this takes the report's other arm: STATE the rank, and the sequence becomes a datum the reader can see
+// instead of an implication the numbers contradict. Same treatment as the gem shelf's tiles, and the
+// dossier's list now shares this readout rather than apologising in prose.
+function HitRank({ rank, relevance }: { readonly rank: number; readonly relevance: number | null }): ReactElement {
   return (
-    <Text voice="gloss" className="shrink-0 font-mono">
-      {percent(relevance)}
+    <Text className="shrink-0 font-mono" voice="gloss">
+      {relevance === null ? rank : `${rank.toString()} · ${percent(relevance)}`}
     </Text>
   );
 }
