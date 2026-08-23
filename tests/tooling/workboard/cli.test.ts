@@ -385,6 +385,25 @@ defineTest("list returns a stable filtered Project snapshot without mutation", (
   expect(mutationCalls(state)).toHaveLength(0);
 });
 
+defineTest("list --status refuses an unknown status loudly instead of silent-zeroing", () => {
+  const state = createState("Running");
+  const result = drive(state, "list", "--status", "Bogus");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("Status has no option named Bogus");
+  expect(result.stderr).toContain("Triage");
+  expect(mutationCalls(state)).toHaveLength(0);
+});
+
+defineTest("overview prints every canonical queue, empty ones as (0) lines", () => {
+  const state = createState("Running");
+  const result = drive(state, "overview");
+  expect(result.status).toBe(0);
+  for (const line of ["Triage (0)", "Ready (0)", "Verify (0)", "Needs owner (0)", "Running (1)"]) {
+    expect(result.stdout).toContain(line);
+  }
+  expect(mutationCalls(state)).toHaveLength(0);
+});
+
 defineTest(
   "create maps each canonical class to its labels, Project Kind, and Triage",
   () => {

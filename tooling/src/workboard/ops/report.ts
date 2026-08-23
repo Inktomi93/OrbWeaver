@@ -51,10 +51,19 @@ function listItems(projectId: string): readonly ListRow[] {
   return rows;
 }
 
+// Working-queue statuses first, in lifecycle order; anything unexpected still prints (never hidden).
+// Also the list --status vocabulary: an unknown value REFUSES instead of silent-zeroing (#586 — an
+// empty result must mean the queue is empty, never that the filter matched nothing it recognizes).
+const OVERVIEW_STATUS_ORDER = ["Triage", "Ready", "Running", "Review", "Verify", "Needs owner", "Blocked", "Parked", "Done"];
+
 export function list(status?: string): void {
+  const canonical = status === undefined ? undefined : OVERVIEW_STATUS_ORDER.find((value) => value.toLowerCase() === status.toLowerCase());
+  if (status !== undefined && canonical === undefined) {
+    throw new Error(`Status has no option named ${status} — valid: ${OVERVIEW_STATUS_ORDER.join(" | ")}`);
+  }
   const rows = withProjectContext((context) => listItems(context.projectId));
   const items = rows
-    .filter((row) => status === undefined || fieldOf(row.fields, "Status")?.toLowerCase() === status.toLowerCase())
+    .filter((row) => canonical === undefined || fieldOf(row.fields, "Status")?.toLowerCase() === canonical.toLowerCase())
     .toSorted((left, right) => (left.content?.number ?? Number.MAX_SAFE_INTEGER) - (right.content?.number ?? Number.MAX_SAFE_INTEGER))
     .map((row) => ({
       issue: row.content?.number,
@@ -73,8 +82,6 @@ export function list(status?: string): void {
   print(JSON.stringify({ items }, null, 2));
 }
 
-// Working-queue statuses first, in lifecycle order; anything unexpected still prints (never hidden).
-const OVERVIEW_STATUS_ORDER = ["Triage", "Ready", "Running", "Review", "Verify", "Needs owner", "Blocked", "Parked", "Done"];
 const OVERVIEW_TITLE_MAX = 90;
 
 function overviewStatusRank(status: string): number {
@@ -106,10 +113,11 @@ function overviewRowLine(row: ListRow, status: string): string {
 
 /** The whole board on one screen, numbers guaranteed — the orchestrator's board-read ritual verb.
  *  Every status is shown (a queue the reader forgot exists is exactly the blindness this verb kills,
- *  2026-08-22); Done is count-only, every other status lists `#N [prio] title (lane|wake)`. */
+ *  2026-08-22) — INCLUDING empty canonical queues as explicit `(0)` lines (#586: an omitted queue is
+ *  unverifiable absence); Done is count-only, every other status lists `#N [prio] title (lane|wake)`. */
 export function overview(): void {
   const byStatus = groupRowsByStatus(withProjectContext((context) => listItems(context.projectId)));
-  const names = [...byStatus.keys()].toSorted((a, b) => overviewStatusRank(a) - overviewStatusRank(b));
+  const names = [...new Set([...OVERVIEW_STATUS_ORDER, ...byStatus.keys()])].toSorted((a, b) => overviewStatusRank(a) - overviewStatusRank(b));
   for (const status of names) {
     const bucket = byStatus.get(status) ?? [];
     print(`${status} (${bucket.length})`);
