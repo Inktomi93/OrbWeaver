@@ -27,11 +27,29 @@
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 
 const NO_SCRIPTS: never[] = [];
 const DISPLAY_PLACEMENT = "DISPLAY";
+
+/** The two reads this hook composes, in ONE spelling — so the prefetch below and the render read below can
+ *  never drift into two different cache keys (which would make the warm-up warm the wrong entry silently).
+ *  `chatId` null keeps the room tier's key well-formed for a chat-less surface; the render read disables it. */
+function displayScriptQueries(
+  trpc: Trpc,
+  chatId: ChatId | null,
+): {
+  readonly own: ReturnType<Trpc["regex"]["listScripts"]["queryOptions"]>;
+  readonly room: ReturnType<Trpc["regex"]["listRoomDisplayScripts"]["queryOptions"]>;
+} {
+  return {
+    own: trpc.regex.listScripts.queryOptions(),
+    room: trpc.regex.listRoomDisplayScripts.queryOptions({ chatId: chatId ?? ("" as ChatId) }),
+  };
+}
 
 /** Narrow a library read to the scripts that would actually fire on the display leg. */
 function displaySlice(rows: readonly RegexScriptRow[]): readonly RegexScriptRow[] {
@@ -49,15 +67,16 @@ function displaySlice(rows: readonly RegexScriptRow[]): readonly RegexScriptRow[
  */
 export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRow[] {
   const trpc = useTRPC();
+  const queries = displayScriptQueries(trpc, chatId);
   // ONE query per tier (a row component must never fetch): `select` narrows the shared cache entry to the
   // display slice without a second network read or a second cache key.
   const own = useQuery({
-    ...trpc.regex.listScripts.queryOptions(),
+    ...queries.own,
     placeholderData: NO_SCRIPTS,
     select: displaySlice,
   });
   const room = useQuery({
-    ...trpc.regex.listRoomDisplayScripts.queryOptions({ chatId: chatId ?? ("" as ChatId) }),
+    ...queries.room,
     // A chat-less surface has no room tier at all — the query never runs and the viewer's own set stands.
     enabled: chatId !== null,
     placeholderData: NO_SCRIPTS,
@@ -72,4 +91,51 @@ export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRo
   }
   const seen = new Set(broadcast.map((row) => row.id));
   return [...broadcast, ...viewer.filter((row) => !seen.has(row.id))];
+}
+
+/**
+ * WARM both tiers from OUTSIDE the transcript's suspense boundary (#514) — the room's owner calls this in the
+ * same render that mounts the boundary, so the two reads leave with the canon + roster reads instead of
+ * waiting for them.
+ *
+ * THE IDIOM, and why it is spelled HERE rather than in a generic helper. A read that a suspending surface
+ * needs but that its suspending reads do not FEED is a hop the user pays for nothing: `ChatThread` suspends
+ * on `listMessages`+`getChat`, and only once those land does it render the subtree that first asks for the
+ * display scripts — measured on the isolated stage, the two regex reads left the client ~730ms after the
+ * chat-open click, ~500ms of which was pure boundary wait. Neither read depends on a byte of what the
+ * boundary is waiting for (`listScripts` is not even chat-keyed). So the fix is not to move the READ (a row
+ * component must never fetch, and the consumer that needs the data is inside) — it is to start the FETCH at
+ * the boundary's owner. The warm-up subscribes to nothing and renders nothing: `ensureQueryData` fetches a
+ * COLD key and resolves from cache for a warm one (`staleTime: Infinity`, `query-client.ts`), so the read
+ * inside the boundary is the same read it always was — it just finds the entry filled or already in flight.
+ * It fires from an EFFECT, not from the render body: a fetch is a side effect, and the mount commit that
+ * schedules it is the same commit that renders the boundary's fallback, i.e. one frame after the suspending
+ * reads left — against ~500ms of boundary wait. (`usePrefetchQuery` would put it in render, but its options
+ * type EXCLUDES `skipToken`, which tRPC's `queryOptions()` output always carries in its `queryFn` union;
+ * `ensureQueryData` takes that output as-is, which is why it is the shape the one precedent already uses.)
+ *
+ * The one-home rule that makes it safe: the warm-up and the read take their keys from `displayScriptQueries`,
+ * so no drift can make this warm a key nobody reads. A prefetch that warms the wrong key is INVISIBLE — it
+ * looks exactly like a working one, plus a wasted round trip.
+ *
+ * The repo's other prefetch precedent (`use-open-refinery.ts`'s `ensureQueryData`) is the DECIDING flavour —
+ * an action AWAITS a read it must have before it branches. This is the WARMING flavour: nobody awaits it, so
+ * a rejection is dropped here rather than handled — the consumer inside the boundary is an ordinary query
+ * that will refetch and surface its own error through `QueryBoundary`, exactly as it did before this existed.
+ *
+ * REQUIRED `ChatId`, where the read takes `ChatId | null`: the chat-less arm (a draft-greeting preview) has
+ * no room tier to warm and no boundary to beat, and a nullable parameter here could only be honoured by
+ * warming the `""` key nothing reads.
+ */
+export function usePrefetchDisplayScripts(chatId: ChatId): void {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  // The options are rebuilt INSIDE the effect: `queryOptions()` returns a fresh object every render, so
+  // depping on it would re-run this on every unrelated re-render of the surface. `trpc`/`queryClient` are
+  // context values (stable), and the room cannot change without a remount — so this runs once per open.
+  useEffect(() => {
+    const queries = displayScriptQueries(trpc, chatId);
+    void queryClient.ensureQueryData(queries.own).catch(() => undefined);
+    void queryClient.ensureQueryData(queries.room).catch(() => undefined);
+  }, [queryClient, trpc, chatId]);
 }

@@ -57,8 +57,10 @@
 // A room's FIRST attach in a page is excluded by the same argument as the first connect: whatever mounts
 // alongside it is fetching right then.
 //
-// Scope is the PAGE LOAD (a module-level set, the `seqGuard` idiom — not a hook-local ref): a fresh module
-// means a fresh QueryClient, whose data cannot predate this socket.
+// Scope is the PAGE LOAD (a module-level map, the `seqGuard` idiom — not a hook-local ref): a fresh module
+// means a fresh QueryClient, whose data cannot predate this socket. The same per-room ledger answers the
+// question `liveEpoch` publishes — "how much can this room have missed?" — because the BOOT-4X argument and
+// the freshness argument are the SAME argument, and two counters would be two answers waiting to disagree.
 
 import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
@@ -131,6 +133,18 @@ export interface RoomRegistry {
   readonly reannounceAll: () => void;
   /** Currently-joined room keys — the CT/probe lens. */
   readonly joined: () => readonly string[];
+  /**
+   * How many times this room has entered LIVE DELIVERY in this page load, and therefore how much this
+   * client can have missed: `0` = never attached (unknown — the caller must assume the worst), `1` = it is
+   * on its FIRST live edge, so nothing written elsewhere can be unseen (the reads that mounted alongside it
+   * ARE the fresh state — the BOOT-4X argument in this file's header, and a fresh module means a fresh
+   * QueryClient), `≥2` = it has been dark since it first attached (a reconnect, a re-attach after a chat
+   * switch, or a shed), so anything written while it was dark is unseen by this tab.
+   *
+   * Read by the ONE invalidation seam (`data/invalidation.ts`, the `chatOpened` row): the attach synthesis
+   * re-fires on EVERY attach including the first, and on the first there is nothing for it to heal.
+   */
+  readonly liveEpoch: (ref: StreamRoomRef) => number;
 }
 
 interface RoomEntry {
@@ -187,9 +201,10 @@ export function createRoomRegistry(): RoomRegistry {
   /** Has THIS live episode already told the user its rooms could not be announced? (`reportAnnounceFailure`
    *  — one alert per cause.) Re-armed on every live edge, which is where a new episode starts. */
   let announceFailureReported = false;
-  /** Room keys that have been live at least once in this page — the BOOT-4X gate (see the header). Never
-   *  pruned on detach: "this room's cache may predate now" stays true for the rest of the page load. */
-  const everLiveRooms = new Set<string>();
+  /** How many times each room has entered live delivery in this page — the BOOT-4X gate (see the header)
+   *  plus the freshness question `liveEpoch` answers. Never pruned on detach: "this room's cache may
+   *  predate now" stays true for the rest of the page load, and a re-join must count as a SECOND edge. */
+  const liveEdgesByRoom = new Map<string, number>();
 
   /**
    * THE ANNOUNCE IS RETRIED, because the server now WAITS for it. A durable room's re-announce is what lifts
@@ -277,12 +292,17 @@ export function createRoomRegistry(): RoomRegistry {
     void transport.detach(entry.ref).catch(() => undefined);
   }
 
+  /** Count one live edge for a room and answer whether it is a RE-entry (the BOOT-4X gate). */
+  function countLiveEdge(key: string): boolean {
+    const edges = (liveEdgesByRoom.get(key) ?? 0) + 1;
+    liveEdgesByRoom.set(key, edges);
+    return edges > 1;
+  }
+
   /** One room reached the live state. Heals ONLY if it had already been live in this page — the BOOT-4X
    *  gate, at room granularity (see the header). Records the visit either way. */
   function roomWentLive(key: string, entry: RoomEntry): void {
-    const hadBeenLive = everLiveRooms.has(key);
-    everLiveRooms.add(key);
-    if (!hadBeenLive) {
+    if (!countLiveEdge(key)) {
       return; // first live edge for this room in this page — its reads ARE the fresh state
     }
     for (const subscriber of entry.subscribers) {
@@ -366,8 +386,17 @@ export function createRoomRegistry(): RoomRegistry {
       socketIsLive = false;
     },
     lagged: (ref): void => {
-      const entry = rooms.get(roomKey(ref));
-      for (const subscriber of entry?.subscribers ?? []) {
+      const key = roomKey(ref);
+      const entry = rooms.get(key);
+      if (entry === undefined) {
+        return;
+      }
+      // A shed IS a delivery gap — frames this room was owed never arrived — so it counts as a live edge
+      // for `liveEpoch` exactly like a reconnect does, even though the socket never dropped. Without the
+      // count, a room that lagged on its first attach would still report epoch 1 ("nothing can be missed"),
+      // which is precisely what a shed disproves.
+      countLiveEdge(key);
+      for (const subscriber of entry.subscribers) {
         subscriber.onSocketLive?.();
       }
     },
@@ -383,6 +412,7 @@ export function createRoomRegistry(): RoomRegistry {
       }
     },
     joined: (): readonly string[] => [...rooms.keys()],
+    liveEpoch: (ref): number => liveEdgesByRoom.get(roomKey(ref)) ?? 0,
   };
 }
 

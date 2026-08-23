@@ -351,22 +351,34 @@ test("an existing committed chat makes its FIRST attach with NO replay cursor (n
 // an earlier session, swallowing the reopen `chat.getChat` refetch → a stale surface until some new live
 // event. This drives the real path (SSE → the room registry → useChatBus → seq guard → applyChatBusEvent →
 // invalidate): non-invalidating durable events (turnStarted + deltas, seqs 1..3) climb the mark, then a
-// trailing `chatOpened` stamped seq 0 — the SOLE getChat invalidator here — must STILL fetch `chat.getChat`
-// a second time (it is exempt by TYPE).
+// trailing `chatOpened` stamped seq 0 — the SOLE getChat invalidator here — is admitted by TYPE.
+//
+// THE ARM THIS PIN ASSERTS MOVED (#514), and the mechanism it guards did not. `chatOpened`'s `getChat` row
+// is now gated on the room having been DARK (`data/invalidation.ts` → the registry's `liveEpoch`), because a
+// room's FIRST attach in a page re-fetched the read that same open had just issued — the third hop of the
+// measured chat-open waterfall. So the re-fire this pin is about is scripted where it actually heals: a
+// DROPPED connection, after which the link reconnects, the room re-announces past the dedupe, and the whole
+// script — including the trailing `chatOpened` — replays onto a room that has now been dark. Both halves are
+// still proven, and by the same frame: the seq guard admits the synthetic (a regression that ran it through
+// the mark would drop it, its id ≤ the mark), AND the seam heals on a re-attach. The complement — the same
+// synthetic on a FIRST attach fetching NOTHING — is the test below it.
 const MARK_THEN_REOPEN: StreamFrame[] = [
   ...chatFrames(HEAD_DELTAS), // turnStarted + two deltas (seqs 1..3) — climb the mark, invalidate nothing.
   // The reopen re-fire: a synthesized attach signal at the NON-advancing cursor seq 0 (mark is now 3).
   { channel: "chat", chatId: CHAT_ID, seq: 0, event: { type: "chatOpened", chatId: CHAT_ID } },
 ];
 
-test("a chatOpened at a non-advancing cursor seq STILL invalidates on reopen (the seq guard exempts synthetics by type)", async ({ mount, page }) => {
+test("a chatOpened at a non-advancing cursor seq STILL invalidates on RE-attach (the seq guard exempts synthetics by type)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const trpc = await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });
-  await routeOrbSocket(page, { frames: MARK_THEN_REOPEN, awaitAttaches: 1 });
+  // `dropFirstConnection` ends the first body WITHOUT the terminal `return` frame → EOF → the link
+  // reconnects, the registry force-announces every room past its dedupe, and the script replays. That
+  // second delivery is the one whose `chatOpened` heals: the room has been dark across the drop.
+  await routeOrbSocket(page, { frames: MARK_THEN_REOPEN, awaitAttaches: 1, dropFirstConnection: true });
 
   // Deterministic-race gate (same class as the first test above): hold the EventSource response — hence the
   // whole scripted burst, INCLUDING the trailing `chatOpened("0")` — until the surface's initial mount reads
@@ -402,10 +414,73 @@ test("a chatOpened at a non-advancing cursor seq STILL invalidates on reopen (th
   // The streamed turn advances the seq mark but fires NO getChat invalidate (turnStarted/delta invalidate nothing).
   await expect(component.getByText("Hello world")).toBeVisible();
 
-  // The trailing chatOpened("0") is the ONLY getChat invalidator. Admitted-by-type ⇒ a SECOND getChat fetch.
-  // A regression that ran the synthetic through the mark would drop it (its id ≤ the mark) and this stays 1.
+  // The trailing chatOpened("0") is the ONLY getChat invalidator. Admitted-by-type, on a room that went dark
+  // across the dropped connection ⇒ a SECOND getChat fetch. A regression that ran the synthetic through the
+  // mark would drop it (its id ≤ the mark) and this stays 1; so would a heal gate that never re-opened.
   // Generous timeout: under full-suite parallel CPU contention the invalidate→refetch round-trip can lag.
   await expect.poll(() => trpc.count("chat.getChat"), { intervals: [50, 100, 200], timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+});
+
+// THE COMPLEMENT (#514): the SAME synthetic on a room's FIRST attach must fetch NOTHING. `chatOpened`
+// re-fires on every attach, and on the first one the `chat.getChat` it would refetch is the read this very
+// open issued — measured on the isolated stage, that refetch left 541ms after the open click for a row
+// nothing could have changed, the third hop of a four-hop waterfall. The heal itself is untouched (the test
+// above); its INPUT narrowed to "the room has been dark", which on a first attach it has not.
+//
+// The trailing delta is the BARRIER, and it is why this is not an un-failable "count stayed 1": frames are
+// delivered in order, so "Hello world!" on screen proves the `chatOpened` before it was applied. A node-side
+// request count is never a browser-side settle — the rendered text is.
+const FIRST_ATTACH_OPENED: StreamFrame[] = [
+  ...chatFrames(HEAD_DELTAS), // turnStarted + two deltas (seqs 1..3): "Hello world" in the ghost.
+  { channel: "chat", chatId: CHAT_ID, seq: 0, event: { type: "chatOpened", chatId: CHAT_ID } },
+  // Seq 4 advances the mark, so it is admitted — and it can only render AFTER the frame before it applied.
+  {
+    channel: "chat",
+    chatId: CHAT_ID,
+    seq: 4,
+    event: { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "!" } },
+  },
+];
+
+test("a chatOpened on the room's FIRST attach refetches NOTHING — the open's own read IS the fresh state", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const trpc = await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
+    ...ROSTER_STUB,
+  });
+  await routeOrbSocket(page, { frames: FIRST_ATTACH_OPENED, awaitAttaches: 1 });
+
+  // The SAME deterministic-race gate as the test above, and here it is what makes the assertion mean
+  // anything: an invalidate landing on a still-in-flight first fetch is absorbed by query-core and starts no
+  // second call, so without the gate this test would go green on the OLD code too (a lying pass). Holding the
+  // stream until canon has rendered guarantees `getChat` is IDLE when `chatOpened` arrives — i.e. the exact
+  // condition under which the old seam DID spend a second round trip.
+  let releaseStream: (() => void) | undefined;
+  const mountSettled = new Promise<void>((resolve) => {
+    releaseStream = resolve;
+  });
+  await page.route("**/api/trpc/**", async (route) => {
+    const accept = route.request().headers()["accept"] ?? "";
+    if (accept.includes("text/event-stream")) {
+      await mountSettled;
+    }
+    await route.fallback();
+  });
+
+  const component = await mount(<MessageListSurfaceStory />); // committed=true
+
+  await expect(component.getByText("Ping?")).toBeVisible();
+  await expect.poll(() => trpc.count("chat.getChat"), { intervals: [20, 50, 100] }).toBe(1);
+  releaseStream?.();
+
+  // The barrier: the delta AFTER the synthetic is on screen, so the synthetic has been applied.
+  await expect(component.getByText("Hello world!")).toBeVisible();
+
+  // ONESHOT-OK: settled by the barrier above — the frame after `chatOpened` has rendered, so any fetch that
+  // event caused is already recorded. A poll would be wrong here (the count only climbs; poll goes green on
+  // a value it merely transits).
+  expect(trpc.count("chat.getChat")).toBe(1);
 });
 
 // #9 (B): the ONE present-tense divider carries the COMPACTION FACT when previewContextFit reports a
