@@ -4285,8 +4285,8 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 37,
-      "bytes": 2397,
-      "sha256": "c89e63672c80c5f65347081939be53fcd755087b0a2145a3f04df2f7ee63c11a",
+      "bytes": 2395,
+      "sha256": "cc75c625133dc1f261faf65cadef9d9bb22617233435e81584bbd8f7029f97ab",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -4329,7 +4329,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/proposed/README.md",
@@ -12284,15 +12284,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 353,
-      "bytes": 47713,
-      "sha256": "078899d6bcef8c6fb2e2a84174e91204fc6647919e6832d01d7c088b5a33baeb",
+      "bytes": 47716,
+      "sha256": "1b16f648ec7bc15acca5e5721748ef50f0b3f40118adadbd2aab4208ea0fe4c4",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "draft",
-          "updated": "2026-08-14"
+          "status": "archived",
+          "updated": "2026-08-23"
         },
         "errors": []
       },
@@ -12327,7 +12327,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/preset-surface-redesign.md",
