@@ -6,7 +6,13 @@
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
+
+/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
+ *  call node carries its own position, and `token` is the arm label the gate already used. */
+interface Hit {
+  readonly node: CallExpression;
+  readonly token: string;
+}
 
 const CLIENT_SRC = "/packages/client/src/";
 
@@ -38,17 +44,13 @@ function persistCalls(sf: SourceFile): CallExpression[] {
 }
 
 /** ARM A — a bare `persist(` outside the factories. */
-function rawPersistViolations(sf: SourceFile, rel: string): Violation[] {
-  return persistCalls(sf).map((call) => ({
-    file: rel,
-    line: call.getStartLineNumber(),
-    message: RAW_PERSIST_MESSAGE,
-  }));
+function rawPersistHits(sf: SourceFile): Hit[] {
+  return persistCalls(sf).map((call) => ({ node: call, token: "raw persist()" }));
 }
 
 /** ARM B — the factory's persist options object carries version + partialize + migrate. */
-function factoryOptionViolations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
+function factoryOptionHits(sf: SourceFile): Hit[] {
+  const out: Hit[] = [];
   for (const call of persistCalls(sf)) {
     const opts = call.getArguments()[1];
     if (opts === undefined || !Node.isObjectLiteralExpression(opts)) {
@@ -56,11 +58,7 @@ function factoryOptionViolations(sf: SourceFile, rel: string): Violation[] {
     }
     for (const key of REQUIRED_KEYS) {
       if (opts.getProperty(key) === undefined) {
-        out.push({
-          file: rel,
-          line: call.getStartLineNumber(),
-          message: `persist options missing \`${key}\` in the minting factory — every persist bakes version + partialize + total-migrate (UI-Primitives-and-Reuse.md §13.1; this file).`,
-        });
+        out.push({ node: call, token: `persist opts missing ${key}` });
       }
     }
   }
@@ -82,23 +80,22 @@ export const gate: GateDescriptor = {
     if (rel === undefined) {
       return;
     }
-    const violations = FACTORY_FILES.has(rel) ? factoryOptionViolations(sf, rel) : rawPersistViolations(sf, rel);
-    for (const v of violations) {
-      const token = v.message === RAW_PERSIST_MESSAGE ? "raw persist()" : "persist opts";
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message, token });
+    const hits = FACTORY_FILES.has(rel) ? factoryOptionHits(sf) : rawPersistHits(sf);
+    for (const hit of hits) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
   },
   mustFlag: [
     {
       files: "export const s = persist(() => ({}), {});\n",
       at: "packages/client/src/features/x/store.ts",
-      expect: { messageIncludes: "raw zustand persist" },
+      expect: { token: "raw persist()" },
       why: "a bare persist() outside the two minting factories — persistence footguns aren't baked in (§11.5)",
     },
     {
       files: "export const s = persist(() => ({}), { version: 1 });\n",
       at: "packages/client/src/state/create-persisted-store.ts",
-      expect: { messageIncludes: "persist options missing" },
+      expect: { count: 2, token: "persist opts missing partialize" },
       why: "ARM B — the factory's persist options object is missing `partialize`/`migrate` (only version present)",
     },
   ],

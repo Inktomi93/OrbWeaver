@@ -10,6 +10,14 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 
+/** A NODE-anchored ARM A/B hit — never a `{file,line,message}` Finding literal
+ *  (finding-overload-provenance): the node carries its own position, and `token` is the arm label the
+ *  gate already used (kept unchanged so the surrounding wiring reads the same). */
+interface NodeHit {
+  readonly node: Node;
+  readonly token: string;
+}
+
 const CLIENT_SRC = "/packages/client/src/";
 const FACTORY_NAME = "createAutosaveEntityForm";
 const FACTORY_FILE = "packages/client/src/forms/create-autosave-entity-form.tsx";
@@ -28,10 +36,6 @@ const OMIT_MISSING_MESSAGE =
   'the reset type-strip (Omit<…, "reset">) is gone from the autosave factory\'s returned surface — ' +
   "reset MUST stay removed (it is the autosave infinite loop, UI-Gates-and-Lessons.md §7 row 2); " +
   "restore the Omit in forms/create-autosave-entity-form-model.ts.";
-
-const RESET_PROP_MESSAGE =
-  "the autosave factory's returned surface re-exposes `reset` — reset stays stripped so the call site " +
-  "cannot trigger the isDirty loop (UI-Gates-and-Lessons.md §7 row 2; forms/create-autosave-entity-form.tsx).";
 
 function clientRel(path: string): string | undefined {
   const idx = path.indexOf(CLIENT_SRC);
@@ -61,14 +65,14 @@ function receiverLooksLikeForm(access: Node): boolean {
 }
 
 /** ARM A: a `.reset(` call on a form-shaped receiver. */
-function resetCallViolations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
+function resetCallHits(sf: SourceFile): NodeHit[] {
+  const out: NodeHit[] = [];
   for (const access of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
     if (access.getName() !== "reset") {
       continue;
     }
     if (Node.isCallExpression(access.getParent()) && receiverLooksLikeForm(access)) {
-      out.push({ file: rel, line: access.getStartLineNumber(), message: RESET_MESSAGE });
+      out.push({ node: access, token: "reset()" });
     }
   }
   return out;
@@ -83,16 +87,12 @@ function modelFileViolations(sf: SourceFile): Violation[] {
 }
 
 /** ARM B (surface half): the factory file must expose no `reset` property on what it hands back. */
-function factoryFileViolations(sf: SourceFile): Violation[] {
-  const out: Violation[] = [];
+function factoryFileHits(sf: SourceFile): NodeHit[] {
+  const out: NodeHit[] = [];
   const props = [...sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment), ...sf.getDescendantsOfKind(SyntaxKind.ShorthandPropertyAssignment)];
   for (const prop of props) {
     if (prop.getName() === "reset") {
-      out.push({
-        file: FACTORY_FILE,
-        line: prop.getStartLineNumber(),
-        message: RESET_PROP_MESSAGE,
-      });
+      out.push({ node: prop, token: "reset-prop" });
     }
   }
   return out;
@@ -125,14 +125,14 @@ export const gate: GateDescriptor = {
       return;
     }
     if (rel === FACTORY_FILE) {
-      for (const v of factoryFileViolations(sf)) {
-        ctx.report(overrideFinding(v, "reset-prop"));
+      for (const hit of factoryFileHits(sf)) {
+        ctx.report(hit.node, { token: hit.token, offset: 0 });
       }
       return;
     }
     if (importsFactory(sf)) {
-      for (const v of resetCallViolations(sf, rel)) {
-        ctx.report(overrideFinding(v, "reset()"));
+      for (const hit of resetCallHits(sf)) {
+        ctx.report(hit.node, { token: hit.token, offset: 0 });
       }
     }
   },
@@ -153,7 +153,7 @@ export const gate: GateDescriptor = {
       files: 'export function createAutosaveEntityForm(): Omit<{ reset: () => void; x: 1 }, "reset"> {\n  return { reset: () => {}, x: 1 };\n}\n',
       at: "packages/client/src/forms/create-autosave-entity-form.tsx",
       why: "ARM B RESET_PROP — the factory file hands a `reset` property back through its returned object",
-      expect: { messageIncludes: "re-exposes `reset`" },
+      expect: { token: "reset-prop" },
     },
   ],
   mustPass: [

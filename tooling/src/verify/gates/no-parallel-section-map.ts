@@ -21,11 +21,18 @@
 // SCOPE: the SectionId, ModalSlotId, AND SettingsCategoryId vocabularies (all LIVE — the SettingsCategoryId
 // arm lands at M6.1; its allowlist mirrors the modal arm: the tuple homes (section-ids.ts/shell-store.ts), the door, and
 // its own co-located *-pane.tsx defs) PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
-import type { Expression, ObjectLiteralExpression, Project, SourceFile, TypeNode } from "ts-morph";
+import type { Expression, ObjectLiteralExpression, Project, SourceFile, Node as TsMorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
 import { readStringValue } from "../lib/ast-read.ts";
+
+/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
+ *  node carries its own position, and `token` folds the dynamic vocab/shape detail the gate's static
+ *  `message` can't. */
+interface NodeHit {
+  readonly node: TsMorphNode;
+  readonly token: string;
+}
 
 const CLIENT_SRC = "/packages/client/src/";
 /** ≥ this many vocab keys in one object literal = a re-declared parallel map (not an incidental pair). */
@@ -210,52 +217,36 @@ function isVocabRecordType(typeNode: TypeNode | undefined, vocab: Vocab): boolea
 
 /** The two array shapes: a `{ id: … }[]` list (arm 2) or a bare id-string `[]` (arm 4) — mutually
  *  exclusive by construction (an all-object array has zero string elements and vice versa). */
-function scanArrayForVocab(sf: SourceFile, vocab: Vocab, path: string, out: Violation[]): void {
+function scanArrayForVocab(sf: SourceFile, vocab: Vocab, out: NodeHit[]): void {
   for (const arr of sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)) {
     const rawElements = arr.getElements();
     const objectElements = rawElements.filter(Node.isObjectLiteralExpression);
     if (objectElements.length === rawElements.length && objectElements.length > 0) {
       if (isVocabArray(objectElements, vocab.ids)) {
-        out.push({
-          file: rel(path),
-          line: arr.getStartLineNumber(),
-          message: `an array literal of \`{ id: … }\` elements covers ≥2 ${vocab.name}s — a parallel ${vocab.registry} map (the deleted RAIL_SECTIONS/RAIL_ACTIONS shape). Derive from the ${vocab.registry} registry (registry.list()), never re-declare — client-architecture-lockdown.md §5.`,
-        });
+        out.push({ node: arr, token: `${vocab.name}-object-array` });
       }
       continue;
     }
     if (isVocabStringArray(rawElements, vocab.ids)) {
-      out.push({
-        file: rel(path),
-        line: arr.getStartLineNumber(),
-        message: `a bare array literal of ${vocab.name} string literals covers ≥2 ids — a parallel ${vocab.registry} map (the deleted YOU_MODAL_IDS shape). Derive from the ${vocab.registry} registry (registry.list()), never re-declare — client-architecture-lockdown.md §5.`,
-      });
+      out.push({ node: arr, token: `${vocab.name}-string-array` });
     }
   }
 }
 
-function scanFileForVocab(sf: SourceFile, vocab: Vocab, out: Violation[]): void {
+function scanFileForVocab(sf: SourceFile, vocab: Vocab, out: NodeHit[]): void {
   const path = sf.getFilePath();
   if (!path.includes(CLIENT_SRC) || isAllowlisted(rel(path), vocab)) {
     return;
   }
   for (const obj of sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)) {
     if (isPureVocabMap(obj, vocab.ids)) {
-      out.push({
-        file: rel(path),
-        line: obj.getStartLineNumber(),
-        message: `an object literal is keyed entirely by ${vocab.name}s — a parallel ${vocab.registry} map that no gate forces to agree with the registry (the SECTION_PANEL_DEFAULTS/YOU_MODAL_ROWS bug). Derive from the ${vocab.registry} registry (registry.list()/get()), never re-declare — client-architecture-lockdown.md §5.`,
-      });
+      out.push({ node: obj, token: `${vocab.name}-object-map` });
     }
   }
-  scanArrayForVocab(sf, vocab, path, out);
+  scanArrayForVocab(sf, vocab, out);
   for (const decl of sf.getVariableDeclarations()) {
     if (isVocabRecordType(decl.getTypeNode(), vocab)) {
-      out.push({
-        file: rel(path),
-        line: decl.getStartLineNumber(),
-        message: `"${decl.getName()}" is typed \`Record<${vocab.name}, …>\` — a parallel ${vocab.registry} map (the composition-drift bug) even without a literal value the object-literal arm can see. Derive from the ${vocab.registry} registry (registry.list()/get()), never re-declare — client-architecture-lockdown.md §5.`,
-      });
+      out.push({ node: decl, token: `${vocab.name}-record-type` });
     }
   }
 }
@@ -294,7 +285,7 @@ function isChromeArray(arr: readonly ObjectLiteralExpression[], zones: ReadonlyS
 
 /** Arm 5 — a zone-keyed chrome-entry array re-formed outside the door. Chrome has no id tuple, so this
  *  keys on the CHROME_ZONES value axis instead. */
-function scanFileForChromeArray(sf: SourceFile, zones: ReadonlySet<string>, out: Violation[]): void {
+function scanFileForChromeArray(sf: SourceFile, zones: ReadonlySet<string>, out: NodeHit[]): void {
   const path = sf.getFilePath();
   if (!path.includes(CLIENT_SRC) || isChromeAllowlisted(rel(path))) {
     return;
@@ -306,12 +297,7 @@ function scanFileForChromeArray(sf: SourceFile, zones: ReadonlySet<string>, out:
       continue;
     }
     if (isChromeArray(objectElements, zones)) {
-      out.push({
-        file: rel(path),
-        line: arr.getStartLineNumber(),
-        message:
-          "an array literal of chrome entries (≥2 objects each with a CHROME_ZONES `zone`) — a hand-maintained chrome list re-formed outside the door. Chrome is assembled ONCE at the main.tsx door via assembleChrome (widgets co-located in features/*/lib/*-chrome.tsx); a consumer reads the registry (chrome.list().filter(...)), never re-declares — shell-chrome-unification.md §D.",
-      });
+      out.push({ node: arr, token: "chrome-array" });
     }
   }
 }
@@ -325,7 +311,7 @@ export const gate: GateDescriptor = {
     "a hardcoded map (object literal / `{ id }` array / `Record<…>` type) covering ≥2 SectionIds/ModalSlotIds/SettingsCategoryIds, or an array of ≥2 CHROME_ZONES-zoned chrome entries, is a parallel section/modal/chrome map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the vocab tuple, the main.tsx door, the *-section/*-modal/*-pane/*-chrome files.",
   fix: "delete the map and read the registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
   run: (ctx) => {
-    const out: Violation[] = [];
+    const out: NodeHit[] = [];
     for (const vocab of readVocabs(ctx.project)) {
       if (vocab.ids.size === 0) {
         continue;
@@ -340,8 +326,8 @@ export const gate: GateDescriptor = {
         scanFileForChromeArray(sf, chromeZones, out);
       }
     }
-    for (const v of out) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    for (const hit of out) {
+      ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
   },
   mustFlag: [
@@ -350,7 +336,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
         "packages/client/src/features/x/lib/panel-defaults.ts": "export const M = {\n  chats: { list: 1 },\n  characters: { list: 2 },\n};\n",
       },
-      expect: { messageIncludes: "parallel section map" },
+      expect: { token: "SectionId-object-map" },
       why: "a re-declared per-section map (≥2 SectionId keys) outside the sanctioned homes — the target bug",
     },
     {
@@ -359,7 +345,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/lib/rail-sections.ts":
           'export const RAIL_SECTIONS = [\n  { id: "chats", label: "Chats" },\n  { id: "characters", label: "Characters" },\n];\n',
       },
-      expect: { messageIncludes: "array literal" },
+      expect: { token: "SectionId-object-array" },
       why: "an array of `{ id: … }` elements covering ≥2 SectionIds — the deleted RAIL_SECTIONS shape",
     },
     {
@@ -370,7 +356,7 @@ export const gate: GateDescriptor = {
           "declare function build(): Record<SectionId, string>;\n" +
           "export const LABELS: Record<SectionId, string> = build();\n",
       },
-      expect: { messageIncludes: "Record<SectionId" },
+      expect: { token: "SectionId-record-type" },
       why: "a `Record<SectionId, …>`-typed value built by a function call — no literal the object-literal arm can see",
     },
     {
@@ -378,7 +364,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
         "packages/client/src/features/x/lib/you-rows.ts": "export const ROWS = {\n  theme: { label: 1 },\n  settings: { label: 2 },\n};\n",
       },
-      expect: { messageIncludes: "parallel modal map" },
+      expect: { token: "ModalSlotId-object-map" },
       why: "a re-declared per-modal map (≥2 ModalSlotId keys) — the deleted YOU_MODAL_ROWS shape",
     },
     {
@@ -387,7 +373,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/lib/rail-actions.ts":
           'export const RAIL_ACTIONS = [\n  { id: "theme", label: "Theme" },\n  { id: "settings", label: "Settings" },\n];\n',
       },
-      expect: { messageIncludes: "the deleted RAIL_SECTIONS/RAIL_ACTIONS shape" },
+      expect: { token: "ModalSlotId-object-array" },
       why: "an array of `{ id: … }` elements covering ≥2 ModalSlotIds — the deleted RAIL_ACTIONS shape",
     },
     {
@@ -395,7 +381,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
         "packages/client/src/features/x/lib/you-modal-ids.ts": 'export const YOU_MODAL_IDS = ["account", "settings", "theme"];\n',
       },
-      expect: { messageIncludes: "the deleted YOU_MODAL_IDS shape" },
+      expect: { token: "ModalSlotId-string-array" },
       why: "a bare string array of ≥2 ModalSlotIds outside an allowlisted home — the deleted YOU_MODAL_IDS shape (the G2 gap a fresh verifier found: a bare id array has zero object elements, invisible to the `{id:…}` array arm)",
     },
     {
@@ -403,7 +389,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
         "packages/client/src/features/x/lib/you-modal-ids.ts": 'export const YOU_MODAL_IDS = ["account" as const, "settings" as const];\n',
       },
-      expect: { messageIncludes: "the deleted YOU_MODAL_IDS shape" },
+      expect: { token: "ModalSlotId-string-array" },
       why: "the same bare-id array with each element written `x as const` (AsExpression) — the wrapped-literal shape the plain StringLiteral element reader silently PASSED before hardening",
     },
     {
@@ -411,7 +397,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/state/shell-store.ts": 'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
         "packages/client/src/features/x/lib/settings-labels.ts": "export const LABELS = {\n  account: { label: 1 },\n  appearance: { label: 2 },\n};\n",
       },
-      expect: { messageIncludes: "parallel settings map" },
+      expect: { token: "SettingsCategoryId-object-map" },
       why: "a re-declared per-category map (≥2 SettingsCategoryId keys) outside the sanctioned homes — the M6.1 arm",
     },
     {
@@ -420,7 +406,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/lib/hand-list.ts":
           'export const HAND = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
       },
-      expect: { messageIncludes: "array literal of chrome entries" },
+      expect: { token: "chrome-array" },
       why: "a hand array of ≥2 CHROME_ZONES-zoned chrome entries outside the door and not a *-chrome file — the chrome arm (5)",
     },
   ],
