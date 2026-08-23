@@ -95,6 +95,7 @@ test("content_hash is NOT NULL — a vector write missing it is rejected", async
   const characterId = await seedCharacter(db, ownerId, "character_ch");
   let caught: unknown;
   try {
+    // FABRICATION-OK: the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (contentHash omitted).
     await db.insert(characterEmbeddings).values({
       id: castId<CharacterEmbeddingId>("character_embedding_nohash"),
       characterId,
@@ -405,6 +406,7 @@ test("chat_digests.text is NOT NULL — a digest write missing its body is rejec
   const chatId = await seedChat(db, { id: "chat_dnull" });
   let caught: unknown;
   try {
+    // FABRICATION-OK: the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (text omitted).
     await db.insert(chatDigests).values({
       id: castId<ChatDigestId>("chat_digest_nulltext"),
       chatId,

@@ -59,6 +59,7 @@ function principal(userId: UserId): Principal {
  *  `greetings[0]` for the F6 in-window join greeting — a double that omits it is a lying double, so the
  *  default is the honest "card with no greetings" (`[]`), never absent. */
 const card = (name: string, greetings: readonly string[] = []): CharacterCard =>
+  // FABRICATION-OK: minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/avatarAssetId/greetings.
   ({ name, avatarAssetId: null, greetings: greetings.map((text) => ({ text })) }) as unknown as CharacterCard;
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
@@ -140,6 +141,7 @@ describe("setRoomOverrides — the four-field allowlist", () => {
       .setRoomOverrides({
         principal: principal(host),
         chatId,
+        // FABRICATION-OK: the invalid-input probe THIS test asserts is default-denied (a stray field).
         overrides: { scenario: "ok", evil: "system prompt" } as unknown as RoomOverrides,
       })
       .catch((e: unknown) => e);
