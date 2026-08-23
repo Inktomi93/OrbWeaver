@@ -178,8 +178,18 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             deps.discovery.computeDuplicatePairs({ ownerId: ctx.ownerId, ...(threshold !== undefined ? { threshold } : {}) }),
             deps.discovery.computeChatDuplicatePairs({ ownerId: ctx.ownerId }),
           ]);
+          const scanned = chars.charactersScanned + chatPairs.chatsScanned;
+          // THE EMBEDDINGS PLANE, SAME HONESTY (issue #561). Both arms read what the INDEX pass writes — card
+          // vectors and chat segment hashes — so a never-indexed corpus reported "0 rows · 0 written" under a
+          // green Succeeded, with nothing on the row naming the job that would fill it. The refusal keys on
+          // BOTH arms reading nothing: a populated plane that yields no pairs is a real answer ("you have no
+          // near-duplicates"), and calling THAT a refusal would send the user to a job that changes nothing.
+          if (scanned === 0) {
+            report({ message: "nothing embedded to compare — run the embeddings index first" });
+            return { scanned: 0, written: 0, emptyReason: "no-embeddings" };
+          }
           return {
-            scanned: chars.charactersScanned + chatPairs.chatsScanned,
+            scanned,
             written: chars.pairsWritten + chatPairs.pairsWritten,
           };
         } finally {
@@ -198,6 +208,13 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
         try {
           report({ message: "computing hub scores (CSLS)" });
           const stats = await deps.discovery.computeCharacterHubScores({ ownerId: ctx.ownerId });
+          // `rowsScored` IS the read census (every vector the pass loads gets exactly one hub update), so zero
+          // means the character-embedding table was empty — never that the calibration found nothing to say.
+          // Rendered as "0 rows · 0 written" the two were the same sentence (issue #561).
+          if (stats.rowsScored === 0) {
+            report({ message: "no character embeddings to score — run the embeddings index first" });
+            return { scanned: 0, written: 0, emptyReason: "no-embeddings" };
+          }
           return { scanned: stats.rowsScored, written: stats.rowsScored };
         } finally {
           await announceCorpus(deps, ctx);

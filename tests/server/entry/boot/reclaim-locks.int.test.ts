@@ -18,6 +18,9 @@ const CONTRIBUTIONS = fakeContributions();
 const RUNNING_ID = castId<WorkloadId>("workload_running1");
 const QUEUED_ID = castId<WorkloadId>("workload_queued1");
 const HOLDER = "test-replica";
+// The two reap sentences the row's `error` must keep apart (#560).
+const RESTART_SENTENCE = /restart/i;
+const STALE_HEARTBEAT_SENTENCE = /heartbeat went stale/i;
 
 test("reaps a running workload to worker_died at boot (threshold 0)", async ({ clock }) => {
   const db = await freshDb();
@@ -35,6 +38,37 @@ test("reaps a running workload to worker_died at boot (threshold 0)", async ({ c
   expect(reaped).toBe(1);
   const [row] = await db.select().from(workloads).where(eq(workloads.id, RUNNING_ID));
   expect(row?.status).toBe("worker_died");
+});
+
+// #560 — THE ATTRIBUTION PINS. Both reap paths run the same sweep and write the same `worker_died` status,
+// and `markTerminal` overwrites `updated_at` (the lease column) with the reap instant, so the row's `error`
+// string is the ONLY surviving evidence of WHY a long pass died. Before this, the boot path stamped the
+// steady-state sentence ("worker heartbeat went stale"), which is false here — the lease was seconds old and
+// the process, not the lease, is what ended. A forensics lane had to reconstruct the cause from lane ordering
+// and inter-death gaps because these two sentences were identical on the row.
+test("attributes a boot reclaim to the RESTART, not to a stale heartbeat", async ({ clock }) => {
+  const db = await freshDb();
+  await seedWorkloadRow(db, { id: RUNNING_ID, status: "running", updatedAt: clock.now() - 1000 });
+
+  await reclaimLocksOnBoot({ db, contributions: CONTRIBUTIONS, now: clock.now, holder: HOLDER });
+
+  const [row] = await db.select().from(workloads).where(eq(workloads.id, RUNNING_ID));
+  expect(row?.error).toMatch(RESTART_SENTENCE);
+  expect(row?.error).not.toMatch(STALE_HEARTBEAT_SENTENCE);
+});
+
+test("a reap records the OBSERVED lease age, which the terminal stamp then overwrites", async ({ clock }) => {
+  const db = await freshDb();
+  await seedWorkloadRow(db, { id: RUNNING_ID, status: "running", updatedAt: clock.now() - 1000 });
+
+  await reclaimLocksOnBoot({ db, contributions: CONTRIBUTIONS, now: clock.now, holder: HOLDER });
+
+  const [row] = await db.select().from(workloads).where(eq(workloads.id, RUNNING_ID));
+  // The number is the whole point: `updated_at` below is now the REAP instant, so without this the age is
+  // unrecoverable. A boot reclaim's age is small BY CONSTRUCTION (threshold 0) — that is the tell that
+  // separates it from a genuine grace-window expiry.
+  expect(row?.error).toContain("1000ms");
+  expect(row?.updatedAt).toBe(clock.now());
 });
 
 test("leaves a queued (not in-flight) workload untouched", async ({ clock }) => {

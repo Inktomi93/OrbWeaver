@@ -25,7 +25,7 @@ export type {
   WorkloadScheduleRow,
   WorkloadScheduleService,
 } from "./contract/schedule.ts";
-export type { WorkloadRunnerDeps, WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
+export type { ReapWorkloadsArgs, WorkloadReapReason, WorkloadRunnerDeps, WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export {
   emitWorkloadEvent,

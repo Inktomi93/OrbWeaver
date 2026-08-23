@@ -161,6 +161,44 @@ test("a panel that merely CONTAINS a control is still judged — the wrapper arm
   await expect(res).toExitWith(1);
 });
 
+// ── the OUTER-card predicate: a pane divider is not a card (#559) ───────────
+
+// @instrument-proof: `nested-card` asked the SAME question of both halves of the pair, so a shell pane —
+// an <aside> whose only box evidence is ONE border side (the divider against its neighbour), radius 0, no
+// shadow — satisfied the card predicate and became the OUTER card. Every real card placed inside any shell
+// pane then had a "nesting" partner it never had visually: a divider line is not a container edge. Latent
+// app-wide when filed (the #552 inner-arm fix hid it on the corpus surface); pinned here in BOTH directions
+// — a SECOND border side is a box, so that pane goes back to being an outer card and the pair still REDs.
+function shellPane(paneBoxStyle: string, inner: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><aside style="${paneBoxStyle};background:#111;padding:16px;width:400px">
+<p style="font-size:16px">the shell pane's own region label</p>
+${inner}
+</aside></main></body></html>`;
+}
+
+const PANE_DIVIDER_BOX = "border-right:1px solid #444;border-radius:0";
+const PANE_TWO_SIDED_BOX = "border-right:1px solid #444;border-left:1px solid #444;border-radius:0";
+const CARD_IN_A_PANE =
+  '<div style="border:1px solid #666;border-radius:8px;background:#222;padding:12px;width:240px;height:96px"><p style="font-size:16px">a real card living inside the pane</p></div>';
+
+test("a one-side-border shell pane is NOT the outer card of a nesting pair", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "pane-divider.html"), shellPane(PANE_DIVIDER_BOX, CARD_IN_A_PANE));
+  const res = await runCli("ui-audit", ["/pane-divider.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("nested-card");
+  // ZERO HYGIENE: the absence is only a verdict when the walk censused nodes at all.
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
+test("the same pane with a SECOND border side is a box again — the pair still REDs", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "pane-two-sided.html"), shellPane(PANE_TWO_SIDED_BOX, CARD_IN_A_PANE));
+  const res = await runCli("ui-audit", ["/pane-two-sided.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("nested-card");
+  await expect(res).toExitWith(1);
+});
+
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
   await expect(res).toExitWith(3);

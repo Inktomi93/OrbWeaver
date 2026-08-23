@@ -6,7 +6,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
 import { reapOrphanedWorkloads } from "../../../../../packages/server/src/domain/workloads/engine/reaper.ts";
-import { loadWorkloadStatus } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
+import { loadWorkload, loadWorkloadStatus } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, seedWorkloadRow, T0 } from "../_support.ts";
@@ -29,12 +29,30 @@ describe("reapOrphanedWorkloads", () => {
       status: "running",
       updatedAt: T0 + 100_000,
     });
-    const reaped = await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: T0 + 50_000 });
+    const reaped = await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: T0 + 50_000, reason: "heartbeat_stale" });
     expect(reaped).toBe(1);
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("wl_stale"))).toBe("worker_died");
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("wl_fresh"))).toBe("running");
     const events = getRecentWorkloadEvents(castId<WorkloadId>("wl_stale"));
     expect(events.map((e) => e.type)).toContain("failed");
+  });
+
+  // #560, the steady-state arm of the attribution pin (its boot twin lives at
+  // tests/server/entry/boot/reclaim-locks.int.test.ts): this sweep runs under a LIVE worker, so the row really
+  // did stop bumping its lease — and the observed age is the number that separates a genuine grace-window
+  // expiry from a restart, which `markTerminal` would otherwise erase by overwriting `updatedAt`.
+  test("attributes a live sweep to the stale heartbeat and records the observed lease age", async () => {
+    const db = await freshDb();
+    const id = await seedWorkloadRow(db, { id: "wl_stale", kind: "compute-themes", status: "running", updatedAt: T0 });
+
+    await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: T0 + 50_000, reason: "heartbeat_stale" });
+
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
+    expect(row?.error).toContain("heartbeat went stale");
+    expect(row?.error).toContain("50000ms");
+    // The same reap emits the reason on the bus, so a live watcher reads it without re-querying the row.
+    const failed = getRecentWorkloadEvents(id).find((e) => e.type === "failed");
+    expect(failed?.type === "failed" && failed.error.message).toContain("50000ms");
   });
 
   test("does not reap a terminal row (guarded)", async () => {
@@ -45,7 +63,7 @@ describe("reapOrphanedWorkloads", () => {
       status: "succeeded",
       updatedAt: T0,
     });
-    expect(await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: T0 + 100_000 })).toBe(0);
+    expect(await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: T0 + 100_000, reason: "heartbeat_stale" })).toBe(0);
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("wl_done"))).toBe("succeeded");
   });
 });

@@ -13,6 +13,7 @@ import { describe, vi } from "vitest";
 import type { WorkloadContribution } from "../../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
+import { reapOrphanedWorkloads } from "../../../../../packages/server/src/domain/workloads/engine/reaper.ts";
 import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -170,5 +171,59 @@ describe("runWorkload progress durability", () => {
     // heartbeatMs left at its 5s DEFAULT here (the throttle window under test); the cancel poll stays off.
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run), { now: () => clock, cancelPollMs: 0, heartbeatMs: 5000 }), row, sig());
     expect(run).toHaveBeenCalledTimes(1);
+  });
+});
+
+// #560 — THE STARVATION FENCE. These two are a REGRESSION GUARD, not a defect proof: they pass against the
+// pre-#560 engine, and that is the point. The 08-22 long-pass deaths were hypothesised to be a run body's long
+// provider call starving the lease tick; the engine's heartbeat is a `setInterval`, so an AWAITED call (which
+// is all a provider call is) yields the loop and the timer fires regardless. The hypothesis cost a forensics
+// lane, so it is pinned closed here: a run that stays pending far past the reaper's window keeps its lease,
+// and the disabled-timer arm proves the assertion can actually fail.
+//
+// FAKE TIMERS + an injected clock, not wall time: the property is "the lease tick is SCHEDULED, so a pending
+// body cannot hold it up", and advancing a fake clock while the body's promise is still unresolved states
+// exactly that — deterministically, and without an ambient `Date.now()` the test-determinism gate would
+// (correctly) refuse.
+describe("runWorkload lease under a slow item", () => {
+  const staleMs = 60;
+  const inFlightMs = staleMs * 4;
+
+  /** Hold one run pending, advance past the stale window, and report what a sweep at that instant would do. */
+  async function reapDuringPendingRun(heartbeatMs: number): Promise<{ reaped: number; status: string | undefined }> {
+    const db = await freshDb();
+    const started = Promise.withResolvers<void>();
+    const gate = Promise.withResolvers<void>();
+    const run: RunBody = async () => {
+      started.resolve();
+      await gate.promise;
+      return { deferred: true } as const;
+    };
+    let clock = T0;
+    const id = await seedWorkloadRow(db, { id: "wl_slow", kind: KIND, status: "queued", updatedAt: T0 });
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
+    vi.useFakeTimers();
+    try {
+      const running = runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run), { now: () => clock, heartbeatMs, cancelPollMs: 0 }), row, sig());
+      await started.promise;
+      // The body is STILL awaiting `gate` across this whole span — exactly the shape of a 31s vLLM summarize.
+      clock += inFlightMs;
+      await vi.advanceTimersByTimeAsync(inFlightMs);
+      const reaped = await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: clock, staleThresholdMs: staleMs, reason: "heartbeat_stale" });
+      const status = await loadWorkloadStatus(db, id);
+      gate.resolve();
+      await running;
+      return { reaped, status };
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  test("a long AWAITED item cannot starve the lease — the reaper leaves it alone", async () => {
+    expect(await reapDuringPendingRun(staleMs / 4)).toEqual({ reaped: 0, status: "running" });
+  });
+
+  test("POSITIVE CONTROL: with the lease timer disabled the same run IS reaped (the fence can fail)", async () => {
+    expect(await reapDuringPendingRun(0)).toEqual({ reaped: 1, status: "worker_died" });
   });
 });
