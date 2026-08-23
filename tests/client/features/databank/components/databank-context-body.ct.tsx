@@ -9,7 +9,7 @@
 //     bare counts is closed on the WIRE (chat's `resolveVisibleRooms`), not by hiding names in the client.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankContextStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
+import { DatabankContextStory, DatabankWorkspaceListModeStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
 import { ATTACHED_CHARACTER, ATTACHED_ROOM, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 /** The row body opens a document — matched loosely because the row's accessible name carries its scent
@@ -55,13 +55,26 @@ test("the CONTEXT promise is a ROSTER, and the pane pays it (#276)", async ({ mo
 // that drops it: it is a CAPTION for a 320px panel, where LIST's glyph sits over the Add that fixes the
 // state and CONTENT's is the section's own welcome. Asserted on the RENDERED heads across the whole
 // workspace, so it cannot be satisfied by swapping one glyph for another that repeats somewhere else.
+//
+// THE SETTLE BARRIER MOVED WITH #434, THE INVARIANT DID NOT. This pin used to settle on CONTENT's
+// "Your databank" — copy #434 (e28d3cdeb) deliberately deleted on an empty bank with the list on screen, so
+// the barrier waited 5s for a string the product had stopped saying and the pin went red without the defect
+// coming back (`databank-detail-surface.ct` line 81 pins the SAME absence from the other side). It cannot
+// simply be dropped: an empty CONTENT pane and a CONTENT pane whose `bankHealth` census is still in flight
+// are the same DOM, so counting at boot would pass while the pane was merely late — a green that survives
+// the N-4 defect's return. So CONTENT is settled POSITIVELY through the one regime that makes it speak (the
+// list off screen, #434's own conditional arm), and the count is taken back at the boot layout.
 test("the empty tri-pane does not print one hero glyph three times (N-4)", async ({ mount, page }) => {
   await stubDatabank(page, { "databank.listGlobal": () => [] }, []);
-  const workspace = await mount(<DatabankWorkspaceStory />);
-  // SETTLED: all three panes have rendered their own empty before any of them is counted.
+  const workspace = await mount(<DatabankWorkspaceListModeStory />);
+  // SETTLED: LIST and CONTEXT have rendered their own empty…
   await expect(workspace.getByText("Where a document fires")).toBeVisible();
-  await expect(workspace.getByText("Your databank")).toBeVisible();
   await expect(workspace.getByText("No documents yet")).toBeVisible();
+  // …and CONTENT has too — its census landed, proven by the arm that prints under it.
+  await workspace.getByRole("button", { name: "take the list off screen" }).click();
+  await expect(workspace.getByText("Your databank")).toBeVisible();
+  await workspace.getByRole("button", { name: "put the list back" }).click();
+  await expect(workspace.getByText("Your databank")).toHaveCount(0);
 
   const heads = await page.locator('[data-slot="empty-state-icon"]').count();
   expect(heads).toBeLessThan(3);
