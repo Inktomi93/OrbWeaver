@@ -8,14 +8,7 @@
 //   • loadUserSettings  — returns DEFAULT_USER_SETTINGS with a configurable `routing.roleDefaults`.
 
 import type { AgentSdkModel, CredentialSource, ModelCatalogEntry } from "../../../../packages/contracts/src/connection/index.ts";
-import type {
-  CustomOpenAiCredential,
-  LocalLightCredential,
-  MaxProSubCredential,
-  OpenRouterCredential,
-  ResolvedCredential,
-  VllmCredential,
-} from "../../../../packages/contracts/src/credentials/index.ts";
+import type { ResolvedCredential } from "../../../../packages/contracts/src/credentials/index.ts";
 import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
 import type { UserSettings } from "../../../../packages/contracts/src/settings/index.ts";
 import { DEFAULT_USER_SETTINGS } from "../../../../packages/contracts/src/settings/index.ts";
@@ -30,33 +23,26 @@ import { __resetVllmGenWindowCache } from "../../../../packages/server/src/domai
 import type { Clock } from "../../../support/clock.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { makeCustomOpenAiCredential, makeOpenRouterCredential, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
 
 type RoleDefaults = UserSettings["routing"]["roleDefaults"];
 
-/** A brand-protected credential for a source (the edge fake — see file header). The brand symbol is
- *  unconstructable outside contracts, so the double-cast is the sanctioned test-only bridge. */
+/** A brand-protected credential for a source (the edge fake — see file header) — routed through the
+ *  shared `resolved-connection` factories (the ONE sanctioned brand-cast home, W1h) instead of a local
+ *  double-cast per source. */
 function fakeCredential(source: CredentialSource): ResolvedCredential {
   switch (source) {
     case "vllm":
-      return { source: "vllm", credentialId: null } as unknown as VllmCredential;
     case "local-light":
-      return { source: "local-light", credentialId: null } as unknown as LocalLightCredential;
-    case "openrouter":
-      return {
-        source: "openrouter",
-        apiKey: "test-key",
-        credentialId: null,
-      } as unknown as OpenRouterCredential;
     case "max-pro-sub":
-      return { source: "max-pro-sub", credentialId: null } as unknown as MaxProSubCredential;
+      return makeResolvedCredential(source);
+    case "openrouter":
+      return makeOpenRouterCredential({ apiKey: "test-key" });
     case "custom_openai":
-      return {
-        source: "custom_openai",
+      return makeCustomOpenAiCredential({
         baseUrl: "http://localhost:9999",
-        apiKey: null,
-        headers: null,
         credentialId: castId<UserCredentialId>("user_credential_test"),
-      } as unknown as CustomOpenAiCredential;
+      });
     default:
       throw new Error(`fakeCredential: unhandled source ${String(source)}`);
   }

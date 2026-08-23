@@ -4,7 +4,6 @@
 import type { AssembleContext, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECEIVE_POST_PROCESS_ORDER, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
@@ -22,21 +21,19 @@ import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../.
 import { __spanToWirePartForTest, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
+import { makeModelCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
 
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
+const CAPABILITY: ModelCapability = makeModelCapability({
   output: { maxTokens: { min: 1, max: 8192 } },
   context: { window: 200_000 },
-} as unknown as ModelCapability;
+});
 
 const CONNECTION: ResolvedConnection = {
   api: "chat-completions",
   model: castId<ModelId>("test-model"),
-  credential: { source: "vllm", credentialId: null } as unknown as ResolvedCredential,
+  credential: makeResolvedCredential(),
   capability: CAPABILITY,
 };
 
@@ -65,6 +62,9 @@ function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
 let nextRowId = 0;
 const rowOf = (role: "user" | "assistant", content: string): MessageView => {
   nextRowId += 1;
+  // Slim MessageView double — runTurnPipeline reads only id/role/kind/content/excludedFromPrompt/
+  // characterId/personaId/authorUserId off a canon row (see file header).
+  // FABRICATION-OK: same slim-double judgment as seqRow above.
   return {
     id: `message_fixture_${nextRowId}`,
     role,
@@ -343,7 +343,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("D45: an embedded image ref → text+image parts, resolved via the injected op (vision model)", async () => {
     const vision = {
       ...CONNECTION,
-      capability: { ...CAPABILITY, input: { vision: true } } as unknown as ModelCapability,
+      capability: makeModelCapability({ ...CAPABILITY, input: { vision: true } }),
     };
     const { args } = baseArgs({
       connection: vision,
@@ -464,10 +464,10 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("the §8 fit drops oldest turns under a tiny window (keeps the newest)", async () => {
     // Alternate roles so squash doesn't collapse the history into one turn (then the fit has rows to drop).
     const longCanon = Array.from({ length: 12 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} with several words to spend tokens here`));
-    const tiny = {
+    const tiny = makeModelCapability({
       ...CAPABILITY,
       context: { window: 80 },
-    } as unknown as ModelCapability;
+    });
     const { args } = baseArgs({
       canon: longCanon,
       connection: { ...CONNECTION, capability: tiny },
@@ -771,7 +771,10 @@ describe("runTurnPipeline — token-budget reserve (single source of truth)", ()
 const ARIA = castId<CharacterId>("char_aria");
 const KAI = castId<CharacterId>("char_kai");
 
+// Slim MessageView doubles — the history-macro resolver reads only role/kind/content/excludedFromPrompt/
+// characterId/personaId(/authorUserId) off a canon row (see file header).
 const assistantRow = (content: string, characterId: CharacterId): MessageView =>
+  // FABRICATION-OK: same slim-double judgment as seqRow/rowOf above.
   ({
     role: "assistant",
     kind: "standard",
@@ -782,6 +785,7 @@ const assistantRow = (content: string, characterId: CharacterId): MessageView =>
   }) as unknown as MessageView;
 
 const userRowWithPersona = (content: string, personaId: PersonaId): MessageView =>
+  // FABRICATION-OK: same slim-double judgment as seqRow/rowOf/assistantRow above.
   ({
     role: "user",
     kind: "standard",
@@ -1738,7 +1742,7 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
 const RESPONSE_FORMAT = { name: "narrative", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) } as const;
 const STRUCTURED_CONNECTION: ResolvedConnection = {
   ...CONNECTION,
-  capability: { ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } } as unknown as ModelCapability,
+  capability: makeModelCapability({ ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } }),
 };
 
 describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {

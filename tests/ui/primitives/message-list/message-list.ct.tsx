@@ -300,8 +300,12 @@ test("prepend stability: the id-keyed anchor keeps a mid-scroll reader's view in
 
 test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-motion", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  // In-page instrumentation below — `globalThis`/`Element.prototype` in the mounted browser context
+  // carry no app type; each cast is the monkeypatch scaffolding itself, not a fabricated domain value.
   await page.evaluate(() => {
+    // FABRICATION-OK: in-page globalThis scaffolding (see above).
     (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors = [];
+    // FABRICATION-OK: in-page Element.prototype scaffolding (see above).
     const proto = Element.prototype as unknown as {
       scrollTo: (options?: ScrollToOptions) => void;
     };
@@ -311,6 +315,7 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
     // silently break the real scroll virtual-core depends on for its own follow-up measurements).
     proto.scrollTo = function patchedScrollTo(this: Element, options?: ScrollToOptions): void {
       if (options !== undefined) {
+        // FABRICATION-OK: in-page globalThis scaffolding (see above).
         (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors.push(options.behavior ?? null);
       }
       original.call(this, options);
@@ -321,12 +326,14 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
   await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
   // Only care about the APPEND-triggered follow call, not the initial mount's own scrollToEnd.
   await page.evaluate(() => {
+    // FABRICATION-OK: in-page globalThis scaffolding (see the mount-time instrumentation above).
     (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors = [];
   });
 
   await component.getByTestId("append").click();
   await expect(component.getByText(`Message ${ITEM_COUNT}`, { exact: true })).toBeVisible();
 
+  // FABRICATION-OK: in-page globalThis scaffolding (see the mount-time instrumentation above).
   const behaviors = await page.evaluate(() => (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors);
   expect(behaviors.length).toBeGreaterThan(0);
   expect(behaviors.at(-1)).toBe("auto");
