@@ -14,6 +14,7 @@ import { cmdRegKeys } from "./regkeys.ts";
 import { cmdRespell } from "./respell.ts";
 import { cmdRot } from "./rot.ts";
 import { cmdStringy } from "./stringy.ts";
+import { cmdSubsetCallers } from "./subset-callers.ts";
 import { cmdSwallowed } from "./swallowed.ts";
 import { cmdCallers, cmdExports, cmdIdent, cmdImporters, cmdJsx, cmdLiteral, cmdRefs } from "./symbols.ts";
 import { cmdTypeOnly } from "./typeonly.ts";
@@ -24,6 +25,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 export const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,
   callers: cmdCallers,
+  "subset-callers": cmdSubsetCallers,
   importers: cmdImporters,
   exports: cmdExports,
   jsx: cmdJsx,

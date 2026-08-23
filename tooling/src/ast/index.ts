@@ -24,6 +24,9 @@ export type {
   StringyAudit,
   StringyCandidate,
   StringyLink,
+  SubsetAudit,
+  SubsetCallSite,
+  SubsetFinding,
   SwallowedCandidate,
   TestOnlyClass,
   TypeOnlyCandidate,
@@ -48,6 +51,7 @@ export { collectRegistries, qualifiedAccessIndex, regKeyHitsFor, spellingIndex }
 export { assignabilityChecker, isNearPairExempt, respellHitsFor, respellNearCandidatesFor } from "./ops/respell.ts";
 export { rotChainHits, rotOrphanHits, rotSwallowedHits, rotTestOnlyHits, rotTypeOnlyHits } from "./ops/rot.ts";
 export { collectStringyAudit } from "./ops/stringy.ts";
+export { collectSubsetCallers, collectSubsetCallSites, objectKeys } from "./ops/subset-callers.ts";
 export { collectSwallowedCandidates, isSwallowedExempt } from "./ops/swallowed.ts";
 export { collectTypeOnlyCandidates, isTypeOnlyExempt } from "./ops/typeonly.ts";
 export { ARGLESS_VERBS, TYPED_VERBS, VERBS, WIDE_SYNTACTIC_VERBS } from "./ops/verbs.ts";

@@ -101,9 +101,18 @@ each gate's line (`✓ own-tables-only · scanned 915/4796 files`), in `reports/
 - **`ctx.scan({ … })` is the opt-in half**, for the two things the harness structurally cannot see. It is a
   context method, not a descriptor field, so all ~200 existing gates are untouched. Numerics accumulate.
   - `admitted` — findings a committed RATCHET BUDGET absolved this run, printed as
-    `admitted-by-ratchet: N`. **Declared debt is not absence.** Both live ratchets declare it
-    (`density-tier`, `finding-overload-provenance`); any new baseline ratchet owes the same call, or its
-    population is knowable only by running the generator.
+    `admitted-by-ratchet: N`. **Declared debt is not absence.** EVERY ledger-carrying gate owes this call,
+    or its population is knowable only by running the generator — and worse, the single-pass's own
+    `N finding(s) admitted by ratchet baselines` line then renders that debt as ZERO.
+    **THIS CLAUSE NAMES ITS ENFORCER: `gate-modernization` ARM D** (2026-08-23, #551). It was prose-only
+    until then, and prose-only cost exactly what it always costs: three of the six ledger-carrying gates
+    (`suppressions`, `no-test-fabrication`, `no-hardcoded-model-prose`) were silent, so the printed total
+    of 216 omitted 523 budgeted findings. ARM D flags any gate module whose string literals include a
+    ratchet-ledger PATH while the module never calls `ctx.scan({ admitted })`, and carries the §4.6
+    blindness tripwire (zero recognised ledger readers on the real tree is RED, not ✓).
+    **The rows themselves are enumerable with `pnpm debt`** (`tooling/src/verify/ops/debt.ts`, #546) — the
+    triage listing behind the count, which reconciles its declared ledger table against every committed
+    `*.baseline.json` on the tree in BOTH directions and refuses to print a listing when they disagree.
   - `unit`/`candidates`/`scanned`/`skipped` — for a gate whose units are NOT workspace source files
     (`dangling-refs` reads markdown: `ctx.scan({ unit: "doc", scanned: docs.length })`). Without it such a
     gate's row reports a file count it never read, and it cannot distinguish itself from a blind gate.
