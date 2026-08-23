@@ -8,6 +8,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
+import type { OutputInfo } from "sharp";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
@@ -126,8 +127,12 @@ async function inkStats(page: Page, locator: Locator, region: "leading" | "trail
   const shot = await page.screenshot({
     clip: { height: box?.height ?? 0, width, x: region === "leading" ? boxX : boxX + boxWidth - width, y: box?.y ?? 0 },
   });
-  // biome-ignore lint/nursery/useAwaitThenable: false positive — sharp ships `export =` CJS types biome's service cannot follow, so it reads the overload that returns `Promise<{data,info}>` (node_modules/sharp/lib/index.d.ts:681) as non-thenable. tsc resolves it correctly; `pnpm typecheck` is the receipt.
-  const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
+  // The intermediate is ANNOTATED, not decoration: biome's type service cannot follow sharp's
+  // `export =` CJS types (node_modules/sharp/lib/index.d.ts:1999) so a direct `await sharp(...)
+  // .toBuffer(...)` false-positives useAwaitThenable — the annotation hands it the Promise shape tsc
+  // already resolves (probe-verified 2026-08-23: the direct arm fires, this arm does not).
+  const pending: Promise<{ data: Buffer; info: OutputInfo }> = sharp(shot).raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await pending;
   const histogram = new Map<number, number>();
   let peak = 0;
   for (let index = 0; index + info.channels <= data.length; index += info.channels) {
