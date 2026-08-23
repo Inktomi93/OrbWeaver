@@ -279,6 +279,8 @@ function armCitation(obj: Node, ctx: GateRunCtx): void {
 //
 // A gate is a LEDGER READER when one of its string literals IS a ratchet-ledger path (anchored whole-text
 // match, so the sentence you are reading — and every other prose mention — can never trip it).
+// …and that literal is NOT inside a `mustFlag`/`mustPass` example (#569): a conformance FIXTURE ledger is
+// something the gate JUDGES, never a budget it reads — `ratchet-row-integrity` is the worked case.
 const LEDGER_PATH_RE = /^[\w./-]+\.baseline\.json$/u;
 const ADMITTED_PROP = "admitted";
 const SCAN_METHOD = "scan";
@@ -294,13 +296,30 @@ const NO_ADMITTED_TRIPWIRE =
   "this arm would report ✓ over every silent ratchet forever. The ledger-path recogniser in " +
   "tooling/src/verify/gates/gate-modernization.ts stopped matching: re-point it (GATE-AUTHORING.md §4.6).";
 
-/** The ratchet-ledger paths this gate module reads, as their literal nodes (the report anchor). */
+/** The SELF-PROOF fields: a ledger path inside a conformance example is a FIXTURE, not a read (#569 — the
+ *  `ratchet-row-integrity` gate JUDGES ledgers and admits nothing, so its example files legitimately name
+ *  `*.baseline.json` paths and ARM D accused it three times over). Narrow on purpose: a real reader's path
+ *  constant lives at module scope, so this carve cannot absolve one. */
+const EXAMPLE_FIELDS: ReadonlySet<string> = new Set(["mustFlag", "mustPass"]);
+
+/** Is this literal inside a `mustFlag`/`mustPass` example block? */
+function inExampleBlock(node: Node): boolean {
+  for (let cur = node.getParent(); cur !== undefined; cur = cur.getParent()) {
+    if (TsNode.isPropertyAssignment(cur) && EXAMPLE_FIELDS.has(cur.getName())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The ratchet-ledger paths this gate module reads, as their literal nodes (the report anchor). A path that
+ *  only ever appears in a conformance example is EXCLUDED — see `inExampleBlock`. */
 function ledgerLiterals(sf: SourceFile): { readonly node: Node; readonly path: string }[] {
   const out: { node: Node; path: string }[] = [];
   for (const kind of STRING_KINDS) {
     for (const n of sf.getDescendantsOfKind(kind)) {
       const text = n.getLiteralText();
-      if (LEDGER_PATH_RE.test(text)) {
+      if (LEDGER_PATH_RE.test(text) && !inExampleBlock(n)) {
         out.push({ node: n, path: text });
       }
     }
@@ -431,6 +450,13 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "tooling/src/verify/gates/__probe.ts": `export const gate = { name: "__probe", docRow: "x", message: "m", run: (ctx) => { ctx.scan({ unit: "ledger row" }); }, mustFlag: [{ files: { "${PROBE_LEDGER}": "{}" }, why: "w" }], mustPass: [{ files: { "${PROBE_LEDGER}": "{}" }, why: "w" }] };\n`,
+      },
+      why: "ARM D's example carve (#569): a gate whose ONLY ledger path sits inside its mustFlag/mustPass fixtures JUDGES ledgers rather than reading budgets — accusing it of a silent ratchet was a false positive that cost `ratchet-row-integrity` three findings at landing",
+    },
+
     {
       files: {
         "docs/architecture/core/__g_gm_doc.md": "---\nkind: law\n---\n\n## Cross-tier composition (who reads db)\n\n### 6b. A sub-anchor\n\nprose.\n",

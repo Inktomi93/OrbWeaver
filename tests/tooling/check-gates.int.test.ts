@@ -477,6 +477,13 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_seat.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nimport { chats } from "./chat.ts";\nimport { userSettings } from "./settings.ts";\n\nexport const chatSeatProbe = sqliteTable("chat_seat_probe", {\n  chatId: text("chat_id").references(() => chats.id),\n  settingId: text("setting_id").references(() => userSettings.id),\n});\n',
   );
+  // ratchet-row-integrity: a committed ledger carrying a RATIFIED row whose cited site is GONE — the
+  // stale-why class (#569). The unit is a JSON ledger, so the fixture is a `__g_` baseline file rather than
+  // a source file; the gate discovers it exactly the way it discovers a real ratchet.
+  fx(
+    "tooling/src/verify/gates/__g_ratchet.baseline.json",
+    '{\n  "__g_subject::probe": { "count": 2, "ratified": 2, "why": "ruled by nothing", "cite": ["packages/client/src/__g_gone.tsx"] }\n}\n',
+  );
   // json-column-write-parity: a WHOLE-RECORD replace of `chats.metadata` (a JSON column whose seven live
   // writers all merge key-wise off a loaded row) — the straddle, from the side the gate reports.
   fx(
@@ -1105,6 +1112,10 @@ test("derives a non-trivial gate registry from report.ts (not silently empty)", 
 // Any glyph, then the scan suffix — a status line that carries no count fails this.
 const SCANNED_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
 const DENSITY_ADMITTED_RE = /^ {2}[✓✗⚠] density-tier.*admitted-by-ratchet: \d+/mu;
+// #569: the admitted number is SPLIT BY CLASS everywhere it prints — a ratified admission is permanent by a
+// recorded ruling and must not read as burnable backlog. `suppressions` is the ledger that carries both.
+const SUPPRESSIONS_SPLIT_RE = /^ {2}[✓✗⚠] suppressions.*admitted-by-ratchet: (?<total>\d+) \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
+const SINGLE_PASS_SPLIT_RE = /^single-pass: (?<total>\d+) finding\(s\) admitted by ratchet baselines \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
 
 test("every gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
   // A verdict without a denominator cannot be audited: ✓ reads identically whether the gate examined
@@ -1126,6 +1137,20 @@ test("a ratchet gate names the debt it admits in normal output (Codex GA-H-02)",
   // reached `{}` and was deleted (GATE-AUTHORING.md §4.8) — it is born-compliant now, so it carries no
   // admitted-by-ratchet line any more.
   expect(cleanRun).toMatch(DENSITY_ADMITTED_RE);
+});
+
+test("the admitted number is split into DEBT and RATIFIED, and the split adds up (#569)", () => {
+  // The owner's complaint this classification answers: an undifferentiated admitted total makes 346 ruled
+  // suppressions and 6 ruled door pairs read as "a glut of backlog". Both the per-gate line and the
+  // single-pass footer carry the split, and the two halves must SUM to the total — an arithmetic that
+  // silently drifts would be worse than no split at all.
+  const perGate = SUPPRESSIONS_SPLIT_RE.exec(cleanRun)?.groups;
+  expect(perGate).toBeDefined();
+  expect(Number(perGate?.["debt"]) + Number(perGate?.["ratified"])).toBe(Number(perGate?.["total"]));
+  expect(Number(perGate?.["ratified"])).toBeGreaterThan(0);
+  const footer = SINGLE_PASS_SPLIT_RE.exec(cleanRun)?.groups;
+  expect(footer).toBeDefined();
+  expect(Number(footer?.["debt"]) + Number(footer?.["ratified"])).toBe(Number(footer?.["total"]));
 });
 
 test("every registered structural gate fires on its fixture (anti-drift)", () => {

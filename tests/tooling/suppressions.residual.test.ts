@@ -4,8 +4,10 @@
 // is itself a STALE-RED, forcing the floor down. Driven via `reconcileSuppressions(root, files, baseline)`
 // with an INJECTED baseline map — the gate-conformance runner cannot inject one (an in-memory example
 // project has no suppressions.baseline.json on disk, so every example runs at budget 0), so the ratchet is
-// un-expressible as a gate example. NAMED `.residual.test.ts` (not `.int.test.ts`) per the no-test-fabrication
+// un-expressible as a gate example. Baselines are injected through the SHARED row parser (#569), so a
+// test can never exercise a row shape the real ledger reader would refuse. NAMED `.residual.test.ts` (not `.int.test.ts`) per the no-test-fabrication
 // precedent (test-support-dry-punchlist.md Phase 1/2 burndown), but still collected by the vitest `unit` lane.
+import { parseBudgetMap } from "@orb/tooling/_shared/ratchet-rows";
 import { reconcileSuppressions } from "../../tooling/src/verify/gates/suppressions.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { ctxFor } from "./_support.ts";
@@ -16,39 +18,39 @@ const TWO_MARKERS = "// biome-ignore lint/foo: reason\nexport const a = 1;\n// e
 
 test("baseline ratchet: a file AT its baseline count passes", () => {
   const { root, project } = ctxFor({ [F]: ONE_MARKER });
-  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 1 }));
   expect(violations).toEqual([]);
 });
 
 test("baseline ratchet: a file EXCEEDING its baseline REDs only the excess", () => {
   const { root, project } = ctxFor({ [F]: TWO_MARKERS });
-  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 1 }));
   expect(violations).toHaveLength(1);
 });
 
 test("a file ABSENT from the baseline has budget 0 (any suppression is RED)", () => {
   const { root, project } = ctxFor({ [F]: ONE_MARKER });
-  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), {});
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
   expect(violations).toHaveLength(1);
 });
 
 test("both-ways: a baseline entry ABOVE the file's live count is a STALE-RED", () => {
   const { root, project } = ctxFor({ [F]: ONE_MARKER });
-  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 3 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 3 }));
   expect(violations).toHaveLength(1);
   expect(violations[0]?.message).toContain("stale");
 });
 
 test("both-ways: a stale baseline entry for a file with ZERO live markers still REDs", () => {
   const { root, project } = ctxFor({ [F]: "export const a = 1;\n" });
-  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 2 }));
   expect(violations).toHaveLength(1);
   expect(violations[0]?.message).toContain("stale");
 });
 
 test("a baseline entry EXACTLY at the live count is neither exceed-RED nor stale-RED", () => {
   const { root, project } = ctxFor({ [F]: TWO_MARKERS });
-  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 2 }));
   expect(violations).toEqual([]);
 });
 
@@ -59,11 +61,50 @@ test("a baseline entry EXACTLY at the live count is neither exceed-RED nor stale
 // file admits only its allowance; the excess is a violation, not debt).
 test("admitted counts the markers the budget ABSOLVED — capped by the live count, and by the budget", () => {
   const { root, project } = ctxFor({ [F]: TWO_MARKERS });
-  expect(reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 }).admitted).toBe(2);
+  expect(reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 2 })).admitted).toBe(2);
   // Over budget: 1 admitted, 1 reported — never 2 admitted.
-  expect(reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 }).admitted).toBe(1);
+  expect(reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 1 })).admitted).toBe(1);
   // A STALE row budgeting more than the file carries admits only what is live.
-  expect(reconcileSuppressions(root, project.getSourceFiles(), { [F]: 9 }).admitted).toBe(2);
+  expect(reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 9 })).admitted).toBe(2);
   // No budget, no debt.
-  expect(reconcileSuppressions(root, project.getSourceFiles(), {}).admitted).toBe(0);
+  expect(reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({})).admitted).toBe(0);
+});
+
+// THE CLASS SPLIT (#569). The gate's `admittedRatified` is the RATIFIED SUBSET of `admitted` — the part a
+// recorded ruling / documented tool-FP made permanent — and the two halves are what every consumer prints.
+// The classification is DERIVED from the rule table, never taken from the row: a row DECLARING a partition
+// the tree does not earn is its own violation, which is what stops a hand-edit minting permanence.
+const RATIFIED_MARKER = "// biome-ignore lint/performance/noAwaitInLoops: sequential by design\nexport const a = 1;\n";
+const DEBT_MARKER = "// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: long boot sequence\nexport const b = 2;\n";
+
+test("a marker whose rule is in RATIFIED_RULES admits as RATIFIED; an unlisted rule stays burnable DEBT", () => {
+  const { root, project } = ctxFor({ [F]: RATIFIED_MARKER });
+  const ratified = reconcileSuppressions(
+    root,
+    project.getSourceFiles(),
+    parseBudgetMap({ [F]: { count: 1, ratified: 1, why: "ruled", cite: ["package.json"] } }),
+  );
+  expect(ratified.admitted).toBe(1);
+  expect(ratified.admittedRatified).toBe(1);
+
+  const { root: r2, project: p2 } = ctxFor({ [F]: DEBT_MARKER });
+  const debt = reconcileSuppressions(r2, p2.getSourceFiles(), parseBudgetMap({ [F]: 1 }));
+  expect(debt.admitted).toBe(1);
+  expect(debt.admittedRatified).toBe(0);
+});
+
+test("PLANTED CONTROL — a row DECLARING a ratified portion the rule table does not earn is RED", () => {
+  const { root, project } = ctxFor({ [F]: DEBT_MARKER });
+  const { violations } = reconcileSuppressions(
+    root,
+    project.getSourceFiles(),
+    parseBudgetMap({ [F]: { count: 1, ratified: 1, why: "invented", cite: ["package.json"] } }),
+  );
+  expect(violations.some((v) => v.message.includes("the class is DERIVED from RATIFIED_RULES"))).toBe(true);
+});
+
+test("PLANTED CONTROL — a row that UNDER-declares its ratified portion is equally RED (both directions)", () => {
+  const { root, project } = ctxFor({ [F]: RATIFIED_MARKER });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 1 }));
+  expect(violations.some((v) => v.message.includes("the class is DERIVED from RATIFIED_RULES"))).toBe(true);
 });

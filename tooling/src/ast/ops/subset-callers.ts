@@ -30,11 +30,21 @@ import type { CallExpression, Node, ObjectLiteralExpression, Project, SourceFile
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
+import { readRatchetLedger } from "../../_shared/ratchet-rows.ts";
 import type { DestructuredFires, MutationFactoryIndex, ResolvedDoor, UnresolvedDoor } from "../../_shared/trpc-doors.ts";
-import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../_shared/trpc-doors.ts";
+import {
+  DOORS_BASELINE_REL,
+  destructuredFires,
+  indexMutationFactories,
+  MUTATION_FIRE_MEMBERS,
+  procedureMatches,
+  resolveFiredDoor,
+} from "../../_shared/trpc-doors.ts";
 import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan, SubsetUnjudgedFire } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
+import { REPO_ROOT } from "../lib/root.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
@@ -300,13 +310,40 @@ export function sameClassFirst(finding: SubsetFinding): readonly SubsetCallSite[
   return [...finding.supersets].sort((a, b) => rank(a) - rank(b));
 }
 
-function findingHit(symbol: string, finding: SubsetFinding): Hit {
+/** The doors ledger's RATIFIED rows, by procedure (#569's second consumer). The rows are keyed
+ *  `<plane>::<procedure>`; a lens finding knows only the procedure, so the procedure tail is the join key.
+ *  Read through the ONE row reader, so the lens and the gate can never disagree about what is ratified. */
+function ratifiedProcedures(root: string): ReadonlyMap<string, RatchetRow> {
+  const out = new Map<string, RatchetRow>();
+  for (const row of readRatchetLedger(root, DOORS_BASELINE_REL).rows) {
+    const procedure = row.subject.split("::").at(-1);
+    if (procedure !== undefined && row.ratified > 0) {
+      out.set(procedure, row);
+    }
+  }
+  return out;
+}
+
+/** A flagged subset whose verb is a RATIFIED door pair is not a candidate — it is a decision somebody
+ *  already made, and printing it as a lead is how a ruled affordance gets re-litigated every sweep (#572's
+ *  report named exactly this need: the lens structurally could not know). The annotation carries the ruling
+ *  and its cites so the reader can disagree with the RULING rather than re-derive it. */
+function ratifiedNote(finding: SubsetFinding, ratified: ReadonlyMap<string, RatchetRow>): string {
+  const procedure = finding.site.door?.split(".").at(-1);
+  const row = procedure === undefined ? undefined : (ratified.get(finding.site.door ?? "") ?? ratified.get(procedure));
+  if (row === undefined) {
+    return "";
+  }
+  return `  [RATIFIED door pair — ${row.subject}: ${row.why ?? "(no why recorded)"} · cites: ${row.cite.join(", ")}]`;
+}
+
+function findingHit(symbol: string, finding: SubsetFinding, ratified: ReadonlyMap<string, RatchetRow>): Hit {
   const hit = hitOf(finding.site.node, "subset-caller");
   const named = sameClassFirst(finding).slice(0, NAMED_SUPERSETS).map(whereOf);
   const more = finding.supersets.length > named.length ? ` +${finding.supersets.length - named.length} more` : "";
   const via = finding.site.via === null ? "" : ` (via \`${finding.site.via}\`)`;
   const door = finding.site.door === null ? "" : ` [client door: ${finding.site.door}]`;
-  hit.text = `${symbol}({${(finding.site.keys ?? []).join(", ")}})${via}${door} — MISSING: ${finding.missing.join(", ")}  ⊂  ${named.join(", ")}${more}${crossClassNote(finding)}`;
+  hit.text = `${symbol}({${(finding.site.keys ?? []).join(", ")}})${via}${door} — MISSING: ${finding.missing.join(", ")}  ⊂  ${named.join(", ")}${more}${crossClassNote(finding)}${ratifiedNote(finding, ratified)}`;
   return hit;
 }
 
@@ -373,8 +410,9 @@ export function cmdSubsetCallers(project: Project, symbol: string, flags: Flags)
     `comparing ${audit.resolved} of ${audit.sites.length} call site(s) of \`${symbol}\` by first-argument object KEYS — ` +
       "THE SUBJECT IS THE COMPARISON UNIT: a shared method tail (`mutate`, `call`) pools unrelated verbs and every finding is noise; name the VERB or HOOK, and narrow further with --in <path>",
   );
+  const ratified = ratifiedProcedures(REPO_ROOT);
   emit(
-    audit.findings.map((f) => findingHit(symbol, f)),
+    audit.findings.map((f) => findingHit(symbol, f, ratified)),
     flags,
     `subset-callers ${symbol}`,
   );
