@@ -112,7 +112,7 @@ function htmlTrustEdit(value: string): { trustHtml: boolean | null; interactiveH
 export function CharacterAppearanceTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading appearance…</Text>}
+      fallback={<Text voice="quiet">Loading appearance…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
     >
       <AppearanceTabBody characterId={characterId} />

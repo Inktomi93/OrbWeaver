@@ -113,6 +113,28 @@ export const textVariants = tv({
       // `size="title"` is one of the four @orb/ui-internal axes the density A3 arm reds at a feature call
       // site — so the choice was a voice or an exemption.
       promoted: "font-sans text-title leading-title tracking-normal font-semibold text-foreground",
+      // THE MUTED BODY LINE (added 2026-08-23, owner ruling on #573). The most common near-miss the density
+      // burn-down kept hitting: a plain `<Text tone="muted">` — an empty-state line, a "Loading…", a
+      // deferred-state sentence — which is body-step regular text that has RECEDED. No voice reached it:
+      // `gloss` is the muted MICRO step (a footnote under a datum) and drops the line two steps to 10.5px;
+      // `reading` is the body step but rides `--color-prose-body`, the reading ink, which is exactly what
+      // a receded line is not. So the only spelling left was the raw `tone="muted"` the density A3 arm reds
+      // at every feature call site, and ~10 of tranche 1's residuals were this one shape.
+      //
+      // It resolves the SAME step the `tone="muted"` default pair produced (byte-identical but for the
+      // no-op `tracking-normal` every voice spells) — this is a VOCABULARY fix, not a visual change.
+      quiet: "font-sans text-body leading-body tracking-normal font-normal text-muted-foreground",
+      // THE MONO READOUT AT THE CODE STEP (added 2026-08-23, owner ruling on #573). An id, a hash, a byte
+      // count, a raw payload — machine text a human reads but does not compare in a column. `datum` is the
+      // voice for a value you DO compare (label step, tabular, foreground); this is its receded twin at the
+      // dedicated `code` step, which is the one type step no voice reached at all: `size="code"` is an
+      // @orb/ui-internal axis the A3 arm reds at a feature call site, so a mono readout in a feature had no
+      // legal spelling.
+      //
+      // NO `tabular-nums`, deliberately — that is `datum`'s column-alignment property and it is wrong here
+      // (a hash is not a column of numbers). Resolves the same step the `size="code" tone="muted"` pair
+      // produced; call sites that carried `className="tabular-nums"` beside the old pair keep it.
+      datumMono: "font-mono text-code leading-body tracking-normal font-normal text-muted-foreground",
       // The DECORATIVE DISPLAY GLYPH (added S6): a single-letter mark an immersive chat row skin paints on
       // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
       // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site
