@@ -444,8 +444,8 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "115ee0418479cb8bd113f9baffb041a682a38f89d77736af9e47a19535877a69",
-        "verifiedCommit": "ca67d1f2db6db41162dfe260c957e857bc9cc0fc",
+        "verifiedSha256": "a39f1f74c35c25d02473aba4640d4c0fddaac49b0a314bc444ebc61ab48fa634",
+        "verifiedCommit": "a5d5c2ab4adfe6dd8d9623cce82c6cb87f6989a9",
         "verifiedAt": "2026-08-23",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -485,7 +485,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -4303,8 +4303,8 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c89e63672c80c5f65347081939be53fcd755087b0a2145a3f04df2f7ee63c11a",
-        "verifiedCommit": "53273609e40a8089329be8da926e2de3a0e632e7",
+        "verifiedSha256": "cc75c625133dc1f261faf65cadef9d9bb22617233435e81584bbd8f7029f97ab",
+        "verifiedCommit": "a5d5c2ab4adfe6dd8d9623cce82c6cb87f6989a9",
         "verifiedAt": "2026-08-23",
         "evidence": [
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
@@ -4329,7 +4329,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/proposed/README.md",
@@ -12302,9 +12302,9 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "078899d6bcef8c6fb2e2a84174e91204fc6647919e6832d01d7c088b5a33baeb",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "1b16f648ec7bc15acca5e5721748ef50f0b3f40118adadbd2aab4208ea0fe4c4",
+        "verifiedCommit": "a5d5c2ab4adfe6dd8d9623cce82c6cb87f6989a9",
+        "verifiedAt": "2026-08-23",
         "evidence": [
           "docs/design/persona-character-kind-substrate.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
@@ -12327,7 +12327,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/preset-surface-redesign.md",

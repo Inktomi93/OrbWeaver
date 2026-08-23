@@ -1056,9 +1056,9 @@
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "078899d6bcef8c6fb2e2a84174e91204fc6647919e6832d01d7c088b5a33baeb",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "1b16f648ec7bc15acca5e5721748ef50f0b3f40118adadbd2aab4208ea0fe4c4",
+      "verifiedCommit": "a5d5c2ab4adfe6dd8d9623cce82c6cb87f6989a9",
+      "verifiedAt": "2026-08-23",
       "evidence": [
         "docs/design/persona-character-kind-substrate.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",

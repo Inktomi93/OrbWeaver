@@ -71,8 +71,8 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "c89e63672c80c5f65347081939be53fcd755087b0a2145a3f04df2f7ee63c11a",
-      "verifiedCommit": "53273609e40a8089329be8da926e2de3a0e632e7",
+      "verifiedSha256": "cc75c625133dc1f261faf65cadef9d9bb22617233435e81584bbd8f7029f97ab",
+      "verifiedCommit": "a5d5c2ab4adfe6dd8d9623cce82c6cb87f6989a9",
       "verifiedAt": "2026-08-23",
       "evidence": [
         "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
