@@ -65,6 +65,24 @@ test("an unreserved <img> (no dims, no aspect-ratio) is flagged [space]", async 
   expect(line).toContain("no reserved box");
 });
 
+// PERMANENT PIN for the OUT-OF-FLOW carve-out (#516). The flagger was accusing the login backdrop —
+// `[data-slot=web-weave-canvas]`, an `absolute inset-0 size-full` canvas — once per boot on `/login`
+// (side-eye 2026-08-22 rail-chats, console triage). Its own accusation is "its load will shift the page",
+// and an out-of-flow element cannot: nothing lays out against it. A lying instrument's fix owes a pin that
+// REDs in BOTH directions, so this asserts the silence only AFTER the in-flow `<img>` on the same stage has
+// flagged — that flag is the receipt that the sweep ran at all.
+test("an out-of-flow <canvas> is NOT flagged [space] while an in-flow unreserved <img> beside it still is", async ({ mount, page }) => {
+  const lines = captureSpaceLines(page);
+  const component = await mount(<MotionFlaggersSpaceStory />);
+
+  await component.getByRole("button", { name: "add image" }).click();
+  await expect.poll(() => lines.some((line) => line.includes("<img>")), { intervals: [200, 500, 1000, 2000], timeout: 15_000 }).toBe(true);
+
+  const flagged = lines.join("\n");
+  expect(flagged, "an absolutely-positioned canvas is removed from flow — its content can shift nothing").not.toContain("out-of-flow-canvas");
+  expect(flagged, "no <canvas> on this stage is in flow, so none may be accused").not.toContain("<canvas>");
+});
+
 test("the app observer ignores injected TanStack Devtools media", async ({ mount, page }) => {
   const lines = captureSpaceLines(page);
   const component = await mount(<MotionFlaggersExternalDevtoolsStory />);

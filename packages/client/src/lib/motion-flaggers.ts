@@ -290,8 +290,8 @@ function installDropFlagger(): void {
 
 const REPLACED_SELECTOR = "img, video, iframe, canvas";
 
-/** true ⇒ the element's box is reserved before its content loads: width+height attributes or an
- *  aspect-ratio. Any ONE of those prevents the shift.
+/** true ⇒ this element's content cannot shift the page when it loads: width+height attributes, an
+ *  aspect-ratio, or an out-of-flow position. Any ONE of those prevents the shift.
  *
  *  Deliberately NOT a resolved-height check (`getComputedStyle(el).height`): the computed style
  *  reports a RESOLVED pixel value for any in-layout element regardless of whether that size came
@@ -307,7 +307,18 @@ function hasReservedBox(el: Element): boolean {
     return true;
   }
   const style = getComputedStyle(el);
-  return style.aspectRatio !== "" && style.aspectRatio !== "auto";
+  if (style.aspectRatio !== "" && style.aspectRatio !== "auto") {
+    return true;
+  }
+  // OUT OF FLOW ⇒ NOTHING TO SHIFT (#516). The accusation this flagger makes is literally "its load will
+  // shift the page", and an absolutely/fixed-positioned replaced element is removed from normal flow: no
+  // sibling and no ancestor lays out against it, so whatever size its content resolves to, nothing moves.
+  // The live false positive was the login backdrop — `[data-slot=web-weave-canvas]`, which is
+  // `absolute inset-0 size-full` inside its own `relative` wrapper and therefore has a box that is fully
+  // determined BEFORE any content exists (side-eye 2026-08-22 rail-chats, console triage row 8). This is an
+  // ADDITIONAL gate, not a relaxation of the authored-intent rule above: the resolved-height check the
+  // header refuses is still refused, because `position` is authored, not intrinsic.
+  return style.position === "absolute" || style.position === "fixed";
 }
 
 /** Sweep the live replaced elements for unreserved boxes. Capped (see `spaceScanCap`) — this rides the

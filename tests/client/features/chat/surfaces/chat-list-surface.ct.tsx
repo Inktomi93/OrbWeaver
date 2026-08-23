@@ -1181,6 +1181,61 @@ test("#490 the search field grows a clear affordance the moment it holds a value
   await expect(clear).toHaveCount(0);
 });
 
+// #525 (side-eye 2026-08-22 rail-chats). #490 gave both filters the SAME reset; it left them different
+// SHAPES. The ✕ hung in the column gutter beside the field while the month's native picker glyph sat inside
+// its box, so two mechanically identical filters read as two kinds of control — and the search field visibly
+// shrank the moment you typed. Both glyphs are inset at their own field's inline end now, over a constant
+// reserve, so neither field changes width and neither value reflows.
+test("#525 both filter clears sit INSIDE their field's box, and the field never resizes around them", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory width={320} />);
+
+  const search = component.getByRole("textbox", { name: "Search chats" });
+  const month = component.getByLabel("Show chats from");
+  const restingSearch = await search.boundingBox();
+  const restingMonth = await month.boundingBox();
+
+  await search.fill(NARROW_TERM);
+  await month.fill("2020-06");
+  const searchClear = component.getByRole("button", { name: "Clear the search" });
+  const monthClear = component.getByRole("button", { name: "Clear the month" });
+  await expect(searchClear).toBeVisible();
+  await expect(monthClear).toBeVisible();
+
+  const [filledSearch, filledMonth, searchClearBox, monthClearBox] = await Promise.all([
+    search.boundingBox(),
+    month.boundingBox(),
+    searchClear.boundingBox(),
+    monthClear.boundingBox(),
+  ]);
+
+  // THE FIELD DOES NOT MOVE. A gutter-mounted reset stole its width from the field the moment it appeared.
+  expect(filledSearch?.width, "the search field keeps its resting width when its reset appears").toBeCloseTo(restingSearch?.width ?? -1, 1);
+  expect(filledMonth?.width, "and so does the month field").toBeCloseTo(restingMonth?.width ?? -1, 1);
+
+  // THE GLYPH IS INSIDE. Every edge of the button is within its own field's box.
+  const contains = (field: typeof filledSearch, glyph: typeof searchClearBox): boolean =>
+    field !== null &&
+    glyph !== null &&
+    glyph.x >= field.x - 0.5 &&
+    glyph.x + glyph.width <= field.x + field.width + 0.5 &&
+    glyph.y >= field.y - 0.5 &&
+    glyph.y + glyph.height <= field.y + field.height + 0.5;
+  expect(contains(filledSearch, searchClearBox), "the search reset lives inside the search field").toBe(true);
+  expect(contains(filledMonth, monthClearBox), "the month reset lives inside the month field").toBe(true);
+
+  // …and the two silhouettes agree: same box, same distance from their own field's trailing edge.
+  expect(searchClearBox?.width).toBeCloseTo(monthClearBox?.width ?? -1, 1);
+  expect((filledSearch?.x ?? 0) + (filledSearch?.width ?? 0) - ((searchClearBox?.x ?? 0) + (searchClearBox?.width ?? 0))).toBeCloseTo(
+    (filledMonth?.x ?? 0) + (filledMonth?.width ?? 0) - ((monthClearBox?.x ?? 0) + (monthClearBox?.width ?? 0)),
+    1,
+  );
+
+  // The reset still resets.
+  await searchClear.click();
+  await expect(search).toHaveValue("");
+});
+
 test("#490 the chrome band's count reflects the pane's filters, and returns to the library census", async ({ mount, page }) => {
   const library = [ADVENTURE, UNTITLED, GAME];
   await routeTrpc(page, {

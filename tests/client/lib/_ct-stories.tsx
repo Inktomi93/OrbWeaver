@@ -283,6 +283,17 @@ export function MotionFlaggersSpaceStory(): ReactElement {
       </button>
       {/* A src that never resolves: the flagger judges the BOX (attrs/CSS), never whether content loaded. */}
       {showImg ? <img data-testid="unreserved-img" src="/__ct_blocked__.png" alt="" /> : null}
+      {/* THE OUT-OF-FLOW ARM (#516) — the login backdrop's exact anatomy: a `relative` host with an
+          `absolute inset-0` full-bleed canvas carrying no width/height attrs and no aspect-ratio. It is
+          removed from normal flow, so nothing lays out against it and its content can shift nothing; the
+          flagger accused it anyway, once per boot, on `/login`. It shares this stage with the unreserved
+          `<img>` above ON PURPOSE: that flag is the positive control that proves the sweep ran, without
+          which the silence asserted here would pass for free. */}
+      {showImg ? (
+        <div style={{ position: "relative", width: 120, height: 60 }}>
+          <canvas data-testid="out-of-flow-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+        </div>
+      ) : null}
       {nudge ? <div data-testid="rescan-nudge" /> : null}
     </div>
   );
