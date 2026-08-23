@@ -11,6 +11,9 @@ import { describe } from "vitest";
 import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const MODEL = "qwen/qwen3-embedding";
+// ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
+// factory constructs one; a test needs a plain equivalent shape.
+// FABRICATION-OK: server-can't-mint — see above.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",
@@ -35,6 +38,7 @@ interface Captured {
 
 function embedClient(response: unknown): { client: EmbedClient; captured: Captured } {
   const captured: Captured = { body: undefined };
+  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `embeddings.generate`.
   const client = {
     embeddings: {
       generate: (req: { requestBody: Record<string, unknown> }): Promise<unknown> => {
@@ -47,6 +51,7 @@ function embedClient(response: unknown): { client: EmbedClient; captured: Captur
 }
 
 function rejectingClient(error: unknown): EmbedClient {
+  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `embeddings.generate`.
   return {
     embeddings: { generate: (): Promise<unknown> => Promise.reject(error) },
   } as unknown as EmbedClient;
