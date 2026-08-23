@@ -10,15 +10,21 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { characterMutationToast } from "../lib/character-refusal-notice.ts";
 
 type CharacterDetail = inferOutput<Trpc["character"]["update"]>;
 
 /** §4.1 "New" — the minimal create (handle auto-derived from name). `busDriven` — `charactersChanged`
- *  refreshes `character.list`; the caller selects the returned character to open its editor. */
+ *  refreshes `character.list`; the caller selects the returned character to open its editor.
+ *
+ *  THE TYPED REFUSAL IS NOT DISCARDED (#542). A duplicate name refuses with `data.reason:"handle_conflict"`
+ *  — the one create failure the user can fix — and a flat `errorToast` string printed the same "Couldn't
+ *  create the character." it prints for a dead server. `characterMutationToast` keys on the wire code and
+ *  falls through to this fallback for everything else. */
 export const useCreateCharacter = createEntityMutation<inferInput<Trpc["character"]["create"]>, inferOutput<Trpc["character"]["create"]>>({
   options: (trpc) => trpc.character.create.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't create the character.",
+  errorToast: (error) => characterMutationToast(error, "Couldn't create the character."),
 });
 
 /** Immediate-commit identity patch (§2/§4.4): the row's star chip fires `{ characterId, starred }`; the
@@ -53,7 +59,8 @@ export const useUpdateCharacter = createEntityMutation<inferInput<Trpc["characte
     },
   },
   busDriven: true,
-  errorToast: "Couldn't save the character.",
+  // A RENAME raises the same typed `handle_conflict` as create (#542) — same mapper, same one-home copy.
+  errorToast: (error) => characterMutationToast(error, "Couldn't save the character."),
 });
 
 /** §4.6 bulk: archive/unarchive many. `busDriven` — `charactersChanged` covers `character.list`. */

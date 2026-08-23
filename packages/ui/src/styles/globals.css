@@ -165,6 +165,19 @@
   color: var(--color-muted-foreground);
 }
 
+/* …AND SO DOES ITS PICKER GLYPH (#541b, side-eye — the half #522's own note deferred as "the native picker
+ * and its indicator are untouched"). `::-webkit-calendar-picker-indicator` paints a MASKED/imaged glyph, not
+ * text, so `color` does not reach it and the tint rule above left it at pure white — measured 255 in both
+ * arms by `tests/ui/primitives/input/input.ct.tsx`, i.e. the UA's own calendar icon was brighter than the
+ * placeholder dashes beside it and the loudest ink in the whole filter column. `opacity` is the honest lever
+ * (it composites the glyph toward the field's own plate the way a muted tone would) and it is NOT keyed off
+ * `data-empty`: this indicator is a secondary affordance in either state, and when a value IS set it shares
+ * the field's inline end with the consumer's own ghost clear glyph, which should lead. The ratio is stated
+ * once here because Tailwind cannot address a UA pseudo-element, exactly as above. */
+[data-slot="input-root"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+}
+
 /* ART BLEED (#205) — the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities.
  * Read them together; the component's own header carries the WHY.
  *

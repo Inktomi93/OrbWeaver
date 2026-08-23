@@ -139,7 +139,6 @@ import { ReasoningBlock } from "../../../../packages/client/src/features/chat/co
 import { RewriteDialog } from "../../../../packages/client/src/features/chat/components/rewrite-dialog.tsx";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form.tsx";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
-import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select.tsx";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip.tsx";
 import type { ResolvedAttachment } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
@@ -2452,20 +2451,6 @@ export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = fal
           isHost={true}
           multiHumanCapable={false}
         />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-/** The composer-adjacent speak-as dropdown (speak-as-select.tsx) — reads the `chat.getChat` roster and
- *  fires `chat.generate`; renders `null` below the roster-of-2 floor. */
-export function SpeakAsSelectStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      {/* A wrapping div so the mount `component` locator is the WRAPPER (see ChatCastBarStory) — the
-          `.ct.tsx` uses `component.getByRole("button", …)` to find the trigger as a descendant. */}
-      <div>
-        <SpeakAsSelect chatId={CHAT_ID} />
       </div>
     </CtDataProviders>
   );

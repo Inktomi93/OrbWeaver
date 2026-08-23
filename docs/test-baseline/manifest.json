@@ -150,7 +150,6 @@
     "tests/client/features/chat/components/rewrite-dialog.ct.tsx",
     "tests/client/features/chat/components/room-overrides-form.ct.tsx",
     "tests/client/features/chat/components/settings-context-tab.ct.tsx",
-    "tests/client/features/chat/components/speak-as-select.ct.tsx",
     "tests/client/features/chat/components/swipe-strip.ct.tsx",
     "tests/client/features/chat/components/variant-wire-viewer.ct.tsx",
     "tests/client/features/chat/hooks/use-message-items.test.ts",
@@ -1764,6 +1763,9 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/client/features/chat/components/speak-as-select.ct.tsx": {
+      "why": "its SUBJECT was deleted: `speak-as-select.tsx` was the standalone composer speak-as dropdown, retired by #539 as a duplicate action door (#520/#532 class). It rendered at cast > 1 inside the SAME `Their reply` home as the Response icon, ~150px away, offering the identical `Auto (arbitrate)` + one row per character and firing the identical `chat.generate` with the same `speakerCharacterId` — while silently discarding the composer's typed steer (`guided`) and the `afterAssistant` responseNudge the Response submenu carries. It was the LOSING arm of the 2026-07-25 guided-generations parity audit's F5 fork (\"speak-as consumes the draft as steer, OR the wand's Response grows a speaker submenu\"), left standing after the submenu arm shipped. Every arm was re-homed onto the surviving door, not dropped: the cast size-gate, the Auto row, the item-per-character list and the speakerCharacterId wire are pinned in tests/client/features/chat/components/composer-guided-buttons.ct.tsx (§1 Response's cast fork, plus the new group-room tooltip cue); the disabled-trigger-explains-itself and engine-off (#397/#406) arms are the same `reasonFor`/`focusableWhenDisabled` pairing already pinned for every composer control in tests/client/features/chat/components/composer.ct.tsx (#54 + #206); and the one-door + one-row geometry the retirement bought is the new #539 arm in that same file. Un-deletes only if a standalone speak-as control is ever ruled back onto the composer bar."
+    },
     "tests/client/features/character/components/characters-list-pane.ct.tsx": {
       "why": "its SUBJECT was deleted: `characters-list-pane.tsx` existed only to swap the LIST pane between the library picker and the selected character's chats, and #501 (owner ruling 2026-08-22, \"library stays docked\") ended the swap — the section renders `CharacterLibrarySurface` directly. Every arm that outlived the swap was re-homed, not dropped: the projection rows/order/departed-seats, the D3 avatar-stack upgrade, the accname-collision escalation and the empty-state-acts arm are in tests/client/features/character/components/character-chats-projection-shell.ct.tsx (the CONTEXT Chats tab those rows moved to); the picker/band arms plus the new library-stays-docked pin are in tests/client/features/character/lib/characters-section.ct.tsx. The arms that died with their subject are the swap itself, the swapping BAND (D9), the two-claimant focus race (§3.7 — one claimant now) and the #255 browse-position round trip (nothing unmounts, so nothing is restored). Un-deletes only if the LIST pane is ever made modal again."
     },

@@ -20,7 +20,7 @@
 //
 // Menu POPUPs render through a Base UI Portal — menu-item assertions use the PAGE locator, never `component`.
 
-import { STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/client/lib";
+import { RESPONSE_CAST_CUE, STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
@@ -89,6 +89,20 @@ test("Auto (arbitrate) is a real row: it fires the generate with NO speaker (the
   // so the field must be ABSENT from the wire, not a null placeholder.
   const input = trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
   expect(input.speakerCharacterId).toBeUndefined();
+});
+
+// #539 — RESPONSE IS THE ONE SPEAK-AS DOOR, so its group-room tooltip has to SAY there is a speaker choice.
+// A standalone `Speak as a character` dropdown used to sit ~150px away in the same `Their reply` home, firing
+// the same `chat.generate` with the same `speakerCharacterId` while discarding the typed steer and the
+// `afterAssistant` nudge; it was retired as a duplicate door (#520/#532 class). The cue is what keeps the
+// affordance discoverable now that the visibly-named control is gone — a solo room has no choice to announce,
+// so it keeps the bare label (the arm the test below owns).
+test("a MULTI-character room's idle Response tooltip announces the speaker choice", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.getChat": () => GROUP_ROSTER });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: RESPONSE, exact: true }).hover();
+  await expect(page.getByRole("tooltip", { name: `${RESPONSE} — ${RESPONSE_CAST_CUE}`, exact: true })).toBeVisible();
 });
 
 test("a SOLO-cast room keeps the DIRECT Response button — one click fires, no speaker menu exists", async ({ mount, page }) => {

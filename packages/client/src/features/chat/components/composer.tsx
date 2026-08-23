@@ -58,7 +58,6 @@ import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
 import type { ComposerImageControls } from "./composer-utility-menu.tsx";
-import { SpeakAsSelect } from "./speak-as-select.tsx";
 
 // The composer's glue for the OPEN slash strip's combobox keys — kept at module scope (not a closure in the
 // component) so its branching does not inflate the component's cognitive complexity. Classification is the
@@ -399,7 +398,6 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             sendUnavailable={sendAvailability.unavailable}
             sendUnavailableReason={sendAvailability.reason}
             chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
-            speakerControl={<SpeakAsSelect chatId={chatId} />}
             sendControl={
               <ComposerSendControl
                 showStop={showStop}

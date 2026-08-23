@@ -42,12 +42,30 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
-import { setChatListMonth, setChatListSearch, useActiveChatId, useChatListCharacterFilter, useChatListMonth, useChatListSearch } from "#state";
+import {
+  clearChatListCharacterFilter,
+  setChatListMonth,
+  setChatListSearch,
+  useActiveChatId,
+  useChatListCharacterFilter,
+  useChatListMonth,
+  useChatListSearch,
+} from "#state";
 import { ChatListFacesStrip, ChatListFilterChip } from "../components/chat-list-character-filter.tsx";
+import { FilterExits } from "../components/chat-list-filter-exits.tsx";
 import { ChatListRow } from "../components/chat-list-row.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
-import { CHAT_LIST_SEARCH_DEBOUNCE_MS, chatListScopeKey, formatMonthLabel, monthExclusiveUpperBound } from "../lib/chat-list-scope.ts";
+import type { FilterExit } from "../lib/chat-list-scope.ts";
+import {
+  activeFilterExits,
+  CHAT_LIST_SEARCH_DEBOUNCE_MS,
+  chatListScopeKey,
+  formatMonthLabel,
+  monthEmptyDescription,
+  monthExclusiveUpperBound,
+  searchEmptyDescription,
+} from "../lib/chat-list-scope.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
@@ -254,6 +272,16 @@ function ChatListBody({
   const trpc = useTRPC();
   const scope = { beforeRecencyAt, characterId: characterFilter?.id ?? null, search: query };
   const collection = useChatListCollection({ trpc }, scope);
+  // ONE derivation of "which axes are narrowing right now", shared by both zero-result arms — a per-arm list
+  // is how the search arm came to know about the month in its COPY and not in its ACTIONS (#541).
+  const exits = activeFilterExits({
+    beforeRecencyAt,
+    characterName: characterFilter?.name ?? null,
+    onClearCharacter: clearChatListCharacterFilter,
+    onClearMonth,
+    onClearSearch,
+    query,
+  });
 
   if (collection.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -264,16 +292,8 @@ function ChatListBody({
   if (collection.isEmpty && query === "" && beforeRecencyAt !== null) {
     return (
       <EmptyState
-        action={
-          <Button intent="secondary" onClick={onClearMonth} size="sm">
-            Clear month
-          </Button>
-        }
-        description={
-          characterFilter === null
-            ? `No chats found by ${monthLabel ?? "the selected month"}.`
-            : `No chats with ${characterFilter.name} found by ${monthLabel ?? "the selected month"}.`
-        }
+        action={<FilterExits exits={exits} />}
+        description={monthEmptyDescription(characterFilter?.name ?? null, monthLabel)}
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title="No chats by then"
       />
@@ -308,12 +328,13 @@ function ChatListBody({
       <Stack className="min-h-0 flex-1">
         <ChatRows
           activeChatId={activeChatId}
+          characterName={characterFilter?.name ?? null}
+          exits={exits}
           items={collection.items}
           listKey={chatListScopeKey(scope)}
           listReady={!collection.isPlaceholderData}
           listProps={collection.listProps}
           monthLabel={monthLabel}
-          onClearSearch={onClearSearch}
           onDeletedChat={onDeletedChat}
           onSelect={onSelect}
           query={query}
@@ -325,6 +346,11 @@ function ChatListBody({
 
 interface ChatRowsProps {
   readonly activeChatId: ChatId | null;
+  /** The scoped character's name, or `null` — the search-empty sentence has to name every axis that produced
+   *  the emptiness, not only the one the arm is called after (#541). */
+  readonly characterName: string | null;
+  /** Every ACTIVE narrowing axis's way out ({@link activeFilterExits}). */
+  readonly exits: readonly FilterExit[];
   readonly items: readonly ChatListItem[];
   readonly listProps: ReturnType<typeof useChatListCollection>["listProps"];
   /** The composed scope identity of every narrowing axis ({@link chatListScopeKey}) — an axis missing from
@@ -334,19 +360,19 @@ interface ChatRowsProps {
   readonly monthLabel: string | null;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
-  readonly onClearSearch: () => void;
   readonly query: string;
 }
 
 /** The search-empty → rows ladder. */
 function ChatRows({
   activeChatId,
+  characterName,
+  exits,
   items,
   listKey,
   listProps,
   listReady,
   monthLabel,
-  onClearSearch,
   onDeletedChat,
   onSelect,
   query,
@@ -356,12 +382,8 @@ function ChatRows({
     // The server searched the whole active scope, not only the pages that happened to be loaded.
     return (
       <EmptyState
-        action={
-          <Button intent="secondary" onClick={onClearSearch} size="sm">
-            Clear search
-          </Button>
-        }
-        description={monthLabel === null ? `No chat matches "${query}".` : `No chat by ${monthLabel} matches "${query}".`}
+        action={<FilterExits exits={exits} />}
+        description={searchEmptyDescription(characterName, monthLabel, query)}
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title="No matches"
       />

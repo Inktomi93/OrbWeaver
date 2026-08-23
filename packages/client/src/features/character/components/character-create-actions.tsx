@@ -23,6 +23,7 @@ import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
+import { characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
 /** The minimal create: name + one-line description, handle auto-derived from the name. */
@@ -33,6 +34,14 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const incomplete = name.trim() === "" || description.trim() === "";
+  // The typed, user-fixable refusal for the last attempt (#542) — `null` for a fault, which the toast owns
+  // alone. `clearError` on the name edit is what makes it a live claim: the sticky error slot would
+  // otherwise keep accusing a name the user has already changed.
+  const refusal = characterRefusalCopy(create.error);
+  const onNameChange = (next: string): void => {
+    setName(next);
+    create.clearError();
+  };
 
   const onCreate = (): void => {
     if (incomplete) {
@@ -70,7 +79,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
         <Text as="span" className="text-muted-foreground" voice="label">
           Name
         </Text>
-        <Input aria-label="Character name" onValueChange={setName} placeholder="Elara Vance" value={name} />
+        <Input aria-label="Character name" onValueChange={onNameChange} placeholder="Elara Vance" value={name} />
         <Text as="span" className="text-muted-foreground" voice="label">
           Description
         </Text>
@@ -82,12 +91,23 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
         />
       </Stack>
       {/* LOAD-BEARING: it names why Create is disabled, so it keeps the `label` voice (the landed
-          requirement/error line grammar), never the receding `gloss`. */}
+          requirement/error line grammar), never the receding `gloss`.
+          THE REFUSAL LINE JOINS IT (#542). This dialog stays OPEN on failure so the user can edit, and the
+          one refusal they can act on is a duplicate name — which arrived as a toast that could have been
+          dismissed, timed out, or been read before the eye came back to the field it is about. A form
+          control whose value was rejected owes the reason AT the control (WCAG 3.3.1), and `role="alert"`
+          is what announces it to a reader who never leaves the dialog. The string is the mapper's, so the
+          toast and this line can never become two spellings of one refusal. */}
       {incomplete ? (
         <Text className="text-muted-foreground" voice="label">
           A name and a description are both required.
         </Text>
       ) : null}
+      {refusal === null ? null : (
+        <Text className="text-destructive" role="alert" voice="label">
+          {refusal}
+        </Text>
+      )}
       <Row gap="field" justify="end">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button disabled={incomplete || create.isPending} intent="primary" onClick={onCreate}>
