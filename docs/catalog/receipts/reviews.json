@@ -1328,6 +1328,32 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md",
+      "assignedSha256": "33f4d3ed1eec0a939a3f390b6a3dc5349e8c538763c2491a6fb82b151139278c",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "33f4d3ed1eec0a939a3f390b6a3dc5349e8c538763c2491a6fb82b151139278c",
+      "verifiedCommit": "9e3f81cf0e4dcc4c7b3220f8600f1083f1bd1d52",
+      "verifiedAt": "2026-08-23",
+      "summary": "rail-corpus populated-arm companion (the gated sweep's real premise): re-derives the empty-arm findings (2 of 3 P1s die with population), triages #544 (walker FP confirmed both ways), and files the populated-only set (#552-#558 lineage: model economics, 56k-px similarity, stale-failure rail, denominators).",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md full read at the landing commit (orchestrator transcription of the rail-corpus-2 lane's report; per-finding receipts are the lane's live-driven measurements)",
+        "GitHub issues #535-#537 re-derived + #552-#558 filed from this report; #544 closed on its §2-3"
+      ],
+      "claims": [
+        {
+          "claim": "The populated corpus findings and re-derivations are receipted as written; filed issues carry the lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/discovery/lib/corpus-charts.ts:1"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
