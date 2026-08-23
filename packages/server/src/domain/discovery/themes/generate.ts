@@ -189,8 +189,11 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   // not "themes with no members", it is a pass whose input does not exist yet; the caller turns
   // `digestsRead: 0` into the stated refusal. Deliberately BEFORE `buildDrafts` so no summarize call is spent
   // either.
+  // The two counts are separate facts and the caller needs both: `digestsRead: 0` means the backfill never
+  // ran, `soloDigestsRead: 0` with digests present means it ran over group rooms only. Reporting one number
+  // let the second case land as a bare `{scanned: 0, written: 0}` success (issue #558).
   if (solo.length === 0) {
-    return { ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length };
+    return { ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length, soloDigestsRead: 0 };
   }
   const { drafts, owners } = buildDrafts(solo, opts, seed);
   const names = await nameDrafts(drafts, deps.summarize);
@@ -229,6 +232,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
     clustersWritten: clusterRows.length,
     digestsAssigned: assignRows.length,
     digestsRead: all.length,
+    soloDigestsRead: solo.length,
   };
 }
 

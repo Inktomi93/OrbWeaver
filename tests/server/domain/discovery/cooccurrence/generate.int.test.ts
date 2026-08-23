@@ -191,4 +191,43 @@ describe("computeCooccurrence", () => {
     expect(await pairsFor(db, owner)).toEqual([]); // only a tier-1 digest → nothing
     expect((await pairsFor(db, other)).map((p) => `${p.a}-${p.b}`)).toEqual(["pirates-treasure"]);
   });
+
+  // The pass reads the SAME memory-digest plane compute-themes does, so it owes the same refusal signal
+  // (issue #558): with no tier-0 digests every counter is legitimately zero, and the caller must be able to
+  // tell "the input does not exist yet" from "nothing changed". `digestsRead` is that discriminator.
+  test("NO DIGESTS: reports digestsRead 0 — the caller's refusal signal, not a zero-change run", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_a");
+    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    expect(stats).toMatchObject({ ownersProcessed: 0, pairsWritten: 0, charKeywordsWritten: 0, digestsRead: 0 });
+  });
+
+  test("digestsRead counts the tier-0 rows the pass actually read", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    const hero = await seedCharacter(db, { id: "character_hero", ownerId: owner, name: "Hero" });
+    await seedChatDigest(db, {
+      id: "d1",
+      chatId: chat,
+      embedding: vec(1),
+      scopedCharacterId: hero,
+      tier: 0,
+      blockIdx: 0,
+      contentHash: "h1",
+      keywords: ["dragons", "castle"],
+    });
+    await seedChatDigest(db, {
+      id: "d2",
+      chatId: chat,
+      embedding: vec(1),
+      scopedCharacterId: hero,
+      tier: 0,
+      blockIdx: 1,
+      contentHash: "h2",
+      keywords: ["dragons", "knights"],
+    });
+    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    expect(stats.digestsRead).toBe(2);
+  });
 });
