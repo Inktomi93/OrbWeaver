@@ -113,14 +113,16 @@ test("a capped --eval result keeps BOTH ends — a head-only cut ate the cls/wor
 test("bridge navs and interaction steps land in ONE queue in TRUE argv order", () => {
   // The live failure this pins: with navs run as a CLASS before the steps, this chain asked the LANDING
   // page for the rpg.game tab (the room did not exist yet) and the final click then timed out.
-  const args = parseSnapArgs(["/", "--goto", "modal:newChat", "--click", "[data-create]", "--context-tab", "rpg.game", "--click", "D20 adventure"]);
+  // The final click used to read `--click "D20 adventure"` — itself an instance of #550's lie (a CSS
+  // type-selector chain for tags that cannot exist), so it is spelled with the text engine it meant.
+  const args = parseSnapArgs(["/", "--goto", "modal:newChat", "--click", "[data-create]", "--context-tab", "rpg.game", "--click", "text=D20 adventure"]);
 
   expect(args.errors).toEqual([]);
   expect(args.actions).toEqual([
     { type: "nav", action: { kind: "goto", target: "modal:newChat", page: 0 } },
     { type: "step", action: { kind: "click", selector: "[data-create]", page: 0 } },
     { type: "nav", action: { kind: "context-tab", target: "rpg.game", page: 0 } },
-    { type: "step", action: { kind: "click", selector: "D20 adventure", page: 0 } },
+    { type: "step", action: { kind: "click", selector: "text=D20 adventure", page: 0 } },
   ]);
 });
 
@@ -156,6 +158,36 @@ test("snap rejects missing and malformed flag values", () => {
       '--crop expects WxH or WxH+X+Y, got "100x"',
     ]),
   );
+});
+
+// #550: the refusal reaches EVERY selector-bearing flag class, not just the --wait-for that exposed it —
+// the required-value flags, the `selector=…` head flags, and the optional inline selector (which does not
+// pass through validateFlagValue at all and needs its own call site).
+test("snap refuses a prose selector on every selector-bearing flag class, and only on selectors", () => {
+  const args = parseSnapArgs([
+    "/",
+    "--wait-for",
+    "choose who speaks next",
+    "--expect-text",
+    "Save changes=done",
+    "--map",
+    "the roster panel",
+    "--goto",
+    "modal:newChat",
+    "--expect-url",
+    "/chats",
+    "--eval",
+    "document.title",
+    "--key",
+    "Tab",
+    "--click",
+    '[data-testid="composer-guided-response"]',
+  ]);
+
+  expect(args.errors).toHaveLength(3);
+  expect(args.errors[0]).toContain('--wait-for "text=choose who speaks next"');
+  expect(args.errors[1]).toContain('--expect-text "text=Save changes"');
+  expect(args.errors[2]).toContain('--map "text=the roster panel"');
 });
 
 test("snap rejects page targets that cannot execute", () => {

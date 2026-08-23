@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { afterAll } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -199,6 +200,67 @@ test("--wait-for's visible check finds a full-bleed portal control nested under 
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(result.stdout).toContain("steps-failed=0");
+});
+
+// ── #550: the --wait-for lie, pinned from BOTH ends ──────────────────────────────────────────────
+// A side-eye run waited on `--wait-for 'choose who speaks next'`, got a 10s timeout, and filed a
+// rendering defect — while the same run's --eval read that exact tooltip text back. The phrase was a CSS
+// TYPE-selector chain for tags that cannot exist. The suspected cause (a portal/top-layer blind spot) was
+// FALSE, and the three tests below are what makes each half impossible to reintroduce. Honest labels:
+// only the FIRST is a defect proof (red against HEAD — same 10s timeout, same `locator('choose who
+// speaks next')` call log). The other two PASSED before the fix: they are fences, one pinning that
+// the top layer was never the problem, one pinning that the refusal did not blanket-pass prose waits.
+const TOP_LAYER_TOOLTIP_HTML =
+  '<button id="trigger">Generate reply</button><div id="portal-root"></div>' +
+  "<script>const root=document.getElementById('portal-root');" +
+  'root.innerHTML=\'<div id="tip" role="tooltip" popover="manual">Generate reply — choose who speaks next</div>\';' +
+  "document.getElementById('tip').showPopover();</script>";
+
+test("a bare prose --wait-for phrase is REFUSED before boot, never a 10-second false 'not rendered'", () => {
+  const result = runSnap([
+    "--file",
+    fixture("wait-for-prose", "<p>anything</p>"),
+    "--no-shot",
+    "--wait-for",
+    "choose who speaks next",
+    "--no-failure-evidence",
+  ]);
+
+  expect(result.stdout).toContain("ARG ERROR");
+  expect(result.stdout).toContain("can never match");
+  expect(result.stdout).toContain('--wait-for "text=choose who speaks next"');
+  // The old behaviour: a browser booted, the locator waited 10s, and the run reported a STEP FAILURE —
+  // indistinguishable from text the app genuinely never rendered.
+  expect(result.stdout).not.toContain("steps-failed=1");
+  expect(result.status, result.stdout + result.stderr).toBe(EXIT.misuse);
+});
+
+test("--wait-for text= reaches a tooltip rendered in the TOP LAYER (the portal hypothesis, refuted)", { timeout: 30_000 }, () => {
+  const result = runSnap([
+    "--file",
+    fixture("wait-for-top-layer", TOP_LAYER_TOOLTIP_HTML),
+    "--no-shot",
+    "--wait-for",
+    "text=choose who speaks next",
+    "--no-failure-evidence",
+  ]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("steps-failed=0");
+});
+
+test("--wait-for text= for genuinely ABSENT text still fails — the refusal never blanket-passes prose", { timeout: 30_000 }, () => {
+  const result = runSnap([
+    "--file",
+    fixture("wait-for-absent-text", TOP_LAYER_TOOLTIP_HTML),
+    "--no-shot",
+    "--wait-for",
+    "text=choose who speaks previous",
+    "--no-failure-evidence",
+  ]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(1);
+  expect(result.stdout).toContain("steps-failed=1");
 });
 
 test("snap omits semantic plumbing that is not an agent target", () => {
