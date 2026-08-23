@@ -1,6 +1,9 @@
 // Harness-induced noise, named and fenced OUT of the verdict but never dropped: the sandboxed-frame
 // tracing error and vite's cold-stage dep-optimizer aborts. One partition, every snap path judges alike.
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const HTTP_ERROR_STATUS_MIN = 400;
 

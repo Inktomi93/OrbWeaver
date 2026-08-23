@@ -13,13 +13,64 @@ import { join } from "node:path";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const OPS_DIR = join("tooling", "src", "verify", "ops");
+const TOOLING_SRC = join("tooling", "src");
 const EXIT_TOOL_ERROR = 2;
+
+/** stack.sh / engines.sh's node halves: REAL programs (module-scope `runTool`), so running one does the
+ *  work it exists for — booting the production server or the vLLM fleet. They are excluded by NAME here
+ *  because running them in a test would do exactly that; the STRUCTURAL half of this law
+ *  (gate `tooling-ops-direct-invocation`) is what proves each of them still enters through `runTool`. */
+const REAL_ENTRIES: ReadonlySet<string> = new Set([
+  join("tooling", "src", "stack", "ops", "prod-entry.ts"),
+  join("tooling", "src", "stack", "ops", "engines.ts"),
+  join("tooling", "src", "stack", "ops", "engines-ctl.ts"),
+]);
 
 function opsModules(repoRoot: string): readonly string[] {
   return readdirSync(join(repoRoot, OPS_DIR))
     .filter((f) => f.endsWith(".ts"))
     .sort();
 }
+
+/** EVERY `tooling/src/<tool>/ops/**` library module, repo-relative — the whole corpus the gate governs. */
+function allOpsModules(repoRoot: string): readonly string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(join(repoRoot, dir), { withFileTypes: true })) {
+      const rel = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(rel);
+      } else if (entry.name.endsWith(".ts") && !REAL_ENTRIES.has(rel)) {
+        out.push(rel);
+      }
+    }
+  };
+  for (const tool of readdirSync(join(repoRoot, TOOLING_SRC), { withFileTypes: true })) {
+    const opsDir = join(TOOLING_SRC, tool.name, "ops");
+    if (tool.isDirectory() && readdirSync(join(repoRoot, TOOLING_SRC, tool.name)).includes("ops")) {
+      walk(opsDir);
+    }
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+test("EVERY tooling ops module in the FLEET refuses when RUN — one law, sixteen tools", ({ repoRoot }) => {
+  // The #527 widening. The verify-only census above was the class's first home; the same lie is available
+  // in snap/ast/ui-audit/… ops, and `tooling/src/verify/ops/gen/*` (nine baseline WRITERS) were the loudest
+  // instance: running one printed nothing, wrote no baseline and exited 0, while four gate messages told the
+  // reader to do exactly that. Spawn-based on purpose — the structural half is the gate; this is the half
+  // that answers "does the process actually refuse?".
+  const modules = allOpsModules(repoRoot);
+  const bad = modules.filter((rel) => {
+    const run = spawnSync("node", [rel], { cwd: repoRoot, encoding: "utf8" });
+    return run.status !== EXIT_TOOL_ERROR || !run.stderr.includes("direct invocation") || run.stdout !== "";
+  });
+
+  expect(bad).toEqual([]);
+  // The walk-fence tripwire: a zero from an empty census would be a false clean. 130 modules across 16 tools
+  // at the widening; the floor only proves the walk read the fleet, not just one tool's dir.
+  expect(modules.length).toBeGreaterThan(opsModules(repoRoot).length);
+}, 180_000);
 
 test("running an ops module DIRECTLY refuses loudly — exit 2, naming the real entry", ({ repoRoot }) => {
   const run = spawnSync("node", [join(OPS_DIR, "structure.ts")], { cwd: repoRoot, encoding: "utf8" });

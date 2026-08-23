@@ -4,10 +4,13 @@ import { existsSync } from "node:fs";
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { artifactDir, print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { resolveFfmpeg } from "../../_shared/ffmpeg.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { Args, DiffOutcome } from "../contract/types.ts";
 import { PNG_EXT_RE, SSIM_ALL_RE } from "../lib/out-names.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // SSIM floor for --diff. 0.98 tolerates antialiasing wobble while catching any
 // real layout/content change; tune per-surface later if flux demands.

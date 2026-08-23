@@ -323,14 +323,14 @@ export const gate: GateDescriptor = {
           file: GATE_SELF,
           line: 0,
           column: 0,
-          message: `baseline row for a file the scan never visited (moved/deleted/de-seamed): ${rel} — regenerate and commit the shrink: tooling/src/verify/ops/gen/model-prose.ts`,
+          message: `baseline row for a file the scan never visited (moved/deleted/de-seamed): ${rel} — regenerate and commit the shrink: node tooling/src/verify/cli.ts baseline model-prose`,
         });
       } else if (live < budget) {
         ctx.report({
           file: GATE_SELF,
           line: 0,
           column: 0,
-          message: `baseline row above the live count for ${rel} (${budget} > ${live}) — the ratchet only SHRINKS; regenerate and commit the shrink in this change: tooling/src/verify/ops/gen/model-prose.ts`,
+          message: `baseline row above the live count for ${rel} (${budget} > ${live}) — the ratchet only SHRINKS; regenerate and commit the shrink in this change: node tooling/src/verify/cli.ts baseline model-prose`,
         });
       }
     }

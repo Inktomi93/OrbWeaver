@@ -13,6 +13,7 @@ import { writeFile } from "node:fs/promises";
 import { artifactFile, print, printResult, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession } from "@orb/tooling/_shared/browser";
 import { instrumentError } from "@orb/tooling/_shared/evidence";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, BackdropRefusal } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectFindings } from "../lib/collect.ts";
@@ -21,6 +22,8 @@ import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
 import { countBySeverity, navVerdict, printBackdropRefusals, printFindingsTable } from "./report.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export async function runUiAudit(opts: Args): Promise<number> {
   const url = buildUrl(opts.base, opts.route);

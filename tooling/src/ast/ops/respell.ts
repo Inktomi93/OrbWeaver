@@ -4,6 +4,7 @@ import process from "node:process";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit, NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -11,6 +12,8 @@ import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { commentHost } from "../lib/public-markers.ts";
 import { KEY_SEP, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports } from "../lib/scope.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── respell: a domain `contract/` shape STRUCTURALLY identical to an @orb/contracts shape ───────
 // The gate (`contract-derives-not-respells`) catches a re-spell that kept the OWNER'S NAME. This lens

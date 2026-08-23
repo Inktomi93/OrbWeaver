@@ -2,12 +2,15 @@
 // the --expect-* assertion family, and the perf/__orb evidence read.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Assertion, AssertionOutcome, EvalOutcome, PerfEvidence } from "../contract/types.ts";
 import { WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../lib/eval-text.ts";
 import { HTTP_URL_RE } from "../lib/out-names.ts";
 import { overflowAssertionLine } from "../lib/overflow-line.ts";
 import { probeOverflow } from "./overflow.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 interface AriaOutcome {
   readonly text: string | null;

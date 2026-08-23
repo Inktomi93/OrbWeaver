@@ -2,11 +2,14 @@
 // through a TARGETED walk (never a project enumeration), and the project's field/option ids are cached
 // on disk — stable but not immortal, so any stale-looking failure earns exactly ONE refetch-and-retry.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { EncodedWrite, Field, FieldChange, Issue, IssueContext, ItemState, ProjectContext, RawFieldNode, RawIssueNode } from "../contract/types.ts";
 import { ADD_QUERY, BLOCKERS_QUERY, CONTEXT_QUERY, dependencyMutation, ISSUE_ID_QUERY, PROJECT_QUERY } from "../lib/queries.ts";
 import { CACHE_DIR, CACHE_FILE, PROJECT_NUMBER, PROJECT_OWNER, REPO_NAME, REPOSITORY, STALE_CONTEXT_RE } from "../lib/vocab.ts";
 import { applyLocally, buildFieldMutation, currentValue, encodeWrite, itemFields, pendingChange } from "../lib/writes.ts";
 import { graphql } from "./gh.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm work:item <command>");
 
 function fetchProjectContext(): ProjectContext {
   const data = graphql<{

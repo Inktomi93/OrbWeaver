@@ -15,10 +15,13 @@
 // /api/auth/config reports multiHumanCapable and that BOTH humans authenticate.
 import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { MultiUserConfig } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
 const SESSION_COOKIE = "__Host-orb_session";
 

@@ -5,6 +5,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
 import type { Viewport } from "../../_shared/argv.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { ringBackdrop } from "../../_shared/pixel-backdrop.ts";
 import type { Rgb } from "../../_shared/wcag.ts";
 import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
@@ -20,6 +21,8 @@ import {
   refuseContrastVerdict,
   UI_COMPONENT_MIN_RATIO,
 } from "../lib/contrast-verdict.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // ── --contrast: WCAG AA text/background contrast of the first selector match ─
 

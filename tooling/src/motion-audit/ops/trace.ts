@@ -5,9 +5,12 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { settle } from "@orb/tooling/_shared/browser";
 import type { Page } from "@playwright/test";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData, MeasuredClick, TraceEvent } from "../contract/types.ts";
 import { calibratedDroppedFramePct } from "../lib/frames.ts";
 import { readAnimations, readMotion } from "./drive.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
 export async function runAudit(
   page: Page,

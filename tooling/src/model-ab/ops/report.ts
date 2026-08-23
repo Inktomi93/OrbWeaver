@@ -3,8 +3,11 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { VariantRun } from "../contract/types.ts";
 import { PROBES } from "./probes.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
 const SUMMARY_ERROR_CHARS = 60;
 

@@ -15,7 +15,6 @@ const GATES_REL = "tooling/src/verify/gates/";
 const GATE_SELF = "tooling/src/verify/gates/gate-modernization.ts";
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 const BASELINE_REL = "tooling/src/verify/gates/gate-modernization.baseline.json";
-const GEN_CMD = "pnpm exec tsx tooling/src/verify/gen-gate-modernization-baseline.ts";
 const TS_EXT_RE = /\.ts$/u;
 
 // ── ARM B vocabulary ─────────────────────────────────────────────────────────────────────────────────
@@ -279,13 +278,17 @@ function loadBaseline(root: string): Baseline {
   return JSON.parse(readFileSync(path, "utf-8")) as Baseline;
 }
 
-const STALE_BASELINE_GATE = (rel: string): string =>
-  `${BASELINE_REL} lists "${rel}", but that gate file no longer exists — the ratchet only goes down: regenerate it (${GEN_CMD}) and commit the shrink.`;
+// The remediation is a HAND EDIT, deliberately: this ratchet reached its terminal state (§4.8) and both the
+// baseline file and its generator are gone from the tree, so any baseline present today is residue and there
+// is no writer to regenerate it with. Naming a generator command here would be a broken instruction — the
+// exact lying-remediation class the corpus exists to kill (#526).
+const TERMINAL = `Delete the row by hand; when ${BASELINE_REL} is empty, delete the file — this ratchet is at its TERMINAL state (${LAW} §4), its generator is gone, and any baseline still on the tree is residue.`;
+
+const STALE_BASELINE_GATE = (rel: string): string => `${BASELINE_REL} lists "${rel}", but that gate file no longer exists. ${TERMINAL}`;
 
 const STALE_BASELINE_ROW = (rel: string, name: string): string =>
   `${BASELINE_REL} lists "${rel}" → \`${name}\` as a one-sided exemption, but it is not one any more (the ` +
-  "collection gained a stale arm, was emptied, or was renamed) — the ratchet only goes down: regenerate it " +
-  `(${GEN_CMD}) and commit the shrink.`;
+  `collection gained a stale arm, was emptied, or was renamed). ${TERMINAL}`;
 
 // ── the pass ─────────────────────────────────────────────────────────────────────────────────────────
 /** Gate modules in this run's project, repo-relative path → SourceFile, sorted. */

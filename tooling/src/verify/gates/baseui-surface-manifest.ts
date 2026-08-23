@@ -25,7 +25,7 @@ import { fileLoaded } from "../lib/pass.ts";
 /** A real-tree anchor no self-proof example needs (GATE-AUTHORING §4.5): the GENERATED token barrel. Its
  *  presence is what entitles the blindness arms to speak; a synthetic mini-project never carries it. */
 const REAL_TREE_ANCHOR = "packages/ui/src/tokens/index.ts";
-const GEN = "node tooling/src/verify/ops/gen/baseui-surface.ts";
+const GEN = "node tooling/src/verify/cli.ts baseline baseui-surface";
 
 const MESSAGE =
   "the committed Base UI surface manifest no longer describes the installed @base-ui/react. The manifest " +

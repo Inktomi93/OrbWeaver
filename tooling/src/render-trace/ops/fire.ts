@@ -29,11 +29,14 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
 import { print, printResult, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { instrumentError } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { spawnNicedChild } from "../../_shared/proc.ts";
 import { fireEvidenceGap } from "../lib/evidence.ts";
 import { renderTrace } from "../lib/render.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | pnpm trace:fire");
 
 // Cold compile of the server graph is bounded generously; a warm host is far under it.
 const READY_TIMEOUT_MS = 120_000;

@@ -16,8 +16,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline test-baseline-manifest");
 
 const SPEC_SUFFIX = /\.(test\.tsx?|ct\.tsx|spec\.ts)$/u;
 

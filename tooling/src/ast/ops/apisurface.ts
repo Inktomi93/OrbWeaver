@@ -2,6 +2,7 @@
 import type { ImportDeclaration, Node, Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ApiClass, ApiSurfaceEntry, Flags, Hit, Liveness } from "../contract/types.ts";
 import { dynamicImportTargetOf } from "../lib/edges.ts";
 import { emit, hitOf } from "../lib/emit.ts";
@@ -13,6 +14,8 @@ import { ownExports, resolveScope } from "../lib/scope.ts";
 import { PACKAGES_PREFIX } from "./chains.ts";
 import { collectOrphanCandidates } from "./orphans.ts";
 import { byProdFirst, relPath } from "./swallowed.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── apisurface: exports partitioned by PACKAGE-BOUNDARY consumption (PUBLIC / INTERNAL / UNUSED) ─────────
 // The barrel-bloat class every liveness lens above is blind to. `orphans` is BINARY — any importer (prod or

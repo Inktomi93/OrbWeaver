@@ -1,9 +1,12 @@
 // cycles + aliases — the module-graph rot lenses.
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus } from "../lib/ledger.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** RESOLVED intra-package file graph: edges via getModuleSpecifierSourceFile (relative, #alias,
  *  `@orb` subpath all resolve) — needs the types:true arm. */

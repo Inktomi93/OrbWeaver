@@ -14,9 +14,12 @@ import { parseViewport } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Severity } from "../contract/findings.ts";
 import type { Args } from "../contract/types.ts";
 import { isValidSeverity } from "../lib/severity.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_WAIT_MS = 500;

@@ -6,12 +6,15 @@ import type { ResultPair } from "@orb/tooling/_shared/artifacts";
 import { artifactFile, print, printResult } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
 import { instrumentError } from "@orb/tooling/_shared/evidence";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, MeterData, MeterWindow } from "../contract/types.ts";
 import { NAV_TIMEOUT_MS, TRAILING_SETTLE_MS } from "../lib/budgets.ts";
 import { meterApparatusGap, meterEvidenceGaps } from "../lib/evidence.ts";
 import { runSteps } from "./drive.ts";
 import { METER_INIT_JS } from "./meter.ts";
 import { buildReports, printTable } from "./report.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
 
 const CPU_SAMPLING_INTERVAL_US = 100; // 10kHz
 const CLICK_DUR_BREACH_MS = 100;

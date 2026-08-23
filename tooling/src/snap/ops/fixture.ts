@@ -24,8 +24,11 @@
 // `--contexts N` bigger than the fixture actually seeds) is a loud refusal, never a guess.
 
 import process from "node:process";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "../contract/fixture.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // The fixture's OFFSET pair (multi-user-fixture.sh's FIXTURE_PORT/FIXTURE_VITE_PORT defaults) — NOT the
 // dev stack's 8788/5173, so both run side by side. `localhost` for the vite origin, 127.0.0.1 for the

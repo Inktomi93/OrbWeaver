@@ -3,8 +3,11 @@
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { buildUrl, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Recording, StepRun, TimedLine } from "../contract/types.ts";
 import { MARKER_INIT_JS, runSteps } from "./drive.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm record");
 
 const NAV_TIMEOUT_MS = 20_000;
 const TRAILING_SETTLE_MS = 900;

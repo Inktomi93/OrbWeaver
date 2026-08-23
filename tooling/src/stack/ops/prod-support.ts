@@ -5,12 +5,15 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { DistVerdict } from "../contract/types.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { classifyDist, debugPostureText } from "../lib/verdicts.ts";
 import { LOG_PATH, log, PIDFILE, probeDebug, runDir, TOKEN_PATH } from "./prod-state.ts";
+
+refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
 const TOKEN_BYTES = 24;
 const TOKEN_FILE_MODE = 0o600;

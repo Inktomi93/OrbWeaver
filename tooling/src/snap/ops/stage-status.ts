@@ -11,6 +11,7 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { ActiveStage, StageSweepVerdict } from "../contract/stage.ts";
 import {
@@ -31,6 +32,8 @@ import {
 import { removeStageDir, repoRoot, stopStage } from "./stage.ts";
 import { clearActive, markerRoot, readActive } from "./stage-marker.ts";
 import { bandIsBound, killProcessGroup, pidElapsedSeconds, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 /** `snap --stage-status`: the `engines:status`-style visibility, stage edition — the marker, the stage-band
  *  port owners, and the worktree dirs on disk (so a LOST-marker / ownerless stage is SEEN, not invisible). */

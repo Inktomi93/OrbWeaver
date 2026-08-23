@@ -2,6 +2,7 @@
 // Needs-owner / Blocked / Parked exceptions. Every verb is RERUNNABLE — the guards accept their own
 // destination status, and Status is written last, so an interrupted or uncertain command converges.
 
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Issue, LifecycleCommand, WorkCommand, WorkItemContext } from "../contract/types.ts";
 import { INGRESS_LABELS, REPOSITORY, REQUIRED_READY_METADATA, TERMINAL_DISPOSITIONS } from "../lib/vocab.ts";
 import { currentValue } from "../lib/writes.ts";
@@ -17,6 +18,8 @@ import {
   transitionToReady,
   writeFields,
 } from "./project.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm work:item <command>");
 
 function requireStatus(work: WorkItemContext, allowed: readonly string[], message: string): void {
   const status = currentValue(work.item, "Status");

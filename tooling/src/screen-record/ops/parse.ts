@@ -4,7 +4,10 @@
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Step } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm record");
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_SETTLE_MS = 1500;

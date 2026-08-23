@@ -7,6 +7,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { artifactDir, artifactFilePath, print, printResult, routeSlug } from "../../_shared/artifacts.ts";
 import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan, SnapFailureSummary } from "../contract/types.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
@@ -18,6 +19,8 @@ import { parseSnapArgs } from "./parse.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
 import { finishSession, launchSnapSession } from "./session.ts";
 import { evidenceFailureCounts, hasSnapFailure } from "./verdict.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 function stringArray(value: unknown): readonly string[] | null {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : null;

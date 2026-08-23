@@ -4,7 +4,10 @@
 import { errorMessage } from "@orb/kit/error-message";
 import { print } from "@orb/tooling/_shared/artifacts";
 import { settle } from "@orb/tooling/_shared/browser";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Step, StepRun } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm record");
 
 const DEFAULT_STEP_SETTLE_MS = 600;
 const STEP_TIMEOUT_MS = 5000;

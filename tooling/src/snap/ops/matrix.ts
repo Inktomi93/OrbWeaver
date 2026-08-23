@@ -2,11 +2,14 @@
 import { basename, extname } from "node:path";
 import type { Viewport } from "../../_shared/argv.ts";
 import { print, printResult, routeSlug } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 import { variantOut } from "../lib/out-names.ts";
 import { DEFAULT_VIEWPORT, MOBILE_DEVICE } from "./flags.ts";
 import { snap } from "./run.ts";
 import { snapScenario } from "./scenario.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 interface MatrixVariant {
   readonly id: string;

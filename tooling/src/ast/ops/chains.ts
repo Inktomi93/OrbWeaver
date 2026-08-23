@@ -1,6 +1,7 @@
 // chains: declarations whose ONLY life originates inside other DEAD declarations.
 import type { Node, Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ChainAudit, ChainCandidate, ChainLink, Flags, Hit, Liveness } from "../contract/types.ts";
 import { fileOfKey, isModuleScopeKey, topLevelDeclarations } from "../lib/edges.ts";
 import { emit, hitOf } from "../lib/emit.ts";
@@ -11,6 +12,8 @@ import { isPublicTagged } from "../lib/public-markers.ts";
 import { isTestPath, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 import { relPath } from "./swallowed.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── chains: declarations whose ONLY life originates inside OTHER DEAD declarations ─────────────────────
 // The owner-named ALIAS-RABBIT-HOLE class, and the one rot shape every lens above is structurally blind to.

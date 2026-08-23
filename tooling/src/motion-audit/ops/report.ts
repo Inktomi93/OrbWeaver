@@ -3,6 +3,7 @@ import { print, printResult } from "@orb/tooling/_shared/artifacts";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps } from "@orb/tooling/_shared/evidence";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData, LoafRecord, ReachAction } from "../contract/types.ts";
 import { CPU_THROTTLE_RATE } from "../lib/budgets.ts";
 import { motionEvidenceGaps } from "../lib/evidence.ts";
@@ -16,6 +17,8 @@ import {
   loafOverBudget,
   loafTotals,
 } from "../lib/verdicts.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
 /** The reach chain, named in full, plus a LOUD note when part of it failed — a smoothness number for a
  *  surface the probe never arrived at is the failure mode this line exists to make impossible to miss. */

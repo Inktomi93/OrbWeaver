@@ -23,7 +23,7 @@ import { fileLoaded } from "../lib/pass.ts";
 
 /** A real-tree anchor no self-proof example needs (§4.5) — the GENERATED token barrel. */
 const REAL_TREE_ANCHOR = "packages/ui/src/tokens/index.ts";
-const GEN = "node tooling/src/verify/ops/gen/baseui-surface.ts";
+const GEN = "node tooling/src/verify/cli.ts baseline baseui-surface";
 const SELF = "tooling/src/verify/gates/baseui-anatomy-completeness.ts";
 
 const MESSAGE =

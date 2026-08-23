@@ -24,6 +24,7 @@
 // The DEV mode of `pnpm stack` is untouched and still lives in ../stack.sh.
 import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
@@ -34,6 +35,8 @@ import { readEnvFile, TOKEN_PATH } from "./prod-state.ts";
 import { DEFAULT_LOG_LINES, debugToken, tailLog } from "./prod-support.ts";
 import { doRestart, doUp, doUpFg } from "./prod-up.ts";
 import { runServedProbe } from "./served-probe.ts";
+
+refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
 // process.argv is [node, script, verb, ...] — the operator's own argv starts here.
 const ARGV_AFTER_VERB = 3;

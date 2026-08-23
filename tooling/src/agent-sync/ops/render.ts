@@ -3,9 +3,12 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ClaudeAgent } from "../contract/types.ts";
 import { parseClaudeAgent } from "../lib/frontmatter.ts";
 import { ROLE_MODELS } from "../lib/paths.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm agents:sync");
 
 const TOML_LITERAL_DELIMITER = "'''";
 

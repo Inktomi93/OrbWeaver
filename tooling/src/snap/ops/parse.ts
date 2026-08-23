@@ -3,10 +3,13 @@
 import { appearanceHelpBlock } from "../../_shared/appearance.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { themeHelpBlock } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
 import { CROP_RE } from "../lib/out-names.ts";
 import { DEFAULT_VIEWPORT, FLAG_HANDLERS, MS_PER_SECOND, OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export const SNAP_HELP = `snap — one browser run, many pieces of UI evidence
 

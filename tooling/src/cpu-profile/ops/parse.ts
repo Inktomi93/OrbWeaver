@@ -14,7 +14,10 @@ import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/_shared/nav";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Step } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_SETTLE_MS = 2000;

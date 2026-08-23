@@ -60,7 +60,7 @@ const STALE_EXEMPT_PREFIX =
   "stale EXEMPT_PROCEDURES row — the procedure no longer has two doors anywhere, so the exemption grants nothing while reading as live law. Delete it: ";
 const STALE_BASELINE_PREFIX =
   "stale baseline row — this pair now has FEWER doors than the committed budget (or none at all). Regenerate and " +
-  "commit the shrink (`node tooling/src/verify/ops/gen/duplicate-action-doors.ts`): ";
+  "commit the shrink (`node tooling/src/verify/cli.ts baseline duplicate-action-doors`): ";
 const BLIND_SECTIONS =
   "BLINDNESS TRIPWIRE — zero rail-section definitions were derived from the tree, so every call site would fall " +
   "back to its feature directory and the gate would silently stop judging planes. Re-point SECTION_FILE_RE in " +

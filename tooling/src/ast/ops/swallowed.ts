@@ -5,6 +5,7 @@ import process from "node:process";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit, Liveness, NamespaceSite, SwallowedCandidate } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -12,6 +13,8 @@ import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
 import { isTestPath, REPO_ROOT, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── swallowed: exports alive ONLY because a namespace import swallowed the whole module ─────────
 // The rot-hider class, proven on the real tree: `packages/db/src/client/index.ts` does

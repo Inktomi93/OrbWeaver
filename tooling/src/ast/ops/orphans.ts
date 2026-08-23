@@ -1,6 +1,7 @@
 // orphans + testonly — resolution-based rot over the liveness substrate.
 import type { Node, Project, SourceFile } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit, Liveness, OrphanCandidate, TestOnlyClass } from "../contract/types.ts";
 import { dedupe, emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -8,6 +9,8 @@ import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
 import { TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** Every orphan candidate whose DECLARING file satisfies `inScope` — exports reached by nobody (prod or
  *  test) and unused in their own file. Pure enumeration: no printing, no exemption policy (the ratchet

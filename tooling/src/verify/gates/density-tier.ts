@@ -18,7 +18,7 @@
 // TRANSITION RATCHET (§5.2, the `no-test-fabrication` idiom): A1–A3 are budgeted per file by
 // density-tier.baseline.json — a file violates only when its LIVE count EXCEEDS its committed budget, and
 // only the EXCESS is reported. Landing at the current baseline is therefore zero-new and blocks nothing;
-// every sweep stage regenerates the baseline DOWNWARD (`pnpm tsx tooling/src/verify/ops/gen/density.ts`)
+// every sweep stage regenerates the baseline DOWNWARD (`node tooling/src/verify/cli.ts baseline density`)
 // in the same commit. A baseline that GROWS in a diff is a review-blocking defect. Terminal state: `{}`,
 // the file deleted, this gate flipped to born-compliant.
 //
@@ -437,7 +437,7 @@ export const gate: GateDescriptor = {
           file: GATE_SELF,
           line: 1,
           column: 0,
-          message: `${BASELINE_REL} budgets ${budget} finding(s) for "${rel}" but only ${actual} remain — the ratchet only goes down: regenerate it (pnpm tsx tooling/src/verify/ops/gen/density.ts) and commit the shrink.`,
+          message: `${BASELINE_REL} budgets ${budget} finding(s) for "${rel}" but only ${actual} remain — the ratchet only goes down: regenerate it (node tooling/src/verify/cli.ts baseline density) and commit the shrink.`,
         });
       }
     }

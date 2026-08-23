@@ -5,12 +5,15 @@ import { join } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord } from "../contract/types.ts";
 import { classifyInstance } from "../lib/identity.ts";
 import { parseListenerPid, parseProcStartTicks } from "../lib/proc-parse.ts";
 import { parseProdRecord } from "../lib/prod-record.ts";
 import { classifyDebugPosture } from "../lib/verdicts.ts";
+
+refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
 const DEFAULT_PORT = 8788;
 const PROBE_TIMEOUT_MS = 2000;

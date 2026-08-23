@@ -13,7 +13,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline prose");
 
 /** The `baseline prose` verb — the SINGLE writer of its committed baseline (GATE-AUTHORING §4.8). */
 export function generateProseBaseline(root: string): number {

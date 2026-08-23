@@ -7,9 +7,12 @@ import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import { print, routeSlug } from "../../_shared/artifacts.ts";
 import { buildUrl } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 import { ensureStage } from "./stage.ts";
 import { stageStatus, sweepStages, teardownStage } from "./stage-status.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // --file: resolve the (possibly relative) path to an absolute one + its file:// URL + the default artifact
 // slug (the file's basename, so `--file …/config-rail/workspace.html` writes reports/snaps/workspace.png).

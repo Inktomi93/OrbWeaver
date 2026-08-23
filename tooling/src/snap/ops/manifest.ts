@@ -4,8 +4,11 @@ import type { AppearancePatch } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
 import { artifactFile } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { Args, CaptureOutcome, SnapFailureSummary, WatchTick } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 interface SnapManifest {
   readonly schemaVersion: 1;

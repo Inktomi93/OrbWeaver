@@ -14,8 +14,11 @@ import { errorMessage } from "@orb/kit/error-message";
 import { clampBoxToImage, ringBackdropOfRegion } from "@orb/tooling/_shared/pixel-backdrop";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ContrastInput, RawSamples } from "../contract/samples.ts";
 import type { BackdropRefusal, PixelPass } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 function isUnresolved(text: ContrastInput): boolean {
   return text.backdrop.kind === "unresolved";

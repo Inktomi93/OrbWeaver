@@ -7,9 +7,12 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { densityFindings } from "../../gates/density-tier.ts";
 import { getProject } from "../../lib/harness.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline density");
 
 const SCANNED = /\/packages\/(?:client|ui)\/src\//u;
 

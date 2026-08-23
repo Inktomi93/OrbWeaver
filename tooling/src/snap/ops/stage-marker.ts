@@ -9,9 +9,12 @@
 // shared, and it names the checkout its dir belongs to.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { ActiveStage } from "../contract/stage.ts";
 import { ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL } from "../lib/stage-plan.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export function markerRoot(root: string): string {
   const res = runNicedSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });

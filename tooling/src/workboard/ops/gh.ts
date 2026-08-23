@@ -1,9 +1,13 @@
 // The ONE `gh` door. Every failure is translated into an OPERATOR INSTRUCTION before it escapes: a raw
 // "GraphQL: ..." dump tells the caller nothing about whether to retry, wait, or stop — the two rate-limit
 // shapes need opposite responses and are distinguished here.
+
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync } from "../../_shared/proc.ts";
 import type { GraphqlVariables } from "../contract/types.ts";
 import { MS_PER_SECOND, PRIMARY_RATE_LIMIT_RE, SECONDARY_RATE_LIMIT_RE } from "../lib/vocab.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm work:item <command>");
 
 function execOutput(error: unknown, channel: "stdout" | "stderr"): string {
   if (typeof error !== "object" || error === null) {

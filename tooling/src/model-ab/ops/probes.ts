@@ -1,6 +1,8 @@
 // THE PROBE MATRIX — the per-request axes (reasoning_effort, enable_thinking, sampling, prefill doors,
 // tools, structured output, vision, decensor). One variant boot covers them all; a probe ERROR is a
 // RESULT, not a harness failure (a stock-template 400 is exactly the finding the A/B exists to surface).
+
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ChatResponse, Probe } from "../contract/types.ts";
 import {
   DIFFABLE_MAX_TOKENS,
@@ -18,6 +20,8 @@ import {
   VISION_TEST_PNG_B64,
 } from "../lib/scene.ts";
 import { findRefusalMarkers, parseStructured, parseToolArguments, verifyPrefillContent, verifyPrefillThinking } from "../lib/verify.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
 /** Deterministic (temp 0), thinking off. Verify demands BOTH the color and the shape — a model that sees
  *  nothing guesses one but rarely both. */

@@ -1,6 +1,9 @@
 // Bucket the meter's entries into per-step windows + print the table.
 import { print } from "@orb/tooling/_shared/artifacts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { LongTask, MeterData, PerfEvent, StepReport } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
 
 const LABEL_MAX = 70;
 const IDX_PAD = 3;

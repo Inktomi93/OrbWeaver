@@ -10,9 +10,12 @@
 // identify (the #310 liveness-gate lesson).
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL } from "../lib/stage-plan.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const SS_PID_RE = /pid=(\d+)/u;
 

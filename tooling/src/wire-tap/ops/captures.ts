@@ -20,8 +20,11 @@
 import process from "node:process";
 import type { WireCapture, WireOutcome } from "@orb/server/foundation/observability";
 import { print, printResult } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
 
 const DEFAULT_LIMIT = 20;
 const BODY_KEY_CAP = 12;

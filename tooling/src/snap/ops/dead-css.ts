@@ -5,6 +5,9 @@
 // probe compile the same regex and skip the same namespaces by construction.
 import { CLASS_SELECTOR_TOKEN_PATTERN, CLASS_TOKEN_ESCAPE_PATTERN, DEAD_CSS_MARKER_EXACT, DEAD_CSS_MARKER_PREFIXES } from "@orb/kit/dead-css";
 import type { Page } from "@playwright/test";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // ── Dead-class scan ─────────────────────────────────────────────────────────
 // Two failure modes, one walk:

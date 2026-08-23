@@ -207,6 +207,11 @@ function writeFixtures(): void {
   fx("tooling/src/__g_big/ops/big.ts", "export const x = 1;\n".repeat(451));
   // tooling-shared-plumbing: a second ts-morph Project construction outside _shared/ts-workspace.ts.
   fx("tooling/src/__g_plumb/ops/p.ts", "declare const Project: new (o: object) => unknown;\nexport const p = new Project({});\n");
+  // tooling-ops-direct-invocation: an ops/ LIBRARY module that would exit 0 if it were RUN — no module-scope
+  // refusal and no module-scope entry runner (#509's lying-instrument shape). The guard spelling is written
+  // into a STRING here on purpose: the fixture proves the check is AST-positional, since a text search would
+  // call this module armed.
+  fx("tooling/src/__g_opsguard/ops/x.ts", 'export const SCAFFOLD = `refuseDirectInvocation(import.meta.url, "pnpm x");`;\n');
   // tooling-instrument-proof: a reasoned marker in an UNREGISTERED tool's tree (the real registry is
   // armed-empty at P1) — the stale-vocabulary arm. This suite file itself is FLAT under tests/tooling,
   // which the gate's tool-dir derivation skips, so the literal below is inert here.

@@ -3,11 +3,14 @@
 // DISPOSABLE projection — it is regenerated from lanes + receipts + the tree, never hand-edited.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DebtPaths, Doc, Lane, LaneConfig, Receipt, ReceiptEntry, State } from "../contract/types.ts";
 import { migrationDebt, migrationMetrics, newDebtPathErrors } from "../lib/debt.ts";
 import { catalogReceipt } from "../lib/receipt-rules.ts";
 import { OUTPUT_PATH, RECEIPTS_DIR, SCHEMA_VERSION, STATE_PATH } from "../lib/vocab.ts";
 import { json, loadReceipts, receiptPath, root, stableJson } from "./tree.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
 function pendingEntry(doc: Doc): ReceiptEntry {
   return {

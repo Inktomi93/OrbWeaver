@@ -2,6 +2,7 @@
 import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit, StringyAudit, StringyCandidate, StringyLink } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -10,6 +11,8 @@ import { SNIPPET_CAP, TEST_FILE_RE } from "../lib/root.ts";
 import { resolveScope } from "../lib/scope.ts";
 import { PACKAGES_PREFIX } from "./chains.ts";
 import { relPath } from "./swallowed.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── stringy: type aliases whose RESOLVED type is exactly `string` — a name that buys no checking ────────
 // NOT the `aliases` verb, and the two must never be conflated. `aliases` is about IMPORT/RENAME laundering —

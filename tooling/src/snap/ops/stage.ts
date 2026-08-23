@@ -48,6 +48,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, write
 import { join } from "node:path";
 import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync, runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { ActiveStage, EnsureStageOpts, StagePaths, StagePorts } from "../contract/stage.ts";
 import {
@@ -68,6 +69,8 @@ import {
 } from "../lib/stage-plan.ts";
 import { clearActive, markerRoot, readActive, touchActive, writeActive } from "./stage-marker.ts";
 import { bandIsBound, killProcessGroup, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const DEBUG_TOKEN_BYTES = 16;
 

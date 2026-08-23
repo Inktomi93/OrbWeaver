@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../../../knip.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, SKIP_DECLARATION_FILES, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
@@ -12,6 +13,8 @@ import { resolveModule } from "../lib/resolve.ts";
 import { BANG_SUFFIX_RE, DOT_SLASH_RE, GLOB_STAR_RE, isTestPath, REPO_ROOT, TS_SUFFIX_RE, WORKSPACE_PACKAGES } from "../lib/root.ts";
 import { resolveScope } from "../lib/scope.ts";
 import { relPath } from "./swallowed.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── prodonly: entry-closure FILE reachability (the knip Unused-files lens) ─────────────────────
 // testonly/orphans are SYMBOL lenses; prodonly is the FILE lens they can't be. It walks the resolved

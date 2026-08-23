@@ -7,7 +7,7 @@
 // shape): a committed `suppressions.baseline.json` maps repo-relative file → its budget; a file's live
 // count exceeding its budget REDs the excess (newest suppressions surface first, by source order). BOTH
 // WAYS: a baseline entry ABOVE the file's live count is a STALE-RED — the ratchet only tightens, it can
-// never coast on a number the file no longer needs. Regenerate: `pnpm tsx tooling/src/verify/ops/gen/suppressions.ts`
+// never coast on a number the file no longer needs. Regenerate: `node tooling/src/verify/cli.ts baseline suppressions`
 // (rewrites the whole map from a live scan — run only on a sanctioned bulk shift, day-to-day the count
 // only falls). Escape: none — a suppression IS the marker; the "escape" from this gate is deleting the
 // suppression or bumping the baseline via a sanctioned regenerate.
@@ -86,12 +86,12 @@ function loadBaseline(root: string): Record<string, number> {
 
 const STALE_MESSAGE = (rel: string, baseline: number, live: number): string =>
   `stale suppressions.baseline.json entry — "${rel}" is budgeted ${baseline} but has only ${live} live ` +
-  "suppression marker(s): regenerate the baseline (`pnpm tsx tooling/src/verify/ops/gen/suppressions.ts`) " +
+  "suppression marker(s): regenerate the baseline (`node tooling/src/verify/cli.ts baseline suppressions`) " +
   "to ratchet the floor down (Core-Enforcement-Deferred-Dropped.md, suppressions row).";
 const EXCEED_MESSAGE = (token: string): string =>
   `suppression marker \`${token}\` exceeds this file's committed suppressions.baseline.json budget — ` +
   "delete the suppression (fix the underlying lint/type issue) or, if genuinely warranted, regenerate the " +
-  "baseline via a sanctioned bulk shift (`pnpm tsx tooling/src/verify/ops/gen/suppressions.ts`); the ratchet " +
+  "baseline via a sanctioned bulk shift (`node tooling/src/verify/cli.ts baseline suppressions`); the ratchet " +
   "only shrinks day-to-day (Core-Enforcement-Deferred-Dropped.md, suppressions row).";
 
 /** The exceed-budget + stale-baseline reconciliation shared by `run` and the residual unit test (via an
@@ -130,7 +130,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project", // the baseline budget is a per-file whole-tree count, both-ways stale needs the full set
   message: EXCEED_MESSAGE("<marker>"),
-  fix: "delete the suppression (fix the underlying issue), or regenerate suppressions.baseline.json via a sanctioned bulk shift (`pnpm tsx tooling/src/verify/ops/gen/suppressions.ts`).",
+  fix: "delete the suppression (fix the underlying issue), or regenerate suppressions.baseline.json via a sanctioned bulk shift (`node tooling/src/verify/cli.ts baseline suppressions`).",
   scanRoot: (p) => isSrcFile(p),
   run: (ctx) => {
     const baseline = loadBaseline(ctx.root);

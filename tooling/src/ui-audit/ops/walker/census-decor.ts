@@ -3,6 +3,10 @@
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+
 export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shadow||border) && (radius||bg)) ─────────
   function isCardLike(el) {
     var s = getComputedStyle(el);

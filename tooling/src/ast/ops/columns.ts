@@ -3,11 +3,14 @@
 import process from "node:process";
 import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, Flags, Hit, TableDef } from "../contract/types.ts";
 import { collectColumnCandidates } from "../lib/column-reads.ts";
 import { COLUMN_CLASS_PAD, COLUMN_COUNT_PAD, COLUMN_SITES_SHOWN, collectSchemaTables, isColumnExempt } from "../lib/columns.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 const COLUMN_CLASS_ORDER: readonly ColumnClass[] = ["neither", "write-only", "read-only", "provenance", "read-write"];
 

@@ -3,6 +3,7 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { ProbeSession } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { PagePlan } from "../contract/plan.ts";
 import type { Args, CaptureOutcome, EvidencePass, ShotPlan } from "../contract/types.ts";
 import { planOut } from "../lib/out-names.ts";
@@ -12,6 +13,8 @@ import { driveActions, navigate, settlePage, splitTrailingEvals } from "./drive.
 import { captureAria, captureEvals, capturePerfEvidence, runAssertions } from "./evidence.ts";
 import { captureMap } from "./map.ts";
 import { captureShot } from "./shot.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, pass: EvidencePass): Promise<void> {
   const { pageIndex, trailingEvals } = pass;

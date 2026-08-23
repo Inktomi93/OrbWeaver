@@ -2,12 +2,15 @@
 // setting) -> goto/ready/settle -> reach -> flagger settle -> measured window -> report.
 import { buildUrl, launchProbeSession, settle } from "@orb/tooling/_shared/browser";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData } from "../contract/types.ts";
 import { CPU_THROTTLE_RATE, MOUNT_SETTLE_MS, NAV_TIMEOUT_MS, READY_TIMEOUT_MS } from "../lib/budgets.ts";
 import { apparatusGap, reportInstrumentError } from "../lib/evidence.ts";
 import { driveReach, hasOrbBridge, prepareMeasuredClick } from "./drive.ts";
 import { report } from "./report.ts";
 import { runAudit } from "./trace.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
 export async function runMotionAudit(opts: Args): Promise<number> {
   const url = opts.url ?? buildUrl(opts.base, opts.route);

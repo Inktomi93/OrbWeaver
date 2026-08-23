@@ -6,7 +6,10 @@ import { join } from "node:path";
 import { artifactDir } from "../../_shared/artifacts.ts";
 import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser.ts";
 import { launchProbeSession } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // localStorage keys the harness seeds. App counterpart for probe-mode:
 // packages/client/src/lib/probe-mode.ts; the debug-token reader lands with its route.

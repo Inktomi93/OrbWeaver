@@ -43,6 +43,7 @@ import { createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { detectGpu } from "@orb/server/infra/providers";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
@@ -63,6 +64,8 @@ import {
   WORLD_BOOK_NAME,
 } from "../lib/fixture.ts";
 import { parseDemoArgs } from "../lib/transcript.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
 const FIRST_SEAT_TALKATIVENESS = 0.8;
 const LOOM_ENTRY_PRIORITY = 100;

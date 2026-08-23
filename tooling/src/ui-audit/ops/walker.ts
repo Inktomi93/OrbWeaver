@@ -19,6 +19,8 @@
 // (token-ramp bindings, sanctioned-effect exemptions) — see
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md for the full 59-rule
 // triage, the divergences, and the license statement.
+
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { WALKER_CENSUS_DECOR } from "./walker/census-decor.ts";
 import { WALKER_CENSUS_INTERACTIVE } from "./walker/census-interactive.ts";
 import { WALKER_CENSUS_QUALITY } from "./walker/census-quality.ts";
@@ -26,6 +28,8 @@ import { WALKER_CENSUS_TEXT } from "./walker/census-text.ts";
 import { WALKER_CORE } from "./walker/core.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
 import { WALKER_RETURNS } from "./walker/returns.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const COLLECT_SAMPLES_JS = `(async () => {
 ${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_RETURNS}})()`;

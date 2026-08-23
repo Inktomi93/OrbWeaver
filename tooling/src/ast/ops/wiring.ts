@@ -2,6 +2,7 @@
 import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -9,6 +10,8 @@ import { exitToolError, noteUnits, SKIP_TEST_FILES, scanCorpus, WHOLE_CORPUS } f
 import { buildLiveness, CLIENT_SRC_PREFIX } from "../lib/liveness.ts";
 import { isTestPath } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── unwired: server tRPC procedures with NO client consumer (the PD-138 blind spot) ────────────
 // Import-based liveness CANNOT see this — the client consumes a procedure through the typed proxy

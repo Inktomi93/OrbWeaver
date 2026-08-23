@@ -1,9 +1,12 @@
 // The symbol verbs: refs / callers / importers / exports / jsx / ident / literal.
 import type { ExportDeclaration, ImportDeclaration, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** Every exported (workspace-wide) or module-local (same-file refs still matter) declaration named `name`,
  *  over the SCANNED corpus (the caller's `scanCorpus` result — never a second walk of the project). */

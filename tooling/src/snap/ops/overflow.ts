@@ -38,7 +38,10 @@
 // the element the assertion actually matched, and the DOM-less program is answered the way this very
 // file already answered it before: by declaring the structural surface the body touches.
 import type { Locator } from "@playwright/test";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { OverflowProbe } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 /** Sub-pixel layout puts a rounded child a fraction outside its box constantly; the historical scroll
  *  arm's own tolerance is 1px and this is its rect-side twin. #439 spilled 27-35px. */
