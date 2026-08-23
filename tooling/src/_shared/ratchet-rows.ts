@@ -23,9 +23,9 @@
 //     `{ "<subject>": { "count": 3, "ratified": 3, "why": "…", "cite": ["…"] } }`.
 //   • ENTRIES-MAP — the orphan ratchet's `{ "note": "…", "entries": { "<subject>": "<reason>" } }`, where a
 //     row is one membership (count 1) carrying its reason as its `why`.
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execNicedSync } from "./proc.ts";
 
 /** The class AXIS, homed as one `as const` tuple so the union derives instead of being re-spelled
  *  (Spine-TypeScript-and-Patterns.md §7.5). `mixed` is a row that is PART ruled and part burnable — the
@@ -280,7 +280,7 @@ export function writeBudgetLedger(root: string, rel: string, counts: Readonly<Re
 export function writeLedgerFile(root: string, rel: string, value: unknown): void {
   const abs = join(root, rel);
   writeFileSync(abs, `${JSON.stringify(value, null, 2)}\n`);
-  execFileSync("pnpm", ["exec", "biome", "format", "--write", abs], { cwd: root, stdio: "ignore" });
+  execNicedSync("pnpm", ["exec", "biome", "format", "--write", abs], { cwd: root });
 }
 
 /** Every `*.baseline.json` actually on disk under `tooling/src/`, repo-relative. Derived from the filesystem
