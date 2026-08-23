@@ -20,7 +20,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/ct/route-impersonate-stream.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { ComposerStory } from "../_ct-stories.tsx";
+import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
 import { COMPOSER_CHAT_ID } from "../fixtures.ts";
 
 // A getUserSettings view with a chat-pref override — drives the composer's enterSends/continueOnSend read.
@@ -238,7 +238,23 @@ function expectRowMajorOrder(boxes: readonly ControlBox[]): void {
   }
 }
 
-async function expectExplicitCoarseRows(component: Locator, bounds: ControlBox, viewportWidth: number): Promise<void> {
+// THE #206 COARSE ROW LAW, RE-INPUT BY #531 (2026-08-23). #206 pinned the coarse arm's rows LITERALLY —
+// "Their reply follows the first explicit row", "Their reply and Attach and send share the second", and at
+// 320 "Their reply is centered on its owned row". Those clauses described the hand-placed 2×2 (+ `@max-xs`
+// third row) grid, and #531 measured that grid as the larger half of the phone composer's chrome tax: it
+// spent a whole 48px row + a 24px gap at EVERY width below the `@md` container step, including 430, where
+// the four homes provably fit one line (372px of homes in a 392px card).
+//
+// #206's MECHANISM survives verbatim and is still asserted by its caller: the 44px target floor, painted-
+// centre ownership, containment inside the composer and the viewport, zero overlap, row-major reading order,
+// one truthful nearest owner per control, and no horizontal scroll. What is retired is only the ROW COUNT
+// and the hand-placed 320px centring — the two clauses #531 exists to change. In their place: the homes read
+// in order across however many rows FIT requires, and the last row still ends at the composer's right edge,
+// so the terminal Send home is never orphaned into the left gutter.
+async function expectExplicitCoarseRows(component: Locator): Promise<void> {
+  const barBox = await component.locator('[data-slot="composer-guided-cluster"]').boundingBox();
+  expect(barBox, "the action bar must have rendered geometry").not.toBeNull();
+  const bar = barBox ?? { x: 0, y: 0, width: 0, height: 0 };
   const groupBoxes = await Promise.all(
     ["Chat actions", "Your message", "Their reply", "Attach and send"].map(async (name) => {
       const box = await component.getByRole("group", { name, exact: true }).boundingBox();
@@ -246,19 +262,19 @@ async function expectExplicitCoarseRows(component: Locator, bounds: ControlBox, 
       return { name, ...(box ?? { x: 0, y: 0, width: 0, height: 0 }) };
     }),
   );
-  const [chat, yours, theirs, attach] = groupBoxes;
-  if (chat === undefined || yours === undefined || theirs === undefined || attach === undefined) {
+  const [chat, yours] = groupBoxes;
+  if (chat === undefined || yours === undefined) {
     throw new Error("Missing composer group geometry");
   }
-  expect(Math.abs(chat.y - yours.y), "Chat actions and Your message share the first explicit row").toBeLessThanOrEqual(0.5);
-  expect(theirs.y, "Their reply follows the first explicit row").toBeGreaterThan(yours.y + 0.5);
-  const twoRowArm = viewportWidth > 320;
-  const leftAir = theirs.x - bounds.x;
-  const rightAir = bounds.x + bounds.width - (theirs.x + theirs.width);
-  expect(!twoRowArm || Math.abs(theirs.y - attach.y) <= 0.5, "Their reply and Attach and send share the second explicit row").toBe(true);
-  expect(!twoRowArm || theirs.x < attach.x, "Their reply owns the second row's leading edge").toBe(true);
-  expect(twoRowArm || attach.y > theirs.y + 0.5, "Attach and send follows Their reply at the 320px arm").toBe(true);
-  expect(twoRowArm || Math.abs(leftAir - rightAir) <= 1, "Their reply is centered on its owned 320px row").toBe(true);
+  // The two leading homes still open the bar together — that is the ORDER half of #206, and it holds whether
+  // the bar takes one row or two.
+  expect(Math.abs(chat.y - yours.y), "Chat actions and Your message share the first row").toBeLessThanOrEqual(0.5);
+  expectRowMajorOrder(groupBoxes);
+  // Whatever the fit produces, the FINAL row reaches the composer's right edge: the terminal Send home is
+  // right-anchored on a wrapped line exactly as it is on a full one (the auto margins, not a grid column).
+  const lastRowY = Math.max(...groupBoxes.map((group) => group.y));
+  const lastRowRight = Math.max(...groupBoxes.filter((group) => group.y > lastRowY - 0.5).map((group) => group.x + group.width));
+  expect(lastRowRight, "the bar's last row must reach the action bar's right edge").toBeGreaterThan(bar.x + bar.width - 1);
 }
 
 async function expectNearestActionGroups(component: Locator, actions: readonly ActionSpec[]): Promise<void> {
@@ -332,7 +348,7 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
   }));
   expect(documentOverflow.scrollWidth, "composer actions must not widen the document").toBeLessThanOrEqual(documentOverflow.clientWidth);
 
-  await expectExplicitCoarseRows(component, { name: "composer", ...bounds }, viewportWidth);
+  await expectExplicitCoarseRows(component);
 }
 
 test("#206: all eight icon controls expose plain-language names and tooltips on hover and focus", async ({ mount, page }) => {
@@ -447,13 +463,16 @@ test.describe("#206 coarse touch layout", () => {
       await page.getByRole("menuitem", { name: "1st person", exact: true }).click();
       await expect(textbox).toHaveValue(PARTIAL_DRAFT);
       await expect(stop).toHaveCount(1);
+      // The menu click leaves a synthetic pointer parked under the reflowing toolbar; reset it BEFORE the
+      // layout read as well as before the click. Since #531 the bar re-packs by FIT rather than into fixed
+      // rows, so the reflow can slide a different control under that stationary pointer — and the tooltip it
+      // opens then owns that control's painted centre, which reads exactly like an overlap defect (measured
+      // at 320px, where the live Stop widens `Your message` enough to change which home lands where).
+      await page.mouse.move(0, 0);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
       await expectNearestActionGroups(component, LIVE_COMPOSER_ACTIONS);
       await expectCoarseComposerLayout(page, component, LIVE_COMPOSER_ACTIONS);
 
-      // The menu click leaves a synthetic pointer parked under the reflowing toolbar; reset it so a tooltip
-      // opened by that stationary pointer cannot intercept the deliberate Stop click.
-      await page.mouse.move(0, 0);
-      await expect(page.getByRole("tooltip")).toHaveCount(0);
       await stop.click();
       await expect(stop).toHaveCount(0);
       await expect(textbox).toHaveValue(PARTIAL_DRAFT);
@@ -1137,4 +1156,124 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
 
   expect(defaultSurvived).toBe(true);
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
+});
+
+// ── #531 THE MOBILE COMPOSER'S CHROME TAX: the action bar spends rows it does not need ──────────────
+// The composer is the larger half of the phone chrome tax (#511 fixed the cast half). The defect was NOT a
+// wrap: below the `@md` container step the action bar's recipe was an unconditional 2×2 grid (plus a hand-
+// placed `@max-xs` THIRD row), so it spent a whole 48px control row + a 24px section gap at EVERY phone
+// width — including widths where all four action homes provably fit on one line. Measured on the phone stage
+// before the fix: 196px at 430 · 199px at 390 · 271px at 320, with the homes on 2 · 2 · 3 rows.
+//
+// The law these pin is a RANGE property, not three point measurements: the bar takes ONE row wherever its
+// four homes fit and a second only when they do not — so the expected row count is DERIVED from the measured
+// homes, not restated as a pixel budget, and it stays honest when a home gains or loses a control.
+//
+// THE PACKING GAP IS THE HOMES' OWN `field` GAP, NEVER THE BAR'S RESOLVED `column-gap`. Reading the bar's own
+// gap makes the pin self-fulfilling: the old bar spaced its homes at `section` (24px), which by its own
+// arithmetic "could not" fit four homes in a 430px phone's 392px card — so a gap-derived pin rated the
+// two-row render CORRECT and went green on the defect (measured: it did). The homes are already spaced at
+// `field` INSIDE themselves, so `field` is the bar's own floor for what "fits" means, and packing against it
+// is what makes this red on the old source at 430 (372px of homes in a 392px card, rendered as two rows).
+const PHONE_ROOM_STUB = {
+  "chat.getChat": (): unknown => ({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, cast: [] }),
+};
+
+/** One settled read of the action bar: the four homes' geometry, the resolved gap, and the touch floor. */
+function measureActionBar(page: Page): Promise<{
+  readonly coarse: boolean;
+  readonly barWidth: number;
+  readonly homeInnerGap: number;
+  readonly rows: number;
+  readonly homeWidths: readonly number[];
+  readonly controlHeights: readonly number[];
+  readonly barRight: number;
+  readonly lastRowRight: number;
+}> {
+  return page.evaluate(() => {
+    const bar = document.querySelector<HTMLElement>('[data-testid="composer"] [data-slot="composer-guided-cluster"]');
+    const homes = [...(bar?.querySelectorAll<HTMLElement>('[role="group"]') ?? [])];
+    const firstHome = homes[0];
+    if (bar === null || firstHome === undefined) {
+      throw new Error("the composer action bar did not render");
+    }
+    const tops = homes.map((el) => Math.round(el.getBoundingClientRect().top));
+    const lastTop = Math.max(...tops);
+    const lastRow = homes.filter((_, index) => tops[index] === lastTop);
+    return {
+      coarse: matchMedia("(pointer: coarse)").matches,
+      barWidth: Math.round(bar.getBoundingClientRect().width),
+      // The `field` gap the homes already use BETWEEN their own controls — the bar's own floor for "fits".
+      homeInnerGap: Math.round(Number.parseFloat(getComputedStyle(firstHome).columnGap)),
+      rows: new Set(tops).size,
+      homeWidths: homes.map((el) => Math.round(el.getBoundingClientRect().width)),
+      // Every focusable control in the bar — the row saving must not have been bought by crushing targets.
+      controlHeights: [...bar.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().height)),
+      barRight: Math.round(bar.getBoundingClientRect().right),
+      lastRowRight: Math.round(Math.max(...lastRow.map((el) => el.getBoundingClientRect().right))),
+    };
+  });
+}
+
+/** The coarse-pointer touch floor the bar's icon controls are sized to (`h-control-*`, pointer-conditional). */
+const COARSE_TOUCH_FLOOR = 44;
+/** The four ordered action homes, by their announced group names — the bar's whole content. */
+const ACTION_HOMES = ["Chat actions", "Your message", "Their reply", "Attach and send"] as const;
+
+for (const width of [430, 390, 320]) {
+  test.describe(`#531 phone composer at ${width}px`, () => {
+    test.use({ viewport: { width, height: 932 }, hasTouch: true });
+
+    test(`the action bar takes ONE row while its homes fit, never a breakpoint's extra row (${width}px)`, async ({ mount, page }) => {
+      await routeTrpc(page, PHONE_ROOM_STUB);
+      const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
+      // Barrier on the SETTLED bar: all four homes plus the terminal Send painted. Reading geometry before
+      // this is reading a bar that is still assembling.
+      await Promise.all(
+        ACTION_HOMES.map(async (home) => {
+          await expect(room.getByRole("group", { name: home, exact: true })).toBeVisible();
+        }),
+      );
+      await expect(room.getByRole("button", { name: "Send message" })).toBeVisible();
+      // The pointer class is the arm's condition — a fine-pointer layout no phone produces would size the
+      // controls differently and make every number below meaningless.
+      // ONESHOT-OK: a media-query match on a CONTEXT flag fixed before the page opened (`hasTouch`), so
+      // nothing async can change it (the #511 cast-strip suite reads it the same way).
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+      const bar = await measureActionBar(page);
+      // No row was bought by shrinking a target below the coarse floor.
+      for (const height of bar.controlHeights) {
+        expect(height).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR);
+      }
+      // THE RANGE PROPERTY: rows are driven by FIT, so the expected count is derived, not asserted.
+      const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * (bar.homeWidths.length - 1);
+      const expectedRows = needed <= bar.barWidth ? 1 : 2;
+      expect(bar.rows, `homes need ${needed}px of a ${bar.barWidth}px bar at ${width}px, yet rendered ${bar.rows} rows`).toBe(expectedRows);
+      // …and a wrapped line still ENDS at the bar's right edge, so the terminal Send home never falls back to
+      // the left gutter on the second row (the old grid parked it in an explicit right-hand column, and a
+      // plain `flex-wrap` without the auto margins would have left it hard left).
+      expect(bar.lastRowRight).toBe(bar.barRight);
+    });
+  });
+}
+
+// THE WIDE ARM IS UNCHANGED: at a desktop container the bar is still the explicit four-track grid — one row,
+// the two later homes pushed right by the `1fr` spacer. The narrow arm's flex-wrap must not reach it.
+test.describe("#531 the desktop composer keeps its four-track row", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("at a wide container the four action homes hold one grid row", async ({ mount, page }) => {
+    await routeTrpc(page, PHONE_ROOM_STUB);
+    const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
+    await expect(room.getByRole("group", { name: "Attach and send", exact: true })).toBeVisible();
+    // ONESHOT-OK: the same context-fixed media match as the coarse arms — no `hasTouch`, decided before the
+    // page opened, and it is the discriminator for this whole describe.
+    expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+
+    const bar = await measureActionBar(page);
+    expect(bar.rows).toBe(1);
+    const template = await page.locator('[data-slot="composer-guided-cluster"]').evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+    expect(template.split(" ").filter(Boolean).length).toBe(4);
+  });
 });

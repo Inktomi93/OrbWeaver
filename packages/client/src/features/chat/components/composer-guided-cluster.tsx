@@ -126,33 +126,23 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
 
   return (
     <Container className="w-full min-w-0">
-      <Grid cols="actionBar" gap="section" className="min-w-0" data-slot="composer-guided-cluster">
-        <Row
-          aria-label="Chat actions"
-          className="justify-self-start @max-md:col-start-1 @max-md:row-start-1"
-          data-slot="composer-chat-actions"
-          gap="field"
-          role="group"
-        >
+      {/* NARROW = FIT, NOT A BREAKPOINT (#531). Below `@md` the recipe is a wrapping flex line, so the four
+          homes hold ONE row wherever they fit and take a second only when they do not — the old fixed 2×2
+          (and its `@max-xs` third row) spent 48px + a section gap on every phone unconditionally, which was
+          the larger half of the mobile composer's chrome tax. The `@max-md:gap-field` is part of the same
+          measurement: at `section` (24px) the four homes need 426px and cannot fit any phone; at `field`
+          they need 372px and fit a 430px phone's 392px card. Each home keeps its own start/end alignment —
+          `ms-auto` on the two LATER homes is what reproduces the wide row's `1fr` spacer once the arm is
+          flex, and what keeps the terminal Send home right-aligned on a wrapped second line. */}
+      <Grid cols="actionBar" gap="section" className="min-w-0 @max-md:gap-field" data-slot="composer-guided-cluster">
+        <Row aria-label="Chat actions" className="shrink-0 justify-self-start" data-slot="composer-chat-actions" gap="field" role="group">
           {chatControl}
         </Row>
-        <Row
-          aria-label="Your message"
-          className="justify-self-start @max-md:col-start-2 @max-md:row-start-1 @max-md:justify-self-end"
-          data-slot="composer-you-actions"
-          gap="field"
-          role="group"
-        >
+        <Row aria-label="Your message" className="shrink-0 justify-self-start" data-slot="composer-you-actions" gap="field" role="group">
           <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
           {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
         </Row>
-        <Row
-          aria-label="Their reply"
-          className="min-w-0 justify-self-end @max-md:col-start-1 @max-md:row-start-2 @max-md:justify-self-start @max-xs:col-span-2 @max-xs:justify-self-center"
-          data-slot="composer-them-actions"
-          gap="field"
-          role="group"
-        >
+        <Row aria-label="Their reply" className="min-w-0 shrink-0 justify-self-end @max-md:ms-auto" data-slot="composer-them-actions" gap="field" role="group">
           <GuidedIconButton
             icon={RotateCcw}
             label={hasText ? "Try another reply with this direction" : "Try another reply"}
@@ -176,13 +166,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           />
           {speakerControl}
         </Row>
-        <Row
-          aria-label="Attach and send"
-          className="justify-self-end @max-md:col-start-2 @max-md:row-start-2 @max-xs:col-span-2 @max-xs:col-start-1 @max-xs:row-start-3"
-          data-slot="composer-attach-actions"
-          gap="field"
-          role="group"
-        >
+        <Row aria-label="Attach and send" className="shrink-0 justify-self-end @max-md:ms-auto" data-slot="composer-attach-actions" gap="field" role="group">
           <ComposerGuidedUtilityMenu
             hasText={hasText}
             trimmed={trimmed}
