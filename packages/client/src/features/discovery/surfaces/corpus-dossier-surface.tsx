@@ -207,12 +207,19 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                 LEAD WITH THE CLAIM THE NUMBERS SUPPORT (side-eye corpus re-pass #2, P3-1). The line opened
                 "Closest first" and then spent two clauses walking it back — over a column of percents that
                 visibly does NOT descend, so the first thing a reader checks is the first thing that looks
-                wrong. Same two facts, ordered so the sentence survives its own evidence. */}
+                wrong. Same two facts, ordered so the sentence survives its own evidence.
+
+                AND IT NO LONGER HAS TO DEFEND ITSELF (side-eye populated arm 2026-08-23, [P2-2]:
+                "when a list needs prose to explain why it disagrees with itself, the list is wrong, not
+                the prose"). The rows print their RANK beside the percent now, so the ordering is visible
+                rather than asserted, and the clause that existed only to pre-empt the contradiction
+                ("so it won't descend") is gone. The sentence keeps the part that is still information —
+                which of the two quantities each number is. */}
             <Text className="max-w-(--reading-measure)" voice="gloss">
-              Ranked by distinctive similarity — the percent is plain card similarity, so it won't descend.
+              Ranked by distinctive similarity; the percent beside each rank is plain card similarity.
             </Text>
             <Stack gap="row" role="list">
-              {dossier.similar.map((neighbor) => {
+              {dossier.similar.map((neighbor, index) => {
                 const neighborFacet = characterFacetLine(neighbor.genre, neighbor.tone);
                 return (
                   <ListRow
@@ -222,7 +229,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                     leading={<CharacterAvatar id={neighbor.characterId} name={neighbor.name} hash={neighbor.avatarHash} />}
                     title={neighbor.name}
                     subtitle={neighbor.elevatorPitch ?? (neighborFacet === "" ? "" : neighborFacet)}
-                    actions={<Relevance value={neighbor.relevance} />}
+                    actions={<Relevance rank={index + 1} value={neighbor.relevance} />}
                   />
                 );
               })}
@@ -263,14 +270,14 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
   }
   return (
     <Stack gap="row" role="list">
-      {art.data.map((hit) => (
+      {art.data.map((hit, index) => (
         <ListRow
           key={hit.characterId}
           clickable={true}
           onClick={(): void => selectCorpusCharacter(hit.characterId)}
           leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
           title={hit.name}
-          actions={<Relevance value={hit.relevance} />}
+          actions={<Relevance rank={index + 1} value={hit.relevance} />}
         />
       ))}
     </Stack>
@@ -284,11 +291,18 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
  * used to print: that is a hub-adjusted DISTANCE clamped at zero, so this strip read
  * 0, 0, 0, 0, 0, 0.006, 0.011, 0.014 for Hikari's eight nearest neighbours — the five reading zero were the
  * five CLOSEST (corpus forensics §3). The ORDER is still the server's CSLS rank.
+ *
+ * THE RANK IS PRINTED BESIDE IT NOW (side-eye populated arm 2026-08-23, [P2-2]), which is what lets the
+ * sentence above the list stop apologising: two true numbers ride each row, the sort key was invisible, and
+ * a column reading 66, 60, 62, 67, 62, 69, 63, 70 under the words "Ranked by distinctive similarity" asked
+ * the reader to take the ordering on trust against the evidence in front of them. Stating the ordinal makes
+ * the sequence itself the datum — the same readout the omnibox's rows now carry (`corpus-hit-rows.tsx`
+ * `HitRank`), which is why the two lists finally read alike. `rank` is 1-based.
  */
-function Relevance({ value }: { readonly value: number }): ReactElement {
+function Relevance({ rank, value }: { readonly rank: number; readonly value: number }): ReactElement {
   return (
-    <Text voice="gloss" className="shrink-0 font-mono">
-      {percent(value)}
+    <Text className="shrink-0 font-mono" voice="gloss">
+      {rank} · {percent(value)}
     </Text>
   );
 }

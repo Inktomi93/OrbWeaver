@@ -21,10 +21,20 @@ export interface BarListItem {
 }
 
 /** Which series colour a column paints in. `accent` is the default single-series voice; the semantic pair
- *  exists so a RISING/FALLING comparison reads as two things rather than one repeated chart (P1d).
+ *  exists so a RISING/FALLING comparison reads as two things rather than one repeated chart (P1d); `quiet`
+ *  is the ACCENT-BUDGET arm.
+ *
+ *  WHY `quiet` EXISTS (side-eye corpus populated arm 2026-08-23, [P2-3]). `accent` resolves `color.chart-1`,
+ *  which IS `color.primary` — the "look here" ink. A tall single-series chart therefore spends the whole
+ *  accent budget on a default fill: a framebuffer census of the corpus overview measured 28.69% accent in
+ *  its worst 800px viewport against the §14 physics-4 cap of 10%, essentially all of it one bar list. A
+ *  chart that is REFERENCE rather than the surface's focal takes the ramp's second stop (`color.chart-2`,
+ *  muted teal) instead. Nothing is carried by hue either way — the bar-end value label and the axis name
+ *  state the reading for a viewer who sees no colour at all.
+ *
  *  Homed as a tuple and DERIVED (`no-inline-union-redecl`), so the `SERIES_COLOR` map below is exhaustive
  *  by construction and a new intent fails `tsc` rather than falling through to a default. */
-const BAR_LIST_INTENTS = ["accent", "positive", "negative"] as const;
+const BAR_LIST_INTENTS = ["accent", "positive", "negative", "quiet"] as const;
 export type BarListIntent = (typeof BAR_LIST_INTENTS)[number];
 
 export interface BarListLayout {
@@ -54,10 +64,15 @@ const CATEGORY_LABEL_SHARE = 0.35;
 /** Floor for that budget when the container width is unknown. */
 const MIN_CATEGORY_LABEL_PX = 64;
 
+/** The ramp stop `quiet` paints in — index 1 (`color.chart-2`, muted teal). Stop 0 IS `colors.series`, so
+ *  a `quiet` chart that took it would be the accent arm wearing another name. */
+const QUIET_RAMP_STOP = 1;
+
 const SERIES_COLOR: Record<BarListIntent, (colors: ChartColors) => string> = {
   accent: (colors) => colors.series,
   positive: (colors) => colors.seriesPositive,
   negative: (colors) => colors.seriesNegative,
+  quiet: (colors) => colors.palette[QUIET_RAMP_STOP],
 };
 
 /** The right gutter the bar-end value labels actually need, measured at the font they are drawn in.

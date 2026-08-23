@@ -184,7 +184,7 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
         gap="row"
         role="list"
       >
-        {hits.data.map((hit) => {
+        {hits.data.map((hit, index) => {
           const card = byId.get(hit.characterId);
           return (
             <Stack key={hit.characterId} role="listitem">
@@ -195,6 +195,7 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
                 genre={null}
                 tone={null}
                 pitch={null}
+                rank={index + 1}
                 relevance={null}
               />
             </Stack>
@@ -231,7 +232,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
   if (data.over === "characters") {
     return (
       <>
-        {data.hits.map((hit) => (
+        {data.hits.map((hit, index) => (
           <Stack key={hit.characterId} role="listitem">
             <CharacterHitRow
               characterId={hit.characterId}
@@ -240,6 +241,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
               genre={hit.genre}
               tone={hit.tone}
               pitch={hit.elevatorPitch}
+              rank={index + 1}
               relevance={hit.relevance}
             />
           </Stack>
@@ -250,8 +252,8 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
   if (data.over === "discover") {
     return (
       <>
-        {data.hits.map((hit) => (
-          <DiscoverHitRow key={hit.characterId} hit={hit} />
+        {data.hits.map((hit, index) => (
+          <DiscoverHitRow hit={hit} key={hit.characterId} rank={index + 1} />
         ))}
       </>
     );
@@ -259,14 +261,15 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
   if (data.over === "digests") {
     return (
       <>
-        {data.hits.map((hit) => (
+        {data.hits.map((hit, index) => (
           <Stack key={`${hit.blockKey.chatId}-${hit.blockKey.tier}-${hit.blockKey.blockIdx}`} role="listitem">
             <DigestHitRow
               chatId={hit.blockKey.chatId}
               chatTitle={hit.chatTitle}
+              rank={index + 1}
+              relevance={hit.relevance}
               scopedCharacterName={hit.scopedCharacterName}
               text={hit.text}
-              relevance={hit.relevance}
             />
           </Stack>
         ))}
@@ -276,9 +279,16 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
   if (data.over === "images") {
     return (
       <>
-        {data.hits.map((hit) => (
+        {data.hits.map((hit, index) => (
           <Stack key={hit.assetId} role="listitem">
-            <ImageHitRow caption={hit.caption} characterId={hit.characterId} characterName={hit.characterName} hash={hit.hash} relevance={hit.relevance} />
+            <ImageHitRow
+              caption={hit.caption}
+              characterId={hit.characterId}
+              characterName={hit.characterName}
+              hash={hit.hash}
+              rank={index + 1}
+              relevance={hit.relevance}
+            />
           </Stack>
         ))}
       </>
