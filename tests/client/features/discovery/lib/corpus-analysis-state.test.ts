@@ -18,6 +18,9 @@ const AUDITED: CorpusAnalysisInput = {
   distilled: 0,
   sceneThemes: 0,
   arcThemes: 0,
+  // The audited instance had NOT run `compute-themes` — which is what makes its zero an absence rather
+  // than a result. The other case (it ran and clustered nothing) is pinned in the rail block below.
+  storyThemesEverRan: false,
   keywords: 0,
   keywordsEverRan: false,
   duplicateCharacters: 0,
@@ -139,10 +142,29 @@ describe("the hero figure — at most ONE per surface, and never a number the se
 });
 
 describe("the readiness rail — a measurement or an honest 'not run', never a bare zero", () => {
-  test("families reads as TWO UNITS, not the mockup's false 'N of M clustered'", () => {
+  test("families reads as TWO UNITS, not the mockup's false 'N of M clustered' — and names its base", () => {
     // The mockup's "8 of 10 clustered" parses as "8 of 10 characters are clustered", which is false: all
-    // ten are, into eight families. §L.8 deviation, pinned here so it cannot drift back.
-    expect(stageDatum(AUDITED, "families")).toBe("8 families · 10 characters");
+    // ten are, into eight families. §L.8 deviation, pinned here so it cannot drift back — the two numbers
+    // are still different UNITS, which is why the row keeps two clauses.
+    // WHAT CHANGED (side-eye populated arm 2026-08-23, #535's surviving half): the character clause now
+    // names what it is out of. On the audited 327-character library this read "8 families · 242
+    // characters" and nothing on the surface accounted for the other 85 — a real measurement of a real
+    // thing, printed as if it were the whole library.
+    expect(stageDatum(AUDITED, "families")).toBe("8 families · 10 of 10 characters");
+    expect(stageDatum({ ...AUDITED, characters: 12 }, "families"), "the shortfall is derivable from the row itself").toBe("8 families · 10 of 12 characters");
+  });
+
+  test("story themes get the SAME three states as their four siblings (populated arm, P1-3)", () => {
+    // THE DEFECT: this row branched on the COUNT alone — `storyThemes === 0 ? "not run"` — which is the
+    // #164 incident surviving in the one row that never got an `everRan` input. On the audited library
+    // `compute-themes` had SUCCEEDED at createdAt 1787431820258 and clustered zero themes, and the rail
+    // reported it as never-run, next to a primary button offering to run it.
+    expect(stageDatum(AUDITED, "storyThemes"), "un-run stays un-run").toBe("not run");
+    expect(stageDatum({ ...AUDITED, storyThemesEverRan: true }, "storyThemes"), "ran and clustered nothing is a RESULT").toBe("none found");
+    expect(stageDatum({ ...AUDITED, storyThemesEverRan: true, arcThemes: 4 }, "storyThemes")).toBe("4 themes computed");
+    // A pass that never ran cannot have found anything, so the un-run arm outranks a stale count — the
+    // same precedence the near-duplicate row already enforces.
+    expect(stageDatum({ ...AUDITED, arcThemes: 4 }, "storyThemes")).toBe("not run");
   });
 
   test("a pass that has produced nothing says 'not run', and its dot is not lit", () => {
@@ -182,7 +204,7 @@ describe("the readiness rail — a measurement or an honest 'not run', never a b
   test("keywords are their OWN row, and never marked done on the theme pass's evidence (forensics §9.1)", () => {
     // The row said "Story themes & keywords" and read story themes alone — so a library with 16 themes and
     // an empty keyword table showed one green row for two passes, one of which has never run.
-    const themed: CorpusAnalysisInput = { ...AUDITED, sceneThemes: 16 };
+    const themed: CorpusAnalysisInput = { ...AUDITED, sceneThemes: 16, storyThemesEverRan: true };
     expect(deriveCorpusAnalysisState(themed).stages.find((s) => s.id === "storyThemes")?.label).toBe("Story themes");
     expect(deriveCorpusAnalysisState(themed).stages.find((s) => s.id === "keywords")?.done).toBe(false);
     expect(stageDatum(themed, "keywords")).toBe("not run");
@@ -253,6 +275,6 @@ describe("copy law", () => {
   test("one of anything is singular in both the prose and the datum forms", () => {
     const single: CorpusAnalysisInput = { ...AUDITED, characters: 1, familySizes: [1] };
     expect(deriveCorpusAnalysisState(single).headline).toBe("One character, grouped into one visual family.");
-    expect(stageDatum(single, "families")).toBe("1 families · 1 character");
+    expect(stageDatum(single, "families")).toBe("1 families · 1 of 1 character");
   });
 });

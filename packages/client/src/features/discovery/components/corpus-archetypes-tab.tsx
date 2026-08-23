@@ -41,6 +41,7 @@
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
+import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -50,6 +51,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { selectCorpusCharacter } from "#state";
 import { disambiguateLabels, toBarItems } from "../lib/corpus-charts.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { facetLabel, sentenceCase } from "../lib/corpus-vocabulary.ts";
@@ -243,10 +245,32 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
             shape="rounded"
             size="sm"
           />
-          {/* `min-w-0` or the names refuse to wrap below the strip's intrinsic width and push the row wide. */}
-          <Text className="min-w-0 flex-1" voice="gloss">
-            {cluster.members.map((m) => m.name).join(", ")}
-          </Text>
+          {/* EVERY MEMBER IS A DOOR (side-eye populated arm 2026-08-23, [P2-5]). This was one comma-joined
+              `gloss` line, and the tab's complete `--map` was TWELVE elements whose only controls were the
+              `Clusters` combobox and two chart canvases: 18 clusters naming 569 memberships, none of them
+              actable. §14 makes that the wrong region for it — CONTEXT is detail and config OF the active
+              artifact, so a panel that tells you 84 characters are "dark fantasy" and gives you no way to
+              see one of them is a read-only wall in the one place whose job is acting on things. The Map
+              tab one click away already does this right ("Click a card to open its dossier"), and it is
+              the same destination: `selectCorpusCharacter` into the CONTENT dossier.
+
+              THE BRIEF'S OTHER ARM — a cluster row FILTERING the LIST pane to its members — is not taken
+              here, and deliberately: the browse view holds its four facets in component state
+              (`corpus-browse-view.tsx`), so that arm is a state lift plus a synthetic facet the server has
+              no axis for. The report offers both; this is the one that is a door rather than a refactor.
+
+              A `wrap`-sized ghost Button per name, not a link list: the same control the gem shelf and
+              quick-picks use for "a grid cell whose subject is a character", so the hover/focus/press
+              vocabulary is the one this section already teaches. */}
+          <Row className="min-w-0 flex-1 flex-wrap" gap="tight">
+            {cluster.members.map((member) => (
+              <Button intent="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
+                <Text as="span" className="truncate text-muted-foreground" voice="label">
+                  {member.name}
+                </Text>
+              </Button>
+            ))}
+          </Row>
         </Row>
       ) : null}
     </Stack>

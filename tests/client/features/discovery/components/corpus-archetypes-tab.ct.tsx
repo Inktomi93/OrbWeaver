@@ -102,8 +102,16 @@ test("a cluster member carrying a hash draws its blob; a null one draws hue-seed
   await expect(morgathaSeat.locator("img")).toHaveCount(0);
   await expect(morgathaSeat.locator('[data-slot="avatar-fallback"]')).toHaveAttribute("data-hue", ANY_HUE);
 
-  // The names did not go away when the faces arrived — the strip is art, the text is the roster.
-  await expect(component.getByText("Sable, Morgatha, Ilse")).toBeVisible();
+  // The names did not go away when the faces arrived — the strip is art, the roster is the text.
+  // AND EVERY NAME IS A DOOR (side-eye populated arm 2026-08-23, [P2-5]). The roster was one comma-joined
+  // gloss line, so this tab named 569 memberships across 18 clusters and offered no way to open any of
+  // them — a read-only wall in the region §14 reserves for acting on the active artifact. Same destination
+  // the Map tab uses one click away: `selectCorpusCharacter` into the CONTENT dossier.
+  await Promise.all(
+    ["Sable", "Morgatha", "Ilse"].map(async (name) =>
+      expect(component.getByRole("button", { exact: true, name }), `${name} is a control, not a comma-separated word`).toBeVisible(),
+    ),
+  );
 
   // FACELESS SEATS VARY (issue #154's third symptom). The hue is seeded off the member's NAME, so two
   // portrait-less members with real, different names must not resolve to the same swatch — that identity is

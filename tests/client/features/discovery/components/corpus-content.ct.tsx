@@ -233,7 +233,10 @@ test("THE THIN IN-BETWEEN: distilled but no story themes — the map takes the f
   await expect(component.getByText("Story themes & keywords")).toHaveCount(0);
   await expect(component.getByText("not run")).toHaveCount(3);
   await expect(component.getByText("none found")).toHaveCount(0);
-  await expect(component.getByText("3 of 10")).toBeVisible();
+  // EXACT (side-eye populated arm 2026-08-23, #535's surviving half): the families row now names its own
+  // base too ("2 families · 3 of 10 characters"), so a substring match on the distilled partial resolves
+  // two rows. The distilled row is the one this test is about.
+  await expect(component.getByText("3 of 10", { exact: true })).toBeVisible();
   // …and the story-theme BLOCK is simply absent rather than printing its own zero note.
   await expect(component.getByRole("heading", { name: "Story themes", exact: true })).toHaveCount(0);
   await expect(component.getByText(COMPUTED_YET_NOTE)).toHaveCount(0);
@@ -283,8 +286,10 @@ test("THE PORTRAIT ON THE PAYLOAD: a member carrying a hash draws its blob; a nu
   await expect(page.locator(`img[src^="/api/blob/${ELIAS_HASH}"]`)).toHaveCount(1);
 
   // NULL hash — Morgatha's seat degrades to hue-seeded initials rather than a broken image or an invented
-  // portrait. The plate that names her still renders.
-  await expect(component.getByText("Morgatha", { exact: true })).toBeVisible();
+  // portrait. The plate that names her still renders — in its GLOSS now, not as the plate's title
+  // (side-eye populated arm 2026-08-23, [P2-1]: the member-run arm was displacing the family's real label,
+  // which the Archetypes tab was printing 30px away, so one family had two names in one frame).
+  await expect(component.getByText("Morgatha", { exact: false })).toBeVisible();
   const morgathaSeat = page.locator('[data-slot="avatar-stack-item"]', { has: page.locator('text="M"') });
   await expect(morgathaSeat.locator("img")).toHaveCount(0);
 
@@ -425,19 +430,34 @@ const FREE_ROUTES = [
   },
 ];
 
-test("MODEL ECONOMICS IS GUARDED ON SPEND, not on row count (forensics §7)", async ({ mount, page }) => {
-  // `modelRouting` returns a row per (genre × model) whether or not money moved, so the old
-  // `routing.length` guard rendered 134 rows — 133 of them exactly $0.00 — at 4,304px, while this
-  // surface's own header claimed the section renders "only when there is spend to report".
+// ── THE SPEND GUARD IS REVERSED, AND BOTH RULINGS ARE RECORDED (side-eye populated arm 2026-08-23, #553)
+// THE OLD PIN (verbatim, so the reversal is legible): "MODEL ECONOMICS IS GUARDED ON SPEND, not on row
+//   count (forensics §7)" — `modelRouting` returns a row per (genre × model) whether or not money moved,
+//   so the original `routing.length` guard rendered 134 rows, 133 of them exactly $0.00, at 4,304px.
+// WHAT KILLED ITS PREMISE: on the 327-character library 141 of 142 routes carry `costUsd: null` (a local
+//   model has no dollar cost; OpenRouter rows arrive estimated) while `generations` and `tokensOut` are
+//   populated on ALL of them. The spend guard therefore reduced 11,321 generations and 7.96M tokens to
+//   ONE bar reading $0.08 — full width, in accent orange, the page's heaviest visual weight spent on its
+//   smallest number. The wall the old ruling deleted was made by LENGTH, not by currency.
+// WHAT SURVIVES UNCHANGED, and is pinned harder below: the section must never fabricate a dollar figure
+//   for a route whose cost was never recorded. That was the real content of "133 of them exactly $0.00",
+//   and it is now enforced on a section that renders.
+test("MODEL ECONOMICS REPORTS WHAT THE ROUTES DID, and invents no dollars to do it (#553)", async ({ mount, page }) => {
   await stub(page, { ...POPULATED, "discovery.modelRouting": FREE_ROUTES });
   const component = await mount(<CorpusContentStory />);
   await expect(component.getByRole("heading", { level: 1 })).toBeVisible();
 
-  await expect(component.getByRole("heading", { name: "Model economics" })).toHaveCount(0);
+  // It RENDERS on a library that never spent a cent — the quantities it charts are the ones every route
+  // carries, and a corpus with no cost accounting still has economics.
+  await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
+  // …and not one currency figure appears: the zero-cost routes contribute a generation count, never a
+  // fabricated `$0.00` (the old ruling's real concern, kept).
   await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
+  // The coverage is STATED rather than implied by the section's absence.
+  await expect(component.getByText("cost recorded for 0 of 2 routes", { exact: false })).toBeVisible();
 });
 
-test("…and one PAID route brings it back — the guard reports spend, it does not delete the report", async ({ mount, page }) => {
+test("…and a PAID route is annotated, never promoted over the quantities (#553)", async ({ mount, page }) => {
   await stub(page, {
     ...POPULATED,
     "discovery.modelRouting": [
@@ -448,12 +468,17 @@ test("…and one PAID route brings it back — the guard reports spend, it does 
   });
   const component = await mount(<CorpusContentStory />);
   await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
-  // The canvas has a hidden table equivalent; it must contain only the paid route, never a fabricated
-  // zero-dollar row for a route whose cost was absent.
-  await expect(component.getByText("Cost by route")).toBeVisible();
-  const table = component.getByRole("table", { name: "Cost by route" });
-  await expect(table.getByRole("row")).toHaveCount(2);
-  await expect(table.getByRole("cell")).toHaveText(["$0.04"]);
+
+  // The canvas's hidden table equivalent is the honest read of the series. Every route is a row — the
+  // reader is no longer shown 1 of 4 — and the VALUE column is generations, not dollars.
+  const table = component.getByRole("table", { name: "Busiest routes" });
+  await expect(table.getByRole("row"), "a header row plus all four routes").toHaveCount(5);
+  await expect(table.getByRole("cell")).toHaveText(["40", "40", "40", "12"]);
+  // The one recorded price rides its own route's LABEL, and the route whose cost is absent stays silent
+  // rather than acquiring a $0.00.
+  await expect(table.getByRole("rowheader").filter({ hasText: "$0.04" })).toHaveCount(1);
+  await expect(table.getByRole("rowheader").filter({ hasText: "unknown-cost" })).not.toContainText("$");
+  await expect(component.getByText("cost recorded for 1 of 4 routes", { exact: false })).toBeVisible();
 });
 
 test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {

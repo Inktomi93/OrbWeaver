@@ -88,6 +88,14 @@ export interface CorpusAnalysisInput {
   readonly distilled: number;
   readonly sceneThemes: number;
   readonly arcThemes: number;
+  /** Has `compute-themes` ever succeeded? THE ROW THAT DIDN'T HAVE THIS (side-eye populated arm, P1-3).
+   *  Every other pass on this rail already distinguishes "it has not run" from "it ran and found nothing"
+   *  — that three-state doctrine is stated three functions down and was honoured by four rows out of five.
+   *  The story-themes row branched on the COUNT alone, so on the audited library `compute-themes` succeeded
+   *  at `createdAt 1787431820258`, clustered zero themes, and the rail reported it as never-run — next to a
+   *  button inviting the user to run it. A zero from a pass that ran is a measurement; the rail's whole
+   *  contract is that the two get different words. */
+  readonly storyThemesEverRan: boolean;
   /** Keyword profiles are their OWN pass (`compute-cooccurrence`), which is NOT in the understanding-pass
    *  chain — so it needs its own datum and its own ran/not-run, exactly like the near-dup row. It is also
    *  the one count on this rail that arrives from a NON-suspending read, which is why it is a
@@ -302,7 +310,15 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
       // NOT the mockup's "8 of 10 clustered" (§L.8 deviation, receipted): that parses as "8 of 10
       // characters are clustered", which is false — all ten are, into eight families. The two numbers are
       // different units and the copy has to say so.
-      datum: families === 0 ? "not run" : `${formatCount(families)} families · ${plural(clustered, "character")}`,
+      //
+      // …AND THE CHARACTER COUNT NAMES ITS BASE (side-eye populated arm, #535's surviving half). This read
+      // `8 families · 242 characters` on a 327-character library: 242 is a real measurement of a real
+      // thing — how many characters the portrait clustering placed — and NOTHING on the surface said what
+      // it was 242 OUT OF, so the 85 characters in no visual family were invisible in every one of the
+      // four denominators this section prints (327 / 313 / 242 / 204). A clustered count and an owned
+      // count are still different units from the family count, which is why the row keeps two clauses
+      // rather than collapsing to one ratio — the second clause simply stops being a bare number.
+      datum: families === 0 ? "not run" : `${formatCount(families)} families · ${formatCount(clustered)} of ${plural(input.characters, "character")}`,
       done: families > 0,
     },
     {
@@ -318,7 +334,12 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
       // dossier printed "No keyword profile computed yet.", and the rail is the surface's ONE designated home
       // for what has not run. Two passes, two rows.
       label: "Story themes",
-      datum: storyThemes === 0 ? "not run" : `${plural(storyThemes, "theme")} computed`,
+      // THE THREE-STATE DOCTRINE, FINALLY APPLIED TO THIS ROW (side-eye populated arm, P1-3). It read
+      // `storyThemes === 0 ? "not run"`, which is the #164 incident this module was rebuilt to prevent,
+      // surviving in the one row that never got an `everRan` input: on the audited library the pass HAD
+      // succeeded and clustered nothing, and the rail called that never-run beside a button offering to
+      // run it. `passDatum` is the shared reading its four siblings already go through.
+      datum: passDatum(input.storyThemesEverRan, storyThemes, `${plural(storyThemes, "theme")} computed`),
       done: storyThemes > 0,
     },
     {
