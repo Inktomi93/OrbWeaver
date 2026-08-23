@@ -191,12 +191,33 @@ export interface StringyAudit {
 
 /** ONE call site of the subject verb: the call node, the first-argument object's KEY SET, and — when that
  *  set could not be read — the reason, which is REPORTED rather than dropped (an unjudged site is not
- *  evidence that the doors agree). `via` names the same-file const a key set was resolved THROUGH. */
+ *  evidence that the doors agree). `via` names the same-file const a key set was resolved THROUGH; `door`
+ *  names the CLIENT-door resolution chain (the receiver, the factory hook it was bound to, and the tRPC
+ *  procedure that hook was built against) when the site is a `.mutate(…)` fire rather than a direct call,
+ *  and is null for a direct call site. */
 export interface SubsetCallSite {
   readonly node: Node;
   readonly keys: readonly string[] | null;
   readonly unresolved: string | null;
   readonly via: string | null;
+  readonly door: string | null;
+}
+
+/** WHICH DOOR CLASSES THE WALK COULD JUDGE — the zero-hygiene half of a client-door verdict. `factories` is
+ *  the blindness denominator (zero on a real corpus means the client-door arm never ran, never "no doors");
+ *  `unresolvedFires` counts the `.mutate(…)` sites whose receiver level-1 resolution could not follow, ANY
+ *  of which could be another door on the subject; `procedures` is the distinct set the matched doors
+ *  resolved to, so a bare member name that pooled two different verbs is visible instead of silent. */
+export interface SubsetDoorCensus {
+  readonly factories: number;
+  readonly unresolvedFires: number;
+  readonly procedures: readonly string[];
+}
+
+/** The raw walk behind a {@link SubsetAudit}: the call sites plus the door census the banner prints. */
+export interface SubsetSiteScan {
+  readonly sites: readonly SubsetCallSite[];
+  readonly doors: SubsetDoorCensus;
 }
 
 /** ONE likely-stale door: a call site whose key set is a STRICT SUBSET of one or more other sites', plus
@@ -213,6 +234,7 @@ export interface SubsetAudit {
   readonly sites: readonly SubsetCallSite[];
   readonly resolved: number;
   readonly findings: readonly SubsetFinding[];
+  readonly doors: SubsetDoorCensus;
 }
 
 /** The boundary class of an export. TEST-ONLY is the flagged arm of PUBLIC (cross-boundary but not prod API). */
