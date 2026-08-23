@@ -105,9 +105,23 @@ export interface AutocompleteProps extends AutocompletePassthrough {
    * forces the internal open state to `true` under `inline` anyway, so a conditional `open` here would read
    * as a gate that does nothing. The VISIBILITY gate is the item list itself: with nothing to show the
    * popup carries `data-empty` and collapses. The `arrow`/`side`/`align`/`sideOffset`/`container`/
-   * `emptyText` positioning props have no meaning in this arm and are ignored. @defaultValue false
+   * `emptyText` positioning props have no meaning in this arm and are ignored.
+   *
+   * Because the gate is the item count, this arm states its OWN `aria-expanded` and its OWN status
+   * visibility off that count rather than off `open` — see `AutocompleteField` and
+   * `AutocompleteResultStatus`. @defaultValue false
    */
   inline?: BaseRootProps<string>["inline"];
+}
+
+/** How many SUGGESTIONS Base UI's own filter currently yields — grouped entries flattened to their leaves.
+ *  The one count behind both the announced status and the inline arm's expansion state, so the region that
+ *  speaks and the attribute that claims can never disagree. */
+function countSuggestions(filtered: readonly unknown[]): number {
+  return filtered.reduce<number>((total, entry) => {
+    const nested = (entry as { items?: readonly unknown[] }).items;
+    return total + (Array.isArray(nested) ? nested.length : 1);
+  }, 0);
 }
 
 /**
@@ -118,17 +132,74 @@ export interface AutocompleteProps extends AutocompletePassthrough {
  * on a surface that renders its own hits below the field, announcing it as "2 results" over twenty rendered
  * hits reported the wrong number for the wrong list. Combobox/Command keep `formatResultCount` — there the
  * list IS the result set.
+ *
+ * IT IS SILENT WHEN THE INLINE LIST HAS NOTHING (#537, corpus ARIA sweep). The popup arm mounts this only
+ * while the popup is open, so "0 suggestions" there is an answer to a question the user asked. The INLINE
+ * arm has no popup to gate it: the region sat in the DOM from mount, permanently reading "0 suggestions"
+ * over a resting 200-row catalog, and on the corpus surface it was the SECOND live region competing with
+ * the result list's own count. A typeahead that has nothing to suggest has nothing to say.
  */
-function AutocompleteResultStatus(): ReactElement {
-  const filtered = BaseAutocomplete.useFilteredItems<unknown>();
-  const count = filtered.reduce<number>((total, entry) => {
-    const nested = (entry as { items?: readonly unknown[] }).items;
-    return total + (Array.isArray(nested) ? nested.length : 1);
-  }, 0);
+function AutocompleteResultStatus({ silentWhenEmpty }: { readonly silentWhenEmpty: boolean }): ReactElement | null {
+  const count = countSuggestions(BaseAutocomplete.useFilteredItems<unknown>());
+  if (silentWhenEmpty && count === 0) {
+    return null;
+  }
   return (
     <BaseAutocomplete.Status className={slots.status()} data-slot="autocomplete-status">
       {formatSuggestionCount(count)}
     </BaseAutocomplete.Status>
+  );
+}
+
+/** The field row (input + clear).
+ *
+ *  IT OWNS THE INLINE ARM'S `aria-expanded` (#537, corpus ARIA sweep). Base UI derives the attribute as
+ *  `open || inline` (`AriaCombobox.js`), so an inline combobox reports `aria-expanded="true"` from the
+ *  moment it mounts — on the corpus omnibox a pristine, never-typed-in search box announced itself expanded
+ *  onto a popup with nothing in it. `open` cannot state the truth here (the root forces it true under
+ *  `inline`, and Base UI REQUIRES the caller pass it true), so the attribute is stated directly, off the
+ *  same filtered count the status region speaks: the inline list's visibility gate IS its item count
+ *  (`data-empty:hidden`), so "expanded" means "there is a list on screen". The popup arm is untouched —
+ *  there `open` is the truth and Base UI already tracks it.
+ *
+ *  A component of its own because the count comes from a Root-context hook, which cannot be read by the
+ *  caller of `Autocomplete` — only from inside `BaseAutocomplete.Root`. */
+function AutocompleteField({
+  inline,
+  ariaLabel,
+  ariaDescribedby,
+  className,
+  clearLabel,
+  id,
+  placeholder,
+  inputRef,
+}: {
+  readonly inline: boolean;
+  readonly ariaLabel: string | undefined;
+  readonly ariaDescribedby: string | undefined;
+  readonly className: string | undefined;
+  readonly clearLabel: string;
+  readonly id: BaseRootProps<string>["id"];
+  readonly placeholder: string | undefined;
+  readonly inputRef: BaseRootProps<string>["inputRef"];
+}): ReactElement {
+  const hasSuggestions = countSuggestions(BaseAutocomplete.useFilteredItems<unknown>()) > 0;
+  return (
+    <BaseAutocomplete.InputGroup className={slots.inputGroup()} data-slot="autocomplete-input-group">
+      <BaseAutocomplete.Input
+        aria-describedby={ariaDescribedby}
+        aria-label={ariaLabel}
+        className={cn(slots.input(), className)}
+        data-slot="autocomplete-input"
+        id={id}
+        placeholder={placeholder}
+        ref={inputRef}
+        {...(inline ? { "aria-expanded": hasSuggestions } : {})}
+      />
+      <BaseAutocomplete.Clear aria-label={clearLabel} className={slots.clear()} data-slot="autocomplete-clear">
+        <Icon icon={X} size="sm" />
+      </BaseAutocomplete.Clear>
+    </BaseAutocomplete.InputGroup>
   );
 }
 
@@ -197,20 +268,16 @@ export function Autocomplete({
 
   const inner = (
     <>
-      <BaseAutocomplete.InputGroup className={slots.inputGroup()} data-slot="autocomplete-input-group">
-        <BaseAutocomplete.Input
-          aria-describedby={ariaDescribedby}
-          aria-label={ariaLabel}
-          className={cn(slots.input(), className)}
-          data-slot="autocomplete-input"
-          id={id}
-          placeholder={placeholder}
-          ref={inputRef}
-        />
-        <BaseAutocomplete.Clear aria-label={clearLabel} className={slots.clear()} data-slot="autocomplete-clear">
-          <Icon icon={X} size="sm" />
-        </BaseAutocomplete.Clear>
-      </BaseAutocomplete.InputGroup>
+      <AutocompleteField
+        ariaDescribedby={ariaDescribedby}
+        ariaLabel={ariaLabel}
+        className={className}
+        clearLabel={clearLabel}
+        id={id}
+        inline={inline}
+        inputRef={inputRef}
+        placeholder={placeholder}
+      />
       {inline ? (
         // NO Portal/Positioner/Popup/Empty in this arm — that IS the arm (and Base UI's `Popup` part throws
         // outside a `Positioner`, so it is not optional here). The List is the bounded box; `Empty` is
@@ -220,7 +287,7 @@ export function Autocomplete({
           <BaseAutocomplete.List className={slots.inlineList()} data-slot="autocomplete-inline-list">
             {listChild}
           </BaseAutocomplete.List>
-          <AutocompleteResultStatus />
+          <AutocompleteResultStatus silentWhenEmpty={true} />
         </>
       ) : (
         <BaseAutocomplete.Portal container={container ?? portalContainer}>
@@ -233,7 +300,7 @@ export function Autocomplete({
               <BaseAutocomplete.List className={slots.list()} data-slot="autocomplete-list">
                 {listChild}
               </BaseAutocomplete.List>
-              <AutocompleteResultStatus />
+              <AutocompleteResultStatus silentWhenEmpty={false} />
             </BaseAutocomplete.Popup>
           </BaseAutocomplete.Positioner>
         </BaseAutocomplete.Portal>

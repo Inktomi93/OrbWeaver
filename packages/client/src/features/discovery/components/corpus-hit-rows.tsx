@@ -21,7 +21,7 @@
 // The badge rendered `hit.score` — the server's CSLS-adjusted cosine DISTANCE, clamped at 0 — so every
 // genuinely relevant hit read `0.00` and only a nonsense query produced anything non-zero. It now reads
 // `hit.relevance` (`1 − distance`, higher = closer) as a percent. The ORDER is still the server's CSLS rank;
-// this seam only decides what the reader is shown, which is why there is exactly one `RelevanceBadge`.
+// this seam only decides what the reader is shown, which is why there is exactly one `relevanceMeta`.
 //
 // NO `data-testid` ON A `ListRow`. Four of them once sat here and reached the DOM in exactly one place: the
 // primitive builds its body from named props and forwards no rest props, so `data-testid` on a `<ListRow>`
@@ -83,7 +83,7 @@ export function CharacterHitRow({
       leading={<CharacterAvatar id={characterId} name={name} hash={avatarHash} />}
       title={name}
       subtitle={subtitle}
-      actions={relevance === null ? undefined : <RelevanceBadge relevance={relevance} />}
+      {...(relevance === null ? {} : { meta: relevanceMeta(relevance) })}
     />
   );
 }
@@ -123,7 +123,7 @@ export function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactEle
         // (scrollWidth 282 vs 213): a sentence whose whole job is to say what the list below does NOT show,
         // cut before it could say it. The Memories row already wraps its body for the same reason.
         subtitleWrap={true}
-        actions={<RelevanceBadge relevance={hit.relevance} />}
+        meta={relevanceMeta(hit.relevance)}
       />
       <Stack className="pl-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {passages.map((passage) => (
@@ -205,7 +205,7 @@ export function DigestHitRow({
       title={chatSubtitle(chatTitle, scopedCharacterName)}
       subtitle={snippetForDisplay(text)}
       subtitleWrap={true}
-      actions={<RelevanceBadge relevance={relevance} />}
+      meta={relevanceMeta(relevance)}
     />
   );
 }
@@ -258,7 +258,7 @@ export function ImageHitRow({
         }
         title={caption ?? "Uncaptioned image"}
         subtitle="No card uses this image — nothing to open"
-        actions={<RelevanceBadge relevance={relevance} />}
+        meta={relevanceMeta(relevance)}
       />
     );
   }
@@ -269,7 +269,7 @@ export function ImageHitRow({
       leading={<CharacterAvatar hash={hash} id={characterId} name={characterName ?? ""} />}
       title={characterName ?? "Untitled card"}
       subtitle={caption ?? "Uncaptioned image"}
-      actions={<RelevanceBadge relevance={relevance} />}
+      meta={relevanceMeta(relevance)}
     />
   );
 }
@@ -288,10 +288,16 @@ function openChat(chatId: ChatId): void {
 // A WHOLE PERCENT, not two decimals of a unit nobody has: `relevance` is a cosine similarity, and the digit
 // that would distinguish 0.8813 from 0.8809 is noise a reader cannot act on. The percent also reads
 // higher-is-better without a legend, which the clamped distance it replaced never could.
-function RelevanceBadge({ relevance }: { readonly relevance: number }): ReactElement {
-  return (
-    <Text voice="gloss" className="shrink-0 font-mono">
-      {percent(relevance)}
-    </Text>
-  );
+//
+// IT RIDES `meta`, NOT `actions` (#537, corpus ARIA sweep). `actions` is a SIBLING of the clickable body by
+// ListRow's own contract, so the score sat OUTSIDE the button it belongs to: a screen-reader user hearing
+// "Elara Vance, a wandering cartographer" got no number at all, while the sighted reader beside them read
+// the whole list by it. `meta` is the primitive's slot for exactly this — the same trailing mono/tabular
+// datum treatment, rendered INSIDE the row's accessible content and carried on its `aria-describedby`
+// (its own prop doc names the defect: "unlike a stamp stranded in the `actions` sibling"). The rows keep
+// their empty `actions` slot free, which is also why nothing here reserves width for a cluster it has none
+// of. The score is a string here rather than a component because `meta` is typed `string` — the slot is a
+// datum, and the mono/tabular skin is the primitive's.
+function relevanceMeta(relevance: number): string {
+  return percent(relevance);
 }

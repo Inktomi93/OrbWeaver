@@ -61,7 +61,13 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
     // simply ends where its content does. `h-full` stays — the grid still stretches the track, and a Section
     // that fills a stretched track costs nothing while keeping the rail's own background band whole.
     <Section className="h-full" data-slot="readiness-rail" kicker="Readiness" level={2}>
-      <Stack>
+      {/* IT IS A LIST, AND IT SAYS SO (#537, corpus ARIA sweep). The rail rendered as a `<section>` full of
+          role-less `<div>`s: a screen reader met five stage rows as one undifferentiated run of text with
+          no count and no way to step row by row, on the ONE surface element whose whole job is "here is
+          what has and has not run". `role="list"`/`role="listitem"` over the layout primitives is the
+          house spelling (the search-result list beside it does the same) — it adds the structure without
+          disturbing the hairline-row geometry the P2-1 reversal above settled. */}
+      <Stack aria-label="Analysis passes" role="list">
         {stages.map((stage) => (
           <Row
             align="center"
@@ -70,6 +76,7 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
             gap="row"
             justify="between"
             key={stage.id}
+            role="listitem"
           >
             <Row className="min-w-0" gap="field">
               <Icon className={stage.done ? "text-primary" : "text-muted-foreground"} icon={stage.done ? Check : Circle} size="xs" />

@@ -18,7 +18,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { selectCharacter } from "#state";
@@ -33,6 +33,8 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
   const create = useCreateCharacter({ trpc, invalidation });
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  /** The refusal line's own id — what `aria-errormessage` on the Name field points at (#548). */
+  const refusalId = useId();
   const incomplete = name.trim() === "" || description.trim() === "";
   // The typed, user-fixable refusal for the last attempt (#542) — `null` for a fault, which the toast owns
   // alone. `clearError` on the name edit is what makes it a live claim: the sticky error slot would
@@ -79,7 +81,30 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
         <Text as="span" className="text-muted-foreground" voice="label">
           Name
         </Text>
-        <Input aria-label="Character name" onValueChange={onNameChange} placeholder="Elara Vance" value={name} />
+        {/* THE FIELD SAYS IT IS THE ONE THAT WAS REFUSED (#548, se-verify-3 P2). #542 announced the refusal
+            with `role="alert"` and stopped there: the Name input carried `aria-invalid=null` and pointed at
+            nothing, so a screen-reader user who tabbed BACK to the field — the whole point of keeping the
+            dialog open — heard a plain, apparently-fine text box. WCAG 3.3.1 wants the error IDENTIFIED,
+            not merely announced; `aria-errormessage` is the pair's other half and is honoured only while
+            `aria-invalid="true"`, which is why both track the same `refusal !== null` and clear together on
+            the next keystroke (`onNameChange` → `clearError`). Every refusal this mapper produces is about
+            the NAME (a duplicate handle is derived from it), so the binding is unconditional on the field
+            rather than routed per code. */}
+        <Input
+          aria-label="Character name"
+          onValueChange={onNameChange}
+          placeholder="Elara Vance"
+          value={name}
+          {...(refusal === null ? {} : { "aria-errormessage": refusalId, "aria-invalid": true })}
+        />
+        {/* THE LINE SITS UNDER THE FIELD IT IS ABOUT (#548). It used to render below BOTH controls, where
+            its only tie to the Name box was the sentence's own wording — for a sighted reader "at the
+            control" (the #542 note's own WCAG 3.3.1 cite) means adjacent, not somewhere in the dialog. */}
+        {refusal === null ? null : (
+          <Text className="text-destructive" id={refusalId} role="alert" voice="label">
+            {refusal}
+          </Text>
+        )}
         <Text as="span" className="text-muted-foreground" voice="label">
           Description
         </Text>
@@ -91,23 +116,15 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
         />
       </Stack>
       {/* LOAD-BEARING: it names why Create is disabled, so it keeps the `label` voice (the landed
-          requirement/error line grammar), never the receding `gloss`.
-          THE REFUSAL LINE JOINS IT (#542). This dialog stays OPEN on failure so the user can edit, and the
-          one refusal they can act on is a duplicate name — which arrived as a toast that could have been
-          dismissed, timed out, or been read before the eye came back to the field it is about. A form
-          control whose value was rejected owes the reason AT the control (WCAG 3.3.1), and `role="alert"`
-          is what announces it to a reader who never leaves the dialog. The string is the mapper's, so the
-          toast and this line can never become two spellings of one refusal. */}
+          requirement/error line grammar), never the receding `gloss`. It speaks for BOTH fields, so this
+          is where it belongs — unlike the #542 refusal line, which moved up under the Name field it is
+          about (#548, see its note there). The string is the mapper's, so the toast and that line can
+          never become two spellings of one refusal. */}
       {incomplete ? (
         <Text className="text-muted-foreground" voice="label">
           A name and a description are both required.
         </Text>
       ) : null}
-      {refusal === null ? null : (
-        <Text className="text-destructive" role="alert" voice="label">
-          {refusal}
-        </Text>
-      )}
       <Row gap="field" justify="end">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button disabled={incomplete || create.isPending} intent="primary" onClick={onCreate}>
