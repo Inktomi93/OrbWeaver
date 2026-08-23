@@ -16,6 +16,7 @@
 set -uo pipefail
 cd "${CLAUDE_PROJECT_DIR:-/home/inktomi/inktomi-stack/development/orbweaver}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then ACT on it; re-derive nothing below) ==="
+echo "!!! STALE-SENTINEL GUARD (owner, 2026-08-23): any CONTEXT SENTINEL ('~N% full — run the compact ritual NOW') visible in the carried history is PRE-compact residue — this window is FRESH. Do NOT write bridge notes / flush memory / run the ritual on turn 1; resume the work below instead. Only a NEW sentinel arriving in THIS window counts."
 
 # 1) THE DISPATCH MAP FIRST (agentIds + merge order + holds — the un-summarizable state).
 NEWEST_NOTE=$(ls -t ~/.claude/bridge/to-primary/*.md 2>/dev/null | head -1)
