@@ -1,3 +1,7 @@
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { join } from "node:path";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -174,6 +178,147 @@ function orbWorkspaceExportsRestart(): Plugin {
   };
 }
 
+// ── REACT COMPILER PERSISTENT TRANSFORM CACHE (#593) ─────────────────────────────────────────────
+// The React Compiler babel pass is the single most expensive thing this config does: ~68.3ms per
+// module COLD versus ~2.7ms warm in-process (measured #589; the CPU-profile paragraph above puts it
+// at ~72% of a profiled build). Vite persists `optimizeDeps` output across processes but NOT source
+// transforms, so EVERY fresh vite process re-pays the full cold compiler pass on a byte-identical
+// tree — every operator dev restart, and every e2e webServer boot (globalSetup's client warm-up,
+// tests/e2e/support/global-setup.ts, exists purely to absorb that cost inside the setup wall).
+// Compiling less was rejected: e2e must exercise the COMPILED build, which is the bug class it
+// exists for, and D54 is full-compile. So the compiler still runs on every distinct input — it just
+// never runs TWICE on the same input.
+//
+// THE SEAM (chosen after reading @rolldown/plugin-babel@0.2.3's installed source): the plugin is a
+// plain object whose `transform.handler` does the whole babel job (loadOptionsAsync → transformAsync),
+// while `configResolved`/`applyToEnvironment` mutate `plugin.transform.filter` and populate the
+// per-environment options converter ON THAT SAME OBJECT. So the cache wraps the handler IN PLACE on
+// the plugin instance rather than proxying the plugin: a wrapper object would receive the
+// `plugin.transform.filter = …` assignment on the inner instance and silently transform everything.
+// Wrapping the handler (not babel's own `cacheKey`/`caller`) also memoizes `loadOptionsAsync`, which
+// the profile shows is not free, and keeps the cached value byte-identical to what the plugin
+// returned — the cached output IS the compiled output, so D54 coverage is unchanged.
+//
+// THE KEY is content + toolchain, never path+mtime (a poisoned cache is worse than no cache):
+// source bytes · module id · moduleType · vite environment name · the preset options · and a
+// TOOLCHAIN DIGEST = the resolved paths AND the sha256 of the installed
+// babel-plugin-react-compiler / @vitejs/plugin-react / @rolldown/plugin-babel entry files. Content
+// hashing (not just versions) is what makes a `pnpm patch`, a link, or a same-version republish
+// invalidate. A compiler upgrade or a `reactCompilerPreset({…})` option change therefore lands in a
+// disjoint keyspace by construction; an edited source file gets a fresh transform for the same
+// reason (HMR correctness is a property of the key, not of a watcher).
+// THE VALUE keeps `map` beside `code` — serving cached code without its sourcemap would silently
+// degrade every stack trace and breakpoint in dev.
+//
+// Storage: `packages/client/node_modules/.cache/react-compiler` (gitignored twice over —
+// `node_modules/` and `.cache/`), one JSON file per key, written tmp+rename so concurrent vite
+// processes (the e2e mode-projects boot three) can share one cache safely. Bounded by a
+// startup prune; a cache read/write failure degrades to a plain transform and never fails a build.
+
+// The React Compiler's own options — EMPTY on purpose (D54 full-compile on the preset's defaults).
+// It is a named const rather than a bare `reactCompilerPreset()` call so the compiler config and the
+// cache key are physically the same value: anything added here invalidates every cached entry.
+const REACT_COMPILER_OPTIONS = {};
+const COMPILER_CACHE_DIR = join(import.meta.dirname, "node_modules", ".cache", "react-compiler");
+// Bump when the ENTRY ENCODING changes (not when the compiler changes — the toolchain digest owns that).
+const COMPILER_CACHE_FORMAT = "v1";
+// Measured 2026-08-23: one full crawl of the client graph (3,140 transformed modules) leaves 1,341
+// cache entries / 26 MB — so 8k entries is ~155 MB and holds several generations of edits before the
+// oldest half is dropped.
+const COMPILER_CACHE_MAX_ENTRIES = 8000;
+const COMPILER_TOOLCHAIN_PACKAGES = ["babel-plugin-react-compiler", "@vitejs/plugin-react", "@rolldown/plugin-babel"];
+
+/** sha256 of the installed toolchain (resolved paths + entry-file contents) + the preset options. */
+async function compilerToolchainDigest(presetOptions: object): Promise<string> {
+  const resolve = createRequire(import.meta.url).resolve;
+  const entries = COMPILER_TOOLCHAIN_PACKAGES.map((pkg) => resolve(pkg));
+  const sources = await Promise.all(entries.map((entry) => readFile(entry)));
+  const digest = createHash("sha256").update(COMPILER_CACHE_FORMAT).update(JSON.stringify(presetOptions));
+  for (const [index, entry] of entries.entries()) {
+    digest.update(entry).update(sources[index] ?? "");
+  }
+  return digest.digest("hex");
+}
+
+/** Drop the oldest half once the cache outgrows its bound. Fire-and-forget: never blocks a transform. */
+async function pruneCompilerCache(): Promise<void> {
+  try {
+    // A missing dir is the normal first-boot state (nothing cached yet), not a fault to warn about.
+    const names = await readdir(COMPILER_CACHE_DIR).catch(() => []);
+    if (names.length <= COMPILER_CACHE_MAX_ENTRIES) {
+      return;
+    }
+    const aged = await Promise.all(names.map(async (name: string) => ({ name, at: (await stat(join(COMPILER_CACHE_DIR, name))).mtimeMs })));
+    aged.sort((a, b) => a.at - b.at);
+    await Promise.all(aged.slice(0, aged.length - COMPILER_CACHE_MAX_ENTRIES / 2).map((entry) => rm(join(COMPILER_CACHE_DIR, entry.name), { force: true })));
+  } catch (cause) {
+    console.warn(`orb: react-compiler cache prune failed (harmless, the cache just keeps growing): ${String(cause)}`);
+  }
+}
+
+/**
+ * Wrap `@rolldown/plugin-babel`'s transform handler with the persistent content-hash cache described
+ * above. Mutates and returns the SAME plugin instance (see THE SEAM) — vite awaits promises in the
+ * `plugins` array, so this composes inline where `babel(…)` used to sit.
+ */
+async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel>, presetOptions: object): ReturnType<typeof babel> {
+  const plugin = await pluginPromise;
+  const hook = plugin.transform;
+  if (typeof hook !== "object" || typeof hook.handler !== "function") {
+    // Loud, not silent: a plugin-babel upgrade that moves the transform out of an object hook must
+    // re-seat this cache rather than quietly disable it (a silently-bypassed cache reads as a
+    // performance regression nobody can attribute).
+    throw new Error(
+      "orb: @rolldown/plugin-babel no longer exposes an object `transform` hook — re-seat the React Compiler cache (#593) against its new shape.",
+    );
+  }
+  const toolchain = await compilerToolchainDigest(presetOptions);
+  const inner = hook.handler;
+  let warnedWriteFailure = false;
+  void pruneCompilerCache();
+
+  hook.handler = async function cachedBabelTransform(
+    this: ThisParameterType<typeof inner>,
+    code: string,
+    id: string,
+    options: Parameters<typeof inner>[2],
+  ): Promise<Awaited<ReturnType<typeof inner>>> {
+    const key = createHash("sha256")
+      .update(toolchain)
+      .update("\0")
+      .update(this.environment?.name ?? "")
+      .update("\0")
+      .update(options?.moduleType ?? "")
+      .update("\0")
+      .update(id)
+      .update("\0")
+      .update(code)
+      .digest("hex");
+    const file = join(COMPILER_CACHE_DIR, `${key}.json`);
+    try {
+      // A hit stores the handler's OWN return value verbatim — including the `null` that stands for
+      // "this module produced no transform", which is just as expensive to re-derive as a compile.
+      return JSON.parse(await readFile(file, "utf8")) as ReturnType<typeof inner>;
+    } catch {
+      // Miss (ENOENT) or an unreadable/partial entry — both mean "compile it and write through".
+    }
+    const result = await inner.call(this, code, id, options);
+    try {
+      const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
+      await mkdir(COMPILER_CACHE_DIR, { recursive: true });
+      await writeFile(tmp, JSON.stringify(result ?? null));
+      await rename(tmp, file);
+    } catch (cause) {
+      if (!warnedWriteFailure) {
+        warnedWriteFailure = true;
+        console.warn(`orb: react-compiler cache is not writable — transforms still run, they just won't persist: ${String(cause)}`);
+      }
+    }
+    return result;
+  };
+  return plugin;
+}
+
 // @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is
 // index.html + src/main.tsx with a hand-written code-based route tree (src/routes/ — no file-based
 // codegen, UI-Arch §6.1). Every non-default option below is annotated with its why; the full
@@ -214,8 +359,11 @@ export default defineConfig({
     // preset's filter is code-content + client-env-scoped + path-agnostic (@vitejs/plugin-react@6.0.3
     // reactCompilerPreset), so it compiles @orb/ui components too — provided @orb/ui is consumed as
     // SOURCE (see optimizeDeps.exclude below), the one real correctness guarantee here.
+    // The babel pass is wrapped in the persistent content-hash transform cache (#593, see above) —
+    // same plugin instance, same compiled output, just never compiled twice for the same input. The
+    // preset options object is passed to BOTH so a config change is inside the cache key.
     react(),
-    babel({ presets: [reactCompilerPreset()] }),
+    withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS),
     tailwindcss(),
     // Dev-only overlay: tsc + this eslint config (react-hooks/Compiler/TanStack) in-browser.
     // enableBuild:false — `pnpm check` owns gate-time. eslint auto-discovers the root eslint.config.js.

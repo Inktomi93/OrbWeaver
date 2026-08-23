@@ -568,7 +568,8 @@
             "noMagicNumbers": "off"
           },
           "correctness": {
-            "noProcessGlobal": "off"
+            "noProcessGlobal": "off",
+            "noNodejsModules": "off"
           }
         }
       }
