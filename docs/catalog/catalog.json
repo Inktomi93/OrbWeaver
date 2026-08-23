@@ -426,8 +426,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 355,
-      "bytes": 169175,
-      "sha256": "115ee0418479cb8bd113f9baffb041a682a38f89d77736af9e47a19535877a69",
+      "bytes": 169208,
+      "sha256": "a39f1f74c35c25d02473aba4640d4c0fddaac49b0a314bc444ebc61ab48fa634",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -485,7 +485,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -609,8 +609,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 248517,
-      "sha256": "93f5a9ef0878282f2b988e18ec2c85867525f580f8020078275fa37fed11b570",
+      "bytes": 248669,
+      "sha256": "8c6350c4d94c5e87d615d28feb5e396ab9fed9c15ac14b9d01b546e21726a2e3",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -627,11 +627,12 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "93f5a9ef0878282f2b988e18ec2c85867525f580f8020078275fa37fed11b570",
-        "verifiedCommit": "05725390ebe0e2fa24662054a9677a970558d1c1",
-        "verifiedAt": "2026-08-22",
+        "verifiedSha256": "8c6350c4d94c5e87d615d28feb5e396ab9fed9c15ac14b9d01b546e21726a2e3",
+        "verifiedCommit": "53273609e40a8089329be8da926e2de3a0e632e7",
+        "verifiedAt": "2026-08-23",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
+          "D61 B5a safeFetch clause truth-repaired 2026-08-23 (examine-media-forms lane receipt: infra/network/egress.ts self-enforcing pin built + no-raw-egress gate armed + three live consumer classes; the not-yet-built clause was false on the tree)",
           "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
           "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact registry blob",
           "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) — orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses",
@@ -4284,8 +4285,8 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 37,
-      "bytes": 2494,
-      "sha256": "33a26df67ea932a1c87bf2c76119d03a2ae0d3b93d2f893c479de2c1fbec68f3",
+      "bytes": 2397,
+      "sha256": "c89e63672c80c5f65347081939be53fcd755087b0a2145a3f04df2f7ee63c11a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -4302,8 +4303,8 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "33a26df67ea932a1c87bf2c76119d03a2ae0d3b93d2f893c479de2c1fbec68f3",
-        "verifiedCommit": "61c67af5d988f49fb04b5b6bde07637cb9d8b22f",
+        "verifiedSha256": "c89e63672c80c5f65347081939be53fcd755087b0a2145a3f04df2f7ee63c11a",
+        "verifiedCommit": "53273609e40a8089329be8da926e2de3a0e632e7",
         "verifiedAt": "2026-08-23",
         "evidence": [
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
