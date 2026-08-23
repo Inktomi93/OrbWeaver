@@ -458,6 +458,81 @@ test("VOICE: `credit` is the mock's micro-caps register AT THE LABEL STEP, never
   expect(credit.color).toBe(credit.muted);
 });
 
+test("VOICE: `quiet` and `datumMono` are the RECEDED steps — body-muted and code-mono-muted, not `gloss`/`datum`", async ({ mount }) => {
+  // Added by the #573 owner ruling. Both exist because a feature had NO legal spelling for them: a muted
+  // body line could only be `tone="muted"` and a code-step readout only `size="code"`, and both are A3-red
+  // internal axes at a feature call site. The pins that matter are the two collapses a "tidy-up" would make:
+  //   `quiet` → `gloss`      would drop an empty-state sentence two steps to the 10.5px footnote step;
+  //   `datumMono` → `datum`  would make a hash tabular, foreground, and label-LEADING.
+  // NOTE `--text-code` and `--text-label` are the SAME 13px step — the two mono voices are separated by
+  // leading, color and tabular figures, never by size, so a size assertion cannot tell them apart.
+  const mounted = await mount(
+    <div>
+      <Text data-testid="quiet" as="span" voice="quiet">
+        No first message yet.
+      </Text>
+      <Text data-testid="quiet-gloss" as="span" voice="gloss">
+        a footnote
+      </Text>
+      <Text data-testid="mono" as="span" voice="datumMono">
+        char_01jq8v3n
+      </Text>
+      <Text data-testid="mono-datum" as="span" voice="datum">
+        42/60
+      </Text>
+    </div>,
+  );
+
+  const body = await resolveFontSize(mounted, "--text-body");
+  const micro = await resolveFontSize(mounted, "--text-micro");
+  const code = await resolveFontSize(mounted, "--text-code");
+  const read = (testid: string): Promise<{ size: string; family: string; weight: string; tracking: string; color: string; muted: string; leading: string }> =>
+    mounted.getByTestId(testid).evaluate((el) => {
+      const style = getComputedStyle(el);
+      const probe = el.ownerDocument.createElement("span");
+      probe.style.color = "var(--color-muted-foreground)";
+      el.ownerDocument.body.append(probe);
+      const muted = getComputedStyle(probe).color;
+      probe.remove();
+      return {
+        size: style.fontSize,
+        family: style.fontFamily,
+        weight: style.fontWeight,
+        tracking: style.letterSpacing,
+        color: style.color,
+        muted,
+        leading: style.lineHeight,
+      };
+    });
+
+  const quiet = await read("quiet");
+  expect(quiet.size).toBe(body);
+  expect(quiet.size).not.toBe(micro); // NOT `gloss` — a receded sentence is still a sentence
+  expect(quiet.weight).toBe("400");
+  expect(quiet.color).toBe(quiet.muted);
+  // The one class the voice adds over the raw `tone="muted"` pair it replaces is a NO-OP: `quiet` must be a
+  // vocabulary fix, not a visual change, and a tracked body line is exactly the regression that would be.
+  expect(quiet.tracking).toBe("normal");
+  const glossSize = await mounted.getByTestId("quiet-gloss").evaluate((el) => getComputedStyle(el).fontSize);
+  expect(Number.parseFloat(quiet.size)).toBeGreaterThan(Number.parseFloat(glossSize));
+
+  const mono = await read("mono");
+  const datum = await read("mono-datum");
+  expect(mono.size).toBe(code);
+  expect(mono.family).toContain("Mono");
+  expect(mono.weight).toBe("400");
+  expect(mono.tracking).toBe("normal");
+  // The three axes that separate it from `datum` at the SAME 13px step: it recedes (muted, not foreground),
+  // it rides the BODY leading a wrapped payload needs, and it is not tabular.
+  expect(mono.color).toBe(mono.muted);
+  expect(datum.color).not.toBe(datum.muted);
+  expect(Number.parseFloat(mono.leading)).toBeGreaterThan(Number.parseFloat(datum.leading));
+  const variants = await mounted.getByTestId("mono").evaluate((el) => getComputedStyle(el).fontVariantNumeric);
+  expect(variants).not.toContain("tabular-nums");
+  const datumVariants = await mounted.getByTestId("mono-datum").evaluate((el) => getComputedStyle(el).fontVariantNumeric);
+  expect(datumVariants).toContain("tabular-nums");
+});
+
 /** The px a font-size token resolves to in the live document (the `resolveToken` probe, font-size arm). */
 function resolveFontSize(el: Locator, token: string): Promise<string> {
   return el.evaluate((node, name) => {

@@ -483,7 +483,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -11197,16 +11197,16 @@
       "path": "docs/design/density-pass-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 350,
-      "bytes": 25985,
-      "sha256": "bb47b6ccafe253c62afe78b954dc9931ef166e19a2dbf6310e83095af35bcf49",
+      "lines": 364,
+      "bytes": 27552,
+      "sha256": "80ee1cf7404aaa7aa41e48609373d2ed2efe293e8bf10176f80b0069d2129471",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-08-23"
         },
         "errors": []
       },
@@ -11245,7 +11245,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/docker-modern-practices-research.md",

@@ -225,6 +225,10 @@ function DepthPromptFacet({ form, suggestions }: { readonly form: CardForm; read
       <form.Subscribe selector={(s): boolean => isDepthPromptPrefill(s.values)}>
         {(prefill): ReactElement | null =>
           prefill ? (
+            /* RATIFIED raw axes (#573): the SEMANTIC tone is the message here — a warning line that
+               painted itself muted or foreground would stop being a warning. No voice carries a semantic
+               color (every one of them is `foreground`/`muted`/prose-ink by construction), and inventing
+               a per-tone voice family would multiply the closed axis by six. */
             <Text size="micro" tone="warning">
               {ASSISTANT_PREFILL_WARNING}
             </Text>
@@ -297,7 +301,7 @@ function ExampleTranscript({ value, trusted }: { readonly value: string; readonl
   const colorQuotes = useColorQuotedSpeech();
   const blocks = parseExampleBlocks(value);
   if (blocks.length === 0) {
-    return <Text tone="muted">No example messages yet.</Text>;
+    return <Text voice="quiet">No example messages yet.</Text>;
   }
   return (
     <Stack gap="block">

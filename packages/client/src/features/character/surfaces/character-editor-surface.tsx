@@ -91,7 +91,7 @@ function resolveDetailSections(
 export function CharacterEditorSurface({ characterId, detailContributors, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading character…</Text>}
+      fallback={<Text voice="quiet">Loading character…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
     >
       <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} />
