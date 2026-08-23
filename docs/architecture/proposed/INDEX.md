@@ -24,8 +24,8 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | `hub-browse-design/` | **PARTIAL** | [#21](https://github.com/Inktomi93/orbweaver/issues/21) |
 | `imagery-design/` | **PARTIAL** | [#22](https://github.com/Inktomi93/orbweaver/issues/22) |
 | `expressions-design/` | **FUTURE** | [#20](https://github.com/Inktomi93/orbweaver/issues/20) |
-| `databank-design/` | **FUTURE** | [#19](https://github.com/Inktomi93/orbweaver/issues/19) |
-| `automation-design/` | **FUTURE** | [#15](https://github.com/Inktomi93/orbweaver/issues/15) |
+| `databank-design/` | **REALIZED** | — |
+| `automation-design/` | **REALIZED** | — |
 | `rpg-design/` | **FUTURE** | [#25](https://github.com/Inktomi93/orbweaver/issues/25) |
 | `chat-crew-design/` | **FUTURE** | [#18](https://github.com/Inktomi93/orbweaver/issues/18) |
 | `plugin-design/` | **FUTURE** | [#24](https://github.com/Inktomi93/orbweaver/issues/24) |
