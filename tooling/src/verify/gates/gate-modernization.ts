@@ -12,9 +12,7 @@ import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { repoRel } from "../lib/pass.ts";
 
 const GATES_REL = "tooling/src/verify/gates/";
-const GATE_SELF = "tooling/src/verify/gates/gate-modernization.ts";
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
-const BASELINE_REL = "tooling/src/verify/gates/gate-modernization.baseline.json";
 const TS_EXT_RE = /\.ts$/u;
 
 // ── ARM B vocabulary ─────────────────────────────────────────────────────────────────────────────────
@@ -41,8 +39,8 @@ const ANCHOR_TERMINATORS = ".):; ";
 
 // THE ONE REASON. The three NODE-anchored arms name themselves through their token; their per-finding
 // messages folded in here when they left the Finding overload (which bypasses `hasGateIgnore` —
-// GATE-AUTHORING §1 — so every marker on them was inert). The file-level NO-DESCRIPTOR arm and the two
-// stale-baseline arms keep their own messages: they anchor on a file, not a node.
+// GATE-AUTHORING §1 — so every marker on them was inert). The file-level NO-DESCRIPTOR arm keeps its own
+// message: it anchors on a file, not a node.
 const MESSAGE =
   "a gate file breaks the gate-authoring law (tooling/src/verify/gates/GATE-AUTHORING.md): it registers no proven " +
   "descriptor, carries an exemption vocabulary with no STALE arm, or cites a `§` anchor that does not exist " +
@@ -263,33 +261,6 @@ function armCitation(obj: Node, ctx: GateRunCtx): void {
   }
 }
 
-// ── the RETRO handoff baseline (arm B only) ──────────────────────────────────────────────────────────
-// The one-sided exemption tables that predate this gate. OWNER-SANCTIONED as a handoff ledger, not debt
-// parking: the burn-down is a named sibling lane's work, the baseline only ever SHRINKS, and it is
-// two-sided — a row whose collection gained its stale arm (or vanished) is RED. Terminal state: `{}`, then
-// delete the baseline AND its generator.
-type Baseline = Readonly<Record<string, readonly string[]>>;
-
-function loadBaseline(root: string): Baseline {
-  const path = join(root, BASELINE_REL);
-  if (!existsSync(path)) {
-    return {}; // absent in a conformance temp tree — the arm then judges nothing stale (the anchor guard)
-  }
-  return JSON.parse(readFileSync(path, "utf-8")) as Baseline;
-}
-
-// The remediation is a HAND EDIT, deliberately: this ratchet reached its terminal state (§4.8) and both the
-// baseline file and its generator are gone from the tree, so any baseline present today is residue and there
-// is no writer to regenerate it with. Naming a generator command here would be a broken instruction — the
-// exact lying-remediation class the corpus exists to kill (#526).
-const TERMINAL = `Delete the row by hand; when ${BASELINE_REL} is empty, delete the file — this ratchet is at its TERMINAL state (${LAW} §4), its generator is gone, and any baseline still on the tree is residue.`;
-
-const STALE_BASELINE_GATE = (rel: string): string => `${BASELINE_REL} lists "${rel}", but that gate file no longer exists. ${TERMINAL}`;
-
-const STALE_BASELINE_ROW = (rel: string, name: string): string =>
-  `${BASELINE_REL} lists "${rel}" → \`${name}\` as a one-sided exemption, but it is not one any more (the ` +
-  `collection gained a stale arm, was emptied, or was renamed). ${TERMINAL}`;
-
 // ── the pass ─────────────────────────────────────────────────────────────────────────────────────────
 /** Gate modules in this run's project, repo-relative path → SourceFile, sorted. */
 function gateFiles(ctx: GateRunCtx): Map<string, SourceFile> {
@@ -303,45 +274,15 @@ function gateFiles(ctx: GateRunCtx): Map<string, SourceFile> {
   return new Map([...out].sort(([a], [b]) => (a < b ? -1 : 1)));
 }
 
-/** The per-run state arm B threads: the committed baseline and the rows it actually suppressed (the stale
- *  arm's truth set). One bag rather than two params — `useMaxParams` caps at 4. */
-interface BaselineRun {
-  readonly baseline: Baseline;
-  readonly seen: Set<string>;
-}
-
-/** Arm B for one gate module: the one-sided collections it carries (baseline-suppressed or reported). */
-function armExemptions(sf: SourceFile, rel: string, ctx: GateRunCtx, { baseline, seen }: BaselineRun): void {
-  const collections = exemptionCollections(sf);
-  if (collections.length === 0 || hasStaleArm(sf)) {
+/** Arm B for one gate module: every one-sided exemption collection it carries. Unsuppressed by
+ *  construction — the RETRO handoff baseline reached its terminal state `{}` (GATE-AUTHORING.md §4.8) and was
+ *  deleted with its generator, so a NEW one-sided table is red on arrival with no ledger to add it to. */
+function armExemptions(sf: SourceFile, ctx: GateRunCtx): void {
+  if (hasStaleArm(sf)) {
     return;
   }
-  const budgeted = baseline[rel] ?? [];
-  for (const c of collections) {
-    if (budgeted.includes(c.name)) {
-      seen.add(`${rel}\u0000${c.name}`);
-      continue;
-    }
+  for (const c of exemptionCollections(sf)) {
     ctx.report(c.node, { token: c.name, offset: 0 });
-  }
-}
-
-function reportStaleBaseline(ctx: GateRunCtx, files: ReadonlyMap<string, SourceFile>, { baseline, seen }: BaselineRun): void {
-  if (!existsSync(join(ctx.root, BASELINE_REL))) {
-    return; // REAL-TREE ANCHOR: no committed baseline in this tree ⇒ no stale claim to make
-  }
-  // THE SANCTIONED Finding overload (§1) for both arms below: each anchors on the GATE FILE (the baseline's
-  // own home), has no source node, and a stale ratchet row must not be suppressible.
-  for (const [rel, names] of Object.entries(baseline)) {
-    if (!files.has(rel)) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_BASELINE_GATE(rel) });
-      continue;
-    }
-    for (const name of names) {
-      if (!seen.has(`${rel}\u0000${name}`)) {
-        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_BASELINE_ROW(rel, name) });
-      }
-    }
   }
 }
 
@@ -349,21 +290,18 @@ export const gate: GateDescriptor = {
   name: "gate-modernization",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — tooling/src/verify/gates/GATE-AUTHORING.md",
   status: "active",
-  scopeSafety: "whole-project", // it reconciles the WHOLE gate corpus against a committed baseline
-  fsBacked: true, // arm C reads docs off disk; the baseline is a committed JSON file
+  scopeSafety: "whole-project", // it judges the WHOLE gate corpus in one pass, not per changed file
+  fsBacked: true, // arm C reads the cited docs off disk
   message: MESSAGE,
   fix: FIX,
   run: (ctx) => {
-    const run: BaselineRun = { baseline: loadBaseline(ctx.root), seen: new Set<string>() };
-    const files = gateFiles(ctx);
-    for (const [rel, sf] of files) {
+    for (const [rel, sf] of gateFiles(ctx)) {
       const obj = armDescriptor(sf, rel, ctx);
-      armExemptions(sf, rel, ctx, run);
+      armExemptions(sf, ctx);
       if (obj !== undefined) {
         armCitation(obj, ctx);
       }
     }
-    reportStaleBaseline(ctx, files, run);
   },
 
   mustFlag: [
@@ -427,14 +365,6 @@ export const gate: GateDescriptor = {
           'const SKIP_DIRS = ["dist", "generated"];\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], skip: SKIP_DIRS };\n',
       },
       why: "ARM B — DECLARED SCOPE: a scan-scope constant is not an exemption. The vocabulary is deliberately narrow (`SKIP`/`SCANNED`/`ROOTS` are out) so scope decisions do not inherit the two-sidedness promise",
-    },
-    {
-      files: {
-        "tooling/src/verify/gates/__probe.ts":
-          'const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
-        "tooling/src/verify/gates/gate-modernization.baseline.json": '{ "tooling/src/verify/gates/__probe.ts": ["ALLOWLIST"] }\n',
-      },
-      why: "ARM B — a baselined one-sided table is suppressed (the RETRO handoff ledger), and its stale-row arm sees the collection still one-sided, so nothing fires either way",
     },
     {
       files: {

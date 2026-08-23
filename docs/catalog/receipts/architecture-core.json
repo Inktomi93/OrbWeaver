@@ -630,13 +630,14 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "4237c177275ec8dfcb8b18d0776b08ac969069244c0f61169b9bf44e9f7e1f09",
-      "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "ca786e243c8361e17e11463b6450c08684db603d03d7970d26113c45c24e4473",
+      "verifiedCommit": "bba98a18b312bef51def3324d13c4fdb4e02320e",
+      "verifiedAt": "2026-08-23",
       "evidence": [
         "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "re-attested at bba98a18b (#534): the regime-1 section gained the dev-db drop tripwire + backup-pin rider after the #533 data loss",
+        "pnpm check:docs (2026-08-23: 104 file(s) formatted)",
+        "vitest: tests/db/client.int.test.ts (28 passed, 2026-08-23 — the .keep pin + forecastDevDbReset arms)"
       ],
       "claims": [
         {
@@ -645,6 +646,19 @@
             {
               "kind": "test",
               "target": "tests/tooling/verify/ops/db-baseline-parity.int.test.ts:18"
+            }
+          ]
+        },
+        {
+          "claim": "A regenerated baseline drops the dev db at the next respawn, and both mitigations are real: the check-tier forecast and the .keep backup pin.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/client/index.ts:497"
+            },
+            {
+              "kind": "test",
+              "target": "tests/db/client.int.test.ts:368"
             }
           ]
         }

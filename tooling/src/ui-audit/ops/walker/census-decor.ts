@@ -41,10 +41,28 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     // A wrapper whose whole job is to host one control (the label+control field shell) rides along.
     return el.closest(INTERACTIVE_ISLAND_SELECTOR) !== null;
   }
+  // A MEDIA/IDENTITY TOKEN IS NOT A PANEL (2026-08-23, issue #538 — 11 of 12 nested-card findings on the
+  // corpus surface were [data-slot=avatar-stack-item]). An avatar seat carries every input of the card
+  // predicate at once (a ring box-shadow, a border, a radius, an opaque fallback background), so it reads
+  // as card-like by construction. The ROUND default hid the class behind the pill test (radius >= half the
+  // short side); the sanctioned rounded-rect register (AvatarStack shape="rounded" — the hearth-hero
+  // portrait treatment) has no such cover, which is why a whole surface's findings were one component.
+  // Excluded by the slot's KIND, not by a page-specific allowlist: an avatar-family slot, an [role=img],
+  // or an actual image element is a picture of something, never a decorative panel nested in a panel. A
+  // media CARD (a bordered wrapper AROUND an image) is untouched — the wrapper is not the image.
+  var AVATAR_SLOT_RE = /^avatar(-|$)/;
+  var MEDIA_TAGS = { IMG: 1, PICTURE: 1, VIDEO: 1, CANVAS: 1 };
+  function isMediaToken(el) {
+    if (MEDIA_TAGS[el.tagName] === 1) return true;
+    if (el.getAttribute("role") === "img") return true;
+    var mediaSlot = el.getAttribute("data-slot") || "";
+    return AVATAR_SLOT_RE.test(mediaSlot);
+  }
   function isExcludedCardContext(el) {
     var s = getComputedStyle(el);
     if (s.position === "absolute" || s.position === "fixed") return true;
     if (isInteractiveIsland(el)) return true;
+    if (isMediaToken(el)) return true;
     // A PILL is a chip, not a panel. Fully-rounded geometry (radius >= half the short side) is the
     // badge/avatar/tag shape — the rule's real target is a bordered PANEL nested in a bordered panel,
     // and a "Dormant" status pill inside a card is house vocabulary, not a card-in-card.

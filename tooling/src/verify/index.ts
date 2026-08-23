@@ -64,7 +64,7 @@ export { manualStages, REGISTRY, stagesForTier } from "./lib/registry.ts";
 export { renderPass } from "./lib/render.ts";
 export type { Parsed } from "./lib/run-argv.ts";
 export { parse } from "./lib/run-argv.ts";
-export { failReason } from "./lib/run-render.ts";
+export { failReason, printSummary } from "./lib/run-render.ts";
 export { resolveSelection } from "./lib/selection.ts";
 
 export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
@@ -81,7 +81,7 @@ export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
-export { runVerify } from "./ops/run.ts";
+export { noticesIn, runVerify } from "./ops/run.ts";
 export { runScopedCli, runScopedPass } from "./ops/scoped.ts";
 export { runShow } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";

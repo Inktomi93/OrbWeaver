@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-22
+updated: 2026-08-23
 ---
 
 # Authoring a structural gate
@@ -263,8 +263,12 @@ An exemption is a promise. This is how the promise is written.
 8. **A BASELINE RATCHET is the ONE sanctioned handoff shape**, and only when the burn-down is another lane's
    named work. It is derived by a committed `gen-*-baseline.ts` (the single writer), it only ever SHRINKS,
    and it is two-sided: a row whose site no longer violates is RED ("regenerate and commit the shrink").
-   Terminal state is `{}` + delete both the baseline and its generator. Precedents: `density-tier`,
-   `no-test-fabrication`, `suppressions`, `gate-modernization`.
+   Terminal state is `{}` + delete both the baseline and its generator — **and the READER too**: the
+   loader, the suppression branch and the stale-row arms are dead vocabulary the moment the ledger is gone,
+   and a surviving reader implements a ratchet no sanctioned writer can produce (`gate-modernization`'s
+   ledger hit `{}` in its own landing lane, but its reader — loader, suppression branch, two stale arms,
+   one `mustPass` row — survived until 2026-08-23). Live precedents: `density-tier`,
+   `no-test-fabrication`, `suppressions`; the completed terminal-state walk is `gate-modernization`.
 
 **BASELINES LIE WHEN THE MATCHER HAS BLIND SPOTS.** `ui-size-via-variant` declared its debt baseline terminal
 while 14 hits of its own incident class sat invisible — the matcher never stripped Tailwind's `!` important
