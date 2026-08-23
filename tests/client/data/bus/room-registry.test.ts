@@ -270,6 +270,81 @@ describe("the live edge — BOOT-4X: the gap-heal is a RE-connect instrument", (
   });
 });
 
+// `liveEpoch` publishes the SAME ledger the gap-heal gate above reads — "how many times has this room
+// entered live delivery in this page?" — for the one caller that needs the answer without being a
+// subscriber: the invalidation seam's `chatOpened` row (#514). The attach synthesis re-fires on EVERY
+// attach including the first, and on the FIRST there is nothing for it to heal, so the seam asks here
+// instead of refetching the room read the open itself just issued.
+describe("liveEpoch — how much can this room have missed?", () => {
+  test("a room that never attached reports 0 — the caller cannot assume anything", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+
+    expect(registry.liveEpoch(RPG_ROOM)).toBe(0);
+  });
+
+  test("the FIRST live edge is epoch 1 — whether the socket goes live after the join or before it", () => {
+    const afterJoin = createRoomRegistry();
+    afterJoin.bindTransport(fakeTransport().transport);
+    afterJoin.join(RPG_ROOM, { onEvent: () => undefined });
+    afterJoin.socketLive();
+
+    const beforeJoin = createRoomRegistry();
+    beforeJoin.bindTransport(fakeTransport().transport);
+    beforeJoin.socketLive();
+    beforeJoin.join(RPG_ROOM, { onEvent: () => undefined });
+
+    expect(afterJoin.liveEpoch(RPG_ROOM)).toBe(1);
+    expect(beforeJoin.liveEpoch(RPG_ROOM)).toBe(1);
+  });
+
+  test("a RECONNECT climbs the epoch — the room was dark in between", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    registry.join(RPG_ROOM, { onEvent: () => undefined });
+    registry.socketLive();
+
+    registry.socketDown();
+    registry.socketLive();
+
+    expect(registry.liveEpoch(RPG_ROOM)).toBe(2);
+  });
+
+  test("a re-join after a real detach climbs it; a REMOUNT inside the retire grace does not", () => {
+    vi.useFakeTimers();
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    registry.socketLive();
+
+    // The remount (leave + re-join in one commit): the room never left, so nothing can have been missed.
+    registry.join(RPG_ROOM, { onEvent: () => undefined })();
+    registry.join(RPG_ROOM, { onEvent: () => undefined })();
+    expect(registry.liveEpoch(RPG_ROOM)).toBe(1);
+
+    // …and a real visit away and back: the room WAS given back, so its cache aged with nothing announcing.
+    vi.advanceTimersByTime(PAST_RETIRE_GRACE_MS);
+    registry.join(RPG_ROOM, { onEvent: () => undefined });
+
+    expect(registry.liveEpoch(RPG_ROOM)).toBe(2);
+  });
+
+  // A shed is a DELIVERY gap with no socket transition — frames this room was owed never arrived — so it
+  // counts exactly like a reconnect. Without this a room that lagged on its first attach would still say
+  // "nothing can be missed", which is precisely what the shed disproves.
+  test("a LAG climbs the epoch of the lagged room only", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    registry.join(RPG_ROOM, { onEvent: () => undefined });
+    registry.join(USER_ROOM, { onEvent: () => undefined });
+    registry.socketLive();
+
+    registry.lagged(RPG_ROOM);
+
+    expect(registry.liveEpoch(RPG_ROOM)).toBe(2);
+    expect(registry.liveEpoch(USER_ROOM)).toBe(1);
+  });
+});
+
 describe("routing and failure", () => {
   test("a frame for a room nobody joined is dropped, not fanned out", () => {
     const registry = createRoomRegistry();

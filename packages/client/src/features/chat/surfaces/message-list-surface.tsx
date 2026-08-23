@@ -24,7 +24,7 @@ import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, usePrefetchDisplayScripts, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
@@ -73,6 +73,10 @@ export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContr
   useFocusOnMount(surfaceRef);
 
   useChatBus(chatId, busDeps);
+  // OUTSIDE the boundary on purpose (#514): the display-tier regex reads are needed by the rows INSIDE it,
+  // but feed nothing it waits for — so they leave now, with the canon + roster reads, instead of after them.
+  // The read itself still happens where it belongs, in `ChatThread` (see `use-display-scripts.ts`'s header).
+  usePrefetchDisplayScripts(chatId);
   const chatStyle = useChatStyle();
 
   return (

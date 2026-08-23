@@ -12,6 +12,7 @@ import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
+import { roomRegistry } from "./bus/room-registry.ts";
 import { collapseFilters } from "./collapse-filters.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
 import type { InvalidateFilter } from "./invalidation-reads.ts";
@@ -56,6 +57,21 @@ type BusFilterMap = {
 };
 
 const nothing = (): readonly InvalidateFilter[] => [];
+
+/**
+ * Could this tab have MISSED a write to `chatId`'s room since its reads were filled? The room registry keeps
+ * the ledger (`liveEpoch`): `1` means the room is on its first live edge of this page load, so the reads that
+ * mounted with it ARE the fresh state and there is nothing for an attach-time heal to close (BOOT-4X, stated
+ * at room granularity in `bus/room-registry.ts`); `≥2` means it has been dark since — a reconnect, a re-open
+ * after a chat switch, or a shed — so a write that landed elsewhere in the meantime is unseen here.
+ *
+ * `0` (this room never attached in this page) answers HEAL, deliberately: the only callers that can see it
+ * are the ones holding an event for a room they never joined — a probe, a story, a unit test of this map —
+ * and an over-fire there costs one refetch where an under-fire would silently teach the seam to skip.
+ */
+function roomWasDark(chatId: ChatId): boolean {
+  return roomRegistry.liveEpoch({ channel: "chat", chatId }) !== 1;
+}
 
 const BUS_FILTERS: BusFilterMap = {
   delta: nothing,
@@ -110,7 +126,15 @@ const BUS_FILTERS: BusFilterMap = {
   // there is no cache entry and `invalidateQueries` is a no-op. Deliberately NOT widened with the fit/preview
   // reads — those would re-pay a BOOT-4X-class fetch on every room open, and their staleness bound is one
   // turn (the next canon terminal refetches them through the durable replay).
-  chatOpened: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.chat.getMemberCard.pathFilter()],
+  //
+  // THE HEAL SURVIVES; ITS INPUT NARROWED (#514). The `getChat` row is now gated on `roomWasDark` — the
+  // heal fires on every attach that could have MISSED something, and never on a room's FIRST attach in a
+  // page load, where the read it would refetch was issued by that same open. That first-attach refetch was
+  // the third hop of the measured chat-open waterfall: `getChat` landed with the canon at ~60ms and this
+  // event re-fetched it 24ms later, at ~300ms of round-trip, for a row nothing could have changed. It is
+  // the SAME argument BOOT-4X already made for the reconnect gap-heal, at room granularity — which is why
+  // the answer comes from the room registry's own live-edge ledger rather than a second clock here.
+  chatOpened: (e, trpc) => [...(roomWasDark(e.chatId) ? [trpc.chat.getChat.queryFilter({ chatId: e.chatId })] : []), trpc.chat.getMemberCard.pathFilter()],
   historyTruncated: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   // The roster/group/override/membership catch-all ("refetch the chat detail"). `getGroupConfig` rides
   // here EXPLICITLY: it is the Group tab's OWN read of the `chats.metadata.group` sub-blob and does not
