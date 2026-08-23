@@ -7,7 +7,7 @@
 //   check:show               → cli.ts show [--errors-only|--gate|--file|--limit]
 //   (scoped, from selection) → cli.ts scoped (--scope|--package|--changed)
 //   gate:new                 → cli.ts new-gate <kebab-name>
-//   prose:baseline           → cli.ts baseline prose      (+ the 8 other committed baselines)
+//   prose:baseline           → cli.ts baseline prose      (+ the 7 other committed baselines)
 //   check:tests-membership   → cli.ts tests-membership
 //   check:tests-execution-membership → cli.ts tests-execution-membership
 //   check:db-baseline        → cli.ts db-baseline
@@ -22,7 +22,6 @@ import {
   generateDensityBaseline,
   generateDuplicateActionDoorsBaseline,
   generateFabricationBaseline,
-  generateModelProseBaseline,
   generateProseBaseline,
   generateSuppressionsBaseline,
   generateTestBaselineManifest,
@@ -48,7 +47,6 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   density: generateDensityBaseline,
   "duplicate-action-doors": generateDuplicateActionDoorsBaseline,
   fabrication: generateFabricationBaseline,
-  "model-prose": generateModelProseBaseline,
   prose: generateProseBaseline,
   suppressions: generateSuppressionsBaseline,
   "test-baseline-manifest": generateTestBaselineManifest,

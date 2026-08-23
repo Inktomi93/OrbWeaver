@@ -190,6 +190,11 @@ test("the GAME-FREE baseline descriptions are byte-identical, and the tracker-fr
   // tool-use REGISTRY and the per-call wire tools from ever saying two different things.
   expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_party")).toBe(BASELINE_UPDATE_PARTY);
   expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("set_tracker")).toBe(BASELINE_SET_TRACKER);
+  // #578 — `roll_dice` slotted (`rpg.extract.tool.rollDice`); byte-identical to the pre-slot inline literal
+  // `domain/rpg/tools/index.ts` used to carry.
+  expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("roll_dice")).toBe(
+    "Roll dice (e.g. `2d6+1`). Bake-once: the roll is server-authoritative and returned for you to narrate. Zero state — the roll is recorded on this message.",
+  );
   // The two tracker args splice in WITH their own `, ` separator, so an absent tracker leaves the worked
   // example well-formed — the exact byte the pre-slot `parts.join(", ")` produced.
   expect(BASELINE_UPDATE_PARTY).toContain("`{targetRef:'player', addCondition:");
@@ -198,8 +203,8 @@ test("the GAME-FREE baseline descriptions are byte-identical, and the tracker-fr
 // ── 2. The cohort's declared posture ─────────────────────────────────────────────────────────────────
 test("every extraction slot is PRESET-homed with macros:none — the tokens are data, never the macro engine", () => {
   const cohort = PROSE_SLOT_IDS.filter((id) => id.startsWith("rpg.extract."));
-  // 40 at S4 + census row 27 (`stateTrackingGuide`), wired by the 2026-08-08 ruling.
-  expect(cohort.length).toBe(41);
+  // 40 at S4 + census row 27 (`stateTrackingGuide`, 2026-08-08) + the LATEST BEAT label + `roll_dice` (#578).
+  expect(cohort.length).toBe(43);
   for (const id of cohort) {
     expect(PROSE_SLOTS[id].home, id).toBe("preset");
     // An extraction prompt is not a character context: there is no `{{user}}`/`{{char}}` binding to resolve,

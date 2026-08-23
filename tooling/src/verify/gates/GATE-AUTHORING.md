@@ -99,7 +99,7 @@ each gate's line (`✓ own-tables-only · scanned 915/4796 files`), in `reports/
   mini-project both legitimately hand a gate zero in-scope files (§4.5 — `scope.kind` cannot tell them
   apart, so the entrypoint has to).
 - **`ctx.scan({ … })` is the opt-in half**, for the two things the harness structurally cannot see. It is a
-  context method, not a descriptor field, so all ~200 existing gates are untouched. Numerics accumulate.
+  context method, not a descriptor field, so all \~200 existing gates are untouched. Numerics accumulate.
   - `admitted` — findings a committed RATCHET BUDGET absolved this run, printed as
     `admitted-by-ratchet: N`. **Declared debt is not absence.** EVERY ledger-carrying gate owes this call,
     or its population is knowable only by running the generator — and worse, the single-pass's own
@@ -134,7 +134,7 @@ nothing-at-all (the worst case) fires.
 | 1 | `tooling/src/verify/gates/<name>.ts` | the descriptor, with `mustFlag` + `mustPass` (each with a `why`) |
 | 2 | `tests/tooling/check-gates.int.test.ts` `writeFixtures()` | a `__g_` fixture: a minimal REAL-tree violation at the gate's anchor path |
 | 2b | `tests/tooling/check-gates.int.test.ts` `UNFIXTURABLE_GATES` | INSTEAD of 2, with a comment stating WHY no fixture can drive it (whole-corpus ratchets, real-manifest parity). Never fake a fixture |
-| 3 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | the Layer-3 table row (`\| \`name\` \| what it enforces \|`) |
+| 3 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | the Layer-3 table row (`\| \`name\` \| what it enforces \|\`) |
 | 4 | same doc, the `(N registered gates)` count line | bump it — `enforcement-registry-parity` reds until doc and loader agree |
 | 5 | `package.json` + `tooling/src/verify/lib/registry.ts` | ONLY if the gate gets its OWN script/tier (like `check:orphan-ratchet`). A normal gate rides `structure:full` and needs neither |
 | 6 | `tooling/src/verify/gates/<name>.baseline.json` + a `gen-*-baseline.ts` | ONLY for a ratchet gate. The generator is the single writer; the baseline is committed |
@@ -157,7 +157,7 @@ never catches this class.** Cross-check a sibling gate's path form, then prove t
 Defensive middle ground (used by `density-tier`, `no-hover-display-swap`): `(p) => p.includes("packages/client/src/")`
 makes no assumption about a leading slash at all.
 
-**A complex `scanRoot` predicate is a coverage decision, and it is unreviewable by inspection.** ~16 gates
+**A complex `scanRoot` predicate is a coverage decision, and it is unreviewable by inspection.** \~16 gates
 carry multi-clause predicates (unions of roots, negated segments, regex tests). Every clause is a claim that
 the excluded files cannot violate the rule. Before writing one, run the predicate over the real file list and
 READ what it drops. Two specific rules:
@@ -195,7 +195,7 @@ An exemption is a promise. This is how the promise is written.
    bypass) and the inventory counts only comment-OPENER matches, so a grammar quotation in prose/JSDoc
    (backtick style) or inside a string literal is an inert MENTION everywhere — which is what lets
    `gate-ignore-inventory` scan the gate corpus itself without the corpus's own documentation self-flagging.
-3a. **THE MARKER NAMES ITS POSITION whenever ONE LINE can carry two guarded things**
+   3a. **THE MARKER NAMES ITS POSITION whenever ONE LINE can carry two guarded things**
    (`// @foreign-id-ok(<positionName>): <reason>`). A line-scoped marker OVER-EXEMPTS: the live corpus case
    is `record(chatId: string, sessionId: string)` — a foreign `sessionId` sitting beside one of OUR
    `chatId`s, where a line marker would silently absolve both. Two-sidedness then applies to the NAME too: a
@@ -208,7 +208,7 @@ An exemption is a promise. This is how the promise is written.
    every gate it governs to EMIT positions.** While `no-loose-id-cast` reported node-anchored with no
    `token`, §4.3a there was not merely unenforced but UNSATISFIABLE — you cannot ask an author to name a
    position the report cannot express. A gate whose findings can CO-OCCUR on one line owes a `token`.
-3b. **THE RESOLVER THAT READS STACKED MARKERS IS BLOCK-SCOPED.** Markers accumulate for the next guarded
+   3b. **THE RESOLVER THAT READS STACKED MARKERS IS BLOCK-SCOPED.** Markers accumulate for the next guarded
    node and then CLEAR. A file-scoped reader silently exempts the rest of the file from the first marker
    onward — the same rubber stamp as a bare marker, just slower to notice.
 4. **EVERY EXEMPTION VOCABULARY IS TWO-SIDED FROM BIRTH.** A row / marker / baseline entry that no longer
@@ -218,7 +218,7 @@ An exemption is a promise. This is how the promise is written.
    `no-hover-display-swap.ts` (`STALE_ENTRY_MESSAGE_PREFIX`), `monotonic-tests.ts` tooth 3 (the two-sided
    `allow-skip` marker), `bus-coverage.ts` (`STALE_MESSAGE`), `dialog-via-composite.ts`,
    `firehose-import-allowlist.ts`.
-4a. **TWO DISTINCT STALENESS MODES, ONE TEST.** (A) the row's file still exists but no longer violates
+   4a. **TWO DISTINCT STALENESS MODES, ONE TEST.** (A) the row's file still exists but no longer violates
    ("you fixed it, delete the row" — every ratchet's "shrink-only" case). (B) the row's file is GONE
    (deleted/moved/renamed) — the row now names nothing at all. A gate that only implements (A) is
    silently blind to (B), because its usual shape is *"for each file the scan VISITED, compare against
@@ -242,6 +242,7 @@ An exemption is a promise. This is how the promise is written.
    TRUE inside gate-conformance's synthetic mini-projects too, so a scope-guarded stale arm fires there and
    reds the gate's own self-proof. Guard on a real-tree ANCHOR instead, and keep the gate's examples off the
    anchor's path. Both shapes are VALID:
+
    - `fileLoaded(ctx, "packages/db/src/schema/index.ts")` (`pass.ts`) — an anchor file present on every real
      run and never needed by an example (`own-tables-only`);
    - `existsSync(join(root, BASELINE_REL))` / a real-manifest guard (`verify-registry-parity`'s `"verify" in
@@ -257,7 +258,7 @@ An exemption is a promise. This is how the promise is written.
    `no-floorless-control-in-wrap` and `tooling-front-door` — the last from a gate whose own line read
    `scanned 0/3 files` — and an issue was filed to DELETE all six live rows. Consequences for an author:
    `fileLoaded(ctx, ANCHOR)` alone is now correct for both hazards (conformance AND scoped); the
-   belt-and-braces `ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)` spelling ~38 gates carry is
+   belt-and-braces `ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)` spelling \~38 gates carry is
    still fine; and a bare `ctx.scope.kind === "project"` check alone is still WRONG (it is TRUE inside a
    conformance mini-project). Pinned by `tests/tooling/verify/ops/scoped.int.test.ts` §4.
 6. **A GATE KEYED ON AN EXACT NAME MUST DETECT ITS OWN BLINDNESS.** If the gate looks up a symbol/file/table
@@ -277,8 +278,8 @@ An exemption is a promise. This is how the promise is written.
    and a surviving reader implements a ratchet no sanctioned writer can produce (`gate-modernization`'s
    ledger hit `{}` in its own landing lane, but its reader — loader, suppression branch, two stale arms,
    one `mustPass` row — survived until 2026-08-23). Live precedents: `density-tier`,
-   `no-test-fabrication`, `suppressions`; the completed terminal-state walks are `gate-modernization` and
-   `finding-overload-provenance` (2026-08-23).
+   `no-test-fabrication`, `suppressions`; the completed terminal-state walks are `gate-modernization`,
+   `finding-overload-provenance` (2026-08-23), and `no-hardcoded-model-prose` (#578, 2026-08-23).
 
 **BASELINES LIE WHEN THE MATCHER HAS BLIND SPOTS.** `ui-size-via-variant` declared its debt baseline terminal
 while 14 hits of its own incident class sat invisible — the matcher never stripped Tailwind's `!` important
@@ -361,7 +362,7 @@ write which one in the gate header:
 - `codeIncludes(sf, needle)` — the presence-check door, already fenced.
 - `codeTextForScan(sf, couldMatch)` — the regex/line-scan door. **The CANDIDATE FENCE is a MEMORY decision,
   not a micro-optimisation:** blanking materialises every wrapped node for the file, and doing that for a
-  whole tier (~1,900 test files) OOMs the run at a 4GB heap limit. It is SOUND because blanking only ever
+  whole tier (\~1,900 test files) OOMs the run at a 4GB heap limit. It is SOUND because blanking only ever
   REMOVES matches, so a file whose RAW text cannot match cannot match blanked either.
 - `blankTsCommentsInText(text)` / `blankCssComments(text)` — for text read off the real filesystem (a CT
   mirror, a `surfaces/*.tsx`, a stylesheet). The TS one parses into a reused in-memory scratch project;
@@ -414,7 +415,7 @@ against the real tree before inheriting it, and expect "already migrated" claims
 - **Single-arm dispatch: `Record`, not `switch`.** A `switch` over a single-arm union trips biome
   `noUnnecessaryConditions` on the unreachable `default`, which forces a suppression, which overflows the
   suppressions baseline. Use a mapped-type `Record<Kind, Handler>` — one entry today, tsc requires the entry
-  for any future arm. (MULTI-arm snake_case unions invert this: a Record object literal trips
+  for any future arm. (MULTI-arm snake\_case unions invert this: a Record object literal trips
   `useNamingConvention`, so an annotated `switch` is correct there.)
 - **No `biome-ignore` unless it is a genuine false positive**, with a cited reason, IMMEDIATELY above the
   flagged line. Suppressions are ratcheted tree-wide.

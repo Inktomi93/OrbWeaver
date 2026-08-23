@@ -43,7 +43,6 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
-import { BASELINE_REL as MODEL_PROSE_BASELINE_REL } from "../gates/no-hardcoded-model-prose.ts";
 import { BASELINE_REL as FABRICATION_BASELINE_REL } from "../gates/no-test-fabrication.ts";
 import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
@@ -89,13 +88,6 @@ export const LEDGERS: readonly Ledger[] = [
     shape: "budget-map",
     unit: "door(s) on the plane",
     why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
-  },
-  {
-    owner: "no-hardcoded-model-prose",
-    rel: MODEL_PROSE_BASELINE_REL,
-    shape: "budget-map",
-    unit: "hardcoded prose site(s)",
-    why: "model-facing prose spelled in code instead of the prose slots. Ends per file when the strings move to their slot home.",
   },
   {
     owner: "no-test-fabrication",
@@ -294,11 +286,11 @@ function rowLine(root: string, ledger: Ledger, row: DebtRow, argv: DebtArgv): st
 /** The LIVE half of one ledger's header — and the one place this walk must not read a zero as clean.
  *
  * `gates[].scan.admitted` DEFAULTS to 0 (pass.ts), so a ratchet gate that never calls `ctx.scan({ admitted })`
- * is indistinguishable in the artifact from one that admitted nothing. Measured 2026-08-23: three of the
- * seven committed ratchets (suppressions, no-test-fabrication, no-hardcoded-model-prose — 523 budgeted
- * findings between them) declare nothing, so the single-pass's own "N admitted by ratchet baselines" line
- * counts only the three that do. A `live: 0` beside a ledger that still HAS rows is therefore AMBIGUOUS,
- * and this says so with both readings instead of printing the reassuring one.
+ * is indistinguishable in the artifact from one that admitted nothing. Measured 2026-08-23: two of the
+ * (then seven, now five — `no-hardcoded-model-prose` reached terminal `{}` and was DELETED, #578)
+ * committed ratchets (suppressions, no-test-fabrication) declare nothing, so the single-pass's own "N
+ * admitted by ratchet baselines" line counts only the ones that do. A `live: 0` beside a ledger that still
+ * HAS rows is therefore AMBIGUOUS, and this says so with both readings instead of printing the reassuring one.
  */
 function liveLine(ledger: Ledger, rowCount: number, live: ReturnType<typeof liveAdmitted>): string {
   if (live === null) {
