@@ -1,3 +1,13 @@
+// THE ROW'S ACCESSIBLE-NAME CONTRACT (#512, owner ruling 2026-08-23 — accept + document): the clickable
+// row's NAME is `title` (+ ` · titleQualifier` when present), and the SUBTITLE reaches AT as the row's
+// DESCRIPTION (aria-describedby), never the name. Consequence, accepted deliberately: axe's
+// `label-content-name-mismatch` (weight 0, hidden group) fires on every subtitled row, because axe
+// concatenates ALL text inside the button as "visible label" while the name carries only the title line.
+// The substance is satisfied — the name CONTAINS the visible title verbatim (voice control works), and
+// low-verbosity/AT users are spared a name that reads the whole meta line on every row. The two refused
+// arms and their costs: folding the subtitle into the name (verbose announcements at every call site) and
+// moving the subtitle out of the button (the hit target shrinks to the title line). Do not "fix" the axe
+// rule here without reopening #512's ruling.
 import type { MouseEventHandler, ReactElement, ReactNode, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { Slots } from "./parts.tsx";
