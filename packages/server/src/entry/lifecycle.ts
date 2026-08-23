@@ -17,6 +17,7 @@ import { castId } from "@orb/kit/ids";
 import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
 import { startAutomationWatcher } from "#domain/automation";
+import type { SessionsService } from "#domain/sessions";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import {
@@ -133,6 +134,80 @@ export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs
   }
 }
 
+/** One `setInterval` as a stop-function — the `scheduleInterval`/`scheduleTimeout` shape every scheduler and
+ *  the workloads worker take. ONE home: boot wired three byte-identical copies of this closure inline. */
+function scheduleInterval(fn: () => void, ms: number): () => void {
+  const handle = setInterval(fn, ms);
+  return () => {
+    clearInterval(handle);
+  };
+}
+
+/** AUTH_MODE=local's route dependencies, built together because they are one feature: the form-login
+ *  authenticator plus the B4 first-run owner-password setup. The route and the `localFirstRun` config flag
+ *  share ONE gate (`ownerFallbackAllowed`, #298 f2), so the setup screen appears exactly where the setup
+ *  endpoint accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client `Host`). A
+ *  public-origin/LAN local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ the owner has a
+ *  password ⇒ first-run never triggers). */
+function buildLocalAuthDeps(sessions: SessionsService): {
+  authenticate: LocalAuthenticator;
+  firstRun: FirstRunRouteDeps;
+  localFirstRun: (peerIp: string | undefined) => Promise<boolean>;
+} {
+  const hasher = createPasswordHasher(env.SESSION_SECRET);
+  return {
+    authenticate: (handle: Handle, password: string): Promise<UserId | null> => sessions.authenticate(handle, password),
+    firstRun: {
+      setOwnerPassword: async (plain: string): Promise<UserId | null> => sessions.claimOwnerPassword(await hasher.hash(plain)),
+      originAllowed: (peerIp: string | undefined): boolean => ownerFallbackAllowed(peerIp),
+    },
+    localFirstRun: async (peerIp: string | undefined): Promise<boolean> => (ownerFallbackAllowed(peerIp) ? await sessions.ownerNeedsPassword() : false),
+  };
+}
+
+/** AUTH_MODE=oidc's route dependencies plus the store's GC sweeper, built together because the sweeper's
+ *  subject IS the store these deps carry — returning the stop handle keeps the teardown's ownership with the
+ *  thing that started it. The issuer discovery is lazy + memoized (a cold IdP must not fail boot). */
+function buildOidcDeps(db: Db, now: () => number): { oidc: OidcRoutesDeps; stopOidcGc: () => void } {
+  let cachedConfig: Configuration | undefined;
+  const issuerUrlStr = env.OIDC_ISSUER ?? "";
+  const issuerUrl = issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
+  const clientId = env.OIDC_CLIENT_ID ?? "";
+  const clientSecret = env.OIDC_CLIENT_SECRET;
+  const store = createOidcStore(db, now);
+  return {
+    oidc: {
+      // The full callback URLs the per-request derived origin must exact-match.
+      redirectAllowlist: (env.OIDC_REDIRECT_URIS ?? "")
+        .split(",")
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0),
+      scope: env.OIDC_SCOPES,
+      claims: {
+        usernameClaim: env.OIDC_USERNAME_CLAIM,
+        uidClaim: env.OIDC_UID_CLAIM,
+        groupsClaim: env.OIDC_GROUPS_CLAIM,
+        emailClaim: env.OIDC_EMAIL_CLAIM,
+      },
+      // A4 — split a separator-joined groups claim (authentik property mappings) into an array.
+      groupsSeparator: env.OIDC_GROUPS_SEPARATOR,
+      // A1/A2 — resolve the OIDC admission decisions from env HERE (the oidc-only caller) and pass them into
+      // provisionIdentity; the verb stays mode-agnostic and forward-header JIT is never gated by these.
+      allowJitProvision: env.OIDC_SIGNUP,
+      requireApproval: env.OIDC_REQUIRE_APPROVAL,
+      store,
+      getConfig: async (): Promise<Configuration> => {
+        cachedConfig ??= await discovery(issuerUrl, clientId, clientSecret);
+        return cachedConfig;
+      },
+      // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
+      // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
+      ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
+    },
+    stopOidcGc: startOidcGcScheduler({ sweep: store.deleteExpired, now, scheduleInterval }),
+  };
+}
+
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
   readonly boot: () => Promise<void>;
@@ -157,7 +232,12 @@ export function createLifecycle(): Lifecycle {
   let drainVllm: (() => void) | null = null;
   let booted = false;
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: boot sequence is inherently long
+  // RATIFIED (#596). boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
+  // control flow: fail-closed guards on the sequence plus one conditional column per optional dependency, each
+  // at real nesting depth 0 and each DOUBLED by biome's enclosing-closure nesting penalty. The genuinely nested
+  // wiring HAS been lifted out (buildLocalAuthDeps / buildOidcDeps / scheduleInterval, #596 — 57 → 45); what is
+  // left is the inventory this file exists to state IN ORDER, and splitting it further hides that ordering.
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the ordered boot protocol — ruling above
   async function boot(): Promise<void> {
     if (booted) {
       return;
@@ -314,12 +394,7 @@ export function createLifecycle(): Lifecycle {
       service: built.services.workloads,
       ownerId,
       now,
-      scheduleInterval: (fn, ms) => {
-        const handle = setInterval(fn, ms);
-        return () => {
-          clearInterval(handle);
-        };
-      },
+      scheduleInterval,
       checkIntervalMs: CATALOG_CHECK_INTERVAL_MS,
       // Item 5: the success-refresh cadence is a live admin knob (catalogRefreshIntervalMs).
       refreshEveryMs: () => built.services.settings.getEffectiveConfig().catalogRefreshIntervalMs,
@@ -328,22 +403,11 @@ export function createLifecycle(): Lifecycle {
       db,
       now,
       start: (params) => built.services.workloads.start(params),
-      scheduleInterval: (fn, ms) => {
-        const handle = setInterval(fn, ms);
-        return () => {
-          clearInterval(handle);
-        };
-      },
+      scheduleInterval,
     });
     // The workloads worker's claim→run poll loop, fire-and-forget; errors logged (it self-recovers).
     const workerAbort = new AbortController();
     stopWorker = workerAbort;
-    const scheduleTimer = (fn: () => void, ms: number): (() => void) => {
-      const handle = setInterval(fn, ms);
-      return () => {
-        clearInterval(handle);
-      };
-    };
     void startWorkloadsWorker({
       runnerDeps: {
         db,
@@ -357,8 +421,8 @@ export function createLifecycle(): Lifecycle {
       reap: reapOrphanedWorkloads,
       load: loadWorkload,
       subscribeWake: subscribeWorkloadWake,
-      scheduleInterval: scheduleTimer,
-      scheduleTimeout: scheduleTimer,
+      scheduleInterval,
+      scheduleTimeout: scheduleInterval,
     }).catch((err: unknown) => {
       log.error({ err: err instanceof Error ? err.message : String(err) }, "workloads worker loop exited");
     });
@@ -371,24 +435,9 @@ export function createLifecycle(): Lifecycle {
       void built.automation.handleEvent({ type: "chatOpened", chatId });
     });
 
-    let authenticate: LocalAuthenticator | undefined;
-    let firstRun: FirstRunRouteDeps | undefined;
-    let localFirstRun: ((peerIp: string | undefined) => Promise<boolean>) | undefined;
-    if (env.AUTH_MODE === "local") {
-      authenticate = (handle: Handle, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
-      // B4 — the in-app first-run owner-password setup (LOCAL_INITIAL_PASSWORD is now optional). The route +
-      // the config flag share ONE gate (`ownerFallbackAllowed`, #298 f2), so the setup screen appears exactly
-      // where the setup endpoint accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client
-      // `Host`). A public-origin/LAN local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ owner
-      // has a password ⇒ this never triggers).
-      const hasher = createPasswordHasher(env.SESSION_SECRET);
-      firstRun = {
-        setOwnerPassword: async (plain: string): Promise<UserId | null> => built.sessions.claimOwnerPassword(await hasher.hash(plain)),
-        originAllowed: (peerIp: string | undefined): boolean => ownerFallbackAllowed(peerIp),
-      };
-      localFirstRun = async (peerIp: string | undefined): Promise<boolean> =>
-        ownerFallbackAllowed(peerIp) ? await built.sessions.ownerNeedsPassword() : false;
-    }
+    // B4 — the in-app first-run owner-password setup rides the same builder (LOCAL_INITIAL_PASSWORD is now
+    // optional); every non-local mode leaves all three route deps absent.
+    const localAuth = env.AUTH_MODE === "local" ? buildLocalAuthDeps(built.sessions) : undefined;
 
     // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed
     // JWT) isn't left silently rejecting every request.
@@ -407,53 +456,8 @@ export function createLifecycle(): Lifecycle {
       );
     }
 
-    let oidc: OidcRoutesDeps | undefined;
-    if (env.AUTH_MODE === "oidc") {
-      let cachedConfig: Configuration | undefined;
-      const issuerUrlStr = env.OIDC_ISSUER ?? "";
-      const issuerUrl = issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
-      const clientId = env.OIDC_CLIENT_ID ?? "";
-      const clientSecret = env.OIDC_CLIENT_SECRET;
-
-      const oidcStore = createOidcStore(db, now);
-      // The full callback URLs the per-request derived origin must exact-match.
-      const redirectAllowlist = (env.OIDC_REDIRECT_URIS ?? "")
-        .split(",")
-        .map((u) => u.trim())
-        .filter((u) => u.length > 0);
-      oidc = {
-        redirectAllowlist,
-        scope: env.OIDC_SCOPES,
-        claims: {
-          usernameClaim: env.OIDC_USERNAME_CLAIM,
-          uidClaim: env.OIDC_UID_CLAIM,
-          groupsClaim: env.OIDC_GROUPS_CLAIM,
-          emailClaim: env.OIDC_EMAIL_CLAIM,
-        },
-        // A4 — split a separator-joined groups claim (authentik property mappings) into an array.
-        groupsSeparator: env.OIDC_GROUPS_SEPARATOR,
-        // A1/A2 — resolve the OIDC admission decisions from env HERE (the oidc-only caller) and pass them into
-        // provisionIdentity; the verb stays mode-agnostic and forward-header JIT is never gated by these.
-        allowJitProvision: env.OIDC_SIGNUP,
-        requireApproval: env.OIDC_REQUIRE_APPROVAL,
-        store: oidcStore,
-        getConfig: async (): Promise<Configuration> => {
-          if (cachedConfig === undefined) {
-            cachedConfig = await discovery(issuerUrl, clientId, clientSecret);
-          }
-          return cachedConfig;
-        },
-        // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
-        // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
-        ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
-      };
-
-      stopOidcGc = startOidcGcScheduler({
-        sweep: oidcStore.deleteExpired,
-        now,
-        scheduleInterval: scheduleTimer,
-      });
-    }
+    const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now) : undefined;
+    stopOidcGc = oidcWiring === undefined ? null : oidcWiring.stopOidcGc;
 
     const app = createApp({
       now,
@@ -507,10 +511,8 @@ export function createLifecycle(): Lifecycle {
         void built.personaSeeder.ensureSeeded(principal);
       },
       oidcProviderName: env.OIDC_PROVIDER_NAME,
-      ...(authenticate !== undefined ? { authenticate } : {}),
-      ...(firstRun !== undefined ? { firstRun } : {}),
-      ...(localFirstRun !== undefined ? { localFirstRun } : {}),
-      ...(oidc !== undefined ? { oidc } : {}),
+      ...(localAuth ?? {}),
+      ...(oidcWiring === undefined ? {} : { oidc: oidcWiring.oidc }),
     });
 
     // The DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09 — foundation/env/bind.ts holds the model): a
@@ -554,6 +556,8 @@ export function createLifecycle(): Lifecycle {
     });
   }
 
+  // RATIFIED (#596). Nine null-guarded stops at real nesting depth 0 score 20 only because biome DOUBLES every
+  // increment inside a closure — the measured tell that this score is length, not tangle.
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the graceful-drain teardown is a flat sequence of independent null-guarded stops (server, schedulers, worker, observer, vLLM, db) — one cohesive shutdown, splitting it hides the ordering.
   async function shutdown(): Promise<void> {
     if (isShuttingDown) {

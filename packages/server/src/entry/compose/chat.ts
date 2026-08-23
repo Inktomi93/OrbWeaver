@@ -449,6 +449,177 @@ function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
   return [...seen].map((code) => ({ kind: "warning", code }));
 }
 
+/** The AGENT-SDK arm of the turn mapping: the stateful wire. Trailing depth-0 system rows have already been
+ *  lifted out of the transcript by {@link extractTrailingSystemRows} and joined onto `dynamic`, because the SDK
+ *  delivers mid-conversation system authority through the dynamic-context hook channel rather than as history
+ *  rows. `agentSplit` present ⇒ the seeded resume shape (chatId + seed turns + the clean user tail); absent ⇒
+ *  the whole transcript flattened into one prompt. */
+function agentSdkChatRequest(args: {
+  readonly req: TurnRequest;
+  readonly orSkinTierModels: NonNullable<Awaited<ReturnType<ConnectionService["getOrSkinTierModels"]>>>;
+  readonly onDelta: (delta: ChatDeltaEvent) => void;
+}): ChatRequest {
+  const { req, onDelta } = args;
+  const extract = extractTrailingSystemRows(req.history);
+  const split = splitAgentHistory(extract.rows);
+  const dynamic =
+    extract.systemText === null
+      ? req.prompt.dynamic
+      : [req.prompt.dynamic, extract.systemText].filter((s) => s.trim().length > 0).join(AGENT_PROMPT_TAIL_JOINER);
+  return {
+    api: "agent-sdk",
+    model: req.connection.model,
+    credential: req.connection.credential,
+    capability: req.connection.capability,
+    params: req.intent,
+    // `dynamic` carries the extracted trailing system injections — they ride the resolved
+    // dynamic-context channel (the hook on a midConversationSystem model) as real system authority.
+    systemPrompt: { static: req.prompt.static, dynamic },
+    orSkinTierModels: args.orSkinTierModels,
+    ownerConsented: req.ownerConsented,
+    // The stateful tool + structured-output channels (the array wires spread tools/responseFormat
+    // on their own arm below): the MCP server mounts the domain's resolved set; responseFormat
+    // rides the SDK's own outputFormat (json_schema) — never silently dropped.
+    ...(req.agentToolServer !== undefined ? { toolServer: req.agentToolServer, toolTurnLimit: req.agentToolTurnLimit } : {}),
+    ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
+    // The TERMINAL channel (D112 R1): the backend mounts these as its own deny-on-use MCP server and
+    // hands the co-emitted calls back on `result.toolCalls` — the SAME field the array wires report,
+    // so the pipeline's fold reads one shape.
+    ...(req.agentTerminalTools !== undefined ? { terminalTools: req.agentTerminalTools } : {}),
+    ...(split !== null ? { chatId: req.chatId, seed: split.seed, prompt: split.prompt } : { prompt: flattenAgentHistory(extract.rows) }),
+    onDelta,
+    signal: req.signal,
+  };
+}
+
+/** The ARRAY-WIRE arm of the turn mapping (chat-completions / responses): the transcript travels as real
+ *  history rows and the preset's passthrough channels ride the request as-is. */
+function arrayWireChatRequest(args: {
+  readonly req: TurnRequest;
+  readonly onDelta: (delta: ChatDeltaEvent) => void;
+  readonly promptCacheMinDepth: number;
+}): ChatRequest {
+  const { req, onDelta } = args;
+  return {
+    api: req.connection.api as "chat-completions" | "responses",
+    model: req.connection.model,
+    credential: req.connection.credential,
+    capability: req.connection.capability,
+    params: req.intent,
+    systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+    ownerConsented: req.ownerConsented,
+    // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId`
+    // filter); the agent-sdk arm sets it on the seeded spread above.
+    chatId: req.chatId,
+    // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
+    history: req.history as any,
+    // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns
+    // the axis). SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the
+    // stable prefix is disrupted; the admin knob is a FLOOR layered on top, so it can only push the
+    // breakpoint DEEPER (more of the tail kept volatile), never shallower — a shallower breakpoint
+    // pins bytes that change every turn, which is a guaranteed wasted cache write, not a preference.
+    // SHAPE's abort therefore stays absolute: no safe depth ⇒ no breakpoint, whatever the knob says.
+    historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd === null ? undefined : Math.max(req.cacheBreakpointFromEnd, args.promptCacheMinDepth),
+    // The preset's provider-passthrough blob (PD-148) rides the shared chat-completions/responses arm,
+    // but is BYOK-ONLY at the wire: only the custom-byo runner honors it. OpenRouter drops it (its knobs
+    // are the modeled sampling surface — the anti-sprawl design); the agent-sdk arm carries none by charter.
+    ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
+    ...(req.tools !== undefined ? { tools: req.tools } : {}),
+    ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
+    ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
+    onDelta,
+    signal: req.signal,
+  };
+}
+
+/** The terminal `final` chunk: the infra {@link ChatResult} folded onto the domain's committed economics. */
+function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
+  return {
+    kind: "final",
+    economics: {
+      content: result.reply,
+      reasoning: result.reasoning || null,
+      model: req.connection.model,
+      provider: req.connection.credential.source,
+      tokensIn: result.usage.tokensIn,
+      tokensOut: result.usage.tokensOut,
+      cacheReadTokens: result.usage.cacheReadTokens,
+      cacheWriteTokens: result.usage.cacheWriteTokens,
+      contextWindow: result.usage.contextWindow,
+      costUsd: result.usage.costUsd,
+      maxOutputTokens: result.usage.maxOutputTokens,
+      // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
+      // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
+      // over the calls) legible against `maxOutputTokens` (a per-call ceiling).
+      modelCalls: result.numTurns,
+      reasoningEffort: req.intent.effort ?? null,
+      ttftMs: result.ttftMs,
+      finishReason: result.finishReason,
+      stopReason: result.stopReason,
+      terminalReason: result.terminalReason,
+      generationId: result.generationId ?? null,
+      ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
+    },
+  };
+}
+
+/** A PUSH→PULL adapter: the infra runner reports progress by callback (`onDelta`) and completion by promise,
+ *  while the chat role consumes an AsyncIterable. The pump buffers pushed chunks and parks the consumer on a
+ *  one-shot arrival promise while the buffer is empty, so no delta is dropped between two `next()` calls and a
+ *  slow consumer never blocks the producer. `fail` is terminal and rethrows into the consumer AFTER the
+ *  already-buffered chunks drain (a mid-stream failure must not swallow the text the user already saw). */
+function createChunkPump<T>(): {
+  readonly push: (...chunks: readonly T[]) => void;
+  readonly close: () => void;
+  readonly fail: (err: unknown) => void;
+  readonly drain: () => AsyncGenerator<T>;
+} {
+  const queue: T[] = [];
+  let done = false;
+  // BOXED, not a bare `unknown`: a rejection value is compared for PRESENCE, and `null`/`undefined` are
+  // legal rejection values. The box makes "a failure was recorded" a different question from "the failure
+  // is truthy" — the pre-extraction inline pump answered the second and silently ended the stream instead
+  // of rethrowing when a runner rejected with a nullish value.
+  let failure: { readonly err: unknown } | null = null;
+  let notify: (() => void) | null = null;
+  const wake = (): void => {
+    notify?.();
+    notify = null;
+  };
+  const push = (...chunks: readonly T[]): void => {
+    queue.push(...chunks);
+    wake();
+  };
+  const close = (): void => {
+    done = true;
+    wake();
+  };
+  const fail = (err: unknown): void => {
+    failure = { err };
+    done = true;
+    wake();
+  };
+  async function* drain(): AsyncGenerator<T> {
+    for (;;) {
+      if (queue.length > 0) {
+        yield queue.shift() as T;
+        continue;
+      }
+      if (done) {
+        if (failure !== null) {
+          throw failure.err;
+        }
+        return;
+      }
+      const arrival = Promise.withResolvers<void>();
+      notify = arrival.resolve;
+      // biome-ignore lint/performance/noAwaitInLoops: waiting for next chunk
+      await arrival.promise;
+    }
+  }
+  return { push, close, fail, drain };
+}
+
 /** The domain→infra turn bridge: maps a domain {@link TurnRequest} to the infra {@link ChatRequest} (the
  *  agent-sdk split + the chat-completions/responses passthrough spreads — customParameters/tools/toolChoice/
  *  responseFormat/cacheBreakpoint), runs it through the injected infra `runChatTurn`, and adapts its
@@ -463,157 +634,34 @@ export function createRunChatTurnBridge(deps: {
    *  harness that omits it produces byte-identical wire bodies. */
   readonly promptCacheMinDepth?: () => number;
 }): (req: TurnRequest) => AsyncIterable<TurnStreamChunk> {
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
   return async function* runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
-    const queue: TurnStreamChunk[] = [];
-    let done = false;
-    let error: unknown = null;
-    let notify: (() => void) | null = null;
-
+    const pump = createChunkPump<TurnStreamChunk>();
     const onDelta = (delta: ChatDeltaEvent): void => {
-      queue.push({ kind: delta.kind, text: delta.text });
-      if (notify) {
-        notify();
-        notify = null;
-      }
+      pump.push({ kind: delta.kind, text: delta.text });
     };
 
-    // agent-sdk only: capability-kept trailing system rows (depth-0 mid-conversation system injections)
-    // leave the transcript and ride the dynamic-context hook channel instead — joined onto the dynamic
-    // system half below. Array-shaped wires deliver them as real `system` history rows and skip this.
-    const agentExtract = req.connection.api === "agent-sdk" ? extractTrailingSystemRows(req.history) : null;
-    const agentSplit = agentExtract !== null ? splitAgentHistory(agentExtract.rows) : null;
-    const extractedSystem = agentExtract !== null ? agentExtract.systemText : null;
-    const agentDynamic =
-      extractedSystem !== null ? [req.prompt.dynamic, extractedSystem].filter((s) => s.trim().length > 0).join(AGENT_PROMPT_TAIL_JOINER) : req.prompt.dynamic;
     // The OR-skin tier→slug map the mode-2 firewall needs, derived from connection's live catalogs
-    // (never throws — cold catalog degrades to a curated shortlist).
+    // (never throws — cold catalog degrades to a curated shortlist). Absent ⇒ the agent-sdk arm cannot be
+    // built and the request falls through to the array wire, exactly as before.
     const orSkinTierModels = req.connection.api === "agent-sdk" ? await deps.getOrSkinTierModels() : undefined;
-    const chatReq: ChatRequest =
+    const chatReq =
       req.connection.api === "agent-sdk" && orSkinTierModels !== undefined
-        ? {
-            api: "agent-sdk",
-            model: req.connection.model,
-            credential: req.connection.credential,
-            capability: req.connection.capability,
-            params: req.intent,
-            // `dynamic` carries the extracted trailing system injections — they ride the resolved
-            // dynamic-context channel (the hook on a midConversationSystem model) as real system authority.
-            systemPrompt: { static: req.prompt.static, dynamic: agentDynamic },
-            orSkinTierModels,
-            ownerConsented: req.ownerConsented,
-            // The stateful tool + structured-output channels (the array wires spread tools/responseFormat
-            // on their own arm below): the MCP server mounts the domain's resolved set; responseFormat
-            // rides the SDK's own outputFormat (json_schema) — never silently dropped.
-            ...(req.agentToolServer !== undefined ? { toolServer: req.agentToolServer, toolTurnLimit: req.agentToolTurnLimit } : {}),
-            ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
-            // The TERMINAL channel (D112 R1): the backend mounts these as its own deny-on-use MCP server and
-            // hands the co-emitted calls back on `result.toolCalls` — the SAME field the array wires report,
-            // so the pipeline's fold reads one shape.
-            ...(req.agentTerminalTools !== undefined ? { terminalTools: req.agentTerminalTools } : {}),
-            ...(agentSplit !== null
-              ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt }
-              : { prompt: flattenAgentHistory(agentExtract?.rows ?? req.history) }),
-            onDelta,
-            signal: req.signal,
-          }
-        : {
-            api: req.connection.api as "chat-completions" | "responses",
-            model: req.connection.model,
-            credential: req.connection.credential,
-            capability: req.connection.capability,
-            params: req.intent,
-            systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-            ownerConsented: req.ownerConsented,
-            // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId`
-            // filter); the agent-sdk arm sets it on the seeded spread above.
-            chatId: req.chatId,
-            // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
-            history: req.history as any,
-            // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns
-            // the axis). SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the
-            // stable prefix is disrupted; the admin knob is a FLOOR layered on top, so it can only push the
-            // breakpoint DEEPER (more of the tail kept volatile), never shallower — a shallower breakpoint
-            // pins bytes that change every turn, which is a guaranteed wasted cache write, not a preference.
-            // SHAPE's abort therefore stays absolute: no safe depth ⇒ no breakpoint, whatever the knob says.
-            historyCacheBreakpointFromEnd:
-              req.cacheBreakpointFromEnd === null ? undefined : Math.max(req.cacheBreakpointFromEnd, deps.promptCacheMinDepth?.() ?? 0),
-            // The preset's provider-passthrough blob (PD-148) rides the shared chat-completions/responses arm,
-            // but is BYOK-ONLY at the wire: only the custom-byo runner honors it. OpenRouter drops it (its knobs
-            // are the modeled sampling surface — the anti-sprawl design); the agent-sdk arm carries none by charter.
-            ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
-            ...(req.tools !== undefined ? { tools: req.tools } : {}),
-            ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
-            ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
-            onDelta,
-            signal: req.signal,
-          };
+        ? agentSdkChatRequest({ req, orSkinTierModels, onDelta })
+        : arrayWireChatRequest({ req, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 });
 
     void deps
       .runChatTurn(chatReq)
       .then((result) => {
         // BEFORE the terminal `final` (which ends the drain): the turn's honest-degrade warnings. Without this
         // the runner's `events` died at this seam and D41 held only in the logs, never in the product.
-        queue.push(...warningChunks(result.events));
-        queue.push({
-          kind: "final",
-          economics: {
-            content: result.reply,
-            reasoning: result.reasoning || null,
-            model: req.connection.model,
-            provider: req.connection.credential.source,
-            tokensIn: result.usage.tokensIn,
-            tokensOut: result.usage.tokensOut,
-            cacheReadTokens: result.usage.cacheReadTokens,
-            cacheWriteTokens: result.usage.cacheWriteTokens,
-            contextWindow: result.usage.contextWindow,
-            costUsd: result.usage.costUsd,
-            maxOutputTokens: result.usage.maxOutputTokens,
-            // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
-            // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
-            // over the calls) legible against `maxOutputTokens` (a per-call ceiling).
-            modelCalls: result.numTurns,
-            reasoningEffort: req.intent.effort ?? null,
-            ttftMs: result.ttftMs,
-            finishReason: result.finishReason,
-            stopReason: result.stopReason,
-            terminalReason: result.terminalReason,
-            generationId: result.generationId ?? null,
-            ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
-          },
-        });
-        done = true;
-        if (notify) {
-          notify();
-          notify = null;
-        }
+        pump.push(...warningChunks(result.events), finalTurnChunk(req, result));
+        pump.close();
       })
-      .catch((err) => {
-        error = err;
-        done = true;
-        if (notify) {
-          notify();
-          notify = null;
-        }
+      .catch((err: unknown) => {
+        pump.fail(err);
       });
 
-    for (;;) {
-      if (queue.length > 0) {
-        // biome-ignore lint/style/noNonNullAssertion: safe since queue.length > 0
-        yield queue.shift()!;
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `done` is mutated by the onDelta/.then/.catch closures above; tsc's narrowing can't see across those async callback boundaries
-      } else if (done) {
-        if (error !== null && error !== undefined) {
-          throw error;
-        }
-        break;
-      } else {
-        const arrival = Promise.withResolvers<void>();
-        notify = arrival.resolve;
-        // biome-ignore lint/performance/noAwaitInLoops: waiting for next chunk
-        await arrival.promise;
-      }
-    }
+    yield* pump.drain();
   };
 }
 
