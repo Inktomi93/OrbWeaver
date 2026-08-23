@@ -105,9 +105,34 @@ function currentRun(rows: readonly PassRow[]): PassRow | null {
   return byPassOrder.find((row) => row.status === "running") ?? byPassOrder[0] ?? null;
 }
 
-/** The most recent FAILED row of this pass, when nothing of it is running any more — the card's failure arm. */
+/**
+ * The most recent FAILED row of this pass that a LATER run OF ITS OWN KIND has not already superseded —
+ * the card's failure arm.
+ *
+ * THE LATER-SUCCESS TEST IS THE WHOLE FUNCTION (side-eye populated arm 2026-08-23, P1-3). This took the
+ * newest terminal row and stopped, so a crash was announced FOREVER: on the audited library
+ * `distill-characters` died at `createdAt 1787436170285` and the same kind succeeded two hours later at
+ * `1787443344202`, and the rail still read "The last pass stopped unexpectedly — run it again" under five
+ * green checks, beside a primary button offering to re-run a 327-character distillation that had already
+ * finished. That is a trust defect and a compute bill, and it is permanent on any library whose history
+ * holds one reaped worker.
+ *
+ * PER KIND, NOT PER PASS. The three stages are independent runs with independent histories — a themes
+ * crash is not healed by a later distill, so a global "newest success" would hide real failures. Each
+ * kind's newest success is what buries that kind's older failures, and a kind that has never succeeded
+ * buries nothing.
+ */
 function lastFailure(rows: readonly PassRow[]): PassRow | null {
-  const failed = rows.filter((row) => row.status === "failed" || row.status === "worker_died").sort((a, b) => b.createdAt - a.createdAt);
+  const newestSuccessByKind = new Map<PassKind, number>();
+  for (const row of rows) {
+    if (row.status === "succeeded") {
+      newestSuccessByKind.set(row.kind, Math.max(newestSuccessByKind.get(row.kind) ?? row.createdAt, row.createdAt));
+    }
+  }
+  const failed = rows
+    .filter((row) => row.status === "failed" || row.status === "worker_died")
+    .filter((row) => row.createdAt > (newestSuccessByKind.get(row.kind) ?? Number.NEGATIVE_INFINITY))
+    .sort((a, b) => b.createdAt - a.createdAt);
   return failed[0] ?? null;
 }
 

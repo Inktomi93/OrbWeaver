@@ -26,7 +26,9 @@
 //     a time, and the 2026-08-08 collapse only reduced it from seven bricks to one.
 //   • THE DEAD $0.00 COLUMN IS GONE. See `corpus-gem-tiles.tsx`: the trailing magnitude is tokens returned
 //     (labelled as tokens since #174 — it is `tokensOut`, and it shipped calling itself "words").
-//     Model economics survives as a section that renders only when there is SPEND to report.
+//     Model economics survives as a section that reports what the routes actually did — generations and
+//     tokens, with the dollars annotated where the accounting has them (see the §"UN-DRAWN TAIL" note
+//     below for why the spend guard that once stood here is gone).
 //
 // ── THE UN-DRAWN TAIL, CUT (corpus forensics 2026-08-18 §7/§8, R4) ─────────────────────────────────────
 // The mock ends after the gem tiles. Everything below it was authored here anyway and measured 6,900px of a
@@ -35,7 +37,14 @@
 //   • MODEL ECONOMICS was guarded on `routing.length === 0` while the paragraph above claimed it renders
 //     "only when there is spend to report" — `modelRouting` returns a row per (genre × model) whether or not
 //     money moved, so a local instance rendered 134 rows, 133 of them exactly $0.00, at 4,304px. The guard
-//     now tests SPEND, which is what the header always said.
+//     moved to SPEND. **THAT SPEND GUARD IS ITSELF NOW REVERSED, and both readings are kept** (side-eye
+//     populated arm 2026-08-23, [P1-1]): on 142 routes with 11,321 generations, 141 carried a null cost, so
+//     the spend guard reduced the entire section to ONE bar reading $0.08 and hid every complete quantity
+//     the payload had. The ORIGINAL SYMPTOM survives and is still fixed — a 4,304px wall of identical zeros
+//     is exactly what a full un-capped series does — but it was never the CURRENCY that made the wall, it
+//     was the length. So the section is back on `routes.length`, ranked and CAPPED by generations with its
+//     denominator stated, and the dollars ride as a per-bar annotation. The block moved to
+//     `../components/corpus-home-insights.tsx`, whose header carries the full argument.
 //   • THE CATALOG FACET BARS (Genres · Tones · Top tags, 1,904px) duplicated the browse view's own Genre /
 //     Tone / Tag selects, WITH the same counts — and those are interactive and narrow the list. Two spellings
 //     of one dataset, one of which could not be acted on.
@@ -63,49 +72,33 @@
 //
 // ── WHAT IS COMPOSED HERE VS OWNED NEXT DOOR (the `component-size` split, 2026-08-21) ─────────────────
 // This file is the OVERVIEW'S COMPOSITION: the four suspended reads, the derived analysis state, the
-// masthead, the focal/rail grid, and the deferred below-fold blocks. Blocks that own a closed interaction
+// masthead, the focal/rail grid, and the below-fold blocks' QUERIES. Blocks that own a closed interaction
 // live in `../components/`, and the story-theme rows + their detail card went there
 // (`corpus-theme-section.tsx`) because the selection state they share is read by nothing else here — a
 // surface holding a child's state beside seven unrelated reads is exactly how this file passed the cap.
+// The two inventory blocks (Never played, Model economics) followed on 2026-08-23 to
+// `corpus-home-insights.tsx`, for the same reason one step later: each grew the denominator and coverage
+// COPY it owed the populated library, and a section's own words are not the composition's business.
 
-import { modelDisplayName } from "@orb/kit/model-name";
-import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles, Users } from "@orb/ui/icons";
-import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
+import { Container, Grid, Row, Stack, Surface } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
-import { selectCorpusCharacter, setActiveSection } from "#state";
-import { CharacterAvatar } from "../components/character-avatar.tsx";
+import { setActiveSection } from "#state";
 import { CorpusFamilyMap } from "../components/corpus-family-map.tsx";
 import { CorpusGemTiles } from "../components/corpus-gem-tiles.tsx";
 import { KeywordExplorer, StoryThemeDrift } from "../components/corpus-home-charts.tsx";
+import { CorpusModelEconomicsSection, CorpusNeverPlayedSection } from "../components/corpus-home-insights.tsx";
 import { CorpusHomeSkeleton } from "../components/corpus-home-skeleton.tsx";
 import { CorpusReadinessRail } from "../components/corpus-readiness-rail.tsx";
 import { CorpusThemeSection } from "../components/corpus-theme-section.tsx";
 import { CorpusUnderstandingInvitation } from "../components/corpus-understanding-invitation.tsx";
 import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
-import { toBarItems } from "../lib/corpus-charts.ts";
-
-/** One model route that actually cost money — `costUsd` narrowed to a number by the body's own filter. */
-type PaidRoute = Omit<inferOutput<Trpc["discovery"]["modelRouting"]>[number], "costUsd"> & { readonly costUsd: number };
-
-const MONEY_PRECISION = 2;
-const CORPUS_INSIGHT_ROW_ESTIMATE_PX = 52;
-/** The placeholder row count for a deferred below-fold section — the sibling charts' own number. */
-const CORPUS_INSIGHT_SKELETON_ROWS = 3;
-
-function money(value: number): string {
-  return `$${value.toFixed(MONEY_PRECISION)}`;
-}
 
 // SECTION ARRIVAL BELONGS TO THE OMNIBOX, AND THIS SURFACE STOPPED COMPETING FOR IT (side-eye corpus
 // re-pass #2, P2-4). Both corpus surfaces called `useFocusOnMount` on their own root — a `tabIndex={-1}`
@@ -166,6 +159,10 @@ function CorpusHomeBody(): ReactElement {
     distilled: catalog.totalDistilled,
     sceneThemes: home.sceneThemes.length,
     arcThemes: home.arcThemes.length,
+    // The SAME queue read the four sibling rows use (#164's lesson, applied to the fifth). `compute-themes`
+    // succeeding and clustering nothing is a result; the row said "not run" for it until the populated arm
+    // caught the surface reporting a pass that had finished as one that had never started.
+    storyThemesEverRan: ranSuccessfully("compute-themes"),
     // NOT `data?.length ?? 0` (issue #384). That spelling hands an UN-ANSWERED read to the rail as a
     // measured zero, and on a warm queue — `workloads.list` a cache hit, which is the designed-for case
     // two comments up — the row printed "Keywords — none found" for one round trip. That is the #164
@@ -198,7 +195,6 @@ function CorpusHomeBody(): ReactElement {
   }
 
   const mapIsFocal = state.phase === "analysed";
-  const paidRoutes = (routing.data ?? []).flatMap((route) => (route.costUsd === null || route.costUsd <= 0 ? [] : [{ ...route, costUsd: route.costUsd }]));
 
   return (
     // NO `size`: the container-query context survives (the split answers to THIS pane's inline size — the
@@ -300,106 +296,20 @@ function CorpusHomeBody(): ReactElement {
         )}
         <StoryThemeDrift />
 
-        <NeverPlayedSection characters={unused.data} failed={unused.error !== null} onRetry={(): void => void unused.refetch()} pending={unused.isPending} />
-        <ModelEconomicsSection
+        <CorpusNeverPlayedSection
+          characters={unused.data}
+          failed={unused.error !== null}
+          libraryCharacters={home.coverage.characters}
+          onRetry={(): void => void unused.refetch()}
+          pending={unused.isPending}
+        />
+        <CorpusModelEconomicsSection
           failed={routing.error !== null}
           onRetry={(): void => void routing.refetch()}
-          paidRoutes={paidRoutes}
           pending={routing.isPending}
+          routes={routing.data}
         />
       </Stack>
     </Container>
-  );
-}
-
-// ── THE BELOW-FOLD INSIGHTS ARE COMPONENTS, NOT INLINE ARMS ──────────────────────────────────────────
-// Each of these reads defers (#269), so each has a PENDING arm of its own — and three of those inline in the
-// body put it over the legibility cap. They take the READ'S STATE rather than the query object (the
-// archetypes tab's own precedent): the body keeps ownership of the one query the rail also reads from, and
-// these stay presentation leaves that a story can drive without a data layer.
-
-/** Never-played characters — a deferred read, so it owns a skeleton, an error, and an absence. */
-function NeverPlayedSection({
-  characters,
-  pending,
-  failed,
-  onRetry,
-}: {
-  readonly characters: inferOutput<Trpc["discovery"]["unusedCharacters"]> | undefined;
-  readonly pending: boolean;
-  readonly failed: boolean;
-  readonly onRetry: () => void;
-}): ReactElement | null {
-  if (pending) {
-    // A BELOW-FOLD PENDING SECTION KEEPS ITS PLACE (side-eye 2026-08-21). `null`-while-pending is the sibling
-    // charts' old defect: the settled section pops in under whatever the reader is looking at. The skeleton
-    // is the same `SkeletonRows` shape `corpus-home-charts.tsx` already uses for its two deferred blocks.
-    return <SkeletonRows count={CORPUS_INSIGHT_SKELETON_ROWS} shape="line" />;
-  }
-  if (failed) {
-    return <QueryErrorState label="your never-played characters" onRetry={onRetry} />;
-  }
-  if (characters === undefined || characters.length === 0) {
-    // The rail says what has not run; a section with nothing renders nothing (this file's header).
-    return null;
-  }
-  return (
-    <Section kicker="Never played" level={2}>
-      <VirtualList
-        aria-label="Never played characters"
-        className="max-h-96"
-        estimateSize={(): number => CORPUS_INSIGHT_ROW_ESTIMATE_PX}
-        fadeEdge={true}
-        gapToken="row"
-        getItemKey={(character): string => character.characterId}
-        items={characters}
-        renderItem={(character): ReactElement => (
-          <ListRow
-            clickable={true}
-            leading={<CharacterAvatar hash={character.avatarHash} id={character.characterId} name={character.name} />}
-            onClick={(): void => selectCorpusCharacter(character.characterId)}
-            subtitle="Collected but never played"
-            title={character.name}
-          />
-        )}
-      />
-    </Section>
-  );
-}
-
-/** Model economics — SPEND, not rows: a local-model instance records a route per (genre × model) and zero
- *  dollars. The paid subset is computed by the body, which is also what the empty arm tests. */
-function ModelEconomicsSection({
-  paidRoutes,
-  pending,
-  failed,
-  onRetry,
-}: {
-  readonly paidRoutes: readonly PaidRoute[];
-  readonly pending: boolean;
-  readonly failed: boolean;
-  readonly onRetry: () => void;
-}): ReactElement | null {
-  if (pending) {
-    return <SkeletonRows count={CORPUS_INSIGHT_SKELETON_ROWS} shape="line" />;
-  }
-  if (failed) {
-    return <QueryErrorState label="your model economics" onRetry={onRetry} />;
-  }
-  if (paidRoutes.length === 0) {
-    return null;
-  }
-  return (
-    <Section kicker="Model economics" level={2}>
-      <BarList
-        items={toBarItems(
-          paidRoutes,
-          (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
-          (route) => route.costUsd,
-        )}
-        label="Cost by route"
-        valueFormatter={money}
-      />
-    </Section>
   );
 }

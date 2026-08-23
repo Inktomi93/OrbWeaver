@@ -1,6 +1,13 @@
 // The Corpus CONTEXT "Compare" tab — a two-character facet diff. Two Selects (populated from
 // `browseCharacters`) pick the pair → `compareCharacters` renders the no-LLM diff (shared/only tags +
 // redundancy). "Deep compare" adds `compareCharactersDeep`'s grounded narrative — this tab's ONE primary.
+//
+// THE PAIR LIVES IN A STORE, NOT IN THIS COMPONENT (side-eye populated arm 2026-08-23, #554). It was
+// `useState` here, which made this tab the ONLY way to name a pair — and next door the Similarity tab was
+// listing 1,782 of them as inert text with `clickablePairs: 0`, the app's best answer to "are these two
+// the same character?" sitting one tab away from the question and unreachable from it. A pair row is a
+// door now, and a door needs somewhere to put what it carries: `state/corpus-compare-store.ts` (which also
+// survives the CONTEXT tab body being unmounted on the tab switch that door performs).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -16,6 +23,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
+import { setCorpusCompareA, setCorpusCompareB, useCorpusCompareA, useCorpusCompareB } from "#state";
 
 const NONE = "";
 const REDUNDANCY_PRECISION = 2;
@@ -39,30 +47,27 @@ export function CorpusCompareTab(): ReactElement {
 function CompareBody(): ReactElement {
   const trpc = useTRPC();
   const { data: catalog } = useSuspenseQuery(trpc.discovery.browseCharacters.queryOptions({ limit: PICKER_PAGE }));
-  const [a, setA] = useState(NONE);
-  const [b, setB] = useState(NONE);
-  const [deep, setDeep] = useState(false);
+  const a = useCorpusCompareA();
+  const b = useCorpusCompareB();
+  // DEEP IS PER-PAIR, AND IT IS DERIVED RATHER THAN SYNCED. It used to be a boolean the two pickers reset
+  // by hand, which was correct while this component OWNED the pair — it no longer does, so a pair seeded
+  // from the Similarity tab would have arrived carrying the previous pair's escalation and fired a model
+  // call nobody asked for. Storing WHICH pair was escalated makes the stale case unrepresentable; no
+  // effect, no reset call, and the two pickers go back to doing one thing.
+  const [deepPair, setDeepPair] = useState(NONE);
 
   const ready = a !== NONE && b !== NONE && a !== b;
+  const pairKey = `${a}\u0000${b}`;
   const idA = castId<CharacterId>(a);
   const idB = castId<CharacterId>(b);
 
   const items: SelectItems<string> = [{ value: NONE, label: "Pick a character" }, ...catalog.items.map((c) => ({ value: c.characterId, label: c.name }))];
 
-  const onPickA = (value: string): void => {
-    setA(value);
-    setDeep(false);
-  };
-  const onPickB = (value: string): void => {
-    setB(value);
-    setDeep(false);
-  };
-
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")} gap="section">
-      <ComparePickers itemsA={items} itemsB={items} a={a} b={b} onA={onPickA} onB={onPickB} />
+      <ComparePickers itemsA={items} itemsB={items} a={a} b={b} onA={setCorpusCompareA} onB={setCorpusCompareB} />
       {ready ? (
-        <CompareResult idA={idA} idB={idB} deep={deep} onDeep={(): void => setDeep(true)} />
+        <CompareResult deep={deepPair === pairKey} idA={idA} idB={idB} onDeep={(): void => setDeepPair(pairKey)} />
       ) : (
         <Text voice="gloss">Pick two different characters to compare.</Text>
       )}

@@ -13,6 +13,7 @@ import {
   CorpusListHeader,
   CorpusListSurface,
   CorpusMapTab,
+  CorpusSimilarityTab,
   CorpusUnderstandingInvitation,
 } from "@orb/client/features/discovery";
 import { useActiveChatId, useActiveSection } from "@orb/client/state";
@@ -264,6 +265,60 @@ export function CorpusHomeWarmQueueStory(): ReactElement {
         <WarmQueueGate>
           <CorpusHomeSurface />
         </WarmQueueGate>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** THE OVERVIEW AT THE OWNER'S DEFAULT PANE WIDTH, FOR THE **POPULATED** ARM — the 327-character /
+ *  896-chat library the 2026-08-23 rail sweep measured, where findings exist that a 10-card fixture cannot
+ *  produce: a 142-route economics table whose cost column is 141/142 null, a 50-bar keyword canvas, a
+ *  204-row never-played list, an 8-family map whose eighth plate is unlabelled, and a workload history
+ *  carrying a stale crash UNDER a later success.
+ *
+ *  A SEPARATE STORY NAME, NOT A SECOND IMPORT of `CorpusHomeDefaultPaneStory`: playwright-ct hoists every
+ *  imported story into ONE generated registry, so two CT files importing the same story name collide at
+ *  bundle eval. The width is deliberately identical — these defects are about CONTENT volume, and the pane
+ *  they have to be honest in is the shipped default. */
+export function CorpusHomePopulatedStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 868.8125 }}>
+        <CorpusHomeSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Corpus CONTEXT "Similarity" tab at the CONTEXT pane's real width — the tab whose 1,782-row edge list
+ *  buried its three duplicate sections 52,151px down (#554). Mounted at the pane width because the IA claim
+ *  ("the duplicate findings are within one viewport of the tab top") is a GEOMETRY claim about that pane. */
+export function CorpusSimilarityTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", flexDirection: "column", height: 640, width: 420 }}>
+        <CorpusSimilarityTab />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** THE SIMILARITY TAB BESIDE THE COMPARE TAB — the mount that can prove a pair row is a door that LANDS,
+ *  not merely one that fires. The compare pair lives in a module-private store, so the only honest receipt
+ *  for "this row opens that comparison" is the Compare surface rendering the pair (the same reasoning
+ *  {@link CorpusSearchToDossierStory} records for the dossier drill-through). Both tab bodies are mounted
+ *  at once, which the shell never does — that is deliberate: the shell's tab switch is what makes the
+ *  hand-off unobservable, and this story removes it so the STATE hand-off is what is under test. */
+export function CorpusSimilarityToCompareStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", height: 640, width: 900 }}>
+        <div style={{ display: "flex", flexDirection: "column", width: 420 }}>
+          <CorpusSimilarityTab />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", width: 420 }}>
+          <CorpusCompareTab />
+        </div>
       </div>
     </CtDataProviders>
   );

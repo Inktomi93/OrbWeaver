@@ -34,6 +34,7 @@ import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import {
   CorpusHomeDefaultPaneStory,
   CorpusHomeNarrowPaneStory,
+  CorpusHomePopulatedStory,
   CorpusHomeThreePaneStory,
   CorpusHomeWarmQueueStory,
   CorpusHomeWidePaneStory,
@@ -602,4 +603,406 @@ test("the mobile masthead STACKS rather than squeezing the headline into a colum
   // … which is what gives the sentence the pane's whole width instead of a ~130px column.
   const paneWidth = 430;
   expect(headline.width, "the headline gets the pane, not a sliver of it").toBeGreaterThan(paneWidth / 2);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE POPULATED ARM — the same surface at 327 characters / 896 chats (side-eye 2026-08-23,
+// docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md; issues #553 #535 #536 #556 #557).
+//
+// Everything above pins the surface's COMPOSITION on a library small enough that its every list fits.
+// Everything below is a VOLUME finding — a 142-route economics table whose cost column is 141/142 null, a
+// 50-bar keyword canvas, a 204-row never-played list, an 8-family map whose eighth plate is unlabelled,
+// and a workload history deep enough to hold a crash UNDER a later success. None of them is reachable
+// from the 10-card fixture above, so the FIXTURE is what had to change; the assertions are ordinary
+// geometry and ordinary roles.
+//
+// ONE FILE, TWO FIXTURES, and deliberately so: `test-layout` mirrors a test onto its source, and these
+// pins are about `surfaces/corpus-home-surface.tsx` exactly as much as the ones above are. The separate
+// STORY (`CorpusHomePopulatedStory`) is what keeps playwright-ct's generated registry unambiguous — the
+// collision that rule exists for is two files importing one story NAME, not one file holding two arms.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+// ── THE POPULATED FIXTURE ─────────────────────────────────────────────────────────────────────────────
+// Proportional to the audited library rather than a copy of it: the ratios are what the assertions read
+// (242 clustered of 327 owned, one labelled cost among many null ones, more keywords than any cap).
+
+const CHARACTERS = 327;
+const DISTILLED = 313;
+/** Eight families summing to 242 — the audited shape, and the 85-character shortfall that is the finding. */
+const FAMILY_SIZES = [50, 40, 35, 30, 28, 27, 25, 7];
+const CLUSTERED = FAMILY_SIZES.reduce((total, size) => total + size, 0);
+const UNFAMILIED = CHARACTERS - CLUSTERED;
+
+/** The server's own name for the family whose portraits the VL pass could not classify
+ *  (`image-analytics/retrieve.ts`). The Archetypes tab renders exactly this string; the CONTENT plate
+ *  rendered its members' names instead, which is [P2-1]. */
+const UNLABELLED_FAMILY = "Unanalysed portraits";
+/** The gloss the unlabelled plate keeps once its label slot stops carrying the member run. */
+const UNLABELLED_FAMILY_GLOSS = /25 members/;
+/** The economics chart's accessible name — matched loosely so the denominator may ride the heading. */
+const BUSIEST_ROUTES = /Busiest routes/;
+/** The LEADING digits of a tile's text — where the rank ordinal has to be. Anchored rather than split on
+ *  whitespace: adjacent spans concatenate with no separator in `textContent` (`1BBess567,106`), so a
+ *  whitespace split reads the whole tile as one token and the assertion never sees the rank it found. */
+const LEADING_RANK = /^\d+/u;
+
+const POP_FAMILIES = FAMILY_SIZES.map((size, index) => ({
+  label: index === 6 ? UNLABELLED_FAMILY : `Family ${index}`,
+  genre: null,
+  tone: null,
+  // The seventh plate is the UNLABELLED arm: no art facets at all — the state that used to make the plate
+  // title itself with a run of member names while its sibling surface called the same family
+  // "Unanalysed portraits" ([P2-1]). The facets stay null so the fixture keeps reproducing that state.
+  artStyle: index === 6 ? null : "painterly",
+  palette: index === 6 ? null : "warm",
+  mood: index === 6 ? null : "playful",
+  size,
+  members: Array.from({ length: Math.min(size, 4) }, (_, seat) => ({
+    characterId: `character_${index}_${seat}`,
+    name: `Member ${index}-${seat}`,
+    avatarHash: null,
+  })),
+  model: "Qwen/Qwen3-VL-Embedding-2B",
+}));
+
+/** 50 keywords, counts 6 → 2 — the audited spread, where every bar is 72-100% of its track. */
+const KEYWORDS = Array.from({ length: 50 }, (_, index) => ({ keyword: `keyword-${index}`, count: Math.max(2, 6 - Math.floor(index / 12)) }));
+
+/** 30 routes, ONE of which reports a dollar cost. Generations and tokens are complete on all of them —
+ *  which is the whole of [P1-1]: the section charted the one field its data does not carry. */
+const ROUTES = Array.from({ length: 30 }, (_, index) => ({
+  genre: `genre-${index % 5}`,
+  model: `model-${index}`,
+  provider: "local",
+  generations: 400 - index * 10,
+  tokensOut: 260_000 - index * 5000,
+  tokensOutProvenance: "estimated",
+  avgGenTimeMs: 900,
+  costUsd: index === 17 ? 0.080_644 : null,
+}));
+const PAID_ROUTES = ROUTES.filter((route) => route.costUsd !== null).length;
+
+const UNUSED = Array.from({ length: 204 }, (_, index) => ({
+  characterId: `character_unused_${index}`,
+  name: `Unplayed ${index}`,
+  avatarHash: null,
+}));
+
+/** Three gems in the verb's RANK order (message volume × how long quiet) whose token totals ASCEND — the
+ *  audited row 2, `567,106 · 597,739 · 629,696`, where the bars climb while the rank falls. */
+const GEMS = [
+  {
+    characterId: "character_bess",
+    name: "Bess",
+    avatarHash: null,
+    messageCount: 900,
+    lastActiveAt: 1,
+    tokensOut: 567_106,
+    tokensOutProvenance: "exact",
+    costUsd: null,
+  },
+  {
+    characterId: "character_azarael",
+    name: "Azarael",
+    avatarHash: null,
+    messageCount: 800,
+    lastActiveAt: 2,
+    tokensOut: 597_739,
+    tokensOutProvenance: "exact",
+    costUsd: null,
+  },
+  {
+    characterId: "character_bengal",
+    name: "Bengal",
+    avatarHash: null,
+    messageCount: 700,
+    lastActiveAt: 3,
+    tokensOut: 629_696,
+    tokensOutProvenance: "exact",
+    costUsd: null,
+  },
+];
+
+/** The audited workload history: a `distill-characters` crash, and a LATER successful run of the same kind
+ *  two hours after it. `compute-themes` also succeeded — and produced zero themes. */
+const RUNS = [
+  {
+    id: "workload_distill_ok",
+    kind: "distill-characters",
+    status: "succeeded",
+    ownerId: "user_me",
+    mode: "singular",
+    createdAt: 1_787_443_344_202,
+    params: {},
+    progress: null,
+    error: null,
+    result: null,
+  },
+  {
+    id: "workload_themes_ok",
+    kind: "compute-themes",
+    status: "succeeded",
+    ownerId: "user_me",
+    mode: "singular",
+    createdAt: 1_787_431_820_258,
+    params: {},
+    progress: null,
+    error: null,
+    result: null,
+  },
+  {
+    id: "workload_distill_died",
+    kind: "distill-characters",
+    status: "worker_died",
+    ownerId: "user_me",
+    mode: "singular",
+    createdAt: 1_787_436_170_285,
+    params: {},
+    progress: null,
+    error: "worker heartbeat went stale — row reaped",
+    result: null,
+  },
+];
+
+const POPULATED: TrpcRoutes = {
+  "discovery.home": {
+    coverage: { characters: CHARACTERS, digests: 2429, segments: 2026 },
+    sceneThemes: [],
+    arcThemes: [],
+    duplicateCounts: { characters: 1, chats: 1, identicalCharacterPairs: 3 },
+  },
+  "discovery.catalog": { totalDistilled: DISTILLED, genres: [], tones: [], topTags: [] },
+  "discovery.visualArchetypes": POP_FAMILIES,
+  "discovery.forgottenGems": GEMS,
+  "discovery.unusedCharacters": UNUSED,
+  "discovery.modelRouting": ROUTES,
+  "discovery.themes": [],
+  "discovery.topKeywords": KEYWORDS,
+  "discovery.themeDrift": [],
+  "sessions.me": { userId: "user_me", globalRole: "user", handle: "me" },
+  "settings.getUserSettings": { userId: "user_me", schemaVersion: 1, updatedAt: 1, config: { memory: { enabled: true } } },
+  "workloads.list": RUNS,
+};
+
+/** The settled above-fold barrier — the focal island, which only a resolved `discovery.*` batch produces. */
+async function settled(page: Page): Promise<void> {
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+}
+
+// ── #555 / [P1-3]: THE RAIL REPORTS THE LIBRARY'S STATE, NOT AN ARCHIVED CRASH ────────────────────────
+// `lastFailure()` picked the newest terminal row with no test for a later success, so a two-hour-old
+// `worker_died` was announced forever — under five green checks, beside a button inviting a 327-character
+// re-run of a pass that had already succeeded. That is a trust defect and a compute bill.
+
+test("#555: a crash a LATER run of the same kind fixed is not announced (P1-3)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  // The re-run door is the settled barrier for THIS arm: it renders in exactly the phase the failure line
+  // would, so its presence proves the rail's own branch resolved rather than that the block is merely late.
+  await expect(component.getByRole("button", { name: "Run the passes again" })).toBeVisible();
+  await expect(
+    component.locator('[data-slot="readiness-rerun-failure"]'),
+    "the newest distill run SUCCEEDED — the crash under it is history, not state",
+  ).toHaveCount(0);
+});
+
+test("#555: a pass that RAN and found nothing reads 'none found', not 'not run' (P1-3)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const row = component.locator('[data-slot="readiness-stage"]').filter({ hasText: "Story themes" });
+  await expect(row).toHaveCount(1);
+  await expect(row, "`compute-themes` succeeded and clustered nothing — that is a result, and its four siblings already say so").toContainText("none found");
+});
+
+// ── #535-surviving: EVERY DENOMINATOR NAMES ITS BASE ─────────────────────────────────────────────────
+// The rail's first row read `8 families · 242 characters` on a 327-character library. 242 is the one number
+// the surface never accounts for, and 85 characters in no visual family is a fact a reader can act on.
+
+test("#535: the visual-families row names the base its count is out of", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const row = component.locator('[data-slot="readiness-stage"]').filter({ hasText: "Visual families" });
+  await expect(row).toHaveCount(1);
+  await expect(
+    row,
+    `${CLUSTERED.toString()} of ${CHARACTERS.toString()} — the ${UNFAMILIED.toString()} unfamilied characters are derivable from the row itself`,
+    // No `toLocaleString` here (the `no-raw-intl-time` gate bans raw Intl by the back door, and it is
+    // right to: the component groups through ONE fixed `Intl.NumberFormat`, and a test that re-derives
+    // the grouping with a second formatter is asserting its own copy of the rule). Both figures are
+    // three digits, which this locale does not group, so the plain numerals ARE the rendered strings.
+  ).toContainText(`${CLUSTERED.toString()} of ${CHARACTERS.toString()}`);
+});
+
+// ── #553 / [P1-1]: THE ECONOMICS SECTION CHARTS WHAT ITS DATA CARRIES ────────────────────────────────
+// 30 routes, one of which reports a dollar cost. The old guard tested SPEND, so this whole library's
+// economics rendered as one bar reading $0.08 — full width, in accent orange, the visual weight saying
+// "large" about the smallest number on the page — with 11,321 generations and 8M tokens rendered nowhere.
+
+test("#553: model economics renders the COMPLETE quantities over mostly-null cost (P1-1)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
+  // The chart's own text equivalent is the honest read of a canvas series (`LabeledChartFrame` renders the
+  // series as a visually-hidden table; the bars themselves are pixels).
+  const table = component.getByRole("table", { name: BUSIEST_ROUTES });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("row"), "the routes are ranked by a quantity every row carries, not by the one 1-in-30 of them do").not.toHaveCount(1);
+  // …and the coverage of the metric that IS mostly missing is stated rather than implied by its absence.
+  await expect(component.getByText(new RegExp(`cost recorded for ${PAID_ROUTES.toString()} of ${ROUTES.length.toString()}`))).toBeVisible();
+});
+
+// ── #557 / [P2-3]: THE KEYWORD CHART IS CAPPED AND SAYS SO ───────────────────────────────────────────
+// 50 bars over a 6→2 spread measured 1,616px of canvas — 45% of the page, 28.69% accent in the worst 800px
+// viewport against a 10% cap — for a series in which no bar is distinguishable from its neighbour.
+/** The visible series ceiling. More than this is a wall; the denominator carries what was left out. */
+const KEYWORD_BAR_CAP = 12;
+
+test("#557: the keyword chart caps its series and states the denominator (P2-3)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const rows = component.getByRole("table", { name: "Top keywords" }).locator("tbody tr");
+  await expect(rows).toHaveCount(KEYWORD_BAR_CAP);
+  await expect(component.getByText(new RegExp(`${KEYWORD_BAR_CAP.toString()} of ${KEYWORDS.length.toString()}`))).toBeVisible();
+});
+
+// ── #556: THE CANVAS AREA IS THE ATTRIBUTED CAUSE OF THE 287ms ENTRY BLOCK ──────────────────────────
+// `motion-audit --goto corpus` on the populated library: worst blocking 287ms against a 50ms budget, 4
+// LoAFs with style/layout in-frame, and the in-frame script named `graphic-KEKgKdWt.js` — ECharts. The
+// empty arm measured 15ms. ATTRIBUTION BEFORE OPTIMIZATION (#489's standard, and no memoization theater):
+// ECharts' cost on this surface is a function of CANVAS AREA and series count, and `BarList` derives its
+// height arithmetically as `items.length * 32 + 16`. At 50 keyword bars that is 1,616px — which is the
+// EXACT canvas height the sweep measured (869×1,616), so the 50-bar keyword chart is not a suspect, it is
+// identified. The 142-route economics table was the second un-capped series on the same surface.
+//
+// This pin is the geometric half, measured in the CT browser rather than inferred: total ECharts canvas
+// area on the settled surface. It is what the fix moves, and it is checkable without a profiler — the
+// wall-clock half belongs to `motion-audit` on a populated live stack, which a worktree cannot serve.
+/** The canvas budget, in px of HEIGHT summed across every chart on the overview. The pre-fix surface drew
+ *  1,616 (keywords) + 4,544 (142 routes, had the spend guard not been hiding them) on one page; two capped
+ *  12-bar series is 800. The ceiling is deliberately loose — this pins the ORDER OF MAGNITUDE, which is
+ *  what the 19× blocking regression was made of, not a pixel. */
+const CANVAS_HEIGHT_BUDGET_PX = 1200;
+
+test("#556: the overview's chart canvases stay inside a budget (the 287ms attribution)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+  // SETTLED for the CHARTS specifically: the keyword series is a below-fold deferred read, so the focal
+  // island alone does not prove its canvas exists yet.
+  await expect(component.getByRole("table", { name: "Top keywords" })).toBeAttached();
+
+  const canvases = await component
+    .locator("canvas")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => ({ height: Math.round(node.getBoundingClientRect().height), width: Math.round(node.getBoundingClientRect().width) })),
+    );
+  const total = canvases.reduce((sum, box) => sum + box.height, 0);
+  expect(total, `chart canvas heights: ${canvases.map((box) => `${box.width.toString()}x${box.height.toString()}`).join(", ")}`).toBeLessThan(
+    CANVAS_HEIGHT_BUDGET_PX,
+  );
+});
+
+// ── #557 / [P2-4]: "NEVER PLAYED" STATES ITS COUNT ──────────────────────────────────────────────────
+// 204 of 327 characters — 62% of the library — rendered as eight names under a bare heading, with no
+// denominator anywhere. A reader concludes they have eight unplayed cards.
+
+test("#557: the never-played section states how many there are (P2-4)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  await expect(component.getByRole("list", { name: "Never played characters" })).toBeVisible();
+  await expect(
+    component.getByText(new RegExp(`${UNUSED.length.toString()} of ${CHARACTERS.toString()}`)),
+    "the count is the actionable fact, and the list is windowed",
+  ).toBeVisible();
+});
+
+// ── #557 / [P2-1]: ONE FAMILY, ONE NAME ─────────────────────────────────────────────────────────────
+// The CONTENT plate for the unlabelled family printed a 120-char run of its members' names while the
+// Archetypes tab 30px to its right called the same family "Unanalysed portraits". The plate's label and
+// gloss slots were inverted relative to its seven siblings.
+
+test("#557: the unlabelled family plate carries the name its sibling surface gives it (P2-1)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const island = component.locator('[data-corpus-focal="familyMap"]');
+  await expect(island.getByText(UNLABELLED_FAMILY, { exact: true })).toBeVisible();
+  // …and the member names it displaced live where every other plate keeps them: the gloss.
+  await expect(island.getByText(UNLABELLED_FAMILY_GLOSS), "the member count and the names ride the second line, as on the seven labelled plates").toBeVisible();
+});
+
+// ── #557 / [P2-2] + #536: THE GEM SHELF'S SORT IS VISIBLE AS A DATUM ────────────────────────────────
+// The shelf ranks by message volume × how long quiet and BARS token totals, so at 327 characters the bars
+// visibly ascend down a descending list. The report's sanctioned arm: render the rank ordinal, so the
+// sequence a reader is looking at is itself the datum rather than a claim the numbers contradict.
+
+test("#536: each gem tile carries its rank, so the order is a stated quantity (P2-2)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const tiles = component.getByRole("list", { name: "Invested but quiet characters" }).getByRole("listitem");
+  await expect(tiles).toHaveCount(GEMS.length);
+  const names = await Promise.all(GEMS.map(async (_gem, index) => tiles.nth(index).getByRole("button").first().textContent()));
+  expect(
+    names.map((name) => LEADING_RANK.exec((name ?? "").trim())?.[0] ?? ""),
+    "every tile leads with its rank, so the sequence a reader sees IS the datum the shelf sorts on",
+  ).toEqual(GEMS.map((_gem, index) => (index + 1).toString()));
+});
+
+// ── #536-surviving / [P3-1]: THE PROSE IS BOUNDED BY THE READING MEASURE ────────────────────────────
+// `design-audit` measured 145 chars/line on this surface's own prose against the 65-75ch law.
+//
+// THE MEASUREMENT IS THE DETECTOR'S OWN, deliberately. `--reading-measure` is `75ch` — a `ch` count, not a
+// px length — so comparing a bounding box against `parseFloat` of that token compares a width to the number
+// 75 and indicts every paragraph on the page. `ch` means the advance of "0" in the element's OWN computed
+// font, which is what `tooling/src/ui-audit/ops/walker/census-text.ts` measures via canvas `measureText`
+// after #464 caught a guessed `fontSize * 0.5` ratio over-estimating every measure by ~15%. Same method
+// here, so this pin and `design-audit` are denominated identically and cannot disagree.
+/** The house measure (`--reading-measure: 75ch`, skill §2). The detector's own ceiling is 85. */
+const READING_MEASURE_CH = 75;
+/** Below this the "line" is a label, not prose — the detector's own floor, so short rows never fire. */
+const PROSE_TEXT_MIN_CHARS = 80;
+
+test("#536: the overview's prose is capped at the reading measure (P3-1)", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const overrun = await component.locator('[data-testid="corpus-home-surface"]').evaluate(
+    (root, limits) => {
+      const context = globalThis.document.createElement("canvas").getContext("2d");
+      if (context === null) {
+        throw new Error("no 2d context — the ch advance cannot be measured, so this pin has no verdict");
+      }
+      // Every prose paragraph the surface composes. `Text` renders `<p data-slot="text">`; a chart frame's
+      // heading is a different slot and is a label, not prose.
+      return [...root.querySelectorAll('p[data-slot="text"]')].flatMap((node) => {
+        const text = node.textContent ?? "";
+        const style = globalThis.getComputedStyle(node);
+        if (text.length <= limits.minChars) {
+          return [];
+        }
+        context.font = style.font === "" ? `${style.fontSize} ${style.fontFamily}` : style.font;
+        const advance = context.measureText("0").width + (Number.parseFloat(style.letterSpacing) || 0);
+        const chars = advance > 0 ? node.getBoundingClientRect().width / advance : 0;
+        return chars > limits.maxChars ? [{ chars: Math.round(chars), text: text.slice(0, 48) }] : [];
+      });
+    },
+    { maxChars: READING_MEASURE_CH, minChars: PROSE_TEXT_MIN_CHARS },
+  );
+  expect(overrun, "prose past the reading measure is the 145-chars/line finding").toEqual([]);
 });

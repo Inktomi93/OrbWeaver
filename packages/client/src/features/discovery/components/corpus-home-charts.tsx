@@ -32,7 +32,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
-import { toBarItems } from "../lib/corpus-charts.ts";
+import { chartLabelWithDenominator, toBarItems, topRanked } from "../lib/corpus-charts.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
 type ThemeLevel = "scene" | "arc";
@@ -40,6 +40,20 @@ type TopKeyword = inferOutput<Trpc["discovery"]["topKeywords"]>[number];
 
 const NO_KEYWORD = "";
 const SKELETON_ROW_COUNT = 3;
+/**
+ * How many keyword bars the chart DRAWS (side-eye populated arm 2026-08-23, [P2-3]).
+ *
+ * The un-capped series measured a 869×1,616px canvas on the audited library — 1,727px of a 3,824px page,
+ * 45% of the surface, and a framebuffer census read 30.08% accent across that band against the §14
+ * physics-4 cap of 10%. It bought nothing: the 50 values ran 6 down to 2, so every bar was 72-100% of its
+ * track and none was distinguishable from its neighbour — the numeral at the bar end was the only readable
+ * datum, which is a TABLE wearing a chart's pixels. It was also the single largest contributor to the
+ * 287ms main-thread block on section entry (#556, ECharts in-frame).
+ *
+ * Twelve is where a ranked bar list stops being a wall and the top of the distribution is still legible;
+ * the SELECT below still offers all fifty, so nothing became unreachable — only un-drawn.
+ */
+const KEYWORD_BAR_CAP = 12;
 const LEVEL_OPTIONS = [
   { value: "scene", label: "Scenes" },
   { value: "arc", label: "Arcs" },
@@ -66,17 +80,24 @@ export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKe
     { value: NO_KEYWORD, label: "Explore a keyword…" },
     ...top.map((row) => ({ value: row.keyword, label: `${row.keyword} (${row.count})` })),
   ];
+  // The CHART is capped; the SELECT below is not. That asymmetry is the point of [P2-3]: the wall was
+  // pixels, not reach, so the head is drawn and the whole series stays one click away.
+  const drawn = topRanked(top, (row) => row.count, KEYWORD_BAR_CAP);
 
   return (
     <Section kicker="Keywords" level={2}>
       <Stack data-testid={testId("corpusKeywordExplorer")} gap="block">
         <BarList
+          // `quiet`: keyword frequency is REFERENCE data at the foot of the overview, and `accent` here is
+          // literally `color.primary` — a full-height accent series is the surface's whole "look here"
+          // budget spent as a default fill (§14 physics 4).
+          intent="quiet"
           items={toBarItems(
-            top,
+            drawn.rows,
             (row) => row.keyword,
             (row) => row.count,
           )}
-          label="Top keywords"
+          label={chartLabelWithDenominator("Top keywords", drawn.rows.length, drawn.total, "keywords")}
         />
         <ParamSelect items={items} label="Cooccurs with" onValueChange={setKeyword} value={keyword} />
         {keyword === NO_KEYWORD ? null : <CooccurringKeywords keyword={keyword} />}
@@ -104,6 +125,9 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
   }
   return (
     <BarList
+      // Same accent-budget arm as the chart above it — this is the answer to the reader's own question,
+      // not the surface's focal.
+      intent="quiet"
       items={toBarItems(
         cooccurring.data,
         (row) => row.keyword,
