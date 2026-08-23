@@ -114,7 +114,7 @@ function CastBarStrip({ cast, humans }: { readonly cast: readonly CastSeat[]; re
           </Avatar>
           {/* `pointer-coarse:sr-only` — the #511 avatar-stack arm (header). The name keeps its place in
               the accessibility tree; it simply stops spending the row's width on a phone. */}
-          <Text as="span" className={LABEL_TO_SR_ONLY_AT_COARSE} size="label" weight="medium" tone={member.disabled ? "muted" : undefined}>
+          <Text as="span" className={cn(LABEL_TO_SR_ONLY_AT_COARSE, member.disabled && "text-muted-foreground")} voice="label">
             {member.displayName}
           </Text>
         </Row>
@@ -152,14 +152,14 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
           </Avatar>
           {/* Same #511 arm as the character chip — and this is where it earns most: a human seat is named
               by its EMAIL until a persona names it (#162), the widest chip the strip ever paints. */}
-          <Text as="span" className={LABEL_TO_SR_ONLY_AT_COARSE} size="label" weight="medium">
+          <Text as="span" className={LABEL_TO_SR_ONLY_AT_COARSE} voice="label">
             {member.displayName}
           </Text>
           {member.role === "host" ? <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" /> : null}
         </Row>
       ))}
       {overflow > 0 ? (
-        <Text as="span" size="micro" tone="muted" className="font-mono">
+        <Text as="span" voice="gloss" className="font-mono">
           +{overflow}
         </Text>
       ) : null}
