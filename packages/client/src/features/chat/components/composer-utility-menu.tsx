@@ -154,7 +154,11 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         </MenuGroup>
         <MenuSeparator />
         {/* REPLY — reroll / post the current reply. Regenerate wears a DISTINCT RefreshCw glyph + helper so it
-            is not confused with the top-row ⟳ Swipe icon (side-eye P1-A); Swipe is steer-aware, this is plain. */}
+            is not confused with the top-row ⟳ Swipe icon (side-eye P1-A); Swipe is steer-aware, this is plain.
+            #570 RULED (owner, 2026-08-23): KEEP BOTH — this row fires the same `guided.fireSwipe("")` as the
+            swipe strip's tip chevron (swipe-strip.tsx), but the pair ratifies as CROSS-PLANE under #568's own
+            logic (a composer control here vs. a reader-side pager there), so it stands as a real second door,
+            not a duplicate to retire. */}
         <MenuGroup>
           <MenuGroupLabel>Reply</MenuGroupLabel>
           <UtilityActionItem
