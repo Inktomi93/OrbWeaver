@@ -3,6 +3,16 @@
 // tail assistant slot — a "act on the most recent reply" convenience mirroring the per-message row buttons).
 // Kept OUT of use-guided-actions (those are guided STEER fires; these are plain verbs) so each hook stays one
 // concern. Recover input (the fired-steer ring recall) is pure client state (useRecentSteers), no verb.
+//
+// THE MIRROR IS RATIFIED, NOT AN ECHO (#568 — budgets `chats::chat.undoContinue: 2` and
+// `chats::chat.revertContinue: 2`; the other door is `message-actions-row.tsx`). The two differ in TARGET and
+// in PLANE, which is what separates them from the #539 retirement (two controls in one home, one a strict
+// subset). This door is composer-side and resolves its target itself — always the TAIL assistant slot, via
+// `guided.tailAssistantMessageId` — so it is reachable with no pointer and no row hunt; the row's ⋯ item is
+// transcript-side and targets THAT row, which is the only way to act on a reply that is no longer the tail.
+// Neither target set contains the other's affordance: retiring this one costs the keyboard/at-rest path,
+// retiring the row's costs every non-tail reply. Budget stays a COUNT, not a gate exemption — an exempt
+// procedure leaves the census, and a third continuation door is what should red.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
