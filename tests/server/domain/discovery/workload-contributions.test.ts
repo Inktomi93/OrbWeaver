@@ -25,7 +25,8 @@ type Contributions = ReturnType<typeof createDiscoveryWorkloadContributions>;
 
 /** A fake discovery service — every verb a `vi.fn` returning the domain's RICHER stats shape, so a test
  *  asserts the contribution's projection down to `AnalyticsResult`, not a pass-through. */
-function fakeDiscovery(distill: DistillOverride = {}, themes: ThemesOverride = {}, cooccurrence: CooccurrenceOverride = {}): Discovery {
+function fakeDiscovery(planes: PlaneOverrides = {}): Discovery {
+  const { distill = {}, themes = {}, cooccurrence = {}, embeddingPlane = {} } = planes;
   // The contributions read ONLY the counts fields off each verb's stats — a full DiscoveryService factory
   // FABRICATION-OK: would state far more than these five run bodies touch.
   return {
@@ -35,11 +36,31 @@ function fakeDiscovery(distill: DistillOverride = {}, themes: ThemesOverride = {
     computeThemes: vi.fn(async () => ({ digestsAssigned: 10, clustersWritten: 5, digestsRead: 10, soloDigestsRead: 10, ...themes })),
     distillCharacters: vi.fn(async () => ({ scanned: 8, distilled: 8, failed: 0, skipped: 0, tagsStaged: 0, ...distill })),
     computeCooccurrence: vi.fn(async () => ({ charKeywordsWritten: 6, pairsWritten: 4, digestsRead: 20, ...cooccurrence })),
-    computeDuplicatePairs: vi.fn(async () => ({ charactersScanned: 7, pairsWritten: 1 })),
-    computeChatDuplicatePairs: vi.fn(async () => ({ chatsScanned: 2, pairsWritten: 0 })),
-    computeCharacterHubScores: vi.fn(async () => ({ rowsScored: 7 })),
+    // `charactersScanned`/`chatsScanned`/`rowsScored` are the EMBEDDINGS-plane census (issue #561) — the two
+    // passes below branch on them, so the fake carries them explicitly for the same reason the digest ones are
+    // here: a missing field would silently exercise the `undefined` path.
+    computeDuplicatePairs: vi.fn(async () => ({
+      charactersScanned: embeddingPlane.charactersScanned ?? 7,
+      pairsWritten: embeddingPlane.charPairsWritten ?? 1,
+    })),
+    computeChatDuplicatePairs: vi.fn(async () => ({
+      chatsScanned: embeddingPlane.chatsScanned ?? 2,
+      pairsWritten: embeddingPlane.chatPairsWritten ?? 0,
+    })),
+    computeCharacterHubScores: vi.fn(async () => ({ rowsScored: embeddingPlane.rowsScored ?? 7 })),
   } as unknown as Discovery;
 }
+
+/** The EMBEDDINGS-plane counts a test wants the fake passes to report. All-zero is the never-indexed corpus:
+ *  `find-duplicates` reads card vectors + chat segment hashes, `csls` reads card vectors, and both planes are
+ *  filled by the index pass — a different job from the memory backfill the digest reasons point at. */
+type EmbeddingPlaneOverride = Partial<{
+  charactersScanned: number;
+  charPairsWritten: number;
+  chatsScanned: number;
+  chatPairsWritten: number;
+  rowsScored: number;
+}>;
 
 /** The distill stats a test wants the fake pass to report (the sweep's counts are what the progress line
  *  reads — a skipped/name-only card has no other reader). */
@@ -62,13 +83,20 @@ interface UserEventCall {
 /** The BULK arm's announce audience — two owners, so a test can prove the fan is per-owner and not one. */
 const BULK_OWNERS: readonly UserId[] = [castId<UserId>("user_alpha"), castId<UserId>("user_beta")];
 
+/** Every input plane a test can empty out, in one bag — the passes read four different populations and a
+ *  positional tail of them outgrew what the house allows a signature to carry. */
+interface PlaneOverrides {
+  readonly distill?: DistillOverride;
+  readonly themes?: ThemesOverride;
+  readonly cooccurrence?: CooccurrenceOverride;
+  readonly embeddingPlane?: EmbeddingPlaneOverride;
+}
+
 function build(
   settings: UserSettings = DEFAULT_USER_SETTINGS,
-  distill: DistillOverride = {},
-  themes: ThemesOverride = {},
-  cooccurrence: CooccurrenceOverride = {},
+  planes: PlaneOverrides = {},
 ): { readonly discovery: Discovery; readonly contributions: Contributions; readonly userEvents: UserEventCall[] } {
-  const discovery = fakeDiscovery(distill, themes, cooccurrence);
+  const discovery = fakeDiscovery(planes);
   const userEvents: UserEventCall[] = [];
   const contributions = createDiscoveryWorkloadContributions({
     discovery,
@@ -114,13 +142,13 @@ describe("compute-themes", () => {
     // Observed live: `{scanned: 0, written: 0}` under a green Succeeded, rendered as "0 rows · 0 written".
     // A pass that could not run at all is indistinguishable, in that line, from one that ran and found
     // nothing — and only one of those is fixed by running the memory backfill.
-    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsAssigned: 0, clustersWritten: 0, digestsRead: 0 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { themes: { digestsAssigned: 0, clustersWritten: 0, digestsRead: 0 } });
     const result = await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(result).toEqual({ scanned: 0, written: 0, emptyReason: "no-digests" });
   });
 
   test("NO DIGESTS: the progress line names the fix, not just the state", async () => {
-    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsRead: 0, digestsAssigned: 0, clustersWritten: 0 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { themes: { digestsRead: 0, digestsAssigned: 0, clustersWritten: 0 } });
     const report = vi.fn();
     await contributions[0].run(ctx, {}, report, sig());
     expect(report).toHaveBeenCalledWith({ message: "no memory digests to cluster — run the memory backfill first" });
@@ -137,14 +165,14 @@ describe("compute-themes", () => {
     // `generate.ts` filters them out before k-means). Keying the refusal on `digestsRead` alone therefore
     // left one live shape reporting `{scanned: 0, written: 0}` under a green Succeeded — the exact zero
     // that #166 exists to kill, one input plane over.
-    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsRead: 12, soloDigestsRead: 0, digestsAssigned: 0, clustersWritten: 0 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { themes: { digestsRead: 12, soloDigestsRead: 0, digestsAssigned: 0, clustersWritten: 0 } });
     const result = await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(result).toEqual({ scanned: 0, written: 0, emptyReason: "no-solo-digests" });
   });
 
   test("GROUP-ROOMS ONLY: the progress line names the SOLO requirement, not the backfill", async () => {
     // A backfill has already run here — telling the user to run it again is the wrong fix sentence.
-    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsRead: 12, soloDigestsRead: 0, digestsAssigned: 0, clustersWritten: 0 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { themes: { digestsRead: 12, soloDigestsRead: 0, digestsAssigned: 0, clustersWritten: 0 } });
     const report = vi.fn();
     await contributions[0].run(ctx, {}, report, sig());
     expect(report).toHaveBeenCalledWith({ message: "only group-room digests to cluster — story themes come from solo chats" });
@@ -170,7 +198,7 @@ describe("distill-characters", () => {
   // only — owner ruling 2026-08-03) have exactly one reader: the closing progress line. A count nobody can
   // read is the silent-sweep version of the quiet button the on-demand refusal exists to end.
   test("the sweep REPORTS the name-only cards it skipped — with the fix, not a bare number", async () => {
-    const { contributions } = build(DEFAULT_USER_SETTINGS, { scanned: 8, distilled: 6, skipped: 2 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { distill: { scanned: 8, distilled: 6, skipped: 2 } });
     const report = vi.fn();
     await contributions[1].run(ctx, {}, report, sig());
     const messages = report.mock.calls.map((c) => (c[0] as { message?: string }).message ?? "");
@@ -213,20 +241,20 @@ describe("compute-cooccurrence", () => {
     // Keyword cooccurrence tallies tier-0 memory digests. With none, every counter is legitimately zero and
     // the run console rendered "0 rows · 0 written" under a green Succeeded — a pass whose input does not
     // exist yet, indistinguishable from one that ran and changed nothing.
-    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, {}, { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 0 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { cooccurrence: { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 0 } });
     const result = await contributions[2].run(ctx, {}, vi.fn(), sig());
     expect(result).toEqual({ scanned: 0, written: 0, emptyReason: "no-digests" });
   });
 
   test("NO DIGESTS: the progress line names the fix", async () => {
-    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, {}, { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 0 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { cooccurrence: { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 0 } });
     const report = vi.fn();
     await contributions[2].run(ctx, {}, report, sig());
     expect(report).toHaveBeenCalledWith({ message: "no memory digests to tally — run the memory backfill first" });
   });
 
   test("a real run carries NO emptyReason — a zero-change tally is not a refusal", async () => {
-    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, {}, { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 20 });
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { cooccurrence: { charKeywordsWritten: 0, pairsWritten: 0, digestsRead: 20 } });
     expect(await contributions[2].run(ctx, {}, vi.fn(), sig())).toEqual({ scanned: 0, written: 0 });
   });
 });
@@ -263,6 +291,39 @@ describe("find-duplicates", () => {
     await contributions[3].run(ctx, { threshold: 0.95 }, vi.fn(), sig());
     expect(discovery.computeChatDuplicatePairs).toHaveBeenCalledWith({ ownerId: OWNER_ID });
   });
+
+  // ── issue #561: the EMBEDDINGS plane gets the same honest accounting as the digest plane ───────────
+  test("NOTHING INDEXED: neither arm read a row — the result STATES that, not a bare 0-written success", async () => {
+    // find-duplicates reads card VECTORS and chat segment hashes; both are produced by the index pass, not
+    // by the memory backfill. On a corpus that has never been indexed every counter is legitimately zero and
+    // the run console rendered "0 rows · 0 written" under a green Succeeded — the #166 zero, one plane over.
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {
+      embeddingPlane: { charactersScanned: 0, charPairsWritten: 0, chatsScanned: 0, chatPairsWritten: 0 },
+    });
+    const result = await contributions[3].run(ctx, {}, vi.fn(), sig());
+    expect(result).toHaveProperty("emptyReason", "no-embeddings");
+    expect(result).toMatchObject({ scanned: 0, written: 0 });
+  });
+
+  test("NOTHING INDEXED: the progress line names the index pass, not the backfill", async () => {
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {
+      embeddingPlane: { charactersScanned: 0, charPairsWritten: 0, chatsScanned: 0, chatPairsWritten: 0 },
+    });
+    const report = vi.fn();
+    await contributions[3].run(ctx, {}, report, sig());
+    expect(report).toHaveBeenCalledWith({ message: "nothing embedded to compare — run the embeddings index first" });
+  });
+
+  test("A POPULATED PLANE WITH NO DUPLICATES IS A REAL ANSWER — no emptyReason", async () => {
+    // The discriminator is "the input did not exist", never "the output was empty". A library of 40 distinct
+    // cards legitimately has zero near-duplicate pairs, and calling that a refusal would tell the user to run
+    // a job that changes nothing — the same wrong-sentence failure #558 minted its own reason to avoid.
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {
+      embeddingPlane: { charactersScanned: 40, charPairsWritten: 0, chatsScanned: 0, chatPairsWritten: 0 },
+    });
+    const result = await contributions[3].run(ctx, {}, vi.fn(), sig());
+    expect(result).not.toHaveProperty("emptyReason");
+  });
 });
 
 describe("csls", () => {
@@ -271,6 +332,24 @@ describe("csls", () => {
     const result = await contributions[4].run(ctx, {}, vi.fn(), sig());
     expect(discovery.computeCharacterHubScores).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ scanned: 7, written: 7 });
+  });
+
+  // ── issue #561: csls's input plane is the character-embedding table ────────────────────────────────
+  test("NO CHARACTER EMBEDDINGS: the result STATES that, not a bare 0-scored success", async () => {
+    // `rowsScored` IS the read census here — every vector the pass loads gets exactly one hub update — so
+    // zero means the plane was empty, never that the maths found nothing. Rendered as "0 rows · 0 written",
+    // that was indistinguishable from a calibration that ran.
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { embeddingPlane: { rowsScored: 0 } });
+    const result = await contributions[4].run(ctx, {}, vi.fn(), sig());
+    expect(result).toHaveProperty("emptyReason", "no-embeddings");
+    expect(result).toMatchObject({ scanned: 0, written: 0 });
+  });
+
+  test("NO CHARACTER EMBEDDINGS: the progress line names the index pass", async () => {
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { embeddingPlane: { rowsScored: 0 } });
+    const report = vi.fn();
+    await contributions[4].run(ctx, {}, report, sig());
+    expect(report).toHaveBeenCalledWith({ message: "no character embeddings to score — run the embeddings index first" });
   });
 });
 

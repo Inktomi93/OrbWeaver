@@ -38,7 +38,14 @@ import type { WorkloadLane } from "@orb/contracts/workloads";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadId } from "@orb/kit/ids";
-import type { WorkloadContributions, WorkloadRowAnyKind, WorkloadRunnableRow, WorkloadRunnerDeps } from "#domain/workloads";
+import type {
+  ReapWorkloadsArgs,
+  WorkloadContributions,
+  WorkloadReapReason,
+  WorkloadRowAnyKind,
+  WorkloadRunnableRow,
+  WorkloadRunnerDeps,
+} from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
 const LOG_COMPONENT = "workloads-worker";
@@ -62,8 +69,9 @@ const DEFAULT_LANE_CONCURRENCY = 1;
 type NextRunnableOp = (db: Db, contributions: WorkloadContributions, now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;
 // `runWorkload` — drive ONE claimed row end-to-end (the domain's per-row state machine; front door).
 type RunWorkloadOp = (deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal: AbortSignal) => Promise<void>;
-// `reapOrphanedWorkloads` — sweep stale in-flight rows from dead workers (front door).
-type ReapOp = (args: { db: Db; contributions: WorkloadContributions; now: number; staleThresholdMs?: number }) => Promise<number>;
+// `reapOrphanedWorkloads` — sweep stale in-flight rows from dead workers (front door). The args shape is the
+// domain's (`ReapWorkloadsArgs`) rather than re-spelled here, so its REQUIRED `reason` reaches this driver.
+type ReapOp = (args: ReapWorkloadsArgs) => Promise<number>;
 // `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
 type LoadWorkloadOp = (db: Db, contributions: WorkloadContributions, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
 // Subscribe to the workload event bus (`workloadStreamEmitter`); returns the unsubscribe. Injected so the
@@ -157,13 +165,13 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadL
  *  reap. Errors are logged + swallowed (the reaper must never take the loop down).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export async function reapOnce(deps: WorkloadsWorkerDeps): Promise<number> {
+export async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): Promise<number> {
   const { db, contributions, now } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });
   try {
-    const reaped = await deps.reap({ db, contributions, now: now() });
+    const reaped = await deps.reap({ db, contributions, now: now(), reason });
     if (reaped > 0) {
-      log.info({ reaped }, "workloads-worker: reaped orphans");
+      log.info({ reaped, reason }, "workloads-worker: reaped orphans");
     }
     return reaped;
   } catch (err) {
@@ -185,12 +193,15 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
   const reapMs = deps.reapIntervalMs ?? DEFAULT_REAP_INTERVAL_MS;
 
   // Boot reap — orphans from a prior lifetime (idempotent; the verb's status guard protects terminal rows).
-  await reapOnce(deps);
+  // This process just started, so anything still in flight died WITH the previous one: a restart, not a lease
+  // that aged out under a live worker (#560 — the two record different sentences on the row).
+  await reapOnce(deps, "worker_restart");
 
   // Periodic reap tick — the boot reap alone misses a fast crash-restart + a sibling replica's death. Errors
-  // are swallowed inside reapOnce; nothing here can kill the poll loops.
+  // are swallowed inside reapOnce; nothing here can kill the poll loops. This worker IS alive here, so a row
+  // it finds stale genuinely stopped bumping its lease.
   const clearReap = deps.scheduleInterval(() => {
-    void reapOnce(deps);
+    void reapOnce(deps, "heartbeat_stale");
   }, reapMs);
 
   // Wake-on-emit: ANY workload event (started/progress/terminal — every emitter is a row already in flight)

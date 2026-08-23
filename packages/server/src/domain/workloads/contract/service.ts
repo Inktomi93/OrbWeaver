@@ -53,6 +53,31 @@ export interface WorkloadRunnerDeps {
   readonly cancelPollMs?: number;
 }
 
+/**
+ * WHY a `worker_died` reap fired — the axis that makes a reaped row post-hoc ATTRIBUTABLE (#560).
+ *
+ * Both reap paths run the SAME sweep and stamp the SAME status, and `markTerminal` overwrites `updatedAt`
+ * (the lease column) with the reap instant — so without this discriminator the row keeps no trace of which
+ * death it was, and a forensic read has to reconstruct the cause from lane ordering and inter-death gaps.
+ *  - `heartbeat_stale` — the steady-state periodic sweep: the process is ALIVE and this row's lease aged past
+ *    the grace window (a genuinely wedged run, or one whose worker died between boots).
+ *  - `worker_restart` — the boot reclaim: single replica, so every in-flight row is orphaned BY DEFINITION
+ *    and the threshold is 0. The lease is typically seconds old; calling that "stale" is the false sentence.
+ */
+const WORKLOAD_REAP_REASONS = ["heartbeat_stale", "worker_restart"] as const;
+export type WorkloadReapReason = (typeof WORKLOAD_REAP_REASONS)[number];
+
+/** The orphan sweep's args. `reason` is REQUIRED: a new reap call site must declare which death it records,
+ *  which is what keeps the two sentences from collapsing back into one. */
+export interface ReapWorkloadsArgs {
+  readonly db: Db;
+  readonly contributions: WorkloadContributions;
+  readonly now: number;
+  /** Grace window before a lease counts as stale; the boot reclaim passes 0 (every in-flight row is orphaned). */
+  readonly staleThresholdMs?: number;
+  readonly reason: WorkloadReapReason;
+}
+
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */
 export interface WorkloadService extends WorkloadScheduleService {
   readonly start: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>;

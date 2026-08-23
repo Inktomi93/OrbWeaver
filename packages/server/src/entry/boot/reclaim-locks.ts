@@ -26,6 +26,9 @@ export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number
     contributions: deps.contributions,
     now: deps.now(),
     staleThresholdMs: BOOT_STALE_THRESHOLD_MS,
+    // The row's only surviving cause record (#560): a boot reclaim is a RESTART kill, not a stale lease —
+    // at threshold 0 the lease is usually seconds old, so the steady-state sentence would be false here.
+    reason: "worker_restart",
   });
   const chatLocks = await reclaimChatLocksOnBoot(deps.db, deps.holder);
   getLog().info({ reaped, chatLocks }, "boot/reclaim-locks: reaped orphaned in-flight workloads + chat turn-locks");

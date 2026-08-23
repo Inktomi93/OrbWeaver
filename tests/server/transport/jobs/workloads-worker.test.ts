@@ -5,7 +5,7 @@
 
 import type { WorkloadLane } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import type { WorkloadContributions, WorkloadRunnableRow, WorkloadRunnerDeps } from "@orb/server/domain/workloads";
+import type { ReapWorkloadsArgs, WorkloadContributions, WorkloadRunnableRow, WorkloadRunnerDeps } from "@orb/server/domain/workloads";
 import { describe, vi } from "vitest";
 import { claimAndRunNext, reapOnce, startWorkloadsWorker } from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -77,19 +77,19 @@ describe("workloads-worker claim tick", () => {
 });
 
 describe("workloads-worker reap tick", () => {
-  test("sweeps orphans through the injected reap op with the injected clock", async () => {
+  test("sweeps orphans through the injected reap op with the injected clock + the caller's reason", async () => {
     const reap = vi.fn(() => Promise.resolve(3));
     const deps = makeWorkerDeps({ reap });
 
-    const reaped = await reapOnce(deps);
+    const reaped = await reapOnce(deps, "heartbeat_stale");
 
-    expect(reap).toHaveBeenCalledWith({ db: deps.runnerDeps.db, contributions: deps.runnerDeps.contributions, now: T0 });
+    expect(reap).toHaveBeenCalledWith({ db: deps.runnerDeps.db, contributions: deps.runnerDeps.contributions, now: T0, reason: "heartbeat_stale" });
     expect(reaped).toBe(3);
   });
 
   test("a reap failure is swallowed (returns 0 — never takes the loop down)", async () => {
     const deps = makeWorkerDeps({ reap: vi.fn(() => Promise.reject(new Error("blip"))) });
-    await expect(reapOnce(deps)).resolves.toBe(0);
+    await expect(reapOnce(deps, "heartbeat_stale")).resolves.toBe(0);
   });
 });
 
@@ -121,12 +121,42 @@ describe("workloads-worker loop", () => {
     await startWorkloadsWorker(deps);
 
     expect(reap).toHaveBeenCalledTimes(1);
+    // #560: the BOOT sweep records a restart, never a stale lease — this process just started, so an
+    // in-flight row died with the previous one. The periodic tick is the arm that records `heartbeat_stale`.
+    expect(reap).toHaveBeenCalledWith(expect.objectContaining({ reason: "worker_restart" }));
     // BOTH lanes ran their claim — the loops are independent, not one global queue.
     expect(runningLanes.toSorted((a, b) => a.localeCompare(b))).toEqual(["interactive", "sweep"]);
     // The reap tick + the wake subscription are shared across lanes (one each), and both are torn down.
     expect(deps.scheduleInterval).toHaveBeenCalledTimes(1);
     expect(clearReap).toHaveBeenCalledTimes(1);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  // The other half of the #560 discriminator: the PERIODIC tick fires under a live worker, so a row it finds
+  // stale genuinely stopped bumping its own lease. Driving the captured interval callback is the only way to
+  // see which reason that arm passes — the boot call above and this one share the same op.
+  test("the periodic reap tick records a STALE HEARTBEAT, not a restart", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const reap = vi.fn((_args: ReapWorkloadsArgs) => Promise.resolve(0));
+    const ticks: (() => void)[] = [];
+    const deps = makeWorkerDeps({
+      signal: controller.signal,
+      reap,
+      scheduleInterval: vi.fn((fn: () => void) => {
+        ticks.push(fn);
+        return () => undefined;
+      }),
+    });
+
+    await startWorkloadsWorker(deps);
+    expect(ticks).toHaveLength(1);
+    ticks[0]?.();
+    await vi.waitFor(() => {
+      expect(reap).toHaveBeenCalledTimes(2);
+    });
+
+    expect(reap.mock.calls.map(([args]) => args.reason)).toEqual(["worker_restart", "heartbeat_stale"]);
   });
 
   test("an already-aborted signal does no work beyond the boot reap", async () => {
