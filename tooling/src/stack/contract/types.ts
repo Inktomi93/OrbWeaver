@@ -156,6 +156,29 @@ export interface DistVerdict {
   readonly message: string;
 }
 
+// ── The SERVED-TRANSFORM probe (dev; #524) ───────────────────────────────────────────────────────────
+
+/** What a served vite transform turned out to be, measured against the file on disk.
+ *
+ *  `fresh`        — every value export the disk file declares is present in what vite served.
+ *  `stale`        — at least one is MISSING: vite is serving a transform that predates the file on disk,
+ *                   which is what a DEAD FILE WATCHER looks like from outside (the module cache never gets
+ *                   invalidated, `touch` does nothing, and every page load white-screens on an import that
+ *                   resolves to undefined). The whole point of the probe: `healthz ok` + `vite pid alive`
+ *                   both stayed true for 24 minutes while the app was down.
+ *  `unreachable`  — vite did not answer at all (it is down, or the module 404s). Not a staleness verdict.
+ *  `unverifiable` — nothing to compare: no candidate source file, or none declaring a value export. An
+ *                   honest "I could not measure", never folded into `fresh`. */
+const SERVED_STATES = ["fresh", "stale", "unreachable", "unverifiable"] as const;
+export type ServedState = (typeof SERVED_STATES)[number];
+
+export interface ServedVerdict {
+  readonly state: ServedState;
+  /** The repo-relative module the probe compared, or `null` when there was nothing to compare. */
+  readonly file: string | null;
+  readonly message: string;
+}
+
 // ── The /api/_debug arming probe ─────────────────────────────────────────────────────────────────────
 
 /** What an UNAUTHENTICATED `GET /api/_debug/info` tells us about the live instance's debug posture.

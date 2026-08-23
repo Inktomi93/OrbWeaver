@@ -33,6 +33,7 @@ import { doDown, doStatus } from "./prod-down.ts";
 import { readEnvFile, TOKEN_PATH } from "./prod-state.ts";
 import { DEFAULT_LOG_LINES, debugToken, tailLog } from "./prod-support.ts";
 import { doRestart, doUp, doUpFg } from "./prod-up.ts";
+import { runServedProbe } from "./served-probe.ts";
 
 // process.argv is [node, script, verb, ...] — the operator's own argv starts here.
 const ARGV_AFTER_VERB = 3;
@@ -76,6 +77,11 @@ function doClassify(argv: readonly string[]): ExitCode {
 export async function runStackProd(argv: readonly string[]): Promise<ExitCode> {
   if (argv[0] === "debug-env") {
     return doDebugEnv();
+  }
+  if (argv[0] === "served-probe") {
+    // The DEV mode's served-vs-disk freshness probe (#524), routed here for the same reason `debug-env` is:
+    // stack.sh is a bash front door and every decision it makes is node's. Exit 1 = a STALE transform.
+    return await runServedProbe();
   }
   if (argv[0] === "classify") {
     // `--` separates our verb from the operator's argv, so an operator arg named `classify` is inert.
