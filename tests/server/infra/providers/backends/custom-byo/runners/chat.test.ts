@@ -165,6 +165,7 @@ describe("createCustomByoBackend — request mapping", () => {
     >;
     await runTurn(makeRequest({ customParameters: poison }));
 
+    // FABRICATION-OK: a FRESH object literal probing global Object.prototype for the poison's spillover — not a fabricated domain value.
     expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
     expect(capturedBody["polluted"]).toBeUndefined();
     expect(capturedBody["reasoning_effort"]).toBe("high");

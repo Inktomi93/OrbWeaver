@@ -48,6 +48,7 @@ function fakeClient(opts: { failDimOnce?: boolean } = {}): {
         return Promise.reject(new Error("unknown field: dimensions"));
       }
       const data = b.input.map((_, i) => ({ index: i, embedding: [1, 2, 3, 4] }));
+      // FABRICATION-OK: T is enginePost's unbound generic, resolved only by the caller — no fixed shape to satisfy.
       return Promise.resolve({
         data,
         model: "served-model",

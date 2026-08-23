@@ -78,6 +78,7 @@ function principal(userId: UserId): Principal {
 function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews,
+    // FABRICATION-OK: minimal ResolvedConnection double — the read paths under test only touch `model`.
     resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
     checkSendAvailability: () => Promise.resolve({ available: true }),
     resolveForeignInputs: () =>

@@ -58,6 +58,7 @@ async function run(opts: { path: string; method?: string; incomingId?: string; p
     nextCalled = true;
     return Promise.resolve();
   };
+  // FABRICATION-OK: narrowing the real Hono middleware to the minimal test-local call-shape.
   const mw = observability as unknown as MiddlewareFn;
   await mw(ctx, next);
   return { stampedId: ctx.res.headers.get("x-request-id"), nextCalled };

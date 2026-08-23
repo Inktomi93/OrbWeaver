@@ -45,6 +45,7 @@ async function runGate(opts: DebugAuthOptions | string | undefined, reqToken?: s
     passed = true;
     return Promise.resolve();
   };
+  // FABRICATION-OK: narrowing the real Hono middleware to the minimal test-local call-shape.
   const gate = createDebugAuthMiddleware(opts) as unknown as GateFn;
   const result = await gate(ctx, next);
   return { passed, status: passed ? OK : (result?.status ?? OK) };

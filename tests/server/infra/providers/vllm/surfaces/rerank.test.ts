@@ -39,7 +39,7 @@ function fakeClient(): { client: VllmEngineClient; calls: PostCall[] } {
         // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
         relevance_score: index, // ascending by index → reverse of request order after sort
       }));
-      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
+      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case). FABRICATION-OK: T is enginePost's unbound generic, resolved only by the caller — no fixed shape to satisfy.
       return Promise.resolve({ model: "served", results, usage: { total_tokens: 9 } } as T);
     },
     engineStream: () => Promise.reject(new Error("rerank must not stream")),

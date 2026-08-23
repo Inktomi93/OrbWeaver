@@ -160,6 +160,7 @@ describe("persistence/queries", () => {
     // poke a corrupt JSON value into the always-a-list `greetings` column
     await db
       .update(characters)
+      // FABRICATION-OK: deliberate corrupt-column probe of the parse-seam degrade path.
       .set({ greetings: castId<CharacterId>("not-an-array") as unknown as { text: string }[] })
       .where(eq(characters.id, id));
     const row = await loadOwnedCharacterRow(db, owner, id);

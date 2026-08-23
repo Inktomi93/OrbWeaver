@@ -430,6 +430,7 @@ describe("findStaleInFlight (reaper input)", () => {
 
 describe("toView (poison tolerance)", () => {
   test("an unknown kind narrows to null", () => {
+    // FABRICATION-OK: deliberate invalid-kind probe of the poison path.
     const raw = {
       id: castId<WorkloadId>("workload_x"),
       kind: "legacy-removed-kind",
