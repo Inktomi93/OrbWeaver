@@ -522,6 +522,9 @@ test("a distant subcategory click lands on the target, never an intermediate (sp
 
   // Record every nav row that gains aria-current from now on (before the click).
   await page.evaluate(() => {
+    // In-page globalThis scaffolding — `globalThis` in the mounted browser context carries no app
+    // type; the cast is the monkeypatch/spy scaffolding itself, not a fabricated domain value.
+    // FABRICATION-OK: in-page globalThis scaffolding (see above).
     const w = globalThis as unknown as { __seen: string[] };
     w.__seen = [];
     const nav = document.querySelector('[role="navigation"]');
@@ -552,6 +555,7 @@ test("a distant subcategory click lands on the target, never an intermediate (sp
   // Wait for the programmatic smooth-scroll to fully settle (scrollTop stable for several polls), so any
   // post-settle spy tick is included in the sample.
   await page.waitForFunction(() => {
+    // FABRICATION-OK: in-page globalThis scaffolding (see the MutationObserver instrumentation above).
     const w = globalThis as unknown as { __top?: number; __stable?: number };
     const region = document.querySelector('[role="region"]') as HTMLElement | null;
     if (region === null) {
@@ -566,6 +570,7 @@ test("a distant subcategory click lands on the target, never an intermediate (sp
     return (w.__stable ?? 0) > 4;
   });
 
+  // FABRICATION-OK: in-page globalThis scaffolding (see the MutationObserver instrumentation above).
   const seen = await page.evaluate(() => (globalThis as unknown as { __seen: string[] }).__seen);
   // The only row that ever held aria-current during the jump is the target subcategory — no INTERMEDIATE
   // section flickered through, and no parent category shared the marker.

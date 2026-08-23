@@ -10,18 +10,14 @@
 // the dep-cruiser rule — NOT a dispatch-level credential rejection. This test therefore asserts the
 // OR-skin is PERMITTED (per the authoritative spec) and that the REAL fail-closed rules hold.
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { AgentTurnRequest, ChatRequest, ChatResult, EmbedRequest, EmbedResult, ProviderBackend } from "@orb/server/infra/providers";
+import type { ModelId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { ChatRequest, ChatResult, EmbedRequest, EmbedResult, ProviderBackend } from "@orb/server/infra/providers";
 import { createBackendRegistry, createProviderExecutor, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { createFrozenClock } from "../../../support/clock.ts";
+import { makeModelCapability, makeOpenRouterCredential, makeResolvedCredential } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-
-// The dispatch + firewall read only `credential.source`; the brand is irrelevant at runtime (these
-// `.test.ts` files run through esbuild, not tsc), so a cast keeps the fakes terse.
-function cred(source: ResolvedCredential["source"]): ResolvedCredential {
-  return { source, credentialId: null } as unknown as ResolvedCredential;
-}
 
 const CHAT_RESULT: ChatResult = {
   reply: "ok",
@@ -78,12 +74,16 @@ function spyBackend(key: ProviderBackend["key"], calls: string[]): ProviderBacke
   };
 }
 
+// `over` can swap `api` into the agent-sdk arm without its arm-only required fields (orSkinTierModels
+// etc.) — these tests exercise ONLY the firewall/dispatch routing, which reads `api`+`credential.source`
+// (+`model`), never the arm-specific fields a real per-arm factory would add.
 function chatReq(over: Partial<ChatRequest>): ChatRequest {
+  // FABRICATION-OK: partial-arm request (see above).
   return {
     api: "chat-completions",
-    credential: cred("openrouter"),
-    model: "m",
-    capability: {} as ChatRequest["capability"],
+    credential: makeOpenRouterCredential(),
+    model: castId<ModelId>("m"),
+    capability: makeModelCapability(),
     params: {},
     systemPrompt: { static: "", dynamic: "" },
     history: [],
@@ -92,7 +92,7 @@ function chatReq(over: Partial<ChatRequest>): ChatRequest {
 }
 
 function embedReq(over: Partial<EmbedRequest>): EmbedRequest {
-  return { credential: cred("openrouter"), model: "m", input: "x", ...over } as EmbedRequest;
+  return { credential: makeOpenRouterCredential(), model: castId<ModelId>("m"), input: "x", ...over };
 }
 
 describe("createProviderExecutor — routing through the firewall + sealed dispatch", () => {
@@ -101,7 +101,7 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({
       backends: new Map([["openrouter", spyBackend("openrouter", calls)]]),
     });
-    await exec.runChatTurn(chatReq({ api: "chat-completions", credential: cred("openrouter") }));
+    await exec.runChatTurn(chatReq({ api: "chat-completions", credential: makeOpenRouterCredential() }));
     expect(calls).toEqual(["openrouter:chat"]);
   });
 
@@ -110,7 +110,7 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({
       backends: new Map([["agent-sdk", spyBackend("agent-sdk", calls)]]),
     });
-    await exec.runChatTurn(chatReq({ api: "agent-sdk", credential: cred("openrouter") }));
+    await exec.runChatTurn(chatReq({ api: "agent-sdk", credential: makeOpenRouterCredential() }));
     // Per authoritative providers.md the OR skin runs through the agent-sdk backend — NOT rejected.
     expect(calls).toEqual(["agent-sdk:chat"]);
   });
@@ -120,7 +120,7 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({
       backends: new Map([["openrouter", spyBackend("openrouter", calls)]]),
     });
-    await exec.embed(embedReq({ credential: cred("openrouter") }));
+    await exec.embed(embedReq({ credential: makeOpenRouterCredential() }));
     expect(calls).toEqual(["openrouter:embed"]);
   });
 
@@ -129,7 +129,7 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({
       backends: new Map([["agent-sdk", spyBackend("agent-sdk", calls)]]),
     });
-    await expect(exec.embed(embedReq({ credential: cred("max-pro-sub") }))).rejects.toBeInstanceOf(ProviderError);
+    await expect(exec.embed(embedReq({ credential: makeResolvedCredential("max-pro-sub") }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]); // fail-closed: nothing ran
   });
 
@@ -138,16 +138,16 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({
       backends: new Map([["agent-sdk", spyBackend("agent-sdk", calls)]]),
     });
-    await expect(exec.runChatTurn(chatReq({ api: "agent-sdk", credential: cred("max-pro-sub") }))).rejects.toBeInstanceOf(ProviderError);
+    await expect(exec.runChatTurn(chatReq({ api: "agent-sdk", credential: makeResolvedCredential("max-pro-sub") }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
 
-    await exec.runChatTurn(chatReq({ api: "agent-sdk", credential: cred("max-pro-sub"), ownerConsented: true }));
+    await exec.runChatTurn(chatReq({ api: "agent-sdk", credential: makeResolvedCredential("max-pro-sub"), ownerConsented: true }));
     expect(calls).toEqual(["agent-sdk:chat"]);
   });
 
   test("an UNWIRED backend fail-closes (a missing composition-root wire, not a silent default)", async () => {
     const exec = createProviderExecutor({ backends: new Map() });
-    await expect(exec.runChatTurn(chatReq({ api: "chat-completions", credential: cred("openrouter") }))).rejects.toBeInstanceOf(ProviderError);
+    await expect(exec.runChatTurn(chatReq({ api: "chat-completions", credential: makeOpenRouterCredential() }))).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("a backend that doesn't implement the requested role fail-closes", async () => {
@@ -156,11 +156,11 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({ backends: new Map([["openrouter", partial]]) });
     await expect(
       exec.rerank({
-        credential: cred("openrouter"),
-        model: "m",
+        credential: makeOpenRouterCredential(),
+        model: castId<ModelId>("m"),
         query: "q",
         documents: [],
-      } as unknown as Parameters<typeof exec.rerank>[0]),
+      }),
     ).rejects.toBeInstanceOf(ProviderError);
   });
 
@@ -170,12 +170,12 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
       backends: new Map([["agent-sdk", spyBackend("agent-sdk", calls)]]),
     });
     await exec.runAgentTurn({
-      credential: cred("openrouter"),
-      model: "m",
+      credential: makeOpenRouterCredential(),
+      model: castId<ModelId>("m"),
       systemPrompt: "",
       prompt: "hi",
       mcpServer: {},
-    } as AgentTurnRequest);
+    });
     expect(calls).toEqual(["agent-sdk:agent"]);
   });
 });

@@ -1,6 +1,4 @@
 {
-  "tests/client/data/invalidation.test.ts": 8,
-  "tests/client/features/settings/surfaces/settings-shell-surface.ct.tsx": 3,
   "tests/client/forms/create-saved-entity-form.test.ts": 1,
   "tests/db/schema/character.int.test.ts": 1,
   "tests/db/schema/chat.int.test.ts": 2,
@@ -9,11 +7,9 @@
   "tests/db/schema/tag.int.test.ts": 3,
   "tests/db/schema/world-info.int.test.ts": 1,
   "tests/server/domain/character/persistence/queries.int.test.ts": 1,
-  "tests/server/domain/character/substrate/card-merge.test.ts": 11,
   "tests/server/domain/chat/assembly/assemble.test.ts": 2,
   "tests/server/domain/chat/engine/auto-mode.test.ts": 1,
   "tests/server/domain/chat/engine/engine.int.test.ts": 3,
-  "tests/server/domain/chat/engine/pipeline.test.ts": 8,
   "tests/server/domain/chat/engine/round.int.test.ts": 3,
   "tests/server/domain/chat/service.int.test.ts": 1,
   "tests/server/domain/chat/verbs/edit.int.test.ts": 2,
@@ -21,7 +17,6 @@
   "tests/server/domain/chat/verbs/roster.int.test.ts": 2,
   "tests/server/domain/chat/verbs/start-chat.int.test.ts": 2,
   "tests/server/domain/chat/verbs/turn.int.test.ts": 3,
-  "tests/server/domain/connection/_support.ts": 5,
   "tests/server/domain/notifications/verbs/record.int.test.ts": 1,
   "tests/server/domain/preset/substrate/views.test.ts": 1,
   "tests/server/domain/settings/persistence/queries.int.test.ts": 1,
@@ -29,7 +24,6 @@
   "tests/server/domain/workloads/_support.ts": 3,
   "tests/server/domain/workloads/persistence/queries.int.test.ts": 1,
   "tests/server/entry/app.test.ts": 2,
-  "tests/server/entry/compose/role-clients.test.ts": 6,
   "tests/server/entry/compose/services.test.ts": 2,
   "tests/server/entry/http/auth-routes.test.ts": 2,
   "tests/server/entry/http/blob.test.ts": 1,
@@ -53,7 +47,6 @@
   "tests/server/infra/providers/backends/openrouter/runners/image/runner.test.ts": 3,
   "tests/server/infra/providers/backends/openrouter/runners/rerank/runner.test.ts": 3,
   "tests/server/infra/providers/diagnostics.test.ts": 1,
-  "tests/server/infra/providers/index.test.ts": 6,
   "tests/server/infra/providers/roles/agent.test.ts": 3,
   "tests/server/infra/providers/roles/chat.test.ts": 3,
   "tests/server/infra/providers/vllm/index.test.ts": 3,
@@ -65,8 +58,5 @@
   "tests/server/kit/custom-parameters.test.ts": 3,
   "tests/server/transport/jobs/_support.ts": 2,
   "tests/server/transport/trpc/routers/stats.test.ts": 2,
-  "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx": 1,
-  "tests/ui/primitives/log-viewer/log-viewer.ct.tsx": 7,
-  "tests/ui/primitives/message-list/message-list.ct.tsx": 5,
-  "tests/ui/primitives/sortable/sortable.ct.tsx": 4
+  "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx": 1
 }
