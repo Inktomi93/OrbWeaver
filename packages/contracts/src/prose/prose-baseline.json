@@ -160,6 +160,10 @@
       "version": 1,
       "sha256": "e4cfa53e14d5bdb6de2c9d9013ea7b571f60c18bab8ecdb7b09a9cb243a96ef9"
     },
+    "imagery.tool.generateImageDescription": {
+      "version": 1,
+      "sha256": "1f8658921c0b9bbfa91c2a089dcf855ce976e3abbcf1edf2b3a8f310f3893fd9"
+    },
     "chat.assembly.anchorIdentity": {
       "version": 1,
       "sha256": "2cc3f447c355e3722be2a11f3d36caf3149e177043dd3486cddfaf202faffb99"
@@ -507,6 +511,14 @@
     "rpg.extract.refs.closing": {
       "version": 1,
       "sha256": "d60b8623291cda1e7e4ca5380a969e3874c5e90d93943f9a096ba392f72a93e8"
+    },
+    "rpg.extract.userPrompt.latestBeatLabel": {
+      "version": 1,
+      "sha256": "9bde378276ce7156488e86922566b02d25996252f1709433760b8395503f54e1"
+    },
+    "rpg.extract.tool.rollDice": {
+      "version": 1,
+      "sha256": "3fd0609140542948248e6984d89ec74cefe5e7c7b78863f1df87e1735977afd4"
     },
     "rpg.populate.systemHeader": {
       "version": 1,
