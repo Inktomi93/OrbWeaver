@@ -110,6 +110,13 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   // renders at all, which is the affordance-lie the review filed.
   const showPager = total > 1;
 
+  // #570 RULED (owner, 2026-08-23): KEEP BOTH — this chevron and the ✨ menu's Regenerate row (
+  // composer-utility-menu.tsx) ratify as cross-plane under #568's own logic (reader-side pager vs.
+  // composer control), with distinct honest names. What #568's triage left unsettled was the NAME at
+  // variantCount === 1: this lone chevron GENERATES (not steps) here, so it must say so rather than
+  // borrow the pager's "Next variant" label.
+  const nextChevronLabel = showPager ? "Next variant" : "Generate a variant";
+
   return (
     // THE PLATE SIZES TO ITS CONTENT (#228). #221 gave this band the row's wallpaper backing and fixed its
     // contrast (1.60:1 → 8.78:1), but the band is a block-level flex row, so the plate spanned the full
@@ -148,7 +155,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
           </Text>
         </>
       ) : null}
-      <Button intent="ghost" size="icon" loading={busy} aria-label="Next variant" onClick={goNext}>
+      <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
         <Icon icon={ChevronRight} size="sm" />
       </Button>
     </Row>

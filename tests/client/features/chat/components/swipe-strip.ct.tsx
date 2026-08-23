@@ -89,8 +89,11 @@ test("a SINGLE variant renders no pager at all — no counter, no dead back-step
   const component = await mount(<SwipeStripStory message={atIdx0Of1} />);
   await expect(component.getByRole("button", { name: "Previous variant" })).toHaveCount(0);
   await expect(component.getByText("1 / 1")).toHaveCount(0);
-  // …and the one affordance that CAN act is still there.
-  await expect(component.getByRole("button", { name: "Next variant" })).toBeEnabled();
+  // …and the one affordance that CAN act is still there — labelled for what it DOES at this count
+  // (#570 RULED: it generates, not steps, so the name is "Generate a variant", not the pager's
+  // "Next variant"). The stale "Next variant" name is asserted absent as the honesty regression pin.
+  await expect(component.getByRole("button", { name: "Generate a variant" })).toBeEnabled();
+  await expect(component.getByRole("button", { name: "Next variant" })).toHaveCount(0);
 });
 
 test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this mount has never rendered", async ({ mount, page }) => {
