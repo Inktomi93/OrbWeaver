@@ -26,7 +26,8 @@ import { checkList } from "../kit/check-list.ts";
 const DEFAULT_ROLE = "user";
 // CHECK list derived from the canonical tuple (NOT re-spelled): `role in ('owner', 'admin', 'user')`.
 const ROLE_CHECK_LIST = checkList(USER_ROLES);
-// CHECK list derived from the canonical KIND tuple (D60, NOT re-spelled): `kind in ('human', 'agent')`.
+// CHECK list derived from the canonical KIND tuple (D60, NOT re-spelled) — tuple-derived, currently
+// 1-member (`kind in ('human')`); widens to include `'agent'` when the agent-principal wave re-lands.
 const KIND_CHECK_LIST = checkList(USER_KINDS);
 
 export const users = sqliteTable(
