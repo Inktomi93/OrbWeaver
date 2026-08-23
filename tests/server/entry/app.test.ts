@@ -106,10 +106,12 @@ function testServices(extra: Record<string, unknown> = {}): AppDeps["services"] 
 /** Build `AppDeps` with inert fakes; overrides patch in the per-test seam / getters. The unhit ports are
  *  typed stubs (the routes that would touch them are covered by their own slice tests). */
 function deps(overrides: Partial<AppDeps>): AppDeps {
+  // FABRICATION-OK: the unhit-port stub the header above describes — routes that reach it throw loudly.
   const stub = {} as never;
   const services = testServices();
   return {
     now: (): number => FROZEN_NOW,
+    // FABRICATION-OK: `db` is never touched on this app-assembly slice — routes are covered by slice tests.
     db: {} as unknown as Db,
     oidcProviderName: "your identity provider",
     seam: fakeSeam(null),
