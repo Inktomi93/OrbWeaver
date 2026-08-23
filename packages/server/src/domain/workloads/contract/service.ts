@@ -53,6 +53,15 @@ export interface WorkloadRunnerDeps {
   readonly cancelPollMs?: number;
 }
 
+/** What the single-replica BOOT reclaim did with the orphans it found (#529). Two counters, not one: a
+ *  re-queued row is work that SURVIVED the respawn, and a reaped one is work that was lost — collapsing them
+ *  into a single "reclaimed" number is exactly the log line that made three worker-kills in one day look
+ *  like routine boot noise. */
+export interface BootReclaimReport {
+  readonly requeued: number;
+  readonly reaped: number;
+}
+
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */
 export interface WorkloadService extends WorkloadScheduleService {
   readonly start: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>;

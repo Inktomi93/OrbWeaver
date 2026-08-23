@@ -17,6 +17,7 @@ import {
   classifyDist,
   classifyDrainTail,
   classifyInstance,
+  classifyServedTransform,
   DEBUG_ENV_KEYS,
   debugConflictMessage,
   debugPostureText,
@@ -37,6 +38,7 @@ import {
   STACK_SPAWNERS,
   serializeProdRecord,
   spawnerForPort,
+  valueExportNames,
 } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -409,6 +411,50 @@ test("a bundle older than client source is a WARN, not a refusal — server-only
   expect(classifyDist({ distIndexMtimeMs: 100, newestSourceMtimeMs: 500 }).state).toBe("stale");
   expect(classifyDist({ distIndexMtimeMs: 500, newestSourceMtimeMs: 100 }).state).toBe("fresh");
   expect(classifyDist({ distIndexMtimeMs: 500, newestSourceMtimeMs: null }).state).toBe("fresh");
+});
+
+// ── served-transform freshness (#524) ────────────────────────────────────────────────────────────────
+//
+// THE LIE THIS DETECTOR EXISTS FOR: vite's file watcher died, the process stayed up, the port stayed bound,
+// healthz stayed green, and `stack status` printed `status=up` for 24 minutes while every page load got a
+// pre-merge transform missing a landed export. These are the permanent controls — both directions, so the
+// detector can be proven to fail as well as to pass.
+
+/** A module the transform must still spell every value export of — and three type-only exports it may not. */
+const CANARY_SOURCE = [
+  "export type Erased = string;",
+  "export interface AlsoErased { a: string }",
+  "export type { Erased as Reexported };",
+  "export const landedConst = 1;",
+  "export async function landedFn() {}",
+  "export class LandedClass {}",
+  "const inner = 2;",
+  "export { inner as landedAlias };",
+].join("\n");
+
+test("valueExportNames takes every value export and NO type export (a type's absence proves nothing)", () => {
+  expect(valueExportNames(CANARY_SOURCE).toSorted((a, b) => a.localeCompare(b))).toEqual(["landedAlias", "LandedClass", "landedConst", "landedFn"]);
+});
+
+test("a served body MISSING a landed export is STALE — the dead-watcher wedge, with the fix in the message", () => {
+  // The measured shape: a byte-identical PREVIOUS transform, which simply does not contain the new export.
+  const wedged = CANARY_SOURCE.replace("export const landedConst = 1;", "");
+  const verdict = classifyServedTransform({ file: "packages/ui/src/canary.ts", diskSource: CANARY_SOURCE, servedBody: wedged });
+  expect(verdict.state).toBe("stale");
+  expect(verdict.message).toContain("landedConst");
+  expect(verdict.message).toContain("pnpm stack restart");
+});
+
+test("a served body carrying every value export is FRESH (the negative control)", () => {
+  expect(classifyServedTransform({ file: "packages/ui/src/canary.ts", diskSource: CANARY_SOURCE, servedBody: CANARY_SOURCE }).state).toBe("fresh");
+});
+
+test("no answer is UNREACHABLE and a type-only module is UNVERIFIABLE — neither may read as fresh", () => {
+  // "I could not measure" is the third answer this instrument owes; folding either into `fresh` would
+  // reproduce the exact lie (a clean-looking verdict from a probe that never ran).
+  expect(classifyServedTransform({ file: "packages/ui/src/canary.ts", diskSource: CANARY_SOURCE, servedBody: null }).state).toBe("unreachable");
+  expect(classifyServedTransform({ file: "packages/ui/src/t.ts", diskSource: "export type A = 1;\n", servedBody: "" }).state).toBe("unverifiable");
+  expect(classifyServedTransform({ file: null, diskSource: null, servedBody: null }).state).toBe("unverifiable");
 });
 
 // ── the system-probe parsers ─────────────────────────────────────────────────────────────────────────

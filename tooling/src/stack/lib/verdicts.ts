@@ -1,6 +1,6 @@
 // The three read-the-evidence classifiers: the shutdown drain, the client-bundle freshness, and the
 // /api/_debug arming posture. All pure — each turns an observation into a WORD the operator can act on.
-import type { DebugPosture, DistVerdict, DrainOutcome } from "../contract/types.ts";
+import type { DebugPosture, DistVerdict, DrainOutcome, ServedVerdict } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 // ── Shutdown drain ───────────────────────────────────────────────────────────────────────────────────
@@ -52,6 +52,71 @@ export function classifyDist(opts: { readonly distIndexMtimeMs: number | null; r
     };
   }
   return { state: "fresh", message: "client bundle is newer than client/ui source" };
+}
+
+// ── Served-transform freshness (dev; #524) ───────────────────────────────────────────────────────────
+
+/** Every way a module can DECLARE a value export, as one matcher over the disk source. Types are excluded
+ *  on purpose (`export type X` / `export interface X` / `export type { X }` are ERASED by the transform, so
+ *  their absence from the served body proves nothing); a re-export clause takes the LAST identifier of each
+ *  clause, which is the exported name under `a as b`. `default` is skipped — the served body spells it as
+ *  a keyword, not as a binding. */
+const VALUE_EXPORT_RE = /^\s*export\s+(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/gmu;
+const EXPORT_CLAUSE_RE = /^\s*export\s+(?!type\s*\{)\{([^}]*)\}/gmu;
+const CLAUSE_NAME_RE = /([A-Za-z_$][\w$]*)\s*$/u;
+
+/** The value-export names a served dev transform of this source MUST still contain.
+ *
+ *  Why export NAMES and not a content hash: vite's dev transform is not the file — it strips types and
+ *  rewrites imports — so nothing byte-level survives to compare. Identifiers do, because the dev pipeline
+ *  never minifies. A landed export missing from the served body is exactly the wedge this probe exists for.
+ * @public Test-anchored: the planted controls in tests/tooling/stack/index.test.ts pin both directions. */
+export function valueExportNames(source: string): string[] {
+  const names = new Set<string>();
+  for (const match of source.matchAll(VALUE_EXPORT_RE)) {
+    names.add(match[1] ?? "");
+  }
+  for (const match of source.matchAll(EXPORT_CLAUSE_RE)) {
+    for (const clause of (match[1] ?? "").split(",")) {
+      const trimmed = clause.trim();
+      if (trimmed === "" || trimmed.startsWith("type ")) {
+        continue;
+      }
+      names.add(CLAUSE_NAME_RE.exec(trimmed)?.[1] ?? "");
+    }
+  }
+  names.delete("");
+  return [...names];
+}
+
+/** Compare one module's disk source against what vite actually served for it. `servedBody: null` = no
+ *  answer (vite down / the module 404'd), which is NOT a staleness claim — see `ServedState`. */
+export function classifyServedTransform(opts: {
+  readonly file: string | null;
+  readonly diskSource: string | null;
+  readonly servedBody: string | null;
+}): ServedVerdict {
+  if (opts.file === null || opts.diskSource === null) {
+    return { state: "unverifiable", file: opts.file, message: "no candidate workspace module to probe — served-vs-disk freshness NOT measured" };
+  }
+  const servedBody = opts.servedBody;
+  if (servedBody === null) {
+    return { state: "unreachable", file: opts.file, message: `vite did not serve ${opts.file} — served-vs-disk freshness NOT measured` };
+  }
+  const expected = valueExportNames(opts.diskSource);
+  if (expected.length === 0) {
+    return { state: "unverifiable", file: opts.file, message: `${opts.file} declares no value export — served-vs-disk freshness NOT measured` };
+  }
+  // A local binding, not `opts.servedBody`: the null-narrowing above does not survive into the callback.
+  const missing = expected.filter((name) => !servedBody.includes(name));
+  if (missing.length > 0) {
+    return {
+      state: "stale",
+      file: opts.file,
+      message: `vite is serving a STALE transform of ${opts.file} — it is missing ${missing.join(", ")}. The file watcher is dead: every load serves pre-change code while healthz and the vite pid both look fine. Restart the stack (pnpm stack restart).`,
+    };
+  }
+  return { state: "fresh", file: opts.file, message: `vite's transform of ${opts.file} carries all ${expected.length} of its value export(s)` };
 }
 
 // ── the /api/_debug arming probe ─────────────────────────────────────────────────────────────────────

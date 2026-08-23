@@ -17,6 +17,8 @@ export type {
   ProdRecord,
   ProdSpawnPlan,
   ProdSpawnPlanOpts,
+  ServedState,
+  ServedVerdict,
   SpawnLockAction,
   StackInvocation,
   StackMode,
@@ -31,9 +33,22 @@ export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/d
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export { parseListenerPid, parseProcStartTicks } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
+export type { SourceEntry } from "./lib/source-scan.ts";
+export { newestSourceEntries } from "./lib/source-scan.ts";
 export type { SpawnLockOpts } from "./lib/spawn-lock.ts";
 export { acquireSpawnLock, handleHeldSpawnLock, releaseSpawnLock } from "./lib/spawn-lock.ts";
 export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL, SERVER_ENTRY_REL } from "./lib/spawn-plan.ts";
 export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
-export { classifyDebugPosture, classifyDist, classifyDrainTail, DRAIN_MARGIN_MS, DRAIN_WATCH_MS, debugPostureText, SERVER_DRAIN_MS } from "./lib/verdicts.ts";
+export {
+  classifyDebugPosture,
+  classifyDist,
+  classifyDrainTail,
+  classifyServedTransform,
+  DRAIN_MARGIN_MS,
+  DRAIN_WATCH_MS,
+  debugPostureText,
+  SERVER_DRAIN_MS,
+  valueExportNames,
+} from "./lib/verdicts.ts";
 export { runStackProd } from "./ops/prod.ts";
+export { probeServedTransform } from "./ops/served-probe.ts";

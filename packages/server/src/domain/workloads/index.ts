@@ -25,8 +25,9 @@ export type {
   WorkloadScheduleRow,
   WorkloadScheduleService,
 } from "./contract/schedule.ts";
-export type { WorkloadRunnerDeps, WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
+export type { BootReclaimReport, WorkloadRunnerDeps, WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
+export { reclaimInFlightOnBoot } from "./engine/boot-reclaim.ts";
 export {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
