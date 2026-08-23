@@ -56,6 +56,9 @@ interface CharacterCardTileStoryTag {
 export interface CharacterCardTileStoryProps {
   readonly name?: string;
   readonly handle?: CharacterHandle;
+  /** #517 — the server's library-wide verdict that another character carries this name. The row spends its
+   *  handle as a visible + announced disambiguator on exactly this. */
+  readonly nameIsAmbiguous?: boolean;
   readonly archived?: boolean;
   readonly starred?: boolean;
   readonly avatarHash?: string | null;
@@ -72,6 +75,7 @@ export interface CharacterCardTileStoryProps {
 export function CharacterCardTileStory({
   name = "Aria Nightshade",
   handle = castId<CharacterHandle>("aria-nightshade"),
+  nameIsAmbiguous = false,
   archived = false,
   starred = false,
   avatarHash = null,
@@ -97,6 +101,7 @@ export function CharacterCardTileStory({
           id: castId<CharacterId>("char_ct_story"),
           name,
           handle,
+          nameIsAmbiguous,
           archived,
           starred,
           avatarHash,

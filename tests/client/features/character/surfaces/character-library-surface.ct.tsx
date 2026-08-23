@@ -153,8 +153,11 @@ test("a read failure shows the error state with a working Retry (rule 1 — no d
 // so the INACTIVE vocabulary is collapsed on first visit. A test about the tag chips therefore opens it the
 // way a user does. The pins that state what does NOT collapse — the scope pills, every ACTIVE chip, the
 // orphan chips, the `N active` datum — deliberately do not call this.
-const MORE_FILTERS = "More filters — show the tag vocabulary";
+// #519 — the collapsed trigger ADVERTISES ITS CONTENTS ("More filters" named the act and not one of the
+// three things behind it: Favorites, Archived, and a 551-entry tag vocabulary).
+const MORE_FILTERS = "Favorites, archived & tags — show more filters";
 const FEWER_FILTERS = "Fewer filters — hide the tag vocabulary";
+const MORE_FILTERS_LABEL = "Favorites, archived & tags";
 
 async function openFilters(component: Locator): Promise<void> {
   await component.getByRole("button", { name: MORE_FILTERS }).click();
@@ -1337,17 +1340,24 @@ test("the rail's text affordances carry disclosure semantics and object-qualifie
 });
 
 // TASTE (a) — the result count read as a debug line: micro/gloss type, floating between the rail and the
-// favourites strip, belonging to nothing. It is a DATUM in the group whose controls produce it.
-test("the result count is typeset as a datum, inside the Filters group", async ({ mount, page }) => {
+// favourites strip, belonging to nothing. It became a DATUM in the group whose controls produce it…
+//
+// …AND THE RULING SURVIVES — ITS INPUT CHANGED (#518, side-eye se-verify-1). What that finding was about is
+// WHERE the count belongs and in whose voice; what died is the count being PRINTED here at all, because the
+// LIST band 130px above prints the same census (one visible home, the chats-band precedent). It stays in
+// the Filters group, still exactly one `role="status"`, still the group's own output — spoken rather than
+// typeset. The sibling `N active` datum keeps the visible register for the number this rail alone produces.
+test("the result count is the Filters group's own live region — one status, spoken not printed", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(row(component, "Starla")).toBeVisible();
 
-  const status = component.getByRole("status");
+  const group = component.getByRole("group", { name: "Filters" });
+  const status = group.getByRole("status");
+  await expect(status).toHaveCount(1);
   await expect(status).toHaveText("3 characters");
-  await expect(status).toHaveAttribute("data-voice", "datum");
-  // Its sibling datum (the active count) shares the voice — one register for the two numbers.
-  await expect(component.getByRole("group", { name: "Filters" }).getByRole("status")).toHaveCount(1);
+  // `sr-only` is a 1px clip box, so this is the rendered proof that the pane prints no second census.
+  expect((await status.boundingBox())?.width ?? 0).toBeLessThanOrEqual(1);
 });
 
 // TASTE (c) — se-chars-focusring-crop.png: two orange rings stacked. FOCUS_RING paints `ring-ring` and the
@@ -1649,33 +1659,83 @@ test("#491 the pane's skip link lands focus on the first character row", async (
   await expect(component.locator('[data-slot="list-row-body"]').first()).toBeFocused();
 });
 
-// ── #492 · WCAG 2.5.3 / the three Emilys ─────────────────────────────────────────────────────────────
+// ── #492 → #517 · WCAG 2.5.3 / the three Emilys ──────────────────────────────────────────────────────
 // The library holds real same-name collisions (three `Emily` at handles emily/emily-2/emily-3, `Mira`×2
 // and `Nell`×2 inside the first 50 rows) and every row announced its NAME alone: three identical
 // `button "Emily"`. Voice control could address none of them; list-navigation and low-verbosity screen
 // reader modes, which drop descriptions, heard one name three times.
+//
+// #492 FIXED THE ANNOUNCEMENT AND GATED IT ON THE WRONG THING (side-eye se-verify-1, 2026-08-22 — the
+// verification pass over #492's own fix). The gate was DERIVABILITY (is the handle `slugifyHandle(name)`?),
+// chosen because a collision scan over a keyset-paged list would answer about the PAGE. Measured
+// consequence on the owner's library: 13 rows, 8 qualified, 0 of the 8 colliding — `Charlotte · assistant`
+// reads as a role, while `Emily`/`emily` (a real collision with a derivable handle) got nothing. And the
+// qualifier was ACCESSIBLE-NAME ONLY, so the sighted reader's only disambiguator was the subtitle ladder,
+// whose last rung is the handle. #517 answers the paging objection at the source — the row projection
+// carries a library-wide `nameIsAmbiguous` — and RENDERS what it announces.
 const EMILY_PLAIN = makeCharacterSummary({ id: "char_e1", name: "Emily", handle: castId<CharacterHandle>("emily"), createdAt: 3000 });
 const EMILY_THIRD = makeCharacterSummary({ id: "char_e3", name: "Emily", handle: castId<CharacterHandle>("emily-3"), createdAt: 2000 });
+/** The other half of #517: a UNIQUE name whose handle is not derivable from it. `Charlotte · assistant` is
+ *  the misleading qualifier the derivability gate minted — it reads as a role and disambiguates nothing. */
+const CHARLOTTE = makeCharacterSummary({ id: "char_c1", name: "Charlotte", handle: castId<CharacterHandle>("assistant"), createdAt: 1000 });
 
-test("#492 two characters named Emily announce two DIFFERENT names — row body and every control on it", async ({ mount, page }) => {
+test("#517 the qualifier is spent on AMBIGUITY — both Emilys carry one, the unique Charlotte does not", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "character.list": characterListResponder([EMILY_PLAIN, EMILY_THIRD]),
+    "character.list": characterListResponder([EMILY_PLAIN, EMILY_THIRD, CHARLOTTE]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
   });
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
-  await expect(component.locator('[data-slot="list-row-title"]').first()).toHaveText("Emily");
-
-  // The handle is spent ONLY where the name does not already say it: `emily` IS `slugifyHandle("Emily")`,
-  // so that row stays plain, and the one that cannot be derived carries its disambiguator.
-  await expect(component.getByRole("button", { name: "Emily", exact: true })).toHaveCount(1);
   await expect(component.getByRole("button", { name: "Emily · emily-3", exact: true })).toHaveCount(1);
+
+  // BOTH colliding rows are qualified — `emily` IS `slugifyHandle("Emily")`, and under the old DERIVABILITY
+  // gate that row announced a bare "Emily" beside another row announcing "Emily · emily-3": a real collision
+  // the disambiguator skipped because the handle happened to be derivable (side-eye se-verify-1, #517).
+  await expect(component.getByRole("button", { name: "Emily · emily", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Emily", exact: true })).toHaveCount(0);
+  // …and the row that collides with NOTHING spends nothing. `Charlotte · assistant` was the derivability
+  // gate's other failure direction: eight qualified rows on the owner's library, none of them colliding.
+  await expect(component.getByRole("button", { name: "Charlotte", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Charlotte · assistant", exact: true })).toHaveCount(0);
 
   // …and the row's CONTROLS speak the same identity (`rowActionSubject`, #443/#458/#463) — fixing only the
   // body would have left two identically-named kebabs and two identical "Chat with Emily" behind it.
   await expect(component.getByRole("button", { name: 'Actions for "Emily" · emily-3' })).toHaveCount(1);
   await expect(component.getByRole("button", { name: 'Chat with "Emily" · emily-3' })).toHaveCount(1);
-  await expect(component.getByRole("button", { name: "Chat with Emily", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: 'Chat with "Emily" · emily', exact: true })).toHaveCount(1);
+});
+
+// #517, THE SIGHTED HALF (the P1 the reviewer rated and could not reproduce only because the corpus is
+// lucky). The visible disambiguator was the subtitle ladder — `elevatorPitch ?? tagLine ?? handle`, handle
+// LAST — so a duplicate-named character with a distilled pitch or one visible tag showed the reader nothing
+// at all while the accessible name carried the answer. The qualifier is RENDERED now, and the row's visible
+// label is character-for-character its accessible name (WCAG 2.5.3 by identity, not by prefix rule).
+test("#517 the qualifier is VISIBLE, and the row's visible label IS its accessible name", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    // Both Emilys carry a pitch, so the old subtitle ladder shows the SAME line on both rows: the case the
+    // corpus happened not to contain, and the one the sighted reader cannot solve.
+    "character.list": characterListResponder([
+      makeCharacterSummary({ ...EMILY_PLAIN, elevatorPitch: "A quiet archivist." }),
+      makeCharacterSummary({ ...EMILY_THIRD, elevatorPitch: "A quiet archivist." }),
+    ]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  const qualified = component.getByRole("button", { name: "Emily · emily-3", exact: true });
+  await expect(qualified).toHaveCount(1);
+
+  // RENDERED, not sr-only: a real box with the handle in it.
+  const qualifier = qualified.locator('[data-slot="list-row-title-qualifier"]');
+  await expect(qualifier).toHaveText("· emily-3");
+  expect((await qualifier.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+
+  // The visible label and the announced one are the SAME STRING — a voice-control user can say what they
+  // read, and there is nothing in the name that is not on the screen. Scoped to the TITLE LINE: the row's
+  // button also wraps the `aria-hidden` avatar (whose fallback paints the name's initials) and the subtitle.
+  const visible = await qualified.locator('[data-slot="list-row-title-row"]').evaluate((el: HTMLElement) => el.textContent?.replace(/\s+/gu, " ").trim() ?? "");
+  expect(visible).toBe("Emily · emily-3");
+  await expect(qualified).toHaveAttribute("aria-label", visible);
 });
 
 // ── #493 · the honesty P2s ───────────────────────────────────────────────────────────────────────────
@@ -1745,4 +1805,70 @@ test("#502 the tag vocabulary is NOT read while the filter disclosure is shut �
   await openFilters(component);
   await expect(component.getByRole("button", { name: SECOND_RAIL_CHIP })).toBeVisible();
   await expect.poll(() => trpc.count("tag.listTagFilterVocabulary"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+});
+
+// ── se-verify-1 (2026-08-22): #518 the census · #519 the disclosure label · #523 the scroll region ────
+
+// #518 — `CHARACTERS 327` (band) and `327 characters` (the FILTERS status line) printed the same number
+// ~130px apart in a 290px column. ONE VISIBLE HOME, and it is the band, by the chats precedent (#490): the
+// band's census answers the LENS in front of the reader (`N of TOTAL`), which is why the pane's search now
+// lives in the library store where the band — a sibling shell region — can see it. The pane keeps a
+// mounted `role="status"` live region so the spoken result count (side-eye 2026-08-03 P2) survives; it is
+// simply no longer a second printed number.
+test("#518 the census has ONE visible home — the band answers the lens, the pane's line is spoken only", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  const band = component.getByTestId("list-band");
+  await expect(band).toContainText(String(THREE_ROW_TOTAL));
+
+  // The pane's status line is MOUNTED (a live region that appears with its first message announces
+  // nothing) and carries the matched count — but it paints no second census: sr-only is a 1px box.
+  const status = component.getByRole("status");
+  await expect(status).toHaveText(`${String(THREE_ROW_TOTAL)} characters`);
+  expect((await status.boundingBox())?.width ?? 0).toBeLessThanOrEqual(1);
+
+  // …and the band is the number that MOVES with the lens, which is the whole reason it survived: a band
+  // printing the library total over a filtered pane is the #490 defect one section over.
+  await component.getByPlaceholder("Search characters…").fill("Bolt");
+  await expect(row(component, "Bolt")).toBeVisible();
+  await expect(band).toContainText(`1 of ${String(THREE_ROW_TOTAL)}`);
+  await expect(status).toHaveText("1 character");
+});
+
+// #519 — at rest the group rendered `FILTERS` + "More filters" + a lone mono census: no signal that
+// Favorites, Archived or a 551-entry tag vocabulary exist behind it (Nielsen #6). The trigger names its
+// CONTENTS now. The chrome fence is re-measured here because a longer label is a wider rail cell.
+test("#519 the collapsed disclosure advertises what it opens — and the resting rail still holds its fence", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const disclosure = component.getByRole("button", { name: MORE_FILTERS });
+  await expect(disclosure).toHaveText(MORE_FILTERS_LABEL);
+  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+
+  // The label grew; the resting chrome above the first character row must still hold the ratified 264px.
+  const list = component.getByRole("list", { name: "Character library" });
+  const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
+  expect((listBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeLessThan(RAIL_CHROME_CEILING_PX);
+});
+
+// #523 — the bounded vocabulary's scroller is a keyboard stop (Base UI makes an overflowing viewport
+// focusable, correctly: a scroll region a keyboard user cannot reach is a trap). It announced as an
+// unnamed generic between "Show fewer tags" and the tag toolbar. It is a NAMED region now.
+test("#523 the tag-vocabulary scroll viewport is a NAMED region, not an unlabeled generic", async ({ mount, page }) => {
+  await routeBigVocabulary(page, OWNER_VOCABULARY);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
+  await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
+
+  const region = component.getByRole("region", { name: "Tag vocabulary" });
+  await expect(region).toHaveAttribute("data-slot", "scroll-area-viewport");
+  // The named thing IS the focusable one — naming a different node would leave the tab stop anonymous.
+  await expect(region).toHaveAttribute("tabindex", "0");
 });

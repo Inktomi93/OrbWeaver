@@ -17,6 +17,8 @@ import { CharacterLibraryWelcomeListModeStory } from "../_ct-stories.tsx";
 
 const INSTRUCTION = /Pick someone from the list/u;
 const LIST_PANEL_DOOR = /Show list panel in the top bar/u;
+/** #520 — the docked arm's pointer at the BAND's own primary, by its visible label. */
+const BAND_DOOR = /New at the top of it/u;
 
 test("#446 the list-door footnote renders only while the Characters LIST is off screen", async ({ mount }) => {
   const welcome = await mount(<CharacterLibraryWelcomeListModeStory />);
@@ -33,4 +35,25 @@ test("#446 the list-door footnote renders only while the Characters LIST is off 
 
   await welcome.getByRole("button", { name: "put the list back" }).click();
   await expect(welcome.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
+});
+
+// #520 — the OTHER half of the same conditional, and the reason it is conditional at all (side-eye
+// se-verify-1: `duplicate-action-door`, two "New" buttons on the Characters plane — the LIST band's and
+// this hero's). The recorded #446 ruling ("the hero keeps its own primary … no second door is minted for
+// the collapsed one") SURVIVES — its INPUT changed: the hero's New is the only door exactly when the band
+// is off screen, so it renders exactly then. With the list docked, the band's New is 200px away and this
+// pane points AT it by its visible label (WCAG 2.5.3 — a voice user says what is written).
+test("#520 ONE New door on the plane — the hero's primary exists only while the band is off screen", async ({ mount }) => {
+  const welcome = await mount(<CharacterLibraryWelcomeListModeStory />);
+  const newDoor = welcome.getByRole("button", { name: "New", exact: true });
+
+  // Docked: the band carries the door, so this pane must not mint a second one…
+  await expect(welcome.getByText(INSTRUCTION)).toBeVisible();
+  await expect(newDoor).toHaveCount(0);
+  await expect(welcome.getByText(BAND_DOOR)).toBeVisible();
+
+  // …and off screen: the band went with the list, so the hero IS the door (never a dead end).
+  await welcome.getByRole("button", { name: "take the list off screen" }).click();
+  await expect(newDoor).toBeVisible();
+  await expect(welcome.getByText(BAND_DOOR)).toHaveCount(0);
 });

@@ -628,6 +628,54 @@ describe("list — totalCount (the census the readouts print)", () => {
   });
 });
 
+// #517 — the row's DISAMBIGUATION gate. The client used to derive it per row (is the handle
+// `slugifyHandle(name)`?), which qualified rows that collide with nothing and skipped real collisions whose
+// handle happened to be derivable. The verdict is the server's now, and these pin the two properties that
+// make it usable at all: it is a claim about the LIBRARY (a one-row page still knows), and it does not move
+// when a lens narrows the pane.
+describe("list — nameIsAmbiguous (the row's disambiguation gate)", () => {
+  async function seedTwins(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedRawCharacter(db, { id: "character_e1", ownerId: owner, handle: castId<CharacterHandle>("emily"), name: "Emily", createdAt: 3000 });
+    await seedRawCharacter(db, { id: "character_e2", ownerId: owner, handle: castId<CharacterHandle>("emily-3"), name: "Emily", createdAt: 2000 });
+    await seedRawCharacter(db, { id: "character_solo", ownerId: owner, handle: castId<CharacterHandle>("assistant"), name: "Charlotte", createdAt: 1000 });
+    return owner;
+  }
+
+  test("a name shared with another of the owner's characters is ambiguous — a unique one is not", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedTwins(db);
+
+    const page = await svc.list({ principal: principal(owner) });
+    const byHandle = new Map(page.items.map((row) => [row.handle, row.nameIsAmbiguous]));
+    // BOTH twins, including the one whose handle IS the slugified name — the case the client's derivability
+    // gate skipped, which is what left two rows announcing "Emily" and "Emily · emily-3" side by side.
+    expect(byHandle.get(castId<CharacterHandle>("emily"))).toBe(true);
+    expect(byHandle.get(castId<CharacterHandle>("emily-3"))).toBe(true);
+    // …and `Charlotte · assistant`, the misleading qualifier the same gate minted, is gone.
+    expect(byHandle.get(castId<CharacterHandle>("assistant"))).toBe(false);
+  });
+
+  test("the verdict is a LIBRARY fact — a one-row page and a lens that hides the twin both keep it", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedTwins(db);
+
+    // A page holding ONE row still knows its name collides: a page-scoped scan would say false here, and
+    // the row's announced identity would then change as the keyset advanced.
+    const firstPage = await svc.list({ principal: principal(owner), limit: 1 });
+    expect(firstPage.items).toHaveLength(1);
+    expect(firstPage.items[0]?.nameIsAmbiguous).toBe(true);
+
+    // …and a search that matches exactly one of the twins keeps it too — filtering the other one out of
+    // view does not make two characters stop sharing a name.
+    const searched = await svc.list({ principal: principal(owner), search: "emily-3" });
+    expect(searched.items.map((row) => row.handle)).toEqual(["emily-3"]);
+    expect(searched.items[0]?.nameIsAmbiguous).toBe(true);
+  });
+});
+
 describe("list — canonical tags (the library tag filter)", () => {
   test("each summary carries its ACCEPTED tags; pending suggestions and other rows' tags don't bleed", async () => {
     const db = await freshDb();

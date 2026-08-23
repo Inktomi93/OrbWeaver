@@ -121,7 +121,15 @@ export function TagVocabularyPanel({
           short of an `!important` escape can outrank it.)
           The cap goes on the VIEWPORT, not the root: a root whose own height is auto cannot make the
           viewport's `h-full` definite, so the region would CLIP at 192px instead of scrolling. */}
-      <ScrollArea viewportClassName="max-h-48" wrapContent={true}>
+      {/* THE VIEWPORT IS A NAMED REGION (#523, side-eye se-verify-1). Base UI makes an overflowing viewport
+          `tabindex=0`, and correctly so — a scroll region a keyboard user cannot reach is a trap — but an
+          unnamed one announces as a bare generic between "Show fewer tags" and the tag toolbar, i.e. a stop
+          on the way to the chips that says nothing about itself. `role="region"` + a name is the smaller of
+          the two honest answers; the other (folding the tab stop onto the toolbar) would be a lie, because
+          the SCROLLER is the thing that scrolls. The name is deliberately not the toolbar's
+          ("Tag filter vocabulary"): a region and the toolbar inside it announcing the same words is the
+          host-duplicates-its-body defect one pane over. */}
+      <ScrollArea viewportClassName="max-h-48" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
         {/* `pe-row` is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
             Base UI's scrollbar is positioned over the content, so without the inline-end gutter the last
             chip of every line renders underneath the thumb. */}
