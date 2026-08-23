@@ -85,7 +85,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
       <DialogPopup data-testid={testId("joinInviteDialog")}>
         <Stack gap="block">
           <DialogTitle>Join a chat</DialogTitle>
-          {state.kind === "loading" ? <Text tone="muted">Checking the invite…</Text> : null}
+          {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}
           {state.kind === "invalid" ? (
             <>
               <DialogDescription>This invite is invalid or has expired.</DialogDescription>

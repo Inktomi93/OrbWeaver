@@ -256,9 +256,7 @@ function OwnedAssetPicker({ characterId, existingAssetIds, onDone }: OwnedAssetP
     <Stack gap="block">
       {body}
       <Row justify="between" align="center" gap="row">
-        <Text size="micro" tone="muted">
-          {selected.size} selected
-        </Text>
+        <Text voice="gloss">{selected.size} selected</Text>
         <Row gap="row">
           <DialogClose render={<Button intent="ghost">Cancel</Button>} />
           <Button intent="primary" disabled={selected.size === 0} onClick={confirmAdd}>

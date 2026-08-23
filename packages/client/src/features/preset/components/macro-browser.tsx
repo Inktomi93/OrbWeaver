@@ -63,9 +63,7 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
         </Stack>
       </Section>
       <Section kicker="Flags">
-        <Text size="micro" tone="muted">
-          A flag run sits between the braces and the name — {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.
-        </Text>
+        <Text voice="gloss">A flag run sits between the braces and the name — {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.</Text>
         <Stack gap="field">
           {MACRO_FLAG_DEFS.filter((def) => def.key !== "closing").map((def) => (
             <Row key={def.key} gap="field" align="center">
@@ -73,9 +71,7 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
               <Badge intent={def.status === "implemented" ? "info" : "neutral"} size="sm">
                 {def.status}
               </Badge>
-              <Text size="micro" tone="muted">
-                {def.description}
-              </Text>
+              <Text voice="gloss">{def.description}</Text>
             </Row>
           ))}
         </Stack>
@@ -110,7 +106,7 @@ function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
           </Badge>
         ) : null}
       </Row>
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         {meta.description}
         {signature === "" ? "" : ` — args: ${signature}`}
       </Text>
