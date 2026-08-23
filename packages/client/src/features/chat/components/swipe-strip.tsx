@@ -3,6 +3,16 @@
 // selectVariant (a pointer move, no new generation), same as the left chevron. Both resolve their
 // target variant id through useVariantHistory, since MessageView carries only the selected variant per
 // slot.
+//
+// THE SECOND `chat.swipe` DOOR, RATIFIED (#568 — budget `chats::chat.swipe: 2`; the other is the wand's
+// `fireSwipe`/`fireRewrite` in `use-guided-actions.ts`). This is a READER-SIDE control on the message —
+// a pager that also generates at the tip, and the home of the ‹/› keyboard nav — whereas the wand is a
+// composer control whose payload carries a `guided` steer this door structurally cannot send. Neither is a
+// subset of the other in the sense #539 retired on (same home, strict payload subset), so both stand. The
+// budget stays a COUNT rather than a gate exemption: an exempt procedure leaves the census entirely, and a
+// third swipe door is exactly what should red here. What the #568 triage did NOT settle is #570: the ✨
+// utility menu's "Regenerate" fires `fireSwipe("")`, which is this chevron's tip behaviour exactly — a real
+// duplicate RENDERED affordance behind one of the two call sites, ruled there and not here.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
