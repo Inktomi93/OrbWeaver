@@ -78,11 +78,39 @@ const ESTIMATED_ROW_PX = 44;
 // and locale table, minted for a single secondary filter — and it would be the only date affordance in the
 // app that is not the platform's. The `Input` primitive's box (border, radius, focus ring, instrument-tier
 // font step) is applied, so the control's OUTSIDE is house voice; only its interior is the UA's.
+//
+// THE UNSET INTERIOR IS GLOSSED, NOT REPLACED (#522 — the follow-on the record above invited). Accepting the
+// native control never meant accepting that an EMPTY one shouts: the UA prints `--------- ----` at full
+// foreground, so the loudest text in this column was the field that had nothing to say. The `Input` primitive
+// now marks a date-family control with no value (`data-empty`) and `@orb/ui`'s globals tint
+// `::-webkit-datetime-edit` to the muted tone — the same tone `placeholder:` already gives every text field,
+// which is exactly what those dashes are. Colour only: no custom primitive, no overlay, no relabelling.
 const MONTH_LABEL = "Show chats from";
 const SKIP_TO_LIST_LABEL = "Skip to chats";
 const CLEAR_MONTH_LABEL = "Clear the month";
 const SEARCH_LABEL = "Search chats";
 const CLEAR_SEARCH_LABEL = "Clear the search";
+
+/** The inline-end room BOTH filter fields keep for their inset clear glyph. It is EXACTLY the glyph's own
+ *  box (`icon-sm` is `size-control-sm`, the same pointer-conditional token as the field's height), so the
+ *  value can never run under the control and the control can never spill past the field. Held CONSTANT
+ *  rather than gated on the value, so typing the first character does not reflow the text under the cursor;
+ *  on the month field the same padding also walks the UA's own `::-webkit-calendar-picker-indicator` inboard
+ *  by that much (measured in chromium 2026-08-22), which is what keeps the two glyphs from stacking. */
+const CLEAR_INSET_RESERVE = "pe-control-sm";
+
+/** The way OUT of a narrowing filter, inset at the field's own inline end (#525 — see the reset-contract
+ *  note at the call sites). `icon-sm` is the `control-sm` SQUARE, i.e. the field's own height at either
+ *  pointer: the button fills the field's inner end rather than hanging in the column gutter, and it clears
+ *  the coarse tap floor by construction instead of by a hit-area pseudo. The absolute box takes its vertical
+ *  static position from the row's `align="center"`, so it needs no inset of its own. */
+function ClearFilterGlyph({ label, onClick }: { readonly label: string; readonly onClick: () => void }): ReactElement {
+  return (
+    <Button aria-label={label} className="absolute end-0" intent="ghost" onClick={onClick} size="icon-sm" title={label} type="button">
+      <Icon icon={X} size="sm" />
+    </Button>
+  );
+}
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -149,26 +177,30 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             value and the search field beside it never did — two sibling filters, two different ways out,
             in one 290px column, and the only "Clear search" in the app lived inside the ZERO-RESULTS empty
             state. So leaving a 12-of-896 result meant select-all-delete. Same affordance, same gate
-            (non-empty), same glyph, same voice — spelled as the identical Row/Button pair below rather
-            than a shared local component, because the two differ in their field chrome (the month owes a
-            visible `Field` label; a search box's placeholder IS its label) and a wrapper hiding that
-            difference would be the abstraction, not the fix. */}
-        <Row align="center" gap="field">
-          <Input aria-label={SEARCH_LABEL} className="min-w-0 flex-1" onValueChange={setChatListSearch} placeholder="Search chats…" value={query} />
-          {query === "" ? null : (
-            <Button aria-label={CLEAR_SEARCH_LABEL} intent="ghost" onClick={clearSearch} size="icon" title={CLEAR_SEARCH_LABEL} type="button">
-              <Icon icon={X} size="sm" />
-            </Button>
-          )}
+            (non-empty), same glyph, same voice.
+            THE RULING SURVIVES — ITS SHAPE MOVED INSIDE THE FIELD (#525). #490 spelled the pair as two
+            inline Row/Button copies "rather than a shared local component, because the two differ in their
+            field chrome". The chrome difference is still real and still lives at the call sites (the month
+            owes a visible `Field` label; a search box's placeholder IS its label) — what is NOT a call-site
+            difference is the glyph itself, and the reason it moved is that a ✕ hanging in the COLUMN GUTTER
+            read as a sibling control while the month field's native picker glyph sat INSIDE its box, so two
+            mechanically identical filters had two silhouettes. The glyph is now one `ClearFilterGlyph`,
+            inset at the field's own inline end, over a constant `CLEAR_INSET_RESERVE` so the value never
+            reflows when it appears. */}
+        <Row align="center" className="relative">
+          <Input
+            aria-label={SEARCH_LABEL}
+            className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`}
+            onValueChange={setChatListSearch}
+            placeholder="Search chats…"
+            value={query}
+          />
+          {query === "" ? null : <ClearFilterGlyph label={CLEAR_SEARCH_LABEL} onClick={clearSearch} />}
         </Row>
         <Field label={MONTH_LABEL}>
-          <Row align="center" gap="field">
-            <Input className="min-w-0 flex-1" onValueChange={setChatListMonth} type="month" value={month} />
-            {month === "" ? null : (
-              <Button aria-label={CLEAR_MONTH_LABEL} intent="ghost" onClick={clearMonth} size="icon" title={CLEAR_MONTH_LABEL} type="button">
-                <Icon icon={X} size="sm" />
-              </Button>
-            )}
+          <Row align="center" className="relative">
+            <Input className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`} onValueChange={setChatListMonth} type="month" value={month} />
+            {month === "" ? null : <ClearFilterGlyph label={CLEAR_MONTH_LABEL} onClick={clearMonth} />}
           </Row>
         </Field>
         <Stack className="min-h-0 flex-1">

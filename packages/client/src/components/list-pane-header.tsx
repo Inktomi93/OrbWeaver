@@ -71,7 +71,10 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             what makes a pane that SWAPS its contents (Characters → a character's chats) stop announcing
             the section it used to hold. The rationale + the single-instance argument live at the constant. */}
         <Heading
-          className="flex min-w-0 items-center gap-field"
+          // `gap-row`, not `gap-field` (#525): 6px of air between a caps NAME and a mono DATUM is below the
+          // step the eye needs to read them as two things, and the census is the one child here that is not
+          // part of the title's phrase.
+          className="flex min-w-0 items-center gap-row"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
@@ -95,7 +98,13 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             )}
           </Text>
           {count === undefined || count === 0 ? null : (
-            <Text as="span" className="shrink-0 font-mono" size="micro" tone="muted" weight="regular">
+            // `normal-case` OPTS OUT OF THE HEADING'S CAPS (#525). `transform="none"` emits no class (it is
+            // the Text default, spelled as `""`), so a count nested in this caps heading INHERITED the
+            // uppercase: the filtered census printed `CHATS 129 OF 896` and the word joining the two numbers
+            // shouted at the same weight as the section name, which is what made the whole band read as one
+            // token instead of name-then-number. The accent half above deliberately keeps the inheritance —
+            // it is part of the title's phrase; a datum is not.
+            <Text as="span" className="shrink-0 font-mono normal-case" size="micro" tone="muted" weight="regular">
               {count}
             </Text>
           )}
