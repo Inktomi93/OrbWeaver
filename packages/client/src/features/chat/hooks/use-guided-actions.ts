@@ -10,6 +10,18 @@
 // `chat.generate` — which also makes the START-1 failure class (a `generate` opening failing AFTER the room
 // committed, leaving a real chat orphaned behind the draft UI while the user's retry minted a second one)
 // unreachable by construction rather than degraded-not-broken.
+//
+// THE WAND IS THE STEERED DOOR — three ratified pairs live here (#568). This hook is the second door on
+// `chat.generate`, `chat.swipe` and `chat.continueTurn`, all three budgeted at 2 by duplicate-action-doors.
+// The pairing is deliberate and none of the three is the #539 echo class (two controls in ONE home, one a
+// strict payload subset): every twin below is a BARE-verb affordance on another plane, and this hook is the
+// only door that can carry a `guided` steer.
+//   • generate / continueTurn ← `use-continue-turn.ts`: a settings-gated EMPTY-Enter keyboard gesture
+//     (`continueOnSend` / `generateOnEmptySend`), no steer, no speaker, no `afterAssistant`.
+//   • swipe ← `swipe-strip.tsx`: the transcript row's variant PAGER, whose right chevron generates only at
+//     the tip and which owns the ‹/› keyboard nav (`use-swipe-keyboard-nav`) — a reader-side control on the
+//     message, not a composer control on the draft.
+// Retiring any twin deletes a whole interaction MODE (keyboard-only, or reader-side), not a redundant echo.
 
 import type { GuidedActionKind, GuidedImpersonatePerson, RewriteToggleId } from "@orb/contracts/preset";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";

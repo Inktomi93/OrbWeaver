@@ -16,6 +16,19 @@
 // the same tick it was asked to open. `RowActionsMenu` already solves exactly this for its destructive item
 // (the item is a child, the `ConfirmDialog` is a sibling); the wire viewer follows that precedent, which is
 // also why the `open` state has to live in THIS component rather than in a split-out trigger file.
+//
+// THREE RATIFIED SECOND DOORS HANG OFF THIS ROW (#568 — the duplicate-action-doors budgets
+// `chats::chat.deleteMessages: 2`, `chats::chat.undoContinue: 2`, `chats::chat.revertContinue: 2`). This is
+// the per-MESSAGE plane; each twin is a different plane with a different reach, so none is the #539 echo
+// class (two controls in one home, one carrying a strict subset of the other's payload):
+//   • deleteMessages ← `message-selection-bar.tsx`: bulk-select mode, the whole selected SET, a counted
+//     confirm. This door deletes ONE row at rest, with no mode to enter first.
+//   • undoContinue / revertContinue ← `use-composer-utilities.ts` (the ✨ menu): composer-side and pinned to
+//     the TAIL assistant slot. This door is the only one that reaches a reply which is no longer the tail —
+//     which is precisely why the item is phase-gated per row (`hasContinuation`) rather than tail-derived.
+// The budgets stay COUNTS rather than `EXEMPT_PROCEDURES` rows on purpose: an exempt procedure leaves the
+// gate's census, so a THIRD door would land silently — and a third door on any of these three is the drift
+// the budget exists to red on.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
