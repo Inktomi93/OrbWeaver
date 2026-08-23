@@ -183,6 +183,35 @@ const FAILED_PASS: TrpcRoutes = {
 const JOBS_DOOR = /All jobs in Settings/;
 const FAMILIES_DOOR = /All families/;
 
+// ── #537 · the corpus ARIA sweep: the two role-less runs of text on this surface ─────────────────────
+// The readiness rail was a `<section>` full of role-less `<div>` rows and the family map an unstructured
+// grid of cards: a screen reader met each as ONE flat run with no count, no boundary to step to, and no
+// way to tell where a stage's NAME ended and its measurement began. Both are lists; they say so now.
+test("#537 the readiness rail is a LIST of stages, not one flat run of text", async ({ mount, page }) => {
+  await routeTrpc(page, FAILED_PASS);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  const rail = component.getByRole("list", { name: "Analysis passes" });
+  await expect(rail).toBeVisible();
+  // One item per stage — the count is the thing a reader gets for free from the structure.
+  const stages = component.locator('[data-slot="readiness-stage"]');
+  const stageCount = await stages.count();
+  expect(stageCount).toBeGreaterThan(1);
+  await expect(rail.getByRole("listitem")).toHaveCount(stageCount);
+});
+
+test("#537 the family map is a LIST of plates", async ({ mount, page }) => {
+  await routeTrpc(page, FAILED_PASS);
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  const island = page.locator('[data-corpus-focal="familyMap"]');
+  await expect(island).toBeVisible();
+
+  const plates = component.getByRole("list", { name: "Visual families" });
+  await expect(plates).toBeVisible();
+  await expect(plates.getByRole("listitem").first()).toBeVisible();
+});
+
 test("A5: the readiness failure keeps the door to the log it names", async ({ mount, page }) => {
   await routeTrpc(page, FAILED_PASS);
   const component = await mount(<CorpusHomeDefaultPaneStory />);

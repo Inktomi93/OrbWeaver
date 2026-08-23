@@ -463,3 +463,82 @@ test("the omnibox surfaces as-you-type suggestions from search.suggest", async (
   await expect(page.getByRole("option", { name: "night market" })).toBeVisible();
   await expect(page.getByRole("option", { name: "nightshade" })).toBeVisible();
 });
+
+// ── #537 · the corpus ARIA sweep ─────────────────────────────────────────────────────────────────────
+// The omnibox is an INLINE Autocomplete, and Base UI derives `aria-expanded` as `open || inline` — so a
+// pristine, never-typed-in search box announced itself EXPANDED onto a popup with nothing in it, from the
+// moment the section mounted. The seal states the truth off the same filtered count its status region
+// speaks: the inline list's visibility gate IS its item count.
+test("#537 the omnibox reports COLLAPSED until the typeahead actually has suggestions", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": EMPTY_BROWSE,
+    "search.suggest": [{ suggestion: "night market", score: 0.9 }],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceStory />);
+  const omnibox = component.getByRole("combobox", { name: "Search your corpus" });
+
+  // PRISTINE: nothing typed, nothing suggested, nothing on screen to be expanded onto.
+  await expect(omnibox).toBeVisible();
+  await expect(omnibox).toHaveAttribute("aria-expanded", "false");
+
+  // …and it goes true only once the list it claims is rendered (SETTLED on the rendered option).
+  await omnibox.fill("night");
+  await expect(page.getByRole("option", { name: "night market" })).toBeVisible();
+  await expect(omnibox).toHaveAttribute("aria-expanded", "true");
+});
+
+// The typeahead's status region was PERMANENT in the inline arm — it has no popup to gate it — so the
+// corpus pane carried a live region reading "0 suggestions" over a resting catalog, competing with the
+// shell's own status region for a reader's attention while saying nothing.
+test("#537 the typeahead announces no count while it has nothing to suggest", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": browsePage([ARIA_ROW, BOLT_ROW], null),
+    "search.suggest": [{ suggestion: "night market", score: 0.9 }],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceStory />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+
+  const status = component.locator('[data-slot="autocomplete-status"]');
+  await expect(status).toHaveCount(0);
+
+  // It speaks again the moment there IS a list to count — the region is transient, not deleted.
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("night");
+  await expect(page.getByRole("option", { name: "night market" })).toBeVisible();
+  await expect(status).toHaveText("1 suggestion");
+});
+
+// The #491 pane-scoped twin. The shell's own `Skip to content` moves focus to `<main>` — PAST this pane —
+// so a keyboard user who came for the RESULTS had five target toggles, the omnibox and the typeahead in
+// front of the first hit and no shortcut over them.
+test("#537 the pane's skip link is first in DOM order and lands on the first result row", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": browsePage([ARIA_ROW, BOLT_ROW], null),
+    "search.suggest": [],
+    "search.search": searchResponder,
+  });
+  const component = await mount(<CorpusListSurfaceStory />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+
+  // FIRST among the pane's focusables, in DOM order — the whole contract: a skip control that is not the
+  // first focusable is a second tab stop, not a skip.
+  const skip = component.getByRole("button", { name: "Skip to results" });
+  const firstInPane = await skip.evaluate((el: HTMLElement) => {
+    const pane = el.closest<HTMLElement>('[data-testid="corpus-list-surface"]');
+    const focusables = [...(pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
+    const first = focusables[0];
+    return { isSkip: first === el, name: first?.textContent ?? first?.getAttribute("aria-label") ?? "(none)" };
+  });
+  expect(firstInPane).toEqual({ isSkip: true, name: "Skip to results" });
+
+  await skip.focus();
+  await page.keyboard.press("Enter");
+  await expect(component.locator('[data-slot="list-row-body"]').first()).toBeFocused();
+});

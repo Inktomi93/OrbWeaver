@@ -35,6 +35,18 @@ export function computeActiveSub(container: HTMLElement, prefix: string): string
   if (container.scrollHeight - container.clientHeight <= SPY_BOTTOM_EPS) {
     return sections[0]?.id.slice(prefix.length) ?? null;
   }
+  // NOT SCROLLED ⇒ THE FIRST SECTION, unconditionally (#549). The same argument as the fits-arm above, for
+  // the case where the pane DOES scroll: at `scrollTop === 0` nothing is above the reader, so the section
+  // they are looking at is the first one — no geometry can make that false. The line-crossing loop below
+  // agrees whenever layout has SETTLED, and disagrees exactly while it has not: measured live on
+  // `openSettingsTo("workloads")` (aria-current on "Analysis tuning", the LAST of three, on direct entry —
+  // the shell's own deep-link effect now suppresses the spy through the landing, but a spy that can compute
+  // a lie from a transient frame will find another one). A pane measured mid-mount — or mid-dialog-enter,
+  // where the popup's transform compresses every rect — stacks all its anchors inside the top 30%, and the
+  // loop then walks past every one of them and lights the last.
+  if (container.scrollTop <= SPY_BOTTOM_EPS) {
+    return sections[0]?.id.slice(prefix.length) ?? null;
+  }
   const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - SPY_BOTTOM_EPS;
   if (atBottom && last !== undefined) {
     return last.id.slice(prefix.length);

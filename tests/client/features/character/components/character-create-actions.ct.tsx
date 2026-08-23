@@ -69,6 +69,44 @@ test("the reserved group namespace gets its own reason, not the conflict copy", 
   await expect(page.getByRole("alert")).toHaveText(HANDLE_RESERVED_COPY);
 });
 
+// ── #548 · WCAG 3.3.1's OTHER half: the error has to be IDENTIFIED, not only announced ───────────────
+// #542 shipped the announcement (`role="alert"`) and stopped there: the Name input carried
+// `aria-invalid=null` and pointed at nothing, so a screen-reader user who tabbed BACK to the field — the
+// whole reason the dialog stays open — met a plain, apparently-fine text box. The pair binds the refusal to
+// the control it is about, and clears with it on the next keystroke.
+test("#548 the refused Name field is marked invalid and points at the refusal, in BOTH states", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.create": () => trpcError({ code: "BAD_REQUEST", message: 'a character with handle "elara-vance" already exists', reason: "handle_conflict" }),
+  });
+  const component = await mount(<CharacterCreateBandStory />);
+  const name = page.getByLabel("Character name");
+
+  // BEFORE: a field nobody has refused makes no claim about itself.
+  await component.getByRole("button", { name: "New", exact: true }).click();
+  await expect(name).not.toHaveAttribute("aria-invalid");
+  await expect(name).not.toHaveAttribute("aria-errormessage");
+
+  await page.getByLabel("Character description").fill("A wandering cartographer.");
+  await name.fill("Elara Vance");
+  const create = page.getByRole("button", { name: "Create", exact: true });
+  await create.click();
+  await expect(create).toBeEnabled();
+
+  // AFTER: invalid, and the message it names is the rendered refusal — resolved through the DOM, so a
+  // dangling id (the failure this attribute has) cannot pass.
+  await expect(name).toHaveAttribute("aria-invalid", "true");
+  const named = await name.evaluate((el: HTMLElement) => {
+    const id = el.getAttribute("aria-errormessage") ?? "";
+    return el.ownerDocument.getElementById(id)?.textContent ?? null;
+  });
+  expect(named).toBe(HANDLE_CONFLICT_COPY);
+
+  // …and the mark is as live as the line: editing the name retires both together.
+  await name.fill("Elara Vancey");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(name).not.toHaveAttribute("aria-invalid");
+});
+
 test("a genuine FAULT shows no field line — the toast owns a failure the user cannot fix", async ({ mount, page }) => {
   // The two-sided control: a mapper that returned copy for everything would satisfy the tests above for
   // free, and would tell a user to rename their character when the server fell over.
