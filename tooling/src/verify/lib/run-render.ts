@@ -50,6 +50,23 @@ export function failReason(r: StageResult): string {
   return `  ${stageMark(r)} ${r.name} — ${kind} · ${where}`;
 }
 
+/** The NOTICES block — lines a PASSING stage needs seen (contract/stage.ts `notices`). It prints INSIDE
+ *  the tail region, above the verdict, because that is the part of the output a reader (or a truncating
+ *  terminal) actually keeps. A notice never touches the verdict: `verify` can print a notice and still say
+ *  PASS, which is the whole point — the alternative is the log line nobody reads (#534/#533). */
+function printNotices(report: VerifyReport): void {
+  const noticed = report.stages.filter((s) => s.notices.length > 0);
+  if (noticed.length === 0) {
+    return;
+  }
+  process.stdout.write("\n──────────────────────────── NOTICES (not failures) ────────────────────────────\n");
+  for (const stage of noticed) {
+    for (const notice of stage.notices) {
+      process.stdout.write(`  ! ${stage.name}: ${notice}\n`);
+    }
+  }
+}
+
 /** The TAIL block — the load-bearing truncation-robust output. A reader who sees ONLY the last ~15 lines
  *  MUST be able to determine PASS/FAIL, which stages failed, and that reports/verify.json is authoritative.
  *  The verdict + pointer print on BOTH pass and fail; on fail, every failing stage names its log inline. */
@@ -59,6 +76,7 @@ export function printSummary(report: VerifyReport): void {
     process.stdout.write(`${stageLine(r)}\n`);
   }
   const failed = report.stages.filter((s) => !s.ok);
+  printNotices(report);
   process.stdout.write("\n════════════════════════════════════════════════════════════════════\n");
   if (report.ok) {
     process.stdout.write("[verify] VERDICT: PASS (exit 0) — all stages clean\n");

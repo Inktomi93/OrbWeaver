@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-02
+updated: 2026-08-23
 ---
 
 # Orbweaver — `@orb/db`: the schema floor (drizzle + libSQL + migrations)
@@ -12,7 +12,7 @@ updated: 2026-08-02
 
 - **The drizzle schema** — every `sqliteTable`, one file per **producing** domain (`schema/<feature>.ts`) plus the reserved cross-cutting set (`users` · `audit` · `relations`; `custom-types/` is its own top-level dir, not a schema file — the former `agent-principals` schema file died with the 2026-07-25 agent-principal purge; only dormant DDL in `users.ts`/`chat.ts` survives, per the D60 build-state rider). `schema/index.ts` is the source-of-truth barrel; the `db-structure` gate enforces the domain split AND the re-export (a file missing from the barrel silently drops its tables from `typeof schema` and migrations).
 - **The DB row types** — `$inferSelect`/`$inferInsert` (the §7.4 DB-row home). The TypeID brand lives AT the column (`$type<CharacterId>()`), so rows come back branded with no `castId` at the row→view seam.
-- **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate`, `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
+- **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate` + the pinnable `pruneDbBackups` sweep, `forecastDevDbReset` (the dev-db drop tripwire `pnpm check` reads), `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
 - **The migrations** — the fresh `0000_baseline.sql` + `meta/_journal.json` (born with every ledger decision already applied — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character\_embeddings · image\_embeddings · chat\_digests · chat\_segments · document\_chunks), …).
 - **The native vector column** (`custom-types/`) — `vector32` (libSQL `F32_BLOB(dim)`, raw little-endian Float32 blob), consumed by `schema/embeddings.ts` + `schema/discovery.ts` (the k-means `centroid`).
 - **`@orb/db/kit`** — db-layer primitives that need drizzle types and cannot be kit-pure: `batch`, `db-errors` (the deep cause-walk constraint classifier), `fetch-owned` (`fetchOwned`/`OwnedTable`), `insert-chunk` (the libSQL 32766 bound-variable cap), `parsers` (the read-seam zod `.catch(null)` JSON-column coercion; the deliberate `null`-vs-`[]` contract asymmetry is load-bearing).
@@ -87,6 +87,21 @@ baseline against what the dev db recorded; a mismatch takes a backup, DROPS the 
 from the fresh baseline (logged `BASELINE REGENERATED … RESETTING`). So a regen means: the next stack boot
 re-mints the dev db and every seeded row is gone. That is the pre-launch bargain — no migration debt in
 exchange for a disposable dev db.
+
+> **"Disposable" is a claim about the SCHEMA, not about the hours in the data (2026-08-23, #533/#534).**
+> A hand-patched baseline line dropped a 1,242-chat import and ten corpus-analysis passes (\~8h GPU); the
+> only signal was a `server.log` line read hours later. Two things now stand between that state and the
+> loss, and both are worth knowing BEFORE you regenerate:
+>
+> - **The tripwire.** `pnpm check`'s db-baseline stage compares the committed baseline against what the
+>   LIVE dev db recorded and prints `THE NEXT SERVER RESPAWN WILL DROP THE DEV DB` in the run's tail
+>   NOTICES block (`forecastDevDbReset` in `packages/db/src/client/index.ts`). It is advisory BY DESIGN —
+>   regenerating is legitimate work and a hard red would block it — so a PASS verdict never means the
+>   notice was absent. Read the tail.
+> - **The pin.** The boot takes ONE pre-migrate backup (`backupBeforeMigrate`) and `pruneDbBackups` ages
+>   backups out on a recent-5 + daily-7 budget. `touch data/orbweaver.db.backup-<stamp>.keep` exempts one
+>   from the sweep forever. Pin the pre-reset copy the moment it exists; it is the only record of what was
+>   dropped.
 
 Enforcement of the regime itself: the `baseline-single-migration` gate (exactly one `.sql`, exactly one
 journal entry) and its runtime twin `LAUNCHED` in `entry/boot/migrate.ts`.
