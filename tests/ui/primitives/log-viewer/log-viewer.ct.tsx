@@ -148,14 +148,20 @@ test("the line region is keyboard-scrollable (tabIndex=0, WCAG 2.1.1)", async ({
 
 test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  // In-page instrumentation below — `globalThis`/`Element.prototype` in the mounted browser context carry
+  // no app type; each cast is the monkeypatch scaffolding itself, not a fabricated domain value (nothing
+  // here is asserted as a contract shape).
   await page.evaluate(() => {
+    // FABRICATION-OK: in-page globalThis scaffolding (see above).
     (globalThis as unknown as { __behavior: string | null }).__behavior = null;
+    // FABRICATION-OK: in-page Element.prototype scaffolding (see above).
     const proto = Element.prototype as unknown as {
       scrollTo: (options?: ScrollToOptions) => void;
     };
     const original = proto.scrollTo;
     proto.scrollTo = (options?: ScrollToOptions): void => {
       if (options !== undefined) {
+        // FABRICATION-OK: in-page globalThis scaffolding (see above).
         (globalThis as unknown as { __behavior: string | null }).__behavior = options.behavior ?? null;
       }
       original.call(proto, options);
@@ -168,6 +174,7 @@ test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({
     </div>,
   );
 
+  // FABRICATION-OK: in-page globalThis scaffolding (see the mount-time instrumentation above).
   const behavior = await page.evaluate(() => (globalThis as unknown as { __behavior: string | null }).__behavior);
   expect(behavior).toBe("auto");
 });
@@ -295,12 +302,16 @@ test("a maxLines-capped virtualized log does NOT yank a reader who scrolled up",
 });
 
 test("the copy affordance writes the visible lines to the clipboard", async ({ mount, page }) => {
+  // In-page instrumentation below — `globalThis` in the mounted browser context carries no app type;
+  // each cast is the monkeypatch scaffolding itself, not a fabricated domain value.
   await page.evaluate(() => {
+    // FABRICATION-OK: in-page globalThis scaffolding (see above).
     (globalThis as unknown as { __copied: string | null }).__copied = null;
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
         writeText: (text: string): Promise<void> => {
+          // FABRICATION-OK: in-page globalThis scaffolding (see above).
           (globalThis as unknown as { __copied: string | null }).__copied = text;
           return Promise.resolve();
         },
@@ -311,6 +322,7 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   const component = await mount(<LogViewer lines={["alpha", "beta"]} />);
   await component.getByRole("button", { name: "Copy log" }).click();
 
+  // FABRICATION-OK: in-page globalThis scaffolding (see above).
   const copied = await page.evaluate(() => (globalThis as unknown as { __copied: string | null }).__copied);
   expect(copied).toBe("alpha\nbeta");
 });
