@@ -6,7 +6,6 @@
   "packages/client/src/data/create-collection-surface.ts": 1,
   "packages/client/src/data/create-entity-mutation.ts": 1,
   "packages/client/src/features/app-shell/components/context-tabs-panel.tsx": 1,
-  "packages/client/src/features/character/components/character-appearance-tab.tsx": 1,
   "packages/client/src/features/character/components/character-facet-editor.tsx": 1,
   "packages/client/src/features/character/components/character-greeting-preview.tsx": 1,
   "packages/client/src/features/chat/components/assembly-preview-diagnostics.tsx": 1,
