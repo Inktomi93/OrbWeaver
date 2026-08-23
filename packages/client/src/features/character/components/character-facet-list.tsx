@@ -146,9 +146,10 @@ export function CharacterFacetList({ form, characterId, selectedFacetId, focusFa
             const facets = CHARACTER_CARD_FACETS.filter((facet) => facet.tier === tier);
             return (
               <Stack key={tier} gap="field">
-                <Text size="label" weight="medium" tone="muted" transform="caps">
-                  {CHARACTER_FACET_TIER_LABELS[tier]}
-                </Text>
+                {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a
+                    label-step caps group name, byte-identical to `interactiveKicker` once the weight axis
+                    is corrected medium→semibold. */}
+                <Text voice="interactiveKicker">{CHARACTER_FACET_TIER_LABELS[tier]}</Text>
                 {facets.map((facet) => (
                   <CharacterFacetRow
                     key={facet.id}

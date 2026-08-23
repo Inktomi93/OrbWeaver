@@ -112,9 +112,9 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
   return (
     <Stack gap="block" padding="block">
       <Row gap="field" align="center" justify="between">
-        <Text size="micro" tone="muted" transform="caps">
-          Entry
-        </Text>
+        {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a caps-micro
+            group name, byte-identical to `kicker` once the weight axis is corrected regular→semibold. */}
+        <Text voice="kicker">Entry</Text>
         <Row gap="field" align="center">
           {/* Autosave everywhere (§7): the live status stands where Save used to. */}
           <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
