@@ -107,12 +107,8 @@ function InspectorBody({
   return (
     <Stack gap="section" className="relative min-h-0 overflow-y-auto">
       <Stack gap="field">
-        <Text size="title" weight="semibold">
-          {facet.label}
-        </Text>
-        <Text size="micro" tone="muted">
-          {facet.subtitle}
-        </Text>
+        <Text voice="promoted">{facet.label}</Text>
+        <Text voice="gloss">{facet.subtitle}</Text>
       </Stack>
 
       {arm.render({ form, characterId, readOnly })}
@@ -206,7 +202,7 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
         <form.Subscribe selector={(s): string => s.values.depthPromptText}>
           {(value): ReactElement => (
             <Row gap="block" align="center" className="flex-wrap">
-              <Text size="micro" tone="muted" className="tabular-nums">
+              <Text voice="gloss" className="tabular-nums">
                 {value.length} characters
               </Text>
               <Text size="code" tone="muted" className="tabular-nums">
