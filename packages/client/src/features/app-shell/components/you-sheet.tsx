@@ -90,7 +90,7 @@ export function YouSheet(): ReactElement {
         // named `role="group"`, and this one had neither. `Heading` at the same four axes the band's own
         // micro-caps title uses, so the paint is unchanged; h3 because the drawer's Title is the h2.
         <Stack aria-labelledby={MORE_HEADING_ID} gap="row" role="group">
-          <Heading id={MORE_HEADING_ID} level={3} size="micro" tone="muted" transform="caps" weight="semibold">
+          <Heading id={MORE_HEADING_ID} level={3} voice="kicker">
             More
           </Heading>
           {overflowSections.map((entry) => (

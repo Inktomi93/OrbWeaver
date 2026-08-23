@@ -56,7 +56,7 @@ export function SectionContextHost({ definition }: SectionContextHostProps): Rea
     return context.body();
   }
   return (
-    <QueryBoundary fallback={<Text tone="muted">Loading details…</Text>}>
+    <QueryBoundary fallback={<Text voice="quiet">Loading details…</Text>}>
       <ResolvedTabsHost empty={contextEmpty(context)} useResolved={context.useResolved} />
     </QueryBoundary>
   );
