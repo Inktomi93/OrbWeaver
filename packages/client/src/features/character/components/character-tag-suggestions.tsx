@@ -44,9 +44,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
     <Row gap="field" align="center" className="flex-wrap" data-slot="character-tag-suggestions">
       {pending.length > 0 && (
         <Row gap="field" align="center" className="flex-wrap">
-          <Text size="micro" weight="semibold" tone="muted" transform="caps">
-            Suggested
-          </Text>
+          <Text voice="kicker">Suggested</Text>
           {pending.map((suggestion) => (
             <SuggestionChip
               key={suggestion.id}
@@ -109,7 +107,7 @@ function SuggestionChip({ name, onAccept, onReject }: { readonly name: string; r
     <Badge intent="neutral" tone="ghost" size="sm" className="px-0 py-0">
       <Button type="button" size="sm" intent="ghost" aria-label={`Accept ${name}`} className="min-w-0 max-w-full" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
-        <Text as="span" size="micro" tone="muted" className="min-w-0 truncate">
+        <Text as="span" voice="gloss" className="min-w-0 truncate">
           {name}
         </Text>
       </Button>

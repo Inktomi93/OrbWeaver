@@ -184,7 +184,7 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
           />
         </Row>
         {externalMediaBlocked ? (
-          <Text id={externalMediaLockId} size="micro" tone="muted">
+          <Text id={externalMediaLockId} voice="gloss">
             External media is blocked deployment-wide, so this character's setting is locked — every value here resolves to blocked. An admin can lift it in
             System settings → “Block external media”.
           </Text>
@@ -200,9 +200,7 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
             can turn it on in System settings → “Let interactive cards run their own scripts”.
           </Text>
         )}
-        <Text size="micro" tone="muted">
-          Trust settings apply the instant you change them — no save needed.
-        </Text>
+        <Text voice="gloss">Trust settings apply the instant you change them — no save needed.</Text>
       </Section>
     </Stack>
   );
@@ -229,9 +227,7 @@ function BackgroundControl({ characterId, serverValue }: BackgroundControlProps)
         }}
         value={serverValue}
       />
-      <Text size="micro" tone="muted">
-        Applies instantly — no save needed. Takes over the app background in a true-solo chat, below any chat-set background.
-      </Text>
+      <Text voice="gloss">Applies instantly — no save needed. Takes over the app background in a true-solo chat, below any chat-set background.</Text>
     </Section>
   );
 }
@@ -298,9 +294,7 @@ function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): Rea
           clips. Wrapping drops the action group to its own line there and keeps it inline in the wide
           editor. */}
       <Row gap="field" align="center" className="flex-wrap justify-between">
-        <Text size="label" weight="medium">
-          Theme
-        </Text>
+        <Text voice="label">Theme</Text>
         <Row gap="field" align="center" className="flex-wrap">
           <StartFromThemeField onPick={startFromTheme} />
           {/* One subscription for both live-override readers: the promote payload IS the unsaved-latest
@@ -318,7 +312,7 @@ function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): Rea
           </form.Subscribe>
         </Row>
       </Row>
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         Colours and styles apply to this character's messages instantly — no save needed. A field reading Inherit follows your global theme; each field prints
         its own value, so you can always tell which ones this card sets.
       </Text>

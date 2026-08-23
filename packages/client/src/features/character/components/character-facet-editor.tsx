@@ -65,13 +65,9 @@ export function CharacterFacetEditor({ form, characterId, facetId, trusted, read
       <Stack gap="field">
         <Row gap="row" align="center">
           <Icon icon={facet.glyph} size="sm" />
-          <Text size="title" weight="semibold">
-            {facet.label}
-          </Text>
+          <Text voice="promoted">{facet.label}</Text>
         </Row>
-        <Text size="micro" tone="muted">
-          {facet.subtitle}
-        </Text>
+        <Text voice="gloss">{facet.subtitle}</Text>
       </Stack>
 
       <FacetBody form={form} characterId={characterId} facetId={facetId} trusted={trusted} readOnly={readOnly} />

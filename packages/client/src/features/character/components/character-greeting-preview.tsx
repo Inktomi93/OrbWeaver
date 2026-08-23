@@ -296,11 +296,7 @@ function GreetingAttributeRow({
     return <GreetingGroupOnlyToggle form={form} index={index} />;
   }
   if (greetingCount > 1) {
-    return (
-      <Text size="micro" tone="muted">
-        The first opening is always shown; mark alternates group-chats-only.
-      </Text>
-    );
+    return <Text voice="gloss">The first opening is always shown; mark alternates group-chats-only.</Text>;
   }
   return null;
 }
