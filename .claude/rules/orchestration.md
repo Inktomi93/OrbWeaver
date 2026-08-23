@@ -237,9 +237,11 @@ linked Project issue — no lane touches `work:item`.
   their regions, NEITHER relocates hunks to dodge the merge (relocation is what breaks 3-way), and the
   orchestrator resolves by union. The failure mode is silent relocation, not the shared file.
 - **The THREE-program typecheck truth table** (two briefs shipped wrong floors before this was pinned;
-  CORRECTED 2026-08-21 by planted control): `types:graph` (ts7 -p tsconfig.json) EXCLUDES
-  packages/{ui,client}/src (bundler-mode) but sees tests/ + scripts/ — and excludes
-  `tests/{ui,client}/**/*.tsx` by directory; per-package `pnpm typecheck` sees ui/client src AND is the
+  CORRECTED 2026-08-21 by planted control; RE-CORRECTED 2026-08-23 #571 by planted control): `types:graph`
+  (ts7 -p tsconfig.json) EXCLUDES packages/{ui,client}/src (bundler-mode) but sees tests/ + scripts/ —
+  and excludes `tests/{ui,client}/**/*.tsx` by directory **AND excludes `tests/e2e/` whole** (DOM-context
+  ruling 2026-07-24; `tests-dom` owns it — a lane touching tests/e2e MUST name `typecheck:tests-dom` in
+  its floor; types:graph is a false clean there); per-package `pnpm typecheck` sees ui/client src AND is the
   ONLY program that owns `tests/**/*.ct.tsx` (a planted TS2322 in a .ct.tsx was caught by per-package
   alone); `tests-dom` does NOT see CT tsx — its include is an explicit list of non-CT DOM-coupled
   escapees. A floor claims coverage it verified — when uncertain, PLANT a control error; that is the
