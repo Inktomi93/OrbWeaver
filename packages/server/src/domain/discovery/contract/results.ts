@@ -23,6 +23,8 @@ export interface DuplicateCharacterPair {
 /** The `computeDuplicatePairs` recompute summary (a workload-runner log line). */
 export interface DuplicateComputeStats {
   readonly ownersProcessed: number;
+  /** Card VECTORS read — the pass's input-plane census, written by the index pass. Zero on BOTH arms is the
+   *  `find-duplicates` refusal signal; zero pairs off a non-zero scan is a real answer (issue #561). */
   readonly charactersScanned: number;
   readonly pairsWritten: number;
 }
@@ -45,6 +47,8 @@ export interface DuplicateChatPair {
 /** The `computeChatDuplicatePairs` recompute summary. */
 export interface DuplicateChatComputeStats {
   readonly ownersProcessed: number;
+  /** Chats with segment content-hashes — this arm's input-plane census, also written by the index pass. The
+   *  other half of the `find-duplicates` refusal signal (issue #561). */
   readonly chatsScanned: number;
   readonly pairsWritten: number;
 }
@@ -542,6 +546,10 @@ export interface ImageFacetMember {
 // ── hubness ─────────────────────────────────────────────────────────────────
 /** The `computeCharacterHubScores` summary. */
 export interface HubStats {
+  /** Vectors scored — and therefore also the pass's INPUT-PLANE CENSUS: every vector it loads gets exactly
+   *  one hub update, so `0` means the embedding table was empty, not that the maths found nothing. The `csls`
+   *  contribution turns that zero into a stated "nothing indexed" result rather than a 0-written success
+   *  (issue #561; the honest-accounting family of #166). */
   readonly rowsScored: number;
   readonly groupsProcessed: number;
 }

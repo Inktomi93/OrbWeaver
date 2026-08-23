@@ -111,18 +111,41 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     if (text.length < 10 && rect.width < 50 && rect.height < 30) return true;
     return false;
   }
+  // THE OUTER HALF OF THE PAIR NEEDS A BOX, NOT AN EDGE (2026-08-23, issue #559). \`isCardLike\` accepts a
+  // SINGLE border side, because one side is enough to say "this thing draws an edge" for the INNER card —
+  // and it must stay that way there. But the same predicate was asked of the ANCESTOR too, so a shell pane
+  // — an \`<aside>\` whose whole box evidence is one divider border against its neighbour, radius 0, no
+  // shadow — counted as the OUTER card, and every real card that happened to live inside any pane got a
+  // "nesting" partner it never had visually. A divider LINE is not a container EDGE; nothing is nested
+  // inside a line. So the outer role additionally requires box evidence a divider cannot fake: a shadow, a
+  // radius, or borders on at least TWO sides (two sides is the minimum that begins to enclose). MEASURED,
+  // never named — the same discipline as the #552 card-ness fix; no slot/class arm, because the pane and
+  // the card are the same markup vocabulary and only the drawn box tells them apart.
+  function hasEnclosingBox(el) {
+    var s = getComputedStyle(el);
+    if (s.boxShadow !== "none" && s.boxShadow.trim() !== "") return true;
+    if ((Number.parseFloat(s.borderTopLeftRadius) || 0) > 0) return true;
+    var sides = 0;
+    if (Number.parseFloat(s.borderTopWidth) > 0) sides += 1;
+    if (Number.parseFloat(s.borderRightWidth) > 0) sides += 1;
+    if (Number.parseFloat(s.borderBottomWidth) > 0) sides += 1;
+    if (Number.parseFloat(s.borderLeftWidth) > 0) sides += 1;
+    return sides >= 2;
+  }
   var cardEls = [];
+  var outerEls = [];
   for (var c = 0; c < allEls.length; c += 1) {
     var cel = allEls[c];
     if (!isVisible(cel) || !isCardLike(cel) || isExcludedCardContext(cel)) continue;
     cardEls.push(cel);
+    if (hasEnclosingBox(cel)) outerEls.push(cel);
   }
   var nestedSet = [];
   for (var n = 0; n < cardEls.length; n += 1) {
     var cand2 = cardEls[n];
     var p = cand2.parentElement;
     while (p) {
-      if (cardEls.indexOf(p) !== -1) {
+      if (outerEls.indexOf(p) !== -1) {
         nestedSet.push(cand2);
         break;
       }
