@@ -26,6 +26,7 @@ import { createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
@@ -33,6 +34,8 @@ import type { Db, Services } from "../contract/types.ts";
 import { inertVllmClient } from "../lib/fake-vllm.ts";
 import { CHAT_SEED_SESSION_SECRET, principalOf } from "../lib/fixture.ts";
 import { buildTranscript, parseChatArgs, SEED_HANDLE_PREFIX, transcriptFilename } from "../lib/transcript.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
 /** Ensure M cast characters exist (reuse by handle, else create); return their ids + names in order. */
 async function ensureCast(

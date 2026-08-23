@@ -6,9 +6,12 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { modelProseSites, SEAM_FILES, SEAM_PREFIXES } from "../../gates/no-hardcoded-model-prose.ts";
 import { getProject } from "../../lib/harness.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline model-prose");
 
 /** The `baseline model-prose` verb — the SINGLE writer of its committed baseline (GATE-AUTHORING §4.8). */
 export function generateModelProseBaseline(root: string): number {

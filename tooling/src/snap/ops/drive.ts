@@ -5,6 +5,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { print } from "../../_shared/artifacts.ts";
 import { settle } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { buildNavScript } from "../../_shared/nav.ts";
 import type { Args, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import {
@@ -21,6 +22,8 @@ import {
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
 import { captureEvals } from "./evidence.ts";
 import { MS_PER_SECOND } from "./flags.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 /** Did the app reach a SETTLED state? `settled` = the flag went up on a real query-cache idle; `degraded` =
  *  agent-bridge's ceiling handed the flag over with reads still running; `dataless` = the flag says settled

@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CreateCommand, GraphqlVariables, ListRow, RawListPage } from "../contract/types.ts";
 import { issueNumber } from "../lib/parse.ts";
 import { LIST_QUERY } from "../lib/queries.ts";
@@ -11,6 +12,8 @@ import { ISSUE_CLASSES, ISSUE_URL_RE, PROJECT_NUMBER, REPOSITORY } from "../lib/
 import { fieldOf, itemFields } from "../lib/writes.ts";
 import { gh, graphql } from "./gh.ts";
 import { ensureItem, fetchIssueContext, setField, withProjectContext, writeFields } from "./project.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm work:item <command>");
 
 export function show(issue: number): void {
   const context = fetchIssueContext(issue);

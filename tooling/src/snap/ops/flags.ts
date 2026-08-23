@@ -11,9 +11,12 @@ import {
 import type { Viewport } from "../../_shared/argv.ts";
 import { parseViewport, splitFirstEq, splitLastEq } from "../../_shared/argv.ts";
 import { DEFAULT_BASE } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "../../_shared/theme.ts";
 import type { Args, NavAction, PagedExpr, Step } from "../contract/types.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export const MS_PER_SECOND = 1000;
 

@@ -20,11 +20,14 @@ import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import process from "node:process";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { ServedVerdict } from "../contract/types.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { classifyServedTransform } from "../lib/verdicts.ts";
+
+refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
 /** The workspace trees vite SOURCE-consumes (no prebundling since 086c4e047), i.e. every tree whose edits
  *  the dev watcher is responsible for invalidating. `server`/`db` are absent: they are node's `--watch`

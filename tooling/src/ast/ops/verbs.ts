@@ -1,5 +1,6 @@
 // The verb dispatch tables — what the cli routes through (re-exported via index.ts).
 import type { Project } from "ts-morph";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags } from "../contract/types.ts";
 import { cmdApiSurface } from "./apisurface.ts";
 import { cmdChains } from "./chains.ts";
@@ -17,6 +18,8 @@ import { cmdSwallowed } from "./swallowed.ts";
 import { cmdCallers, cmdExports, cmdIdent, cmdImporters, cmdJsx, cmdLiteral, cmdRefs } from "./symbols.ts";
 import { cmdTypeOnly } from "./typeonly.ts";
 import { cmdClientGap, cmdUnwired } from "./wiring.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 export const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,

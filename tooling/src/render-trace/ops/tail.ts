@@ -9,8 +9,11 @@
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { renderTrace } from "../lib/render.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | pnpm trace:fire");
 
 // biome-ignore lint/style/noProcessEnv: PORT mirrors the server's own listen port so the tail hits the right box — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
 const PORT = process.env["PORT"] ?? "8788";

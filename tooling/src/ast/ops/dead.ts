@@ -2,6 +2,7 @@
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -12,6 +13,8 @@ import { isTestPath } from "../lib/root.ts";
 import { declSite } from "./stringy.ts";
 import { byProdFirst, collectSwallowedCandidates, relPath } from "./swallowed.ts";
 import { declarationsNamed } from "./symbols.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** How many sites a `dead` row names before it collapses to a count. */
 const DEAD_SITES_SHOWN = 3;

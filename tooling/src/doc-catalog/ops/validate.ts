@@ -1,10 +1,14 @@
 // Receipt indexing + the whole-corpus reconciliation: every document has exactly one receipt row, every
 // receipt row has a document, and every row passes the rules with tree-resolved facts.
+
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Doc, Lane, LaneConfig, Receipt, ReceiptEntry, ReceiptValidationContext, ValidationInput } from "../contract/types.ts";
 import { debtPathErrors, migrationDebt } from "../lib/debt.ts";
 import { validateReceiptEntry } from "../lib/receipt-rules.ts";
 import { SCHEMA_VERSION } from "../lib/vocab.ts";
 import { headAncestors, localEvidenceLines, receiptFacts, stableLawSections, stableRulingAnchors } from "./tree.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
 function receiptEntryErrors(entry: ReceiptEntry, receipt: Receipt, context: ReceiptValidationContext): readonly string[] {
   const errors: string[] = [];

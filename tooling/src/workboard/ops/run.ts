@@ -1,8 +1,11 @@
 // Command dispatch — one arm per WorkCommand kind, nothing else decides what a verb does.
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { WorkCommand } from "../contract/types.ts";
 import { runLifecycle } from "./lifecycle.ts";
 import { create, help, list, overview, show } from "./report.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm work:item <command>");
 
 export function runWorkCommand(command: WorkCommand): void {
   if (command.kind === "help") {

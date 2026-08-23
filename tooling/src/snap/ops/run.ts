@@ -2,6 +2,7 @@
 // the manifest, and the RESULT line. One browser run, many pieces of evidence.
 import type { Page } from "@playwright/test";
 import { artifactFile, artifactKey, printResult } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { capturePages } from "./capture.ts";
@@ -25,6 +26,8 @@ import {
 import { finishSession, launchSnapSession } from "./session.ts";
 import { buildFailureSummary, evidenceFailureCounts, hasSnapFailure, mapOutputSummary, outcomeTotals } from "./verdict.ts";
 import { runWatchSeries } from "./watch.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export async function snap(opts: Args): Promise<number> {
   const { url, name } = snapDestination(opts);

@@ -13,7 +13,10 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_WINDOW_MS = 2500;

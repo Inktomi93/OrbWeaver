@@ -10,6 +10,7 @@ import { constants as osConstants } from "node:os";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
@@ -43,6 +44,8 @@ import {
   TOKEN_PATH,
 } from "./prod-state.ts";
 import { buildClient, debugToken, distVerdict, removePidfile, reportDebugPosture, tailLog } from "./prod-support.ts";
+
+refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
 const BOOT_POLL_MAX_MS = 120_000;
 // Log lines echoed when a boot dies or times out — enough to carry a stack trace, short enough to read.

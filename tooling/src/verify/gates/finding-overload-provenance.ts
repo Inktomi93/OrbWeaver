@@ -15,7 +15,9 @@ import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 const GATES_DIR = "tooling/src/verify/gates/";
 const GATE_SELF = `${GATES_DIR}finding-overload-provenance.ts`;
 const BASELINE_REL = `${GATES_DIR}finding-overload-provenance.baseline.json`;
-const GENERATOR = "tooling/src/verify/ops/gen/finding-overload-provenance.ts";
+// The single writer's DOOR, not its module path: `ops/gen/*.ts` is a library — running one directly loads
+// it, writes nothing and exits 0 (it now REFUSES; gate `tooling-ops-direct-invocation`). #526/#527.
+const GENERATOR = "node tooling/src/verify/cli.ts baseline finding-overload-provenance";
 
 /** The ts-morph position APIs. A finding whose location derives from one of these has NODE provenance —
  *  which is exactly what makes it suppressible, and therefore what makes the Finding overload wrong. */
@@ -67,16 +69,16 @@ const FIX =
   "own-tables-only.ts are the worked examples). If the arm is genuinely file-level, or deliberately " +
   "NON-suppressible (a blindness tripwire, a stale/ratchet arm, a ledger verdict), keep the overload and write " +
   `\`// @${MARKER_NAME}: <why it is correct + what would end it>\` at the literal. Pre-existing debt lives in ` +
-  `${BASELINE_REL} and only ever SHRINKS (regenerate with \`node ${GENERATOR}\`).`;
+  `${BASELINE_REL} and only ever SHRINKS (regenerate with \`${GENERATOR}\`).`;
 
 const MSG_STALE_MARKER = `a \`@${MARKER_NAME}\` marker suppressed NOTHING this run — the arm it forgave no longer builds a node-anchored Finding literal, or moved. A standing exemption for a site that is gone is a LOADED GUN: the next Finding-overload written there inherits it. Delete the marker. See ${GATE_SELF} and tooling/src/verify/gates/GATE-AUTHORING.md §4.4.`;
 const MSG_OVER_EXEMPT = `one \`@${MARKER_NAME}\` marker absolved MORE THAN ONE Finding literal — it grants an exemption nobody reasoned about to every site but the one it was written for (§4.3a). Put one marker at each literal. See ${GATE_SELF}.`;
 const MSG_MALFORMED = `MALFORMED \`@${MARKER_NAME}\` marker — no \`: <reason>\`. The house grammar (tooling/src/verify/gates/GATE-AUTHORING.md §4.3) requires the reason, so this marker suppresses NOTHING while reading as an exemption. Write the reason (why it is correct + what would end it), or delete the marker.`;
 const MSG_BLIND = `blindness tripwire: the real gate corpus is loaded but ZERO \`Finding\`-shaped literals were found in it — the detector's shape predicate (file + line + column/message) has rotted past every gate, so this gate's verdict is unknowable. Re-derive it in ${GATE_SELF}. See tooling/src/verify/gates/GATE-AUTHORING.md §4.6.`;
 const MSG_STALE_BASELINE = (file: string, budget: number, actual: number): string =>
-  `${BASELINE_REL} budgets ${budget} node-anchored Finding literal(s) for \`${file}\` but only ${actual} remain — the ratchet only goes DOWN: regenerate it (\`node ${GENERATOR}\`) and commit the shrink.`;
+  `${BASELINE_REL} budgets ${budget} node-anchored Finding literal(s) for \`${file}\` but only ${actual} remain — the ratchet only goes DOWN: regenerate it (\`${GENERATOR}\`) and commit the shrink.`;
 const MSG_DEAD_BASELINE = (file: string): string =>
-  `${BASELINE_REL} budgets \`${file}\`, which is no longer in the gate corpus (deleted or renamed) — the row names nothing at all. Regenerate the baseline (\`node ${GENERATOR}\`) and commit the shrink. See tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode (B).`;
+  `${BASELINE_REL} budgets \`${file}\`, which is no longer in the gate corpus (deleted or renamed) — the row names nothing at all. Regenerate the baseline (\`${GENERATOR}\`) and commit the shrink. See tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode (B).`;
 
 // ── detection ─────────────────────────────────────────────────────────────────────────────────────────
 

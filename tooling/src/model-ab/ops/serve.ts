@@ -10,10 +10,13 @@
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { warn } from "../../_shared/log.ts";
 import { execNicedSync, spawnNicedChild } from "../../_shared/proc.ts";
 import type { CliOptions, Variant, VariantRun } from "../contract/types.ts";
 import { runProbes } from "./probe.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
 const HOST = "127.0.0.1";
 const BOOT_TIMEOUT_MS = 900_000; // 15 minutes — a cold TP2 27B load takes minutes, not seconds.

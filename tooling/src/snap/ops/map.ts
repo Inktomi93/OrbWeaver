@@ -2,7 +2,10 @@
 // emitted selector is an EXECUTABLE agent handle (unique + visible) before it is printed.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { MapEntry, RawMapEntry } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // ── --map: a live selector map (role · accessible name · best stable selector) ──────────────
 // "How do I reach this" instead of grepping source. Runs POST-STEPS so `--click X --map` maps

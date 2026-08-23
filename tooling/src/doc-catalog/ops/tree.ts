@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { existsSync, globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync, execNicedSyncBuffer } from "../../_shared/proc.ts";
 import type { Doc, EvidenceSources, Lane, LaneConfig, Receipt, ReceiptEntry, ReceiptFacts } from "../contract/types.ts";
 import { countLines, frontmatterErrors, parseFrontmatter } from "../lib/frontmatter.ts";
@@ -19,6 +20,8 @@ import {
   TEXT_EVIDENCE_EXTENSIONS,
   VENDOR_PREFIX,
 } from "../lib/vocab.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
 export const root = REPO_ROOT;
 

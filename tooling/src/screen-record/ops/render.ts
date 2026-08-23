@@ -6,7 +6,10 @@ import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { print } from "@orb/tooling/_shared/artifacts";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Rendered, RenderJob } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm record");
 
 const MS_PER_S = 1000;
 const CLICK_STRIP_PRE_S = 0.05;

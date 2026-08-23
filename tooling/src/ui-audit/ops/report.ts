@@ -1,7 +1,10 @@
 // Console reporting: the findings table, the pixel-refusal block, the nav verdict.
 import { print } from "@orb/tooling/_shared/artifacts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Finding, Severity } from "../contract/findings.ts";
 import type { BackdropRefusal } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 const MESSAGE_COL_WIDTH = 88;
 const SEVERITY_COL = 9;

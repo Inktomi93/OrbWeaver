@@ -5,6 +5,7 @@ import type { Page } from "@playwright/test";
 import { artifactFile, artifactKey, print, printResult, routeSlug } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser.ts";
 import { buildUrl } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
@@ -27,6 +28,8 @@ import {
 } from "./report.ts";
 import { finishSession, launchSnapSession } from "./session.ts";
 import { buildFailureSummary, evidenceFailureCounts, hasSnapFailure, mapOutputSummary, outcomeTotals } from "./verdict.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 interface FixtureUser {
   readonly handle: string;

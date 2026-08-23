@@ -1,11 +1,14 @@
 // contract-field-liveness: contracts fields DECLARED but never POPULATED (informational).
 import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit } from "../lib/emit.ts";
 import { modelProjectedSchemas } from "../lib/field-seeds.ts";
 import { CONTRACTS_SRC, contractFieldsOf, fieldHit, fieldIndexes } from "../lib/fields.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** Contract fields no producer ever populates. INFORMATIONAL — read the call sites (and remember the
  *  template-literal blind spot) before acting. Optional scope = a contracts path or a field-name substring;

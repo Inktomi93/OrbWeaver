@@ -1,8 +1,12 @@
 // Running the matrix against ONE serving endpoint. Probes run SERIALLY (a parallel matrix would make the
 // per-probe ms meaningless on a single engine) and every failure — HTTP, transport, or a verify defect —
 // becomes a ProbeResult, never a thrown harness error.
+
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ChatResponse, Probe, ProbeResult } from "../contract/types.ts";
 import { PROBES } from "./probes.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
 const PROBE_TIMEOUT_MS = 180_000;
 const HEAD_CHARS = 160;

@@ -1,6 +1,7 @@
 // rot: the five rot collectors over ONE package, ONE load + ONE liveness build.
 import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit, Liveness } from "../contract/types.ts";
 import { emit } from "../lib/emit.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
@@ -11,6 +12,8 @@ import { chainHit, collectChainAudit, PACKAGE_SRC_RE } from "./chains.ts";
 import { candidateHit, collectOrphanCandidates, scanTestOnly } from "./orphans.ts";
 import { collectSwallowedCandidates, isSwallowedExempt, swallowedHit } from "./swallowed.ts";
 import { collectTypeOnlyCandidates, isTypeOnlyExempt, typeOnlyHit } from "./typeonly.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── rot: the five rot collectors over ONE package, ONE project load + ONE liveness build ────────────
 // Auditing a package with orphans + testonly + chains + typeonly-alive + swallowed today costs FIVE

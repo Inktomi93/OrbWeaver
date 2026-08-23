@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
@@ -10,6 +11,8 @@ import type { CliOptions, Variant } from "../contract/types.ts";
 import { runProbes } from "./probe.ts";
 import { writeSummary } from "./report.ts";
 import { busyGpuOwners, runVariants, SERVED_NAME, vllmBinMissing } from "./serve.ts";
+
+refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
 const DEFAULT_PORT = 8901;
 const DEFAULT_VLLM_BIN = path.join(REPO_ROOT, ".cache", "vllm", "venv", "bin", "vllm");

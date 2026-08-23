@@ -3,6 +3,7 @@
 // probe-motion voiding marker. --json remains the lossless record (ops/manifest.ts).
 import { print } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type {
   Args,
   AssertionOutcome,
@@ -16,6 +17,8 @@ import type {
   WatchTick,
 } from "../contract/types.ts";
 import { CROP_RE, PNG_EXT_RE } from "../lib/out-names.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const ARIA_MAX_LINES = 400;
 const MAP_NAME_MAX_LENGTH = 80;

@@ -23,8 +23,11 @@ import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
 import { print, printResult } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
 
 const TS_START = 11;
 const TS_END = 23;

@@ -5,8 +5,11 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import type { launchProbeSession } from "@orb/tooling/_shared/browser";
 import { settle } from "@orb/tooling/_shared/browser";
 import { runNav } from "@orb/tooling/_shared/nav";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { MeterWindow, Step } from "../contract/types.ts";
 import { DEFAULT_STEP_SETTLE_MS, STEP_TIMEOUT_MS, WHEEL_TICK_PAUSE_MS } from "../lib/budgets.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
 
 type PageHandle = Awaited<ReturnType<typeof launchProbeSession>>["page"];
 

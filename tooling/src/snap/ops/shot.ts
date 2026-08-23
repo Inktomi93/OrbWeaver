@@ -1,8 +1,11 @@
 // Screenshot capture: paint-settle (#123 — two identical frames before the PNG), native stabilization
 // (SHOT_BASE), element shots, volatile-region masks, and the native crop.
 import type { Locator, Page } from "@playwright/test";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 import { CROP_RE, PNG_EXT_RE } from "../lib/out-names.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // Native screenshot stabilization, applied to EVERY shot (page + element):
 //   animations:"disabled" — rewinds CSS animations/transitions to a consistent

@@ -7,8 +7,11 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import { settle } from "@orb/tooling/_shared/browser";
 import { runNav } from "@orb/tooling/_shared/nav";
 import type { Page } from "@playwright/test";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { AnimationRecord, MeasuredClick, MotionSnapshot, ReachAction } from "../contract/types.ts";
 import { REACH_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
 /** Is the app's in-page instrument present at all? Checked BEFORE anything is measured: without it every
  *  `__orb` read below answers null/[] and each budget arm reads that as a clean zero (#409). */

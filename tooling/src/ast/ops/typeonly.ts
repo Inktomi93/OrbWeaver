@@ -4,6 +4,7 @@ import process from "node:process";
 import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit, TypeOnlyCandidate } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
@@ -13,6 +14,8 @@ import { TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 import { printNamedBucket } from "./orphans.ts";
 import { byProdFirst, relPath } from "./swallowed.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── typeonly-alive: VALUE exports kept alive ONLY by type positions (the structural-liveness rot) ─
 // The owner-named class: "code in server only kept alive by schema or kit or contract" — an export whose

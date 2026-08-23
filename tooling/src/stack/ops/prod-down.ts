@@ -4,6 +4,7 @@
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { DrainOutcome, ProdRecord } from "../contract/types.ts";
@@ -13,6 +14,8 @@ import { spawnerForPort } from "../lib/spawners.ts";
 import { classifyDrainTail, DRAIN_WATCH_MS, debugPostureText } from "../lib/verdicts.ts";
 import { classify, LOG_PATH, log, MS_PER_SECOND, PIDFILE, POLL_INTERVAL_MS, processAlive, readEnvFile, resolvePort, result, TOKEN_PATH } from "./prod-state.ts";
 import { distVerdict, readFrom, removePidfile, safeSize, uptimeText } from "./prod-support.ts";
+
+refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
 export async function doDown(): Promise<ExitCode> {
   const port = resolvePort(readEnvFile());

@@ -4,9 +4,12 @@
 import process from "node:process";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { warn } from "../../_shared/log.ts";
 import { noteMatches, noteScope, noteToolError } from "../lib/ledger.ts";
 import { REPO_ROOT } from "../lib/root.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // depcruise pass-throughs — the module-graph layer (the same config + rules the gates run), in
 // agent-readable text instead of the pnpm scripts' mermaid. flow = X's direct edges both ways;

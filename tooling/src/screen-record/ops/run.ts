@@ -5,9 +5,12 @@ import { join } from "node:path";
 import type { ResultPair } from "@orb/tooling/_shared/artifacts";
 import { artifactDir, print, printResult } from "@orb/tooling/_shared/artifacts";
 import { resolveFfmpeg } from "@orb/tooling/_shared/ffmpeg";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Rendered } from "../contract/types.ts";
 import { recordVideo } from "./record.ts";
 import { renderArtifacts } from "./render.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm record");
 
 const T_PAD = 6;
 

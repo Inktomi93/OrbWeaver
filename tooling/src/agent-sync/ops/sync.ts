@@ -4,6 +4,7 @@
 // dispatch after the role was retired.
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import {
   AGENTS_PATH,
   CLAUDE_AGENTS_DIR,
@@ -19,6 +20,8 @@ import {
   RULE_IMPORTS_PATTERN,
 } from "../lib/paths.ts";
 import { renderCodexAgent } from "./render.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm agents:sync");
 
 function sourceFilenames(): readonly string[] {
   return readdirSync(CLAUDE_AGENTS_DIR).filter(isMarkdown).toSorted();

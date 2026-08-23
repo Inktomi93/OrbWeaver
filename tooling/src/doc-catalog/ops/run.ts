@@ -1,6 +1,7 @@
 // The two drivers the cli dispatches to, each returning an EXIT code (never exiting itself — the
 // exit-honesty runner owns process termination).
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
@@ -11,6 +12,8 @@ import { bootstrap, catalogIsStale, expectedCatalog, ratchet, sync, writeCatalog
 import { formatDocs, formatTargets } from "./format.ts";
 import { documents, json, laneAssignments, loadReceipts } from "./tree.ts";
 import { validate } from "./validate.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
 const WRITING_MODES = new Set<CatalogMode>(["--write", "--sync", "--ratchet"]);
 

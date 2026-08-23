@@ -1,6 +1,10 @@
 // RECIPES + the help printers (`pnpm codemod help|list|recipes|recipe|search`).
+
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { flushBuffer } from "../lib/diagnostics.ts";
 import { MANIFEST } from "./manifest.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm codemod <verb>");
 
 interface Recipe {
   readonly name: string;

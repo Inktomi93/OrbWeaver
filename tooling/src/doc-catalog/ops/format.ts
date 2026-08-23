@@ -11,6 +11,9 @@ import { globSync, readFileSync, writeFileSync } from "node:fs";
 import { remark } from "remark";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
 const DOCS_GLOB = "docs/architecture/**/*.md";
 const EXCLUDED = /docs\/architecture\/proposed\//u;

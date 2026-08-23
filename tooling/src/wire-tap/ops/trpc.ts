@@ -7,8 +7,11 @@
 //   wire-tap trpc chat.startChat --input '{"characterIds":["…"]}' --mutate
 import process from "node:process";
 import { print, printResult } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
 
 interface TrpcArgs {
   procedure: string;

@@ -3,10 +3,13 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { settle } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, WatchTick } from "../contract/types.ts";
 import { PNG_EXT_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { captureEvals } from "./evidence.ts";
 import { SHOT_BASE } from "./shot.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export async function runWatchSeries(page: Page, opts: Args, out: string): Promise<WatchTick[]> {
   const ticks: WatchTick[] = [];

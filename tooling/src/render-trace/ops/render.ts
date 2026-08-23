@@ -4,11 +4,14 @@
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import type { RequestTrace } from "@orb/server/foundation/observability";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { instrumentError } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import { emptySpansGap } from "../lib/evidence.ts";
 import { renderTrace } from "../lib/render.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | pnpm trace:fire");
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];

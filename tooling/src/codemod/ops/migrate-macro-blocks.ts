@@ -15,7 +15,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import type { MacroAST, MacroBlockNode, MacroRegistry } from "@orb/kit/macro";
 import { createDefaultRegistry, parseMacros } from "@orb/kit/macro";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm codemod <verb>");
 
 // The children-mode registrations (registry.ts `blockChildren: true`) — the ONLY names whose rendering
 // is provably identical with or without the `#` flag (the handler owns its body verbatim either way).

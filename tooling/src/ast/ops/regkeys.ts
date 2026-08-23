@@ -2,11 +2,14 @@
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Flags, Hit, RegistryDef } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
 import { isTestPath } from "../lib/root.ts";
 import { relPath } from "./swallowed.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 // ── regkeys: registry rows whose KEY LITERAL is dispatched nowhere (INFORMATIONAL — owner-ruled) ───────
 // The blind spot every other lens in this file shares: a string-keyed dispatch table is ONE import edge and
