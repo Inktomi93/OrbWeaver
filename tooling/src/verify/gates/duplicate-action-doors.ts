@@ -6,6 +6,11 @@
 // (a hero CTA beside a rail button); the gate makes a NEW door a decision instead of an accident.
 // COMMENT POSTURE: comment-SAFE — pure node subscription, no file text is matched.
 //
+// "WHICH VERB IS THIS SITE?" IS NOT THIS GATE'S OWN ANSWER: the creation-site reader lives at
+// `tooling/src/_shared/trpc-doors.ts` (`mutationProcedures`) and is SHARED with the `ast subset-callers`
+// lens, which compares the PAYLOADS the doors this gate counts pass. Two spellings of "what is a door"
+// would let the census and the lens disagree; there is one.
+//
 // DECLARED BLIND SPOTS, both stated in #252 and both owned by the RUNTIME half (design-audit's
 // same-role-and-name lens): a registry-rendered action is ONE call site behind N rendered slots (this is
 // exactly how the founding "new chat" complaint escapes tier 1 — its three doors all call one shared state
@@ -14,6 +19,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { mutationProcedures } from "../../_shared/trpc-doors.ts";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -31,8 +37,6 @@ const FEATURES_PREFIX = "packages/client/src/features/";
 /** A co-located rail-section definition: `features/<owner>/lib/<id>-section.tsx`. */
 const SECTION_FILE_RE = /^packages\/client\/src\/features\/([^/]+)\/lib\/[^/]+-section\.tsx$/u;
 const FEATURE_DIR_RE = /^packages\/client\/src\/features\/([^/]+)\//u;
-/** The two TanStack Query spellings a tRPC mutation door takes in this client. */
-const MUTATION_MEMBERS = new Set(["mutationOptions", "useMutation"]);
 /** Fewer doors than this on one plane is not a duplication at all. */
 const MIN_DOORS = 2;
 
@@ -136,25 +140,6 @@ function railSectionId(sf: SourceFile, vocab: ReadonlySet<string>): string | und
     return id !== undefined && vocab.has(id) ? [id] : [];
   });
   return ids[0];
-}
-
-/** Every `trpc.<path>.mutationOptions()` / `.useMutation()` in `sf`, as its procedure path. */
-function mutationProcedures(sf: SourceFile): readonly string[] {
-  const out: string[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const member = call.getExpression();
-    if (!Node.isPropertyAccessExpression(member)) {
-      continue;
-    }
-    if (!MUTATION_MEMBERS.has(member.getName())) {
-      continue;
-    }
-    const path = member.getExpression().getText();
-    if (path.startsWith("trpc.")) {
-      out.push(path.slice("trpc.".length));
-    }
-  }
-  return out;
 }
 
 /** `<plane>::<procedure>` → the distinct component files that invoke it. The ONE derivation; the generator
