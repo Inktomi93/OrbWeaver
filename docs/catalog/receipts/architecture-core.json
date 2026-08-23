@@ -147,13 +147,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "60b1007df2d8789218d5e53fd1242c56c6d47b4613a6e5f45eee082cc493d73c",
+      "assignedSha256": "21b5a5ef877f5a2f9ec905925579dc1e7fd843060b66181d98ca943b3717c50f",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "60b1007df2d8789218d5e53fd1242c56c6d47b4613a6e5f45eee082cc493d73c",
-      "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "21b5a5ef877f5a2f9ec905925579dc1e7fd843060b66181d98ca943b3717c50f",
+      "verifiedCommit": "07bc631058a9fc38373dcac5017ff5524ea77dcd",
+      "verifiedAt": "2026-08-23",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -164,7 +164,8 @@
         "delta re-verify 2026-08-21: five @orb/tooling gate rows + test-layout/test-fixture-imports row extensions + the count line (enforcement-registry-parity reconciles it against loadGates(); single-pass clean on the same tree)",
         "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree",
         "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-        "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed."
+        "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed.",
+        "delta re-verify 2026-08-23 (#527, lane tool-vocab) at 07bc631058a9fc38373dcac5017ff5524ea77dcd: ONE new ACTIVE row (tooling-ops-direct-invocation) + the count line 219->220. Row re-read against the landed descriptor (both arms + the derived-entry exemption + the §4.6 blindness tripwire); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 220/220 gates on the same tree; scoped check:docs green."
       ],
       "claims": [
         {
