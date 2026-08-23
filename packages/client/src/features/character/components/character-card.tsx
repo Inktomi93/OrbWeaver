@@ -15,7 +15,6 @@ import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
-import { slugifyHandle } from "@orb/kit/slug";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -39,8 +38,12 @@ const EXPORT_CHARACTER_PATH = "/api/export/character/";
 export interface CharacterCardItem {
   readonly id: string;
   readonly name: string;
-  /** Identity slug — the subtitle ladder's last fallback. */
+  /** Identity slug — the subtitle ladder's last fallback, and the row's disambiguator when the name
+   *  collides ({@link handleQualifier}). */
   readonly handle: CharacterHandle;
+  /** Does another of the owner's characters carry this name? The server's LIBRARY-WIDE verdict (#517) —
+   *  never derived here, because this pane sees one keyset page at a time. */
+  readonly nameIsAmbiguous: boolean;
   readonly archived: boolean;
   readonly starred: boolean;
   /** CAS key — null when no avatar; never `avatarAssetId` (blob route keyed by hash). */
@@ -75,26 +78,27 @@ export interface CharacterCardTileProps {
 }
 
 /**
- * THE ROW'S ANNOUNCED IDENTITY (#492, side-eye 2026-08-22 rail-characters P1-2) — `undefined` when the name
- * says it all, the HANDLE when it does not.
+ * THE ROW'S IDENTITY DISAMBIGUATOR (#492 → #517) — the HANDLE when another character shares this row's name,
+ * `undefined` when the name already tells the reader which row this is.
  *
  * The library holds genuine same-name collisions (three `Emily` at handles `emily`/`emily-2`/`emily-3`;
  * `Hikari`×2 and `Eva`×2 inside the first 50 rows), and the row announced its `name` alone: three identical
  * `button "Emily"`. Voice control could address none of them ("click emily-3" matches nothing) and
  * list-navigation / low-verbosity screen-reader modes, which drop descriptions, heard one name three times.
  *
- * IT GATES ON DERIVABILITY, NOT ON COLLISION, and that is a deviation from the #443/#458/#463 qualifier
- * resolvers with two receipts. (1) Those resolve a qualifier ACROSS THE LIST, and this list is keyset-paged
- * 30 at a time: a collision scan over the loaded page would answer about the page, not the library, and the
- * name would CHANGE under a screen-reader user as later pages arrived — the same lie `#493` is fixing in the
- * group counts. (2) The review assumed the handle is the row's visible subtitle; it is the ladder's LAST
- * rung (`elevatorPitch ?? tagLine ?? handle`, below), so any character with a distilled pitch or a visible
- * tag — every orphan import, whose `orphan import` TAG takes the rung — never shows one. A per-row,
- * paging-stable rule is the only one that holds. The handle is unique per owner, so it always separates
- * them; when it is merely the name slugified it says nothing, and is spent on nothing.
+ * IT USED TO GATE ON DERIVABILITY (is the handle `slugifyHandle(name)`?) AND THE RULING SURVIVES — ITS INPUT
+ * CHANGED (#517, side-eye se-verify-1, the verification pass over #492's own fix). The reason for that gate
+ * was real and is preserved verbatim: this list is keyset-paged 30 at a time, so a collision scan over the
+ * LOADED PAGE would answer about the page rather than the library, and a row's announced name would change
+ * under a screen-reader user as later pages arrived. What died is the assumption that per-row derivability
+ * was the only paging-stable rule available. Measured cost of that stand-in on the owner's library: 13 rows,
+ * 8 qualified, 0 of the 8 colliding — `Charlotte · assistant` reads as a ROLE, while `Emily`/`emily` (a real
+ * collision whose handle is derivable) got nothing at all. So the AMBIGUITY itself is answered where the
+ * library lives (`character.list`'s `nameIsAmbiguous`, a library-wide, lens-independent, page-independent
+ * verdict), and the handle — unique per owner, therefore always separating — is spent on exactly that.
  */
-function handleQualifier(character: Pick<CharacterCardItem, "name" | "handle">): string | undefined {
-  return character.handle === slugifyHandle(character.name) ? undefined : character.handle;
+function handleQualifier(character: Pick<CharacterCardItem, "handle" | "nameIsAmbiguous">): string | undefined {
+  return character.nameIsAmbiguous ? character.handle : undefined;
 }
 
 export function CharacterCardTile({
@@ -221,8 +225,9 @@ function NormalRowActions({
   readonly character: CharacterCardItem;
   /** The row's announced identity (`rowActionSubject(name, handleQualifier)`) — what every control here
    *  embeds, so a library holding three "Emily"s cannot ship three identically-named kebabs (#492). The
-   *  ROW BODY spells the same pair without the action grammar's quotes (`ListRow.titleQualifier` →
-   *  `Emily · emily-3`): one identity, two sentence shapes — a name standing alone, and a name inside a verb. */
+   *  ROW BODY renders and announces the same pair without the action grammar's quotes
+   *  (`ListRow.titleQualifier` → a visible `Emily · emily-3`): one identity, two sentence shapes — a name
+   *  standing alone, and a name inside a verb. */
   readonly subject: string;
   readonly onChat: (id: string) => void;
   readonly onToggleStar: (id: string, next: boolean) => void;

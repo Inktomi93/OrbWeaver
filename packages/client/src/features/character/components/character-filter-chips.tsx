@@ -92,9 +92,8 @@ export interface CharacterFilterChipsProps {
   /** The tag-library read is still in flight — the rail RESERVES the lines the vocabulary will land as,
    *  instead of shoving the character list down when it arrives. */
   readonly vocabularyPending: boolean;
-  /** What the pane's live region says about the current lens ("30 of 327 characters"). It renders HERE, in
-   *  the datum voice, on the Filters group's own line: floating above the list in the gloss voice it read as
-   *  a debug line, and it is the one number this rail's controls produce. */
+  /** What the pane's live region SAYS about the current lens ("12 characters"). Spoken, not printed
+   *  (#518): the visible census has one home and it is the LIST band. See the datum line's own note. */
   readonly resultLabel: string;
   /** Is the INACTIVE vocabulary on screen (#491)? Persisted by the library store, default `false`. */
   readonly open: boolean;
@@ -199,8 +198,16 @@ export function CharacterFilterChips({
           <TagVocabularyPanel onCollapse={(): void => setExpanded(false)} onCycle={onCycleTag} panelId={panelId} tagFilter={tagFilter} tags={availableTags} />
         ) : null}
       </Stack>
-      {/* THE DATUM LINE — the group's own full-width row, carrying the two numbers this rail produces: what
-          the lens matched, and how many lenses are on. It is the group's OUTPUT, so it closes the group.
+      {/* THE DATUM LINE — the group's own full-width row. It used to carry TWO numbers; it carries one
+          printed number and one spoken one now (#518, side-eye se-verify-1).
+          WHY THE CENSUS STOPPED PRINTING: `327 characters` here sat ~130px under a band already reading
+          `CHARACTERS 327`, in a 290px column — the same number twice, and at rest that is the only state
+          anyone sees. A census has ONE home and it is the band (the chats precedent: a list band prints its
+          list's count), which is why the band answers the LENS now rather than the library. What did NOT
+          move is the ANNOUNCEMENT: this is still a mounted `role="status"` region stating what the current
+          lens matched (side-eye 2026-08-03 P2), because the band's count is static text a screen-reader
+          user has to go and read, and because a live region that appears with its first message announces
+          nothing. It is `sr-only` — spoken, never a second printed census.
           IT IS A LINE OF ITS OWN FOR A GEOMETRIC REASON (side-eye 2026-08-17 P2): the active count used to
           be a flex ITEM of the wrapping control line, so the first selection MOUNTED it and shoved every
           chip 18px sideways — the row reshuffled under the pointer that had just pressed one of them. A
@@ -212,7 +219,7 @@ export function CharacterFilterChips({
           The count is CAPTIONED, never a bare digit: an unlabelled "2" beside the word "Filters" announced
           as the paragraph "2" and read, to anyone, as a debug counter (side-eye ARIA (a) + taste (b)). */}
       <Row className="w-full" gap="field" justify="between">
-        <Text role="status" voice="datum">
+        <Text as="span" className="sr-only" role="status">
           {resultLabel}
         </Text>
         {activeCount > 0 ? <Text voice="datum">{`${String(activeCount)} active`}</Text> : null}
@@ -251,17 +258,28 @@ function ScopePill({
   );
 }
 
+/** WHAT THE CLOSED DISCLOSURE OPENS (#519, side-eye se-verify-1) — the CONTENTS, not the act.
+ *
+ *  Collapsed, this group renders `FILTERS`, one text control and a datum, and the control said "More
+ *  filters": a cold first-timer got no signal that Favorites, Archived, or a 551-entry tag vocabulary exist
+ *  at all behind it (Nielsen #6, recognition over recall). Naming the three things is the cheapest possible
+ *  fix and costs one rail cell's width — measured against the ratified 264px resting chrome fence in the
+ *  surface CT, because a wider cell is a wrap risk at the 307px docked width. The OPEN arm keeps "Fewer
+ *  filters": once the vocabulary is on screen, the contents are the thing you can already see, and the
+ *  control's only remaining job is to say how to put it away. */
+const CLOSED_DISCLOSURE_LABEL = "Favorites, archived & tags";
+
 /** The group's OWN disclosure (#491) — the one control that decides whether the 551-entry tag vocabulary is
  *  on screen at all. Its own component so the group's render stays inside the complexity cap, and so the
  *  two labels can never drift apart. It wears the same grammar as its siblings (`RailAction`'s rule: the
- *  visible label is a SUBSTRING of the accessible name, WCAG 2.5.3) — the qualifier says which region, so
- *  the control names an object when a rotor reads it out of the rail it sits in. */
+ *  visible label is a SUBSTRING of the accessible name, WCAG 2.5.3) — the qualifier says what the act IS,
+ *  so the control names an object when a rotor reads it out of the rail it sits in. */
 function VocabularyDisclosure({ open, onToggle }: { readonly open: boolean; readonly onToggle: () => void }): ReactElement {
   return (
     <RailAction
-      accessibleName={open ? "Fewer filters — hide the tag vocabulary" : "More filters — show the tag vocabulary"}
+      accessibleName={open ? "Fewer filters — hide the tag vocabulary" : `${CLOSED_DISCLOSURE_LABEL} — show more filters`}
       expanded={open}
-      label={open ? "Fewer filters" : "More filters"}
+      label={open ? "Fewer filters" : CLOSED_DISCLOSURE_LABEL}
       onClick={onToggle}
     />
   );

@@ -78,6 +78,7 @@ import {
   setActiveSection,
   setAnalyticsSearchQuery,
   setBulkMode,
+  setCharacterSearch,
   setCharacterSortMode,
   setCharacterViewMode,
   setChatListCharacterFilter,
@@ -110,6 +111,7 @@ import {
   useAppearanceBootHint,
   useBlockedSaveSections,
   useCharacterBulkMode,
+  useCharacterSearch,
   useCharacterSortMode,
   useCharacterViewMode,
   useChatListCharacterFilter,
@@ -618,10 +620,11 @@ export function CharacterLibraryStoreProbe(): ReactElement {
   const tags = useTagFilter();
   const spoilerBlur = useSpoilerBlur();
   const filtersOpen = useFiltersOpen();
+  const search = useCharacterSearch();
   return (
     <div>
       <output>
-        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.map((entry) => `${entry.id}:${entry.state}`).join(",") || "none"} blur=${spoilerBlur} filtersOpen=${filtersOpen}`}
+        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.map((entry) => `${entry.id}:${entry.state}`).join(",") || "none"} blur=${spoilerBlur} filtersOpen=${filtersOpen} search=${search === "" ? "none" : search}`}
       </output>
       <button type="button" onClick={(): void => setCharacterSortMode("alpha")}>
         sort alpha
@@ -652,6 +655,14 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => toggleFiltersOpen()}>
         toggle filters open
+      </button>
+      {/* #518 — the pane's search text is STORE state now, because the LIST chrome band prints the census
+          and cannot see the pane's props. */}
+      <button type="button" onClick={(): void => setCharacterSearch("hikari")}>
+        search hikari
+      </button>
+      <button type="button" onClick={(): void => setCharacterSearch("")}>
+        clear search
       </button>
     </div>
   );

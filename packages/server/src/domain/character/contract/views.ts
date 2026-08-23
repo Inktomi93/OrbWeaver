@@ -66,4 +66,16 @@ export interface CharacterSummary {
   readonly elevatorPitch: string | null;
   /** LEFT JOIN character_stats.lastActivityAt; null = never chatted. Drives the recent sort + resume-or-new. */
   readonly lastChattedAt: number | null;
+  /**
+   * Does ANOTHER of this owner's characters carry the same name (case-insensitively)? #517 — the row's
+   * DISAMBIGUATION gate, and the reason it is a projection field rather than a client derivation.
+   *
+   * The library is keyset-paged 30 at a time, so a collision scan over the loaded rows would answer about
+   * the PAGE: the same name would be "unique" on page 1 and ambiguous on page 4, and a row's announced
+   * identity would change under a screen-reader user as pages arrived. This is computed over the owner's
+   * WHOLE non-synthetic library and is deliberately LENS-INDEPENDENT — whether two characters share a name
+   * is a fact about the library, not about the current search, so a row cannot lose (or gain) its
+   * disambiguator by filtering.
+   */
+  readonly nameIsAmbiguous: boolean;
 }

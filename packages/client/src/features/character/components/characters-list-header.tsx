@@ -9,24 +9,67 @@
 // two affordances the projection band carried went with them: BACK is not needed (nothing was replaced), and
 // New chat is the editor hero's primary (CONTENT tier, where she is open) plus the chats pane's own empty
 // state.
+//
+// IT IS ALSO THE ONE VISIBLE HOME OF THE CENSUS (#518, side-eye se-verify-1). `CHARACTERS 327` and the
+// filter rail's `327 characters` printed the same number ~130px apart in a 290px column; the band survives
+// by the chats precedent (`chat-list-header.tsx` — a list band prints its list's count), and the pane's line
+// stays as a spoken live region only. That single-homing is what makes the lens-aware count below
+// mandatory rather than a nicety: one visible census that ignored the filters beside it would be the exact
+// #490 defect this section inherited from the other.
 
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
+import { useLibraryScope } from "../hooks/use-library-scope.ts";
 import { CharacterCreateActions } from "./character-create-actions.tsx";
 
 /** The band wants the CENSUS, not the rows — the smallest page the server will serve still carries it. */
 const COUNT_ONLY_PAGE = 1;
 
-/** THE COUNT IS THE SERVER'S CENSUS (2026-08-13). It was deleted when the list went keyset-paged because the
- *  only number available then was "loaded so far", and a census that silently means something else is worse
- *  than none. `character.list` serves a real `COUNT` over the request's scope now, so the band asks for the
- *  cheapest possible page and prints `totalCount`: one honest number, one tiny read (the
- *  `chat-list-header.tsx` shape). Unscoped on purpose — the band names the LIBRARY, while the pane's own live
- *  region reports what the current filters match. */
-export function CharactersListHeader(): ReactElement {
+/**
+ * THE COUNT IS THE SERVER'S CENSUS (2026-08-13), AND IT ANSWERS THE LIST IN FRONT OF THE READER (#518).
+ *
+ * It was deleted when the list went keyset-paged because the only number available then was "loaded so
+ * far", and a census that silently means something else is worse than none. `character.list` serves a real
+ * `COUNT` over the request's scope, so this asks for the cheapest possible page and reads `totalCount`.
+ *
+ * The band cannot see the pane's props (it feeds a DIFFERENT shell slot), which is exactly why every
+ * narrowing axis lives in the library store — the search included, since #518. When nothing is narrowed
+ * this is byte-identical to what it always was: ONE `{limit:1}` census, printed bare. When something is, a
+ * second `{limit:1}` census over the SAME scope the pane queries answers "how many of them", and the band
+ * prints `N of TOTAL` (`ListPaneHeader.count` already takes a string for precisely this). The search is
+ * damped with the pane's own `CHARACTER_SEARCH_DEBOUNCE_MS` — one constant, applied by each consumer — so
+ * the number and the rows settle on the same keystroke.
+ *
+ * `archived` is tri-state on the wire exactly as the pane spells it: the toggle's ON state is the WIDER
+ * library (archived rows shown beside the rest), so it sends nothing at all — and it is therefore not one
+ * of the axes that makes the pane "narrowed" here, for the same reason the rail's `N active` datum does not
+ * count it.
+ */
+function useCharacterCensus(): number | string | undefined {
   const trpc = useTRPC();
-  const { data: page } = useQuery(trpc.character.list.queryOptions({ limit: COUNT_ONLY_PAGE }));
-  return <ListPaneHeader action={<CharacterCreateActions />} count={page?.totalCount ?? 0} title="Characters" />;
+  // The SAME resolution the pane's rows are fetched with (`use-library-scope.ts`) — not a second spelling
+  // of it. A band that re-derived the lens would be free to drift from the list it names, and "the census
+  // and the rows disagree" is the defect this whole change exists to close.
+  const scope = useLibraryScope();
+
+  const { data: all } = useQuery(trpc.character.list.queryOptions({ limit: COUNT_ONLY_PAGE }));
+  const { data: scoped } = useQuery({
+    ...trpc.character.list.queryOptions({ limit: COUNT_ONLY_PAGE, ...scope.args }),
+    // An unnarrowed pane asks nothing extra: the scoped query IS the unscoped one, already in cache above.
+    enabled: scope.narrowed,
+  });
+
+  const total = all?.totalCount;
+  if (!scope.narrowed || total === undefined) {
+    return total;
+  }
+  // Still settling: keep printing the honest library total rather than flashing a wrong narrowed number.
+  return scoped === undefined ? total : `${String(scoped.totalCount)} of ${String(total)}`;
+}
+
+export function CharactersListHeader(): ReactElement {
+  const count = useCharacterCensus();
+  return <ListPaneHeader action={<CharacterCreateActions />} count={count ?? 0} title="Characters" />;
 }

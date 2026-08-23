@@ -11,6 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import {
+  ambiguousNamesFor,
   canonicalTagsFor,
   cardOf,
   detailOf,
@@ -25,7 +26,46 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacterStats, seedCharacterSummary, seedRawCharacter, seedUser } from "../_support.ts";
 
+/** The library-wide name-collision verdict for a page whose names collide with nothing — `summaryOf`'s
+ *  third argument. The verdict itself is {@link ambiguousNamesFor}'s own subject, below. */
+const NO_AMBIGUOUS_NAMES: ReadonlySet<string> = new Set();
+
 describe("persistence/queries", () => {
+  // #517 — the row spends its handle as a visible + announced disambiguator on exactly the names this
+  // answers YES for, so the answer has to be a LIBRARY fact: page-independent (a keyset page cannot make a
+  // name unique), owner-scoped, case-insensitive, and blind to the pane's filters.
+  test("ambiguousNamesFor names the collisions in the OWNER's library, case-insensitively", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    await seedRawCharacter(db, { id: "character_e1", ownerId: owner, handle: castId<CharacterHandle>("emily"), name: "Emily" });
+    await seedRawCharacter(db, { id: "character_e2", ownerId: owner, handle: castId<CharacterHandle>("emily-2"), name: "emily" });
+    await seedRawCharacter(db, { id: "character_solo", ownerId: owner, handle: castId<CharacterHandle>("assistant"), name: "Charlotte" });
+    // A synthetic bucket and ANOTHER owner's row must not manufacture a collision for this owner.
+    await seedRawCharacter(db, { id: "character_grp2", ownerId: owner, handle: castId<CharacterHandle>("__group__c2"), name: "Charlotte", synthetic: true });
+    await seedRawCharacter(db, { id: "character_far", ownerId: other, handle: castId<CharacterHandle>("charlotte"), name: "Charlotte" });
+
+    expect(await ambiguousNamesFor(db, owner, ["Emily", "emily", "Charlotte"])).toEqual(["emily"]);
+    // A name the page does not carry is never answered about (the read is bounded by the page)…
+    expect(await ambiguousNamesFor(db, owner, ["Charlotte"])).toEqual([]);
+    // …and an empty page reads nothing at all.
+    expect(await ambiguousNamesFor(db, owner, [])).toEqual([]);
+  });
+
+  test("summaryOf carries the ambiguity verdict onto the row (#517)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedRawCharacter(db, { id: "character_amb", ownerId: owner, handle: castId<CharacterHandle>("emily"), name: "Emily" });
+
+    const rows = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 10, sort: "recent", cursor: undefined });
+    const row = rows[0];
+    if (row === undefined) {
+      throw new Error("expected the seeded row");
+    }
+    expect(summaryOf(row, [], NO_AMBIGUOUS_NAMES).nameIsAmbiguous).toBe(false);
+    expect(summaryOf(row, [], new Set(["emily"])).nameIsAmbiguous).toBe(true);
+  });
+
   test("loadOwnedCharacterRow is owner-scoped (undefined for a foreign row)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -72,7 +112,7 @@ describe("persistence/queries", () => {
       sort: "recent",
       cursor: undefined,
     });
-    expect(rows.map((r) => summaryOf(r, []).handle)).toEqual(["real"]);
+    expect(rows.map((r) => summaryOf(r, [], NO_AMBIGUOUS_NAMES).handle)).toEqual(["real"]);
   });
 
   test("summaryOf projects the FIX-#2 denorms (elevatorPitch + lastChattedAt), null when the JOINs miss", async () => {
@@ -96,7 +136,7 @@ describe("persistence/queries", () => {
       sort: "recent",
       cursor: undefined,
     });
-    const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [])]));
+    const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [], NO_AMBIGUOUS_NAMES)]));
     expect(byHandle.get(castId<CharacterHandle>("d"))?.elevatorPitch).toBe("A wandering bard.");
     expect(byHandle.get(castId<CharacterHandle>("d"))?.lastChattedAt).toBe(1_800_000_000_000);
     // No summary/stats row → both denorms are null (LEFT JOIN miss).

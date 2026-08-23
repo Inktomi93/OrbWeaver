@@ -11,6 +11,13 @@ import type { TagFilterVocabularyEntry } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
 
+/** Keystroke→request damper for the server-side library search — ONE constant, applied by each consumer
+ *  that turns the stored raw text into a query (the pane's collection AND the LIST band's census, #518), so
+ *  the rows and the band's number settle on the same keystroke instead of a quarter-second apart. Long
+ *  enough that typing a name is one round trip rather than eight, short enough that the list answers while
+ *  you are still looking. The `chat-list-scope.ts` twin is the shape this mirrors. */
+export const CHARACTER_SEARCH_DEBOUNCE_MS = 250;
+
 /** One entry of the tag-filter chip vocabulary. */
 export interface LibraryChipTag {
   readonly id: TagId;

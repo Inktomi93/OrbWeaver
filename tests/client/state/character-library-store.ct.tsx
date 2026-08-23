@@ -111,3 +111,23 @@ test("toggleFiltersOpen flips the rail's disclosure, and the posture PERSISTS (i
   await probe.getByRole("button", { name: "toggle filters open" }).click();
   await expect(state).toContainText("filtersOpen=false");
 });
+
+// #518 — the pane's SEARCH text lives here now, because the LIST chrome band prints the census and is a
+// sibling shell region with no shared React ancestor: while it was `useState` inside the surface the band
+// could only ever print the unnarrowed library total over a filtered list. It is TRANSIENT like `bulkMode`
+// (a reload landing on the unfiltered library is right, and the `chat-list-filter-store` twin agrees), so
+// the pin is the live transition PLUS its absence from the persisted blob.
+test("setCharacterSearch drives the pane's search text, and it is deliberately NOT persisted", async ({ mount, page }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("search=none");
+
+  await probe.getByRole("button", { name: "search hikari" }).click();
+  await expect(state).toContainText("search=hikari");
+
+  const stored = await page.evaluate((key) => globalThis.localStorage.getItem(key), STORAGE_KEY);
+  expect(stored ?? "").not.toContain("hikari");
+
+  await probe.getByRole("button", { name: "clear search" }).click();
+  await expect(state).toContainText("search=none");
+});
