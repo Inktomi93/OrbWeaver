@@ -225,9 +225,18 @@ export const gridVariants = tv({
       // middle track clears an aimable floor). The step is in `rem`, so it moves with `--font-scale` — the
       // reading arm folds later, which is exactly right for bigger type.
       knob: "grid-cols-1 @lg:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
-      // Four ordered action homes. Wide panes keep one row; a narrow pane moves the two later homes to a
-      // second row, and the smallest step gives the terminal home a third row rather than crushing targets.
-      actionBar: "grid-cols-[auto_auto_1fr_auto] items-center @max-md:grid-cols-[1fr_auto]",
+      // Four ordered action homes. A wide container keeps the explicit four-track row (`1fr` at the third
+      // home is the spacer that pushes the last two right).
+      //
+      // BELOW `@md` THE ARM IS FLEX-WRAP, NOT A SECOND GRID (#531, measured 2026-08-23). The old narrow arm
+      // was a fixed `[1fr_auto]` 2×2 (plus a `@max-xs` third row the consumer placed by hand), so it spent a
+      // whole extra 48px row + its gap at EVERY container below 768px — including containers where all four
+      // homes provably fit on one line (measured: the chat composer needs 372px of homes and has 392px at a
+      // 430px phone, yet rendered two rows). A breakpoint cannot know whether the homes fit; wrapping does.
+      // So the narrow arm packs by FIT: one row while the homes fit, a second only when they do not, and no
+      // third row at all. The consumer keeps ordering the wrapped lines with its own auto margins — the
+      // placement law (which home sits where) belongs to the bar, not to this recipe.
+      actionBar: "grid-cols-[auto_auto_1fr_auto] items-center @max-md:flex @max-md:flex-wrap",
     },
   },
   defaultVariants: { cols: "auto" },

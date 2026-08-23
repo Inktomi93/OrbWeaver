@@ -6,6 +6,11 @@
 // "nothing in the whole library matches", so the search arm no longer hedges and the chip arm's old "load
 // more to keep looking" affordance is gone — there is nothing further to load, and offering it would be a
 // dead end pretending to be a next step.
+//
+// …AND NONE OF THEM MINTS A DOOR THE BAND ALREADY CARRIES (#532). Each empty arm offers the exit its own
+// CAUSE needs — Clear search / Clear filters are this body's alone — but the EMPTY-LIBRARY arm's exit is
+// creating a character, which the list band above this pane already provides. It points at that one instead
+// of duplicating it; see the arm's own note.
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -20,7 +25,6 @@ import { clearCharacterFilters } from "#state";
 import { groupByTag } from "../lib/character-list-view.ts";
 import type { CharacterCardItem } from "./character-card.tsx";
 import { CharacterCategorizedList } from "./character-categorized-list.tsx";
-import { CharacterCreateButton } from "./character-create-actions.tsx";
 
 const ESTIMATED_ROW_PX = 80;
 const SKELETON_ROW_COUNT = 6;
@@ -121,10 +125,20 @@ export function CharacterLibraryBody({
         />
       );
     }
+    // #532 — ONE New DOOR ON THE PLANE, and the #520 mechanism applied where it needs no condition at all.
+    // This empty state used to mint its own New, which put a THIRD New on the Characters plane beside the
+    // LIST band's (the hero in the CONTENT pane was the second, closed by #520). The band is not a
+    // sometimes-thing here the way it is for the hero: this body renders INSIDE the list panel, and
+    // `PanelChrome` renders the `.shell-panel-header` band with every panel that has a body (D66 A1) — so
+    // whenever this state is on screen, the band's New is directly above it. There is no arm in which the
+    // hero's `useSectionListMode` gate would resolve differently, so the copy-pointer arm is unconditional.
+    //
+    // THE TEACHING IS NOT THINNED (empty states are load-bearing): the original invitation survives verbatim
+    // and the pointer is ADDED to it, naming the band's primary by its visible label (WCAG 2.5.3 — a
+    // voice-control user says what is written), so this is a de-duplicated door, never a dead end.
     return (
       <EmptyState
-        action={<CharacterCreateButton />}
-        description="Weave your first one to begin."
+        description="Weave your first one to begin — use New at the top of this pane."
         icon={<Icon icon={Users} size="lg" />}
         title="No characters yet"
       />
