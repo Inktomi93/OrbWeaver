@@ -14,7 +14,9 @@ import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
 const GATES_DIR = "tooling/src/verify/gates/";
 const GATE_SELF = `${GATES_DIR}finding-overload-provenance.ts`;
-const BASELINE_REL = `${GATES_DIR}finding-overload-provenance.baseline.json`;
+/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
+ *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
+export const BASELINE_REL = `${GATES_DIR}finding-overload-provenance.baseline.json`;
 // The single writer's DOOR, not its module path: `ops/gen/*.ts` is a library — running one directly loads
 // it, writes nothing and exits 0 (it now REFUSES; gate `tooling-ops-direct-invocation`). #526/#527.
 const GENERATOR = "node tooling/src/verify/cli.ts baseline finding-overload-provenance";

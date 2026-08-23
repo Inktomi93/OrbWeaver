@@ -16,38 +16,54 @@ const TWO_MARKERS = "// biome-ignore lint/foo: reason\nexport const a = 1;\n// e
 
 test("baseline ratchet: a file AT its baseline count passes", () => {
   const { root, project } = ctxFor({ [F]: ONE_MARKER });
-  const violations = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 });
   expect(violations).toEqual([]);
 });
 
 test("baseline ratchet: a file EXCEEDING its baseline REDs only the excess", () => {
   const { root, project } = ctxFor({ [F]: TWO_MARKERS });
-  const violations = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 });
   expect(violations).toHaveLength(1);
 });
 
 test("a file ABSENT from the baseline has budget 0 (any suppression is RED)", () => {
   const { root, project } = ctxFor({ [F]: ONE_MARKER });
-  const violations = reconcileSuppressions(root, project.getSourceFiles(), {});
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), {});
   expect(violations).toHaveLength(1);
 });
 
 test("both-ways: a baseline entry ABOVE the file's live count is a STALE-RED", () => {
   const { root, project } = ctxFor({ [F]: ONE_MARKER });
-  const violations = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 3 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 3 });
   expect(violations).toHaveLength(1);
   expect(violations[0]?.message).toContain("stale");
 });
 
 test("both-ways: a stale baseline entry for a file with ZERO live markers still REDs", () => {
   const { root, project } = ctxFor({ [F]: "export const a = 1;\n" });
-  const violations = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 });
   expect(violations).toHaveLength(1);
   expect(violations[0]?.message).toContain("stale");
 });
 
 test("a baseline entry EXACTLY at the live count is neither exceed-RED nor stale-RED", () => {
   const { root, project } = ctxFor({ [F]: TWO_MARKERS });
-  const violations = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 });
   expect(violations).toEqual([]);
+});
+
+// The ADMITTED half (#551). A green ratchet still carries a live population, and until this number was
+// declared the single-pass's "N finding(s) admitted by ratchet baselines" line omitted this gate's entire
+// ledger — 346 budgeted markers reading as zero declared debt. It counts what the BUDGET absolved, so it
+// is capped by the live count (a stale over-budget row cannot inflate it) and by the budget (an over-budget
+// file admits only its allowance; the excess is a violation, not debt).
+test("admitted counts the markers the budget ABSOLVED — capped by the live count, and by the budget", () => {
+  const { root, project } = ctxFor({ [F]: TWO_MARKERS });
+  expect(reconcileSuppressions(root, project.getSourceFiles(), { [F]: 2 }).admitted).toBe(2);
+  // Over budget: 1 admitted, 1 reported — never 2 admitted.
+  expect(reconcileSuppressions(root, project.getSourceFiles(), { [F]: 1 }).admitted).toBe(1);
+  // A STALE row budgeting more than the file carries admits only what is live.
+  expect(reconcileSuppressions(root, project.getSourceFiles(), { [F]: 9 }).admitted).toBe(2);
+  // No budget, no debt.
+  expect(reconcileSuppressions(root, project.getSourceFiles(), {}).admitted).toBe(0);
 });

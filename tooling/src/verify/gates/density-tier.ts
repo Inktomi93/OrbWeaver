@@ -35,7 +35,9 @@ import { SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments } from "../lib/comment-spans.ts";
 
-const BASELINE_REL = "tooling/src/verify/gates/density-tier.baseline.json";
+/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
+ *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
+export const BASELINE_REL = "tooling/src/verify/gates/density-tier.baseline.json";
 const GATE_SELF = "tooling/src/verify/gates/density-tier.ts";
 const TIER_WRITER = "packages/ui/src/layout/surface.tsx";
 const FEATURES_DIR = "packages/client/src/features/";
