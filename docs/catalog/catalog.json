@@ -440,12 +440,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "21b5a5ef877f5a2f9ec905925579dc1e7fd843060b66181d98ca943b3717c50f",
+        "assignedSha256": "7ff4bbd6609d3e1ad3e1120eb9d837c191c6d8054822dfb4e78724ac92cb8fa2",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "21b5a5ef877f5a2f9ec905925579dc1e7fd843060b66181d98ca943b3717c50f",
-        "verifiedCommit": "07bc631058a9fc38373dcac5017ff5524ea77dcd",
+        "verifiedSha256": "7ff4bbd6609d3e1ad3e1120eb9d837c191c6d8054822dfb4e78724ac92cb8fa2",
+        "verifiedCommit": "c9fa63b887157dcc29097f029d6cdc714083e7d4",
         "verifiedAt": "2026-08-23",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -458,7 +458,8 @@
           "delta re-verify 2026-08-21 (P2 #393): the tooling-shared-plumbing row's arm scope grew (process.exit / node:child_process / runTool entry / FULL_PRIORITY_CALLERS — arms D/E/F/F2, matching the landed descriptor); single-pass clean on the P2 tree",
           "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
           "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed.",
-          "delta re-verify 2026-08-23 (#527, lane tool-vocab) at 07bc631058a9fc38373dcac5017ff5524ea77dcd: ONE new ACTIVE row (tooling-ops-direct-invocation) + the count line 219->220. Row re-read against the landed descriptor (both arms + the derived-entry exemption + the §4.6 blindness tripwire); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 220/220 gates on the same tree; scoped check:docs green."
+          "delta re-verify 2026-08-23 (#527, lane tool-vocab) at 07bc631058a9fc38373dcac5017ff5524ea77dcd: ONE new ACTIVE row (tooling-ops-direct-invocation) + the count line 219->220. Row re-read against the landed descriptor (both arms + the derived-entry exemption + the §4.6 blindness tripwire); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 220/220 gates on the same tree; scoped check:docs green.",
+          "delta re-verify 2026-08-23 (#566, finding-overload-provenance terminal): the changed line is the ledger-machinery deletion note, re-derived against the deleted baseline/generator/reader on the tree"
         ],
         "claims": [
           {
@@ -482,7 +483,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
