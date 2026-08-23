@@ -71,13 +71,14 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "0440eae40d7eebe72392fd19d2f5119e00cf71fd35f04547bceb1ddc1f1c4717",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "551c21de48e9a3a6d80f2bc8cddfd6036f5185a534c0e9e50bf3c9b6f3ee3caa",
+      "verifiedCommit": "88022d21a85ea44894b3d23aa071caa224fe391e",
+      "verifiedAt": "2026-08-23",
       "evidence": [
         "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
         "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
-        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact program-index blob"
+        "2026-08-23 re-derivations: databank-design REALIZED (DB1-DB8 slice-by-slice tree receipts incl. DB6 byte-identity + DB5 scope-leak tests, #19 closed); automation-design PARTIAL (A1-A7 + transport symbol-verified built, A8 client surface unbuilt, #15 corrected, #592 filed)",
+        "git:88022d21a85ea44894b3d23aa071caa224fe391e contains the exact program-index blob"
       ],
       "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
       "claims": [
