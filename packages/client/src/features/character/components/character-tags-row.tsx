@@ -45,9 +45,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
         // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in
         // the "Add tag" button beside it, which is why the value can just say what is there.
-        <Text size="micro" tone="muted">
-          {EMPTY_VALUE}
-        </Text>
+        <Text voice="gloss">{EMPTY_VALUE}</Text>
       ) : (
         visible.map((tag) => (
           <Badge key={tag.id} size="sm">

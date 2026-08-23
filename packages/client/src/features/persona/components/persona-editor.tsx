@@ -135,6 +135,8 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
         <form.Subscribe selector={(state): boolean => isPrefillCombo(state.values)}>
           {(prefill): ReactElement | null =>
             prefill ? (
+              // RATIFIED raw axes (#582, the #573 precedent): the SEMANTIC warning tone is the message —
+              // no voice carries a semantic color.
               <Text size="micro" tone="warning">
                 {ASSISTANT_PREFILL_WARNING}
               </Text>
@@ -170,7 +172,7 @@ function ProvenanceChip({ metadata }: { readonly metadata: PersonaMetadata | nul
     <Row gap="field" align="center">
       <Badge intent="info">From a character card</Badge>
       {metadata.swapMacros === true ? (
-        <Text size="micro" tone="muted">
+        <Text voice="gloss">
           {"{{char}}"}/{"{{user}}"} were swapped on mint.
         </Text>
       ) : null}
