@@ -14,7 +14,6 @@ export const SIZE_PRESETS = {
   landscape: { width: 1536, height: 1024 },
 } as const satisfies Record<SizePresetName, { readonly width: number; readonly height: number }>;
 
-// biome-ignore-start lint/style/useNamingConvention: keyed by the canonical PROMPT_TEMPLATE_MODES literals (snake_case).
 /** face/character → portrait; background/scenario → landscape; free → square. The mapped-Record dispatch
  *  (§5.5): a new tuple member fails `tsc` here until it declares its default. */
 const DEFAULT_SIZE_BY_MODE: Record<PromptTemplateMode, SizePresetName> = {
@@ -26,7 +25,6 @@ const DEFAULT_SIZE_BY_MODE: Record<PromptTemplateMode, SizePresetName> = {
   character_multimodal: "portrait",
   face_multimodal: "portrait",
 };
-// biome-ignore-end lint/style/useNamingConvention: end the mode-literal-keyed default-size map.
 
 export function defaultSizeFor(mode: PromptTemplateMode): SizePresetName {
   return DEFAULT_SIZE_BY_MODE[mode];

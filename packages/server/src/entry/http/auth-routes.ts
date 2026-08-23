@@ -615,12 +615,9 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       createdAt: deps.now(),
     });
     const url = buildAuthorizationUrl(config, {
-      // biome-ignore lint/style/useNamingConvention: OAuth/OIDC authorization-request parameter names are wire-fixed (snake_case).
       redirect_uri: redirectUri,
       scope: oidc.scope,
-      // biome-ignore lint/style/useNamingConvention: OAuth/OIDC authorization-request parameter names are wire-fixed (snake_case).
       code_challenge: codeChallenge,
-      // biome-ignore lint/style/useNamingConvention: OAuth/OIDC authorization-request parameter names are wire-fixed (snake_case).
       code_challenge_method: PKCE_METHOD,
       state,
       nonce,
