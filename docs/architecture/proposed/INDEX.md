@@ -28,7 +28,7 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | `automation-design/` | **PARTIAL** | [#15](https://github.com/Inktomi93/orbweaver/issues/15) |
 | `rpg-design/` | **FUTURE** | [#25](https://github.com/Inktomi93/orbweaver/issues/25) |
 | `chat-crew-design/` | **FUTURE** | [#18](https://github.com/Inktomi93/orbweaver/issues/18) |
-| `plugin-design/` | **FUTURE** | [#24](https://github.com/Inktomi93/orbweaver/issues/24) |
+| `plugin-design/` | **PARTIAL** | [#24](https://github.com/Inktomi93/orbweaver/issues/24) |
 | `autosave-form-doctrine.md` | **FUTURE** | [#16](https://github.com/Inktomi93/orbweaver/issues/16) |
 | `bg-video-background-mini-spec.md` | **FUTURE** | [#17](https://github.com/Inktomi93/orbweaver/issues/17) |
 | `message-reactions-mini-spec.md` | **FUTURE** | [#23](https://github.com/Inktomi93/orbweaver/issues/23) |
