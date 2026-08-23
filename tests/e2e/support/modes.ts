@@ -72,7 +72,7 @@ export interface ModeProject {
  * - `shell` — load `/` only. The login-gated modes (local, forward-header) cannot reach the room
  *             un-authenticated, so they warm the boot shell + router + dep graph and stop there.
  */
-export type ClientWarmup = "room" | "shell";
+type ClientWarmup = "room" | "shell";
 
 const SESSION_SECRET = "orbweaver-e2e-multimode-session-secret-insecure";
 const CREDENTIALS_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";

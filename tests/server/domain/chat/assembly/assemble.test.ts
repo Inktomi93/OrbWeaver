@@ -27,7 +27,7 @@ function marker(over: Partial<Extract<PromptSection, { type: "marker" }>>): Prom
     role: "system",
     enabled: true,
     ...over,
-  } as PromptSection;
+  } satisfies Extract<PromptSection, { type: "marker" }>;
 }
 function literal(content: string, over: Partial<Extract<PromptSection, { type: "literal" }>> = {}): PromptSection {
   sectionSeq += 1;
@@ -39,7 +39,7 @@ function literal(content: string, over: Partial<Extract<PromptSection, { type: "
     content,
     enabled: true,
     ...over,
-  } as PromptSection;
+  } satisfies Extract<PromptSection, { type: "literal" }>;
 }
 
 function configOf(sections: PromptSection[]): PromptConfig {

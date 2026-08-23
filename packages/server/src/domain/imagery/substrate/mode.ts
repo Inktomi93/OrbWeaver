@@ -11,12 +11,10 @@ const PORTRAIT_MODES = new Set<PromptTemplateMode>(["character", "face", "charac
 
 /** A multimodal mode's text-extraction sibling — the no-avatar caption fallback (doc 02 §3 step 1) still
  *  describes the subject from the card's extracted keywords. */
-// biome-ignore-start lint/style/useNamingConvention: keyed by the canonical PROMPT_TEMPLATE_MODES literals (snake_case).
 const MULTIMODAL_TO_EXTRACTION: Record<MultimodalMode, ExtractionMode> = {
   character_multimodal: "character",
   face_multimodal: "face",
 };
-// biome-ignore-end lint/style/useNamingConvention: end the mode-literal-keyed map.
 
 export function isMultimodalMode(mode: PromptTemplateMode): mode is MultimodalMode {
   return MULTIMODAL_MODES.has(mode);

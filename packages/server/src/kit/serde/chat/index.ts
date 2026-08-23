@@ -215,7 +215,6 @@ function asObj(v: unknown): Record<string, unknown> | null {
 // Permissive typed views over ST's external JSON (snake_case by spec). Each field is `unknown` and every
 // consuming helper coerces + guards, so the schemas VALIDATE the object SHAPE (is this a record at all?),
 // not reject fields. `.loose()` keeps unmodelled keys; a non-object fails `safeParse` → null (skip/abort).
-// biome-ignore-start lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case).
 const rawHeaderSchema = z
   .object({
     user_name: z.unknown(),
@@ -266,7 +265,6 @@ const rawMessageSchema = z
   .partial()
   .loose();
 type RawMessage = z.infer<typeof rawMessageSchema>;
-// biome-ignore-end lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case).
 
 /** Validate a value's object shape against a lenient schema; null on a non-object. */
 function asTyped<T>(v: unknown, schema: z.ZodType<T>): T | null {
@@ -867,7 +865,6 @@ export function parseChatJsonl(
 }
 
 // ── build (ParsedChat → JSONL / TXT string) ──────────────────────────────────────────────────────────────
-// biome-ignore-start lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) are the format.
 
 /**
  * Serialize a `ParsedChat` to the ST chat-JSONL interchange (the inverse of `parseChatJsonl`). One header
@@ -1030,4 +1027,3 @@ export function buildChatTxt(chat: ParsedChat): string {
   const blocks = chat.messages.map((m) => `${txtAuthor(m)}: ${m.content}`);
   return `${blocks.join("\n\n")}\n`;
 }
-// biome-ignore-end lint/style/useNamingConvention: end ST wire-name block.

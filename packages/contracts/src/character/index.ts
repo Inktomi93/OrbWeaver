@@ -368,7 +368,6 @@ export type CharacterListCursor = z.infer<typeof characterListCursorSchema>;
 
 // The ST card wire object — a V2/V3 SUPERSET (`spec` accepts either; V3-additive fields are optional so a
 // V2 card validates as "V3 with the extras absent"). `.loose()` keeps unknown vendor keys riding through.
-// biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 const characterBookEntrySchema = z
   .object({
     keys: z.array(z.string()),
@@ -437,7 +436,6 @@ export const characterCardV3Schema = z
     data: characterCardV3DataSchema,
   })
   .loose();
-// biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 
 /** The ST V3 card object the serde emits/parses (the shape `buildCardV3` returns + `writeCardChunk` writes). */
 export type CharacterCardV3 = z.infer<typeof characterCardV3Schema>;

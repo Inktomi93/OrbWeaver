@@ -47,6 +47,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
   const contributions: readonly AnyWorkloadContribution[] = [
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
     ...createEmbeddingsWorkloadContributions({
+      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }) } as never,
       // The terminal `corpusRecomputed` fan — discarded here; its behavior is pinned at the owning domain's
       // own contribution mirror, this frame only needs the params schemas.
@@ -55,6 +56,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     }),
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
     ...createDiscoveryWorkloadContributions({
+      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       discovery: {
         computeThemes: stub({ digestsAssigned: 10, clustersWritten: 5 }),
         distillCharacters: stub({ scanned: 8, distilled: 8 }),
@@ -71,6 +73,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     ...createStatsWorkloadContributions({ db: {} as Db, now: () => T0 }),
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
     ...createConnectionWorkloadContributions({
+      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       connection: { refreshCatalog: stub({ models: [] }), refreshAgentSdkCatalog: stub({ models: [] }) } as never,
     }),
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).

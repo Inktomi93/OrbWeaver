@@ -9,6 +9,7 @@ type CatalogClient = Parameters<typeof fetchOrCatalog>[0];
 
 describe("fetchOrCatalog", () => {
   test("normalizes models; a blank price → null (unpriced, NOT free)", async () => {
+    // FABRICATION-OK: hand-built fake vendor SDK client — the verb only calls `models.list`.
     const client = {
       models: {
         list: (): Promise<unknown> =>
@@ -58,6 +59,7 @@ describe("fetchOrCatalog", () => {
   });
 
   test("falls back to the id when name is empty", async () => {
+    // FABRICATION-OK: hand-built fake vendor SDK client — the verb only calls `models.list`.
     const client = {
       models: {
         list: (): Promise<unknown> =>
@@ -86,6 +88,7 @@ describe("fetchOrCatalog", () => {
   });
 
   test("a transport failure becomes a typed ProviderError", async () => {
+    // FABRICATION-OK: hand-built fake vendor SDK client — the verb only calls `models.list`.
     const client = {
       models: { list: (): Promise<unknown> => Promise.reject(new Error("network down")) },
     } as unknown as CatalogClient;

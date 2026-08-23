@@ -82,9 +82,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
         {(options): ReactElement => (
           <Stack gap="field">
             {options.length === 0 ? (
-              <Text size="micro" tone="muted">
-                No options yet.
-              </Text>
+              <Text voice="gloss">No options yet.</Text>
             ) : (
               options.map((_option, j) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: options are a positional, id-less list edited in place by index — the index IS the identity.

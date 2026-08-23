@@ -153,6 +153,7 @@ test("tags source CHECK rejects an out-of-enum value", async () => {
       id: castId<TagId>("tag_badsrc"),
       ownerId,
       name: "bad-source",
+      // FABRICATION-OK: deliberate out-of-enum probe — the value must NOT satisfy the enum type.
       source: BAD_ENUM_VALUE as unknown as (typeof TAG_SOURCES)[number],
     });
   } catch (err) {
@@ -170,6 +171,7 @@ test("tags folderType CHECK rejects an out-of-enum value", async () => {
       id: castId<TagId>("tag_badfolder"),
       ownerId,
       name: "bad-folder",
+      // FABRICATION-OK: deliberate out-of-enum probe — the value must NOT satisfy the enum type.
       folderType: BAD_ENUM_VALUE as unknown as (typeof TAG_FOLDER_TYPES)[number],
     });
   } catch (err) {
@@ -226,6 +228,7 @@ test("character_tags status CHECK rejects an out-of-enum value", async () => {
     await db.insert(characterTags).values({
       characterId,
       tagId,
+      // FABRICATION-OK: deliberate out-of-enum probe — the value must NOT satisfy the enum type.
       status: BAD_ENUM_VALUE as unknown as (typeof TAG_STATUSES)[number],
     });
   } catch (err) {

@@ -4,15 +4,23 @@
 // owner-consent belt. This mirror asserts: every eligible source lands on agent-sdk's runAgentTurn (NOT on an
 // openrouter/vllm backend), a vLLM source is fail-closed at the firewall, and every fail-closed path here.
 
+import type { ModelId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { AgentTurnRequest, ChatResult, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { createAgentRole, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
+// ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
+// factory constructs one; a test needs a plain equivalent shape.
 function cred(source: ResolvedCredential["source"]): ResolvedCredential {
+  // FABRICATION-OK: server-can't-mint — see above.
   return { source, credentialId: null } as unknown as ResolvedCredential;
 }
 
+// ChatResult is a provider-runner output shape; this is a minimal stand-in whose only field the routing
+// spy ever reads is `reply`.
+// FABRICATION-OK: server-can't-mint — see above.
 const CHAT_RESULT = { reply: "ok" } as unknown as ChatResult;
 
 /** A backend whose `runAgentTurn` records `${key}:agent` so the routed selection is observable. */
@@ -42,12 +50,12 @@ function allBackends(calls: string[]): Map<ProviderBackend["key"], ProviderBacke
 function agentReq(over: Partial<AgentTurnRequest>): AgentTurnRequest {
   return {
     credential: cred("openrouter"),
-    model: "m",
+    model: castId<ModelId>("m"),
     systemPrompt: "",
     prompt: "hi",
     mcpServer: {},
     ...over,
-  } as AgentTurnRequest;
+  } satisfies AgentTurnRequest;
 }
 
 describe("createAgentRole — the agent-sdk-eligible sources all land on the agent-sdk backend", () => {

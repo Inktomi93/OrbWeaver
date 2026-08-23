@@ -24,7 +24,6 @@ export const CAPTION_INSTRUCTIONS = DEFAULT_CAPTION_INSTRUCTIONS;
 /** The composition each non-free mode's keyword list must OPEN with — the templates instruct the LLM to
  *  begin here; `ensurePrefix` re-asserts it (doc 02 §1 step 4). The FACE→portrait / BACKGROUND→landscape
  *  size defaults (size.ts) assume the composition these set. */
-// biome-ignore-start lint/style/useNamingConvention: keyed by the canonical PROMPT_TEMPLATE_MODES literals (snake_case).
 const REQUIRED_PREFIXES: Record<Exclude<PromptTemplateMode, "free">, string> = {
   character: "full body portrait,",
   face: "close up facial portrait,",
@@ -33,7 +32,6 @@ const REQUIRED_PREFIXES: Record<Exclude<PromptTemplateMode, "free">, string> = {
   character_multimodal: "full body portrait,",
   face_multimodal: "close up facial portrait,",
 };
-// biome-ignore-end lint/style/useNamingConvention: end the mode-literal-keyed prefix map.
 
 /** The composed negative for a generation (doc 02 §5–6): the resolved BASE with the user's per-request
  *  `negative` APPENDED (comma-joined), never replaced — the base is defect-suppression every generation wants.

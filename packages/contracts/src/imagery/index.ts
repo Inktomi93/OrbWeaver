@@ -67,7 +67,6 @@ export const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
 
 /** The shipped-default multimodal vision-caption instructions. No macros — the image IS
  *  the subject. */
-// biome-ignore-start lint/style/useNamingConvention: the keys ARE the snake_case PROMPT_TEMPLATE_MODES literals (the mode vocabulary); a rename would fork the wire.
 export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string> = {
   character_multimodal:
     "Describe the person in this image as a single comma-delimited list of concrete visual " +
@@ -78,7 +77,6 @@ export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string>
     "visual keywords for an image-generation model: facial features, expression, eyes, hair, " +
     "skin, head accessories. Only visual terms, no prose. Begin with: close up facial portrait,",
 };
-// biome-ignore-end lint/style/useNamingConvention: see start marker
 
 // ── The PROSE-1 slot table (census rows 82-87) — adapted IN PLACE ────────────────────────────────────
 // The catalog above already IS the shipped-default home; these rows give it the registry metadata every
