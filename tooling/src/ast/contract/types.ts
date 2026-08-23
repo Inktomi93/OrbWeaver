@@ -189,6 +189,32 @@ export interface StringyAudit {
   readonly aliases: number;
 }
 
+/** ONE call site of the subject verb: the call node, the first-argument object's KEY SET, and — when that
+ *  set could not be read — the reason, which is REPORTED rather than dropped (an unjudged site is not
+ *  evidence that the doors agree). `via` names the same-file const a key set was resolved THROUGH. */
+export interface SubsetCallSite {
+  readonly node: Node;
+  readonly keys: readonly string[] | null;
+  readonly unresolved: string | null;
+  readonly via: string | null;
+}
+
+/** ONE likely-stale door: a call site whose key set is a STRICT SUBSET of one or more other sites', plus
+ *  the union of the keys it does not pass — the features that door silently stopped carrying. */
+export interface SubsetFinding {
+  readonly site: SubsetCallSite;
+  readonly supersets: readonly SubsetCallSite[];
+  readonly missing: readonly string[];
+}
+
+/** The whole audit for one symbol: every call site, how many were RESOLVABLE (the denominator that makes a
+ *  zero legible as clean rather than as blindness), and the subset findings. */
+export interface SubsetAudit {
+  readonly sites: readonly SubsetCallSite[];
+  readonly resolved: number;
+  readonly findings: readonly SubsetFinding[];
+}
+
 /** The boundary class of an export. TEST-ONLY is the flagged arm of PUBLIC (cross-boundary but not prod API). */
 const API_CLASSES = ["public", "internal", "test-only", "unused"] as const;
 export type ApiClass = (typeof API_CLASSES)[number];

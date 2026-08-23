@@ -95,10 +95,20 @@ const EXCEED_MESSAGE = (token: string): string =>
   "only shrinks day-to-day (Core-Enforcement-Deferred-Dropped.md, suppressions row).";
 
 /** The exceed-budget + stale-baseline reconciliation shared by `run` and the residual unit test (via an
- *  injected baseline — the gate-conformance runner has no baseline.json on a synthetic tree). */
-export function reconcileSuppressions(root: string, files: readonly SourceFile[], baseline: Record<string, number>): Violation[] {
+ *  injected baseline — the gate-conformance runner has no baseline.json on a synthetic tree).
+ *
+ *  It returns the ADMITTED count beside the violations because a ratchet that reports only its violations
+ *  is invisible in the single-pass's "N finding(s) admitted by ratchet baselines" line — a green run then
+ *  understates the live population by this gate's entire ledger (GATE-AUTHORING.md §1; enforced by
+ *  gate-modernization ARM D). Admitted = per file, the markers the committed budget absolved. */
+export function reconcileSuppressions(
+  root: string,
+  files: readonly SourceFile[],
+  baseline: Record<string, number>,
+): { readonly violations: Violation[]; readonly admitted: number } {
   const violations: Violation[] = [];
   const liveCounts = new Map<string, number>();
+  let admitted = 0;
   for (const sf of files) {
     const rel = srcRel(root, sf.getFilePath());
     if (rel === undefined) {
@@ -107,6 +117,7 @@ export function reconcileSuppressions(root: string, files: readonly SourceFile[]
     const sites = suppressionSites(sf);
     liveCounts.set(rel, sites.length);
     const budget = baseline[rel] ?? 0;
+    admitted += Math.min(budget, sites.length);
     if (sites.length <= budget) {
       continue;
     }
@@ -121,7 +132,7 @@ export function reconcileSuppressions(root: string, files: readonly SourceFile[]
       violations.push({ file: rel, line: 0, message: STALE_MESSAGE(rel, budget, live) });
     }
   }
-  return violations;
+  return { violations, admitted };
 }
 
 export const gate: GateDescriptor = {
@@ -134,9 +145,12 @@ export const gate: GateDescriptor = {
   scanRoot: (p) => isSrcFile(p),
   run: (ctx) => {
     const baseline = loadBaseline(ctx.root);
-    for (const v of reconcileSuppressions(ctx.root, ctx.files, baseline)) {
+    const { violations, admitted } = reconcileSuppressions(ctx.root, ctx.files, baseline);
+    for (const v of violations) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
+    // Declared debt is not absence: without this the single-pass's admitted total omits this whole ledger.
+    ctx.scan({ admitted });
   },
   // NOTE: the BASELINE-BUDGET ratchet arms (a file AT its baseline passes; EXCEEDING REDs only the
   // excess; a STALE baseline entry REDs) need an INJECTED baseline (no baseline.json exists on the

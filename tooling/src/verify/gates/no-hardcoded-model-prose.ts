@@ -46,7 +46,9 @@ const CATALOGS = [
 ] as const;
 const CATALOG_SET: ReadonlySet<string> = new Set(CATALOGS);
 
-const BASELINE_REL = "tooling/src/verify/gates/no-hardcoded-model-prose.baseline.json";
+/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
+ *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
+export const BASELINE_REL = "tooling/src/verify/gates/no-hardcoded-model-prose.baseline.json";
 const GATE_SELF = "tooling/src/verify/gates/no-hardcoded-model-prose.ts";
 /** Real-tree anchor for the baseline stale arms — the registry door, present on every real run and planted
  *  by no example (§4.5). */
@@ -312,6 +314,11 @@ export const gate: GateDescriptor = {
         }
       }
     }
+    // Declared debt is not absence (#551, GATE-AUTHORING.md §1): without this the single-pass's admitted
+    // total omits this whole ledger. Per seam file, the prose units the committed budget absolved.
+    ctx.scan({
+      admitted: Object.entries(baseline).reduce((n, [rel, budget]) => n + Math.min(budget, liveCounts.get(rel) ?? 0), 0),
+    });
     // The baseline's two stale modes (§4.4a), anchor-guarded so a mini-project can't misfire them.
     if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
       return;

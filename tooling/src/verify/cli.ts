@@ -1,5 +1,5 @@
 // `verify` — the ONE argv front door for the whole verification system (docs/design/tooling-package.md
-// §2.5/§2.6). Eleven pnpm rows point HERE, each naming a verb; nothing points into ops/, so there is exactly
+// §2.5/§2.6). Twelve pnpm rows point HERE, each naming a verb; nothing points into ops/, so there is exactly
 // one argv parse and one exit-honesty runner for the harness that judges everything else.
 //
 //   check / verify           → cli.ts run [--static|--push|--full|--changed|--list|…]
@@ -13,6 +13,7 @@
 //   check:db-baseline        → cli.ts db-baseline
 //   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
+//   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
@@ -29,6 +30,7 @@ import {
   parse,
   runBootChunkRatchet,
   runDbBaselineParity,
+  runDebtWalk,
   runNewGate,
   runOrphanRatchet,
   runScopedCli,
@@ -66,6 +68,7 @@ const VERBS = [
   "db-baseline",
   "orphan-ratchet",
   "boot-chunk",
+  "debt",
 ] as const;
 
 const USAGE = `usage: node tooling/src/verify/cli.ts <${VERBS.join("|")}> [args…]`;
@@ -108,6 +111,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runOrphanRatchet(root, rest);
     case "boot-chunk":
       return await runBootChunkRatchet(root);
+    case "debt":
+      return runDebtWalk(root, rest);
     default:
       throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
   }
