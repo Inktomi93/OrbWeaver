@@ -6,7 +6,17 @@ updated: 2026-07-17
 
 # 13 — Lite Mode: the Stats-Steering Tier (the mode axis, the steering loop, the capability arms)
 
-> **GRADUATED 2026-07-19 (D101) — REALIZED; the code is the doc.** The whole rpg-design set is BUILT:
+> **⚠ BUILD-STATE RIDER (truth-repaired 2026-08-23, #25 re-derivation): the banner below is a
+> LEGACY-MAIN claim, NOT a tree claim.** All five graduation receipt commits (`43d5169f` `4f5073ec`
+> `3f6a57b2` `db60bd82` `c469b9ca`) live ONLY on `legacy-main` — `git merge-base --is-ancestor <sha>
+> main` fails for every one. The full R1–R11 build (158 files) was purged by the 2026-07-25 retro
+> burn-down; today's `domain/rpg` (75 files) is the LITE+GUIDED rebuild against
+> `docs/design/lite-plus-guided-substrate-spec.md` — the live authority. Full mode is refused at
+> mint (`RpgModeUnbuiltError`, create-game.ts:24), and this set's R4 turn mechanism is repealed by
+> D109 (tools:\[] every mode; state extraction is a separate post-commit round). Read this doc as a
+> content mine for a future full-mode GRAFT spec, never as a build record.
+>
+> **GRADUATED 2026-07-19 (D101) — REALIZED; the code is the doc.** \[LEGACY-MAIN ONLY — see the rider above.] The whole rpg-design set is BUILT:
 > server v1 (R1–R11 + R-OBS) `43d5169f` · the full client `4f5073ec` · lite mode L0 `3f6a57b2` / L1
 > `db60bd82` · the six straggler tail rows + RPG-CONSOLE-COMMIT `c469b9ca`. Any mid-build STATUS voice
 > in this file ("IN FLIGHT / NOT BUILT / uncommitted / not yet complete / stub runner / R5 has NOT
