@@ -352,7 +352,9 @@ Every lane, without being told per-brief:
   prove by a quiet re-run, not a dismissal. The heap floor is WORKSPACE-WIDE: pnpm-workspace.yaml `nodeOptions: --max-old-space-size=16384`
   reaches every pnpm-run script (node's default self-cap is ~4GB even on the 128GB box); ts7.cjs
   carries the flag internally so bare `node scripts/ts7.cjs` gets it too. Bare `npx depcruise`/`npx
-  knip` spellings BYPASS the floor — invoke the pnpm rows — an OOM
+  knip` spellings BYPASS the floor — invoke the pnpm rows — and so does a bare
+  `node tooling/src/<tool>/cli.ts …` (paid 2026-08-23: two exit-134 OOMs on a bare structure run;
+  the `pnpm check:structure` spelling picked up the floor and ran clean) — an OOM
   under THAT ceiling is a real finding to report, never to rerun-until-green. Run-completeness
   enforcement is #410. A search,
   gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
