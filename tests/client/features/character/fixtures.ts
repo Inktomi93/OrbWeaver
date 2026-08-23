@@ -39,6 +39,11 @@ export interface CharacterSummaryFixture {
   readonly tags: readonly CharacterSummaryFixtureTag[];
   readonly elevatorPitch: string | null;
   readonly lastChattedAt: number | null;
+  /** #517 — does ANOTHER of this owner's characters carry the same name (case-insensitively)? The server
+   *  answers it library-wide; {@link characterListResponder} recomputes it over the whole fixture library
+   *  for the same reason the handle is derived from the name — a fixture whose shape the server cannot mint
+   *  tests a product nobody ships. Hand-built page responders set it themselves. */
+  readonly nameIsAmbiguous: boolean;
 }
 
 export function makeTagFixture(overrides: Partial<CharacterSummaryFixtureTag> = {}): CharacterSummaryFixtureTag {
@@ -164,6 +169,7 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     tags: [],
     elevatorPitch: null,
     lastChattedAt: null,
+    nameIsAmbiguous: false,
     ...overrides,
   };
   return { ...base, handle: overrides.handle ?? castId<CharacterHandle>(slugifyHandle(base.name)) };
@@ -190,6 +196,16 @@ export interface CharacterListPageFixture {
  * ARRAY's — a fixture author states the order they want to assert; the cursor is the last served row's id.
  */
 export function characterListResponder(all: readonly CharacterSummaryFixture[]): (input: unknown) => CharacterListPageFixture {
+  // #517 — the AMBIGUITY signal is LIBRARY-WIDE and lens-independent, exactly as the server computes it
+  // (`ambiguousNamesFor`): a name is ambiguous when another of the owner's characters carries it, whatever
+  // the current page or filter happens to hold. Derived here once so no fixture can claim an ambiguity the
+  // library does not contain (or hide one it does).
+  const nameCounts = new Map<string, number>();
+  for (const character of all) {
+    const key = character.name.toLowerCase();
+    nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+  }
+  const stamped = all.map((character) => ({ ...character, nameIsAmbiguous: (nameCounts.get(character.name.toLowerCase()) ?? 0) > 1 }));
   return (input: unknown): CharacterListPageFixture => {
     const args = (input ?? {}) as {
       search?: string;
@@ -205,7 +221,7 @@ export function characterListResponder(all: readonly CharacterSummaryFixture[]):
     // string` parameter is a `brand-in-name-position` violation — the gate is right, the fixture layer is
     // the exception it does not need to learn.
     const has = (row: CharacterSummaryFixture, wanted: string): boolean => row.tags.some((tag) => tag.id === wanted);
-    const matched = all.filter(
+    const matched = stamped.filter(
       (row) =>
         (needle === "" ||
           row.name.toLowerCase().includes(needle) ||
