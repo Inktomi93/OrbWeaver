@@ -12,7 +12,7 @@ describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)"
     const base = { model: "m" };
     const patch = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>;
     const merged = deepMergeRequestBody(base, patch);
-    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    expect((Object.prototype as Record<string, unknown>)["polluted"]).toBeUndefined();
     expect(merged["polluted"]).toBeUndefined();
     expect(merged).toEqual({ model: "m" });
   });
@@ -21,7 +21,7 @@ describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)"
     const base = { a: { b: { c: 1 } } };
     const patch = JSON.parse('{"a":{"b":{"__proto__":{"polluted":true}}}}') as Record<string, unknown>;
     const merged = deepMergeRequestBody(base, patch);
-    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    expect((Object.prototype as Record<string, unknown>)["polluted"]).toBeUndefined();
     expect(merged).toEqual({ a: { b: { c: 1 } } });
   });
 
@@ -35,6 +35,7 @@ describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)"
 
   test("a forbidden key survives neither side even when the OTHER side is clean", () => {
     // Forbidden on base only.
+    // FABRICATION-OK: `__proto__` in an object-literal position sets the prototype, not a data key — the cast smuggles it in as a plain property for THIS probe.
     expect(deepMergeRequestBody({ __proto__: { x: 1 } } as Record<string, unknown>, { a: 1 })).toEqual({ a: 1 });
     // Forbidden on patch only.
     expect(deepMergeRequestBody({ a: 1 }, { constructor: { x: 1 } })).toEqual({ a: 1 });

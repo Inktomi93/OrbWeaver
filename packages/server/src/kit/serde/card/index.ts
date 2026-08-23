@@ -49,7 +49,6 @@ function strArray(v: unknown): string[] {
 
 // A permissive typed view over the dynamic, multi-spec card JSON. Every field is optional `unknown` (cards
 // are untrusted); dot access documents exactly what we read while keeping the index-signature lint quiet.
-// biome-ignore-start lint/style/useNamingConvention: Character-Card wire field names (snake_case).
 interface RawCard {
   spec?: unknown;
   data?: unknown;
@@ -137,7 +136,6 @@ function normalizeCardJson(card: RawCard): RawCard {
   }
   return card;
 }
-// biome-ignore-end lint/style/useNamingConvention: Character-Card wire field names (snake_case).
 
 // ST default for the Character's Note depth when absent / non-numeric.
 const ST_DEFAULT_DEPTH = 4;
@@ -457,7 +455,6 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);
   const baseExtensions = isPlainObject(meta["extensions"]) ? meta["extensions"] : {};
-  // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
   const extensions = inject
     ? {
         ...baseExtensions,
@@ -480,7 +477,6 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
     ...(entry.ignoreBudget ? { ignoreBudget: true } : {}),
     extensions,
   };
-  // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 }
 
 // The lorebook IN half — the byte-identical inverse of exportBookEntry, co-located here. Pure — no DB, no
@@ -701,7 +697,6 @@ function v3Promotions(fields: ExportCardFields): Record<string, unknown> {
 }
 
 export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[]): CharacterCardV3 {
-  // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
   const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, fav: _staleFav, ...baseExtensions } = fields.extensions ?? {};
   const extensions: Record<string, unknown> = {
     ...baseExtensions,
@@ -744,5 +739,4 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
     spec_version: SPEC_VERSION_BY_SPEC[spec],
     data,
   });
-  // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 }

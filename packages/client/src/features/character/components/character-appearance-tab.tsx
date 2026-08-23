@@ -174,7 +174,6 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
               Interactive, in that order, with Inherit as the absence of an override rather than a rung.
               The write direction is the contracts helper, so this control cannot store the incoherent
               "interactive but untrusted" pair — the resolver would not be able to represent it either. */}
-          {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Select's `label` prop renders the visible, associated label (the rule can't see a custom prop); the bound SelectField carries the same suppression. */}
           <Select
             label="HTML rendering"
             items={HTML_TRUST_ITEMS}

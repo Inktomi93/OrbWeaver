@@ -18,6 +18,9 @@ import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 const FIXED_NOW = 1000;
 const OR_KEY = "sk-or-secret";
+// ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
+// factory constructs one; a test needs a plain equivalent shape.
+// FABRICATION-OK: server-can't-mint — see above.
 const CRED = {
   source: "openrouter",
   apiKey: OR_KEY,
@@ -96,6 +99,7 @@ function backendWith(
   const tracker: Tracker = { apiKeys: [], sends: 0, sentRequests: [] };
   const getClient = (apiKey: string): OrClient => {
     tracker.apiKeys.push(apiKey);
+    // FABRICATION-OK: hand-built fake vendor SDK client — the backend only calls `chat.send`.
     return {
       chat: {
         send: (arg: unknown): Promise<unknown> => {
@@ -149,6 +153,7 @@ describe("createOpenRouterBackend — surface", () => {
 describe("createOpenRouterBackend — firewall + dispatch", () => {
   test("the agent-sdk api is rejected (that api is the agent-sdk backend's)", async () => {
     const { backend } = backendWith(() => summarizeReply("x"));
+    // FABRICATION-OK: deliberate wrong-api probe — `api: "agent-sdk"` must NOT satisfy the openrouter ChatRequest.
     const req = {
       api: "agent-sdk",
       credential: CRED,

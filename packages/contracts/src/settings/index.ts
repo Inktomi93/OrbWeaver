@@ -718,14 +718,12 @@ const imagerySchema = z
       })
       .prefault({}),
     // The two MULTIMODAL vision-caption instructions (no macros — the image is the subject).
-    // biome-ignore-start lint/style/useNamingConvention: the keys ARE the snake_case PROMPT_TEMPLATE_MODES literals (the imagery catalog's shape); a rename would fork the wire vocabulary.
     captions: z
       .object({
         character_multimodal: imageryTemplateField(),
         face_multimodal: imageryTemplateField(),
       })
       .prefault({}),
-    // biome-ignore-end lint/style/useNamingConvention: see start marker
   })
   .prefault({});
 

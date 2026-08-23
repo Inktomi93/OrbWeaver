@@ -77,9 +77,7 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
           />
           <Collapsible>
             <CollapsibleTrigger>
-              <Text size="label" weight="medium">
-                Macro browser
-              </Text>
+              <Text voice="label">Macro browser</Text>
             </CollapsibleTrigger>
             <CollapsiblePanel>
               <MacroBrowser userMacros={userMacros} presetId={presetId} />

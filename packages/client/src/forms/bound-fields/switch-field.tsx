@@ -19,7 +19,10 @@ export function SwitchField(props: SwitchFieldProps): ReactElement {
   const { field, fieldProps } = useBoundField<boolean>(props);
   return (
     <Field {...fieldProps}>
-      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
+      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- #579 source-verified: association
+          flows through Base UI's FieldRootContext at render time (Base UI's `Switch.Root` reads it
+          internally to inject `aria-labelledby`), never as a literal JSX prop on this element, so no
+          `control-has-associated-label` option (labelAttributes/controlComponents/depth) can see it. */}
       <Switch
         checked={field.state.value}
         onCheckedChange={(checked): void => {

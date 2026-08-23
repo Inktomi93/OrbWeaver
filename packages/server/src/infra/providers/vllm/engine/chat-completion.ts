@@ -81,7 +81,6 @@ interface ChatCompletionsResponse {
 }
 
 function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<string, unknown> {
-  // biome-ignore-start lint/style/useNamingConvention: OpenAI/vLLM wire field names (snake_case).
   return {
     model: req.model,
     messages,
@@ -102,7 +101,6 @@ function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<st
         }
       : {}),
   };
-  // biome-ignore-end lint/style/useNamingConvention: OpenAI/vLLM wire field names (snake_case).
 }
 
 /** `onWireBody` fires with the LITERAL /v1/chat/completions body right before it goes on the wire — the

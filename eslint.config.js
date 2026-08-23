@@ -559,9 +559,20 @@ export default tseslint.config(
       ...jsxA11y.flatConfigs.strict.rules,
       // control-has-associated-label is actually turned off in strict by default due to noise,
       // but it is the primary rule we need for agent-navigability (accessible names on all interactive elements).
+      // #579: `labelAttributes` teaches the rule the house `label` prop (`@orb/ui/select`'s own `label`,
+      // e.g. `<Select label="…">`) — a literal JSX attribute the rule can check directly, so a Select that
+      // names itself no longer needs a suppression. This does NOT reach every house association: `SelectField`
+      // / `SwitchField` (`packages/client/src/forms/bound-fields/`) associate through Base UI's
+      // `FieldRootContext` — `<Select>`/`<Switch>` consume `BaseField.Control`, which injects
+      // `aria-labelledby` at RENDER time from React context, never as a literal prop in this file's JSX
+      // (source-verified: `packages/ui/src/primitives/select/select.tsx` — the trigger's `aria-labelledby`
+      // comes from Field.Control's context merge, not a prop passed here). No `labelAttributes`/
+      // `controlComponents`/`depth` combination sees a context injection — AST inspection only ever sees
+      // this file's own JSX. Their suppressions stay (see each site's comment).
       "jsx-a11y/control-has-associated-label": [
         "error",
         {
+          labelAttributes: ["label"],
           ignoreElements: [
             "audio",
             "canvas",
