@@ -321,6 +321,41 @@ test("a category-only deep link still lands at the TOP of the pane (no phantom j
   await expect(component.locator("#settings-anchor-chat-behavior-message-handling")).toBeInViewport();
 });
 
+// #549 — the NAV has to agree with the pane it is next to (UI-Architecture §4.2: LIST drives CONTENT).
+// A category CLICK runs `selectCategory`, which suppresses the scroll-spy across the landing; a category
+// DEEP LINK resolved active/activeSub in render and then stopped, so the spy's own initial compute ran
+// against a still-mounting pane and overwrote the right answer with whatever its transient geometry
+// implied. Measured live on :5173 via `__orb.nav.openSettings("workloads")`: aria-current on "Analysis
+// tuning" — the LAST of three sections — while the Runs pane rendered, and one synthetic scroll event
+// afterwards corrected it to "Runs". Reachable without the dev bridge: `openSettingsTo("connections")`
+// from the chat empty state takes this exact path, and the corpus rail / memory section / databank body
+// take its sub-level sibling.
+//
+// THIS PIN IS A FENCE, NOT THE DEFECT PROOF — stated plainly because the difference matters. Run against
+// the UNFIXED source it PASSES: the CT harness's panes settle inside one frame, so the transient geometry
+// that produced the live lie never exists here, and a `trpcHold` on the Runs list cannot manufacture it
+// (the hold suspends every procedure batched with it, so the whole pane — anchors included — stops
+// rendering rather than rendering short). The DEFECT receipts are the live ones on :5173 quoted above.
+// What this fence does own is the contract both halves of the fix serve: a deep-linked pane's FIRST
+// section is the current one, and nothing later takes it back.
+test("#549 a category-only deep link marks the pane's FIRST section current, and keeps it (fence)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "workloads.list": [],
+    "workloads.listSchedules": [],
+  });
+  const component = await mount(<SettingsShellDeepLinkStory target="workloads" />);
+
+  // SETTLED on the pane's own rendered region, so the assertion runs after the mount the spy raced.
+  await expect(component.getByRole("region", { name: "Jobs settings" })).toBeVisible();
+  const nav = component.getByRole("navigation", { name: "Settings sections" });
+  await expect(nav.locator('[aria-current="true"]')).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Runs", exact: true })).toHaveAttribute("aria-current", "true");
+
+  // The LAST section is the one the live defect landed on — name it, so a regression reads as itself.
+  await expect(component.getByRole("button", { name: "Analysis tuning" })).not.toHaveAttribute("aria-current", "true");
+});
+
 // Task #37 — the deployment knobs are fuzzy-searchable like everything else; a hit jumps to its pane +
 // anchor. Since SET-SEAMS stage 4 that pane is ADMIN (§10 Q2), and the leaf is a CONTRIBUTED section's.
 test("fuzzy search jumps to the merged Operations section's admin anchor", async ({ mount, page }) => {

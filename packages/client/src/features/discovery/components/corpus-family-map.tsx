@@ -109,7 +109,14 @@ function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElemen
     // `bg-surface-raised` is the mockup's `.plate` tone and the ONLY one that works in both of this
     // component's homes: inside the focal island it steps DOWN from `--color-card`, and on the page
     // background it steps UP. Card's own `bg-card` default would be invisible inside the island.
-    <Card className="bg-surface-raised" nested={true}>
+    // A PLATE IS A LIST ITEM (#537, corpus ARIA sweep). The grid rendered as role-less cards, so eight
+    // families reached a screen reader as ONE flat run of text: no boundary to step to between plates, and
+    // no way to tell where a family's NAME ended and its census ("4 members · Elara · Bram · …") began —
+    // the two spans are separate elements, but nothing said the run had eight parts. The listitem supplies
+    // the boundary, and with it the count, so a reader steps family by family and reads the census inside
+    // the one they stopped on. Deliberately NO `aria-label` here: a named container is announced INSTEAD of
+    // its content by several readers, which would delete the very meta line this is about.
+    <Card className="bg-surface-raised" nested={true} role="listitem">
       <Row align="center" gap="row">
         <AvatarStack
           aria-hidden={true}
@@ -219,7 +226,7 @@ export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFami
           13rem arm does tile 2-up as the mock draws it, but at a ~150px text column, where the gloss clips
           on the CT's two-short-name fixture — the best case this component ever sees. The mock's plate does
           not carry that line. 1-up at the lead column is the honest rendering of the plate we shipped. */}
-      <Grid cols="auto" gap="row">
+      <Grid aria-label="Visual families" cols="auto" gap="row" role="list">
         {families.map((family) => (
           <FamilyPlate family={family} key={`${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`} />
         ))}

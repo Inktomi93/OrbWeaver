@@ -21,7 +21,7 @@
 // The badge rendered `hit.score` — the server's CSLS-adjusted cosine DISTANCE, clamped at 0 — so every
 // genuinely relevant hit read `0.00` and only a nonsense query produced anything non-zero. It now reads
 // `hit.relevance` (`1 − distance`, higher = closer) as a percent. The ORDER is still the server's CSLS rank;
-// this seam only decides what the reader is shown, which is why there is exactly one `HitRank` readout.
+// this seam only decides what the reader is shown, which is why there is exactly one `hitRankMeta` readout.
 //
 // NO `data-testid` ON A `ListRow`. Four of them once sat here and reached the DOM in exactly one place: the
 // primitive builds its body from named props and forwards no rest props, so `data-testid` on a `<ListRow>`
@@ -75,7 +75,7 @@ export function CharacterHitRow({
    *  honest percent to print for it — the rank order carries what a reader can use (R2a for that one arm). */
   readonly relevance: number | null;
   /** This row's 1-based position in the server's ranking — printed, because the percent beside it is a
-   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link HitRank}). */
+   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link hitRankMeta}). */
   readonly rank: number;
 }): ReactElement {
   const facet = characterFacetLine(genre, tone);
@@ -87,7 +87,7 @@ export function CharacterHitRow({
       leading={<CharacterAvatar id={characterId} name={name} hash={avatarHash} />}
       title={name}
       subtitle={subtitle}
-      actions={<HitRank rank={rank} relevance={relevance} />}
+      meta={hitRankMeta(rank, relevance)}
     />
   );
 }
@@ -127,7 +127,7 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
         // (scrollWidth 282 vs 213): a sentence whose whole job is to say what the list below does NOT show,
         // cut before it could say it. The Memories row already wraps its body for the same reason.
         subtitleWrap={true}
-        actions={<HitRank rank={rank} relevance={hit.relevance} />}
+        meta={hitRankMeta(rank, hit.relevance)}
       />
       <Stack className="pl-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {passages.map((passage) => (
@@ -202,7 +202,7 @@ export function DigestHitRow({
   readonly text: string;
   readonly relevance: number;
   /** This row's 1-based position in the server's ranking — printed, because the percent beside it is a
-   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link HitRank}). */
+   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link hitRankMeta}). */
   readonly rank: number;
 }): ReactElement {
   return (
@@ -213,7 +213,7 @@ export function DigestHitRow({
       title={chatSubtitle(chatTitle, scopedCharacterName)}
       subtitle={snippetForDisplay(text)}
       subtitleWrap={true}
-      actions={<HitRank rank={rank} relevance={relevance} />}
+      meta={hitRankMeta(rank, relevance)}
     />
   );
 }
@@ -249,7 +249,7 @@ export function ImageHitRow({
   readonly characterName: string | null;
   readonly relevance: number;
   /** This row's 1-based position in the server's ranking — printed, because the percent beside it is a
-   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link HitRank}). */
+   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link hitRankMeta}). */
   readonly rank: number;
 }): ReactElement {
   if (characterId === null) {
@@ -270,7 +270,7 @@ export function ImageHitRow({
         }
         title={caption ?? "Uncaptioned image"}
         subtitle="No card uses this image — nothing to open"
-        actions={<HitRank rank={rank} relevance={relevance} />}
+        meta={hitRankMeta(rank, relevance)}
       />
     );
   }
@@ -281,7 +281,7 @@ export function ImageHitRow({
       leading={<CharacterAvatar hash={hash} id={characterId} name={characterName ?? ""} />}
       title={characterName ?? "Untitled card"}
       subtitle={caption ?? "Uncaptioned image"}
-      actions={<HitRank rank={rank} relevance={relevance} />}
+      meta={hitRankMeta(rank, relevance)}
     />
   );
 }
@@ -312,10 +312,13 @@ function openChat(chatId: ChatId): void {
 // this takes the report's other arm: STATE the rank, and the sequence becomes a datum the reader can see
 // instead of an implication the numbers contradict. Same treatment as the gem shelf's tiles, and the
 // dossier's list now shares this readout rather than apologising in prose.
-function HitRank({ rank, relevance }: { readonly rank: number; readonly relevance: number | null }): ReactElement {
-  return (
-    <Text className="shrink-0 font-mono" voice="gloss">
-      {relevance === null ? rank : `${rank.toString()} · ${percent(relevance)}`}
-    </Text>
-  );
+// IT RIDES `meta`, NOT `actions` (#537, corpus ARIA sweep — merged with the #557 HitRank readout at the
+// wave-7 union): `actions` is a SIBLING of the clickable body by ListRow's own contract, so a score there
+// sits OUTSIDE the button it belongs to — a screen-reader user got no number while the sighted reader read
+// the whole list by it. `meta` is the primitive's slot for exactly this: the same trailing mono/tabular
+// datum treatment, rendered INSIDE the row's accessible content and carried on its `aria-describedby`.
+// The value is a STRING because `meta` is typed string — the slot is a datum, the skin is the primitive's.
+// On the LEXICAL branch (relevance null) the rank alone is the readout — BM25 has no honest percent (R2a).
+function hitRankMeta(rank: number, relevance: number | null): string {
+  return relevance === null ? rank.toString() : `${rank.toString()} · ${percent(relevance)}`;
 }
