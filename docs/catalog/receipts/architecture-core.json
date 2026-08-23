@@ -106,9 +106,9 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "911e694e6c2e84a3f244469119f3dbbb4f3f76753b03f5651cb35af0a03c8aa2",
-      "verifiedCommit": "5c8ae092de2038a9b95c837ac38a1f2caeacbbf1",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "ece118a60821cad501ff787d36e6ff93f2f118ecffbd1ae2779cb52029ce9895",
+      "verifiedCommit": "00daa4c7ea053f683b1a4f55f6c588ad72be35d3",
+      "verifiedAt": "2026-08-23",
       "evidence": [
         "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
