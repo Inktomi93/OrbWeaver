@@ -88,6 +88,15 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             report({ message: "no memory digests to cluster — run the memory backfill first" });
             return { scanned: 0, written: 0, emptyReason: "no-digests" };
           }
+          // THE SAME REFUSAL, ONE PLANE IN (issue #558). The pass clusters SOLO digests; a corpus whose
+          // digests are all group-room ones has a non-zero `digestsRead` and still nothing to cluster, which
+          // fell straight through to `{scanned: 0, written: 0}` — the very green nothing #166 exists to kill.
+          // It gets its OWN reason because the fix differs: the backfill already ran, so re-running it does
+          // nothing.
+          if (stats.soloDigestsRead === 0) {
+            report({ message: "only group-room digests to cluster — story themes come from solo chats" });
+            return { scanned: 0, written: 0, emptyReason: "no-solo-digests" };
+          }
           return { scanned: stats.digestsAssigned, written: stats.clustersWritten };
         } finally {
           await announceCorpus(deps, ctx);
@@ -139,6 +148,13 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             ...(workloads.maxPairs !== undefined ? { maxPairs: workloads.maxPairs } : {}),
             ...(workloads.hubFraction !== undefined ? { hubFraction: workloads.hubFraction } : {}),
           });
+          // SAME INPUT PLANE AS compute-themes — tier-0 memory digests — so the same refusal (issue #558).
+          // Without it a digest-less corpus reported "0 rows · 0 written" under a green Succeeded, and the
+          // keyword panels sat empty with nothing on the row saying which pass was missing.
+          if (stats.digestsRead === 0) {
+            report({ message: "no memory digests to tally — run the memory backfill first" });
+            return { scanned: 0, written: 0, emptyReason: "no-digests" };
+          }
           return { scanned: stats.charKeywordsWritten, written: stats.pairsWritten };
         } finally {
           await announceCorpus(deps, ctx);
