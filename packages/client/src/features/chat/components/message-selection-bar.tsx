@@ -8,6 +8,13 @@
 // calls single-message) with the whole selected set — zero server/contract change. A hard cascade → an
 // AlertDialog confirm (never an undo-toast, DESIGN.md §9); on success it leaves select mode. Settle
 // reconciles through the central invalidation seam + the bus's `messagesDeleted` re-fold (already wired).
+//
+// THE SECOND `chat.deleteMessages` DOOR, RATIFIED (#568 — budget `chats::chat.deleteMessages: 2`). The two
+// doors are not one verb wearing two faces: they belong to different MODES and different cardinalities. This
+// bar exists only while bulk-select mode is on, deletes the whole selected set, names the count in its
+// confirm ("Delete N selected message(s)?") and exits the mode on success; the row's ⋯ item is the
+// single-message door available at rest with no mode to enter. Collapsing either into the other would make
+// deleting one message require entering a mode, or deleting twenty require twenty confirms.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

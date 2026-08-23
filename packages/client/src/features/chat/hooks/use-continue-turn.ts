@@ -4,6 +4,18 @@
 // committed NON-assistant tail prompts a fresh reply via `chat.generate` — the fork-at-user-tail / empty-chat
 // convenience. Both are bus-driven like every other turn mutation (they stream into the ghost and settle
 // through the canon invalidation); the pure `resolveEmptySendAction` classifier picks which arm fires.
+//
+// TWO DOORS, RATIFIED (#568 — the duplicate-action-doors budget carries `chats::chat.continueTurn: 2` and
+// `chats::chat.generate: 2`; the second door of each is `use-guided-actions.ts`). NOT the #539 echo class,
+// which was two controls in ONE home where one carried a strict subset of the other's payload. These two are
+// different AFFORDANCE KINDS on different planes: this hook is a SETTINGS-GATED KEYBOARD GESTURE (an empty
+// Send, off entirely unless `continueOnSend`/`generateOnEmptySend` is on) that fires the BARE verb, while the
+// wand's `fireContinue`/`fireResponse` are always-present composer ICONS whose payload carries the guided
+// steer (and, for generate, `speakerCharacterId` + the `afterAssistant` responseNudge). Neither can stand in
+// for the other: retiring this one would delete the no-pointer path and silently strand two shipped user
+// settings; retiring the wand's would delete the only steerable arm. The budget stays at 2 rather than moving
+// to the gate's `EXEMPT_PROCEDURES` on purpose — an exempt procedure leaves the census, so a THIRD door would
+// go unnoticed, and a third door on this verb IS the drift this pair should red on.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
