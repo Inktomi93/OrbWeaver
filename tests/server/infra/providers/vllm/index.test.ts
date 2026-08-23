@@ -30,19 +30,21 @@ function fakeClient(): { client: VllmEngineClient; hits: EngineHit[] } {
       hits.push({ engine, path });
       const b = body as { input?: unknown; messages?: unknown };
       if (Array.isArray(b.input)) {
+        // FABRICATION-OK: `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T.
         return Promise.resolve({
           data: b.input.map((_, i) => ({ index: i, embedding: [1, 0] })),
           model: "served",
         } as T);
       }
       if (b.messages !== undefined) {
+        // FABRICATION-OK: see the T rationale above.
         return Promise.resolve({
           data: [{ index: 0, embedding: [1, 0] }],
           model: "served",
           choices: [{ message: { content: "ok" } }],
         } as T);
       }
-      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
+      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case). FABRICATION-OK: see the T rationale above.
       return Promise.resolve({ model: "served", results: [], usage: { total_tokens: 0 } } as T);
     },
     engineStream: () => Promise.reject(new Error("not exercised here")),

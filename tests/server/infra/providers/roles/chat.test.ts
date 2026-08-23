@@ -3,18 +3,62 @@
 // fail-closes on an invalid (api, source) pairing even when the firewall ALLOWS the source. This mirror
 // asserts the actual backend selected per pairing + every fail-closed path of THIS dispatcher.
 
+import type { ModelId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatRequest, ChatResult, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { createChatRole, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
+import {
+  makeCustomOpenAiCredential,
+  makeModelCapability,
+  makeOpenRouterCredential,
+  makeResolvedCredential,
+} from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-// Dispatch + firewall read only `credential.source` (+ api/consent); esbuild-only tests, so a cast keeps
-// the fakes terse (the brand is irrelevant at runtime).
+// Dispatch + firewall read only `credential.source` (+ api/consent) — the keyless sources go through the
+// shared brand-protected factory; the keyed sources (openrouter/custom_openai) get their own typed builder.
 function cred(source: ResolvedCredential["source"]): ResolvedCredential {
-  return { source, credentialId: null } as unknown as ResolvedCredential;
+  if (source === "openrouter") {
+    return makeOpenRouterCredential();
+  }
+  if (source === "custom_openai") {
+    return makeCustomOpenAiCredential();
+  }
+  return makeResolvedCredential(source);
 }
 
-const CHAT_RESULT = { reply: "ok" } as unknown as ChatResult;
+const CHAT_RESULT: ChatResult = {
+  reply: "ok",
+  reasoning: "",
+  reasoningRedacted: false,
+  stopReason: null,
+  terminalReason: null,
+  finishReason: null,
+  ttftMs: null,
+  warmSpareClaimed: null,
+  durationApiMs: null,
+  apiErrorStatus: null,
+  numTurns: 1,
+  events: [],
+  rateLimit: null,
+  usage: {
+    model: "m",
+    tokensIn: null,
+    tokensOut: null,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    cacheCreation5mTokens: null,
+    cacheCreation1hTokens: null,
+    reasoningTokens: null,
+    contextWindow: null,
+    maxOutputTokens: null,
+    webSearchRequests: 0,
+    costUsd: null,
+    costDetails: null,
+    isByok: null,
+  },
+};
 
 /** A backend whose `runChatTurn` records `${key}:chat` so the routed selection is observable. */
 function spy(key: ProviderBackend["key"], calls: string[]): ProviderBackend {
@@ -37,13 +81,31 @@ function allBackends(calls: string[]): Map<ProviderBackend["key"], ProviderBacke
   ]);
 }
 
+// Dispatch reads only `api`/`credential.source` — the rest of every arm below is a fixed, typed
+// placeholder shared regardless of which api arm the test picks.
 function chatReq(over: Partial<ChatRequest>): ChatRequest {
+  const common = {
+    credential: over.credential ?? cred("openrouter"),
+    model: castId<ModelId>("m"),
+    capability: makeModelCapability(),
+    params: {},
+    systemPrompt: { static: "s", dynamic: "" },
+  };
+  if (over.api === "agent-sdk") {
+    return {
+      ...common,
+      prompt: "hello",
+      orSkinTierModels: { opus: "test-opus", sonnet: "test-sonnet", haiku: "test-haiku" },
+      ...over,
+      api: "agent-sdk",
+    };
+  }
   return {
-    api: "chat-completions",
-    credential: cred("openrouter"),
-    model: "m",
+    ...common,
+    history: [],
     ...over,
-  } as ChatRequest;
+    api: over.api ?? "chat-completions",
+  };
 }
 
 /** Bind a fresh chat role over a fresh `calls` sink and run one request; returns the recorded calls. */
