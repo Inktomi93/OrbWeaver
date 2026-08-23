@@ -56,8 +56,8 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
   // Selection = a 2px left ember bar + a 10% primary tint (rides --color-primary so custom themes retint
   // it), matching the chats-lane list-row pattern; the constant left-border width keeps rows from shifting.
   const rowClass = selected
-    ? "rounded-card border border-border border-l-2 border-l-primary bg-primary/10"
-    : "rounded-card border border-border border-l-2 border-l-transparent";
+    ? "rounded-control border border-border border-l-2 border-l-primary bg-primary/10"
+    : "rounded-control border border-border border-l-2 border-l-transparent";
   return (
     <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-filled={filled ? "" : undefined} className={rowClass}>
       {/* THE NAME IS THE LABEL, THE BODY IS A DESCRIPTION (side-eye 2026-08-18 P1-2). Both spans used to be
@@ -88,7 +88,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
         <Text as="span" aria-hidden={true} size="body" weight="medium" className="shrink-0">
           {facet.label}
         </Text>
-        <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} size="micro" tone="muted" className="truncate">
+        <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" className="truncate">
           {showsPreview ? preview : facet.subtitle}
         </Text>
       </Button>
@@ -110,7 +110,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
           reader already heard — so the two audiences stop being told different things and the empty row
           stops carrying a duplicate node. A FILLED row's summary ("Filled, 44 characters") stays sr-only:
           its magnitude is a11y repair for an `aria-hidden` preview, never a second visible datum. */}
-      <Text as="span" className={filled ? "sr-only" : "shrink-0"} id={fillSummaryId} size="micro" tone="muted">
+      <Text as="span" className={filled ? "sr-only" : "shrink-0"} id={fillSummaryId} voice="gloss">
         {fillSummary}
       </Text>
     </Row>
