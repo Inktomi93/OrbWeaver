@@ -29,6 +29,7 @@ export type {
   SubsetDoorCensus,
   SubsetFinding,
   SubsetSiteScan,
+  SubsetUnjudgedFire,
   SwallowedCandidate,
   TestOnlyClass,
   TypeOnlyCandidate,
