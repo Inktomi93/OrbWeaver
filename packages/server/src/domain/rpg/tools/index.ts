@@ -210,8 +210,9 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
     }),
     rpgTool({
       name: "roll_dice",
-      description:
-        "Roll dice (e.g. `2d6+1`). Bake-once: the roll is server-authoritative and returned for you to narrate. Zero state — the roll is recorded on this message.",
+      // PROSE-1 slot (#578): `rpg.extract.tool.rollDice`, resolved to its shipped default at module load —
+      // the same "no game, no preset in scope" posture as its six siblings (`RPG_BASELINE_TOOL_DESCRIPTIONS`).
+      description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("roll_dice") ?? "",
       argsSchema: rollDiceArgsSchema,
       capability: null,
       source: "builtin",

@@ -825,6 +825,35 @@ For example, a three-line sign is enough:
     fires: "Closes the ref block on every extraction prompt.",
   },
 
+  // ── The LATEST BEAT user-prompt block label (#578 — debt-prose burn) ──
+  "rpg.extract.userPrompt.latestBeatLabel": {
+    id: "rpg.extract.userPrompt.latestBeatLabel",
+    home: "preset",
+    version: 1,
+    text: "LATEST BEAT (the newest story turn above — your delta covers exactly this):",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Latest-beat label",
+    fires: "Closes the extraction user-turn body, on every `window`/`full` extraction call.",
+  },
+
+  // ── The `roll_dice` tool description (#578 — debt-prose burn). Not an extraction-schema plane (roll_dice
+  // is zero-state, bake-once — see `domain/rpg/tools/index.ts` header), so it carries no per-game token; it
+  // rides the SAME `buildRpgToolDescriptions`/`RPG_BASELINE_TOOL_DESCRIPTIONS` seam as its six siblings so the
+  // registry's static registration and a future per-call render never disagree. ──
+  "rpg.extract.tool.rollDice": {
+    id: "rpg.extract.tool.rollDice",
+    home: "preset",
+    version: 1,
+    text: "Roll dice (e.g. `2d6+1`). Bake-once: the roll is server-authoritative and returned for you to narrate. Zero state — the roll is recorded on this message.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "roll_dice",
+    fires: "The `roll_dice` tool's model-facing description, on every tool-carrying vehicle.",
+  },
+
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
   // THE POPULATE ROUND (the populate census rows 1-7) — the BORN-STATE surface's own prose.
   // ══════════════════════════════════════════════════════════════════════════════════════════════════

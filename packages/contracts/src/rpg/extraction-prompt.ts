@@ -324,6 +324,10 @@ export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): Readonly
     ],
     ["upsert_quest", rpgProse(ctx, "rpg.extract.tool.upsertQuest")],
     ["add_journal_entry", rpgProse(ctx, "rpg.extract.tool.addJournalEntry")],
+    // `roll_dice` carries no extraction-schema plane (zero-state, bake-once — `domain/rpg/tools/index.ts`
+    // header) and no per-game token, but rides this SAME map so the registry's static registration
+    // (`RPG_BASELINE_TOOL_DESCRIPTIONS`) never diverges from a future per-call render (#578).
+    ["roll_dice", rpgProse(ctx, "rpg.extract.tool.rollDice")],
   ]);
 }
 

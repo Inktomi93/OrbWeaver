@@ -1,20 +1,19 @@
 // Gate: no-hardcoded-model-prose — PROSE-1 §7 (docs/design/prose-1-spec.md): at a PROMPT-ASSEMBLY SEAM,
 // model-facing prose (≥12 words with a lowercase run; +-chains/array-joins/template statics aggregated) is
 // authored ONLY in a prose CATALOG — everywhere else it is a slot that escaped the registry (the disease that
-// let a hardcoded nudge ride every turn for a campaign). ARM A: seam literals vs a SHRINK-ONLY per-file baseline
-// (terminal {} at PROSE-1 S3/S4 — then delete baseline+generator). ARM B: a catalog prose const nothing
+// let a hardcoded nudge ride every turn for a campaign). ARM A: seam literals, flat (the SHRINK-ONLY per-file
+// baseline reached its terminal `{}` at #578 and was DELETED — baseline + generator + this reader, GATE-
+// AUTHORING.md §4.8 — the ratchet is now a born-compliant fence). ARM B: a catalog prose const nothing
 // references is DEAD prose (the RPG_STATE_TRACKING_GUIDE row-27 class — the exemplar itself was WIRED and
 // slotted on 2026-08-08, and the class name outlives it; ARM B never scanned it anyway, since it lived in a
 // SEAM file and ARM B walks CATALOG files). Escapes: logger/*Error/throw args are
 // structural; `// PROSE-OK: <reason>` is the marker (two-sided: stale RED, malformed RED). DECLARED LIMITS
 // (mustPass rows): sub-12-word structural labels; prose assembled through an imported helper; a barrel
 // re-export does NOT make a catalog const alive (ImportSpecifiers only).
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { repoRel } from "../lib/pass.ts";
 
 /** The closed prompt-assembly seam list (PROSE-1 §7.1, adapted to the landed tree). Bare repo-relative
  *  prefixes — the §3 path-format law. */
@@ -45,14 +44,6 @@ const CATALOGS = [
   "packages/contracts/src/preset/index.ts",
 ] as const;
 const CATALOG_SET: ReadonlySet<string> = new Set(CATALOGS);
-
-/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
- *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
-export const BASELINE_REL = "tooling/src/verify/gates/no-hardcoded-model-prose.baseline.json";
-const GATE_SELF = "tooling/src/verify/gates/no-hardcoded-model-prose.ts";
-/** Real-tree anchor for the baseline stale arms — the registry door, present on every real run and planted
- *  by no example (§4.5). */
-const REAL_TREE_ANCHOR = "packages/contracts/src/prose/index.ts";
 
 const PROSE_MIN_WORDS = 12;
 const WORD_RE = /\S+/gu;
@@ -221,14 +212,6 @@ export function modelProseSites(sf: SourceFile): ProseSite[] {
   return sites.sort((a, b) => a.line - b.line);
 }
 
-function loadBaseline(root: string): Record<string, number> {
-  const path = join(root, BASELINE_REL);
-  if (!existsSync(path)) {
-    return {};
-  }
-  return JSON.parse(readFileSync(path, "utf-8")) as Record<string, number>;
-}
-
 /** ARM B: a prose-shaped const in a CATALOG file that nothing references — in-file (a slot row, a compose)
  *  or via an ImportSpecifier elsewhere. A barrel RE-export (ExportSpecifier) is deliberately NOT life. */
 function deadCatalogProse(ctx: GateRunCtx, sf: SourceFile): { line: number; name: string }[] {
@@ -261,7 +244,7 @@ function deadCatalogProse(ctx: GateRunCtx, sf: SourceFile): { line: number; name
   return out;
 }
 
-function reportSeamFile(ctx: GateRunCtx, sf: SourceFile, rel: string, budget: number): number {
+function reportSeamFile(ctx: GateRunCtx, sf: SourceFile, rel: string): void {
   const sites = modelProseSites(sf);
   const live = sites.filter((s) => s.escapedAt === undefined);
   const consumed = new Set(sites.flatMap((s) => (s.escapedAt === undefined ? [] : [s.escapedAt])));
@@ -282,10 +265,9 @@ function reportSeamFile(ctx: GateRunCtx, sf: SourceFile, rel: string, budget: nu
       });
     }
   }
-  for (const site of live.slice(budget)) {
+  for (const site of live) {
     ctx.report({ file: rel, line: site.line, column: 0 });
   }
-  return live.length;
 }
 
 export const gate: GateDescriptor = {
@@ -297,12 +279,10 @@ export const gate: GateDescriptor = {
   fix: FIX,
   scanRoot: (p) => isSeam(p) || CATALOG_SET.has(p),
   run: (ctx) => {
-    const baseline = loadBaseline(ctx.root);
-    const liveCounts = new Map<string, number>();
     for (const sf of ctx.files) {
       const rel = repoRel(ctx.root, sf.getFilePath());
       if (isSeam(rel)) {
-        liveCounts.set(rel, reportSeamFile(ctx, sf, rel, baseline[rel] ?? 0));
+        reportSeamFile(ctx, sf, rel);
       } else if (CATALOG_SET.has(rel)) {
         for (const dead of deadCatalogProse(ctx, sf)) {
           ctx.report({
@@ -314,40 +294,13 @@ export const gate: GateDescriptor = {
         }
       }
     }
-    // Declared debt is not absence (#551, GATE-AUTHORING.md §1): without this the single-pass's admitted
-    // total omits this whole ledger. Per seam file, the prose units the committed budget absolved.
-    ctx.scan({
-      admitted: Object.entries(baseline).reduce((n, [rel, budget]) => n + Math.min(budget, liveCounts.get(rel) ?? 0), 0),
-    });
-    // The baseline's two stale modes (§4.4a), anchor-guarded so a mini-project can't misfire them.
-    if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
-      return;
-    }
-    for (const [rel, budget] of Object.entries(baseline)) {
-      const live = liveCounts.get(rel);
-      if (live === undefined) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 0,
-          column: 0,
-          message: `baseline row for a file the scan never visited (moved/deleted/de-seamed): ${rel} — regenerate and commit the shrink: node tooling/src/verify/cli.ts baseline model-prose`,
-        });
-      } else if (live < budget) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 0,
-          column: 0,
-          message: `baseline row above the live count for ${rel} (${budget} > ${live}) — the ratchet only SHRINKS; regenerate and commit the shrink in this change: node tooling/src/verify/cli.ts baseline model-prose`,
-        });
-      }
-    }
   },
   mustFlag: [
     {
       files: 'export const NEW_TEACH =\n  "When the scene calls for it, teach the model to answer in the voice of the narrator and keep it steady.";\n',
       at: "packages/server/src/domain/rpg/substrate/__probe.ts",
       expect: { count: 1, messageIncludes: "PROSE-1" },
-      why: "the founding shape — a fresh model-facing teach authored at a seam instead of a catalog slot (no baseline budget on a new file)",
+      why: "the founding shape — a fresh model-facing teach authored at a seam instead of a catalog slot (the gate is flat now — #578, no baseline to admit it)",
     },
     {
       files: 'export const DESC = {\n  description: "Use this tool whenever the story needs a dice roll and report the result in plain words.",\n};\n',

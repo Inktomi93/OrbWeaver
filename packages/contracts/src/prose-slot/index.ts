@@ -104,6 +104,7 @@ export const PROSE_SLOT_IDS = [
   "imagery.caption.characterMultimodal",
   "imagery.caption.faceMultimodal",
   "imagery.negative.base",
+  "imagery.tool.generateImageDescription",
   // ── per-USER: the app-tier chat side-generation prompts (census 74-81) ──
   "chat.assembly.anchorIdentity",
   "chat.arbiter.system",
@@ -223,6 +224,8 @@ export const PROSE_SLOT_IDS = [
   "rpg.extract.refs.gameTrackerKeys",
   "rpg.extract.refs.conditions",
   "rpg.extract.refs.closing",
+  "rpg.extract.userPrompt.latestBeatLabel",
+  "rpg.extract.tool.rollDice",
   // ── per-PRESET: the POPULATE round's own prose (the populate census rows 1-7,
   //    `docs/design/prose-1-populate-census.md`). Its own `rpg.populate.*` group rather than more
   //    `rpg.extract.*` rows because the two fire on DIFFERENT CALLS — the extraction cohort rides every state
