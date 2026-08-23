@@ -8,6 +8,18 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shadow||border) && (radius||bg)) ─────────
+  // CARD-NESS IS MEASURED, NEVER NAMED (2026-08-23, issue #552). \`hasBorder\` used to OR in
+  // \`CARD_CLASS_RE.test(el.className)\` with CARD_CLASS_RE = /\\bcard\\b/i over the JOINED class string,
+  // which matches inside the COLOUR utility \`text-card-foreground\` — so the sanctioned @orb/ui \`Card
+  // nested\` arm ("drop the border entirely, step the radius one below the host's, and let the FILL
+  // alone carry the distinction", packages/client/src/features/discovery/components/corpus-family-map.tsx)
+  // was called bordered by NAME while its measured box read { t:0, r:0, b:0, l:0 } and boxShadow "none".
+  // Every use of that arm anywhere in the app was a guaranteed finding: 8 of the 10 findings on the
+  // populated corpus surface (docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md §3).
+  // Splitting the class LIST into tokens would not have helped — \`-\` is a non-word character, so
+  // /\\bcard\\b/ matches the token \`text-card-foreground\` on its own — and a \`[data-slot^=card]\` arm is
+  // worse still: the nested arm IS a card-root, so a slot signal reinstates the identical FP. Border
+  // width is always computable, so the name arm bought nothing that the box does not already say.
   function isCardLike(el) {
     var s = getComputedStyle(el);
     var hasShadow = s.boxShadow !== "none" && s.boxShadow.trim() !== "";
@@ -15,8 +27,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       Number.parseFloat(s.borderTopWidth) > 0 ||
       Number.parseFloat(s.borderRightWidth) > 0 ||
       Number.parseFloat(s.borderBottomWidth) > 0 ||
-      Number.parseFloat(s.borderLeftWidth) > 0 ||
-      CARD_CLASS_RE.test(el.className || "");
+      Number.parseFloat(s.borderLeftWidth) > 0;
     var radius = Number.parseFloat(s.borderTopLeftRadius) || 0;
     var bg = parseRgb(s.backgroundColor);
     var hasBg = bg !== null && bg.a > 0.05;
@@ -38,8 +49,32 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       var control = el.firstElementChild;
       if (control !== null && control.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
     }
-    // A wrapper whose whole job is to host one control (the label+control field shell) rides along.
-    return el.closest(INTERACTIVE_ISLAND_SELECTOR) !== null;
+    // A WRAPPER AROUND A CONTROL IS UNREACHABLE FROM matches()+closest() (2026-08-23, issue #552).
+    // Those two see SELF and ANCESTORS only, while this line's old comment claimed "a wrapper whose
+    // whole job is to host one control (the label+control field shell) rides along" — an intent the
+    // implementation could not deliver, and the #544a FP: \`[data-slot=autocomplete-input-group]\`, the
+    // \`border border-border rounded-control bg-input\` shell around the corpus search input, was judged
+    // a decorative panel nested in the list pane.
+    // The descendant arm is DELIBERATELY one level deep and shape-bounded rather than a subtree
+    // \`querySelector\`: an unbounded "contains a control anywhere" test exempts every decorative panel
+    // that happens to carry a CTA and eats the rule. A control SHELL is an element whose every element
+    // CHILD is a control and which carries no text of its own — the field shell's exact shape (measured
+    // live on :5173/corpus: the input group's only child is its 288x30 input inside a 290x32 box, with
+    // no own text nodes). A panel with a heading, prose, or any non-control child stays judged.
+    if (el.closest(INTERACTIVE_ISLAND_SELECTOR) !== null) return true;
+    return isControlShell(el);
+  }
+  function isControlShell(el) {
+    var kids = el.children;
+    if (kids.length === 0) return false;
+    for (var ci = 0; ci < kids.length; ci += 1) {
+      if (!kids[ci].matches(INTERACTIVE_ISLAND_SELECTOR)) return false;
+    }
+    var nodes = el.childNodes;
+    for (var ni = 0; ni < nodes.length; ni += 1) {
+      if (nodes[ni].nodeType === 3 && (nodes[ni].nodeValue || "").trim() !== "") return false;
+    }
+    return true;
   }
   // A MEDIA/IDENTITY TOKEN IS NOT A PANEL (2026-08-23, issue #538 — 11 of 12 nested-card findings on the
   // corpus surface were [data-slot=avatar-stack-item]). An avatar seat carries every input of the card
