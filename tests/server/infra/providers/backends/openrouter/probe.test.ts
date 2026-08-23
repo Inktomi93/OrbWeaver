@@ -10,6 +10,7 @@ type ProbeClient = Parameters<typeof probeOpenRouterCredential>[0];
 
 describe("probeOpenRouterCredential", () => {
   test("a successful credits read → ok, stamped with the injected clock", async () => {
+    // FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`.
     const client = {
       credits: { getCredits: (): Promise<unknown> => Promise.resolve({ data: {} }) },
     } as unknown as ProbeClient;
@@ -20,6 +21,7 @@ describe("probeOpenRouterCredential", () => {
   });
 
   test("a 401-class error → revoked (with a sanitized reason)", async () => {
+    // FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`.
     const client = {
       credits: {
         getCredits: (): Promise<unknown> => Promise.reject(new Error("401 invalid api key")),
@@ -31,6 +33,7 @@ describe("probeOpenRouterCredential", () => {
   });
 
   test("any other error → unreachable", async () => {
+    // FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`.
     const client = {
       credits: { getCredits: (): Promise<unknown> => Promise.reject(new Error("ECONNRESET")) },
     } as unknown as ProbeClient;

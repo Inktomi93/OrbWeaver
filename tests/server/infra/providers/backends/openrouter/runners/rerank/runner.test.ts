@@ -15,6 +15,9 @@ import { describe } from "vitest";
 import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const MODEL = "qwen/qwen3-reranker";
+// ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
+// factory constructs one; a test needs a plain equivalent shape.
+// FABRICATION-OK: server-can't-mint — see above.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",
@@ -43,6 +46,7 @@ interface Captured {
 
 function rerankClient(response: unknown): { client: RerankClient; captured: Captured } {
   const captured: Captured = { body: undefined };
+  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `rerank.rerank`.
   const client = {
     rerank: {
       rerank: (req: { requestBody: Record<string, unknown> }): Promise<unknown> => {
@@ -55,6 +59,7 @@ function rerankClient(response: unknown): { client: RerankClient; captured: Capt
 }
 
 function rejectingClient(error: unknown): RerankClient {
+  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `rerank.rerank`.
   return {
     rerank: { rerank: (): Promise<unknown> => Promise.reject(error) },
   } as unknown as RerankClient;
