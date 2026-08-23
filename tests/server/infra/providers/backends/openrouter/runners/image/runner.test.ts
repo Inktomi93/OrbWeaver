@@ -18,6 +18,9 @@ import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const EMBED_MODEL = "qwen/qwen3-vl-embedding";
 const GEN_MODEL = "openrouter/image-gen";
+// ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
+// factory constructs one; a test needs a plain equivalent shape.
+// FABRICATION-OK: server-can't-mint — see above.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",
@@ -44,6 +47,7 @@ interface Captured {
 
 function imageEmbedClient(response: unknown): { client: EmbedClient; captured: Captured } {
   const captured: Captured = { body: undefined };
+  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `embeddings.generate`.
   const client = {
     embeddings: {
       generate: (req: { requestBody: Record<string, unknown> }): Promise<unknown> => {
@@ -57,6 +61,7 @@ function imageEmbedClient(response: unknown): { client: EmbedClient; captured: C
 
 function genClient(response: unknown): { client: GenClient; captured: Captured } {
   const captured: Captured = { body: undefined };
+  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `chat.send`.
   const client = {
     chat: {
       send: (req: { chatRequest: Record<string, unknown> }): Promise<unknown> => {
