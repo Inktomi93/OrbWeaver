@@ -2,12 +2,12 @@
 // and the mint-once debug token. No verb lives here — up/restart are ops/prod-up.ts, down/status are
 // ops/prod-down.ts, and both import from this file.
 import { randomBytes } from "node:crypto";
-import type { Dirent } from "node:fs";
-import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { DistVerdict } from "../contract/types.ts";
+import { newestSourceEntries } from "../lib/source-scan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { classifyDist, debugPostureText } from "../lib/verdicts.ts";
 import { LOG_PATH, log, PIDFILE, probeDebug, runDir, TOKEN_PATH } from "./prod-state.ts";
@@ -40,34 +40,11 @@ function safeMtimeMs(path: string): number | null {
   }
 }
 
-function newestMtimeMs(dir: string): number | null {
-  let newest: number | null = null;
-  // `Dirent<string>`, not `ReturnType<typeof readdirSync>`: that alias resolves to the BUFFER overload
-  // (`Dirent<NonSharedBuffer>`) under node's current typings, and `entry.name` then isn't a string.
-  let entries: Dirent<string>[];
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return null;
-  }
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    const mtime = entry.isDirectory() ? newestMtimeMs(full) : safeMtimeMs(full);
-    if (mtime !== null && (newest === null || mtime > newest)) {
-      newest = mtime;
-    }
-  }
-  return newest;
-}
-
 export function distVerdict(): DistVerdict {
-  const sourceMtimes = [
-    ...CLIENT_SOURCE_DIRS.map((rel) => newestMtimeMs(join(REPO_ROOT, rel))),
-    ...CLIENT_SOURCE_FILES.map((rel) => safeMtimeMs(join(REPO_ROOT, rel))),
-  ].filter((m): m is number => m !== null);
+  const newest = newestSourceEntries([...CLIENT_SOURCE_DIRS, ...CLIENT_SOURCE_FILES].map((rel) => join(REPO_ROOT, rel))).at(0);
   return classifyDist({
     distIndexMtimeMs: safeMtimeMs(join(REPO_ROOT, CLIENT_DIST_INDEX_REL)),
-    newestSourceMtimeMs: sourceMtimes.length === 0 ? null : Math.max(...sourceMtimes),
+    newestSourceMtimeMs: newest?.mtimeMs ?? null,
   });
 }
 

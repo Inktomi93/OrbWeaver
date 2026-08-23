@@ -73,6 +73,14 @@ const SERIAL_INT = [
   // import plus the seed work. Thrice-sighted 5s-timeout flake under full-battery fork contention;
   // passes 7/7 isolated (2026-08-03).
   "tests/server/entry/boot/seed-demo-chats.int.test.ts",
+  // The run-completeness planted controls (#410): every case SPAWNS the real `verify structure` CLI over a
+  // planted root and its abnormal arms are TIMING-SHAPED — the SIGKILL control gives the child 4s to boot
+  // node, load the CLI and write its in-flight stub, then kills it. Under parallel fork contention the
+  // child does not always reach the stub write inside that window, and the read of
+  // `<root>/reports/check-structure.json` throws ENOENT — a contention flake, NOT a wrong verdict (passes
+  // 6/6 isolated, 2026-08-22). Serial removes the contention; the roots themselves are mkdtemp-isolated
+  // (tests/support/tool-fixtures.ts `plantedTree`), so this is class 2, not a shared-state tree-writer.
+  "tests/tooling/verify/ops/structure.int.test.ts",
 ];
 
 export default defineConfig({

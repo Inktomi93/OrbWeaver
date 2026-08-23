@@ -29,7 +29,7 @@
 #                                            WIN over any pinned posture. For when the
 #                                            stack is wedged (unknown-owner ports,
 #                                            stale pin, accumulated detached fleets).
-#   bash tooling/src/stack/stack.sh status         ports, pids, healthz, env pins, DB
+#   bash tooling/src/stack/stack.sh status         ports, pids, healthz, SERVED-MODULE freshness, env pins
 #   bash tooling/src/stack/stack.sh logs [server|client] [n]
 #
 # DEMO DATA: `pnpm seed:demo --fresh` wipes + re-migrates the data/ db and seeds
@@ -59,9 +59,18 @@
 # dialog (that dialog is the real-stack behavior). To rehearse a real first
 # sign-in: `DEV_SEED=off pnpm stack restart` (host export wins).
 #
-# Run dir + logs live in .cache/stack/ (gitignored, never /tmp). Output
+# Run dir + logs live in .cache/stack/ (gitignored, never /tmp). Each boot
+# ROTATES the previous run's log to `<log>.1` instead of truncating it (#524:
+# a restart that destroys the evidence of why you restarted). Output
 # contract (probe convention): the LAST line is a stable `RESULT stack …`
 # machine line — `tail -1` lands the verdict.
+#
+# STATUS HONESTY (#524): `status` also probes what vite is SERVING against what
+# is on disk (`served=` on the RESULT line). A dead vite file watcher leaves the
+# pid alive, the port bound and healthz green while every page load gets a
+# pre-change transform — 24 minutes of white screens once read as `status=up`.
+# A stale transform makes the verdict `degraded`, which is the ONLY status state
+# that exits non-zero; `down`/`partial`/`up` still exit 0 as they always did.
 #
 # STACK_RUN_DIR: the pidfile+log dir, env-overridable so a SECOND stack booted
 # from the SAME tree (the multi-user fixture on its offset port pair) owns its
@@ -229,6 +238,15 @@ healthz_ok() { curl -sf -m 2 "$HEALTHZ" >/dev/null 2>&1; }
 # `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only; the IPv4 loopback never answers.
 vite_ok() { curl -sf -m 2 "http://localhost:$VITE_PORT/" >/dev/null 2>&1; }
 
+# ROTATE, never truncate (#524). A restart used to `>` each log, which DESTROYS THE EVIDENCE OF WHY YOU
+# RESTARTED: the 15:57 restart that fixed the dead-vite-watcher wedge wiped the 15:33-15:56 window from
+# client.log, and the investigation lost its only primary source. One generation back is enough — the reason
+# you restarted is always in the run you just ended.
+rotate_log() {
+  [ -s "$1" ] && mv -f "$1" "$1.1" 2>/dev/null
+  : >"$1"
+}
+
 backend_env_var() { # pid name → value (from /proc environ; keys loaded from .env at boot won't show)
   tr '\0' '\n' <"/proc/$1/environ" 2>/dev/null | grep "^$2=" | cut -d= -f2-
 }
@@ -268,6 +286,7 @@ run_leader() {
   # shellcheck disable=SC2064
   trap 'kill -TERM ${client_pid:-} ${server_pid:-} 2>/dev/null; wait 2>/dev/null; exit 0' TERM INT HUP
   echo "stack: booting server :$BACKEND_PORT (log $SERVER_LOG)"
+  rotate_log "$SERVER_LOG"
   bash "$REPO/tooling/src/stack/dev.sh" >"$SERVER_LOG" 2>&1 &
   server_pid=$!
   local up=""
@@ -295,6 +314,7 @@ run_leader() {
   # this repo — the package scripts and this line — must carry it or dev and CI load the config two
   # different ways. Node 26 executes the TS config directly; the default `bundle` loader would
   # Rolldown-bundle it into node_modules/.vite-temp first.
+  rotate_log "$CLIENT_LOG"
   (cd "$REPO/packages/client" && exec "$REPO/packages/client/node_modules/.bin/vite" --configLoader native) >"$CLIENT_LOG" 2>&1 &
   client_pid=$!
   # Hold the group open; if EITHER child dies, tear the other down (a half-up
@@ -417,6 +437,28 @@ force_teardown() {
   return 0 # proceed to start regardless — a lagging release usually clears during boot
 }
 
+# The SERVED-MODULE probe (#524) — the one question a pid + a healthz cannot answer: is vite serving the
+# code that is ON DISK? A dead file watcher keeps the process up, the port bound and healthz green while
+# every load gets a pre-change transform (measured: 24 minutes of white screens under `status=up`). The
+# decision is node's (ops/served-probe.ts, same bash-fronted rule as `classify`); the shell only reads the
+# machine line + the exit code. Echoes ONE `state|file|reason` line (the caller splits it) — never partly to
+# stderr, which would interleave ahead of the status block under command substitution.
+served_probe() {
+  local out rc state file reason
+  out="$(VITE_PORT="$VITE_PORT" node "$REPO/tooling/src/stack/ops/prod-entry.ts" served-probe 2>/dev/null)"
+  rc=$?
+  # A probe that CRASHED is not a verdict — never let a broken instrument read as a healthy stack, and never
+  # let it read as a wedged one either (exit 2 is the tool-error class).
+  if [ "$rc" != 0 ] && [ "$rc" != 1 ]; then
+    echo "unverifiable|none|the served-module probe itself failed (exit $rc) — freshness NOT measured"
+    return 0
+  fi
+  state="$(printf '%s\n' "$out" | /usr/bin/grep -a -m1 '^SERVED ' | sed -n 's/.*state=\([a-z-]*\).*/\1/p')"
+  file="$(printf '%s\n' "$out" | /usr/bin/grep -a -m1 '^SERVED ' | sed -n 's/.*file=\([^ ]*\).*/\1/p')"
+  reason="$(printf '%s\n' "$out" | /usr/bin/grep -av '^SERVED ' | head -1)"
+  echo "${state:-unverifiable}|${file:-none}|${reason}"
+}
+
 do_status() {
   local pgid bpid vpid health
   pgid="$(own_pgid)"
@@ -426,16 +468,32 @@ do_status() {
   echo "pidfile group : ${pgid:-—} $(group_alive "${pgid:-x}" && echo '(alive)' || echo '(dead)')"
   echo "server :$BACKEND_PORT  : pid ${bpid:-not bound} · healthz $health"
   echo "vite   :$VITE_PORT  : pid ${vpid:-not bound}"
+  local served="unverifiable" served_file="none" served_reason="vite is not bound — freshness NOT measured"
+  if [ -n "$vpid" ]; then
+    local probe rest
+    probe="$(served_probe)"
+    served="${probe%%|*}"
+    rest="${probe#*|}"
+    served_file="${rest%%|*}"
+    served_reason="${rest#*|}"
+  fi
+  echo "served module : $served · $served_file"
+  echo "              : $served_reason"
   env_pin_report "${bpid:-}"
   echo "logs          : $LOG · $SERVER_LOG · $CLIENT_LOG"
   local state="down"
   if [ "$health" = "ok" ] && [ -n "$vpid" ]; then
-    state="up"
+    # DEGRADED is `up` with a lie in it: the ports answer, so every pre-#524 signal reads healthy, but the
+    # code being served is not the code on disk. It is the ONE state that exits non-zero — `down`/`partial`
+    # stay exit 0 exactly as before, so no existing caller changes meaning.
+    if [ "$served" = "stale" ]; then state="degraded"; else state="up"; fi
   elif [ -n "$bpid" ] || [ -n "$vpid" ]; then
     state="partial"
   fi
   echo ""
-  echo "RESULT stack status=$state server-pid=${bpid:-0} healthz=$health vite-pid=${vpid:-0} pidfile=${pgid:-none}"
+  echo "RESULT stack status=$state server-pid=${bpid:-0} healthz=$health vite-pid=${vpid:-0} served=$served pidfile=${pgid:-none}"
+  [ "$state" = "degraded" ] && return 1
+  return 0
 }
 
 preflight() { # refuses ports owned by a stack we don't know about (idempotent start)
@@ -467,7 +525,7 @@ do_start() {
     [ "$pf" = 1 ] && return 1
   fi
 
-  : >"$LOG"
+  rotate_log "$LOG"
   # setsid: new session ⇒ new process group whose PGID == the leader's PID.
   # The leader (this script, `_leader` verb — env pins ride the export) owns
   # dev.sh + vite; one number kills the whole tree.
