@@ -9,11 +9,8 @@ import type { HintOverlay } from "./render-plan.ts";
 
 const VERDICT_TONES: RenderHint["tone"] = {
   // The uppercase spellings are the wire enum's own — the banner words ARE the data (word-primary).
-  // biome-ignore lint/style/useNamingConvention: the key IS the canonical wire verdict member (`REFINERY_VERDICTS`, @orb/contracts/refinery) — a camelCase respell would break the tone lookup.
   ACCEPT: "good",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   NEEDS_REFINEMENT: "warn",
-  // biome-ignore lint/style/useNamingConvention: same — the wire verdict member.
   REGRESSION: "bad",
 };
 

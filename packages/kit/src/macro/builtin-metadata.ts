@@ -65,7 +65,6 @@ export const BUILTIN_MACRO_METADATA = {
   // ── system / context ──
   model: meta("model", "system", "The model id for the current turn."),
   chatid: meta("chatId", "system", "The current chat's id."),
-  // biome-ignore lint/style/useNamingConvention: {{compact_summary}} is the literal external (snake_case) ST macro identifier — the registry looks it up by exactly this name.
   compact_summary: meta("compact_summary", "system", "The staged compact conversation summary."),
   memory: meta("memory", "system", "The staged long-term memory recall."),
   databank: meta("databank", "system", "The staged databank retrieval, or empty when nothing retrieved."),
@@ -80,9 +79,7 @@ export const BUILTIN_MACRO_METADATA = {
   rpgmorale: meta("rpgMorale", "system", "The RPG party-morale tier + prose (empty outside a game)."),
   rpgquests: meta("rpgQuests", "system", "The active RPG quests + open objectives (empty outside a game)."),
   rpgdelta: meta("rpgDelta", "system", "The RPG changes-since-last-beat delta line (empty outside a game / on a quiet turn)."),
-  // biome-ignore lint/style/useNamingConvention: {{idle_duration}} is the literal external (snake_case) macro identifier — the registry looks it up by exactly this name.
   idle_duration: meta("idle_duration", "conversation", "Time since the last chat activity as human text (empty on a fresh chat)."),
-  // biome-ignore lint/style/useNamingConvention: {{guided_instruction}} is the literal external (snake_case) ST macro identifier — the registry looks it up by exactly this name.
   guided_instruction: meta("guided_instruction", "system", "The staged guided-generation instruction."),
   if: meta("if", "system", "Conditional block: renders its body when the predicate passes, else the {{else}} branch.", {
     args: [{ name: "predicate", type: "string", optional: true }],
