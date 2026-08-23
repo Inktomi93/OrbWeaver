@@ -10,6 +10,9 @@
 //   3. The routing roleDefaults pinned to the local vLLM engine (the @live specs' coherent chat wire).
 //   4. LOCAL mode ONLY: the multi-user seed (localMultiUser AppSetting on + a member account) by shelling the
 //      dev `seed multi-user` (@orb/tooling) — the ONE source of truth for that sequence, not a reimplementation.
+//   5. The CLIENT IS WARMED in a real browser (#571) — each mode's vite dev server transforms its route graph
+//      HERE, so no spec pays the cold compile inside its own 60s test timeout. Depth per mode is
+//      `clientWarmup` (modes.ts, which carries the measurement and the WHY).
 //
 // Seed via API, not UI — faster + more reliable, and it runs against the SAME running stack the specs hit.
 // The un-credentialed 127.0.0.1 owner-fallback seam resolves the owner in every mode (single-user always;
@@ -22,6 +25,9 @@
 import { execFileSync } from "node:child_process";
 import process from "node:process";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
+import type { Browser } from "@playwright/test";
+import { chromium, devices } from "@playwright/test";
+import { openNewestChat } from "./chat-room.ts";
 import type { ModeProject } from "./modes.ts";
 import { DEV_TARGET_ALLOWED, LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes.ts";
 import { probeTarget, targetRefusal } from "./target-guard.ts";
@@ -138,6 +144,65 @@ async function seedMode(mode: ModeProject): Promise<void> {
   }
 }
 
+// ── CLIENT WARM-UP (#571) — the second half of globalSetup's job. See `ClientWarmup` in modes.ts for WHY:
+// vite's transform cache is per-process, so without this the FIRST spec of a run pays the cold transform of
+// the whole route graph inside its own 60s test timeout, and that cost has crossed the budget. ──
+
+// Two attempts, and the FIRST one is expected to be slow — it is the one paying the cold transform, and on a
+// truly cold tree it can outrun any single budget we would pick (vite serves ~1.6k modules one at a time
+// while the page is mid-boot, so the helpers' own actionability waits can expire before the route mounts).
+// The retry re-drives the SAME path against a now-mostly-transformed graph, which is the pass that must
+// succeed. A second failure THROWS: a warm-up that silently gave up would restore the exact cold-first-spec
+// regression this exists to kill, so it aborts the run loudly instead.
+const WARMUP_ATTEMPTS = 2;
+const SHELL_WARMUP_TIMEOUT = 120_000;
+
+/** Run one warm-up body, retrying once — the cold pass primes the transform cache for the pass that counts. */
+async function warmWithRetry(mode: ModeProject, drive: () => Promise<void>, attemptsLeft: number = WARMUP_ATTEMPTS): Promise<void> {
+  try {
+    await drive();
+  } catch (cause) {
+    if (attemptsLeft <= 1) {
+      throw new Error(`e2e warm-up: ${mode.name} client never settled after ${WARMUP_ATTEMPTS} attempts`, { cause });
+    }
+    console.warn(`e2e warm-up: ${mode.name} did not settle yet (cold transform) — ${attemptsLeft - 1} attempt(s) left`);
+    await warmWithRetry(mode, drive, attemptsLeft - 1);
+  }
+}
+
+/** Pre-transform ONE mode's client module graph by actually driving it in a browser (the real graph the
+ *  specs walk, not a hand-listed file set). `room` modes go all the way into a chat; login-gated `shell`
+ *  modes stop at `/`. Its own context per mode, so the modes stay isolated exactly as their stacks are. */
+async function warmMode(browser: Browser, mode: ModeProject): Promise<void> {
+  const context = await browser.newContext({ ...devices["Desktop Chrome"], baseURL: mode.baseUrl });
+  const page = await context.newPage();
+  try {
+    switch (mode.clientWarmup) {
+      case "room":
+        await warmWithRetry(mode, () => openNewestChat(page));
+        break;
+      case "shell":
+        await warmWithRetry(mode, async (): Promise<void> => {
+          await page.goto("/", { waitUntil: "load", timeout: SHELL_WARMUP_TIMEOUT });
+        });
+        break;
+    }
+  } finally {
+    await context.close();
+  }
+}
+
+/** Warm every booted mode in parallel (separate stacks ⇒ separate vite processes ⇒ no contention beyond CPU,
+ *  and serialising them would just re-add the wall-clock this whole step exists to remove). */
+async function warmClients(modes: readonly ModeProject[]): Promise<void> {
+  const browser = await chromium.launch();
+  try {
+    await Promise.all(modes.map((mode) => warmMode(browser, mode)));
+  } finally {
+    await browser.close();
+  }
+}
+
 /** Playwright `globalSetup` — runs once, after the webServers are up, before the first spec. Seeds EVERY
  *  mode-project's stack that actually BOOTED (a `--project=<name>`-scoped run boots only that project's
  *  webServer, so a fetch to a non-booted origin would hang — we probe /healthz first and skip the ones that
@@ -156,4 +221,7 @@ export default async function globalSetup(): Promise<void> {
     throw new Error(refusals.join("\n"));
   }
   await Promise.all(booted.map(({ mode }) => seedMode(mode)));
+  // AFTER the seed, never before: the `room` warm pass opens a chat from the list, which only exists once
+  // `ensureChat` has run.
+  await warmClients(booted.map(({ mode }) => mode));
 }

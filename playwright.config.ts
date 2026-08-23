@@ -57,15 +57,20 @@ const webServers = MODE_PROJECTS.map((mode) => ({
 export default defineConfig({
   testDir: "tests/e2e",
   testMatch: "**/*.spec.ts",
-  // Seed KNOWN DB state over each booted stack's tRPC API before the first spec (support/global-setup.ts —
-  // iterates the mode projects, seeds each by its origin). Runs AFTER the webServers are up.
+  // Seed KNOWN DB state over each booted stack's tRPC API before the first spec, then WARM each stack's
+  // client in a real browser (support/global-setup.ts — iterates the mode projects, seeds + warms each by
+  // its origin). Runs AFTER the webServers are up.
   globalSetup: "./tests/e2e/support/global-setup.ts",
   outputDir: "reports/e2e-results", // reports/ is gitignored
   fullyParallel: false,
   workers: 1, // serial — avoids libSQL :memory: state collisions once the stack is wired
-  // 60s, not the 30s default: since single-user got its OWN stack (no more reusing a warm dev server), the
-  // FIRST spec of a run pays vite's cold module compile for the whole chat room. Measured: chat-persistence
-  // @smoke timed out at 30s cold, then passed in 25.5s warm — the budget has to cover the cold path.
+  // 60s, not the 30s default. It USED to be the cold-boot budget: since single-user got its own stack, the
+  // FIRST spec of a run paid vite's cold module compile for the whole chat room (measured: chat-persistence
+  // @smoke timed out at 30s cold, passed in 25.5s warm). That cost kept growing with the client and crossed
+  // 60s too (#571 — the @smoke case died at `page.reload` with `net::ERR_ABORTED`, the abort being the
+  // test-timeout context close). Raising it again would only restart that treadmill, so globalSetup now
+  // WARMS each mode's client before the first spec and no spec pays cold compile at all. This stays at 60s
+  // as headroom for the slowest WARM spec (the room drives real turns), not as a cold-boot budget.
   timeout: 60_000,
   ...(e2eLive ? {} : { grepInvert: /@live/u }),
   forbidOnly: inCI,

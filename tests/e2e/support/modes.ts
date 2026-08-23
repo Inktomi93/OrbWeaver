@@ -49,7 +49,30 @@ export interface ModeProject {
   readonly webServerEnv: Readonly<Record<string, string>>;
   /** Whether `global-setup.ts` runs the multi-user seed (localMultiUser + a member account) for this mode. */
   readonly seedMultiUser: boolean;
+  /** How deep `global-setup.ts` warms THIS mode's vite dev server before the first spec runs (see
+   *  `ClientWarmup`). The depth is an auth fact, not a preference: only a mode whose UI is reachable
+   *  WITHOUT a login can be driven into the chat room by an un-authenticated warm pass. */
+  readonly clientWarmup: ClientWarmup;
 }
+
+/**
+ * How far `global-setup.ts` drives a mode's client to pre-transform its module graph.
+ *
+ * WHY THE HARNESS WARMS AT ALL (#571): each `playwright test` invocation boots a FRESH vite dev server, and
+ * vite's transform cache is per-process — so the FIRST spec of every run pays the cold transform of the
+ * whole route graph (~1.6k module requests for home → Chats → room, measured from the #571 trace) INSIDE its
+ * own 60s test timeout. That cost grew with the client and crossed the budget: `chat-persistence`'s @smoke
+ * case died at `page.reload` with `net::ERR_ABORTED` — the abort being the test-timeout context close, not a
+ * competing navigation. Warming here moves that one-time cost OUT of every spec's budget (measured on this
+ * box: cold 42.2s → warm 14.9s / 13.8s for the same case), and it is self-maintaining because the warm pass
+ * walks the REAL graph through the same helpers the specs use rather than a hand-listed file set.
+ *
+ * - `room`  — drive home → Chats list → open a chat (`support/chat-room.ts`). The full spec surface; only
+ *             valid where the UI needs no login (single-user).
+ * - `shell` — load `/` only. The login-gated modes (local, forward-header) cannot reach the room
+ *             un-authenticated, so they warm the boot shell + router + dep graph and stop there.
+ */
+export type ClientWarmup = "room" | "shell";
 
 const SESSION_SECRET = "orbweaver-e2e-multimode-session-secret-insecure";
 const CREDENTIALS_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -147,6 +170,7 @@ export const SINGLE_USER: ModeProject = {
         }),
   },
   seedMultiUser: false,
+  clientWarmup: "room",
 };
 
 /** Is the single-user project deliberately aimed at the operator's dev stack (`E2E_ALLOW_DEV_TARGET=1`)?
@@ -196,6 +220,7 @@ const LOCAL: ModeProject = {
     ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: true,
+  clientWarmup: "shell",
 };
 
 // ── forward-header (SSO trusted-proxy) — ports 8798/5182, isolated DB/assets. AUTH_MODE=forward-header +
@@ -230,6 +255,7 @@ const FORWARD_HEADER: ModeProject = {
     ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: false,
+  clientWarmup: "shell",
 };
 
 // ── oidc — DEFERRED (owner decision). No mock IdP exists yet; the planned increment is a route-level fake
