@@ -1,5 +1,7 @@
 import type { MouseEventHandler, ReactElement, ReactNode, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import type { Slots } from "./parts.tsx";
+import { ListRowContent } from "./parts.tsx";
 import { listRowVariants } from "./variants.ts";
 
 export interface ListRowProps {
@@ -18,12 +20,18 @@ export interface ListRowProps {
    */
   fullTitle?: string;
   /**
-   * A DISAMBIGUATOR appended to the CLICKABLE row's accessible name — `"<title> · <qualifier>"`. Never
-   * rendered; the title stays a prefix of the name (WCAG 2.5.3 — a voice user can say what they can see).
-   * For a list whose titles genuinely collide (three characters named "Emily" as three identical
-   * `button "Emily"`, #492): the caller decides what disambiguates (`rowActionSubject`, #443/#458/#463) and
-   * this carries it into the NAME, which `subtitle` cannot — a description is what low-verbosity and
-   * voice-control modes drop. Not by itself an axe `label-content-name-mismatch` fix; see #492. */
+   * A DISAMBIGUATOR for a row whose TITLE collides with another row's — appended to the clickable row's
+   * accessible name AND rendered after the title as `"<title> · <qualifier>"`. For a list whose titles
+   * genuinely collide (three characters named "Emily" as three identical `button "Emily"`, #492): the
+   * caller decides what disambiguates (`rowActionSubject`, #443/#458/#463) and this carries it into the
+   * NAME, which `subtitle` cannot — a description is what low-verbosity and voice-control modes drop.
+   *
+   * IT IS RENDERED (#517, side-eye se-verify-1 — it used to be accessible-name-only, documented "never
+   * rendered"). The prefix reading of WCAG 2.5.3 is what made hiding it defensible; it also left the
+   * SIGHTED reader of two identically-titled rows with no disambiguator at all except whatever the
+   * `subtitle` happened to be, which is a caller's fallback ladder and not a promise. Rendering the
+   * qualifier satisfies 2.5.3 the stronger way — BY IDENTITY: the visible label and the accessible name
+   * are the same string, so a voice user says exactly what is on screen. */
   titleQualifier?: string;
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
@@ -155,142 +163,6 @@ export interface ListRowProps {
  * (nested interactive content inside a button is invalid for assistive tech). The body's own
  * children are strictly phrasing content, so the native `<button>` is valid HTML.
  */
-type Slots = ReturnType<typeof listRowVariants>;
-
-function subtitleStepAttribute(step: "default" | "label"): "label" | undefined {
-  return step === "label" ? "label" : undefined;
-}
-
-/** The DOM ids of the row's describing spans (subtitle · meta · markers), for the body's
- *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty ⇒ no attr). */
-interface ListRowDescriptors {
-  subtitleId: string | undefined;
-  metaId: string | undefined;
-  markersId: string | undefined;
-}
-
-/** The body's inner content — strictly phrasing content so it's valid inside the clickable button. On a
- *  CLICKABLE row the title is `aria-hidden` because it backs the body's `aria-label` (repeating it as
- *  content would double the name); subtitle + meta stay visible AND carry ids the body's
- *  `aria-describedby` points at, so a screen reader hears "<title>, <subtitle> <meta>" — the name is the
- *  title alone, the rest a description.
- *
- *  A NON-CLICKABLE row is the opposite case and the hide was unconditional (side-eye 2026-08-06): a static
- *  `<div>` body carries no role, no `aria-label` and no `aria-describedby`, so hiding its title deleted the
- *  row's only accessible name — measured on the chat rack, where five rows announced their byte size and
- *  never the document they belonged to. The hide is therefore keyed to the very thing that supplies the
- *  replacement name. */
-function ListRowContent({
-  slots,
-  clickable,
-  leading,
-  title,
-  fullTitle,
-  subtitle,
-  subtitleLead,
-  subtitleReveal,
-  subtitleInline,
-  subtitleDecorative,
-  subtitleStep,
-  meta,
-  markers,
-  titleStep,
-  ids,
-}: {
-  slots: Slots;
-  clickable: boolean;
-  leading: ReactNode;
-  title: string;
-  titleStep: "default" | "promoted";
-  fullTitle: string | undefined;
-  subtitle: string | undefined;
-  subtitleLead: ReactNode;
-  subtitleReveal: string | undefined;
-  subtitleInline: boolean;
-  subtitleDecorative: boolean;
-  subtitleStep: "default" | "label";
-  meta: string | undefined;
-  markers: ReactNode;
-  ids: ListRowDescriptors;
-}): ReactElement {
-  // The subtitle YIELDS on hover/focus only when a reveal is present, so the reveal takes the exact line.
-  // VISIBILITY, not display: both spans share one grid cell (`subtitleStack`), so the line's box is the max
-  // of the two and never changes under the pointer (gate `no-hover-display-swap`).
-  const subtitleSwap = subtitleReveal === undefined ? "" : "col-start-1 row-start-1 group-hover:invisible group-focus-within:invisible";
-  const subtitleSpan =
-    subtitle === undefined ? null : (
-      <span
-        aria-hidden={subtitleDecorative ? true : undefined}
-        className={slots.subtitle({ className: subtitleSwap })}
-        data-slot="list-row-subtitle"
-        data-subtitle-step={subtitleStepAttribute(subtitleStep)}
-        id={ids.subtitleId}
-        title={subtitle}
-      >
-        {subtitleLead}
-        {/* A literal space between the chip and the scent: the accessible-description computation
-            concatenates adjacent inline nodes with NO separator, so a screen reader heard
-            "IndexingWiki · 91.7 KB" until this text node existed. Visual spacing is the chip's own margin. */}
-        {subtitleLead === undefined ? null : " "}
-        {subtitle}
-      </span>
-    );
-  // ONE span, TWO possible parents (the `inline` arm puts it on the title line). Resolved to two nullable
-  // nodes here so each render site is a bare expression, never a ternary whose alternate is a variable.
-  const inlineSubtitle = subtitleInline ? subtitleSpan : null;
-  const blockSubtitle = subtitleInline ? null : subtitleSpan;
-  return (
-    <>
-      {leading === undefined ? null : (
-        // Decorative — the title backs the accessible name. aria-hidden keeps a fallback avatar's
-        // initials (or an image's alt) from leaking into the name.
-        <span className={slots.leading()} data-slot="list-row-leading" aria-hidden={true}>
-          {leading}
-        </span>
-      )}
-      <span className={slots.content()} data-slot="list-row-content">
-        <span className={slots.titleRow()} data-slot="list-row-title-row">
-          {/* `data-title-step` is READ BY THE TIER MAP (tiers.css), not by a utility: the tier rule that
-              sets this slot's font-size is unlayered and outranks any class the variant could add inside a
-              <Surface>. The variant's class is the tier-less fallback for a row outside every Surface. */}
-          <span
-            aria-hidden={clickable ? true : undefined}
-            className={slots.title()}
-            data-slot="list-row-title"
-            data-title-step={titleStep === "promoted" ? "promoted" : undefined}
-            title={fullTitle ?? title}
-          >
-            {title}
-          </span>
-          {/* INLINE: the scent rides the title line, taking the flexing column so the NAME keeps its floor. */}
-          {inlineSubtitle}
-          {markers === undefined ? null : (
-            <span className={slots.markers()} data-slot="list-row-markers" id={ids.markersId}>
-              {markers}
-            </span>
-          )}
-          {meta === undefined ? null : (
-            <span className={slots.meta()} data-slot="list-row-meta" id={ids.metaId}>
-              {meta}
-            </span>
-          )}
-        </span>
-        {subtitleReveal === undefined ? (
-          blockSubtitle
-        ) : (
-          // ONE grid cell, TWO stacked spans — the reveal swaps in by visibility without moving the line.
-          <span className={slots.subtitleStack()} data-slot="list-row-subtitle-stack">
-            {blockSubtitle}
-            <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal" title={subtitleReveal}>
-              {subtitleReveal}
-            </span>
-          </span>
-        )}
-      </span>
-    </>
-  );
-}
-
 /** The body wrapper: a native `<button>` when `clickable`, else a static `<div>`. Split out to keep
  *  the clickable/selected/disabled branching off the composition root's complexity. */
 function ListRowBody({
@@ -437,6 +309,7 @@ export function ListRow({
           subtitleLead={subtitleLead}
           subtitleReveal={subtitleReveal}
           title={title}
+          titleQualifier={titleQualifier}
           titleStep={titleStep}
         />
       </ListRowBody>

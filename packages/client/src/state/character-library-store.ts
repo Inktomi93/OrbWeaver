@@ -29,6 +29,19 @@ interface CharacterLibraryState {
   readonly tagFilter: readonly TagFilterEntry[];
   /** Bulk-select mode. Transient (not persisted). */
   readonly bulkMode: boolean;
+  /**
+   * The RAW text in the pane's search field (`""` = the unsearched library). Transient (not persisted) —
+   * a reload landing on the unfiltered library is right, and the `chat-list-filter-store` twin agrees.
+   *
+   * IT LIVES HERE RATHER THAN IN THE SURFACE BECAUSE THE BAND CANNOT SEE PROPS (#518, the #490 mechanism
+   * one section over). The LIST chrome band is a sibling shell region with no shared React ancestor, and it
+   * prints the library census; while the search was `useState` inside `CharacterLibrarySurface` the band
+   * could only ever print the unnarrowed total, which is a number about nothing the reader can see. Stored
+   * RAW, never debounced: the field is controlled off this value, and each consumer that turns it into a
+   * QUERY damps it with the shared `SEARCH_DEBOUNCE_MS` — one damper, applied twice, rather than a second
+   * stored copy that could disagree with the field.
+   */
+  readonly search: string;
   /** Blurs the editor's spoiler-bearing card text for screen-sharing. */
   readonly spoilerBlur: boolean;
   /** Is the filter rail's VOCABULARY on screen? Default `false` — the rail's inactive tag chips and its
@@ -39,7 +52,7 @@ interface CharacterLibraryState {
   readonly filtersOpen: boolean;
 }
 
-/** Everything but the transient `bulkMode` survives a reload. */
+/** Everything but the transient `bulkMode`/`search` survives a reload. */
 interface PersistedCharacterLibraryState {
   readonly sortMode: CharacterListSort;
   readonly viewMode: CharacterViewMode;
@@ -57,6 +70,7 @@ const DEFAULT_STATE: CharacterLibraryState = {
   showArchived: false,
   tagFilter: [],
   bulkMode: false,
+  search: "",
   spoilerBlur: false,
   filtersOpen: false,
 };
@@ -110,6 +124,7 @@ function migrate(persisted: unknown, _version: number): CharacterLibraryState {
     showArchived: typeof p.showArchived === "boolean" ? p.showArchived : false,
     tagFilter: toTagFilter(p.tagFilter),
     bulkMode: false,
+    search: "",
     spoilerBlur: typeof p.spoilerBlur === "boolean" ? p.spoilerBlur : false,
     // No version bump: a v1/v2 blob simply has no `filtersOpen`, and the DEFAULT (collapsed) is the value
     // #491 wants a returning user to land on anyway. `migrate` is field-by-field total, so absence degrades.
@@ -161,6 +176,10 @@ export function clearCharacterFilters(): void {
 export function __resetTagFilter(): void {
   useCharacterLibraryStore.setState({ tagFilter: [] }, false, "character-library/__resetTagFilter");
 }
+/** The pane's search text (raw — a query consumer damps it itself; see the state field's note). */
+export function setCharacterSearch(search: string): void {
+  useCharacterLibraryStore.setState({ search }, false, "character-library/setSearch");
+}
 export function setBulkMode(bulkMode: boolean): void {
   useCharacterLibraryStore.setState({ bulkMode }, false, "character-library/setBulkMode");
 }
@@ -187,6 +206,11 @@ export function useShowArchived(): boolean {
 }
 export function useTagFilter(): readonly TagFilterEntry[] {
   return useCharacterLibraryStore((s) => s.tagFilter);
+}
+/** Reactive: the RAW search text (`""` = unsearched). Read by the pane's field AND by the LIST band's
+ *  census, which is the whole reason it is store state (#518). */
+export function useCharacterSearch(): string {
+  return useCharacterLibraryStore((s) => s.search);
 }
 export function useCharacterBulkMode(): boolean {
   return useCharacterLibraryStore((s) => s.bulkMode);

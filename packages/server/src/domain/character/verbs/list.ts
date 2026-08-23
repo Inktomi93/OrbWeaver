@@ -14,7 +14,7 @@ import { CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterListCursor, CharacterListFilter, CharacterListSort, ListCharactersParams } from "../contract/params.ts";
 import type { ListCharactersResult } from "../contract/results.ts";
 import type { CharacterService } from "../contract/service.ts";
-import { canonicalTagsFor, countOwnedCharacters, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries.ts";
+import { ambiguousNamesFor, canonicalTagsFor, countOwnedCharacters, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries.ts";
 
 const DEFAULT_SORT: CharacterListSort = "recent";
 
@@ -98,7 +98,19 @@ export function createList(ctx: CharacterContext): CharacterService["list"] {
       ctx.db,
       rows.map((r) => r.character.id),
     );
-    const items = rows.map((row) => summaryOf(row, tagMap.get(row.character.id) ?? []));
+    // #517 — WHICH of this page's names collide, answered over the WHOLE library rather than the page. The
+    // row spends its handle as a disambiguator on exactly these, so the verdict has to be a library fact:
+    // a per-page scan would make a name unique on page 1 and ambiguous on page 4, and the row's announced
+    // identity would change under a screen-reader user as the keyset advanced. Deliberately NOT filtered by
+    // `filter` either — two characters sharing a name does not stop being true because one is filtered out.
+    const ambiguousNames = new Set(
+      await ambiguousNamesFor(
+        ctx.db,
+        principal.userId,
+        rows.map((r) => r.character.name),
+      ),
+    );
+    const items = rows.map((row) => summaryOf(row, tagMap.get(row.character.id) ?? [], ambiguousNames));
     const last = rows.at(-1);
     const nextCursor = rows.length === pageSize && last !== undefined ? nextCursorFor(effectiveSort, last) : null;
     return { items, nextCursor, totalCount };

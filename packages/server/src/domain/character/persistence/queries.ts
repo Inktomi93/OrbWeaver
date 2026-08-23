@@ -363,6 +363,47 @@ export async function countOwnedCharacters(db: Db, ownerId: UserId, filter: Char
   return rows.at(0)?.total ?? 0;
 }
 
+/** WHICH OF THESE NAMES IS AMBIGUOUS in the owner's library (#517) — the lowercased names carried by MORE
+ *  THAN ONE of the owner's non-synthetic characters. The library-list row spends its handle as a visible +
+ *  announced disambiguator exactly on these.
+ *
+ *  ONE grouped COUNT over the PAGE's names, answered against the WHOLE library. Both halves are load-bearing:
+ *  bounded by the page (never a census of every name the owner has), yet page-INDEPENDENT in its answer, so a
+ *  keyset list cannot tell a reader a name is unique on page 1 and ambiguous on page 4. It is also
+ *  LENS-INDEPENDENT by construction — `ownedCharacterScope`'s filters are deliberately not applied: two
+ *  characters sharing a name is a fact about the library, and a row must not lose its disambiguator because
+ *  the other one is filtered out of view.
+ *
+ *  Case-insensitive, because `Emily` and `emily` are the collision a reader has to resolve, not a distinction.
+ *  Empty input reads nothing (never a bare `IN ()`).
+ *
+ *  Returns a LIST, not a lookup: `persistence/` is queries-only (`persistence-no-in-memory-state`), so the
+ *  caller builds whatever index it wants — the verb hands the resulting set to {@link summaryOf}. */
+export async function ambiguousNamesFor(db: Db, ownerId: UserId, names: readonly string[]): Promise<readonly string[]> {
+  if (names.length === 0) {
+    return [];
+  }
+  const lowerName = sql<string>`lower(${characters.name})`;
+  // Not de-duplicated: a page can repeat a name (that IS the collision), and a repeated `IN` term costs
+  // nothing next to the de-dup structure the query layer is not allowed to hold.
+  const rows = await db
+    .select({ name: lowerName, total: count() })
+    .from(characters)
+    .where(
+      and(
+        eq(characters.ownerId, ownerId),
+        eq(characters.synthetic, false),
+        inArray(
+          lowerName,
+          names.map((name) => name.toLowerCase()),
+        ),
+      ),
+    )
+    .groupBy(lowerName)
+    .having(sql`count(*) > 1`);
+  return rows.map((row) => row.name);
+}
+
 /** One owned character row (no avatar join) — the `getCard`/remove fast path. Undefined when not owned. */
 export async function loadOwnedCharacterRow(db: Db, ownerId: UserId, characterId: CharacterId): Promise<CharacterRow | undefined> {
   const rows = await db
@@ -584,8 +625,13 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
   };
 }
 
-/** Row + joined avatar + denorms + accepted tags → the light library-list summary. */
-export function summaryOf({ character: row, avatar, elevatorPitch, lastChattedAt }: CharacterListRow, canonicalTags: readonly TagView[]): CharacterSummary {
+/** Row + joined avatar + denorms + accepted tags + the library-wide name-ambiguity verdict
+ *  ({@link ambiguousNamesFor}) → the light library-list summary. */
+export function summaryOf(
+  { character: row, avatar, elevatorPitch, lastChattedAt }: CharacterListRow,
+  canonicalTags: readonly TagView[],
+  ambiguousNames: ReadonlySet<string>,
+): CharacterSummary {
   return {
     id: row.id,
     handle: row.handle,
@@ -604,5 +650,6 @@ export function summaryOf({ character: row, avatar, elevatorPitch, lastChattedAt
     tags: canonicalTags,
     elevatorPitch,
     lastChattedAt,
+    nameIsAmbiguous: ambiguousNames.has(row.name.toLowerCase()),
   };
 }

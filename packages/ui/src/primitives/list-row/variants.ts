@@ -55,6 +55,11 @@ export const listRowVariants = tv({
     // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
     // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
     title: "block min-w-0 flex-1 truncate text-left text-body font-medium leading-body text-foreground",
+    // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum
+    // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
+    // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them
+    // anyway), never the thing that separates them.
+    titleQualifier: "shrink-0 whitespace-nowrap font-mono text-label leading-label text-muted-foreground",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
     markers: "flex shrink-0 items-center gap-field",
