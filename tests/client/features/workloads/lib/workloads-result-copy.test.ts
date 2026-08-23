@@ -15,6 +15,24 @@ test("the catalog refresh reads as counts, not as JSON — and a FAILED lane say
   expect(workloadResultSummary("refresh-model-catalog", { models: null, agentSdkModels: 4 })).toBe("model list unavailable · 4 via Agent SDK");
 });
 
+// A pass whose INPUT was empty is not a pass that ran and found nothing, and the row is the only place a user
+// ever learns which (issues #166/#558). Each reason names its OWN fix — "run the memory backfill" is wrong
+// advice for a corpus that already has digests.
+test("an empty-input refusal reads as its stated reason, never as a 0-written run", () => {
+  expect(workloadResultSummary("compute-themes", { scanned: 0, written: 0, emptyReason: "no-digests" })).toBe(
+    "No memory digests to read — run the memory backfill first",
+  );
+  expect(workloadResultSummary("compute-themes", { scanned: 0, written: 0, emptyReason: "no-solo-digests" })).toBe(
+    "Only group-room digests to read — story themes come from solo chats",
+  );
+  expect(workloadResultSummary("compute-cooccurrence", { scanned: 0, written: 0, emptyReason: "no-digests" })).toBe(
+    "No memory digests to read — run the memory backfill first",
+  );
+  expect(workloadResultSummary("distill-characters", { scanned: 0, written: 0, emptyReason: "no-cards" })).toBe("No characters to read yet");
+  // A REAL zero-change run keeps its counts — the discriminator is for refusals only.
+  expect(workloadResultSummary("compute-cooccurrence", { scanned: 0, written: 0 })).toBe("0 rows · 0 written");
+});
+
 test("each result shape gets its own sentence", () => {
   expect(workloadResultSummary("index", { embedded: 12, skipped: 0 })).toBe("12 embedded");
   expect(workloadResultSummary("index", { embedded: 12, skipped: 3 })).toBe("12 embedded · 3 already up to date");

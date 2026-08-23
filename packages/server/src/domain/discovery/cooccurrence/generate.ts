@@ -197,6 +197,10 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   }
   return {
     ownersProcessed: byOwner.size,
+    // The INPUT-PLANE census, reported even though every other counter is a write count: with no tier-0
+    // digests all four are legitimately zero, and the caller cannot otherwise tell "the memory backfill has
+    // not run" from "the tally changed nothing" (issue #558).
+    digestsRead: all.length,
     pairsWritten,
     charKeywordsWritten,
     hubTokensDropped,
