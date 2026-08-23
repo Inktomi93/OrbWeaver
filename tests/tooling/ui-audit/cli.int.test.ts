@@ -72,6 +72,45 @@ test("the shipped 64x44 twin carries no control-aspect finding — the red above
   expect(Number(census)).toBeGreaterThan(0);
 });
 
+// ── the nested-card card PREDICATE (#538, from the rail-corpus lane) ─────────
+
+// @instrument-proof: the walker's card predicate is (shadow||border) && (radius||bg), and an AVATAR
+// carries all four — so a rounded-rect avatar seat inside any bordered panel minted a `nested-card`
+// finding. On the corpus surface 11 of 12 nested-card findings were `[data-slot=avatar-stack-item]`.
+// An avatar is a MEDIA/identity token, never a decorative PANEL, which is the rule's only real target;
+// the round default hid the class behind the pill test (radius >= half the short side) and only the
+// sanctioned rounded-rect register (AvatarStack `shape="rounded"`) exposed it. Both directions are
+// pinned: a real panel-in-panel must still RED, or the exclusion has eaten the rule.
+function panelInPanel(inner: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><div style="border:1px solid #444;border-radius:12px;background:#111;padding:16px;width:400px">
+<p style="font-size:16px">the panel that legitimately owns this region</p>
+${inner}
+</div></main></body></html>`;
+}
+
+const REAL_NESTED_PANEL =
+  '<div style="border:1px solid #666;border-radius:8px;background:#222;padding:12px;width:240px;height:96px"><p style="font-size:16px">a second bordered panel inside the first</p></div>';
+const AVATAR_SEAT =
+  '<span data-slot="avatar-stack-item" role="img" aria-label="Ada Lovelace" style="display:inline-flex;width:48px;height:48px;border-radius:8px;background:#333;border:2px solid #555"></span>';
+
+test("a real panel nested in a panel still REDs — the exclusion did not eat the rule", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "nested-panel.html"), panelInPanel(REAL_NESTED_PANEL));
+  const res = await runCli("ui-audit", ["/nested-panel.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("nested-card");
+  await expect(res).toExitWith(1);
+});
+
+test("a rounded-rect avatar seat inside a panel is NOT a nested card", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "avatar-seat.html"), panelInPanel(AVATAR_SEAT));
+  const res = await runCli("ui-audit", ["/avatar-seat.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("nested-card");
+  // ZERO HYGIENE: the absence is only a verdict when the walk censused nodes at all.
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
   await expect(res).toExitWith(3);
