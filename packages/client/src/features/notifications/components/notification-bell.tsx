@@ -149,7 +149,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   const inbox = (
     <Stack gap="row" className="min-w-64">
       {items.length === 0 ? (
-        <Text tone="muted">No notifications.</Text>
+        <Text voice="quiet">No notifications.</Text>
       ) : (
         items.map((item) => (
           <InboxRow

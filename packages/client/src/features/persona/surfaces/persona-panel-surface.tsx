@@ -239,6 +239,8 @@ function AccountStrip(): ReactElement {
         <Avatar fallbackDelay={0} size="sm">
           <Icon icon={CircleUser} size="sm" />
         </Avatar>
+        {/* RATIFIED raw axes (#582, the character-facet-row precedent): the strip's own name, one step
+            under `promoted` — body step at medium, deliberately. */}
         <Text weight="medium">Account</Text>
       </Row>
       <Icon icon={ChevronRight} size="sm" />
@@ -252,9 +254,9 @@ const IMPORT_LABEL = "Restore a persona from a backup file";
 function PersonaHeader({ onNew, onImport }: { readonly onNew: () => void; readonly onImport: (file: File) => void }): ReactElement {
   return (
     <Row gap="row" align="center" className="justify-between">
-      <Text size="micro" tone="muted" transform="caps">
-        Your personas
-      </Text>
+      {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a caps-micro
+          band name, byte-identical to `kicker` once the weight axis is corrected regular→semibold. */}
+      <Text voice="kicker">Your personas</Text>
       {/* Exactly ONE primary (New); Import sits beside it as a ghost icon — the preset band's grammar.
           `size="icon"` (not `sm`) so the icon-only trigger keeps the token-driven 44px coarse floor, and the
           native `title` is the SAME string as the aria-label so tooltip and accessible name can't drift. */}
