@@ -256,6 +256,35 @@ interface StripReadout {
   readonly tile: string | null;
 }
 
+// #521 (side-eye 2026-08-22 rail-chats). The tile wore the FACES' clothes — a filled square at the avatar
+// radius, the identical silhouette to the portraits beside it — so a folded strip scanned as one more
+// character, named "More". The BOX must not move (that is #153's pitch ruling, asserted separately above);
+// only the DRESS may. Both halves are pinned here so a fix to either cannot quietly undo the other.
+test("#521 the overflow tile does not wear a face's silhouette, and still takes a face's box", async ({ mount }) => {
+  const component = await mount(<FaceStripFoldHarness />);
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  await expect(tile).toBeVisible();
+
+  // THE POSITIVE CONTROL: read a real face's portrait dress off the same mount rather than hardcoding it,
+  // so this test tracks the avatar token instead of a remembered value.
+  const portrait = component.locator('[data-slot="avatar-root"]').first();
+  const face = await portrait.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { radius: style.borderTopLeftRadius, box: Math.round(el.getBoundingClientRect().width) };
+  });
+
+  const plate = tile.getByText(TILE_COUNT_RE).locator("..");
+  const dress = await plate.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { radius: style.borderTopLeftRadius, style: style.borderTopStyle, box: Math.round(el.getBoundingClientRect().width) };
+  });
+
+  expect(dress.box, "the tile keeps the avatar token's box — #153's pitch is about the cell, not the dress").toBe(face.box);
+  expect(dress.style, "an outline, not a plate").toBe("dashed");
+  expect(dress.radius, "the portrait's square-ish radius is what made it read as a face").not.toBe(face.radius);
+  expect(await tile.locator('[data-slot="avatar-root"]').count(), "the tile is not a portrait").toBe(0);
+});
+
 test("the fold holds at EVERY pane width: one un-scrolled row, nothing clipped, and never a '+1 more' tile", async ({ mount }) => {
   const component = await mount(<FaceStripFoldHarness />);
   await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toBeVisible();

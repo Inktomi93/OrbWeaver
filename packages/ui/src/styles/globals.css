@@ -152,6 +152,19 @@
   mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
 }
 
+/* AN UNSET DATE-FAMILY INPUT WEARS THE PLACEHOLDER TONE (#522, side-eye 2026-08-22 rail-chats P3).
+ * `<input type="month|date|time|week|datetime-local">` paints its own segmented editor, so the primitive's
+ * `placeholder:text-muted-foreground` never reaches it: an unset control printed the browser's bare
+ * `--------- ----` at FULL foreground, i.e. the loudest text in a filter column, saying nothing. Muted, the
+ * same dashes read as "nothing chosen yet" — which is what they are.
+ * IT IS A RULE HERE AND NOT A UTILITY because `::-webkit-datetime-edit` is a UA pseudo-element Tailwind
+ * cannot address, and it is keyed off `data-empty` (emitted by `primitives/input/input.tsx`) because CSS
+ * cannot ask the question: chromium matches NEITHER `:placeholder-shown` NOR `:invalid` on an empty date
+ * input (measured 2026-08-22 — both false). Colour only; the native picker and its indicator are untouched. */
+[data-slot="input-root"][data-empty]::-webkit-datetime-edit {
+  color: var(--color-muted-foreground);
+}
+
 /* ART BLEED (#205) — the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities.
  * Read them together; the component's own header carries the WHY.
  *

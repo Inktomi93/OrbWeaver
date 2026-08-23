@@ -37,6 +37,29 @@ test("the count is mono and micro; a ZERO count renders nothing at all", async (
   await expect(page.getByText("0", { exact: true })).toHaveCount(0);
 });
 
+// #525 (side-eye 2026-08-22 rail-chats). A FILTERED census is a phrase, not a number — and it inherited the
+// heading's caps, so `CHATS 129 of 896` painted as `CHATS 129 OF 896`: one uninterrupted run of caps at 6px
+// of separation, which is why the band read as a single token instead of name-then-number. The datum opts
+// out of the transform; the ACCENT half deliberately does not (it is part of the title's phrase, pinned
+// directly below), and the gap between name and datum steps up.
+test("#525 the census reads as a datum beside the name: no inherited caps, and a step of air", async ({ mount }) => {
+  const component = await mount(<ListPaneHeader count="129 of 896" title="Chats" />);
+
+  const heading = component.getByRole("heading", { level: 2 });
+  const count = component.getByText("129 of 896", { exact: true });
+  await expect(heading, "the section NAME keeps the caps voice").toHaveCSS("text-transform", "uppercase");
+  await expect(count, "a census is a datum — caps would shout the joining word at the title's weight").toHaveCSS("text-transform", "none");
+
+  const gap = await heading.evaluate((el) => Number.parseFloat(getComputedStyle(el).columnGap));
+  const [fieldStep, rowStep] = await heading.evaluate((el) => {
+    const styles = getComputedStyle(el);
+    return [styles.getPropertyValue("--spacing-field"), styles.getPropertyValue("--spacing-row")].map((value) => Number.parseFloat(value) * 16);
+  });
+  expect(fieldStep, "the token probe itself must resolve, or the comparison below is vacuous").toBeGreaterThan(0);
+  expect(gap, "the datum sits one spacing step further out than a within-field gap").toBeCloseTo(rowStep ?? 0, 1);
+  expect(gap).toBeGreaterThan(fieldStep ?? 0);
+});
+
 test("the accent half carries the foreground tone and inherits the caps transform", async ({ mount }) => {
   const component = await mount(<ListPaneHeader accent="Azarael" title="Chats" />);
 

@@ -421,11 +421,13 @@ export function FaceStrip({
                   size="icon"
                 >
                   <Stack align="center" gap="tight">
-                    {/* The tile is FACE-SHAPED (the avatar token square) so the row keeps one rhythm — and it
-                        prints the count, because "there are more" without a number is just a shrug. During the
-                        measuring pass the number is provisional; it is never painted (the fold lands in a
-                        layout effect, before the browser paints). */}
-                    <Row align="center" className="size-avatar-md rounded-control bg-muted" justify="center">
+                    {/* The tile takes the AVATAR TOKEN'S BOX so the row keeps one rhythm, and prints the count
+                        (during the measuring pass it is provisional and never painted — the fold lands in a
+                        layout effect). IT MUST NOT WEAR THE FACE'S CLOTHES (#521): a FILLED SQUARE at the
+                        avatar radius was the portraits' exact silhouette, so a folded strip scanned as one more
+                        character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
+                        dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
+                    <Row align="center" className="size-avatar-md rounded-full border border-border border-dashed" justify="center">
                       <Text className="text-muted-foreground" voice="label">{`+${fold === null ? items.length : fold.hidden}`}</Text>
                     </Row>
                     {caption ? (

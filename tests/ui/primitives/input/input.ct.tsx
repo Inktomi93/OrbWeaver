@@ -6,6 +6,8 @@ import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
+import sharp from "sharp";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
@@ -90,6 +92,79 @@ test("layout=inline is a text-height box with the datum's inset, not the field c
   expect(inline.paddingInline).toBeCloseTo(fieldToken, 1);
   // It keeps the editable chrome — this is still an input, not a label.
   await expect(page.getByLabel("inline arm")).toHaveCSS("background-color", TOKENS["color.input"].value);
+});
+
+// #522 — AN UNSET DATE-FAMILY INPUT WEARS THE PLACEHOLDER TONE.
+//
+// FRAMEBUFFER, NOT COMPUTED STYLE, AND THAT IS NOT PARANOIA: `getComputedStyle(el,
+// "::-webkit-datetime-edit")` silently returns the HOST's colour in chromium — measured 2026-08-22, it read
+// `rgb(240,240,240)` for both arms of a stage where the rule was demonstrably applied. A UA pseudo-element
+// is PAINT; only pixels see it, the same class as a mask. So this decodes the shot.
+//
+// The metric is the BRIGHTEST ink pixel in each control, on a dark surface where the dashes are the only
+// ink. Relational (it tracks whatever `--color-muted-foreground` resolves to, never a remembered value) and
+// two-sided: the filled arm is the positive control — if the decode found no ink at all, its own assertion
+// against the field background fails rather than the silence passing for free.
+/** The share of the control's width that is DATETIME-EDIT and not the UA's own calendar-picker indicator.
+ *  Measured first attempt: the indicator paints pure white (255) in BOTH arms, so a full-control decode read
+ *  peak 255 either side and the comparison was structurally incapable of failing. The reading region is the
+ *  leading edge, where the segmented value lives. */
+const DATETIME_EDIT_SHARE = 0.6;
+
+async function inkStats(page: Page, locator: Locator): Promise<{ peak: number; plate: number }> {
+  const box = await locator.boundingBox();
+  expect(box, "the control must be laid out before its pixels mean anything").not.toBeNull();
+  const shot = await page.screenshot({
+    clip: { height: box?.height ?? 0, width: (box?.width ?? 0) * DATETIME_EDIT_SHARE, x: box?.x ?? 0, y: box?.y ?? 0 },
+  });
+  // biome-ignore lint/nursery/useAwaitThenable: false positive — sharp ships `export =` CJS types biome's service cannot follow, so it reads the overload that returns `Promise<{data,info}>` (node_modules/sharp/lib/index.d.ts:681) as non-thenable. tsc resolves it correctly; `pnpm typecheck` is the receipt.
+  const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
+  const histogram = new Map<number, number>();
+  let peak = 0;
+  for (let index = 0; index + info.channels <= data.length; index += info.channels) {
+    // Rec. 709 relative luminance of the sRGB byte triple — good enough to rank two greys apart.
+    const luminance = Math.round(0.2126 * (data[index] ?? 0) + 0.7152 * (data[index + 1] ?? 0) + 0.0722 * (data[index + 2] ?? 0));
+    peak = Math.max(peak, luminance);
+    histogram.set(luminance, (histogram.get(luminance) ?? 0) + 1);
+  }
+  // The PLATE is the modal luminance: glyphs are a small minority of a control's pixels, so the mode is the
+  // field's own background. (The p50 would land ON a glyph inside a dense row — the #508 lesson.)
+  let plate = 0;
+  let best = -1;
+  for (const [luminance, count] of histogram) {
+    if (count > best) {
+      best = count;
+      plate = luminance;
+    }
+  }
+  return { peak, plate };
+}
+
+test("an unset month input's UA interior is painted in the placeholder tone, not the foreground", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 240 }}>
+      <Input aria-label="month without a value" type="month" value="" onValueChange={(): void => undefined} />
+      <Input aria-label="month with a value" type="month" value="2026-06" onValueChange={(): void => undefined} />
+    </div>,
+  );
+  const unset = page.getByLabel("month without a value");
+  const set = page.getByLabel("month with a value");
+  // The attribute is the seam the stylesheet keys off — assert it BEFORE the pixels, so a decode that comes
+  // out equal reports "the tone did not land", not "the primitive stopped stating the fact".
+  await expect(unset).toHaveAttribute("data-empty", "");
+  await expect(set).not.toHaveAttribute("data-empty", "");
+
+  const [unsetInk, setInk] = await Promise.all([inkStats(page, unset), inkStats(page, set)]);
+  // POSITIVE CONTROL, BOTH ARMS: each control must actually carry ink above its own plate, or a decode that
+  // found nothing would satisfy the comparison below for free.
+  expect(setInk.peak, "the filled month must print ink above its own field plate").toBeGreaterThan(setInk.plate + 20);
+  expect(unsetInk.peak, "the unset dashes are still ink, just quieter").toBeGreaterThan(unsetInk.plate + 5);
+  expect(unsetInk.peak, "the unset dashes recede below the value they stand in for").toBeLessThan(setInk.peak);
+});
+
+test("a text input never claims the date-family empty marker", async ({ mount }) => {
+  const input = await mount(<Input aria-label="empty text" value="" onValueChange={(): void => undefined} />);
+  await expect(input).not.toHaveAttribute("data-empty", "");
 });
 
 test("typing updates the value and fires onValueChange", async ({ mount }) => {
