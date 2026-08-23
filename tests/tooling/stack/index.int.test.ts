@@ -17,7 +17,10 @@
 // supervisor is never exec'd. `.int.test.ts` because it shells out; it writes nothing to the tree.
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
+import { createServer } from "node:http";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { probeServedTransform } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const STACK_SH = fileURLToPath(new URL("../../../tooling/src/stack/stack.sh", import.meta.url));
@@ -111,4 +114,71 @@ test("prod routing carries the orthogonal flags", () => {
   const built = dispatch("up", "prod", "--debug", "--build");
   expect(built.line).toContain("mode=prod");
   expect(built.line).toContain("debug=1");
+});
+
+// ── the served-module probe, END TO END against a fake vite (#524) ───────────────────────────────────
+//
+// The unit controls in index.test.ts pin the classifier. THESE pin the whole op: the mtime walk, the
+// `/@fs/<abs>` fetch, the candidate walk-down, and the verdict. A fake vite is the only way to drive the
+// wedge — the real one cannot be asked to serve a stale transform on demand, and killing its watcher on the
+// operator's live stack to find out is exactly the thing this probe exists to make unnecessary.
+
+/** A planted module whose landed export the wedged arm withholds. */
+const PLANTED_MODULE = "export const landedAfterTheWatcherDied = 42;\n";
+const FS_PREFIX_RE = /^\/@fs/u;
+
+async function withFakeVite(body: (requestedPath: string) => string | null, run: () => Promise<void>): Promise<void> {
+  const server = createServer((req, res) => {
+    const requested = decodeURIComponent((req.url ?? "").replace(FS_PREFIX_RE, "").split("?")[0] ?? "");
+    const served = body(requested);
+    if (served === null) {
+      res.writeHead(404).end();
+      return;
+    }
+    res.writeHead(200, { "content-type": "application/javascript" }).end(served);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "localhost", resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address !== null ? address.port : 0;
+  // VITE_PORT is how stack.sh hands the probe its port — the test drives the same seam, and restores it.
+  process.env["VITE_PORT"] = String(port);
+  try {
+    await run();
+  } finally {
+    process.env["VITE_PORT"] = "";
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
+test("a fake vite that serves the file back is FRESH — the negative control the wedge is measured against", async ({ plantedTree }) => {
+  const root = await plantedTree({ "packages/ui/src/canary.ts": PLANTED_MODULE });
+  await withFakeVite(
+    (requested) => (requested.endsWith("canary.ts") ? PLANTED_MODULE : null),
+    async () => {
+      const verdict = await probeServedTransform([`${root}/packages/ui/src`]);
+      expect(verdict.state).toBe("fresh");
+    },
+  );
+});
+
+test("a fake vite serving a body WITHOUT the landed export is STALE — the dead-watcher wedge, caught", async ({ plantedTree }) => {
+  const root = await plantedTree({ "packages/ui/src/canary.ts": PLANTED_MODULE });
+  await withFakeVite(
+    () => "// the transform vite computed before the watcher died\n",
+    async () => {
+      const verdict = await probeServedTransform([`${root}/packages/ui/src`]);
+      expect(verdict.state).toBe("stale");
+      expect(verdict.message).toContain("landedAfterTheWatcherDied");
+    },
+  );
+});
+
+test("a vite that does not answer at all is UNREACHABLE, never fresh", async ({ plantedTree }) => {
+  const root = await plantedTree({ "packages/ui/src/canary.ts": PLANTED_MODULE });
+  await withFakeVite(
+    () => null, // every request 404s — the module is not served
+    async () => {
+      expect((await probeServedTransform([`${root}/packages/ui/src`])).state).toBe("unreachable");
+    },
+  );
 });
