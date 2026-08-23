@@ -17,11 +17,11 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { CancelWorkloadResult } from "../contract/params.ts";
-import type { WorkloadBootReclaimRow, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
+import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];
@@ -187,10 +187,7 @@ export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<
 export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: WorkloadProgress): Promise<void> {
   await db
     .update(workloads)
-    // A snapshot-carrying tick ALSO zeroes `respawns` (#529): the boot-respawn bound counts respawns that
-    // produced NOTHING, so evidence of forward motion resets it. A bare lease tick must not — a run that
-    // reports no progress at all can still crash-loop, which is exactly what the bound is for.
-    .set(progress === undefined ? { updatedAt: now } : { updatedAt: now, progress, respawns: 0 })
+    .set(progress === undefined ? { updatedAt: now } : { updatedAt: now, progress })
     .where(and(eq(workloads.id, id), inArray(workloads.status, [...IN_FLIGHT_STATUSES])));
 }
 
@@ -378,42 +375,6 @@ export async function nextRunnableWorkload(db: Db, contributions: WorkloadContri
     return view;
   }
   return null;
-}
-
-/** EVERY in-flight row, projected for the BOOT reclaim (#529): id + kind + the respawn count.
- *
- *  NO LEASE PREDICATE, deliberately — this is the one query where the heartbeat is not evidence. At boot,
- *  single replica means no worker survived, so an in-flight row is orphaned regardless of how fresh its
- *  lease looks; a `updatedAt < now` filter (which is what the reaper's threshold-0 call degenerated to) let
- *  a row whose last heartbeat landed in the same millisecond as boot survive as a zombie holding its kind's
- *  active slot forever. Unlike `findStaleInFlight` it does NOT build views either: the boot reclaim must
- *  also dispose of poison rows and rows of a kind this build no longer ships, and it needs no params to
- *  decide their disposition. */
-export async function findInFlightForBootReclaim(db: Db): Promise<WorkloadBootReclaimRow[]> {
-  return await db
-    .select({ id: workloads.id, kind: workloads.kind, respawns: workloads.respawns })
-    .from(workloads)
-    .where(inArray(workloads.status, [...IN_FLIGHT_STATUSES]));
-}
-
-/** Put an orphaned in-flight row BACK IN THE QUEUE (#529) — the resumable disposition of the boot reclaim.
- *  Status-guarded exactly like `markTerminal`, so a returning zombie is never re-queued out from under its
- *  own runner. `respawns` increments (the loop bound's counter); `error` is CLEARED because the row is no
- *  longer in a failure state, and `progress` is KEPT (a re-run's UI should not lose the last known position).
- *  No unique-index risk: `queued` and `running` are both in `ACTIVE_WORKLOAD_STATUSES`, so the row never
- *  leaves and never re-enters its single-active slot. */
-// @owner-scope-write-ok: THE ENGINE PLANE (D20 un-principal) — the boot reclaim's status-guarded re-queue. The id is one the engine itself
-// enumerated (`findInFlightForBootReclaim`), never caller input, and this write must move ADMIN and system rows too, so an
-// ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb
-// (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes.
-// Ends if a door writes a workload row without that check.
-export async function requeueInFlight(db: Db, args: { id: WorkloadId; now: number }): Promise<boolean> {
-  const moved = await db
-    .update(workloads)
-    .set({ status: "queued", error: null, respawns: sql`${workloads.respawns} + 1`, updatedAt: args.now })
-    .where(and(eq(workloads.id, args.id), inArray(workloads.status, [...IN_FLIGHT_STATUSES])))
-    .returning({ id: workloads.id });
-  return moved.length > 0;
 }
 
 /** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input. */

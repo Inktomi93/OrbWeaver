@@ -1323,7 +1323,6 @@ CREATE TABLE `workloads` (
 	`scheduled_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	`respawns` integer DEFAULT 0 NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "workloads_kind_check" CHECK(kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')),
 	CONSTRAINT "workloads_status_check" CHECK(status in ('queued', 'running', 'succeeded', 'failed', 'cancelling', 'cancelled', 'worker_died')),
