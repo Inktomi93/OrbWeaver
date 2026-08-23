@@ -31,7 +31,9 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
  *
  * Feature code passes `voice` (density-pass-spec.md §2.3 — kicker · label · datum · gloss, plus `hero`
  * for THE number, `monogram` for a decorative display glyph, `reading` for the CONTENT prose itself,
- * `credit` for the cast/age line under a focal item, and
+ * `credit` for the cast/age line under a focal item, the two RECEDED voices `quiet` (a muted body line —
+ * an empty state, a "Loading…") and `datumMono` (a mono readout at the code step — an id, a hash, a raw
+ * payload), and
  * the three PROMOTION voices `masthead` (a surface's one opening sentence, display step, sans — `hero`'s
  * prose twin), `focal` (the one item promoted above its siblings, headline step) and `promoted` (the name
  * of ONE item in a shelf of them, title step — `ListRow`'s `titleStep="promoted"` as a voice)): the voice grammar

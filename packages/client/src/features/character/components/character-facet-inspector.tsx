@@ -51,7 +51,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
   }
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading…</Text>}
+      fallback={<Text voice="quiet">Loading…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}
     >
       <InspectorLoader form={resolved.form} facetId={selectedFacetId as CharacterFacetId} characterId={characterId} />
@@ -205,7 +205,7 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
               <Text voice="gloss" className="tabular-nums">
                 {value.length} characters
               </Text>
-              <Text size="code" tone="muted" className="tabular-nums">
+              <Text voice="datumMono" className="tabular-nums">
                 ~{estimateTokens(value)} tokens
               </Text>
             </Row>
@@ -244,11 +244,11 @@ function CountDetail({
       <form.Subscribe selector={(s): string => s.values[name]}>
         {(value): ReactElement => (
           <Row gap="block" align="center" className="flex-wrap">
-            <Text size="micro" tone="muted" className="tabular-nums">
+            <Text voice="gloss" className="tabular-nums">
               {value.length} characters
             </Text>
             {tokens ? (
-              <Text size="code" tone="muted" className="tabular-nums">
+              <Text voice="datumMono" className="tabular-nums">
                 ~{estimateTokens(value)} tokens
               </Text>
             ) : null}

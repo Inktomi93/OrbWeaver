@@ -211,9 +211,9 @@ function AccentSwatch({ themeOverride }: { readonly themeOverride: ThemeOverride
             <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={themeOverride}>
               {null}
             </ThemeScope>
-            <Text size="micro" tone="muted" transform="caps">
-              Own look
-            </Text>
+            {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR
+                weight — the same micro-caps tag `kicker` paints, one axis short of it. */}
+            <Text voice="kicker">Own look</Text>
           </Row>
         }
       />

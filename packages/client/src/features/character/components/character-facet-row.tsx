@@ -85,6 +85,10 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
             closes the button at the `<p>` and re-parents the rest of the row. The spans keep the same
             typographic voice and the same accessible tree: line 1 is aria-hidden (it IS the aria-label),
             line 2 is the description on an empty row. */}
+        {/* RATIFIED raw axes (#573): a facet row is a DIRECTORY entry, and `promoted` — the only voice at a
+            name-of-an-item step — is explicitly the title step for the ONE item a surface promotes above
+            its siblings. Taking it here would set every row of a flat list at 16px semibold and leave the
+            surface with no focal at all. The body step at medium is one step under it, deliberately. */}
         <Text as="span" aria-hidden={true} size="body" weight="medium" className="shrink-0">
           {facet.label}
         </Text>

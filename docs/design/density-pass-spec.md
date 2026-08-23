@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-08-22
+updated: 2026-08-23
 ---
 
 # The density pass — tier map, mechanism, enforcement
@@ -123,6 +123,20 @@ if the table names every arm; these two rode in without a row.
 | - | - | - |
 | `hero` | `text-display` + `font-mono` + tabular-nums + semibold + foreground | THE ONE figure a surface exists to produce — a run's overall score, a headline count you opened the surface to read. `masthead`'s tabular twin at the same display step: the mono/tabular face is load-bearing because these numerals COUNT UP on settle and proportional digits jitter, so a SENTENCE at this step takes `masthead` instead. `datum` is the voice for A value; `hero` is the voice for THE value. |
 | `credit` | `text-label` + `font-mono` + caps + `tracking-micro` + medium + muted | a film-credit line — who/what is in the thing and how long ago — under the ONE focal island a surface promotes (home's resume-room hero). Not prose and not a `datum` you compare; it rides the label step, not `gloss`'s micro, because it sits INSIDE an interactive control and must clear the readable floor. `datum` is also mono/label but stays normal-weight, tabular, foreground — `credit` is caps/tracked/muted/medium, a distinct axis. |
+
+**(AMENDED 2026-08-23, owner-ruled on `#573`)** two RECEDED voices, minted from the density burn-down's
+own measurements: tranche 1 (`#567`) converted 42 of 71 findings and left 29 because four near-miss
+CLASSES had no exact voice, and two of those four were pure vocabulary gaps rather than judgment calls.
+
+| voice | resolves to | means |
+| - | - | - |
+| `quiet` | `text-body` + regular + muted | a muted BODY line — an empty state, a `Loading…`, a deferred-state sentence: body-step text that has RECEDED. `gloss` is the muted MICRO step and drops such a line two steps to 10.5px; `reading` is the body step but rides the reading ink, which is what a receded line is not. The step is byte-identical to the `tone="muted"` default pair it replaces. |
+| `datumMono` | `text-code` + `font-mono` + regular + muted | a mono READOUT at the dedicated code step — an id, a hash, a raw payload: machine text a human reads but does not compare in a column. `datum`'s receded twin, and deliberately NOT tabular (that is `datum`'s column-alignment property; a hash is not a column of numbers). `text-code` was the one type step no voice reached at all. |
+
+Both are vocabulary fixes, not visual changes: each resolves the same class set as the raw pair it
+replaces, modulo the no-op `tracking-normal` every voice re-spells under the ordering law. The other two
+near-miss classes stay judgment calls — a `label`+`muted` pair is a real tone decision, and a caps line one
+axis short of `kicker` either takes semibold and becomes one or is ratified per site with a reason.
 
 Prose voices (`title`, `body`) survive unchanged for CONTENT and form copy. `datum` rides
 `text-label` (13px) rather than a new 11px step: an 11px step is a 4.8% ratio move off `micro`
