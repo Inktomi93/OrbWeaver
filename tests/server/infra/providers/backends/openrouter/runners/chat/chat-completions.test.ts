@@ -32,6 +32,7 @@ const CAPABILITY: ModelCapability = {
   context: { window: 200_000 },
 };
 
+// FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one; the standard test-side workaround.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",
@@ -534,6 +535,7 @@ describe("the history cache breakpoint placement", () => {
   const longText = "word ".repeat(1500);
 
   function asMessages(items: { role: string; content: string }[]): Parameters<typeof placeHistoryCacheBreakpoint>[0] {
+    // FABRICATION-OK: a wire-shaped fixture for a vendor union we do not own (the `asMixed`/`asWire` siblings likewise).
     return items as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
   }
 

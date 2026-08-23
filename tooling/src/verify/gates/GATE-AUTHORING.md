@@ -277,9 +277,9 @@ An exemption is a promise. This is how the promise is written.
    loader, the suppression branch and the stale-row arms are dead vocabulary the moment the ledger is gone,
    and a surviving reader implements a ratchet no sanctioned writer can produce (`gate-modernization`'s
    ledger hit `{}` in its own landing lane, but its reader — loader, suppression branch, two stale arms,
-   one `mustPass` row — survived until 2026-08-23). Live precedents: `density-tier`,
-   `no-test-fabrication`, `suppressions`; the completed terminal-state walks are `gate-modernization`,
-   `finding-overload-provenance` (2026-08-23), and `no-hardcoded-model-prose` (#578, 2026-08-23).
+   one `mustPass` row — survived until 2026-08-23). Live precedents: `density-tier`, `suppressions`; the
+   completed terminal-state walks are `gate-modernization`, `finding-overload-provenance` (2026-08-23),
+   `no-hardcoded-model-prose` (#578, 2026-08-23), and `no-test-fabrication` (#590, 2026-08-23).
 
 **BASELINES LIE WHEN THE MATCHER HAS BLIND SPOTS.** `ui-size-via-variant` declared its debt baseline terminal
 while 14 hits of its own incident class sat invisible — the matcher never stripped Tailwind's `!` important

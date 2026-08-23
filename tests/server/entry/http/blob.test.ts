@@ -57,6 +57,7 @@ function blobHandler(deps: BlobDeps): Handler {
       return app;
     },
   };
+  // FABRICATION-OK: minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here.
   registerBlob(app as unknown as Parameters<typeof registerBlob>[0], deps);
   const handler = routes.get(ROUTE);
   if (handler === undefined) {

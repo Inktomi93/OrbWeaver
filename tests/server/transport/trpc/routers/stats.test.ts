@@ -30,13 +30,13 @@ function ctxWith(stats: Partial<StatsService>): Context {
 
 describe("stats.leaderboard — sort wire-through", () => {
   test("passes the validated sort + limit to the service, scoped to the principal", async () => {
-    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => ({ rows: [] as LeaderboardRow[], total: 0 }));
+    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => ({ rows: [] satisfies LeaderboardRow[], total: 0 }));
     await caller(ctxWith({ leaderboard })).stats.leaderboard({ sort: "swipes", limit: 10 });
     expect(leaderboard).toHaveBeenCalledWith(OWNER, { sort: "swipes", limit: 10 });
   });
 
   test("rejects a sort outside the LEADERBOARD_SORTS tuple at the wire boundary", async () => {
-    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => ({ rows: [] as LeaderboardRow[], total: 0 }));
+    const leaderboard = vi.fn<StatsService["leaderboard"]>(async () => ({ rows: [] satisfies LeaderboardRow[], total: 0 }));
     await expect(
       // @ts-expect-error — "bogus" is not a LeaderboardSort; the z.enum derived from the tuple rejects it.
       caller(ctxWith({ leaderboard })).stats.leaderboard({ sort: "bogus" }),
