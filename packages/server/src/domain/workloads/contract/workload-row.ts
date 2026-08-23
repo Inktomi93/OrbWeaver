@@ -59,3 +59,20 @@ export type WorkloadRunnableRow = { [K in WorkloadKind]: WorkloadRow<K> }[Worklo
 /** Any row a READ surface may return. A row whose kind isn't in this build narrows to nothing at all (it
  *  cannot even be spelled) and stays filtered; a known kind with unparseable params surfaces as poison. */
 export type WorkloadRowAnyKind = WorkloadRunnableRow | WorkloadPoisonRow;
+
+/** What the BOOT reclaim (#529) needs about one orphaned in-flight row, and nothing else. Deliberately NOT
+ *  a `WorkloadRowAnyKind`: the reclaim decides disposition from the kind's declared resume policy + the
+ *  row's respawn count, so it must also dispose of rows whose params no longer parse (poison) — which the
+ *  view path surfaces with `params: null` — and rows of a kind this build no longer ships, which the view
+ *  path narrows away entirely. The column's declared type is the tuple, so a deploy-skew kind is a RUNTIME
+ *  possibility only; the reclaim resolves it against the registry and treats an absent one as
+ *  non-resumable. */
+export interface WorkloadBootReclaimRow {
+  readonly id: WorkloadId;
+  readonly kind: WorkloadKind;
+  /** How many times boot has already re-queued this row without the run reporting progress since. */
+  readonly respawns: number;
+  /** The lease column as it stands BEFORE any disposition — the reap sentence's observed lease age (#560).
+   *  `markTerminal` overwrites it with the reap instant, so read here or lose it. */
+  readonly updatedAt: number;
+}
