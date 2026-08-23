@@ -5,8 +5,9 @@
 // an undeclared ledger on disk REDs, a declared row whose file is gone REDs, a non-repo root REDs, and
 // the REAL tree reconciles to zero (which is what keeps the table honest as new ratchets land).
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { discoverBaselineFiles } from "@orb/tooling/_shared/ratchet-rows";
 import type { Ledger } from "@orb/tooling/verify";
-import { discoverBaselineFiles, LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "@orb/tooling/verify";
+import { LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "@orb/tooling/verify";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -15,7 +16,6 @@ const MALFORMED = /malformed/u;
 const FAKE_LEDGER: Ledger = {
   owner: "fake-gate",
   rel: "tooling/src/verify/gates/fake-gate.baseline.json",
-  shape: "budget-map",
   unit: "finding(s)",
   why: "a fixture ledger",
 };
@@ -61,19 +61,45 @@ describe("debt walk — row extraction", () => {
     const root = await plantedTree({
       [FAKE_LEDGER.rel]: '{\n  "a/small.ts": 1,\n  "b/big.ts": 9,\n  "c/mid.ts": 4\n}\n',
     });
-    expect(readLedgerRows(root, FAKE_LEDGER)).toEqual([
-      { subject: "b/big.ts", budget: 9, note: null },
-      { subject: "c/mid.ts", budget: 4, note: null },
-      { subject: "a/small.ts", budget: 1, note: null },
+    expect(readLedgerRows(root, FAKE_LEDGER).map((r) => [r.subject, r.count])).toEqual([
+      ["b/big.ts", 9],
+      ["c/mid.ts", 4],
+      ["a/small.ts", 1],
     ]);
   });
 
   test("an entries-map ledger yields its rows WITH the per-row reason the ledger carries", async ({ plantedTree }) => {
-    const ledger: Ledger = { ...FAKE_LEDGER, shape: "entries-map" };
+    // The shape is SNIFFED by the shared reader (#569) — a consumer that had to be told the shape is a
+    // consumer that reads a new ledger as zero rows. An entries-map row is one membership, class DEBT.
     const root = await plantedTree({
-      [ledger.rel]: '{\n  "note": "the envelope",\n  "entries": { "f.ts::X": "undecided by the sweep" }\n}\n',
+      [FAKE_LEDGER.rel]: '{\n  "note": "the envelope",\n  "entries": { "f.ts::X": "undecided by the sweep" }\n}\n',
     });
-    expect(readLedgerRows(root, ledger)).toEqual([{ subject: "f.ts::X", budget: null, note: "undecided by the sweep" }]);
+    expect(readLedgerRows(root, FAKE_LEDGER)).toEqual([{ subject: "f.ts::X", count: 1, ratified: 0, debt: 1, why: "undecided by the sweep", cite: [] }]);
+  });
+
+  test("a CLASSIFIED ledger yields the DEBT/RATIFIED partition, and the halves sum to the budget (#569)", async ({ plantedTree }) => {
+    const root = await plantedTree({
+      [FAKE_LEDGER.rel]:
+        '{\n  "a/plain.ts": 2,\n  "b/ruled.ts": { "count": 3, "ratified": 3, "why": "ruled in #568", "cite": ["package.json"] },\n  "c/mixed.ts": { "count": 4, "ratified": 1, "why": "one is ruled", "cite": ["package.json"] }\n}\n',
+    });
+    const rows = readLedgerRows(root, FAKE_LEDGER);
+    expect(rows.map((r) => [r.subject, r.debt, r.ratified])).toEqual([
+      ["c/mixed.ts", 3, 1],
+      ["b/ruled.ts", 0, 3],
+      ["a/plain.ts", 2, 0],
+    ]);
+    for (const row of rows) {
+      expect(row.debt + row.ratified).toBe(row.count);
+    }
+  });
+
+  test("the LISTING separates burnable debt from ruled-permanent rows, and never prints a ratified row as backlog", async ({ runCli }) => {
+    const result = await runCli("verify", ["debt", "--gate", "duplicate-action-doors"]);
+    expect(result.code).toBe(EXIT.clean);
+    // The six door pairs are ratified (#568), so the burnable list is EMPTY and the ruled list carries them.
+    expect(result.stdout).toContain("BURNABLE DEBT — 0 row(s)");
+    expect(result.stdout).toContain("RATIFIED — 6 row(s)");
+    expect(result.stdout).toContain("(0 debt · 12 ratified)");
   });
 
   test("a MALFORMED ledger throws — an unparseable debt file must never report zero rows", async ({ plantedTree }) => {

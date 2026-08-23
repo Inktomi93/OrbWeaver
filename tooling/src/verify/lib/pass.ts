@@ -102,6 +102,7 @@ interface ScanState {
    *  gate thousands of nodes from the same file). */
   lastVisited: string;
   admitted: number;
+  admittedRatified: number;
   unit: string | undefined;
   declaredCandidates: number;
   declaredScanned: number;
@@ -122,6 +123,7 @@ interface GateRun {
  *  per batch); `unit` is last-wins. Nothing here can lower a harness-observed count. */
 function acceptDeclaration(state: ScanState, counts: GateScanDeclaration): void {
   state.admitted += counts.admitted ?? 0;
+  state.admittedRatified += counts.admittedRatified ?? 0;
   state.declaredScanned += counts.scanned ?? 0;
   state.declaredCandidates += counts.candidates ?? counts.scanned ?? 0;
   if (counts.unit !== undefined) {
@@ -152,6 +154,7 @@ function finishScan(state: ScanState, candidates: number): GateScan {
     skipReasons: skipped > 0 ? { "out-of-scanRoot": skipped } : {},
     visited: state.visited,
     admitted: state.admitted,
+    admittedRatified: state.admittedRatified,
     // exactOptionalPropertyTypes: the key exists only when the gate declared something.
     ...(declaresUnits ? { declared } : {}),
   };
@@ -195,6 +198,7 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
     visited: 0,
     lastVisited: "",
     admitted: 0,
+    admittedRatified: 0,
     unit: undefined,
     declaredCandidates: 0,
     declaredScanned: 0,

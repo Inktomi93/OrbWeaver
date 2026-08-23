@@ -15,17 +15,20 @@
 // same-role-and-name lens): a registry-rendered action is ONE call site behind N rendered slots (this is
 // exactly how the founding "new chat" complaint escapes tier 1 — its three doors all call one shared state
 // action), and a responsive pair is N call sites behind ONE rendered door.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { mutationProcedures } from "../../_shared/trpc-doors.ts";
+import type { RatchetAdmission, RatchetRow } from "../../_shared/ratchet-rows.ts";
+import { classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
+import { DOORS_BASELINE_REL, mutationProcedures } from "../../_shared/trpc-doors.ts";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const GATE_SELF = "tooling/src/verify/gates/duplicate-action-doors.ts";
-export const BASELINE_REL = "tooling/src/verify/gates/duplicate-action-doors.baseline.json";
+/** Re-exported from the shared door home (`_shared/trpc-doors.ts`) so the debt walk's import still resolves
+ *  here while the PATH itself has ONE home both consumers read (#569 — the subset-callers lens needs it too). */
+export const BASELINE_REL = DOORS_BASELINE_REL;
 /** The section VOCABULARY's ONE home (`no-parallel-section-map`'s sanctioned tuple) — read, never respelled. */
 const SECTION_IDS_HOME = "packages/client/src/state/section-ids.ts";
 /** THE REAL-TREE ANCHOR for every stale/blindness arm (GATE-AUTHORING.md §4.5), and deliberately NOT
@@ -179,12 +182,11 @@ export function baselineRows(project: Project, root: string): Readonly<Record<st
   return Object.fromEntries(Object.entries(rows).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-function readBaseline(root: string): Readonly<Record<string, number>> {
-  const path = join(root, BASELINE_REL);
-  if (!existsSync(path)) {
-    return {};
-  }
-  return JSON.parse(readFileSync(path, "utf8")) as Record<string, number>;
+/** The committed ledger, read through the ONE row reader (`_shared/ratchet-rows.ts`) so this gate sees each
+ *  pair's DEBT-vs-RATIFIED class, not just its count. All six live rows are RATIFIED (#568/#569): ruled
+ *  cross-plane affordances, whose reasoning is recorded at both call sites the row cites. */
+function readBaseline(root: string): ReadonlyMap<string, RatchetRow> {
+  return readBudgetRows(root, BASELINE_REL);
 }
 
 /** §4.6 — a gate keyed on an exact NAME must detect its own blindness. Both derivations are name-keyed
@@ -205,12 +207,18 @@ function judgeBlindness(ctx: GateRunCtx): void {
 }
 
 /** The RATCHET's growth arm. Returns the count of pairs a committed budget absolved (declared debt). */
-function judgeGrowth(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: Readonly<Record<string, number>>): number {
+function judgeGrowth(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: ReadonlyMap<string, RatchetRow>): RatchetAdmission {
   let admitted = 0;
+  let ratified = 0;
   for (const [key, files] of census) {
-    const budget = baseline[key] ?? MIN_DOORS - 1;
+    const row = baseline.get(key);
+    const budget = row?.count ?? MIN_DOORS - 1;
     if (files.size <= budget) {
-      admitted += files.size >= MIN_DOORS ? 1 : 0;
+      const counts = files.size >= MIN_DOORS ? 1 : 0;
+      admitted += counts;
+      // The unit here is the PAIR, not the door, so a row carrying any ratified portion admits as ratified —
+      // a pair is ruled or it is not (a per-door partition would be a number this census cannot earn).
+      ratified += row !== undefined && row.ratified > 0 ? counts : 0;
       continue;
     }
     // A COUNT budget cannot say WHICH door is the new one, so the diagnostic names them ALL and anchors on
@@ -223,22 +231,24 @@ function judgeGrowth(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<st
       line: 1,
       column: 0,
       token: key,
-      message: `${MESSAGE} (${key}: ${files.size} doors, budget ${budget}; doors: ${doors.join(", ")}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts`,
+      // A RATIFIED row's diagnostic cites its RULING instead of remediation advice (#569): the reader is
+      // being told a THIRD door landed on a pair somebody already decided, not that the pair is a defect.
+      message: `${MESSAGE} (${key}: ${files.size} doors, budget ${budget}; doors: ${doors.join(", ")}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${row === undefined ? "" : classNote(row)}`,
     });
   }
-  return admitted;
+  return { admitted, ratified };
 }
 
 /** The RATCHET's shrink-only arm (§4.8): a budget the tree no longer earns is RED, never silence. */
-function judgeShrink(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: Readonly<Record<string, number>>): void {
-  for (const [key, budget] of Object.entries(baseline)) {
+function judgeShrink(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: ReadonlyMap<string, RatchetRow>): void {
+  for (const [key, row] of baseline) {
     const live = census.get(key)?.size ?? 0;
-    if (live < budget) {
+    if (live < row.count) {
       ctx.report({
         file: GATE_SELF,
         line: 1,
         column: 0,
-        message: `${STALE_BASELINE_PREFIX}${key} (budget ${budget}, live ${live}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts`,
+        message: `${STALE_BASELINE_PREFIX}${key} (budget ${row.count}, live ${live}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${classNote(row)}`,
       });
     }
   }
@@ -289,7 +299,8 @@ export const gate: GateDescriptor = {
     judgeBlindness(ctx);
     const census = doorCensus(ctx.project, ctx.root);
     const baseline = readBaseline(ctx.root);
-    ctx.scan({ admitted: judgeGrowth(ctx, census, baseline) });
+    const admission = judgeGrowth(ctx, census, baseline);
+    ctx.scan({ admitted: admission.admitted, admittedRatified: admission.ratified });
     if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
       return;
     }
@@ -362,7 +373,8 @@ export const gate: GateDescriptor = {
 
 /** The generator's single writer (GATE-AUTHORING.md §4.8) — invoked by tooling/src/verify/ops/gen/duplicate-action-doors.ts. */
 export function writeBaseline(project: Project, root: string): number {
-  const rows = baselineRows(project, root);
-  writeFileSync(join(root, BASELINE_REL), `${JSON.stringify(rows, null, 2)}\n`);
-  return Object.keys(rows).length;
+  // The COUNTS are re-derived from the tree; the CLASS is a ruling and rides through from the committed
+  // ledger (#569) — a regenerate that silently demoted six ratified pairs back to backlog would be the
+  // classification erasing itself on its first shrink.
+  return writeBudgetLedger(root, BASELINE_REL, baselineRows(project, root), readBaseline(root));
 }

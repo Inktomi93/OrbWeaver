@@ -3,10 +3,10 @@
 // knew"): (a) `X as unknown as Y` double-casts, and (b) an object/array-literal `as Y` (not
 // const/any/unknown) — both survive Y gaining/renaming a required field silently; use a typed factory
 // or `satisfies Y` instead. Escape: `// FABRICATION-OK: <reason>`. BASELINE RATCHET: a file violates only when its live count exceeds its committed baseline — shrink-only.
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { AsExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
+import { admissionFor, readBudgetRows } from "../../_shared/ratchet-rows.ts";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Check, Violation } from "../contract/harness.ts";
 
@@ -83,16 +83,16 @@ export function testsRel(path: string): string | undefined {
   return TESTS_REL_RE.exec(path)?.groups?.["rel"];
 }
 
-function loadBaseline(root: string): Record<string, number> {
-  const path = join(root, BASELINE_REL);
-  if (!existsSync(path)) {
-    return {};
-  }
-  return JSON.parse(readFileSync(path, "utf-8")) as Record<string, number>;
+/** The committed ledger through the ONE row reader (`_shared/ratchet-rows.ts`) — every row carries its
+ *  DEBT-vs-RATIFIED class. Every fabrication row is DEBT: a test-side fabrication is by definition burnable
+ *  (it ends when the value becomes factory/fixture-derived), so a ratified row here would be a contradiction
+ *  the `ratchet-row-integrity` gate would still admit — the honesty lives in nobody writing one. */
+function loadBaseline(root: string): ReadonlyMap<string, RatchetRow> {
+  return readBudgetRows(root, BASELINE_REL);
 }
 
 /** Factory so the self-test can inject a baseline; report.ts registers the file-loading default. */
-export function createNoTestFabrication(baseline?: Record<string, number>): Check {
+export function createNoTestFabrication(baseline?: ReadonlyMap<string, RatchetRow>): Check {
   return {
     name: "no-test-fabrication",
     run: ({ root, project }): Violation[] => {
@@ -104,7 +104,7 @@ export function createNoTestFabrication(baseline?: Record<string, number>): Chec
           continue;
         }
         const sites = fabricationSites(sf);
-        const budget = base[rel] ?? 0;
+        const budget = base.get(rel)?.count ?? 0;
         if (sites.length <= budget) {
           continue;
         }
@@ -122,11 +122,14 @@ export function createNoTestFabrication(baseline?: Record<string, number>): Chec
 // past the budget are surfaced. The baseline is read from fs via ctx.root — on a synthetic tree that path
 // doesn't exist → an empty baseline (budget 0), so any fabrication is flagged. The baseline is loaded
 // once per run (begin).
-let passBaseline: Record<string, number> = {};
+let passBaseline: ReadonlyMap<string, RatchetRow> = new Map();
 /** The fabrications this run's committed budgets ABSOLVED — declared through `ctx.scan` in `run` so the
  *  single-pass's "N finding(s) admitted by ratchet baselines" line includes this ledger. Without it a green
  *  run understated the live population by this gate's whole baseline (#551; GATE-AUTHORING.md §1). */
 let passAdmitted = 0;
+/** The RATIFIED subset of `passAdmitted` (#569) — zero while every fabrication row is burnable debt, and
+ *  declared anyway so the split is derived from the ledger rather than assumed by the reporter. */
+let passAdmittedRatified = 0;
 
 export const gate: GateDescriptor = {
   name: "no-test-fabrication",
@@ -139,9 +142,10 @@ export const gate: GateDescriptor = {
   begin: (ctx: GateRunCtx) => {
     passBaseline = loadBaseline(ctx.root);
     passAdmitted = 0;
+    passAdmittedRatified = 0;
   },
   run: (ctx) => {
-    ctx.scan({ admitted: passAdmitted });
+    ctx.scan({ admitted: passAdmitted, admittedRatified: passAdmittedRatified });
   },
   visitFile: (sf, ctx) => {
     const rel = testsRel(sf.getFilePath());
@@ -149,8 +153,11 @@ export const gate: GateDescriptor = {
       return;
     }
     const sites = fabricationSites(sf);
-    const budget = passBaseline[rel] ?? 0;
-    passAdmitted += Math.min(budget, sites.length);
+    const row = passBaseline.get(rel);
+    const budget = row?.count ?? 0;
+    const admission = admissionFor(row, sites.length);
+    passAdmitted += admission.admitted;
+    passAdmittedRatified += admission.ratified;
     if (sites.length <= budget) {
       return;
     }
