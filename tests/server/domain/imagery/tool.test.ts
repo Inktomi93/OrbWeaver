@@ -1,6 +1,7 @@
 // The D48 generate_image tool projection (imagery-design/04 §1). Unit test (no db): the registered def's
 // shape + the handler's arg→param mapping onto the injected generatePicture op, and the non-chat refusal.
 
+import { IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery";
 import type { AssetId, ChatId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -56,6 +57,18 @@ describe("generate_image tool", () => {
     expect(defs[0]?.name).toBe("generate_image");
     expect(defs[0]?.capability).toBeNull();
     expect(defs[0]?.source).toBe("builtin");
+  });
+
+  // #578 — the description now reads the PROSE-1 slot (`imagery.tool.generateImageDescription`); this pins the
+  // wire is byte-identical to the pre-slot inline literal.
+  test("the model-facing description is the imagery.tool.generateImageDescription slot's shipped default", () => {
+    const [def] = imageryToolDefinitions({ generatePicture: fakeGeneratePicture().op });
+    expect(def?.description).toBe(IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION);
+    expect(def?.description).toBe(
+      "Generate an image in the current chat from a text prompt. Use when the user asks you to draw, paint, " +
+        'show, or picture something. `mode:"free"` uses `prompt` verbatim; the portrait/scene modes derive the ' +
+        "prompt from the conversation. Posts one message with the image(s) attached.",
+    );
   });
 
   test("the args schema projects to JSON Schema (no unrepresentable transform — the D48 registry requirement)", () => {

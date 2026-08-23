@@ -14,7 +14,7 @@
 //     targeting is the human/config-authored automation arm's surface, not the model's;
 //   • `useAvatarReference` — inert without a `subjectCharacterId` (B3 needs a subject), so it rides the arm too.
 
-import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
+import { generateImageActionArgsSchema, IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { ImageryService } from "../contract/service.ts";
@@ -36,10 +36,9 @@ export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolDefi
   return [
     imageryTool({
       name: "generate_image",
-      description:
-        "Generate an image in the current chat from a text prompt. Use when the user asks you to draw, paint, " +
-        'show, or picture something. `mode:"free"` uses `prompt` verbatim; the portrait/scene modes derive the ' +
-        "prompt from the conversation. Posts one message with the image(s) attached.",
+      // PROSE-1 slot (#578): `imagery.tool.generateImageDescription`, resolved to its shipped default at
+      // module load (no user in scope at compose registration — the `RPG_BASELINE_TOOL_DESCRIPTIONS` posture).
+      description: IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION,
       argsSchema: generateImageToolArgsSchema,
       capability: null,
       source: "builtin",

@@ -178,10 +178,33 @@ export const IMAGERY_PROSE_SLOTS = {
     title: "Negative-prompt base",
     fires: "Every image generation — the standing defect-suppression list the request's negative opens with.",
   },
+  // #578 — the `generate_image` chat TOOL's model-facing description (`domain/imagery/tool/index.ts`), the
+  // §2.5 tool-description class. Registered ONCE at compose (no user in scope), so — like its `imagery.template.*`
+  // siblings have no analogue for — this resolves to its shipped default at module load; a future per-call
+  // tool-listing resolution can read this same slot without a second home.
+  "imagery.tool.generateImageDescription": {
+    id: "imagery.tool.generateImageDescription",
+    home: "user",
+    version: 1,
+    text:
+      "Generate an image in the current chat from a text prompt. Use when the user asks you to draw, paint, " +
+      'show, or picture something. `mode:"free"` uses `prompt` verbatim; the portrait/scene modes derive the ' +
+      "prompt from the conversation. Posts one message with the image(s) attached.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "generate_image tool description",
+    fires: "The `generate_image` tool's model-facing description, on every tool-carrying vehicle.",
+  },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
 
 /** The negative-prompt base slot — the ONE id both the resolver and the editor read. */
 export const IMAGERY_NEGATIVE_SLOT_ID: ProseSlotId = "imagery.negative.base";
+
+/** The `generate_image` tool's shipped-default description — read at REGISTRATION (no user in scope, the
+ *  `RPG_STEERING_LICENSE`/`RPG_BASELINE_TOOL_DESCRIPTIONS` precedent), so a rename of the slot's `text` here
+ *  is the ONE edit that reaches the wire (#578). */
+export const IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION = IMAGERY_PROSE_SLOTS["imagery.tool.generateImageDescription"].text;
 
 /** Slot id per extraction mode — the ONE map both the resolver and the editor read (never a re-spelled id). */
 export const IMAGERY_TEMPLATE_SLOT_IDS: Record<ExtractionMode, ProseSlotId> = {

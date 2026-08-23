@@ -235,6 +235,7 @@ function buildPromoteToRoster(deps: RpgComposeDeps): RpgContext["promoteToRoster
   return async ({ chatId, hostUserId, name, handle, description }) => {
     const free = await freePromotionHandle(deps, hostUserId, handle);
     if (free === null) {
+      // PROSE-OK: a host toast (`reason` → the UI), never a model prompt — the §Scope test #prose-slot states
       return { ok: false, reason: `your character library already carries "${handle}" and every variant this promotion tried — rename the character first` };
     }
     const principal = await deps.resolveHostPrincipal(hostUserId);
@@ -372,17 +373,25 @@ function projectStateForModel(baseState: RpgSnapshotState, prose: ProseOverrides
  *  is DROPPED on the `beat` arm so the request is byte-identical to the pre-redesign `{state}\n{beat}` shape
  *  (the escape hatch's byte-compat contract). The CURRENT TRACKED STATE is the model-projected state (§4.4
  *  strip); the LATEST BEAT is the newest committed turn (its delta target). */
-function extractionUserPrompt(args: { story: readonly RpgTurnTranscriptMessage[]; stateJson: string; lockedPathsLine: string; beat: string }): string {
+function extractionUserPrompt(args: {
+  story: readonly RpgTurnTranscriptMessage[];
+  stateJson: string;
+  lockedPathsLine: string;
+  beat: string;
+  prose: ProseOverrides;
+}): string {
   const stateBlock = args.lockedPathsLine.length > 0 ? `${args.stateJson}\n${args.lockedPathsLine}` : args.stateJson;
   // `beat` arm: no RECENT STORY block — byte-identical to today's `CURRENT STATE:\n{json}\n\nLATEST BEAT:\n{beat}`.
   if (args.story.length === 0) {
     return `CURRENT STATE:\n${stateBlock}\n\nLATEST BEAT:\n${args.beat}`;
   }
   const storyLines = args.story.map(renderTranscriptLine).join("\n");
+  // PROSE-1 slot (#578): the LATEST BEAT label carries real prose ("your delta covers exactly this") beside
+  // the two structural block headers (§2.11, out of scope) — `rpg.extract.userPrompt.latestBeatLabel`.
   return (
     `RECENT STORY (oldest first):\n${storyLines}\n\n` +
     `CURRENT TRACKED STATE:\n${stateBlock}\n\n` +
-    `LATEST BEAT (the newest story turn above — your delta covers exactly this):\n${args.beat}`
+    `${resolveProseText("rpg.extract.userPrompt.latestBeatLabel", args.prose)}\n${args.beat}`
   );
 }
 
@@ -400,11 +409,11 @@ function buildExtractionUserPrompt(
   const { story, beat } = sliceTranscript(transcript, config);
   // `beat` arm — byte-identical to the pre-redesign request: the raw full state JSON, no strip, no story block.
   if (config.extractionContext === "beat") {
-    return extractionUserPrompt({ story: [], stateJson: JSON.stringify(baseState), lockedPathsLine: "", beat });
+    return extractionUserPrompt({ story: [], stateJson: JSON.stringify(baseState), lockedPathsLine: "", beat, prose });
   }
   // `window`/`full` — the new behavior: sliced story + the §4.4 model-projected state.
   const { json, lockedPathsLine } = projectStateForModel(baseState, prose);
-  return extractionUserPrompt({ story, stateJson: json, lockedPathsLine, beat });
+  return extractionUserPrompt({ story, stateJson: json, lockedPathsLine, beat, prose });
 }
 
 /** Emit the extraction JSON TEXT for a `agent-sdk` host connection via the CHAT role's structured-output
@@ -1292,7 +1301,9 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
 // The three sentences a resync REFUSAL can carry (`ResyncResult.reason` → the host's toast). Written as host
 // prose, not log vocabulary: the person reading them clicked a button and is owed what to do next. Each pairs
 // with the `rpg.resync.*` warn the same branch already emitted — the log is for us, the reason is for them.
+// PROSE-OK: host toasts (`ResyncResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
 const RESYNC_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the rebuild never ran — check the chat's model/connection.";
+// PROSE-OK: same host-toast class as the row above — never a model prompt
 const RESYNC_READONLY_REASON = "this room's model can't write game state, so there's nothing to rebuild with — switch to a connection that can.";
 const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
 
@@ -1517,7 +1528,9 @@ function populateUserPrompt(corpus: RpgCardCorpus, targetRef: string, prose: Pro
 // `RESYNC_*_REASON` trio in the born-state vocabulary. Written as host prose, not log vocabulary: the person
 // reading them clicked a button and is owed what to do next. Each pairs with the `rpg.populate.*` warn the same
 // branch already emitted — the log is for us, the reason is for them.
+// PROSE-OK: host toasts (`PopulateResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
 const POPULATE_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the card was never read — check the chat's model/connection.";
+// PROSE-OK: same host-toast class as the row above — never a model prompt
 const POPULATE_READONLY_REASON = "this room's model can't write structured state, so there's nothing to fill with — switch to a connection that can.";
 const POPULATE_FAILED_REASON = "the model call failed, so nothing was filled:";
 
