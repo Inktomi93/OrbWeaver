@@ -33,6 +33,18 @@ const ALLOWLIST: ExemptionTable = {
       "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
       "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
   },
+  "packages/client/src/features/character/components/character-library-body.tsx": {
+    why:
+      "the EMPTY-LIBRARY arm (#532) — the preset-library-welcome precedent one pane over, and the STRONGER " +
+      "form of it: this body renders INSIDE the list panel, and `PanelChrome` renders the " +
+      "`.shell-panel-header` band with every panel that has a body (D66 A1), so the band's New is " +
+      "unconditionally ~200px directly above this state. Its own New was therefore never a rescue from a " +
+      "dead end — it was the THIRD New on the Characters plane (the CONTENT hero's was the second, closed " +
+      "by #520 with the same de-duplication), which `duplicate-action-doors` is the sibling gate for. The " +
+      "state is not thinned to pay for it: the invitation survives verbatim and NAMES the surviving door by " +
+      "its visible label ('use New at the top of this pane', WCAG 2.5.3). This file's OTHER empty arms keep " +
+      "their own actions — Clear search / Clear filters are exits only this body can offer.",
+  },
   "packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx": {
     why:
       "the GONE arm — the open book was deleted on another device (the world-info verbs are bus-driven, so the " +
