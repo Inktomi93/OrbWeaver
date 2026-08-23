@@ -660,6 +660,8 @@ const DISTILLED = 313;
 /** Eight families summing to 242 — the audited shape, and the 85-character shortfall that is the finding. */
 const FAMILY_SIZES = [50, 40, 35, 30, 28, 27, 25, 7];
 const CLUSTERED = FAMILY_SIZES.reduce((total, size) => total + size, 0);
+/** The biggest family — the plate whose member run is longest, i.e. the N7 worst case. */
+const LARGEST_FAMILY = Math.max(...FAMILY_SIZES);
 const UNFAMILIED = CHARACTERS - CLUSTERED;
 
 /** The server's own name for the family whose portraits the VL pass could not classify
@@ -800,7 +802,10 @@ const POPULATED: TrpcRoutes = {
     arcThemes: [],
     duplicateCounts: { characters: 1, chats: 1, identicalCharacterPairs: 3 },
   },
-  "discovery.catalog": { totalDistilled: DISTILLED, genres: [], tones: [], topTags: [] },
+  // `totalCharacters` is the base the distilled count is out of (#535) — the same 327 `discovery.home`
+  // reports, because both are `count(*)` over the owner's characters. A fixture that omitted it would let
+  // a census assertion pass off a `?? 0` fallback.
+  "discovery.catalog": { totalDistilled: DISTILLED, totalCharacters: CHARACTERS, genres: [], tones: [], topTags: [] },
   "discovery.visualArchetypes": POP_FAMILIES,
   "discovery.forgottenGems": GEMS,
   "discovery.unusedCharacters": UNUSED,
@@ -868,6 +873,24 @@ test("#535: the visual-families row names the base its count is out of", async (
   ).toContainText(`${CLUSTERED.toString()} of ${CHARACTERS.toString()}`);
 });
 
+// …AND THE DENOMINATOR DID NOT COST THE ROW ITS NAME (#535 N1, the regression the fix above caused). With
+// the datum grown to "8 families · 242 of 327 characters" and the row spelled `label: truncate` beside
+// `datum: shrink-0`, the only thing that could give was the LABEL: "Visual families" rendered "Visu…" at
+// the 1280px context-closed width. The rail's whole job is naming what has and has not run.
+test("#535 N1: no readiness row ellipsises the PASS NAME to fit its measurement", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const cut = await page.locator('[data-slot="readiness-stage"]').evaluateAll((rows) =>
+    rows.flatMap((row) => {
+      const label = row.querySelector("span");
+      return label !== null && label.scrollWidth > label.clientWidth + 1 ? [label.textContent ?? ""] : [];
+    }),
+  );
+  expect(cut, "a pass whose name is cut is the one row on the surface a first-timer cannot re-derive").toEqual([]);
+});
+
 // ── #553 / [P1-1]: THE ECONOMICS SECTION CHARTS WHAT ITS DATA CARRIES ────────────────────────────────
 // 30 routes, one of which reports a dollar cost. The old guard tested SPEND, so this whole library's
 // economics rendered as one bar reading $0.08 — full width, in accent orange, the visual weight saying
@@ -885,7 +908,38 @@ test("#553: model economics renders the COMPLETE quantities over mostly-null cos
   await expect(table).toBeVisible();
   await expect(table.getByRole("row"), "the routes are ranked by a quantity every row carries, not by the one 1-in-30 of them do").not.toHaveCount(1);
   // …and the coverage of the metric that IS mostly missing is stated rather than implied by its absence.
-  await expect(component.getByText(new RegExp(`cost recorded for ${PAID_ROUTES.toString()} of ${ROUTES.length.toString()}`))).toBeVisible();
+  // N6: the clause NAMES the route it is about. The one priced route is index 17, which the 12-bar head
+  // never draws — so "cost recorded for 1 of 30 routes" pointed at a row no control on this page reaches.
+  await expect(component.getByText(new RegExp(`recorded across ${PAID_ROUTES.toString()} of ${ROUTES.length.toString()} routes`))).toBeVisible();
+  await expect(component.getByText("$0.08 recorded across", { exact: false })).toBeVisible();
+  await expect(component.getByText("model-17", { exact: false })).toBeVisible();
+});
+
+// ── N7: A FAMILY PLATE'S MEMBER RUN ENDS AT A NAME, NEVER MID-NAME ───────────────────────────────────
+// The gloss joined EVERY member name and let `truncate` cut it, which on the populated library ellipsised
+// mid-name on 8 of 8 plates — a column whose last word is always a fragment. The fixture that shows it is
+// the POPULATED one: the 12-character arm's two short names fit, which is why the #256 clipping fence has
+// been green through the whole defect.
+test("N7: the family plates name a bounded member run and COUNT the rest", async ({ mount, page }) => {
+  await routeTrpc(page, POPULATED);
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const glosses = await page
+    .locator('[data-corpus-focal="familyMap"] .grid')
+    .evaluate((grid) =>
+      [...grid.querySelectorAll("span")]
+        .filter((span) => (span.textContent ?? "").includes(" members · "))
+        .map((span) => ({ text: span.textContent ?? "", clipped: span.scrollWidth > span.clientWidth + 1 })),
+    );
+
+  expect(glosses.length, "every plate carries a member gloss").toBe(FAMILY_SIZES.length);
+  expect(
+    glosses.filter((gloss) => gloss.clipped).map((gloss) => gloss.text),
+    "not one gloss may be cut — an ellipsis mid-name is the defect, and the count is what replaces the run",
+  ).toEqual([]);
+  // The largest family names two and counts the other 48, rather than trailing off inside a name.
+  await expect(component.getByText(`${LARGEST_FAMILY.toString()} members ·`, { exact: false }).first()).toContainText("+");
 });
 
 // ── #557 / [P2-3]: THE KEYWORD CHART IS CAPPED AND SAYS SO ───────────────────────────────────────────

@@ -2,6 +2,19 @@
 // @orb/ui charts family's item shapes, plus the semantic-map genre palette. Kept here (not inline in the
 // surfaces) so the count→bar and genre→swatch logic is unit-testable without mounting ECharts or an SVG.
 // The charts family was the audit's #1 style ding: count-data must render as bars, not text ListRow/Badge.
+//
+// ── THE BARS ARE TEAL ON PURPOSE — RATIFIED (owner ruling 2026-08-23, side-eye se-verify-4 N4) ────────
+// N4 reads the corpus bars' `rgb(64,177,183)` as a hue the ember surface does not otherwise contain and
+// asks for the accent. The owner has ruled the opposite way and the ruling is recorded here rather than
+// left open, because this file is where "count-data renders as bars" lives and the hue is the other half
+// of that sentence: the categorical chart ramp (`color.chart-2`, reached by `intent="quiet"`) is
+// DELIBERATELY not the surface's accent. Ember bars are exactly what produced the finding they replaced —
+// a framebuffer census measured 28.69% accent in the corpus overview's worst 800px viewport against the
+// §14 physics-4 cap of 10%, essentially all of it one bar list, because `accent` resolves `color.chart-1`
+// which IS `color.primary`. A reference chart painted in the "look here" ink spends the whole surface's
+// focal budget on its quietest content. Nothing here is carried by hue either way — the bar-end value and
+// the chart's label state the reading for a viewer who sees no colour at all (`@orb/ui`'s
+// `charts/bar-list/option.ts` carries the census and the ramp-stop argument). No re-inking.
 
 import type { BarListItem } from "@orb/ui/bar-list";
 import type { ScatterPoint, ScatterSeries } from "@orb/ui/scatter";
@@ -42,6 +55,31 @@ export function topRanked<T>(rows: readonly T[], value: (row: T) => number, limi
  *  `LabeledChartFrame` names both the canvas and its screen-reader table with that one string. */
 export function chartLabelWithDenominator(label: string, shown: number, total: number, noun: string): string {
   return shown >= total ? label : `${label} · ${shown.toString()} of ${total.toString()} ${noun}`;
+}
+
+/**
+ * The drawn series' SPREAD, as a clause for the chart's label — `6–4 uses`, or `4 uses each` when flat.
+ *
+ * WHY A FLAT CHART HAS TO SAY SO (side-eye se-verify-4 N5, and it is a fork the orchestrator ruled on).
+ * The keyword chart's twelve bars ran 6 down to 4, so every bar was 67-100% of its track and none was
+ * distinguishable from its neighbour. The report's two arms were "widen the window until the range means
+ * something" and "demote to a text list". Neither survives contact: the FULL 50-row series is flatter still
+ * (6..2), so widening makes it worse, and demoting reverses this file's own founding ruling ("count-data
+ * must render as bars, not text ListRow/Badge"). The third reading is that the chart is not lying at all —
+ * the axis is zero-based and the distribution really is flat — it just LOOKS like a broken chart, because
+ * nothing says how little ground the bars cover. So the spread rides the label, which is also the chart's
+ * accessible name (`LabeledChartFrame`), and a reader learns in one string what the picture cannot show.
+ * The ruling survives; what changed is that a chart now states the range it was drawn over.
+ *
+ * Empty input yields the bare label's own emptiness (`""`) — the caller renders no chart for no rows.
+ */
+export function chartSpread(values: readonly number[], noun: string): string {
+  if (values.length === 0) {
+    return "";
+  }
+  const top = Math.max(...values);
+  const bottom = Math.min(...values);
+  return top === bottom ? `${top.toString()} ${noun} each` : `${top.toString()}–${bottom.toString()} ${noun}`;
 }
 
 // ── cluster-label disambiguation ──────────────────────────────────────────────

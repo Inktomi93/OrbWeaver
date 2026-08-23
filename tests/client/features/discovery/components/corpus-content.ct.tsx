@@ -453,8 +453,9 @@ test("MODEL ECONOMICS REPORTS WHAT THE ROUTES DID, and invents no dollars to do 
   // …and not one currency figure appears: the zero-cost routes contribute a generation count, never a
   // fabricated `$0.00` (the old ruling's real concern, kept).
   await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
-  // The coverage is STATED rather than implied by the section's absence.
-  await expect(component.getByText("cost recorded for 0 of 2 routes", { exact: false })).toBeVisible();
+  // AND THE COST CLAUSE IS ABSENT, not zeroed (side-eye se-verify-4 N6). It used to read "cost recorded
+  // for 0 of 2 routes" — a coverage statement about an empty column, which is a sentence about nothing.
+  await expect(component.getByText("routes", { exact: false }).filter({ hasText: "cost" })).toHaveCount(0);
 });
 
 test("…and a PAID route is annotated, never promoted over the quantities (#553)", async ({ mount, page }) => {
@@ -478,7 +479,11 @@ test("…and a PAID route is annotated, never promoted over the quantities (#553
   // rather than acquiring a $0.00.
   await expect(table.getByRole("rowheader").filter({ hasText: "$0.04" })).toHaveCount(1);
   await expect(table.getByRole("rowheader").filter({ hasText: "unknown-cost" })).not.toContainText("$");
-  await expect(component.getByText("cost recorded for 1 of 4 routes", { exact: false })).toBeVisible();
+  // THE CLAUSE NAMES THE ROUTE IT IS ABOUT (side-eye se-verify-4 N6). "cost recorded for 1 of 142 routes"
+  // pointed at a row no control on the page could reach — the chart draws the BUSIEST head, and the lone
+  // priced route is nowhere near it. With exactly one, the clause carries the money and the route's name.
+  await expect(component.getByText("$0.04 recorded across 1 of 4 routes", { exact: false })).toBeVisible();
+  await expect(component.getByText("claude", { exact: false }).filter({ hasText: "recorded across" })).toBeVisible();
 });
 
 test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {
