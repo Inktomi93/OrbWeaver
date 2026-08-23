@@ -118,6 +118,9 @@ export function PersonaRowNameColumn({
             }}
             size="sm"
           >
+            {/* RATIFIED raw axes (#582, the character-facet-row precedent): a row's own NAME is a
+                directory entry, one step under `promoted` (which is reserved for the single item a
+                surface promotes above its siblings) — body step at medium, deliberately. */}
             <Text as="span" className="truncate" weight="medium">
               {persona.name}
             </Text>
@@ -146,7 +149,7 @@ export function PersonaRowNameColumn({
         </Row>
       </Row>
       {persona.title === null ? null : (
-        <Text className="truncate" size="micro" tone="muted">
+        <Text className="truncate" voice="gloss">
           {persona.title}
         </Text>
       )}
