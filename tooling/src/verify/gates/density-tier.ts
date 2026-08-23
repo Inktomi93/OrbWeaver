@@ -32,6 +32,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { JsxOpeningElement, JsxSelfClosingElement, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
+import { admissionFor, classNote, readBudgetRows } from "../../_shared/ratchet-rows.ts";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments } from "../lib/comment-spans.ts";
 
@@ -329,15 +331,14 @@ export function densityFindings(sf: SourceFile, rel: string): Hit[] {
   return [...radiusFindings(sf, rel), ...boxInBoxFindings(sf), ...textVoiceFindings(sf, rel)].sort((a, b) => a.line - b.line || a.column - b.column);
 }
 
-export function loadBaseline(root: string): Record<string, number> {
-  const path = join(root, BASELINE_REL);
-  if (!existsSync(path)) {
-    return {};
-  }
-  return JSON.parse(readFileSync(path, "utf-8")) as Record<string, number>;
+/** The committed ledger, read through the ONE row reader (`_shared/ratchet-rows.ts`) so each row's
+ *  DEBT-vs-RATIFIED class travels with its budget. Every density row is DEBT today — the density sweep is a
+ *  burn-down, and a ratified density row would be a claim that a surface is permanently off-tier. */
+export function loadBaseline(root: string): ReadonlyMap<string, RatchetRow> {
+  return readBudgetRows(root, BASELINE_REL);
 }
 
-let passBaseline: Record<string, number> = {};
+let passBaseline: ReadonlyMap<string, RatchetRow> = new Map();
 // Per-file LIVE count (not just a violating/clean boolean) — the finding-overload-provenance
 // `judgeBaseline` shape (GATE-AUTHORING §4.4a mode A): a stale baseline row is any budget the live count
 // no longer SPENDS, not just a budget spending zero. A file that improved from 5 violations to 2 stayed
@@ -389,10 +390,13 @@ export const gate: GateDescriptor = {
     }
     const findings = densityFindings(sf, rel);
     passActualCounts.set(rel, findings.length);
-    const budget = passBaseline[rel] ?? 0;
+    const row = passBaseline.get(rel);
+    const budget = row?.count ?? 0;
     // The budget-absolved head is DECLARED DEBT, not absence: without this the ratchet's live population
-    // is invisible behind a ✓ and only the generator ever knows the number (Codex GA-H-02).
-    ctx.scan({ admitted: Math.min(budget, findings.length) });
+    // is invisible behind a ✓ and only the generator ever knows the number (Codex GA-H-02). Split by CLASS
+    // (#569) so a burnable row and a ruled one are never summed into one undifferentiated number.
+    const admission = admissionFor(row, findings.length);
+    ctx.scan({ admitted: admission.admitted, admittedRatified: admission.ratified });
     for (const hit of findings.slice(budget)) {
       ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
@@ -431,14 +435,14 @@ export const gate: GateDescriptor = {
         }
       }
     }
-    for (const [rel, budget] of Object.entries(passBaseline)) {
+    for (const [rel, row] of passBaseline) {
       const actual = passActualCounts.get(rel) ?? 0;
-      if (actual < budget) {
+      if (actual < row.count) {
         ctx.report({
           file: GATE_SELF,
           line: 1,
           column: 0,
-          message: `${BASELINE_REL} budgets ${budget} finding(s) for "${rel}" but only ${actual} remain — the ratchet only goes down: regenerate it (node tooling/src/verify/cli.ts baseline density) and commit the shrink.`,
+          message: `${BASELINE_REL} budgets ${row.count} finding(s) for "${rel}" but only ${actual} remain — the ratchet only goes down: regenerate it (node tooling/src/verify/cli.ts baseline density) and commit the shrink.${classNote(row)}`,
         });
       }
     }

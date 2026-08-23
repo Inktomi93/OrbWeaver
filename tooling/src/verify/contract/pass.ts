@@ -30,6 +30,9 @@ export interface GateScan {
   readonly visited: number;
   /** Findings a committed ratchet BUDGET absolved this run — declared debt, not violations. */
   readonly admitted: number;
+  /** The RATIFIED SUBSET of `admitted` (#569): permanent by a recorded ruling / documented tool-FP, not
+   *  backlog. `admitted - admittedRatified` is the burnable half every consumer prints beside it. */
+  readonly admittedRatified: number;
   /** Present only when the gate declared units of its own. */
   readonly declared?: DeclaredScan;
 }

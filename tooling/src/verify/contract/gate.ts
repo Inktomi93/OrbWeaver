@@ -78,8 +78,10 @@ export interface GateExample {
  *
  *  Two live uses (GATE-AUTHORING.md §"Harness mechanics"):
  *  - `admitted` — findings a committed RATCHET BUDGET absolved this run. Declared debt is not "clean";
- *    the reporter prints it as `admitted-by-ratchet: N` beside the ✓ so a green gate still shows the
- *    population it is carrying.
+ *    the reporter prints it as `admitted-by-ratchet: N (D debt · R ratified)` beside the ✓ so a green gate
+ *    still shows the population it is carrying — SPLIT BY CLASS (#569), because a permanent admission a
+ *    ruling made (a ratified door pair, a documented tool false positive) is not backlog and must not read
+ *    as a glut of it. `admittedRatified` is the PERMANENT SUBSET of `admitted`, never a number beside it.
  *  - `unit`/`candidates`/`scanned`/`skipped` — a gate reading units the shared ts-morph walk cannot see
  *    (markdown, CSS, JSON rows). Without this its harness row reports the workspace file count, which is
  *    a denominator it never actually read, and (for a gate whose `scanRoot` admits nothing) its ZERO-SCAN
@@ -95,6 +97,10 @@ export interface GateScanDeclaration {
   readonly skipped?: Readonly<Record<string, number>>;
   /** Findings a committed ratchet baseline absolved this run (declared debt, NOT violations). */
   readonly admitted?: number;
+  /** The RATIFIED subset of `admitted` — the part a recorded ruling or a documented tool false positive made
+   *  permanent (`_shared/ratchet-rows.ts`). Never larger than `admitted`; the burnable remainder is
+   *  `admitted - admittedRatified`. Omitted means "all of it is burnable debt". */
+  readonly admittedRatified?: number;
 }
 
 /** Per-run context handed to every hook. */

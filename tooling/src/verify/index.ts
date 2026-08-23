@@ -71,7 +71,7 @@ export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from 
 export { verifyGateProofs } from "./ops/conformance.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
 export type { Ledger } from "./ops/debt.ts";
-export { discoverBaselineFiles, LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
+export { LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export { generateDensityBaseline } from "./ops/gen/density.ts";
 export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";

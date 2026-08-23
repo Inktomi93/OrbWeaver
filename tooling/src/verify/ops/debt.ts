@@ -2,9 +2,15 @@
  * `pnpm debt` → `cli.ts debt` — THE DEBT WALK (#546).
  *
  * A ratchet baseline is DECLARED DEBT, not absence: the single-pass says so in one line
- * (`single-pass: N finding(s) admitted by ratchet baselines — declared debt, still a live population`,
- * lib/render.ts), and that line is a COUNT nobody can triage. This lens enumerates the rows behind it,
- * grouped by owning gate, so "still a live population" becomes claimable board rows on a cadence.
+ * (`single-pass: N finding(s) admitted by ratchet baselines (D debt · R ratified)`, lib/render.ts), and
+ * that line is a COUNT nobody can triage. This lens enumerates the rows behind it, grouped by owning gate,
+ * so "still a live population" becomes claimable board rows on a cadence.
+ *
+ * SPLIT BY CLASS (#569). Not every admitted row is backlog: a row whose budget a recorded ruling or a
+ * documented tool false positive made PERMANENT is RATIFIED, and printing it inside the burnable listing is
+ * what made this whole apparatus read as "a glut of backlog" (owner). Each section therefore prints BURNABLE
+ * DEBT first — the rows a board row may claim — and lists the ratified rows separately underneath, with the
+ * ruling and its cited sites. The class lives in the row itself (`_shared/ratchet-rows.ts`), never here.
  *
  * IT IS A LENS, NOT A GATE — no exit 1, ever. It reads and reports; the gates judge.
  *
@@ -33,13 +39,14 @@
  *   • `--age` shells `git log -S<subject>` per row (opt-in because it is one git invocation per row).
  *     A row whose first-appearance commit cannot be resolved prints `age n/a`, never a guess.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { print, reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import type { RatchetRow } from "@orb/tooling/_shared/ratchet-rows";
+import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
@@ -49,25 +56,11 @@ import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts"
 
 refuseDirectInvocation(import.meta.url, "pnpm debt");
 
-/** How a ledger file spells its rows. `budget-map` = subject → allowed count; `entries-map` = the
- *  orphan ratchet's `{ note, entries: { subject: reason } }` envelope. A Record dispatch, so a third
- *  shape is a row tsc forces every reader to handle (GATE-AUTHORING.md §7). */
-type LedgerShape = "budget-map" | "entries-map";
-
-/** ONE admitted row: what it names, the committed allowance (null when the ledger budgets nothing but
- *  membership), and the row's own reason where the ledger carries one. */
-interface DebtRow {
-  readonly subject: string;
-  readonly budget: number | null;
-  readonly note: string | null;
-}
-
 /** ONE committed ratchet ledger. `rel` is IMPORTED from the module that owns the baseline — never
  *  re-spelled here, or a rename would leave this walk reading a path nothing writes. */
 export interface Ledger {
   readonly owner: string;
   readonly rel: string;
-  readonly shape: LedgerShape;
   /** What one row's BUDGET counts, printed beside the number so a reader is never guessing units. */
   readonly unit: string;
   /** What the debt IS and what ends it — the triage context a board row needs. */
@@ -78,43 +71,35 @@ export const LEDGERS: readonly Ledger[] = [
   {
     owner: "density-tier",
     rel: DENSITY_BASELINE_REL,
-    shape: "budget-map",
     unit: "density finding(s)",
     why: "per-file density findings admitted at landing. Ends per file when the surface is re-tiered and the row is regenerated to a shrink.",
   },
   {
     owner: "duplicate-action-doors",
     rel: DOORS_BASELINE_REL,
-    shape: "budget-map",
     unit: "door(s) on the plane",
     why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
   },
   {
     owner: "no-test-fabrication",
     rel: FABRICATION_BASELINE_REL,
-    shape: "budget-map",
     unit: "fabricated value(s)",
     why: "test-side fabrication admitted at landing. Ends per test file when the fabricated values become factory/fixture-derived.",
   },
   {
     owner: "suppressions",
     rel: SUPPRESSIONS_BASELINE_REL,
-    shape: "budget-map",
     unit: "suppression marker(s)",
     why: "committed lint/gate suppressions per file. Ends per file when the underlying diagnostic is fixed and the shrink is regenerated.",
   },
   {
     owner: "orphan-export-ratchet (push tier)",
     rel: ORPHAN_BASELINE_REL,
-    shape: "entries-map",
     unit: "orphan export",
     why: "the 2026-08-03 export-rot sweep's UNDECIDED rows — the swept tree, NOT a permission slip. Ends per row when the export is consumed, `@public`-tagged, or deleted.",
   },
 ];
 
-const BASELINE_SUFFIX = ".baseline.json";
-const TOOLING_SRC = "tooling/src";
-const SKIP_DIRS = new Set(["node_modules", "dist"]);
 /** The artifact the single-pass writes — the ONE source of the LIVE admitted counts (never a re-run). */
 const STRUCTURE_REPORT = "check-structure.json";
 
@@ -124,32 +109,6 @@ interface GateScanView {
 interface StructureReportView {
   readonly run?: { readonly runId: string; readonly complete: boolean; readonly incompleteReasons?: readonly string[] };
   readonly gates?: readonly { readonly name: string; readonly scan?: GateScanView }[];
-}
-
-/** Every `*.baseline.json` actually on disk under `tooling/src/`, repo-relative — the reconciliation's
- *  right-hand side. Derived from the filesystem on purpose: a table can only report what it was told. */
-export function discoverBaselineFiles(root: string): readonly string[] {
-  const out: string[] = [];
-  if (!existsSync(join(root, TOOLING_SRC))) {
-    // Not a repo root. Returning [] rather than throwing keeps the verdict where it belongs: every
-    // declared ledger then reads as DEAD in `reconcileLedgers`, which refuses the run loudly.
-    return out;
-  }
-  const walk = (rel: string): void => {
-    for (const e of readdirSync(join(root, rel), { withFileTypes: true })) {
-      if (e.isDirectory()) {
-        if (!SKIP_DIRS.has(e.name)) {
-          walk(`${rel}/${e.name}`);
-        }
-        continue;
-      }
-      if (e.name.endsWith(BASELINE_SUFFIX)) {
-        out.push(`${rel}/${e.name}`);
-      }
-    }
-  };
-  walk(TOOLING_SRC);
-  return out.sort((a, b) => a.localeCompare(b));
 }
 
 /** The two-sided tripwire (GATE-AUTHORING.md §4.4a). Returns the operator lines for every disagreement
@@ -175,28 +134,11 @@ export function reconcileLedgers(declared: readonly Ledger[], discovered: readon
   return problems;
 }
 
-const ROW_READERS: Readonly<Record<LedgerShape, (raw: unknown) => readonly DebtRow[]>> = {
-  "budget-map": (raw) => Object.entries(raw as Readonly<Record<string, number>>).map(([subject, budget]) => ({ subject, budget, note: null })),
-  "entries-map": (raw) =>
-    Object.entries((raw as { readonly entries?: Readonly<Record<string, string>> }).entries ?? {}).map(([subject, note]) => ({
-      subject,
-      budget: null,
-      note,
-    })),
-};
-
 /** ONE ledger's rows, biggest budget first (the triage order — the fattest admission is the first row a
- *  burn-down claims). A malformed ledger THROWS: an unparseable debt file must never read as zero rows. */
-export function readLedgerRows(root: string, ledger: Ledger): readonly DebtRow[] {
-  const path = join(root, ledger.rel);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(path, "utf8"));
-  } catch (cause) {
-    throw new Error(`debt: ${ledger.rel} is unreadable or malformed — a debt ledger that cannot be parsed must never report zero rows`, { cause });
-  }
-  const rows = ROW_READERS[ledger.shape](parsed);
-  return [...rows].sort((a, b) => (b.budget ?? 0) - (a.budget ?? 0) || a.subject.localeCompare(b.subject));
+ *  burn-down claims). A malformed ledger THROWS via the shared parser: an unparseable debt file must never
+ *  read as zero rows. */
+export function readLedgerRows(root: string, ledger: Ledger): readonly RatchetRow[] {
+  return [...readRatchetLedger(root, ledger.rel).rows].sort((a, b) => b.count - a.count || a.subject.localeCompare(b.subject));
 }
 
 /** The per-gate LIVE admission from the single-pass artifact, or null when there is no consumable one.
@@ -276,11 +218,13 @@ function parseArgv(argv: readonly string[]): DebtArgv | "help" {
   return { gate, age };
 }
 
-function rowLine(root: string, ledger: Ledger, row: DebtRow, argv: DebtArgv): string {
-  const budget = row.budget === null ? "admitted" : `budget ${row.budget} ${ledger.unit}`;
+function rowLine(root: string, ledger: Ledger, row: RatchetRow, argv: DebtArgv): string {
+  const split = classOf(row) === "mixed" ? ` ${formatSplit(row.debt, row.ratified)}` : "";
+  const budget = `[${classOf(row)}] budget ${row.count} ${ledger.unit}${split}`;
   const age = argv.age ? `  ·  first seen ${firstSeen(root, ledger, row.subject) ?? "n/a"}` : "";
-  const note = row.note === null ? "" : `\n      why: ${row.note}`;
-  return `    ${row.subject}  ·  ${budget}${age}${note}`;
+  const note = row.why === null ? "" : `\n      why: ${row.why}`;
+  const cites = row.cite.length === 0 ? "" : `\n      cites: ${row.cite.join(", ")}`;
+  return `    ${row.subject}  ·  ${budget}${age}${note}${cites}`;
 }
 
 /** The LIVE half of one ledger's header — and the one place this walk must not read a zero as clean.
@@ -306,23 +250,44 @@ function liveLine(ledger: Ledger, rowCount: number, live: ReturnType<typeof live
   return `${admitted} finding(s) admitted by this ratchet on the last single-pass (run ${live.runId})`;
 }
 
-/** ONE ledger's section. Returns its row count + budgeted total so the walk's own totals are summed from
- *  exactly what it printed, never re-derived. */
-function printLedger(root: string, ledger: Ledger, argv: DebtArgv, live: ReturnType<typeof liveAdmitted>): { rows: number; budgeted: number } {
+/** What one ledger contributed, summed from exactly what the section PRINTED (never re-derived). */
+interface LedgerTotals {
+  readonly rows: number;
+  readonly debt: number;
+  readonly ratified: number;
+}
+
+/** ONE ledger's section, SPLIT BY CLASS (#569). The BURNABLE listing comes first — those are the rows a
+ *  board row can claim — and the RATIFIED rows are listed separately below it, under a header that says
+ *  they are not backlog. A ratified row printed inside the burnable list is the exact misreading the
+ *  classification exists to end ("a glut of backlog"), so the two lists never merge. */
+function printLedger(root: string, ledger: Ledger, argv: DebtArgv, live: ReturnType<typeof liveAdmitted>): LedgerTotals {
   const rows = readLedgerRows(root, ledger);
-  const budgeted = rows.reduce((n, r) => n + (r.budget ?? 1), 0);
+  const debt = rows.reduce((n, r) => n + r.debt, 0);
+  const ratified = rows.reduce((n, r) => n + r.ratified, 0);
+  const burnable = rows.filter((r) => r.debt > 0);
+  const ruled = rows.filter((r) => r.ratified > 0);
   print("");
-  print(`── ${ledger.owner}  ·  ${rows.length} row(s)  ·  ${budgeted} ${ledger.unit} budgeted`);
+  print(`── ${ledger.owner}  ·  ${rows.length} row(s)  ·  ${debt + ratified} ${ledger.unit} budgeted ${formatSplit(debt, ratified)}`);
   print(`   ledger: ${ledger.rel}`);
   print(`   ends:   ${ledger.why}`);
   print(`   live:   ${liveLine(ledger, rows.length, live)}`);
   if (rows.length === 0) {
     print("    (no rows — this ledger is at its terminal state)");
   }
-  for (const row of rows) {
+  print(`   BURNABLE DEBT — ${burnable.length} row(s), ${debt} ${ledger.unit}:${burnable.length === 0 ? "  (none — nothing here is claimable backlog)" : ""}`);
+  for (const row of burnable) {
     print(rowLine(root, ledger, row, argv));
   }
-  return { rows: rows.length, budgeted };
+  if (ruled.length > 0) {
+    print(
+      `   RATIFIED — ${ruled.length} row(s), ${ratified} ${ledger.unit}: PERMANENT by a recorded ruling / documented tool-FP. NOT backlog; do not claim these.`,
+    );
+    for (const row of ruled) {
+      print(rowLine(root, ledger, row, argv));
+    }
+  }
+  return { rows: rows.length, debt, ratified };
 }
 
 /** The `debt` verb — the ratchet-debt triage listing. Exit 0 (a lens) or 2 (the walk is blind). */
@@ -332,7 +297,13 @@ export function runDebtWalk(root: string, argv: readonly string[]): number {
     print(USAGE);
     return EXIT.clean;
   }
-  const problems = reconcileLedgers(LEDGERS, discoverBaselineFiles(root));
+  // `__g_` ledgers are a CONCURRENT TEST's transient fixtures (the probe-artifact convention report.ts
+  // already honours for findings) — reconciling against one would make this lens exit 2 because another
+  // process is mid-run. The `ratchet-row-integrity` gate deliberately DOES judge them: that is its fixture.
+  const problems = reconcileLedgers(
+    LEDGERS,
+    discoverBaselineFiles(root).filter((rel) => !(rel.split("/").at(-1) ?? "").startsWith("__g_")),
+  );
   if (problems.length > 0) {
     for (const p of problems) {
       warn(`debt: ${p}`);
@@ -345,20 +316,24 @@ export function runDebtWalk(root: string, argv: readonly string[]): number {
     throw new UsageError(`debt: --gate ${JSON.stringify(parsed.gate)} matched none of: ${LEDGERS.map((l) => l.owner).join(", ")}`);
   }
   const live = liveAdmitted(root);
-  print("DEBT WALK — every committed ratchet baseline's ADMITTED rows (declared debt, still a live population)");
+  print("DEBT WALK — every committed ratchet baseline's ADMITTED rows, SPLIT into burnable DEBT and ruled-permanent RATIFIED (#569)");
   print(
     live === null
       ? "live admission: UNAVAILABLE — no consumable reports/check-structure.json (missing, malformed, or from a run that did not finish). Budgets below are the COMMITTED allowance; run `pnpm check:structure` for the live half."
       : `live admission: reports/check-structure.json, run ${live.runId}`,
   );
   let rows = 0;
-  let budgeted = 0;
+  let debt = 0;
+  let ratified = 0;
   for (const ledger of selected) {
     const section = printLedger(root, ledger, parsed, live);
     rows += section.rows;
-    budgeted += section.budgeted;
+    debt += section.debt;
+    ratified += section.ratified;
   }
   print("");
-  print(`TOTAL: ${selected.length} ledger(s)  ·  ${rows} admitted row(s)  ·  ${budgeted} finding(s) budgeted`);
+  print(
+    `TOTAL: ${selected.length} ledger(s)  ·  ${rows} admitted row(s)  ·  ${debt + ratified} finding(s) budgeted ${formatSplit(debt, ratified)} — the DEBT half is the burn-down queue; the RATIFIED half is ruled permanent and is not backlog`,
+  );
   return EXIT.clean;
 }
