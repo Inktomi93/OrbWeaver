@@ -23773,9 +23773,9 @@
       "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 474,
-      "bytes": 29720,
-      "sha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+      "lines": 476,
+      "bytes": 29870,
+      "sha256": "441b144d3470544de92c49bdc59bbdd4b2939acc0756b75be28de4b3267de17f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -23788,16 +23788,17 @@
       },
       "receipt": {
         "path": "docs/reviews/side-eye/2026-08-22-rail-characters.md",
-        "assignedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
+        "assignedSha256": "441b144d3470544de92c49bdc59bbdd4b2939acc0756b75be28de4b3267de17f",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "9fe7ebb4c3f0308ce2b9941595435831c1ff69522b66e8a49681caf5fe88408d",
-        "verifiedCommit": "ad82980ad1654e54042b17bbd23f6a1b1ca4c8cd",
-        "verifiedAt": "2026-08-22",
+        "verifiedSha256": "441b144d3470544de92c49bdc59bbdd4b2939acc0756b75be28de4b3267de17f",
+        "verifiedCommit": "87c3578b889df84d5b809004c07b24dae009e6f4",
+        "verifiedAt": "2026-08-23",
         "evidence": [
           "full read 1-END by the orchestrator (2026-08-22) before attestation",
-          "reports/ receipts gitignored, referenced by path; retractions published in-report"
+          "reports/ receipts gitignored, referenced by path; retractions published in-report",
+          "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved"
         ],
         "summary": "Rail sweep 4/10 — Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
         "claims": [
@@ -24081,9 +24082,9 @@
       "path": "docs/reviews/side-eye/2026-08-22-verify-271-334.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 384,
-      "bytes": 25617,
-      "sha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+      "lines": 385,
+      "bytes": 25785,
+      "sha256": "0356b91baa196ce5d4d5b5522c76167d823aa8074ca499f9bc91392e356138ea",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -24096,16 +24097,17 @@
       },
       "receipt": {
         "path": "docs/reviews/side-eye/2026-08-22-verify-271-334.md",
-        "assignedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
+        "assignedSha256": "0356b91baa196ce5d4d5b5522c76167d823aa8074ca499f9bc91392e356138ea",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "cb744dc880891df764adf5bdebcc13cbf168666a91954f2126a77d7589dec26f",
-        "verifiedCommit": "b43fb76ad0670a91c1069177763d96b60ff50484",
-        "verifiedAt": "2026-08-22",
+        "verifiedSha256": "0356b91baa196ce5d4d5b5522c76167d823aa8074ca499f9bc91392e356138ea",
+        "verifiedCommit": "87c3578b889df84d5b809004c07b24dae009e6f4",
+        "verifiedAt": "2026-08-23",
         "evidence": [
           "full read 1-385 by the orchestrator (2026-08-22) before attestation",
-          "26 rendered receipts under reports/snaps/vv-* (gitignored snap artifacts); findings filed as board rows"
+          "26 rendered receipts under reports/snaps/vv-* (gitignored snap artifacts); findings filed as board rows",
+          "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved"
         ],
         "summary": "side-eye verification of #271 + #334: both CONFIRMED fixed (Delete single-homed across 3 collections; picker Start footer real+D123 clean). 5 new findings: P1 mobile footer clip (introduced), P1 dead initial focus (pre-existing), P2 disabled-Start contrast, P2 WI Rename two homes, P3 duplicate kebab accnames; plus a negative-overflow instrument blind spot.",
         "claims": [
