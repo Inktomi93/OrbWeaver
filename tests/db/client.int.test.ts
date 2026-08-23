@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
-import { assertReferentialIntegrity, createDb, hasPendingMigrations, localPath, pruneDbBackups, runMigrations, users } from "@orb/db";
+import { assertReferentialIntegrity, createDb, forecastDevDbReset, hasPendingMigrations, localPath, pruneDbBackups, runMigrations, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -360,9 +360,162 @@ test("pruneDbBackups matches ONLY `<db>.backup-<digits>` — adversarial neighbo
   }
 });
 
+// --- the PIN marker (#534, the #533 incident) --------------------------------------------------------
+// A `.keep` sibling exempts one backup from the sweep forever. The class it exists for: a baseline-hash
+// change auto-resets the dev db at the next respawn, and the boot's own pre-migrate copy is the ONLY
+// record of what was dropped — which the next few migrating boots then age out.
+
+test("pruneDbBackups never deletes a `.keep`-pinned backup, however old", () => {
+  // The pinned stamp is the OLDEST of twelve same-day backups: without the pin it is the first thing the
+  // recent-5 cap evicts, so a green here cannot come from the budget rescuing it.
+  const stamps = Array.from({ length: 12 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
+  const pinnedStamp = stamps[0] ?? 0;
+  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  try {
+    writeFileSync(join(dir, `${backupName(pinnedStamp)}.keep`), "");
+    const deleted = pruneDbBackups(url);
+    expect(existsSync(join(dir, backupName(pinnedStamp)))).toBe(true);
+    expect(deleted).not.toContain(join(dir, backupName(pinnedStamp)));
+    // The pin is ADDITIVE — the recent-5 budget is unchanged, so the six between it and them still go.
+    expect(deleted).toHaveLength(6);
+    // The marker itself is outside the sweep's pattern and survives too (removing a pin is a hand act).
+    expect(existsSync(join(dir, `${backupName(pinnedStamp)}.keep`))).toBe(true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a `.keep` marker pins its OWN stamp only — the twin one hour older is still swept", () => {
+  // The two-sided control: without this, "pinning works" could equally describe a sweep that stopped
+  // deleting at all.
+  const stamps = Array.from({ length: 12 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
+  const pinnedStamp = stamps[1] ?? 0;
+  const neighbour = stamps[0] ?? 0;
+  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  try {
+    writeFileSync(join(dir, `${backupName(pinnedStamp)}.keep`), "");
+    pruneDbBackups(url);
+    expect(existsSync(join(dir, backupName(pinnedStamp)))).toBe(true);
+    expect(existsSync(join(dir, backupName(neighbour)))).toBe(false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a `.keep` marker for a stamp with no base copy pins nothing — orphan sidecars still go", () => {
+  const orphan = (BASE_DAY - 30) * DAY_MS;
+  const { dir, url } = backupFixture([backupName(orphan, "-wal"), backupName(orphan, "-shm")]);
+  try {
+    writeFileSync(join(dir, `${backupName(orphan)}.keep`), "");
+    pruneDbBackups(url);
+    expect(existsSync(join(dir, backupName(orphan, "-wal")))).toBe(false);
+    expect(existsSync(join(dir, backupName(orphan, "-shm")))).toBe(false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("pruneDbBackups is a no-op for :memory: / non-file urls", () => {
   expect(pruneDbBackups(":memory:")).toEqual([]);
   expect(pruneDbBackups("libsql://example.turso.io")).toEqual([]);
+});
+
+// --- forecastDevDbReset (the dev-db DROP tripwire, #534) ---------------------------------------------
+// The forecast is what `pnpm check`'s db-baseline stage turns into a `[verify-notice]` line. Its whole
+// job is to be RIGHT about "the next respawn will wipe this db" BEFORE the respawn — the #533 loss had
+// no signal at all until the server log, hours later. Every arm is pinned, including the two silent ones
+// (a lane worktree has no db; a fresh checkout's db is trivial) and the "I could not measure" arm.
+
+const PAD_MIB = 9; // > MIN_FORECAST_BYTES (8 MiB) — the threshold that silences a fresh checkout's db.
+const SHIPPED_TAG = "0000_baseline";
+const SHIPPED_WHEN = 1_700_000_000_000;
+
+/** A migrations folder shaped exactly as drizzle's own: `meta/_journal.json` + `<tag>.sql`. */
+function migrationsFixture(dir: string, sqlText: string): string {
+  const folder = join(dir, "migrations");
+  mkdirSync(join(folder, "meta"), { recursive: true });
+  writeFileSync(join(folder, `${SHIPPED_TAG}.sql`), sqlText);
+  writeFileSync(join(folder, "meta", "_journal.json"), JSON.stringify({ entries: [{ when: SHIPPED_WHEN, tag: SHIPPED_TAG }] }));
+  return folder;
+}
+
+/** A real file db, padded past the trivial threshold, optionally carrying a `__drizzle_migrations` row. */
+async function forecastDb(dir: string, applied?: { hash: string; when: number }): Promise<string> {
+  const url = `file:${join(dir, "forecast.db")}`;
+  const db = await createDb(url);
+  // randomblob server-side: a >1MB TEXT bind through libSQL lands EMPTY, so the padding is generated in SQL.
+  await db.run(sql`CREATE TABLE pad (b BLOB)`);
+  for (let i = 0; i < PAD_MIB; i++) {
+    // biome-ignore lint/performance/noAwaitInLoops: sequential inserts ARE the padding — parallel writes would race one connection.
+    await db.run(sql`INSERT INTO pad (b) VALUES (randomblob(1048576))`);
+  }
+  if (applied !== undefined) {
+    await db.run(sql`CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at NUMERIC)`);
+    await db.run(sql`INSERT INTO __drizzle_migrations (hash, created_at) VALUES (${applied.hash}, ${applied.when})`);
+  }
+  return url;
+}
+
+test("forecastDevDbReset is silent where there is nothing to warn about (no db / a fresh small one)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-forecast-${pid}-`));
+  try {
+    const folder = migrationsFixture(dir, "CREATE TABLE a (id TEXT);");
+    expect((await forecastDevDbReset(":memory:", folder)).status).toBe("no-db");
+    expect((await forecastDevDbReset(`file:${join(dir, "nope.db")}`, folder)).status).toBe("no-db");
+    // A freshly-migrated db is a few hundred KB: losing it costs nothing, so it must not cry wolf.
+    const fresh = `file:${join(dir, "fresh.db")}`;
+    await createDb(fresh);
+    expect((await forecastDevDbReset(fresh, folder)).status).toBe("trivial");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a populated dev db whose recorded baseline differs from the shipped one is `will-reset`", async () => {
+  // THE pin: this exact state is what boot/migrate turns into `resetDevDatabase` (ALL DATA DROPPED) at the
+  // next respawn. The forecast must say so while the data is still there.
+  const dir = mkdtempSync(join(tmpdir(), `orb-forecast-${pid}-`));
+  try {
+    const folder = migrationsFixture(dir, "CREATE TABLE a (id TEXT);");
+    const url = await forecastDb(dir, { hash: "a".repeat(64), when: SHIPPED_WHEN });
+    const forecast = await forecastDevDbReset(url, folder);
+    // One object assertion, not a narrowed branch: a conditional expect can pass by never running.
+    expect({ ...forecast, path: "<path>", bytes: 0 }).toEqual({
+      status: "will-reset",
+      path: "<path>",
+      bytes: 0,
+      appliedHash: "a".repeat(64),
+      shippedHash: createHash("sha256").update("CREATE TABLE a (id TEXT);").digest("hex"),
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the same db is `current` once its recorded baseline matches — the alarm is not always-on", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-forecast-${pid}-`));
+  try {
+    const sqlText = "CREATE TABLE a (id TEXT);";
+    const folder = migrationsFixture(dir, sqlText);
+    const hash = createHash("sha256").update(sqlText).digest("hex");
+    const url = await forecastDb(dir, { hash, when: SHIPPED_WHEN });
+    expect((await forecastDevDbReset(url, folder)).status).toBe("current");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a populated db with no migrations bookkeeping is `unknown`, never silence", async () => {
+  // ZERO HYGIENE: a db the forecast cannot read must SAY it could not read it. Silence here would read
+  // exactly like "safe", which is the failure mode this whole tripwire exists to end.
+  const dir = mkdtempSync(join(tmpdir(), `orb-forecast-${pid}-`));
+  try {
+    const folder = migrationsFixture(dir, "CREATE TABLE a (id TEXT);");
+    const url = await forecastDb(dir);
+    expect((await forecastDevDbReset(url, folder)).status).toBe("unknown");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("createDb auto-creates the parent dir RELATIVE to cwd for a bare file:./ url (never absolutized)", async () => {
