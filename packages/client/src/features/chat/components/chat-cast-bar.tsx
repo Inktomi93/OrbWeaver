@@ -10,6 +10,35 @@
 // populated on the first frame and the twin is gone. The read is non-suspense: the strip is decoration, so
 // a cold cache degrades to null rather than blocking the transcript.
 //
+// #511 — ON A PHONE IT IS AN AVATAR STACK: THE NAMES GO `sr-only` AT A COARSE POINTER. Measured on the
+// real room pane at a coarse pointer (chat-cast-bar.ct.tsx carries the full matrix): a crowded-but-ordinary
+// roster — two humans still named by their EMAIL plus four card-realistic character names — wrapped this
+// strip to 3 rows / 100px at 430px, 4 rows / 130px at 390px and 5 rows / 160px at 320px. The tax GREW as
+// the screen shrank, because the strip's answer to "no room" is to wrap and every wrapped row is taken from
+// the transcript — the "the reason you opened the room is the smallest thing on screen" finding
+// (side-eye 2026-08-22). Hiding the names at a coarse pointer makes it ONE row at every width and every
+// roster size: a flat band instead of one that scales with narrowness.
+//
+// `sr-only`, NOT a removal: the name stays in the accessibility tree, so a screen-reader user loses
+// nothing and the strip still announces WHO is in the room. What a sighted phone reader gets is the face —
+// the avatar's image, or its initials over the per-character hue seed — which is the same identification
+// the chat LIST rows already run on.
+//
+// The variant itself is NOT spelled here — axis-3 device capability is a shell/shared-layer concern
+// (`no-pointer-variants-in-features`, UI-Architecture §4b), so this composes the named fragment
+// `LABEL_TO_SR_ONLY_AT_COARSE` from `#components`. It is deliberately NOT `HIDE_AT_COARSE`: that one is
+// `display:none`, which would drop the names out of the accessibility tree as well as out of the row.
+//
+// POINTER-CONDITIONAL, not width-conditional, for the reason `--spacing-touch-target` is: the phone is the
+// host that has BOTH the scarce height (a topbar and a bottom tab bar bracket the room) and the reader
+// holding the device a foot away, where a face reads faster than a name. A narrow DESKTOP window is
+// narrow without being short, and it keeps its names.
+//
+// THE REFUSED ARMS (recorded so they are not re-minted): merging the cast row into the TOPBAR would put a
+// second roster read beside `chat-header`'s member-count chip (§13 single-homing) and reaches into shell
+// chrome this component does not own; collapse-on-scroll leaves the worst case standing at first paint,
+// which is exactly when the reader is deciding whether the room is worth their thumb.
+//
 // #490 — THE STRIP IS READ-ONLY AGAIN, WHICH IS WHAT THE PARAGRAPH ABOVE ALWAYS SAID. A host-only
 // `AddMemberPopover` had been mounted here as a trailing "+", so "add a character" had TWO doors visible at
 // the same time in the default room layout (this strip's glyph and the CONTEXT panel's CAST header glyph —
@@ -29,6 +58,7 @@ import { cn } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { LABEL_TO_SR_ONLY_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
 import { BG_PHOTO_BAND_PLATE } from "../lib/message-row-backing.ts";
@@ -82,7 +112,9 @@ function CastBarStrip({ cast, humans }: { readonly cast: readonly CastSeat[]; re
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.hueSeed} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>
-          <Text as="span" size="label" weight="medium" tone={member.disabled ? "muted" : undefined}>
+          {/* `pointer-coarse:sr-only` — the #511 avatar-stack arm (header). The name keeps its place in
+              the accessibility tree; it simply stops spending the row's width on a phone. */}
+          <Text as="span" className={LABEL_TO_SR_ONLY_AT_COARSE} size="label" weight="medium" tone={member.disabled ? "muted" : undefined}>
             {member.displayName}
           </Text>
         </Row>
@@ -118,7 +150,9 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.id} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>
-          <Text as="span" size="label" weight="medium">
+          {/* Same #511 arm as the character chip — and this is where it earns most: a human seat is named
+              by its EMAIL until a persona names it (#162), the widest chip the strip ever paints. */}
+          <Text as="span" className={LABEL_TO_SR_ONLY_AT_COARSE} size="label" weight="medium">
             {member.displayName}
           </Text>
           {member.role === "host" ? <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" /> : null}

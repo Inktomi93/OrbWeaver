@@ -353,7 +353,13 @@ export function castChips(page: Page): ReturnType<Page["locator"]> {
 }
 
 /** The rendered cast-bar member names (empty when the bar isn't mounted — a solo room). A chip's text is
- *  `<avatar initials>\n<display name>`, so the NAME is its last non-empty line. */
+ *  `<avatar initials>\n<display name>`, so the NAME is its last non-empty line.
+ *
+ *  FINE-POINTER ONLY, and that is now load-bearing (#511): the strip's names are `pointer-coarse:sr-only`,
+ *  and `allInnerTexts` is LAYOUT-aware — an sr-only name reads as empty, so this helper would report an
+ *  empty roster on any coarse-pointer project rather than failing loudly. The e2e config is
+ *  `devices["Desktop Chrome"]` (playwright.config.ts) so today every run is fine-pointer; a mobile project
+ *  added here must read the names off `textContent` (the accessibility-tree read) instead. */
 export async function castChipNames(page: Page): Promise<readonly string[]> {
   const texts = await castChips(page).allInnerTexts();
   return texts
