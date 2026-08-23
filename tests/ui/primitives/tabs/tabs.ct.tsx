@@ -19,6 +19,41 @@ function fixture(): ReturnType<typeof Tabs> {
   );
 }
 
+// ── #537 · APG: the panel is a tab stop only when it has nothing else to offer ────────────────────────
+// Base UI sets `tabIndex: open ? 0 : -1` unconditionally, so every open panel was a stop — measured on the
+// corpus Archetypes context tab as `tabindex="0"` on a panel holding two buttons, i.e. a dead stop
+// announcing the panel's name again in front of the controls it already contains. The seal derives it from
+// the CONTENT (which is what the APG rule is about), so both arms live in one fixture here.
+test("#537 a panel WITH focusable content is not itself a tab stop; a text-only panel still is", async ({ mount, page }) => {
+  await mount(
+    <Tabs defaultValue="controls">
+      <TabsList>
+        <TabsTab value="controls">Controls</TabsTab>
+        <TabsTab value="prose">Prose</TabsTab>
+      </TabsList>
+      <TabsPanel value="controls">
+        <button type="button">Run the pass</button>
+      </TabsPanel>
+      <TabsPanel value="prose">Nothing here but words.</TabsPanel>
+    </Tabs>,
+  );
+
+  // SETTLED on the rendered content of each arm, never on the attribute alone. Panels are addressed by
+  // ROLE + NAME, never by `:visible` — Base UI keeps the outgoing panel painted through its exit style, so
+  // a `:visible` selector resolves to two elements mid-swap.
+  await expect(page.getByRole("button", { name: "Run the pass" })).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: "Controls" })).toHaveAttribute("tabindex", "-1");
+  // The stop is GONE from the sequence: Tab off the tab strip lands on the control, not on the panel.
+  await page.getByRole("tab", { name: "Controls" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Run the pass" })).toBeFocused();
+
+  // The other arm keeps it — a read-only panel is the case the stop exists for.
+  await page.getByRole("tab", { name: "Prose" }).click();
+  await expect(page.getByText("Nothing here but words.")).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: "Prose" })).toHaveAttribute("tabindex", "0");
+});
+
 test("click activates a tab and swaps its panel", async ({ mount, page }) => {
   await mount(fixture());
   await expect(page.getByText("First panel")).toBeVisible();

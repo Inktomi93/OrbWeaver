@@ -89,6 +89,27 @@ test("a closer memory reads a HIGHER relevance than a further one", async ({ mou
   await expect(component.getByText("0.00")).toHaveCount(0);
 });
 
+// #537 — the score used to ride ListRow's `actions`, which is a SIBLING of the clickable body by the
+// primitive's own contract: the number every sighted reader ranks the list by reached a screen reader as
+// nothing at all. `meta` is the slot for exactly this (its prop doc names the defect: "unlike a stamp
+// stranded in the `actions` sibling") — rendered inside the row's accessible content and carried on the
+// body's `aria-describedby`, so the row is announced as "<room>, <memory> 88%".
+test("#537 a hit's relevance is INSIDE the row's own button, on its accessible description", async ({ mount, page }) => {
+  await routeTrpc(page, MEMORY_HITS);
+  const component = await mount(<CorpusListSurfaceNavStory />);
+
+  await searchMemories(component);
+  const row = component.getByRole("button", { name: NAMED_ROOM });
+  // The percent is a descendant of the row's BODY (the button itself), not of a sibling cluster.
+  await expect(row.getByText("88%")).toBeVisible();
+  // …and it is wired: the body's aria-describedby resolves to text containing the number.
+  const described = await row.evaluate((el: HTMLElement) => {
+    const ids = (el.getAttribute("aria-describedby") ?? "").split(" ").filter((id) => id !== "");
+    return ids.map((id) => el.ownerDocument.getElementById(id)?.textContent ?? "").join(" ");
+  });
+  expect(described).toContain("88%");
+});
+
 test("a memory hit is a door: clicking it opens its chat", async ({ mount, page }) => {
   await routeTrpc(page, MEMORY_HITS);
   const component = await mount(<CorpusListSurfaceNavStory />);

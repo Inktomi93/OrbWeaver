@@ -77,6 +77,14 @@ function beginProgrammaticScroll(contentRef: RefObject<HTMLDivElement | null>, s
   globalThis.setTimeout(rearm, SPY_REARM_FALLBACK_MS);
 }
 
+/** Scroll the pane column back to its top — deferred a frame like every other programmatic scroll here
+ *  (see {@link afterPaint}). Module scope over the refs, exactly like {@link scrollToAnchor}, so the
+ *  deep-link effect below can call it without taking a per-render closure as a dependency. */
+function scrollContentToTop(contentRef: RefObject<HTMLDivElement | null>, suppressSpyRef: RefObject<boolean>): void {
+  beginProgrammaticScroll(contentRef, suppressSpyRef);
+  afterPaint((): void => contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() }));
+}
+
 /**
  * Jump to a section anchor inside the pane column. Switching category remounts the pane, which may SUSPEND
  * on its settings read — under CPU contention the resolve can outlast any frame budget, and the old
@@ -196,23 +204,31 @@ export function SettingsShell(): ReactElement {
 
   const searchEntries = buildSettingsSearchEntries(registry, (id) => visibleIds.has(id as SettingsCategoryId), subcategoriesFor);
 
-  // Land a SUB-level deep link once the pane has mounted (§10 Q4) — `scrollToAnchor` observes the pane's DOM
-  // until the anchor exists. Keyed on the TARGET (never on `active`), so a later user pane-switch can't
-  // re-fire a stale jump. The jump helpers are module-scope over the two refs, so the deps are the deep-link
-  // target alone — exactly what they were when `scrollToAnchor` was a ref-only manual-memo callback.
+  // LAND A DEEP LINK THE WAY A CLICK LANDS (§10 Q4 for the SUB arm; #549 for the category-only arm). Keyed
+  // on the TARGET (never on `active`), so a later user pane-switch can't re-fire a stale jump. The jump
+  // helpers are module-scope over the two refs, so the deps are the deep-link target alone — exactly what
+  // they were when `scrollToAnchor` was a ref-only manual-memo callback.
+  //
+  // THE CATEGORY-ONLY ARM USED TO HAVE NO EFFECT AT ALL, AND THAT WAS THE BUG (#549). A category CLICK runs
+  // `selectCategory`, whose `scrollContentToTop` suppresses the scroll-spy across the landing; a category
+  // DEEP LINK resolved `active`/`activeSub` in render and then simply stopped, so the spy's own initial
+  // compute ran against a pane that was still mounting and overwrote the correct first section with
+  // whatever its transient geometry implied. Measured live on `__orb.nav.openSettings("workloads")`:
+  // aria-current landed on "Analysis tuning" — the LAST of three sections — while the Runs pane rendered,
+  // and a single synthetic scroll event afterwards corrected it to "Runs". Reachable by real users, not
+  // just the bridge: `openSettingsTo("connections")` from the chat empty state takes this path (and
+  // `openSettingsTo(category, subId)` from the corpus rail, the memory section and the databank body takes
+  // the sub arm). The deep link IS a selection, so it runs the selection's landing.
   useEffect((): void => {
-    if (!(targetSatisfiable && targetSub !== null)) {
+    if (!targetSatisfiable) {
+      return;
+    }
+    if (targetSub === null) {
+      scrollContentToTop(contentRef, suppressSpyRef);
       return;
     }
     scrollToAnchor(targetCategory, targetSub, contentRef, suppressSpyRef);
   }, [targetCategory, targetSub, targetSatisfiable]);
-
-  /** Scroll the pane column back to its top — deferred a frame like every other programmatic scroll here
-   *  (see {@link afterPaint}). */
-  const scrollContentToTop = (): void => {
-    beginProgrammaticScroll(contentRef, suppressSpyRef);
-    afterPaint((): void => contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() }));
-  };
 
   const selectCategory = (id: SettingsCategoryId): void => {
     setActive(id);
@@ -220,7 +236,7 @@ export function SettingsShell(): ReactElement {
     // with no current row until the suppressed spy re-arms.
     setActiveSub(firstSubIdOf(id));
     setPushed(true);
-    scrollContentToTop();
+    scrollContentToTop(contentRef, suppressSpyRef);
   };
 
   const selectSub = (id: SettingsCategoryId, subId: string): void => {
@@ -250,7 +266,7 @@ export function SettingsShell(): ReactElement {
     setQuery("");
     setPushed(true);
     if (entry.subId === null) {
-      scrollContentToTop();
+      scrollContentToTop(contentRef, suppressSpyRef);
     } else {
       scrollToAnchor(categoryId, entry.subId, contentRef, suppressSpyRef);
     }
