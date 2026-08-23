@@ -87,6 +87,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "composer-guided-cluster",
     why: "the ✨ utility menu renders inside the cluster; composer-guided-cluster.ct drives its Simple-send item + the menu.",
   },
+  "chat-list-filter-exits": {
+    coveredBy: "chat-list-surface",
+    why: "the exits row is a #541 size-cap extraction of chat-list-surface.tsx's own zero-result block (a component file may only export components, so the button row moved whole); it renders only inside that surface's empty state, and chat-list-surface.ct drives its every arm — the per-axis exit list under 2- and 3-axis narrowing, the live click-through (clear month re-derives the sentence, clear search restores rows), and the accname disambiguation from the inset glyphs.",
+  },
   "composer-drop-target": {
     coveredBy: "composer",
     why: "the drop target IS the composer card (a #376 size-cap extraction of composer.tsx's own surface, rendering `data-slot=composer`), so it exists only as Composer's root and cannot be mounted standalone without re-creating the drag seam it wraps; composer.ct drives its every arm on the real card — the FILE-drag arm (data-drag-over + the affordance's copy and its span-the-surface geometry), the depth-counter disarm on dragleave, the TEXT-drag refusal, image/mp4 drops riding the send, and the mixed-batch refusal-by-name.",
