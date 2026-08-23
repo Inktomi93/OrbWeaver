@@ -72,7 +72,18 @@ export function SettingsNavColumn({
                   {/* A pane WITH sections is a disclosure GROUP, not a nav leaf: it expands (`aria-expanded`)
                       and its children carry the one "you are here" marker. A pane with no sections IS the
                       leaf, so it keeps `aria-current` itself. Two `aria-current` rows for one location was
-                      the side-eye a11y defect. */}
+                      the side-eye a11y defect.
+
+                      THE TWO TOKENS ARE DELIBERATE, NOT AN INCONSISTENCY — RULED, NOT CHURNED (side-eye
+                      se-verify-4, the `aria-current` nit; recorded here so it is not re-filed). The finding
+                      is that this column's rows announce `aria-current="true"` while the app RAIL announces
+                      `aria-current="page"` (`app-shell/components/rail-button.tsx`), and asks for one
+                      token. They are answering different questions, and ARIA has a token for each: the rail
+                      switches SECTIONS — the app's page-level navigation, which is exactly what `page`
+                      names — while these rows move within ONE settings surface, where no more specific
+                      token applies and `true` is the spec's own fallback. Collapsing them to one spelling
+                      would make the rail claim less than it knows, or make a scroll-spy row claim to be a
+                      different page. No change; the divergence is the correct reading of the same law. */}
                   <ListRow
                     clickable={true}
                     leading={<Icon icon={pane.icon} size="sm" />}

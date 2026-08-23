@@ -32,7 +32,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
-import { chartLabelWithDenominator, toBarItems, topRanked } from "../lib/corpus-charts.ts";
+import { chartLabelWithDenominator, chartSpread, toBarItems, topRanked } from "../lib/corpus-charts.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
 type ThemeLevel = "scene" | "arc";
@@ -91,13 +91,26 @@ export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKe
           // `quiet`: keyword frequency is REFERENCE data at the foot of the overview, and `accent` here is
           // literally `color.primary` — a full-height accent series is the surface's whole "look here"
           // budget spent as a default fill (§14 physics 4).
+          //
+          // …and the TEAL that `quiet` resolves is RATIFIED, not a drift (owner ruling 2026-08-23,
+          // se-verify-4 N4). The ruling's full text lives with the count-data-as-bars law it qualifies
+          // (`../lib/corpus-charts.ts`); the one-line version is that the categorical ramp is deliberately
+          // not this surface's accent, because ember bars are what produced the 28.69%-accent finding.
           intent="quiet"
           items={toBarItems(
             drawn.rows,
             (row) => row.keyword,
             (row) => row.count,
           )}
-          label={chartLabelWithDenominator("Top keywords", drawn.rows.length, drawn.total, "keywords")}
+          // THE SPREAD RIDES THE NAME (side-eye se-verify-4 N5). Twelve bars running 6→4 are all 67-100% of
+          // their track — an accurate picture of a flat distribution that reads as a broken chart, because
+          // nothing said how little ground it covers. `chartSpread` carries the argument; the short version
+          // is that widening the window makes it flatter (the full series is 6..2) and demoting to text
+          // would reverse the count-data-as-bars ruling on a shape that is only flat on THIS library.
+          label={`${chartLabelWithDenominator("Top keywords", drawn.rows.length, drawn.total, "keywords")} · ${chartSpread(
+            drawn.rows.map((row) => row.count),
+            "uses",
+          )}`}
         />
         <ParamSelect items={items} label="Cooccurs with" onValueChange={setKeyword} value={keyword} />
         {keyword === NO_KEYWORD ? null : <CooccurringKeywords keyword={keyword} />}

@@ -35,20 +35,24 @@
 // THE IN-RAM COSINE STAYS ANALYTICS (Knowledge-Cluster boundary). Nothing here reaches for `search`: the
 // cap, the ordering and the section order are all applied to what `discovery.similarityGraph` already
 // returned. This tab does no retrieval and gained none.
+//
+// ── THE FINDINGS MOVED NEXT DOOR (the `component-size` cap, 2026-08-23) ───────────────────────────────
+// The three duplicate sections grew what #564 says they owed — a stated cap, and the identical-art
+// equivalence-class collapse that turns 66 pairwise rows back into the one finding they were — and this
+// file is the tab's COMPOSITION: the three reads, the section ORDER (findings first, raw material after),
+// and the ranked-edge query with its two knobs. `corpus-duplicate-rows.tsx` owns what a finding looks like;
+// the pair-row anatomy it shares with the list below comes back from there so the two kinds of row stay one
+// shape.
 
-import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
+import type { CharacterId } from "@orb/kit/ids";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { compareCorpusPair, revealContextPanel, selectChat, setActiveSection } from "#state";
-import { percent } from "../lib/corpus-vocabulary.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
+import { CharacterPairRow, CorpusDuplicateArt, CorpusDuplicateCharacters, CorpusDuplicateChats, Muted } from "./corpus-duplicate-rows.tsx";
 
 const DEFAULT = "";
 const SKELETON_ROW_COUNT = 4;
@@ -103,61 +107,9 @@ function SimilarityBody(): ReactElement {
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-slot="corpus-similarity-tab" gap="section">
       {/* THE FINDINGS LEAD (#554). These three sections used to sit 52,151px below the raw edge list. */}
-      <Section heading="Duplicate characters">
-        {/* THREE COUNTS, THREE SCOPES, STATED (side-eye corpus re-pass #2, P2-5). The readiness rail read
-            "1 found · 3 identical" while this tab opened on two 100% pairs — three true numbers that look
-            like a contradiction because nothing said what each one counts. The pass's own blind spot is the
-            reason (`lib/corpus-analysis-state.ts`: it scans one representative per content hash, so
-            byte-identical cards can never pair), and it belongs beside the list it explains. */}
-        <Muted>The near-duplicate pass's pairs. It compares one card per identical copy, so exact duplicates are counted on the readiness rail instead.</Muted>
-        {dupChars.length === 0 ? (
-          <Muted>No near-duplicate characters found.</Muted>
-        ) : (
-          <Stack gap="row">
-            {dupChars.map((pair) => (
-              <CharacterPairRow idA={pair.characterIdA} idB={pair.characterIdB} key={pair.id} left={pair.nameA} right={pair.nameB} score={pair.similarity} />
-            ))}
-          </Stack>
-        )}
-      </Section>
-
-      <Section heading="Duplicate art">
-        {dupArt.length === 0 ? (
-          <Muted>No reused/near-identical avatars found.</Muted>
-        ) : (
-          <Stack gap="row">
-            {dupArt.map((pair) => (
-              <CharacterPairRow
-                idA={pair.characterIdA}
-                idB={pair.characterIdB}
-                key={`${pair.characterIdA}-${pair.characterIdB}`}
-                left={pair.nameA}
-                right={pair.nameB}
-                score={pair.similarity}
-              />
-            ))}
-          </Stack>
-        )}
-      </Section>
-
-      <Section heading="Duplicate chats">
-        {dupChats.length === 0 ? (
-          <Muted>No near-duplicate chats found.</Muted>
-        ) : (
-          <Stack gap="row">
-            {dupChats.map((pair) => (
-              <ChatPairRow
-                badge={pair.relation}
-                chatId={pair.chatIdA}
-                key={pair.id}
-                left={pair.titleA ?? "Untitled"}
-                right={pair.titleB ?? "Untitled"}
-                score={pair.similarity}
-              />
-            ))}
-          </Stack>
-        )}
-      </Section>
+      <CorpusDuplicateCharacters pairs={dupChars} />
+      <CorpusDuplicateArt pairs={dupArt} />
+      <CorpusDuplicateChats pairs={dupChats} />
 
       <NearestPairs />
     </Stack>
@@ -253,108 +205,5 @@ function NearestPairsList({
         />
       ))}
     </Stack>
-  );
-}
-
-/** A pair of CHARACTERS — a door into the Compare tab, seeded with both. The score keeps its own mono
- *  readout inside the control: it is what the row is ABOUT, so a reader hearing the name should hear it. */
-function CharacterPairRow({
-  idA,
-  idB,
-  left,
-  right,
-  score,
-}: {
-  readonly idA: CharacterId;
-  readonly idB: CharacterId;
-  readonly left: string;
-  readonly right: string;
-  readonly score: number;
-}): ReactElement {
-  return (
-    <Button
-      className="w-full justify-between"
-      intent="ghost"
-      onClick={(): void => {
-        compareCorpusPair(idA, idB);
-        revealContextPanel("compare");
-      }}
-      size="wrap"
-    >
-      <PairFace badge={undefined} left={left} right={right} score={score} />
-    </Button>
-  );
-}
-
-/** A pair of CHATS — a door into the FIRST room. There is no chat-diff surface, and inventing a
- *  destination is worse than naming a real one; the label says which room opens. */
-function ChatPairRow({
-  chatId,
-  left,
-  right,
-  score,
-  badge,
-}: {
-  readonly chatId: ChatId;
-  readonly left: string;
-  readonly right: string;
-  readonly score: number;
-  readonly badge?: string;
-}): ReactElement {
-  return (
-    <Button
-      className="w-full justify-between"
-      intent="ghost"
-      onClick={(): void => {
-        // The corpus's one cross-section destination, spelled exactly as chat's own callers spell it
-        // (`corpus-hit-rows.tsx`): section first, then the room, so CONTENT is already showing chats when
-        // the active chat changes.
-        setActiveSection("chats");
-        selectChat(chatId);
-      }}
-      size="wrap"
-      title={`Opens ${left}`}
-    >
-      <PairFace badge={badge} left={left} right={right} score={score} />
-    </Button>
-  );
-}
-
-/** What a pair row LOOKS like, shared by both doors so the two kinds stay one anatomy. */
-function PairFace({
-  left,
-  right,
-  score,
-  badge,
-}: {
-  readonly left: string;
-  readonly right: string;
-  readonly score: number;
-  readonly badge: string | undefined;
-}): ReactElement {
-  return (
-    <Row align="center" className="w-full min-w-0" gap="field" justify="between">
-      <Text as="span" className="min-w-0 truncate text-left">
-        {left} ↔ {right}
-      </Text>
-      <Row align="center" className="shrink-0" gap="field">
-        {badge === undefined ? null : (
-          <Badge intent="neutral" size="sm">
-            {badge}
-          </Badge>
-        )}
-        <Text as="span" className="font-mono" voice="gloss">
-          {percent(score)}
-        </Text>
-      </Row>
-    </Row>
-  );
-}
-
-function Muted({ children }: { readonly children: string }): ReactElement {
-  return (
-    <Text className="max-w-(--reading-measure)" voice="gloss">
-      {children}
-    </Text>
   );
 }

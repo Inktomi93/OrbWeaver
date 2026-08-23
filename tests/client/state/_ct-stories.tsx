@@ -127,7 +127,9 @@ import {
   useComposerFocusRequest,
   useContextTab,
   useCorpusCompareA,
+  useCorpusCompareAName,
   useCorpusCompareB,
+  useCorpusCompareBName,
   useCorpusSearchQuery,
   useCorpusSearchTargetId,
   useDatabankPhaseFilter,
@@ -789,16 +791,21 @@ export function CorpusSelectionProbe(): ReactElement {
 export function CorpusComparePairProbe(): ReactElement {
   const a = useCorpusCompareA();
   const b = useCorpusCompareB();
+  // The NAME travels with the id (#563) — the picker cannot name a selection outside its own catalog page,
+  // so the writer supplies it. The probe reads both back to prove the pairing survives each write shape.
+  const aName = useCorpusCompareAName();
+  const bName = useCorpusCompareBName();
   return (
     <div>
       <output>{`a=${a === "" ? "none" : a} b=${b === "" ? "none" : b}`}</output>
-      <button onClick={(): void => compareCorpusPair("character_freya", "character_frida")} type="button">
+      <output>{`aName=${aName === "" ? "none" : aName} bName=${bName === "" ? "none" : bName}`}</output>
+      <button onClick={(): void => compareCorpusPair({ id: "character_freya", name: "Freya" }, { id: "character_frida", name: "Frida" })} type="button">
         seed corpus pair
       </button>
-      <button onClick={(): void => setCorpusCompareA("character_yuki")} type="button">
+      <button onClick={(): void => setCorpusCompareA("character_yuki", "Yuki")} type="button">
         set corpus compare a
       </button>
-      <button onClick={(): void => setCorpusCompareB("")} type="button">
+      <button onClick={(): void => setCorpusCompareB("", "")} type="button">
         clear corpus compare b
       </button>
     </div>
