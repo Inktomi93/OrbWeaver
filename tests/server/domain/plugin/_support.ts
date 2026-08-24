@@ -248,6 +248,10 @@ export function makeInertOps(): PluginHostOps {
     },
     notifications: { emit: () => Promise.resolve(), post: () => Promise.resolve() },
     llm: { quiet: () => Promise.resolve({ text: "" }) },
+    // The S4 posture-2 inbox, inert here. Not a fail-closed default like the two above, because a raise that
+    // silently does nothing is the honest inert shape: the SECURITY property under test elsewhere is that a
+    // non-host act does not EXECUTE, and the tests that care about the ask being stored inject a recorder.
+    suggestions: { raise: () => undefined, voidForPlugin: () => undefined },
     quickReply: { surface: () => Promise.resolve() },
     imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },

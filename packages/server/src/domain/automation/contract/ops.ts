@@ -10,6 +10,7 @@ import type {
   AutomationAction,
   AutomationBusEvent,
   AutomationCelEnv,
+  AutomationEmitSource,
   AutomationOrigin,
   AutomationRunOutcome,
   AutomationSuggestionKind,
@@ -20,11 +21,12 @@ import type { PromptTransform, TurnInitiator } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent } from "@orb/contracts/notifications";
+import type { PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
-import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, MessageId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { ResolveViewerVisibility } from "#domain/chat";
 
@@ -303,21 +305,65 @@ export interface StashedArm {
   readonly frame: DispatchFrame;
 }
 
-/** One pending ask. `stashed` is the class's payload half: a `confirm` carries one, an `invitation` carries
- *  `null` BY CONSTRUCTION — `budget_refused` is decided before predicate and env, so no rendered arm exists
- *  to stash, which is also why the invitation path has no TOCTOU. */
+/** The PAYLOAD half of a pending ask, discriminated by WHOSE enforcement set the confirmed act must re-enter
+ *  through. This is the load-bearing distinction and it is not cosmetic: executing a plugin's stashed act
+ *  through `runArm` (automation's dispatcher) would run it under AUTOMATION's belts instead of the plugin
+ *  bridge's — the attachment gate, the per-plugin 64-entry ceiling and `neutralizeMacros`
+ *  (`domain/plugin/substrate/bridge.ts`). That is an enforcement-set swap hidden inside a UX affordance:
+ *  the feature demos correctly and the capability quietly widens. THE ENFORCEMENT SET FOLLOWS THE ORIGIN.
+ *
+ *  `null` is the INVITATION class and is `null` by construction — `budget_refused` is decided before the
+ *  predicate and before any env exists, so no rendered arm can be stashed, which is also why that path has
+ *  no TOCTOU. */
+export type SuggestionPayload =
+  | { readonly via: "arm"; readonly stashed: StashedArm }
+  /** A plugin-origin act, re-executed through `domain/plugin`'s OWN bridge at confirm (the injected
+   *  {@link ExecutePluginSuggestion} op — automation may not import a sibling domain). Inert data: it names
+   *  an act and nothing that could execute it. */
+  | { readonly via: "plugin-act"; readonly act: PluginSuggestedAct };
+
+/** WHO raised the ask. The SAME `AutomationEmitSource` union the bus already carries for `quickReplySurfaced`
+ *  (one home — a plugin has no rule, so the source names the real origin id, never a synthetic one), plus the
+ *  per-origin liveness anchor the confirm re-check needs. */
+export type SuggestionSource = AutomationEmitSource;
+
+/** One pending ask. */
 export interface PendingSuggestion {
   readonly id: AutomationSuggestionId;
   readonly kind: AutomationSuggestionKind;
   readonly chatId: ChatId;
-  readonly ruleId: AutomationRuleId;
-  /** The RULE AUTHOR — the identity a confirmed execution runs as. The confirmer is the AUTHORIZER only
-   *  (§3-S4: ownership, funding and the variable namespace all key off the author, never off who clicked). */
-  readonly authorUserId: UserId;
+  /** Rule or plugin — the replace-per-kind slot key, the liveness branch, and the execution branch. */
+  readonly source: SuggestionSource;
+  /** The identity a confirmed execution runs AS: the rule AUTHOR, or the plugin's INSTALLER. The confirmer is
+   *  the AUTHORIZER only (§3-S4: ownership, funding and the variable namespace all key off this user, never
+   *  off who clicked) — and it is the user whose HOST authority the confirm re-check re-runs, which is the
+   *  whole of the ruled host-handoff wall: an actor who lost host cannot have their pending ask executed by
+   *  the new host. Fail-closed, no re-mint, no transfer (owner ruling 2026-08-24). */
+  readonly actorUserId: UserId;
   readonly summary: string;
   readonly expiresAt: number;
-  readonly stashed: StashedArm | null;
+  readonly payload: SuggestionPayload | null;
 }
+
+/** Execute a CONFIRMED plugin-origin act through `domain/plugin`'s own bridge — declared here as a TYPE and
+ *  wired at `entry/compose` (the cake: automation never imports plugin). The op rebuilds the plugin's bridge
+ *  from the `pluginId` + installer, so the confirmed act takes the plugin's OWN gates and belts, and re-checks
+ *  nothing about authority: the confirm verb already gated the host, claimed the ask take-once, and re-ran
+ *  the actor's host authority. Rejects on any refusal; the verb surfaces it as `action_error`. */
+export type ExecutePluginSuggestion = (req: {
+  readonly pluginId: PluginId;
+  readonly installerUserId: UserId;
+  readonly chatId: ChatId;
+  readonly act: PluginSuggestedAct;
+}) => Promise<void>;
+
+/** Is this plugin still installed AND enabled FOR THIS OWNER? The plugin half of the confirm-time liveness
+ *  re-check (the twin of "the rule still exists and is enabled"). Declared here, wired at compose to
+ *  `domain/plugin`'s OWNER-SCOPED read — automation holds no `plugins` table and may not query one, and the
+ *  read takes the owner because every `plugins` read filters `ownerId` by construction (a leak-free
+ *  partition). The owner passed is the ask's own `actorUserId`, so a record whose plugin was re-keyed to
+ *  someone else answers `false`. Fail-CLOSED on anything but a live enabled row. */
+export type IsPluginLive = (pluginId: PluginId, ownerId: UserId) => Promise<boolean>;
 
 /** The per-process pending map (`substrate/suggestions.ts` implements it). Every method that can observe an
  *  expired entry takes the INJECTED clock's `nowMs` and sweeps first — the TTL is carried EXPLICITLY
@@ -336,6 +382,10 @@ export interface SuggestionStore {
   readonly drop: (id: AutomationSuggestionId, nowMs: number) => PendingSuggestion | null;
   /** VOID every ask of one rule (disabled/deleted — its consent question can no longer be answered). */
   readonly voidRule: (ruleId: AutomationRuleId) => number;
+  /** VOID every ask of one PLUGIN (deactivated/uninstalled — the twin of `voidRule`). The confirm-time
+   *  liveness re-check is what makes a stale plugin card SAFE; this is what makes it disappear, so a host is
+   *  not offered an answer that would refuse. */
+  readonly voidPlugin: (pluginId: PluginId) => number;
   /** VOID every ask in one chat (the RULED host-handoff sweep: authority died, its pending asks die). */
   readonly voidChat: (chatId: ChatId) => number;
   /** A chat's live asks, oldest first (the handoff sweep's input). */

@@ -324,17 +324,18 @@ function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, f
   const id = deps.newSuggestionId();
   const expiresAt = frame.now + AUTOMATION_SUGGESTION_TTL_MS;
   const summary = summarizeSuggestibleArm(action);
+  const source = { kind: "rule", ruleId: frame.origin.ruleId } as const;
   deps.suggestions.raise({
     id,
     kind: "confirm",
     chatId: frame.chatId,
-    ruleId: frame.origin.ruleId,
-    authorUserId: frame.authorUserId,
+    source,
+    actorUserId: frame.authorUserId,
     summary,
     expiresAt,
-    stashed: { action, frame },
+    payload: { via: "arm", stashed: { action, frame } },
   });
-  deps.notify({ type: "suggestionRaised", chatId: frame.chatId, ruleId: frame.origin.ruleId, suggestionId: id, kind: "confirm", summary, expiresAt });
+  deps.notify({ type: "suggestionRaised", chatId: frame.chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt });
   // `suggested` is what keeps the fire log honest: the rule's remaining arms still run, but its TERMINAL
   // records no `fired` row, because nothing fired — a host was asked.
   return { ok: true, suggested: true };

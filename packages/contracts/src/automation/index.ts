@@ -402,7 +402,12 @@ export interface AutomationCelEnv {
 }
 
 // ── S4: the suggest/confirm vocabulary ────────────────────────────────────────────────────────────
-// The #14 three-posture law over rules: standing authority ⇒ act; no standing authority ⇒ ASK the host.
+// The #14 three-posture law over rules AND plugins: standing authority ⇒ act; no standing authority ⇒ ASK
+// the host. A PLUGIN joins the same law and the same inbox — a plugin whose installer is not host of the
+// invocation chat raises an ask instead of taking a flat refusal (`domain/plugin`; the act vocabulary is
+// `@orb/contracts/plugin`'s `PluginSuggestedAct`). One store, one card surface, one host answer: a second
+// proposal system would mean a second TTL, a second sweep and two places to look.
+//
 // TWO classes, and the difference is what the pending record can hold (interaction-direction-spec §3-S4):
 //   • `confirm`    — a confirm-first ARM stashed its resolved self at fire time (after predicate + env), so
 //                    the confirm executes THAT arm, in the author's frame, exactly as it would have run.
@@ -457,7 +462,11 @@ export type AutomationBusEvent =
   | {
       type: "suggestionRaised";
       chatId: ChatId;
-      ruleId: AutomationRuleId;
+      /** WHO is asking — the SAME `AutomationEmitSource` union `quickReplySurfaced` already carries, and for
+       *  the same reason: a plugin ask has no rule, so the source names the ACTUAL origin id rather than a
+       *  synthetic rule. It is also the replace-per-kind key on both sides (server store + client fold), so a
+       *  cadence rule and a chatty plugin each keep exactly ONE live card. */
+      source: AutomationEmitSource;
       suggestionId: AutomationSuggestionId;
       kind: AutomationSuggestionKind;
       /** The rendered ASK the host reads on the card — display text, not an id to re-read (there is no row;

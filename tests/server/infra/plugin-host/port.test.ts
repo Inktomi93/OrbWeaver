@@ -7,7 +7,7 @@
 
 import process from "node:process";
 import type { NotificationRecipient } from "@orb/contracts/notifications";
-import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import {
@@ -165,6 +165,7 @@ function fakeBridge(): {
   turns: { count: number; lastDepth: number; args: readonly unknown[] };
   quiets: { prompts: string[] };
   egress: { count: number };
+  suggested: { acts: PluginSuggestedAct[] };
 } {
   const kv = new Map<string, string>([["greeting", "hello-from-kv"]]);
   // The plugin-PRIVATE store the bridge closes pluginId/installer over (the fake models it as a flat map — the
@@ -180,6 +181,7 @@ function fakeBridge(): {
   const turns: { count: number; lastDepth: number; args: readonly unknown[] } = { count: 0, lastDepth: -1, args: [] };
   const quiets: { prompts: string[] } = { prompts: [] };
   const egress = { count: 0 };
+  const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
   const bridge: PluginBridge = {
     chat: {
       listMessages: () => Promise.resolve([{ id: "m1", role: "user", authorDisplayName: "U", characterId: null, seq: 1, content: "hi" }]),
@@ -253,8 +255,14 @@ function fakeBridge(): {
     admitEgress: (): void => {
       egress.count += 1;
     },
+    // POSTURE 2 — records what the membrane stashed instead of performing, so a test can tell "asked" from
+    // "refused" from "did it". Those three are different outcomes and only the first is correct here.
+    suggest: (_chatId, act): Promise<void> => {
+      suggested.acts.push(act);
+      return Promise.resolve();
+    },
   };
-  return { bridge, kv, store, notices, chips, writes, lore, pics, turns, quiets, egress };
+  return { bridge, kv, store, notices, chips, writes, lore, pics, turns, quiets, egress, suggested };
 }
 
 const noChat: InvocationChat | null = null;
@@ -516,12 +524,15 @@ describe("membrane — chat.requestTurn (turn.trigger): capability + host-author
     host.dispose(outcome.instance);
   });
 
-  test("a NON-HOST caller's requestTurn is refused by the host-authority ceiling (bridge never called)", { timeout: LONG }, async () => {
+  test("a NON-HOST caller's requestTurn becomes an ASK, end-to-end through the real runtime (posture 2)", { timeout: LONG }, async () => {
     const host = makeHost();
     const fake = fakeBridge();
-    const main = "const h = orb.host(1); h.chat.requestTurn(h.chat.current()).catch((e) => h.log.error('t:' + e.message));";
-    // canWrite:false ⇒ the acting principal is not host of the chat — a turn is host-gated SPEND, so it's refused
-    // at the ceiling before the funder/budget is ever touched (a non-host plugin cannot spawn a turn).
+    const main = "const h = orb.host(1); h.chat.requestTurn(h.chat.current()).catch((e) => h.log.error('t:' + e.name));";
+    // canWrite:false ⇒ the acting principal is not host of the chat. This USED to be a flat refusal, which is
+    // posture 3 wearing posture 2's clothes; the #14 three-posture law says the act becomes an ASK the host
+    // confirms. BOTH halves are asserted, because either alone would be a lie: no turn was taken, AND an ask
+    // was stored. The guest is told by TYPE — `PluginSuggestedError`, not the capability refusal (which would
+    // claim the grant is missing) and not a resolve (which would claim the turn ran).
     const outcome = await host.createInstance({
       mainJs: main,
       grants: ["chat.read", "turn.trigger"],
@@ -532,8 +543,9 @@ describe("membrane — chat.requestTurn (turn.trigger): capability + host-author
     if (!outcome.ok) {
       return;
     }
-    expect(host.readLog(outcome.instance).some((l) => l.message.includes("host authority"))).toBe(true);
+    expect(host.readLog(outcome.instance).some((l) => l.message === "t:PluginSuggestedError")).toBe(true);
     expect(fake.turns.count).toBe(0);
+    expect(fake.suggested.acts.map((a) => a.kind)).toEqual(["requestTurn"]);
     host.dispose(outcome.instance);
   });
 });
@@ -967,13 +979,13 @@ describe("membrane — worldInfo + imagery (host-gated writers)", () => {
     host.dispose(outcome.instance);
   });
 
-  test("a NON-HOST caller's worldInfo/imagery writes are refused (host authority ceiling)", { timeout: LONG }, async () => {
+  test("a NON-HOST caller's worldInfo write becomes an ASK carrying the entry verbatim (posture 2)", { timeout: LONG }, async () => {
     const host = makeHost();
     const fake = fakeBridge();
     const main = `
       const h = orb.host(1);
       h.worldInfo.upsertEntry(h.chat.current(), { bookId: "wb_1", entryKey: "k", keys: [], contentTemplate: "c", position: "after" })
-        .catch((e) => h.log.error("w:" + e.message));`;
+        .catch((e) => h.log.error("w:" + e.name));`;
     const outcome = await host.createInstance({
       mainJs: main,
       grants: ["worldinfo.write", "chat.read"],
@@ -984,8 +996,11 @@ describe("membrane — worldInfo + imagery (host-gated writers)", () => {
     if (!outcome.ok) {
       return;
     }
-    expect(host.readLog(outcome.instance).some((l) => l.message.includes("host authority"))).toBe(true);
+    expect(host.readLog(outcome.instance).some((l) => l.message === "w:PluginSuggestedError")).toBe(true);
+    // No lore was written, and the ask carries the guest's entry — every domain gate it would have met
+    // directly runs again when a host confirms, through the PLUGIN's own executor.
     expect(fake.lore.count).toBe(0);
+    expect(fake.suggested.acts.map((a) => a.kind)).toEqual(["worldInfoUpsert"]);
     host.dispose(outcome.instance);
   });
 

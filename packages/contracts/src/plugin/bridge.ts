@@ -11,6 +11,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { NotificationRecipient } from "#notifications";
 import type { PluginMessageView, PluginWorldEntryUpsert } from "./host-v1.ts";
+import type { PluginSuggestedAct } from "./suggestion.ts";
 
 /** The JSON-shaped, authority-agnostic op bridge the membrane calls. Chat-scoped fns take an admitted
  *  `ChatId`; global-vars is pre-scoped to the installer by the domain builder. Exposes the composable set:
@@ -83,6 +84,21 @@ export interface PluginBridge {
   readonly llm: {
     readonly quiet: (prompt: string) => Promise<{ readonly text: string }>;
   };
+  /** POSTURE 2 — stash `act` as a SUGGESTION for the ADMITTED chat's host to confirm, instead of performing
+   *  it. Called by the membrane on exactly the arm that used to be a flat refusal: the installer holds the
+   *  grant but not host authority on this chat (`InvocationChat.canWrite === false`).
+   *
+   *  THE MEMBRANE STAYS AUTHORITY-BLIND. It decides "no standing authority" from the `canWrite` the DOMAIN
+   *  already resolved and hands the act down; it does not mint an id, render the question, know the plugin's
+   *  name, or touch the S4 store — all of which are domain state it holds none of. The domain builder closes
+   *  the plugin identity + installer over this, so a guest can no more name whose ask this is than it can
+   *  name a funder.
+   *
+   *  It resolves when the ASK IS STORED, never when the act happens — the membrane converts that into the
+   *  typed `PluginSuggestedError` the guest sees, because "your act became a question" is a different
+   *  outcome from both "done" and "refused" and a guest that cannot tell them apart will do the wrong next
+   *  thing. It REJECTS only if the ask itself could not be raised. */
+  readonly suggest: (chatId: ChatId, act: PluginSuggestedAct) => Promise<void>;
   /** CHECK-AND-CLAIM one `net.fetch` egress slot for this plugin's hourly floor; THROWS when the plugin is
    *  over its ceiling. Synchronous and atomic for the same reason `NotifyFloor.admit` is.
    *

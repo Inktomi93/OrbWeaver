@@ -16,13 +16,23 @@
 //      id both peek and both gate, and exactly ONE claims; the loser refuses typed. The claim happens BEFORE
 //      the re-checks and is not rolled back if they fail, because a claimed ask is spent either way — the
 //      alternative (put it back) is what turns a refusal into a retry loop against dead state.
-//   3. RE-CHECK the two things that can have died since the ask was raised: the rule is still enabled (the
-//      host may have withdrawn consent), and its AUTHOR still holds host (the RULED host-handoff wall — and
-//      note the confirmer's own host role does NOT stand in for the author's).
-//   4. EXECUTE by class. `confirm` runs the STASHED arm through the injected dispatcher with `confirmFirst`
-//      cleared, in the STORED frame, and records a `fired` row stamped with the confirmer. `invitation` has
-//      no stored payload by construction (`budget_refused` precedes predicate and env), so it runs the rule
-//      FRESH through R7 — which records its own fire row and can honestly come back `predicate_false`.
+//   3. RE-CHECK the two things that can have died since the ask was raised — BY ORIGIN. For a rule: it still
+//      exists and is enabled (the host may have withdrawn consent). For a PLUGIN: it is still installed and
+//      enabled (the injected read). For BOTH: the ACTOR still holds host, which is one ruling with two
+//      spellings — the confirmer's own host role never stands in for the actor's, and on a handoff the
+//      pending ask dies fail-closed (owner ruling 2026-08-24: no re-mint, no transfer).
+//   4. EXECUTE by ORIGIN, then by class. A rule's `confirm` runs the STASHED arm through the injected
+//      dispatcher with `confirmFirst` cleared, in the STORED frame, and records a `fired` row stamped with
+//      the confirmer; its `invitation` has no stored payload by construction (`budget_refused` precedes
+//      predicate and env), so it runs the rule FRESH through R7. A PLUGIN ask runs its stashed act back
+//      through the PLUGIN's own bridge (see `runPluginAct` — the enforcement set follows the origin, not the
+//      executor) and writes no fire row.
+//
+// PLUGINS JOINED THIS LAW POST-#24. A plugin whose installer is not host of the invocation chat used to get a
+// flat refusal at the membrane, which is posture 3 wearing posture 2's clothes: safe, but it made "ask"
+// unexpressible. Its ask now lands in this same store and is answered by this same verb — one inbox, one host
+// answer. Nothing about the class-1 wall moves: a suggestion is an ASK, and the confirmed act is the SAME set
+// of ops the plugin could already perform WITH standing authority, never a new one.
 //
 // FIRE-LOG HONESTY (§3-S4 + §6 R5): `AUTOMATION_FIRE_OUTCOMES` gains NO suggestion terminal here. Nothing is
 // written when an ask is RAISED — a suggestion is not a fire — and the CONFIRMED execution writes `fired`
@@ -31,6 +41,7 @@
 
 import type { AutomationRunOutcome } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
+import type { AutomationRuleId, PluginId } from "@orb/kit/ids";
 import { SuggestionNotFoundError, SuggestionRefusedError } from "../contract/errors.ts";
 import type { PendingSuggestion, RuleRow } from "../contract/ops.ts";
 import type { ConfirmSuggestionParams } from "../contract/params.ts";
@@ -55,25 +66,77 @@ async function requireSuggestionHost(ctx: AutomationContext, principal: Principa
   ctx.can(principal, "host", { kind: "chat", roster: { role } });
 }
 
-/** The two deaths a pending ask can suffer between raise and confirm. Both are TYPED refusals — the host
- *  asked for something that can no longer legitimately happen and is told which. */
-async function assertStillLive(ctx: AutomationContext, pending: PendingSuggestion): Promise<RuleRow> {
-  const rule = await selectRuleRow(ctx.db, pending.ruleId);
+/** The ACTOR-authority half of the liveness re-check, shared by BOTH origins because it is one ruling, not
+ *  two. §3-S4: confirm re-runs `holdsAuthority(actor)` exactly as dispatch does, and the CONFIRMER's own host
+ *  role never stands in for the actor's. Owner ruling 2026-08-24: on a host handoff this VOIDS the pending
+ *  ask, fail-closed — no re-mint, no transfer to the new host. The ask was "may THIS actor do this here", and
+ *  the actor no longer may. */
+async function assertActorStillHosts(ctx: AutomationContext, pending: PendingSuggestion, lostMessage: string): Promise<void> {
+  if (!(await holdsChatHostAuthority(ctx, pending.chatId, pending.actorUserId))) {
+    throw new SuggestionRefusedError("author_lost_authority", lostMessage);
+  }
+}
+
+/** The RULE origin's liveness: the rule still exists, is still enabled, and its AUTHOR still hosts. */
+async function assertRuleStillLive(ctx: AutomationContext, pending: PendingSuggestion, ruleId: AutomationRuleId): Promise<RuleRow> {
+  const rule = await selectRuleRow(ctx.db, ruleId);
   if (rule === undefined || rule.chatId === null) {
     throw new SuggestionRefusedError("rule_gone", "the rule behind this suggestion no longer exists");
   }
   if (!rule.enabled) {
     throw new SuggestionRefusedError("rule_disabled", "the rule behind this suggestion has been disabled");
   }
-  if (!(await holdsChatHostAuthority(ctx, pending.chatId, pending.authorUserId))) {
-    throw new SuggestionRefusedError("author_lost_authority", "the rule's author no longer hosts this room");
-  }
+  await assertActorStillHosts(ctx, pending, "the rule's author no longer hosts this room");
   return rule;
+}
+
+/** The PLUGIN origin's liveness — the exact twin, one branch down: the plugin is still installed AND enabled
+ *  (the INJECTED read; automation holds no `plugins` table and may not query one), and its INSTALLER still
+ *  hosts. Fail-CLOSED both ways, and both ways matter: a disabled plugin's card must not be a way to run one
+ *  more act after the owner turned it off, and a demoted installer's card must not be executable by the new
+ *  host. Each refuses typed, so a host who kept a card open learns WHICH thing changed. */
+async function assertPluginStillLive(ctx: AutomationContext, pending: PendingSuggestion, pluginId: PluginId): Promise<void> {
+  if (!(await ctx.isPluginLive(pluginId, pending.actorUserId))) {
+    throw new SuggestionRefusedError("rule_disabled", "the plugin behind this suggestion is no longer installed or enabled");
+  }
+  await assertActorStillHosts(ctx, pending, "the plugin's installer no longer hosts this room");
+}
+
+/** Execute a CONFIRMED PLUGIN act through the PLUGIN's OWN executor (the injected op).
+ *
+ *  THE ENFORCEMENT SET FOLLOWS THE ORIGIN, and this is the whole reason the payload is a union rather than an
+ *  `AutomationAction`. Two of the three plugin acts have an automation arm that looks identical, so routing
+ *  them through `ctx.runArm` would compile, demo correctly, and be wrong: they would take AUTOMATION's belts
+ *  instead of the plugin bridge's — the book-attached-to-chat gate, the per-plugin 64-entry ceiling and
+ *  `neutralizeMacros`. A plugin would then gain reach BY BEING CONFIRMED that it does not have when it acts
+ *  directly, which is an enforcement swap hidden inside a UX affordance. The injected op rebuilds the
+ *  plugin's own bridge, so a confirmed act meets exactly the gates the direct act would have met.
+ *
+ *  NO FIRE ROW, deliberately: `automation_fires` is keyed to a rule by FK and a plugin has none. Minting a
+ *  synthetic rule id to write one would put a lie in the log this domain works to keep honest (§3-S4
+ *  fire-log honesty), and a durable plugin-act log is its own row, not a forged automation fire. The
+ *  CONFIRMER is the AUTHORIZER only and is deliberately NOT a parameter here: there is nothing to stamp them
+ *  onto, and the act runs as the INSTALLER — on the installer's budget, in the installer's namespace. Their
+ *  authorization was spent at the host gate and the take-once claim, upstream. */
+async function runPluginAct(ctx: AutomationContext, pending: PendingSuggestion, pluginId: PluginId): Promise<AutomationRunOutcome> {
+  const payload = pending.payload;
+  if (payload === null || payload.via !== "plugin-act") {
+    throw new SuggestionRefusedError("no_stashed_arm", "this suggestion carries nothing to execute");
+  }
+  try {
+    await ctx.executePluginSuggestion({ pluginId, installerUserId: pending.actorUserId, chatId: pending.chatId, act: payload.act });
+  } catch {
+    // Errors-as-data, matching the arm path: a refused/failed act is an OUTCOME the host reads, never a
+    // thrown 500 — and the ask is already spent, so there is nothing to retry against.
+    return "action_error";
+  }
+  return "fired";
 }
 
 /** Execute the STASHED arm and record the confirmed fire, stamped with who authorized it. */
 async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
-  const stashed = pending.stashed;
+  const payload = pending.payload;
+  const stashed = payload !== null && payload.via === "arm" ? payload.stashed : null;
   if (stashed === null) {
     // Unreachable through the store (a `confirm` always carries one), and a THROW rather than a silent
     // no-op: a confirm class with no payload is a broken invariant, not a user outcome.
@@ -83,11 +146,11 @@ async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion,
   const outcome: AutomationRunOutcome = armOutcome.ok ? "fired" : "action_error";
   const nowMs = ctx.now();
   if (armOutcome.ok) {
-    await stampRuleFired(ctx.db, pending.ruleId, nowMs);
+    await stampRuleFired(ctx.db, rule.id, nowMs);
   }
   await insertFire(ctx.db, {
     id: ctx.newFireId(),
-    ruleId: pending.ruleId,
+    ruleId: rule.id,
     chatId: pending.chatId,
     triggerType: rule.triggerType,
     outcome,
@@ -100,11 +163,7 @@ async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion,
     automationDepth: stashed.frame.origin.automationDepth,
     firedAt: nowMs,
   });
-  ctx.notify(
-    armOutcome.ok
-      ? { type: "ruleFired", chatId: pending.chatId, ruleId: pending.ruleId }
-      : { type: "ruleErrored", chatId: pending.chatId, ruleId: pending.ruleId },
-  );
+  ctx.notify(armOutcome.ok ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id });
   return outcome;
 }
 
@@ -122,7 +181,16 @@ export function createConfirmSuggestion(ctx: AutomationContext): AutomationServi
     if (claimed === null) {
       throw new SuggestionNotFoundError(suggestionId);
     }
-    const rule = await assertStillLive(ctx, claimed);
+    // BRANCH ON THE ORIGIN, not on the class — the liveness question and the executor are both origin-owned.
+    // A plugin ask has no rule to re-read and no `runRuleNow` to fall back on: the invitation class is
+    // structurally rule-only (it exists because `budget_refused` fires pre-predicate on a RULE), so a plugin
+    // ask is always `confirm` and always carries its act.
+    if (claimed.source.kind === "plugin") {
+      const { pluginId } = claimed.source;
+      await assertPluginStillLive(ctx, claimed, pluginId);
+      return { ran: "stashed-arm", outcome: await runPluginAct(ctx, claimed, pluginId) };
+    }
+    const rule = await assertRuleStillLive(ctx, claimed, claimed.source.ruleId);
     if (claimed.kind === "confirm") {
       return { ran: "stashed-arm", outcome: await runStashedArm(ctx, claimed, rule, principal) };
     }

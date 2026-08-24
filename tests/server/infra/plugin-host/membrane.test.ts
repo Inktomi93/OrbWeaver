@@ -7,7 +7,7 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
-import type { InvocationChat, PluginBridge, PluginCapability } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
@@ -28,16 +28,25 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   writes: { count: number };
   llm: { prompts: string[] };
   egress: { count: number };
+  suggested: { acts: PluginSuggestedAct[] };
+  performed: { turns: number; lore: number; pictures: number; chips: number };
 } {
   const writes = { count: 0 };
+  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0 };
   const llm: { prompts: string[] } = { prompts: [] };
   const egress = { count: 0 };
+  const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
   const bridge: PluginBridge = {
     llm: {
       quiet: (prompt) => {
         llm.prompts.push(prompt);
         return Promise.resolve({ text: `answered:${prompt.length}` });
       },
+    },
+    // POSTURE 2 — records the act the membrane stashed, so a test can tell "asked" from "refused" from "did it".
+    suggest: (_chatId, act) => {
+      suggested.acts.push(act);
+      return Promise.resolve();
     },
     admitEgress: (): void => {
       egress.count += 1;
@@ -52,16 +61,32 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
         writes.count += 1;
         return Promise.resolve();
       },
-      requestTurn: () => Promise.resolve(),
+      requestTurn: () => {
+        performed.turns += 1;
+        return Promise.resolve();
+      },
     },
-    worldInfo: { upsertEntry: () => Promise.resolve() },
-    imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
+    worldInfo: {
+      upsertEntry: () => {
+        performed.lore += 1;
+        return Promise.resolve();
+      },
+    },
+    imagery: {
+      generatePicture: () => {
+        performed.pictures += 1;
+        return Promise.resolve({ assetId: "asset_x0000000000000000000000" });
+      },
+    },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
     storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
     notifications: { post: () => Promise.resolve() },
-    surfaceQuickReply: () => Promise.resolve(),
+    surfaceQuickReply: () => {
+      performed.chips += 1;
+      return Promise.resolve();
+    },
   };
-  return { bridge, writes, llm, egress };
+  return { bridge, writes, llm, egress, suggested, performed };
 }
 
 /** Optional membrane wiring the net.fetch / transforms / events seams need (default: no hosts, noop collect). */
@@ -382,6 +407,121 @@ describe("attachMembrane — net.fetch is gated + walled to the manifest netHost
       expect(out).not.toContain("REACHED");
       expect(out).toContain("https");
     });
+  });
+});
+
+// THE #14 THREE-POSTURE LAW, plugins joining (interaction spec §3-S4): standing authority ⇒ act; NO standing
+// authority ⇒ a SUGGESTION the host confirms; the fourth posture — direct execution without standing
+// authority — never exists. Before this, every `canWrite:false` arm was a flat refusal, i.e. posture 3
+// wearing posture 2's clothes: safe, but "ask" was unexpressible and authors were pushed toward installing
+// under a host account. Each pin below asserts BOTH halves, because either alone would be a lie: the act did
+// NOT happen, and an ask WAS stored.
+describe("attachMembrane — posture 2: a non-host installer's act becomes an ASK, never a write", () => {
+  test("requestTurn stashes the ask with the CHILD depth and does not take a turn", async () => {
+    const { bridge, suggested, performed } = fakeBridge();
+    // canWrite:false IS the scenario — the grant is held, the standing authority is not.
+    await withHost(["turn.trigger"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => { try { await host.chat.requestTurn(${JSON.stringify(TOKEN)}, { guided: 'push the scene' }); return 'REACHED' } catch (e) { return e.name } })()`,
+      );
+      // The guest is TOLD, typed — not resolved (which would claim the turn ran) and not the flat
+      // `PluginCapabilityError` (which would claim the grant is missing).
+      expect(out).toBe("PluginSuggestedError");
+    });
+    expect(performed.turns).toBe(0);
+    // The stashed depth is the CHILD depth (invocation 0 + 1), frozen at ask time so a delay cannot re-base
+    // the cascade ceiling.
+    expect(suggested.acts).toEqual([{ kind: "requestTurn", automationDepth: 1, guided: "push the scene" }]);
+  });
+
+  test("worldInfo.upsertEntry stashes the guest entry VERBATIM and writes no lore", async () => {
+    const { bridge, suggested, performed } = fakeBridge();
+    const entry = { bookId: "wbook_x", entryKey: "mood", keys: ["mood"], contentTemplate: "tense", position: "before_char" };
+    await withHost(["worldinfo.write"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => { try { await host.worldInfo.upsertEntry(${JSON.stringify(TOKEN)}, ${JSON.stringify(entry)}); return 'REACHED' } catch (e) { return e.name } })()`,
+      );
+      expect(out).toBe("PluginSuggestedError");
+    });
+    expect(performed.lore).toBe(0);
+    expect(suggested.acts).toEqual([{ kind: "worldInfoUpsert", entry }]);
+  });
+
+  test("imagery.generatePicture stashes the ask and spends nothing (the SPEND class RULED F4 most wants asked)", async () => {
+    const { bridge, suggested, performed } = fakeBridge();
+    await withHost(["imagery.generate"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => { try { await host.imagery.generatePicture(${JSON.stringify(TOKEN)}, { mode: 'free' }); return 'REACHED' } catch (e) { return e.name } })()`,
+      );
+      expect(out).toBe("PluginSuggestedError");
+    });
+    expect(performed.pictures).toBe(0);
+    expect(suggested.acts.map((a) => a.kind)).toEqual(["generatePicture"]);
+  });
+
+  test("the two DELIBERATE non-suggestible arms stay flat refusals and raise NOTHING", async () => {
+    // `chat.variables.write` — a variable delta is not a human-weighable act ("set tension to 5?") and is the
+    // highest-frequency write in the set, so posture 2 there is an attention flood, not a consent surface.
+    // `chat.quick_reply` — chips are TRANSIENT and their whole value is immediacy; a card the host reads and
+    // then approves so the text can appear as a chip has already shown them the text.
+    // Both refuse, both raise no ask — and the ABSENCE is the assertion (a half-migration here would look
+    // like a feature).
+    const { bridge, suggested, writes, performed } = fakeBridge();
+    await withHost(["chat.variables.write", "chat.quick_reply"], false, bridge, async (ctx) => {
+      const vars = await runAsync(
+        ctx,
+        `(async () => { try { await host.chat.applyVariableOps(${JSON.stringify(TOKEN)}, []); return 'REACHED' } catch (e) { return e.name + ':' + e.message } })()`,
+      );
+      expect(vars).toContain("requires host authority");
+      expect(vars).not.toContain("PluginSuggestedError");
+      const chips = await runAsync(
+        ctx,
+        `(async () => { try { await host.chat.surfaceQuickReply(${JSON.stringify(TOKEN)}, []); return 'REACHED' } catch (e) { return e.name + ':' + e.message } })()`,
+      );
+      expect(chips).toContain("requires host authority");
+    });
+    expect(suggested.acts).toEqual([]);
+    expect(writes.count).toBe(0);
+    expect(performed.chips).toBe(0);
+  });
+
+  test("WITH standing authority nothing is stashed — the act just happens (posture 1 is untouched)", async () => {
+    const { bridge, suggested, performed } = fakeBridge();
+    await withHost(["turn.trigger"], true, bridge, async (ctx) => {
+      const out = await runAsync(ctx, `(async () => { await host.chat.requestTurn(${JSON.stringify(TOKEN)}); return 'ok' })()`);
+      expect(out).toBe("ok");
+    });
+    expect(performed.turns).toBe(1);
+    expect(suggested.acts).toEqual([]);
+  });
+
+  test("WITHOUT the grant it is still the capability refusal — posture 2 never substitutes for a missing grant", async () => {
+    // The order matters and is the point: an ungranted call must not become an ask. Otherwise a plugin could
+    // put a card in front of a host for a permission its owner explicitly declined to give it.
+    const { bridge, suggested } = fakeBridge();
+    await withHost([], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => { try { await host.chat.requestTurn(${JSON.stringify(TOKEN)}); return 'REACHED' } catch (e) { return e.name } })()`,
+      );
+      expect(out).toBe("PluginCapabilityError");
+    });
+    expect(suggested.acts).toEqual([]);
+  });
+
+  test("a FORGED handle is still a handle refusal — an ask is never raised for a chat the guest is not in", async () => {
+    const { bridge, suggested } = fakeBridge();
+    await withHost(["turn.trigger"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.chat.requestTurn('forged-token'); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).toContain("invalid chat handle");
+    });
+    expect(suggested.acts).toEqual([]);
   });
 });
 

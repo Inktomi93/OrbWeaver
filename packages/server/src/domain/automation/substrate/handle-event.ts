@@ -74,7 +74,10 @@ async function voidAsksOnLostAuthority(ctx: AutomationContext, chatId: ChatId): 
     return;
   }
   const pending = ctx.suggestions.listForChat(chatId, ctx.now());
-  const held = await Promise.all(pending.map((ask) => holdsChatHostAuthority(ctx, chatId, ask.authorUserId)));
+  // `actorUserId` is the rule AUTHOR or the plugin INSTALLER — one field, because the sweep asks the same
+  // question of both: does the identity this ask would EXECUTE AS still hold host here? A plugin's card dies
+  // on a handoff exactly as a rule's does (owner ruling 2026-08-24: fail-closed, no re-mint, no transfer).
+  const held = await Promise.all(pending.map((ask) => holdsChatHostAuthority(ctx, chatId, ask.actorUserId)));
   pending.forEach((ask, i) => {
     if (held[i] !== true) {
       ctx.suggestions.drop(ask.id, ctx.now());

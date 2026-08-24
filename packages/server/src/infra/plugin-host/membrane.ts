@@ -26,10 +26,11 @@ import type {
   InvocationChat,
   PluginBridge,
   PluginCapability,
+  PluginSuggestedAct,
   PluginTransformRegistration,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, PluginCapabilityError } from "@orb/contracts/plugin";
+import { HOST_FUNCTION_CAPABILITY, PluginCapabilityError, PluginSuggestedError } from "@orb/contracts/plugin";
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import type { SafeFetchOptions } from "../network/egress.ts";
@@ -242,7 +243,12 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
       requireCapability(runtime, "chat.applyVariableOps");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        // Host authority is the write ceiling — a non-host caller lacks it even with the grant.
+        // NOT POSTURE 2, deliberately — one of the two `canWrite` arms that stays a flat refusal, and the
+        // reason lives here so the next reader finds it beside the code. A variable delta is not a
+        // human-weighable act: a card reading "set tension to 5?" cannot be evaluated without knowing what
+        // the plugin means by tension. It is also the HIGHEST-FREQUENCY write in the set (a plugin tracking
+        // state writes on every event), so making it askable converts a clean refusal into an attention
+        // flood against §3-S4's one-visible-card budget. Full reasoning: `@orb/contracts/plugin/suggestion`.
         throw new Error("plugin host: chat.variables.write requires host authority on this chat");
       }
       const ops = Array.isArray(args[1]) ? (args[1] as readonly VarOp[]) : [];
@@ -259,8 +265,9 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
       requireCapability(runtime, "chat.requestTurn");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        // A turn is a host-gated SPEND action — a non-host caller lacks the authority even with the grant.
-        throw new Error("plugin host: chat.requestTurn requires host authority on this chat");
+        // POSTURE 2 — the installer holds the grant but not standing authority here, so the act becomes an
+        // ASK the room's host confirms (`suggestAct`). It is not a write and it is not a refusal.
+        await suggestAct(runtime, scope, { kind: "requestTurn", automationDepth: scope.automationDepth + 1, ...buildTurnHints(args[1]) });
       }
       // The FUNDER (installer) is closed over DOMAIN-SIDE — the membrane supplies NONE (authority-blind): a plugin
       // can never fund a foreign budget because it cannot name the funder. The child cascade depth = the
@@ -280,8 +287,11 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
       requireCapability(runtime, "chat.surfaceQuickReply");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        // Surfacing chips writes room-visible state — host authority is the ceiling, the SAME gate the
-        // plugin's other chat writes take; a non-host caller lacks it even with the grant.
+        // NOT POSTURE 2, deliberately — the second of the two arms that stays a flat refusal. Surfacing
+        // chips writes room-visible state, so host authority is the ceiling; but chips are TRANSIENT display
+        // strings with no row, and their entire value is immediacy. An ask the host reads, then approves so
+        // that text can appear as a chip, has already shown the host the text: the card IS the chip,
+        // delivered late. Full reasoning: `@orb/contracts/plugin/suggestion`.
         throw new Error("plugin host: chat.surfaceQuickReply requires host authority on this chat");
       }
       await runtime.bridge.surfaceQuickReply(scope.chatId, buildQuickReplyChoices(args[1]));
@@ -290,6 +300,25 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   });
 
   ctx.setProp(surface, "chat", chat);
+}
+
+/** POSTURE 2, at the ONE place the membrane expresses it (interaction spec §3-S4, the #14 three-posture law:
+ *  standing authority ⇒ act; NO standing authority ⇒ a SUGGESTION the host confirms; the fourth posture —
+ *  direct execution without standing authority — never exists).
+ *
+ *  Stash the act through the domain bridge, then ALWAYS throw the typed `PluginSuggestedError`. The throw is
+ *  the honest wire, not an error path: `requestTurn` and `upsertEntry` return `void`, so resolving would tell
+ *  the guest its act happened, and a plugin that believes it wrote does something else next. `name` crosses
+ *  the QuickJS boundary intact (the `PluginCapabilityError` mechanism), so a guest distinguishes "became an
+ *  ask" from "refused" without parsing prose.
+ *
+ *  INFRA STAYS AUTHORITY-BLIND. It reads the `canWrite` the DOMAIN already resolved and forwards an inert
+ *  act; it mints no id, renders no question, and never touches the S4 store. If `suggest` itself rejects
+ *  (the ask could not be raised), that rejection reaches the guest instead — which is the correct fail
+ *  direction: no act, no ask, and the guest is told. */
+async function suggestAct(runtime: MembraneRuntime, scope: InvocationChat, act: PluginSuggestedAct): Promise<never> {
+  await runtime.bridge.suggest(scope.chatId, act);
+  throw new PluginSuggestedError(act.kind);
 }
 
 /** Project the guest-supplied quick-reply choices to the JSON-safe `{label, sendText}[]` shape. Non-array input
@@ -334,7 +363,10 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
       requireCapability(runtime, "worldInfo.upsertEntry");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        throw new Error("plugin host: worldInfo.upsertEntry requires host authority on this chat");
+        // POSTURE 2 — the ask carries the guest's entry VERBATIM; every domain gate it would have met
+        // directly (attachment, the per-plugin entry ceiling, `neutralizeMacros`) is met again when the host
+        // confirms, because the confirmed act re-enters through the plugin's OWN bridge.
+        await suggestAct(runtime, scope, { kind: "worldInfoUpsert", entry: args[1] as PluginWorldEntryUpsert });
       }
       // The ADMITTED chatId travels with the entry: the guest names the book, the DOMAIN decides whether that
       // book is attached to THIS room (the room's consent) and applies the per-plugin entry cap. Infra can
@@ -365,7 +397,9 @@ function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
       requireCapability(runtime, "imagery.generatePicture");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        throw new Error("plugin host: imagery.generatePicture requires host authority on this chat");
+        // POSTURE 2 — and the class §3-S4 RULED F4 most wants asked: this is SPEND on the installer, so
+        // "should this happen" is a question with a price on it.
+        await suggestAct(runtime, scope, { kind: "generatePicture", args: (args[1] ?? {}) as GenerateImageActionArgs });
       }
       return await runtime.bridge.imagery.generatePicture(scope.chatId, (args[1] ?? {}) as GenerateImageActionArgs);
     },
