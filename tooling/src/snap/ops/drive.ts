@@ -7,6 +7,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { settle } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { buildNavScript } from "../../_shared/nav.ts";
+import { resolveFileInputLocator, resolveUploadPaths } from "../../_shared/upload.ts";
 import type { Args, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import {
   HOVER_REVEAL_MS,
@@ -127,6 +128,21 @@ async function runStep(page: Page, step: Step): Promise<void> {
     await loc.hover({ force: true });
     await settle(page, HOVER_REVEAL_MS);
     await loc.click({ force: true, timeout: STEP_TIMEOUT_MS });
+    return;
+  }
+  if (step.kind === "upload") {
+    // The path boundary/existence check runs FIRST and needs no browser at all — a bad path is refused
+    // on its own terms rather than surfacing as a confusing selector-timeout on an unrelated page.
+    const resolved = resolveUploadPaths(step.paths);
+    if (!resolved.ok) {
+      throw new Error(resolved.reason);
+    }
+    // ATTACHED not VISIBLE (same reasoning as jsclick/press): every real upload input in this app is
+    // covered by non-interactive decorative chrome on purpose (ops/upload.ts), so it is routinely
+    // invisible to Playwright's actionability check while still being the correct, focusable control.
+    await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
+    const target = await resolveFileInputLocator(loc);
+    await target.setInputFiles([...resolved.paths]);
     return;
   }
   await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });

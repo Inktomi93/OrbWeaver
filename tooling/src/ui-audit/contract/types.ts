@@ -7,8 +7,13 @@ import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 import type { Severity } from "./findings.ts";
 import type { RawSamples } from "./samples.ts";
 
-/** One pre-audit action, in argv order: a DOM click or a dev-bridge navigation. */
-export type AuditAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
+/** One pre-audit action, in argv order: a DOM click, a dev-bridge navigation, or a file-input upload
+ *  (#651 — a census taken against an empty dropzone is a FALSE CLEAN; `--upload` lets the walk see the
+ *  surface a file actually populates, the plugin grant screen being the case that named this). */
+export type AuditAction =
+  | { kind: "click"; selector: string }
+  | { kind: "nav"; method: NavMethod; target: string }
+  | { kind: "upload"; selector: string; paths: readonly string[] };
 
 export interface Args {
   route: string;

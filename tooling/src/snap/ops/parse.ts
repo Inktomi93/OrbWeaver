@@ -44,6 +44,12 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   --click <selector>      --fill <selector=value>  --key <selector=Key> | --key <Key>
                             bare --key Tab walks focus (no re-focus); the selector= form re-anchors
   --hover <selector>      --wait-for <selector|text=phrase>    --goto <target>
+  --upload <selector>=<path[,path...]>   attach local file(s) to a file input — drills a wrapper
+                            selector (a decorative dropzone div) down to the real <input type="file">
+                            automatically. PATH BOUNDARY: every path must resolve inside this repo or the
+                            OS tmp dir (agent scratchpads) — anything else is refused loudly, never
+                            silently skipped. Does not reach a surface with no backing <input> at all
+                            (the chat composer's raw drag/paste listener).
   --open-chat <id|title|latest|current>   --open-character <id>     --context-tab <tab>
     latest = the chat list's top row; current = the room open right now (no list query — the one to
     use after creating a room, since a fresh room is unlisted until the list refetches)
@@ -127,6 +133,9 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
   }
   if (flag === "--expect-count" && (!raw.includes("=") || split.head === "" || !Number.isInteger(Number(split.tail)) || Number(split.tail) < 0)) {
     errors.push(`--expect-count expects selector=nonNegativeInteger, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--upload" && (!raw.includes("=") || split.head === "" || split.tail.trim() === "")) {
+    errors.push(`--upload expects selector=path[,path...] with a non-empty selector and at least one path, got ${JSON.stringify(raw)}`);
   }
 }
 
