@@ -31,7 +31,7 @@ import {
 import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
-import { ImageDetailBody } from "@orb/client/features/imagery";
+import { ImageDetailBody, ImageEditBody } from "@orb/client/features/imagery";
 import type {
   ChatContextState,
   ChatControl,
@@ -2609,16 +2609,31 @@ export function AttachmentMediaStory({ empty = false, video = false, portrait = 
  *  effect here: `useActiveChatId` is read during the media block's FIRST commit, and an effect-seeded store
  *  would land after it.
  *
- *  The mini-host is the shell's ModalHost body-swap narrowed to the one slot — the detail modal lives at the
- *  shell in production precisely so it survives a virtualized row's unmount, so a story that rendered it
+ *  The mini-host is the shell's ModalHost body-swap narrowed to the imagery slots — those modals live at the
+ *  shell in production precisely so they survive a virtualized row's unmount, so a story that rendered them
  *  inside the block would be proving a composition the app never uses. What the pair makes observable is the
- *  PIN: the chatId the detail body writes a background against is the one that was active AT OPEN TIME. */
+ *  PIN: the chatId the detail body writes a background against is the one that was active AT OPEN TIME —
+ *  and (#654) the whole transcript→detail→edit chain a room image actually travels, which is the only way to
+ *  observe the intrinsic dims surviving each hop without reaching into the store from the test. */
 function RoomImageDetailHost(): ReactElement | null {
-  return useOpenModal() === "imageDetail" ? <ImageDetailBody /> : null;
+  const openModal = useOpenModal();
+  if (openModal === "imageDetail") {
+    return <ImageDetailBody />;
+  }
+  return openModal === "imageEdit" ? <ImageEditBody /> : null;
 }
 
-export function RoomImageDetailStory(): ReactElement {
-  const map = new Map<AssetId, ResolvedAttachment>([[CT_ATTACH_ASSET_ID, { url: CT_PNG_DATA_URL, mime: "image/png" }]]);
+/** #654 — when set, the asset resolves at THIS url carrying the stored 1024×1536 `dims`, exactly as the
+ *  chat-scoped resolver returns them. The CT holds the url permanently pending, so every box it measures
+ *  down the chain is the PRE-DECODE one (a reservation, not a decoded image). */
+export interface RoomImageDetailStoryProps {
+  readonly reservedSrc?: string;
+}
+
+export function RoomImageDetailStory({ reservedSrc }: RoomImageDetailStoryProps): ReactElement {
+  const resolved: ResolvedAttachment =
+    reservedSrc === undefined ? { url: CT_PNG_DATA_URL, mime: "image/png" } : { url: reservedSrc, mime: "image/png", dims: CT_RESERVED_DIMS };
+  const map = new Map<AssetId, ResolvedAttachment>([[CT_ATTACH_ASSET_ID, resolved]]);
   const block = {
     kind: "media",
     media: "image",
