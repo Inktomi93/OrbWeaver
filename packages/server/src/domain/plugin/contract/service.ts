@@ -10,6 +10,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
+import type { NotifyFloor } from "../substrate/notify-floor.ts";
 import type { PluginHostOps, PluginRegistrationHandle } from "./ops.ts";
 import type {
   GetPluginLogParams,
@@ -159,6 +160,10 @@ export interface PluginContext {
    *  (the injected-op-caller-gate rule); a foreign/unknown chat yields `{false,false}` — no existence oracle.
    *  Injected at compose (the domain never imports chat) — `loadPresentRole` under the caller. */
   readonly resolveChatAuthority: (caller: Principal, chatId: ChatId) => Promise<ChatAuthority>;
+  /** The `notify` capability's 60 s per-(plugin, chat) cooldown (02 §2) — process-wide state, so it is minted
+   *  ONCE at compose (`createNotifyFloor`) and shared by every activation, exactly like the resident registry.
+   *  The bridge claims it before each `notifications.post`. */
+  readonly notifyFloor: NotifyFloor;
 }
 
 /** The plugin lifecycle surface, incl. `runSnippet` (the inline mode). */

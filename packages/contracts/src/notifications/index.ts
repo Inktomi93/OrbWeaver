@@ -29,6 +29,16 @@ export const NOTIFICATIONS_LIST_MAX_LIMIT = 100;
  *  rendered server-side over room state every recipient can already read). */
 export const AUTOMATION_NOTICE_MESSAGE_MAX = 200;
 
+/** The `automation-notice` COOLDOWN FLOOR (seconds) — the minimum gap between two notices from the same
+ *  producer in the same chat. Inbox spam trains dismissal, and every notice is a DURABLE row, so this is the
+ *  designed belt for both producers of this event (02 §2: `notify` = "grant + host + participants-only
+ *  recipients + the 60 s floor"). Homed HERE, in the notice's own wire vocabulary, because it is one policy
+ *  with TWO enforcers that must never drift: the automation rule path applies it at AUTHORING time (a
+ *  `post_notification` rule cannot be stored with a smaller `cooldownSeconds`, which the fire-time budget gate
+ *  then enforces off the fire log), and the plugin path applies it per (plugin, chat) at CALL time — a plugin
+ *  has no rule row to constrain, so the check has to live where the call does. */
+export const AUTOMATION_NOTICE_COOLDOWN_SECONDS = 60;
+
 /** Who a `post_notification`/plugin `notify` can address:
  *  the installer/host, or every present human member of the chat. Resolved DOMAIN-side, never client-asserted. */
 export const NOTIFICATION_RECIPIENTS = ["host", "all_members"] as const;

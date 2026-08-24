@@ -25,7 +25,7 @@ import type {
   PluginHostPort,
   PluginService,
 } from "../../../../packages/server/src/domain/plugin/contract/service.ts";
-import { createPluginService } from "../../../../packages/server/src/domain/plugin/index.ts";
+import { createNotifyFloor, createPluginService } from "../../../../packages/server/src/domain/plugin/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
@@ -186,6 +186,9 @@ export function makePluginHarness(
     // The snippet gate — full authority by default (the harness caller is the owner); a test needing a
     // read-only or no-access chat overrides it. The composed-real int test drives the REAL loadPresentRole gate.
     resolveChatAuthority: overrides.resolveChatAuthority ?? (() => Promise.resolve({ canRead: true, canWrite: true })),
+    // The REAL notice floor over the harness's frozen clock (so `advance()` drives it) — never a permissive
+    // fake: a lifecycle test must not be able to flood notices in a way production would refuse.
+    notifyFloor: createNotifyFloor(() => clock.now()),
   };
 
   return { ctx, service: createPluginService(ctx), port: fakePort, storedBytes, advance: (ms) => clock.advance(ms) };
