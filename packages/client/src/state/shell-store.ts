@@ -47,7 +47,23 @@ import { isSectionId, RETIRED_SECTION_HEAL } from "./section-ids.ts";
  *  `reauth` is the one slot NO human opens: the session-recovery ladder does (§4.4 rung 1), which is
  *  precisely why it needs a slot — a modal that must appear over ANY surface, from a `data/` seam that
  *  cannot import a feature, has nowhere else to live. */
-export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat", "you", "addDocument", "reauth"] as const;
+// The `imagine`/`imageDetail`/`imageEdit` slots (interaction-direction-spec.md §7 B5) are CONTENT-triggered
+// registry modals owned by `features/imagery` — opened by a `#state` action (openImagine / openImageDetail /
+// openImageEdit) that carries WHICH image through the imagery-store, the newChat precedent. They live at the
+// shell so they outlive a virtualized message row's unmount; `openModal` is transient, so no persist migrate.
+export const MODAL_SLOT_IDS = [
+  "theme",
+  "settings",
+  "account",
+  "command",
+  "newChat",
+  "you",
+  "addDocument",
+  "reauth",
+  "imagine",
+  "imageDetail",
+  "imageEdit",
+] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
 /** The settings vocabulary — the SettingsPaneDefinition registry is total over this tuple (assembled at

@@ -163,6 +163,18 @@ export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-loca
 export { __resetDurableLocal, activeDurableLocalUserId, bindDurableLocalToUser, durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
+export type { ImageSubject, ImagineSeed } from "./imagery-store.ts";
+export {
+  clearDetailSubject,
+  clearEditSubject,
+  clearImagineSeed,
+  openImageDetail,
+  openImageEdit,
+  openImagine,
+  useDetailSubject,
+  useEditSubject,
+  useImagineSeed,
+} from "./imagery-store.ts";
 export type { ListFlipCarry } from "./list-flip-carry.ts";
 export { dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
