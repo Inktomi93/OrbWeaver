@@ -32,6 +32,13 @@ export interface ImageSubject {
   readonly chatId: ChatId;
   readonly url: string;
   readonly alt: string;
+  /** The asset's stored pixel dimensions (#654), carried so a modal RESERVES the true box before the bytes
+   *  arrive — `aspect-ratio` alone reserves nothing on a pre-load `<img>`, it lays out 0×0 and the whole
+   *  modal reflows the instant it decodes. Every mint site reads them off the same wire the transcript does
+   *  (`AssetBlobRef.width/height`, stored at upload). OPTIONAL because that wire is honestly nullable: a
+   *  non-image, an unparseable header, or a row written before #625 has none, and the modal must still
+   *  render — it just falls back to the primitive's placeholder aspect. */
+  readonly dims?: { readonly w: number; readonly h: number };
 }
 
 interface ImageryState {
