@@ -28,7 +28,7 @@ import {
   youModal,
 } from "#features/app-shell";
 import { accountModal, reauthModal } from "#features/auth";
-import { automationPane, automationSuggestionSource } from "#features/automation";
+import { automationPane, automationRulesContextTab, automationSuggestionSource } from "#features/automation";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
   appearanceAvatarsSection,
@@ -122,10 +122,14 @@ import { queryClient, trpcProxy } from "./app-singletons.ts";
 // ({trpc, queryClient}) — the door injects the cross-domain read channel (§12) and assembles the result into
 // the registry, which chat merges at `defineContextTabs`'s `contributors` arm. rpg never imports chat; the
 // `when`/`strip:"game"` gating (a cache-first getChat.rpg read) drives the §4.2 bracket.
-const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
-  "chat-context",
-  makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
-);
+// B2 — automation's host-only "Rules" tab joins the seam's rpg tabs. It needs no injected read channel (its
+// `when` is a plain `isHost` and its body reads through `useTRPC` at render), so it is a ready def, not a
+// factory. (interaction-direction-spec §7 B2; the section-in-"This chat" IA it names would need a new
+// context-tab SECTION registry — recorded in `rules-context-tab.tsx`.)
+const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [
+  ...makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
+  automationRulesContextTab,
+]);
 
 // The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
 // engaged game chat — same door, same injected read channel, same one-directional flow as the tabs above.

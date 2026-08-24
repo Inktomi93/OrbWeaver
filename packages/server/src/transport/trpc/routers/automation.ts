@@ -14,7 +14,13 @@
 // is now the `automation` ROOM (`transport/trpc/stream/sources/automation.ts`) — this router is request/
 // response only, and the `single-stream-transport` gate keeps a `.subscription(` from coming back to it.
 
-import { AUTOMATION_FIRES_LIST_MAX_LIMIT, automationActionsSchema, automationTriggerSchema } from "@orb/contracts/automation";
+import {
+  AUTOMATION_FIRES_LIST_MAX_LIMIT,
+  automationActionsSchema,
+  automationTriggerSchema,
+  rulePresetIdSchema,
+  rulePresetKnobValuesSchema,
+} from "@orb/contracts/automation";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -85,6 +91,28 @@ export const automationRouter = t.router({
   deleteRule: authedProcedure
     .input(z.object({ ruleId: brandedId<AutomationRuleId>() }))
     .mutation(({ ctx, input }) => ctx.services.automation.deleteRule({ principal: ctx.auth, ruleId: input.ruleId })),
+
+  // The preset catalogue READ (S3) — the picker's read model: the committed presets projected to
+  // id/title/summary/knob descriptors, in catalogue order. Static (no principal/chat/db), but authed: the
+  // picker is a host-only surface and the vocabulary is not public. The CEL predicates + arm handlers stay
+  // domain-side — only the projection crosses the wire (`@orb/contracts/automation`'s `RulePresetView`).
+  listRulePresets: authedProcedure.query(({ ctx }) => ctx.services.automation.listRulePresets()),
+
+  // Mint a preset's ordered RULE SET into a chat (S3). Thin driver: the wire validates the id + the partial
+  // knob-override bag SHAPE; the verb resolves the overrides against the named preset's own descriptors (a
+  // typed refusal on anything off-shape or out of bounds), substitutes them into the CEL sources as literals,
+  // and creates each rule through the EXISTING host-gated `createRule` — so the host gate fires per rule, and
+  // every minted rule is born DISABLED. An absent `knobs` takes every descriptor default (exactOptional).
+  createRuleFromPreset: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>(), presetId: rulePresetIdSchema, knobs: rulePresetKnobValuesSchema.optional() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.automation.createRuleFromPreset({
+        principal: ctx.auth,
+        chatId: input.chatId,
+        presetId: input.presetId,
+        ...(input.knobs === undefined ? {} : { knobs: input.knobs }),
+      }),
+    ),
 
   // The dry-run: evaluate the predicate + render every arm's templates, executing NOTHING (the editor's
   // diagnostics surface). The optional sampleEvent is synthesized in the verb from the rule's trigger.
