@@ -91,7 +91,9 @@ test("the knob descriptor union is discriminated on kind — each arm carries it
     { kind: "number", label: "N", default: 8, min: 2, max: 200 },
     { kind: "text", label: "Steer", default: "go", maxLength: 600 },
     { kind: "textList", label: "Chips", default: ["a"], minItems: 1, maxItems: 4, maxLength: 80 },
-    { kind: "choice", label: "Mode", options: ["scenario", "background"], default: "scenario" },
+    // A choice arm carries its own host LABELS (#655) — `options` are wire values, and rendering them raw
+    // is what put `ask`/`write` and `scenario`/`background`/`free` in front of a host as the options.
+    { kind: "choice", label: "Mode", options: ["scenario", "background"], optionLabels: { scenario: "Scene", background: "Background" }, default: "scenario" },
     // The reference arm carries NO `default` — that absence is the guard, not an omission (#630).
     { kind: "entityRef", label: "Lorebook", entity: "worldInfoBook" },
   ];
@@ -105,7 +107,8 @@ test("RulePresetView is the picker's whole read model — no CEL field exists to
     summary: "s",
     ruleCount: 1,
     confirmFirst: false,
+    spends: true,
     knobs: [{ key: "everyN", kind: "number", label: "N", default: 8, min: 2, max: 200 }],
   };
-  expect(Object.keys(view).toSorted()).toEqual(["confirmFirst", "id", "knobs", "ruleCount", "summary", "title"]);
+  expect(Object.keys(view).toSorted()).toEqual(["confirmFirst", "id", "knobs", "ruleCount", "spends", "summary", "title"]);
 });

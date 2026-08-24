@@ -156,7 +156,14 @@ function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
             the accessible name contains the visible one): N rules used to give N disclosures all announced
             as a bare "Recent activity" (side-eye #621 ARIA), and spelling the rule's name a second time in
             the visible row is noise a sighted host already has above it. */}
-        <CollapsibleTrigger aria-label={`Recent activity for ${rule.name}`}>
+        {/* `size="control"` — the disclosure IS a row of its own, and it is the ONLY door to the fire log,
+            the "why didn't my rule fire" surface. It shipped `inline` (text-height): measured 413×16 at a
+            coarse pointer with `::after` resolving `content: none`, so no touch layer was in play at all,
+            against the 44px floor — and the 6px bands above and below it belong to the Stack, not to the
+            trigger, so a finger landing 8px off hits nothing. The `control` arm pins the pointer-conditional
+            `--spacing-control-sm` floor (44px coarse / 32px fine) that every other tap-floor control in this
+            pane rides; the Field-override triggers one section up are the 40px positive control (#655). */}
+        <CollapsibleTrigger aria-label={`Recent activity for ${rule.name}`} size="control">
           <Text voice="label">Recent activity</Text>
         </CollapsibleTrigger>
         <CollapsiblePanel>
