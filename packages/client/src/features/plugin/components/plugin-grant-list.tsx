@@ -11,20 +11,22 @@
 //      rule treats a swapped host list as a widening (`domain/plugin/verbs/upgrade.ts`), and a consent screen
 //      that showed only the capability name would be consenting to the wrong thing.
 //
-// `added` marks CAPABILITY rows that are new relative to what is already granted — the upgrade re-consent
-// case. The caller computes it from the same two inputs the server compares, so the mark agrees with the
-// server's own verdict.
+// `addedCapabilities` marks CAPABILITY rows that are new relative to what is already granted — the upgrade
+// re-consent case. The caller computes it from the same two inputs the server compares, so the mark agrees
+// with the server's own verdict.
 //
-// THERE IS DELIBERATELY NO EQUIVALENT FOR HOSTS, and that is a correctness decision, not an omission — even
-// now that `PluginView` projects `declaredCapabilities` and `netHosts` (#650 P1-2). The server judges a
-// widening against the PRIOR manifest's `netHosts` (`domain/plugin/verbs/upgrade.ts`), and nothing persists
-// THAT — the row's `manifest` column is overwritten on every upgrade, so by the time a re-consent notice
-// renders, the "before" host list is already gone. A client can know the CURRENT host list, never the delta.
-// An earlier revision of this component marked EVERY host "New" on a re-consent, which put a false claim on
-// the security surface (the CT receipt showed `api.weather.example` — carried forward unchanged from v1 —
-// wearing a New badge). The host list is therefore rendered plainly, as "what this version can reach", which
-// is true and is what consent to an exact-host allowlist actually needs. A host-delta mark would need a
-// SECOND persisted column (the prior list) to ever be added correctly.
+// `addedNetHosts` IS THE HOST EQUIVALENT, AND IT ARRIVED LATE FOR A REASON WORTH KEEPING. There was no such
+// mark until #659, and its absence was a correctness decision rather than an omission: the server judges a
+// host widening against the PRIOR manifest's `netHosts` (`domain/plugin/verbs/upgrade.ts`), and the row's
+// `manifest` column is overwritten by that same upgrade — so the "before" list was already gone by the time
+// a notice could render, and a client could know the CURRENT hosts but never the delta. An earlier revision
+// marked EVERY host "New" on a re-consent, which put a false claim on the security surface (the CT receipt
+// showed `api.weather.example` — carried forward unchanged from v1 — wearing a New badge). The ruling that
+// followed ("state the whole set, badge nothing") survives; its INPUT changed. `plugins.widened_net_hosts`
+// now records the delta at the one moment it exists, `PluginView.widenedNetHosts` projects it, and the
+// caller passes it here VERBATIM. So the rule this component still enforces is the same one: a host is
+// marked because the SERVER said it was added, never because a client inferred it. Do not compute this
+// prop from anything else — the host fold (case, trailing dot) lives server-side and has exactly one home.
 //
 // A11Y: each row is a real `Field` label wrapping its `Checkbox`, so the control has an accessible name and
 // the whole row is the hit target (the side-eye 2026-08-09 P1-9 ruling — twelve bare checkboxes beside
@@ -61,9 +63,13 @@ export interface PluginGrantListProps {
    * is being asked to confirm.
    */
   readonly granted: readonly PluginCapability[];
-  /** CAPABILITIES that are new versus the previous grant — the re-consent highlight. Hosts have no
-   *  equivalent and must not gain one until the projection exists (see the header). */
+  /** CAPABILITIES that are new versus the previous grant — the re-consent highlight. */
   readonly addedCapabilities?: readonly PluginCapability[];
+  /** HOSTS this update added, straight off `PluginView.widenedNetHosts` — the server's own verdict, recorded
+   *  at the upgrade against a manifest that no longer exists (see the header). Pass it through; never derive
+   *  it. Entries are matched against {@link netHosts} by exact string, which is correct because the server
+   *  filtered them out of that very array. */
+  readonly addedNetHosts?: readonly string[];
   /** The heading over the host list. Defaults to the install-time phrasing; the re-consent case says
    *  "this version" instead, because it is showing a list that may have changed in ways it cannot name. */
   readonly netHostsHeading?: string;
@@ -163,12 +169,14 @@ export function PluginGrantList({
   netHosts,
   granted,
   addedCapabilities,
+  addedNetHosts,
   netHostsHeading = "Hosts it can reach",
   capabilitiesLabel,
   onToggle,
 }: PluginGrantListProps): ReactElement {
   const grantedSet = new Set<PluginCapability>(granted);
   const addedSet = new Set<PluginCapability>(addedCapabilities ?? []);
+  const addedHostSet = new Set<string>(addedNetHosts ?? []);
   const rows = orderedDeclared(declared);
   const unexplained = unexplainedCount(declared);
   // The host list rides `netHosts` alone (DECLARED, not granted) — this component shows what a screen is
@@ -221,14 +229,24 @@ export function PluginGrantList({
               themselves render muted/mono (`datumMono`) rather than the un-voiced Text default (15px,
               full-foreground) they used to carry: a raw hostname is a machine readout to verify, not the
               thing on the screen that should read loudest — the CAPABILITY rows and the completeness
-              guarantee above it are what a person actually decides on. No per-host "New" mark: which hosts
-              changed is not derivable client-side (see the file header). The whole list, plainly, is the
-              true statement — and for an exact-host allowlist it is also the useful one, since consent is
-              to the SET. */}
+              guarantee above it are what a person actually decides on.
+
+              The "New" mark rides the LIST ITEM, so it is read out beside the hostname it belongs to rather
+              than as a floating badge — the same reason the capability mark rides that row's accessible
+              name, and the same word, never a colour. Marked hosts are exactly `addedNetHosts` and nothing
+              is inferred here: the whole list still renders, because consent to an exact-host allowlist is
+              consent to the SET, and the mark only says which members of it are new. */}
           <ul className="m-0 flex list-none flex-col gap-tight p-0">
             {netHosts.map((host) => (
               <li key={host}>
-                <Text voice="datumMono">{host}</Text>
+                <Row align="center" gap="field">
+                  <Text voice="datumMono">{host}</Text>
+                  {addedHostSet.has(host) ? (
+                    <Badge intent="info" size="sm" tone="soft">
+                      New
+                    </Badge>
+                  ) : null}
+                </Row>
               </li>
             ))}
           </ul>
