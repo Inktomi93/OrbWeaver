@@ -29,6 +29,9 @@ import {
   NewChatPicker,
 } from "@orb/client/features/chat";
 import { HomeSurface } from "@orb/client/features/home";
+// #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
+// providers use, never a relative path (a relative import gets a different React context instance).
+import { ImageDetailBody } from "@orb/client/features/imagery";
 import type {
   ChatContextState,
   ChatControl,
@@ -2584,6 +2587,38 @@ export function AttachmentMediaStory({ empty = false, video = false, portrait = 
     <AttachmentUrlContext value={map}>
       <MessageMediaBlock block={block} allowExternal={false} />
     </AttachmentUrlContext>
+  );
+}
+
+/** #618 — the CLICK→DETAIL path with a NON-NULL active chat, which is the arm the story above cannot reach
+ *  (it mounts with no active chat, so the block takes the plain-zoom fallback). The active chat is seeded by
+ *  the `.ct.tsx` into the PERSISTED store's localStorage key BEFORE the page's scripts run, never by an
+ *  effect here: `useActiveChatId` is read during the media block's FIRST commit, and an effect-seeded store
+ *  would land after it.
+ *
+ *  The mini-host is the shell's ModalHost body-swap narrowed to the one slot — the detail modal lives at the
+ *  shell in production precisely so it survives a virtualized row's unmount, so a story that rendered it
+ *  inside the block would be proving a composition the app never uses. What the pair makes observable is the
+ *  PIN: the chatId the detail body writes a background against is the one that was active AT OPEN TIME. */
+function RoomImageDetailHost(): ReactElement | null {
+  return useOpenModal() === "imageDetail" ? <ImageDetailBody /> : null;
+}
+
+export function RoomImageDetailStory(): ReactElement {
+  const map = new Map<AssetId, ResolvedAttachment>([[CT_ATTACH_ASSET_ID, { url: CT_PNG_DATA_URL, mime: "image/png" }]]);
+  const block = {
+    kind: "media",
+    media: "image",
+    src: { kind: "asset", assetId: CT_ATTACH_ASSET_ID },
+    alt: "an attached image",
+  } as const;
+  return (
+    <CtDataProviders>
+      <AttachmentUrlContext value={map}>
+        <MessageMediaBlock block={block} allowExternal={false} />
+      </AttachmentUrlContext>
+      <RoomImageDetailHost />
+    </CtDataProviders>
   );
 }
 

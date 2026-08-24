@@ -18,7 +18,8 @@ import type { ChatId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The narrowest REAL host for this surface — the CONTEXT pane at its docked width. A trailing control
  *  cluster sized in a wide story agrees with the bug (UI lane law: measure at the narrowest real mount). */
@@ -37,6 +38,28 @@ export function RulesSectionStory({ chatId, width = CONTEXT_PANE_WIDTH }: { read
         </QueryBoundary>
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The Rules section on the REAL app QueryClient + the production toast outlet — the ONE stack in which a
+ *  mutation's `meta.errorToast` reaches a rendered toast (the plain `CtDataProviders` client has no error
+ *  channel at all). That is what makes the MINT REFUSAL assertable end to end: the picker can only pre-empt
+ *  SHAPE, and "that book is not attached to this chat" is a LIVE fact the server owns — a book listed when
+ *  the form rendered can stop qualifying before the press (#630). */
+export function RulesSectionToastStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <div style={{ width: CONTEXT_PANE_WIDTH }}>
+          <QueryBoundary
+            fallback={<Text voice="gloss">Loading…</Text>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
+          >
+            <RulesSection chatId={chatId} />
+          </QueryBoundary>
+        </div>
+      </CtToastSurface>
+    </CtAppDataProviders>
   );
 }
 
