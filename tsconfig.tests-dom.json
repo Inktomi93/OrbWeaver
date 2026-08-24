@@ -58,7 +58,6 @@
     // this line the program REDs on a stylesheet that resolves fine in every real build.
     "packages/ui/src/markdown/css-modules.d.ts",
     "tests/client/features/chat/hooks/use-message-items.test.ts",
-    "tests/client/features/preset/lib/preset-editor-bridge.int.test.ts",
     "tests/client/forms/create-form-handle-bridge.test.ts",
     "tests/client/forms/entity-form-base.test.ts",
     "tests/client/state/create-entity-draft-store.test.ts",

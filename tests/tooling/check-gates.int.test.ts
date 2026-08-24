@@ -24,6 +24,19 @@ import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { runNodeWithBudget, scaledBudget } from "./_load-budget.ts";
+
+// LOAD-HONEST BUDGET (#606). This hook runs `check:structure` TWICE — once CLEAN (→ the registry + the
+// scan-health/ratchet/denominator assertions, which MUST read a clean tree) and once WITH `__g_` fixtures
+// (→ the fired set). The two are NOT collapsible: the clean pass measures blindness/denominators over the
+// REAL tree, and a fixture landing in a rotted gate's scanRoot would MASK a gate that is blind on the real
+// tree — so both passes stay. Each pass is ~214s quiet and ~250s under load; two of them never fit the old
+// fixed 300s hook budget under any real contention. Now each pass runs under its OWN load-scaled child
+// `timeout` that throws a SELF-IDENTIFYING load kill (ORB-LOAD-KILL, exit-2 class) instead of letting
+// vitest's opaque hook timeout fire and read as a real red. Solo (factor 1): PER_PASS=300s, HOOK=660s —
+// both comfortably above the measured ~250s/pass, so solo behavior is unchanged.
+const PER_PASS_BUDGET = scaledBudget(300_000, 4);
+const HOOK_BUDGET = 2 * PER_PASS_BUDGET + scaledBudget(60_000, 4);
 
 const ROOT = join(import.meta.dirname, "..", "..");
 // Gate names are kebab-case; `bus-onData-no-store-write` is the ONE documented camelCase name
@@ -80,13 +93,16 @@ function cleanFixtures(): void {
 }
 
 function runStructure(): string {
-  try {
-    // `--config.verify-deps-before-run=false`: pnpm 11 re-runs an implicit INSTALL whenever the tree's
-    // The child is `node <cli> structure` — the tool's ONE argv front door (an ops/ file is not
-    // self-executing). Spawning node DIRECTLY also drops the pnpm hop this used to need to reach tsx, and
-    // with it pnpm's deps-state revalidation, which inside this suite both mutated node_modules underneath
-    // the running vitest process and prepended its banner to the stdout we parse.
-    return execFileSync("node", ["tooling/src/verify/cli.ts", "structure"], {
+  // The child is `node <cli> structure` — the tool's ONE argv front door (an ops/ file is not
+  // self-executing). Spawning node DIRECTLY drops the pnpm hop this used to need to reach tsx, and with it
+  // pnpm's deps-state revalidation, which inside this suite both mutated node_modules underneath the running
+  // vitest process and prepended its banner to the stdout we parse. `runNodeWithBudget` returns the report on
+  // a normal finish AND on report.ts's exit-1-when-a-gate-fires (both are stdout), and THROWS a legible
+  // ORB-LOAD-KILL only when the child is killed by its load-scaled `timeout` — so a load kill self-identifies
+  // as exit-2/not-a-verdict instead of surfacing as an opaque hook timeout that reads like a real red (#606).
+  return runNodeWithBudget(
+    ["tooling/src/verify/cli.ts", "structure"],
+    {
       cwd: ROOT,
       // THIS suite's child runs must SEE the __g_ fixtures it plants — the real-tree entrypoints strip
       // probe-artifact findings by default (a concurrent battery's transient fixtures must not red an
@@ -95,16 +111,14 @@ function runStructure(): string {
       // biome-ignore lint/correctness/noProcessGlobal: same passthrough — this test file is node-run tooling.
       // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
       env: { ...process.env, ORB_GATE_FIXTURES: "1" },
-      encoding: "utf8",
       // The fixture-run report (every gate firing on its __g_ fixture) exceeds execFileSync's 1MB default
       // buffer — a truncated tail would silently drop the last-sorted gates from `fired` (a false anti-drift
       // failure). 64MB headroom keeps the whole report captured as the gate/fixture set grows.
       maxBuffer: 64 * 1024 * 1024,
-    });
-  } catch (err) {
-    // report.ts exits 1 when a gate fires — the report is on stdout.
-    return (err as { stdout?: string }).stdout ?? "";
-  }
+    },
+    PER_PASS_BUDGET,
+    "check:structure pass (check-gates.int beforeAll)",
+  );
 }
 
 function names(re: RegExp, out: string): Set<string> {
@@ -1073,8 +1087,14 @@ function writeFixtures(): void {
 // mustFlag/mustPass rows (dead row, classifier, absent config, unparseable config, zero-rows, both exemption
 // arms) and by its own permanent pin, tests/tooling/verify/gates/biome-grant-liveness.int.test.ts, which
 // runs the REAL descriptor against planted temp roots in both directions AND against the real biome.json.
+// tsconfig-entry-liveness: same posture as biome-grant-liveness — its unit is a file-exact entry inside the
+// REPO-ROOT tsconfig set (tsconfig.json + tsconfig.tests-dom.json + per-package configs), unreachable by any
+// `__g_` path (its discovery matches `tsconfig*.json`, not `__g_*`) and un-plantable without perturbing the
+// real type program. Its bite is proven by conformance (dead row, classifier, absent/unparseable config,
+// zero-rows, both exemption arms) and by its own permanent pin, tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts.
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
+  "tsconfig-entry-liveness",
   "baseui-surface-manifest",
   "warning-code-coverage",
   "verify-registry-parity",
@@ -1106,7 +1126,7 @@ beforeAll(() => {
   registry = new Set([...names(OK_RE, cleanReport), ...names(FIRED_RE, cleanReport), ...blind]);
   writeFixtures();
   fired = names(FIRED_RE, runStructure()); // with fixtures: the gates that caught a violation
-}, 300_000);
+}, HOOK_BUDGET);
 
 afterAll(() => {
   cleanFixtures();
