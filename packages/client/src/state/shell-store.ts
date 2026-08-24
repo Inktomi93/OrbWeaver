@@ -303,6 +303,20 @@ export function getAvailableContextTabIds(): readonly string[] {
   return useShellStore.getState().contextTabIds;
 }
 
+/** Non-reactive read of the STORED tab request — the dev bridge's half of the landing check (#656). Paired
+ *  with {@link getAvailableContextTabIds}: a stored tab that the mounted surface also publishes is the tab
+ *  `useContextTabSelection` resolves as active; one it does not publish is a request that fell back. */
+export function getContextTab(): string | null {
+  return useShellStore.getState().contextTab;
+}
+
+/** Subscribe to shell-store changes — the dev bridge's MOUNT SIGNAL (#656). A tabbed CONTEXT surface
+ *  publishes its ids from a mount effect (`useContextTabSelection`), so a bridge arm that must not act on
+ *  an unmounted panel waits on THIS rather than on a clock. Returns the unsubscribe. */
+export function subscribeShellState(listener: () => void): () => void {
+  return useShellStore.subscribe(listener);
+}
+
 /** The mounted context surface's stable ids paired with the exact labels a human sees. */
 export function getAvailableContextTabs(): readonly PublishedContextTab[] {
   const state = useShellStore.getState();

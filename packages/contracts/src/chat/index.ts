@@ -176,6 +176,7 @@ export {
   MEMBER_CARD_VISIBILITY_LEVELS,
   memberCardVisibilitySchema,
   openingPolicySchema,
+  resolveOfferChoices,
   roomOverridesSchema,
   storedGroupConfigSchema,
 } from "./metadata.ts";

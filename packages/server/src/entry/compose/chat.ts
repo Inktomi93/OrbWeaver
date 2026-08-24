@@ -1329,6 +1329,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           autoContinueRounds: us.chat.autoContinueRounds,
           autoSwipe: us.chat.autoSwipe,
           customStoppingStrings: us.chat.customStoppingStrings,
+          // B1 — the host's per-user offer-choices DEFAULT; the room's own `chatMetadata.offerChoices`
+          // overrides it at `resolveTeachingKnobs`. Under the frozen host (D19), like every other field here.
+          offerChoices: us.chat.offerChoices,
         },
         // DB6: the host's databank retrieval params (k/minScore/rerank) the gather passes to search.documents,
         // plus the {{databank}} slot budget — the FOREIGN-inputs seam (settings read chat delegates).

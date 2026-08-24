@@ -20,6 +20,8 @@ export type {
   AutomationImageRequest,
   AutomationImageResult,
   AutomationOps,
+  AutomationToolOutcome,
+  AutomationToolRequest,
   AutomationTurnRequest,
   AutomationTurnResult,
   BackgroundChoice,
