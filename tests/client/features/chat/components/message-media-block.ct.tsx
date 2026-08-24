@@ -4,11 +4,11 @@
 // than a broken `<img>`. Proves the render arm the #67 seam swapped in (done ≠ rendered — the pixels, not
 // just the source).
 
-import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import { holdPortraitImage, layoutBox, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/ct/held-portrait-image.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { seedActiveChat } from "../../../../support/ct/seed-active-chat.ts";
 import { AttachmentMediaStory, RoomImageDetailStory } from "../_ct-stories.tsx";
 
 const MEDIA_IMG = '[data-slot="message-media"]';
@@ -22,32 +22,9 @@ const PNG_DATA_SRC = /^data:image\/png/u;
 // STRUCTURALLY (the block's lone consumer is message-content.tsx); this proves it BEHAVIOURALLY, through
 // the only thing a user can see: the background write carries the seeded room's id.
 
-/** MINTED, never a hand-written literal: the store's rehydrate runs the persisted handle through
- *  `typeIdSchema(ID_PREFIX.chat)`, which demands a real 26-char base32 suffix — a readable fake id is
- *  DISCARDED and the store heals to `landing`, so the block silently takes the null-chat zoom arm and this
- *  test goes green-looking-red for the wrong reason. (Measured: `chat_ct_room_image_01` did exactly that.) */
+/** MINTED, never a hand-written literal — see `seedActiveChat`'s own note on why a readable fake id
+ *  silently heals the store to `landing` and takes this test's arm out from under it. */
 const ACTIVE_CHAT = mintTypeId(ID_PREFIX.chat);
-/** The persisted active-chat store's localStorage key. Unbound identity ⇒ the legacy (un-namespaced) key
- *  (`durable-local.ts`: `orb:` + the store name); a CT binds no user. */
-const ACTIVE_CHAT_STORAGE_KEY = "orb:active-chat";
-
-/** Seed the persisted store BEFORE any page script runs, THEN reload. Both halves are load-bearing and each
- *  was paid for: an effect (or a `selectChat` call) lands AFTER the media block's first commit, which is
- *  where `useActiveChatId` is read, so the block would already have taken the null-chat fallback — and
- *  `addInitScript` alone is not enough either, because the CT fixture has already navigated to the harness
- *  page by the time a test body runs, so the script would not fire until some later navigation. Measured:
- *  without the reload this test fails exactly like the neutered-source RED does. After the reload the store
- *  rehydrates at module init from SYNCHRONOUS localStorage, so there is no rehydrate race left to barrier
- *  on — the read happens before the store exists. */
-async function seedActiveChat(page: Page, chatId: ChatId): Promise<void> {
-  await page.addInitScript(
-    ([key, id]: readonly [string, string]) => {
-      globalThis.localStorage.setItem(key, JSON.stringify({ state: { handle: { kind: "committed", id } }, version: 1 }));
-    },
-    [ACTIVE_CHAT_STORAGE_KEY, chatId] as const,
-  );
-  await page.reload();
-}
 
 test("a resolved asset ref renders the real image at its blob url (no placeholder)", async ({ mount }) => {
   // The story provides its own resolved (data-URL) blob src for the asset via the context.
@@ -62,7 +39,6 @@ test("a resolved asset ref renders the real image at its blob url (no placeholde
 // #622 — the in-thread arm of the never-distort law. No producer of a chat media block fills `dims` (the
 // stored body is `![alt](asset:<id>)` and the projection is dimension-blind), so the primitive's no-dims
 // reservation is what every room image renders under: it must yield to the image's OWN ratio once known.
-const PORTRAIT_RATIO = 1024 / 1536;
 const RATIO_PRECISION = 2;
 const VIEWPORTS = [
   { label: "desktop", width: 1280, height: 900 },
@@ -129,6 +105,41 @@ test("#625: a resolved asset's stored dims reserve its TRUE box before the bytes
   expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
   expect(box?.height ?? 0).toBeGreaterThan(MIN_RESERVED_PX);
 });
+
+// #654 — the ZOOM LIGHTBOX arm. #625 reserved the inline image and stopped there: clicking the very same
+// picture to enlarge it re-mounted a dims-less `MessageMedia` inside the modal, so it popped in from 0×0 at
+// the size where a reflow is most visible. The dims are two lines away in `MediaWithZoom` — this drives the
+// real user chain (inline image → zoom) rather than the primitive, so it fails if EITHER the block stops
+// forwarding or the Lightbox stops accepting.
+const PENDING_ZOOM_SRC = "/blob/ct-654-pending-zoom-portrait.png";
+
+for (const vp of VIEWPORTS) {
+  test(`#654 (${vp.label}): the ZOOM lightbox reserves the image's true box before the bytes arrive`, async ({ mount, page }) => {
+    const release = await holdPortraitImage(page, PENDING_ZOOM_SRC);
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    // No active chat ⇒ the plain-zoom arm (the imagery detail modal is the other door, pinned below).
+    await mount(<AttachmentMediaStory reservedSrc={PENDING_ZOOM_SRC} />);
+    // Page-scoped: the zoom BUTTON *is* the mounted component's root node, so a component-scoped search
+    // would look inside it and find nothing (the same trap the #317 test below documents).
+    await page.locator('[data-slot="message-media-zoom"]').click();
+
+    // Barrier on the SETTLED modal — the Dialog portals to the body, so this is page-scoped.
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    const zoomed = dialog.locator(MEDIA_IMG);
+    // Visible at all is the assertion that bites: a dims-less <img> with nothing decoded lays out 0×0.
+    await expect(zoomed).toBeVisible();
+    const reserved = await layoutBox(zoomed);
+    expect(reserved.w / reserved.h).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+    expect(reserved.h).toBeGreaterThan(MIN_RESERVED_PX);
+
+    // The claim in full: the reserved box IS the true box. Release the bytes, barrier on the DECODED
+    // image, and the geometry must not have moved — that identity is what "no reflow" means.
+    await release();
+    await expect.poll(() => zoomed.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(PORTRAIT_W);
+    expect(await layoutBox(zoomed)).toEqual(reserved);
+  });
+}
 
 test("an unresolved asset ref degrades to the [image] placeholder, never a broken img", async ({ mount }) => {
   // Empty context map (the provider-less / still-loading state).

@@ -4,7 +4,7 @@
  *   pnpm engines            (or bash tooling/src/stack/engines.sh, which execs this)
  *
  * Dev tooling (throwaway launcher; global KISS applies — NOT the architecture). It boots the three loopback
- * engines SEQUENTIALLY and stays in the foreground OWNING them, OUTSIDE the tsx-watch server loop, so a
+ * engines SEQUENTIALLY and stays in the foreground OWNING them, OUTSIDE the node --watch server loop, so a
  * a dev-server restart (`pnpm stack up`) ADOPTS the already-warm ports instead of cold-respawning them (~1-2 min each save).
  * The in-server adoptive supervisor adopts these; on an admin "restart to apply" it takes over the one
  * engine it bounces. This launcher NEVER owns the watched process's engines — the HMR-topology INVARIANT.

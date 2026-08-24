@@ -36,6 +36,26 @@ export function walkFailureGap(navError: string): EvidenceGap {
   };
 }
 
+/** The REACH gap (#653): the page offered controls and the viewport-bound censuses reached NONE of them.
+ *
+ *  `censusGap` above catches a walk that saw nothing at all. This catches its narrower, nastier sibling —
+ *  a page whose text census is fat (so `census=` looks healthy and the run reads clean) while every
+ *  tap-target, action-door and silhouette verdict rests on an empty list. That is the exact shape #653 was
+ *  filed for, one step past the point where a reveal sweep can rescue it: if not one offered control could
+ *  be brought into view, the reveal is broken or the surface is entirely off-canvas, and either way the
+ *  three families' silence is a statement about the probe. Returns null when the census reached anything —
+ *  a PARTIAL miss is a printed denominator (ops/report.ts printCensusReach), not an instrument failure. */
+export function reachGap(samples: RawSamples): EvidenceGap | null {
+  const reach = samples.censusReach;
+  if (reach === undefined || reach.offered === 0 || reach.onScreen + reach.revealed > 0) {
+    return null;
+  }
+  return {
+    evidence: "the interactive census's viewport reach",
+    detail: `${reach.offered} offered control(s) were found and NONE could be measured in the viewport (${reach.revealScrolls} reveal scroll(s)${reach.budgetExhausted ? ", budget exhausted" : ""}) — the tap-target, action-door and silhouette families each folded an empty list into "no findings", so a clean verdict here would describe an unreachable surface, not a correct one`,
+  };
+}
+
 /** WHY an empty census is a HARD gap rather than "the page is simply bare": the walk censuses text,
  *  styles, images, tap targets, accessible names, headings, tab indexes and z-indexes — a rendered app
  *  surface cannot be empty across ALL of them. Zero means the walk saw nothing, which is a statement
