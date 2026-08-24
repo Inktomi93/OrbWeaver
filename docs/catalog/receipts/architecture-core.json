@@ -147,13 +147,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "115ee0418479cb8bd113f9baffb041a682a38f89d77736af9e47a19535877a69",
+      "assignedSha256": "5cd07885881b8e68841920e3745c61742baef1a530a35a755456a4e961c02fd8",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "a39f1f74c35c25d02473aba4640d4c0fddaac49b0a314bc444ebc61ab48fa634",
-      "verifiedCommit": "a5d5c2ab4adfe6dd8d9623cce82c6cb87f6989a9",
-      "verifiedAt": "2026-08-23",
+      "verifiedSha256": "5cd07885881b8e68841920e3745c61742baef1a530a35a755456a4e961c02fd8",
+      "verifiedCommit": "05e4ae30c541eec8e7f2fb8678fe89ea63ee4226",
+      "verifiedAt": "2026-08-24",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -168,7 +168,8 @@
         "delta re-verify 2026-08-23 (#527, lane tool-vocab) at 07bc631058a9fc38373dcac5017ff5524ea77dcd: ONE new ACTIVE row (tooling-ops-direct-invocation) + the count line 219->220. Row re-read against the landed descriptor (both arms + the derived-entry exemption + the \u00a74.6 blindness tripwire); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 220/220 gates on the same tree; scoped check:docs green.",
         "delta re-verify 2026-08-23 (#566, finding-overload-provenance terminal): the changed line is the ledger-machinery deletion note, re-derived against the deleted baseline/generator/reader on the tree",
         "delta re-verify 2026-08-23 (#578, model-prose terminal): the changed lines record that ledger machinery deletion, re-derived against the deleted baseline/generator on the tree",
-        "delta re-verify 2026-08-23 (#569, lane class-build) at ca67d1f2db6db41162dfe260c957e857bc9cc0fc: ONE new ACTIVE row (ratchet-row-integrity) + the count line 220->221, plus delta text on the suppressions and duplicate-action-doors rows recording the DEBT-vs-RATIFIED classification. Each changed line re-read against the landed descriptors (the four arms + the ledger-row scan unit; the derived RATIFIED_RULES partition and its two both-ways arms); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 221/221 gates on the same tree (555 admitted = 208 debt + 347 ratified); scoped check:docs green."
+        "delta re-verify 2026-08-23 (#569, lane class-build) at ca67d1f2db6db41162dfe260c957e857bc9cc0fc: ONE new ACTIVE row (ratchet-row-integrity) + the count line 220->221, plus delta text on the suppressions and duplicate-action-doors rows recording the DEBT-vs-RATIFIED classification. Each changed line re-read against the landed descriptors (the four arms + the ledger-row scan unit; the derived RATIFIED_RULES partition and its two both-ways arms); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 221/221 gates on the same tree (555 admitted = 208 debt + 347 ratified); scoped check:docs green.",
+        "delta re-verify 2026-08-24 (#588, lane cb-gate-biome-liveness): ONE new ACTIVE row (biome-grant-liveness) + the count line 221->222. Row re-read against the landed descriptor (five arms + the one exemption row + the rename-proof include-count anchor); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 222/222 gates on the same tree; scoped check:docs green."
       ],
       "claims": [
         {
