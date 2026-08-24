@@ -4,8 +4,8 @@
 
 import type { Registry } from "#lib";
 import { createRegistryContext } from "#lib";
+import type { SettingsCategoryId } from "./settings-categories.ts";
 import type { SettingsPaneDefinition } from "./settings-pane-registry.ts";
-import type { SettingsCategoryId } from "./shell-store.ts";
 
 export type SettingsPaneRegistry = Registry<SettingsCategoryId, SettingsPaneDefinition>;
 

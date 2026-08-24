@@ -293,6 +293,8 @@ export { NO_SELECTION_TITLE, RAIL_ZONES, SECTION_GROUPS } from "./section-regist
 export type { SectionRegistry } from "./section-registry-context.ts";
 export { useSectionRegistry } from "./section-registry-context.ts";
 export { SectionRegistryProvider } from "./section-registry-provider.tsx";
+export type { SettingsCategoryId } from "./settings-categories.ts";
+export { SETTINGS_CATEGORY_IDS } from "./settings-categories.ts";
 export type {
   AppSettingsClaimPath,
   ResolvedSettingsSection,
@@ -328,7 +330,7 @@ export {
 export type { SettingsSectionRegistry } from "./settings-section-registry-context.ts";
 export { useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context.ts";
 export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider.tsx";
-export type { ModalSlotId, SettingsCategoryId } from "./shell-store.ts";
+export type { ModalSlotId } from "./shell-store.ts";
 export {
   closeModal,
   getAvailableContextTabIds,
@@ -340,7 +342,6 @@ export {
   publishContextTabs,
   revealContextPanel,
   revealContextPanelBesideContent,
-  SETTINGS_CATEGORY_IDS,
   setActiveSection,
   setContextTab,
   setFocusMode,

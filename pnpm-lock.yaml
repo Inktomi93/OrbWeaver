@@ -536,6 +536,9 @@ importers:
       '@trpc/tanstack-react-query':
         specifier: 'catalog:'
         version: 11.18.0(@tanstack/react-query@5.101.4(react@19.2.7))(@trpc/client@11.18.0(@trpc/server@11.18.0(typescript@6.0.3))(typescript@6.0.3))(@trpc/server@11.18.0(typescript@6.0.3))(react@19.2.7)(typescript@6.0.3)
+      fflate:
+        specifier: 'catalog:'
+        version: 0.8.3
       react:
         specifier: 'catalog:'
         version: 19.2.7
