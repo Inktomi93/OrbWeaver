@@ -9,6 +9,7 @@
 import { historyFloor } from "@orb/contracts/chat";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { neutralizeMacros } from "@orb/kit/macro";
 import { describe } from "vitest";
 import type { PluginHostOps } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
 import { buildPluginBridge } from "../../../../../packages/server/src/domain/plugin/substrate/bridge.ts";
@@ -19,6 +20,12 @@ const INSTALLER = castId<UserId>("user_installer00000000000000");
 const OTHER = castId<UserId>("user_other000000000000000000");
 const PLUGIN = castId<PluginId>("plugin_bridge000000000000000001");
 const CHAT = castId<ChatId>("chat_bridge0000000000000000");
+const OTHER_PLUGIN = castId<PluginId>("plugin_other0000000000000000002");
+const BOOK = "wbook_bridge00000000000000000";
+/** A LIVE mutating macro — `{{setvar}}` is the one that turns a lore write into durable chat state. */
+const LIVE_MACRO = "tension is {{setvar::tension::99}} now";
+const NOT_ATTACHED_RE = /attached to this chat/u;
+const AT_CAP_RE = /already owns 64 entries/u;
 /** A minimal valid `GenerateImageActionArgs` (the `generateImageActionArgsSchema` required fields). */
 const IMAGE_ARGS = { mode: "free", n: 1, useAvatarReference: false, reuse: "never", quiet: true } as const;
 
@@ -163,6 +170,109 @@ describe("buildPluginBridge — global-vars close over the installer", () => {
     await bridge.variables.get("some-key");
 
     expect(rec.varGets.owners).toEqual([INSTALLER]);
+  });
+});
+
+/** An ops bundle whose world-info trio is scriptable: the attachment verdict, the book's existing titles, and
+ *  a recorder for what actually reached the SHARED writer. */
+function loreOps(over: { readonly attached?: boolean; readonly titles?: readonly string[] } = {}): {
+  readonly ops: PluginHostOps;
+  readonly writes: Parameters<PluginHostOps["worldInfo"]["upsertEntries"]>[0][];
+  readonly attachProbes: { ownerId: UserId; chatId: ChatId; bookId: string }[];
+} {
+  const writes: Parameters<PluginHostOps["worldInfo"]["upsertEntries"]>[0][] = [];
+  const attachProbes: { ownerId: UserId; chatId: ChatId; bookId: string }[] = [];
+  const base = makeInertOps();
+  const ops: PluginHostOps = {
+    ...base,
+    worldInfo: {
+      upsertEntries: (req) => {
+        writes.push(req);
+        return Promise.resolve({ inserted: 1, updated: 0, skippedHandEdited: 0 });
+      },
+      isBookAttachedToChat: (ownerId, chatId, bookId) => {
+        attachProbes.push({ ownerId, chatId, bookId });
+        return Promise.resolve(over.attached ?? true);
+      },
+      listEntryTitles: () => Promise.resolve(over.titles ?? []),
+    },
+  };
+  return { ops, writes, attachProbes };
+}
+
+// `worldinfo.write` is specified (02 §2) as "grant + host + book-attached-to-chat + the 64-entry cap". The
+// membrane holds the first two; these are the domain's half — plus the neutralization that keeps the capability
+// from becoming a DELAYED `chat.variables.write`.
+describe("buildPluginBridge — the lore write is gated, capped, namespaced and macro-INERT", () => {
+  test("guest macros are NEUTRALIZED before the row is stored (a stored {{setvar}} is a variable write by deferral)", async () => {
+    // THE CAPABILITY-BYPASS PIN. World-info content is macro-rendered at ASSEMBLY, with the full registry
+    // against the assembling chat's live context — and that render MUTATES: `{{setvar}}` pushes a VarOp onto
+    // the op-log, which `foldVarOps` replays into durable chat state. So a plugin holding ONLY `worldinfo.write`
+    // could set chat variables in every chat the book is attached to, on the next turn, with no
+    // `chat.variables.write` grant and no host authority in those rooms.
+    const rec = loreOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
+
+    await bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: ["mood"], contentTemplate: LIVE_MACRO, position: "after_char" });
+
+    const stored = rec.writes[0]?.entries[0]?.content ?? "";
+    expect(stored).not.toContain("{{");
+    expect(stored).not.toContain("}}");
+    // Neutralized, not mangled: the text still reads identically to a human (a U+200B between the braces).
+    expect(stored).toContain("setvar::tension::99");
+    expect(stored).toBe(neutralizeMacros(LIVE_MACRO));
+  });
+
+  test("a book NOT attached to the invocation chat is REFUSED (the attachment is the room's consent)", async () => {
+    // The bookId is GUEST-SUPPLIED and the shared writer only checks OWNERSHIP, so without this gate a plugin
+    // invoked in chat X writes into any book its installer owns — including books attached only to chat Y.
+    const rec = loreOps({ attached: false });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
+
+    await expect(
+      bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: [], contentTemplate: "inert", position: "after_char" }),
+    ).rejects.toThrow(NOT_ATTACHED_RE);
+    expect(rec.writes).toEqual([]);
+    // The probe asked about the ADMITTED chat, under the installer — not a guest-supplied scope.
+    expect(rec.attachProbes).toEqual([{ ownerId: INSTALLER, chatId: CHAT, bookId: BOOK }]);
+  });
+
+  test("entries are TITLE-NAMESPACED per plugin (idempotent re-upsert; a human's entry is never clobbered)", async () => {
+    const rec = loreOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
+
+    await bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: ["k"], contentTemplate: "x", position: "after_char" });
+
+    // Mirrors the rule path's `auto/<ruleId>:<entryKey>`: a same-named human entry is a DIFFERENT title, and a
+    // re-upsert of the same entryKey updates this plugin's own row.
+    expect(rec.writes[0]?.entries[0]?.title).toBe(`plugin/${PLUGIN}:mood`);
+  });
+
+  test("the per-plugin entry ceiling refuses a NEW entry at the cap but still allows UPDATING an owned one", async () => {
+    const own = (n: number): string => `plugin/${PLUGIN}:e${n}`;
+    const full = Array.from({ length: 64 }, (_, i) => own(i));
+    const atCap = loreOps({ titles: [...full, "a human-authored entry", `plugin/${OTHER_PLUGIN}:theirs`] });
+    const bridge = buildPluginBridge(atCap.ops, INSTALLER, PLUGIN);
+
+    // A 65th NEW entry is refused (a looping guest would otherwise fill the installer's book).
+    await expect(bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "new", keys: [], contentTemplate: "x", position: "after_char" })).rejects.toThrow(
+      AT_CAP_RE,
+    );
+    expect(atCap.writes).toEqual([]);
+
+    // …but re-writing one it already owns is not growth, so it passes (the rule path's own semantic).
+    await bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "e3", keys: [], contentTemplate: "x", position: "after_char" });
+    expect(atCap.writes).toHaveLength(1);
+  });
+
+  test("the cap counts only THIS plugin's namespace — a full book of other people's entries is not its budget", async () => {
+    const foreign = Array.from({ length: 200 }, (_, i) => (i % 2 === 0 ? `plugin/${OTHER_PLUGIN}:e${i}` : `human entry ${i}`));
+    const rec = loreOps({ titles: foreign });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
+
+    await bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mine", keys: [], contentTemplate: "x", position: "after_char" });
+
+    expect(rec.writes).toHaveLength(1);
   });
 });
 

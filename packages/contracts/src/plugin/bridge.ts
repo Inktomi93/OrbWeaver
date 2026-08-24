@@ -33,10 +33,14 @@ export interface PluginBridge {
     readonly requestTurn: (chatId: ChatId, automationDepth: number, p: { readonly speakerCharacterId?: string; readonly guided?: string }) => Promise<void>;
   };
   readonly worldInfo: {
-    /** Upsert one attached-book entry (`worldInfo.upsertEntry`). The entry carries its own `bookId`; the
-     *  domain builder resolves the installer's Principal and maps to the shared `upsertEntries` writer, so a
-     *  cross-owner book write is refused by the writer's ownership gate. */
-    readonly upsertEntry: (entry: PluginWorldEntryUpsert) => Promise<void>;
+    /** Upsert one ATTACHED-book entry (`worldInfo.upsertEntry`). The entry carries its own guest-supplied
+     *  `bookId`, so the ADMITTED `chatId` rides along as the domain's consent anchor: 02 §2 specifies this
+     *  capability as "grant + host + book-attached-to-chat + the 64-entry cap", and only the domain can answer
+     *  the last two. Without the chatId the bridge could not express the attachment gate at all — a plugin
+     *  invoked in chat X could write into any book its installer owns, including books attached only to chat Y.
+     *  The domain builder also resolves the installer's Principal (so a cross-owner book write is refused by
+     *  the shared writer's ownership gate) and NEUTRALIZES macros in the guest content. */
+    readonly upsertEntry: (chatId: ChatId, entry: PluginWorldEntryUpsert) => Promise<void>;
   };
   readonly imagery: {
     /** SPEND-classed generation (`imagery.generatePicture`); returns the primary image's asset id. The

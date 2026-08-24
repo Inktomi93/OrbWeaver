@@ -205,7 +205,13 @@ export function makeInertOps(): PluginHostOps {
       applyVariableOps: () => Promise.resolve(),
       requestTurn: () => Promise.resolve(),
     },
-    worldInfo: { upsertEntries: () => Promise.resolve({ inserted: 0, updated: 0, skippedHandEdited: 0 }) },
+    worldInfo: {
+      upsertEntries: () => Promise.resolve({ inserted: 0, updated: 0, skippedHandEdited: 0 }),
+      // Fail-CLOSED defaults, matching `resolveViewerVisibility` above: a lore-write test that forgets to wire
+      // the attachment verdict sees a REFUSAL, never a silently-ungated write.
+      isBookAttachedToChat: () => Promise.resolve(false),
+      listEntryTitles: () => Promise.resolve([]),
+    },
     storage: {
       get: () => Promise.resolve(null),
       set: () => Promise.resolve(),

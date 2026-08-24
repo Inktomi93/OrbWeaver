@@ -13,6 +13,16 @@
 // `resolveViewerVisibility` op (membership AND floor as one value; `null` ⇒ the guest sees nothing) and pushed
 // into the read as a REQUIRED param. Reading canon without it is not expressible in `PluginHostOps`.
 //
+// THE LORE-WRITE GATES (02 §2: "grant + host + book-attached-to-chat + the 64-entry cap"). The membrane owns
+// the first two; the last two — plus macro NEUTRALIZATION — are this file's, because only the domain has the db
+// and the shared writer. The neutralization is not hygiene: world-info content is macro-rendered at ASSEMBLY
+// with the full registry against the assembling chat's live context, and that render MUTATES (`{{setvar}}` →
+// a VarOp on the op-log → `foldVarOps` → durable chat state). Storing raw guest text therefore turns a
+// `worldinfo.write` grant into a DELAYED `chat.variables.write` in every chat the book is attached to — a
+// capability bypass by deferral, reaching rooms this invocation was never admitted to. The automation arm is
+// the contrast that proves the shape: it RENDERS its template at write time, so its stored row holds no live
+// macro either.
+//
 // LOOP SAFETY (the per-plugin $/action spend ceiling was stripped for enterprise spend enforcement):
 // a runaway plugin's autonomous turns stay bounded by the engine's per-member turn RATE budget + the
 // cascade-depth guard (resolved inside chat's `requestTurn`); its images are clamped n≤4 + the membrane's ≤32
@@ -20,7 +30,24 @@
 
 import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
+import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginHostOps } from "../contract/ops.ts";
+
+/** The per-plugin ≤64-entries-per-book ceiling — the plugin mirror of automation's `RULE_MAX_ENTRIES_PER_BOOK`
+ *  (a looping inserter fills a book otherwise). Counted over the plugin's OWN title namespace, so one plugin's
+ *  entries never consume another's budget and a human's entries are never counted or clobbered. */
+const PLUGIN_MAX_ENTRIES_PER_BOOK = 64;
+
+/** The title prefix a plugin's lore entries live under — the idempotency + cap key, mirroring the rule path's
+ *  `auto/<ruleId>:`. A transient snippet has no pluginId and no `worldinfo.write` grant, so `null` cannot
+ *  reach here through the capability gate; it is spelled defensively rather than silently sharing a namespace. */
+function pluginEntryPrefix(pluginId: PluginId | null): string {
+  return `plugin/${pluginId ?? "unknown"}:`;
+}
+
+function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
+  return `${pluginEntryPrefix(pluginId)}${entryKey}`;
+}
 
 /** Adapt the injected `PluginHostOps` into the membrane's `PluginBridge` for one installing user. `listMessages`
  *  is clamped to the installer's own viewer visibility (see the file header); the other chat ops
@@ -79,11 +106,41 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         }),
     },
     worldInfo: {
-      upsertEntry: async (entry): Promise<void> => {
+      // THE PLUGIN LORE WRITE — three domain gates the membrane cannot express (it holds no db), in the order
+      // a hostile guest meets them. See the file header for why each exists.
+      upsertEntry: async (chatId, entry): Promise<void> => {
+        const bookId = entry.bookId as WorldBookId;
+        // (1) ATTACHMENT = the room's consent. The bookId is GUEST-SUPPLIED and the shared writer only checks
+        // OWNERSHIP, so without this a plugin invoked in chat X writes any book its installer owns — including
+        // one attached solely to chat Y, a room this invocation was never admitted to.
+        if (!(await ops.worldInfo.isBookAttachedToChat(installerUserId, chatId, bookId))) {
+          throw new Error("plugin host: worldInfo.upsertEntry requires the book to be attached to this chat");
+        }
+        // (2) The per-plugin TITLE NAMESPACE + entry CEILING, keyed the way the automation arm keys its own
+        // (`auto/<ruleId>:<entryKey>`). The namespace does two jobs: a re-upsert of the same entryKey updates
+        // THIS plugin's own entry (idempotency) instead of clobbering a same-titled entry the human wrote, and
+        // it makes "how many entries does this plugin own here" answerable — which is what the cap counts.
+        const title = pluginEntryTitle(pluginId, entry.entryKey);
+        const owned = (await ops.worldInfo.listEntryTitles(installerUserId, bookId)).filter((t) => t.startsWith(pluginEntryPrefix(pluginId)));
+        if (!owned.includes(title) && owned.length >= PLUGIN_MAX_ENTRIES_PER_BOOK) {
+          throw new Error(`plugin host: this plugin already owns ${PLUGIN_MAX_ENTRIES_PER_BOOK} entries in book ${bookId}`);
+        }
         await ops.worldInfo.upsertEntries({
           authorUserId: installerUserId,
-          bookId: entry.bookId as WorldBookId,
-          entries: [{ title: entry.entryKey, keys: entry.keys, content: entry.contentTemplate }],
+          bookId,
+          entries: [
+            {
+              title,
+              keys: entry.keys,
+              // (3) NEUTRALIZE. The stored row is macro-rendered LATER, at assembly, with the FULL registry and
+              // the assembling chat's live context — and that render MUTATES: `{{setvar}}` pushes a VarOp onto
+              // the op-log, which `foldVarOps` replays into durable chat state. So raw guest text here is a
+              // `chat.variables.write` the plugin was never granted, executed by deferral in every chat the
+              // book is attached to. The house primitive (the same one the automation model→lore route and
+              // `user-macros` use) makes the braces inert while the text still reads identically to a human.
+              content: neutralizeMacros(entry.contentTemplate),
+            },
+          ],
         });
       },
     },
