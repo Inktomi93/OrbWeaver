@@ -205,7 +205,13 @@ through the EXISTING `createRule` validation (never bypassed; `verbs/create-rule
 (rejected: the `choice` env plane — a second config coupling; rejected: raw predicate fragments
 as knobs — the admin-console failure smaller). Pure turn-cadence presets need NO counter at all:
 `chat.messageCount` is already an env binding (`contracts/automation/index.ts:317`), so "every N
-beats" is the single predicate `chat.messageCount % N == 0`.
+beats" is the single predicate **`int(chat.messageCount) % N == 0`** — the `int()` coercion is
+MANDATORY: probed live 2026-08-24 (primary, `packages/kit/src/cel/index.ts` seam), the bare
+`chat.messageCount % N == 0` THROWS `no such overload: dyn<double> % int` in the shipped cel-js
+dialect; the coerced form returns true. A1 owes a `cel-goldens` vector pinning the dialect's
+numeric-coercion rules, and preset authoring carries two LAWS: every `vars` read in a predicate is
+`has()`-guarded, and chip `sendTemplate`s are diegetic or compose-mode (never a member-attributed
+director voice).
 
 - The preset table (v1 committed + owner-OPTIONAL rows marked ⭘; every row maps to EXISTING arms —
   receipts `contracts/automation/index.ts:160-247`):
@@ -409,9 +415,9 @@ a guided-template nudge" claim is hereby retracted as an overclaim):
    the boundary test: "could a rebuild from canon reproduce it?" yes ⇒ #29's; no ⇒ this arm's.
 7. **What is deliberately NOT rebuilt:** the crew domain, the workload scheduler, `crew_plots`,
    the `audience` field, any member identity. One engine, one watcher, one budget stack —
-   ruling 1's exact demand. Cadence = the single predicate `chat.messageCount % N == 0`
+   ruling 1's exact demand. Cadence = the single predicate `int(chat.messageCount) % N == 0` (the coercion is mandatory — §3-S3)
    (`chat.messageCount` is an env binding, `contracts/automation/index.ts:317` — no counter
-   variable, no second rule) plus `event.turn.automationDepth == 0` guards — the legacy
+   variable, no second rule; `int()`-coerced per §3-S3's probed dialect law) plus `event.turn.automationDepth == 0` guards — the legacy
    turn-counter's semantics without a scheduler and without state.
 
 - **Costs, priced (panel-completed):** contracts — 1 new `AUTOMATION_ACTION_TYPES` member
@@ -445,7 +451,7 @@ a guided-template nudge" claim is hereby retracted as an overclaim):
 | Purged concept | Its capability | Carried NOW by | Status |
 | - | - | - | - |
 | crew lorebook-keeper | distill durable keyed lore from settled play (span-stamped, idempotent, merge-at-cap, never secrets unrevealed on-screen — `legacy-main:.../members/lorebook-keeper.ts`) | template half: `insert_world_info_entry` (live arm); ANALYSIS half: the `run_analysis` arm's `upsertLoreEntry` route (⭘ "distill lore from play" preset) | carried — committed (C2) |
-| crew director — cadence half | fire every N beats | a rule predicate — the stateless `chat.messageCount % N` form (the counter-variable shape also exists via the clock preset). Honesty line (panel P2): legacy reset its counter ONLY on a real enqueue, so a refused pass fired on a later beat; the modulo form loses a refused tick until the next multiple — F4's refusal-invitation card substantially covers the budget-refusal case, lock-conflict refusals wait | carried (live engine) |
+| crew director — cadence half | fire every N beats | a rule predicate — the stateless `int(chat.messageCount) % N` form (the coercion is mandatory — §3-S3) (the counter-variable shape also exists via the clock preset). Honesty line (panel P2): legacy reset its counter ONLY on a real enqueue, so a refused pass fired on a later beat; the modulo form loses a refused tick until the next multiple — F4's refusal-invitation card substantially covers the budget-refusal case, lock-conflict refusals wait | carried (live engine) |
 | crew director — ANALYSIS half | think-first pass: arc + twist bank + ONE narrator-only guidance (the prior table OVERCLAIMED this as carried; it was not) | the `run_analysis` arm + the ⭘ "story pacing analysis" preset + the S2 guidance contribution (§4) | **spec'd here; committed (C1, RULED F7)** |
 | crew prose-audit | post-turn quiet audit → clean/issues verdict + full conservative rewrite (`legacy-main:.../members/prose-audit.ts`) | the `run_analysis` arm routing a rewrite SUGGESTION through S4 — WITH the legacy correctness heart carried (panel P2): the card pins the audited `variantId` + content hash, confirm refuses `superseded`/`stale` without touching canon (`legacy-main:.../crew/verbs/proposals.ts`), and the confirmed rewrite must be REVERTIBLE (the restore-original lesson — mechanism decided at C3 build: a variant-preserving edit or an `originalContent` stamp) | committed (C3, RULED F7) |
 | crew card-evolution | earned-evolution card proposals, append-over-replace, empty-is-common | refinery `apply-fields`/`apply-as-copy` + pre-apply snapshot (owner workshop; `domain/refinery/contract/service.ts:2-5`) — the room/library line keeps it OUT of rules (rooms must not mutate cross-room library identity) | carried (manual) |
