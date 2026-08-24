@@ -664,8 +664,39 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`bash ${nested}`, "ask", "script:script-depth-cap"],
     [`bash ${nestedTracked}`, "pass", null],
     [`bash ${big}`, "ask", "script-too-large"],
+    // #631 — THE OPERAND RESOLVER. The operand used to be read off the BLANKED text, where a quoted path
+    // is a run of spaces: `bash "$SP/run.sh"` resolved to NOTHING and `bash "/abs/run.sh" arg` resolved to
+    // the TRAILING ARGUMENT. Either way the guard returned its content verdict on a body it never opened —
+    // and a PreToolUse `allow` bypasses the permission flow entirely, so nothing else looked either
+    // (reproduced live 2026-08-24: the SAME script denied bare, EXECUTED with no prompt when quoted).
+    // Every row below returned `pass/null` before the fix; the bare control above is what makes them
+    // decisive — one script, one body, and the only variable is how the path is spelled.
+    [`bash "${evil}" ignored-arg`, "deny", "script:git-destructive"],
+    [`bash ${evil} ignored-arg`, "deny", "script:git-destructive"],
+    [`SP=${dir}; bash "$SP/lane-run.sh"`, "deny", "script:git-destructive"],
+    [`SP=${dir}; bash "\${SP}/lane-run.sh"`, "deny", "script:git-destructive"],
+    [`SP=${dir}; bash $SP/lane-run.sh`, "deny", "script:git-destructive"],
+    [`SP=${dir}; $SP/lane-run.sh`, "deny", "script:git-destructive"], // a bare `.sh` head through a var
+    [`timeout 60 bash "${evil}" --flag v`, "deny", "script:git-destructive"], // wrapper + flags + args
+    [`setsid nohup bash "${evil}" > /tmp/x.log 2>&1`, "deny", "script:git-destructive"], // redirects ≠ operand
+    [`bash --norc "${evil}"`, "deny", "script:git-destructive"],
+    [`bash -- "${evil}"`, "deny", "script:git-destructive"],
+    [`bash '${dir}'/lane-run.sh`, "deny", "script:git-destructive"], // partly quoted: one shell word
+    // …and when the command does NOT pin the path down, the guard says so instead of waving it through.
+    // This clause is the one that makes the failure mode fail-CLOSED: "I could not look" must never read
+    // as "I have no objection", because there is no second gate behind an `allow`.
+    ['bash "$NOT_ASSIGNED_HERE/run.sh"', "ask", "script-unresolved-operand"],
+    [`bash ${dir}/*.sh`, "ask", "script-unresolved-operand"],
+    ['bash "$(mktemp -d)/run.sh"', "ask", "script-unresolved-operand"],
     // MUST PASS — the sanctioned forms and the fail-open paths
     [`bash ${ct} 2>&1 | tail -40`, "pass", null],
+    // #631's other direction: the fix must not become a deny-everything-quoted wall. A TRACKED script is
+    // reviewed code however its path is spelled, and a trailing argument is an argument.
+    [`bash "${tracked}"`, "pass", null],
+    [`bash "${tracked}" --some-arg`, "pass", null],
+    [`REPO=${repo}; bash "$REPO/tracked-run.sh"`, "pass", null],
+    [`bash "${clean}" one two`, "pass", null],
+    [`bash "${ct}" 2>&1 | tail -40`, "pass", null],
     [`bash ${clean} arg1 arg2`, "pass", null],
     [`bash ${join(dir, "does-not-exist.sh")}`, "pass", null], // the command would fail anyway
     [`bash ${dir}`, "pass", null], // a directory is not a script
@@ -701,6 +732,11 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   // the tracked pass-through is a real decision, not an accident of a clean body: the same bytes,
   // classified directly, are a deny
   expect(at(runBatch([{ command: EVIL_BODY }]), 0).rule).toBe("git-destructive");
+  // #631: the unresolvable refusal is LOUD — it quotes the spelling it could not resolve and names the
+  // recovery, so a lane fixes the command instead of hitting an opaque wall on the guard's own hook.
+  const unresolved = at(runBatch([{ command: 'bash "$NOT_ASSIGNED_HERE/run.sh"' }]), 0);
+  expect(unresolved.reason).toContain("$NOT_ASSIGNED_HERE/run.sh");
+  expect(unresolved.reason).toContain("Write the path literally");
 });
 
 test("nested commands: the depth fence says so rather than waving an unread command through", () => {
