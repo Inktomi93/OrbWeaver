@@ -10,7 +10,9 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 // ── --map: a live selector map (role · accessible name · best stable selector) ──────────────
 // "How do I reach this" instead of grepping source. Runs POST-STEPS so `--click X --map` maps
 // a just-revealed surface (a settings dialog). RAW STRING IIFE (JSON.stringify-interpolated
-// scope selector) — same keepNames constraint as scanDeadCss/buildContrastScript. Unlike
+// scope selector) — same constraint as scanDeadCss/buildContrastScript: the body runs in the
+// BROWSER, tsc would check a function form against the NODE lib (the original keepNames reason
+// died with the 2026-08-03 tsx shed). Unlike
 // --contrast, this whole decision (role/name resolution, selector priority) has no WCAG-style
 // fixed threshold to unit-test in Node, so it's formatted entirely in-page — nothing for
 // design-audit-checks.ts to own.
