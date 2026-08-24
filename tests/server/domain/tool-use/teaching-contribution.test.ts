@@ -16,7 +16,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { TeachingContext } from "../../../../packages/server/src/domain/chat/contract/context.ts";
-import { collectTeaching, DEFAULT_TEACHING_KNOBS } from "../../../../packages/server/src/domain/chat/substrate/teaching.ts";
+import { collectTeaching } from "../../../../packages/server/src/domain/chat/substrate/teaching.ts";
 import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
 import type { PluginToolSpec } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "../../../../packages/server/src/domain/tool-use/index.ts";
@@ -49,7 +49,17 @@ function pluginSpec(name: string, installer: typeof ALICE): PluginToolSpec {
 /** The turn's teaching input. `runAsUserId` is the turn's frozen host (D19) — the identity the attach set is
  *  resolved FOR, and the only field this contribution reads. */
 function tctxFor(runAsUserId: UserId): TeachingContext {
-  return { chatId: castId<ChatId>("chat_x"), runAsUserId, knobs: DEFAULT_TEACHING_KNOBS, rpgGather: null };
+  // knobs/prose/identity are inert for this suite — it drives ONLY the tool-attach axis (toolNames),
+  // never the offer-choices teach — so the empty/off shape B1's contribution test uses is the minimal
+  // valid TeachingContext here. `prose` + `identity` became REQUIRED at B1 (byte-identity of the teach text).
+  return {
+    chatId: castId<ChatId>("chat_x"),
+    runAsUserId,
+    knobs: { offerChoices: false },
+    prose: {},
+    identity: { user: "User", char: "Aria" },
+    rpgGather: null,
+  };
 }
 
 /** The registry a composition root assembles: chat's own contribution (the rpg-gather projection) PLUS
