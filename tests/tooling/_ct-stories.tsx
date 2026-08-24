@@ -528,3 +528,86 @@ export function WalkerClippedInflowControlStory(): ReactElement {
     </div>
   );
 }
+
+/** The BELOW-THE-FOLD stage (issue #653) — the shape that made design-audit report a false clean.
+ *
+ *  Measured on the live surface that named the row (the chat "This chat" context tab at 430x932):
+ *  `document.scrollingElement.scrollHeight === window.innerHeight` — there is NO document scroll — while
+ *  the tab panel is an INNER scroller of clientHeight 515 over scrollHeight 2261, holding ~20 sized
+ *  controls at top 1073..2374. Every one of them fell out of `tapTargets`, `actionDoors` AND
+ *  `controlAspects` because the census required viewport intersection, and the run still printed
+ *  `findings=0`. So the host here is an inner scroller, not a long document: a fix that drove
+ *  `window.scrollTo` would pass a document-scroll stage and still be blind to the real one.
+ *
+ *  FOUR ARMS, and each one is load-bearing:
+ *   - `below-fold-subtarget` — the DEFECT. 413x16 with no touch-target pseudo at all, the geometry of the
+ *     rule row's "Recent activity" disclosure. It must FIRE now and could not have before.
+ *   - `below-fold-healthy` — a 48x48 control at the same depth. It must stay SILENT while being present in
+ *     the census, which is the difference between "looked at and fine" and "never looked at".
+ *   - `below-fold-extent` — a 20x20 box whose hit area is a 52px `::after`. This one can ONLY pass if the
+ *     control was genuinely IN THE VIEWPORT when `elementFromPoint` ran: the compositor probe is
+ *     viewport-coordinate, so a fix that measured the box off-screen instead of scrolling to it would
+ *     read 20px and mint a false sub-target. It is the fence against "recovering" the census by relaxing
+ *     the PAINT-class rules.
+ *   - `off-canvas-phantom` — a FIXED control parked past the right edge, which no scroll can reach (the
+ *     2026-08-16 class: an off-canvas detail panel at x=431 on a 430px viewport supplied a whole census of
+ *     failures nobody could touch). It must stay OUT of the census and be COUNTED as skipped, because a
+ *     family that reports nothing owes its denominator.
+ *
+ *  The three in-scroller controls deliberately share ONE parent: `sharedCompositeOwns` credits a LONE
+ *  control with its wrapper's extent, so a subtarget alone in a wrapper would be a fence that cannot fail. */
+export function WalkerBelowTheFoldStory(): ReactElement {
+  return (
+    <div style={{ position: "relative", width: 460 }}>
+      {/* A pointer-conditional touch-target pseudo, the shape @orb/ui Button's inline/glyph sizes carry
+          (packages/ui/src/primitives/button/variants.ts). Inline styles cannot express `::after`, and the
+          whole point of this arm is that the hit extent is NOT the border box. */}
+      <style>{".cb-hit-extent{position:relative}.cb-hit-extent::after{content:'';position:absolute;inset:-16px}"}</style>
+      {/* The host is nearly as tall as the CT viewport ON PURPOSE: the walker's viewport predicate does not
+          model ancestor clipping, so a short host would put controls inside the viewport but outside the
+          host's clip — a stage whose geometry is ambiguous proves nothing about the fix. */}
+      <div data-testid="fold-scroll-host" style={{ height: 400, overflow: "auto", width: 460 }}>
+        <div style={{ height: 1600 }}>
+          <button data-testid="above-fold-control" style={{ height: 44, width: 120 }} type="button">
+            In view already
+          </button>
+          <div style={{ paddingTop: 856 }}>
+            {/* The bands are SIBLINGS, not the subtarget's own padding, and that is the whole stage: the hit
+                probe credits a control with any point whose owner CONTAINS it, so a control floating in a
+                padded/gapped wrapper is credited with the wrapper's pixels and measures 44 no matter how
+                short it is. The live defect has the same shape — the 6px bands above and below the rule
+                row's disclosure are not owned by it, which is why it really does fail the floor. */}
+            <div data-testid="fold-band-above" style={{ height: 40, width: 413 }}>
+              Nudge the pacing
+            </div>
+            <button data-testid="below-fold-subtarget" style={{ display: "block", height: 16, padding: 0, width: 413 }} type="button">
+              Recent activity
+            </button>
+            <div data-testid="fold-band-below" style={{ height: 40, width: 413 }}>
+              Runs on every message
+            </div>
+            <button data-testid="below-fold-healthy" style={{ display: "block", height: 48, width: 120 }} type="button">
+              Run now
+            </button>
+            <div style={{ height: 24 }} />
+            {/* Inset from the left edge deliberately: `ownsPoint` refuses NEGATIVE viewport coordinates, so a
+                20px control flush against x=0 fails its own left probe at every radius and would measure 20
+                whether or not the extent works — a fence that cannot fail. 48px clears the widest radius. */}
+            <button
+              className="cb-hit-extent"
+              data-testid="below-fold-extent"
+              style={{ display: "block", height: 20, marginInlineStart: 48, padding: 0, width: 20 }}
+              type="button"
+            >
+              i
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* Fixed, so no ancestor scroll can bring it in: unreachable, not merely un-scrolled-to. */}
+      <button data-testid="off-canvas-phantom" style={{ height: 20, insetInlineStart: "300vw", position: "fixed", top: 0, width: 20 }} type="button">
+        p
+      </button>
+    </div>
+  );
+}

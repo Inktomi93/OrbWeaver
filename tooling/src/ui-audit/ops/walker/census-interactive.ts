@@ -3,6 +3,69 @@
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WHAT EACH CENSUS FAMILY NEEDS FROM THE VIEWPORT (#653 — the classification the next author will
+// otherwise re-derive wrong, which is how this segment came to report a false clean)
+//
+// The question is never "is this element on screen"; it is "can the fact this rule judges be READ
+// while the element is off screen". Three classes, and only the PAINT class is genuinely
+// viewport-bound:
+//
+//   class      what it reads                         off-screen?   families
+//   ────────── ───────────────────────────────────── ───────────── ───────────────────────────────
+//   GEOMETRY   getBoundingClientRect / computed      YES — a box    accessibleNames, tabIndexes,
+//              style only. Layout is resolved for    is resolved    zIndexes, headings, texts,
+//              the WHOLE document, not for the       everywhere.    textStyles, overflows,
+//              visible part of it.                                  clippedOverflows, images
+//   PAINT      document.elementFromPoint / a pixel   NO — hit       tapTargets (the ::after
+//              sample. Both are viewport-coordinate  testing and    hit-extent probe), the
+//              APIs: outside 0..innerWidth/Height    screenshots    unresolved-backdrop pixel
+//              they answer null, and null reads as   only exist     sampler (ops/pixels.ts),
+//              "nothing there", never as "I could    inside the     occluderOf
+//              not look".                            viewport.
+//   OFFERED    is this control reachable by a        NO — an        actionDoors, controlAspects
+//              pointer AT ALL (the 2026-08-16        off-CANVAS     (they inherit the tap-target
+//              off-canvas phantom class).            panel is not   census's offered-control
+//                                                    offered.       vocabulary on purpose)
+//
+// THE BUG THIS TABLE EXISTS TO PREVENT: `inVisualViewport` was minted for the OFFERED question — a
+// detail panel parked at x=431 on a 430px viewport supplied a whole census of failures nobody could
+// touch — and was then applied as if it answered the PAINT question too. It does not. "Off screen
+// right now" and "unreachable" are different facts: a control 1,500px down an inner scroller is
+// fully offered, fully paintable, and simply not scrolled to. Skipping it silently made every
+// below-the-fold control invisible to three rule families at once, and the run still printed
+// `findings=0` — a scan that structurally could not see the surface reads exactly like a scan that
+// found nothing wrong.
+//
+// THE SCROLLER IS ALMOST NEVER THE DOCUMENT. Measured on the surface that named this row (the chat
+// "This chat" context tab at 430x932): `document.scrollingElement.scrollHeight === window.innerHeight`
+// — there is NO document scroll at all — while the tab panel is an inner scroller of clientHeight 515
+// over scrollHeight 2261, holding ~20 sized controls at top 1073..2374. A scroll-and-stitch fix that
+// drove `window.scrollTo` would have moved nothing and reported the same false clean. So the reveal
+// below is `Element.scrollIntoView`, which the browser resolves by scrolling EVERY scrollable ancestor
+// — inner scrollers, nested scrollers, and the document — rather than a scroll axis this code picks.
+//
+// THE FIX IS TO SCROLL, NOT TO RELAX. A PAINT-class fact measured off-screen would be a FALSE
+// MEASUREMENT, not a recovered one (a control whose 44px touch floor lives in a pointer-conditional
+// `::after` reads as its 16px border box if you skip the compositor probe). So the sweep below
+// brings each un-censused control INTO the viewport, measures it there under the real arm, and
+// restores every scroll position it touched before the later segments read geometry. Whatever is
+// still outside after that is counted and PUBLISHED as `censusReach` — a family that reports
+// nothing owes its denominator (the same law that makes a `scanRoot: () => false` gate declare
+// `ctx.scan`).
+//
+// DECLARED LIMITS, both genuine (they are facts about the DOM, not work deferred):
+//   • A VIRTUALIZED list's off-screen rows are NOT IN THE DOM. Nothing can censuse a node that does
+//     not exist, and scrolling one recycles the same nodes rather than adding new ones — so the
+//     reveal sweep sees each recycled node once (it is de-duplicated by identity) and the rows that
+//     never mounted are not counted at all, because they cannot be enumerated.
+//   • `document.querySelectorAll` snapshots a STATIC NodeList. A node the app unmounts mid-sweep
+//     collapses to a 0x0 box and drops out through the existing sub-2px plumbing filter; a node the
+//     app mounts mid-sweep is not in the list and is not censused.
+//   • The reveal budget (REVEAL_SCROLL_BUDGET) bounds a pathological surface. Exhausting it sets
+//     `budgetExhausted`, which the runner prints — an exhausted budget is a refusal, not a clean run.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
@@ -138,8 +201,57 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   }
   // A control whose HOST sits outside the visual viewport is a phantom (2026-08-16: an off-canvas detail
   // panel at x=431 on a 430px viewport supplied a whole census of "failures" nobody could touch).
+  // It answers the OFFERED question, never the PAINT question — see the class table in the file header.
   function inVisualViewport(rect) {
     return rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
+  }
+
+  // ── REACH (#653): the census's own denominator, and the sweep that earns it ──────────────────────
+  // "nothing found" and "nothing looked at" must never render identically, so every control that is
+  // OFFERED but not currently painted is either brought into view and measured for real, or counted
+  // here with its reason. ops/run.ts publishes these numbers on the RESULT line.
+  var REVEAL_SCROLL_BUDGET = 400;
+  var censusReach = {
+    offered: 0,
+    onScreen: 0,
+    revealed: 0,
+    revealScrolls: 0,
+    skippedOffViewport: 0,
+    scrollersRestored: 0,
+    revealBudget: REVEAL_SCROLL_BUDGET,
+    budgetExhausted: false,
+  };
+  // Every scroll position the sweep may disturb, snapshotted BEFORE it starts. The later segments read
+  // VIEWPORT-coordinate geometry (the text samples' boxes feed ops/pixels.ts, which screenshots the page
+  // after the walk), so a sweep that left the surface scrolled would silently re-point every one of them
+  // at the wrong pixels. Restored in reverse so an outer scroller cannot re-offset an inner one.
+  var scrollRestore = [];
+  var scrollRoot = document.scrollingElement;
+  if (scrollRoot) scrollRestore.push({ el: scrollRoot, top: scrollRoot.scrollTop, left: scrollRoot.scrollLeft });
+  for (var sc = 0; sc < allEls.length; sc += 1) {
+    var scEl = allEls[sc];
+    if (scEl === scrollRoot) continue;
+    if (scEl.scrollHeight > scEl.clientHeight || scEl.scrollWidth > scEl.clientWidth) {
+      scrollRestore.push({ el: scEl, top: scEl.scrollTop, left: scEl.scrollLeft });
+    }
+  }
+  // Bring el into the viewport by scrolling whatever ancestors own it. \`scrollIntoView\` is deliberate:
+  // it resolves the ancestor chain itself, which is what reaches an inner scroller (the surface that
+  // named #653 has NO document scroll). Returns whether the control is actually visible afterwards — a
+  // fixed off-canvas panel scrolls nowhere, and that control stays correctly uncensused.
+  function revealIntoViewport(el) {
+    if (censusReach.revealScrolls >= REVEAL_SCROLL_BUDGET) {
+      censusReach.budgetExhausted = true;
+      return false;
+    }
+    censusReach.revealScrolls += 1;
+    try {
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    } catch (e) {
+      // Older engines reject the options object; the boolean form still centres nothing but does scroll.
+      el.scrollIntoView(true);
+    }
+    return inVisualViewport(el.getBoundingClientRect());
   }
   for (var m2 = 0; m2 < interactiveEls.length; m2 += 1) {
     var iel = interactiveEls[m2];
@@ -150,6 +262,19 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     if (iel.closest("[aria-hidden='true']")) continue;
     var irect = iel.getBoundingClientRect();
     if (Math.min(irect.width, irect.height) <= 2) continue;
+    // THE REVEAL (#653). This control is offered; if it is simply not scrolled to, scroll to it and
+    // re-read the box, because everything below this line is PAINT-class and only answers in-viewport.
+    censusReach.offered += 1;
+    var onScreen = inVisualViewport(irect);
+    if (onScreen) {
+      censusReach.onScreen += 1;
+    } else if (revealIntoViewport(iel)) {
+      irect = iel.getBoundingClientRect();
+      onScreen = true;
+      censusReach.revealed += 1;
+    } else {
+      censusReach.skippedOffViewport += 1;
+    }
     // A HIDDEN CONTROL IS NOT AUTOMATICALLY AN UNREACHABLE ONE. The shell skip link at rest is a clipped
     // 26x32 stub: no pointer can reach it, so a target-size verdict on it is a claim about nothing (it was
     // a P1 on every surface). But Base UI's Slider hands its native range input the SAME visually-hidden
@@ -159,7 +284,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     // not even own its own CENTRE POINT is offered to no pointer and leaves the census. The accessible-name
     // census below keeps both — a screen-reader-only control is exactly the one that lives or dies by its name.
     var hiddenStub = isVisuallyHidden(iel) && !ownsPoint(iel, irect.left + irect.width / 2, irect.top + irect.height / 2);
-    if (inVisualViewport(irect) && !hiddenStub) {
+    if (onScreen && !hiddenStub) {
       var half = effectiveHalfExtent(iel, irect);
       // Report the EFFECTIVE extent as the measured size; the box only ever raises it, never lowers it.
       var effective = Math.max(Math.min(irect.width, irect.height), half * 2);
@@ -189,7 +314,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     var doorName = doorNameKey(iel.getAttribute("aria-label") || labelledbyText(iel) || (iel.textContent || "") || iel.getAttribute("title") || altTextOf(iel));
     var resolvedDoorRole = doorRole(iel);
     var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";
-    if (doorName.length > 0 && inVisualViewport(irect) && !hiddenStub && !programmaticGeneric) {
+    if (doorName.length > 0 && onScreen && !hiddenStub && !programmaticGeneric) {
       actionDoors.push({
         selector: describe(iel),
         role: resolvedDoorRole,
@@ -216,7 +341,14 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     if (isVisuallyHidden(cel)) continue;
     var crect = cel.getBoundingClientRect();
     if (Math.min(crect.width, crect.height) <= 2) continue;
-    if (!inVisualViewport(crect)) continue;
+    // Same reveal as the tap-target census (#653). The silhouette question is GEOMETRY-class and would
+    // answer off screen, but this census deliberately shares the tap-target census's offered-control
+    // vocabulary — two vocabularies would let a phantom mint a shape finding nobody can see — so it
+    // shares the reveal too rather than growing a second, quietly divergent viewport rule.
+    if (!inVisualViewport(crect)) {
+      if (!revealIntoViewport(cel)) continue;
+      crect = cel.getBoundingClientRect();
+    }
     // A box read while something is animating is a frame, not a design. getAnimations() covers CSS
     // transitions and animations alike; a finished transition is removed from the list, so this reports
     // in-flight only. Guarded for the (headless-old / jsdom) case where the API is absent.
@@ -234,6 +366,18 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
       height: crect.height,
       animating: running,
     });
+  }
+
+  // ── RESTORE (#653) — the sweep is over; put every scroller back where the page had it ────────────
+  // This must run BEFORE any later segment reads geometry: the text census's viewport boxes were taken
+  // at the original scroll offset and ops/pixels.ts screenshots the page after the walk to settle
+  // unresolved backdrops, so a surface left scrolled would re-point every one of those samples at the
+  // wrong pixels. Reverse order: restoring an outer scroller after an inner one cannot re-offset it.
+  for (var sr = scrollRestore.length - 1; sr >= 0; sr -= 1) {
+    var slot = scrollRestore[sr];
+    slot.el.scrollTop = slot.top;
+    slot.el.scrollLeft = slot.left;
+    censusReach.scrollersRestored += 1;
   }
 
   var mainLandmarkPresent = document.querySelector("main, [role='main']") !== null;

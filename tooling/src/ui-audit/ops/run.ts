@@ -12,18 +12,50 @@
 import { writeFile } from "node:fs/promises";
 import { artifactFile, print, printResult, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession } from "@orb/tooling/_shared/browser";
+import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { instrumentError } from "@orb/tooling/_shared/evidence";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
 import type { Args, BackdropRefusal } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectFindings } from "../lib/collect.ts";
-import { censusGap, censusTotal, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
+import { censusGap, censusTotal, reachGap, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
-import { countBySeverity, navVerdict, printBackdropRefusals, printFindingsTable } from "./report.ts";
+import { countBySeverity, navVerdict, printBackdropRefusals, printCensusReach, printFindingsTable } from "./report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+
+/** ZERO HYGIENE, both arms, in one place (#409 + #653). Returns the gap that makes this run an
+ *  INSTRUMENT failure rather than a verdict, or null when the walk is entitled to be believed:
+ *   • `censusGap` — the walk censused nothing at all (blank mount / error boundary / wrong route);
+ *   • `reachGap`  — it censused plenty of text but reached NOT ONE offered control, so the tap-target,
+ *     action-door and silhouette families each folded an empty list into "no findings".
+ *  Only for a page that LOADED — a nav error is reported as itself. */
+function evidenceGapOf(census: number, samples: RawSamples | null, url: string): EvidenceGap | null {
+  if (census === 0) {
+    return censusGap(url);
+  }
+  return samples === null ? null : reachGap(samples);
+}
+
+/** The reach rows of the RESULT line. `-1` is the absent-counters arm (a pinned pre-#653 sample set) —
+ *  a refusal to state, never a zero that reads as "nothing was skipped". */
+function reachRows(reach: CensusReachInput | undefined): [string, number | string][] {
+  if (reach === undefined) {
+    return [
+      ["reached", -1],
+      ["skipped-offviewport", -1],
+      ["reveal-budget", "unreported"],
+    ];
+  }
+  return [
+    ["reached", reach.onScreen + reach.revealed],
+    ["skipped-offviewport", reach.skippedOffViewport],
+    ["reveal-budget", reach.budgetExhausted ? "EXHAUSTED" : "ok"],
+  ];
+}
 
 export async function runUiAudit(opts: Args): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
@@ -55,11 +87,13 @@ export async function runUiAudit(opts: Args): Promise<number> {
   const pixels = samples === null ? { samples: null, sampled: 0, refusals: [] as BackdropRefusal[] } : await resolvePixelBackdrops(session.page, samples);
   await session.browser.close();
   const census = samples === null ? 0 : censusTotal(samples);
-  // The evidence arm: a walk that saw nothing folds every check family to zero and prints
-  // "no findings — clean". Guarded only where the page LOADED — a nav error is reported as itself.
-  if (navError === null && census === 0) {
+  const reach = pixels.samples?.censusReach;
+  // The evidence arms: a walk that saw nothing — or one that reached no offered control — folds check
+  // families to zero and prints "no findings — clean". Guarded only where the page LOADED.
+  const gap = navError === null ? evidenceGapOf(census, pixels.samples, url) : null;
+  if (gap !== null) {
     print(`URL          ${url}`);
-    return instrumentError(censusGap(url));
+    return instrumentError(gap);
   }
 
   // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
@@ -87,6 +121,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
         counts,
         pixelSampledBackdrops: pixels.sampled,
         backdropRefusals: pixels.refusals,
+        censusReach: reach ?? null,
       },
       null,
       2,
@@ -99,6 +134,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
   }
   print(`report       ${outPath}`);
   print("");
+  printCensusReach(reach);
   printBackdropRefusals(pixels.refusals);
   printFindingsTable(findings);
 
@@ -115,6 +151,10 @@ export async function runUiAudit(opts: Args): Promise<number> {
     // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
     // this is non-zero, and a reader of the machine line is entitled to see it.
     ["census", census],
+    // The REACH denominator (#653) rides the machine line beside `census=` for the same reason: the
+    // tap-target / action-door / silhouette families are viewport-bound, so `p1=0` means nothing until
+    // a reader knows how many offered controls were measured and how many were skipped.
+    ...reachRows(reach),
     ["px-backdrops", pixels.sampled],
     ["no-verdict", pixels.refusals.length],
     ["nav", navVerdict(navError, actionsFailed)],
