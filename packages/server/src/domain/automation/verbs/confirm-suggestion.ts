@@ -100,7 +100,11 @@ async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion,
     automationDepth: stashed.frame.origin.automationDepth,
     firedAt: nowMs,
   });
-  ctx.notify(armOutcome.ok ? { type: "ruleFired", chatId: pending.chatId, ruleId: pending.ruleId } : { type: "ruleErrored", chatId: pending.chatId, ruleId: pending.ruleId });
+  ctx.notify(
+    armOutcome.ok
+      ? { type: "ruleFired", chatId: pending.chatId, ruleId: pending.ruleId }
+      : { type: "ruleErrored", chatId: pending.chatId, ruleId: pending.ruleId },
+  );
   return outcome;
 }
 

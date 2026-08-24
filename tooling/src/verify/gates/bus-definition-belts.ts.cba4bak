@@ -72,9 +72,6 @@ const SERVER_INTERNAL_REACH: ExemptionTable = {
   DomainEvent: {
     why: "the in-process domain-event bus never leaves the server (entry/compose/event-bus.ts) — its consumer belt is the `assertNeverEvent` exhaustive subscriber at entry/compose/search-discovery.ts. Ends if a domain event is ever forwarded to a browser, at which point it owes a real client total map.",
   },
-  AutomationBusEvent: {
-    why: "PROBE cba4 positive control — restoring the deleted row; if the client total map exists this must go RED as stale-reach.",
-  },
 };
 
 const NO_BELT_PREFIX =
