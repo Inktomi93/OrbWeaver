@@ -38,7 +38,6 @@ import type {
 } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
-import { Input } from "@orb/ui/input";
 import { NumberField } from "@orb/ui/number-field";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -48,7 +47,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 // the value shape is the CONTRACT's wire-input bag (`lib/rule-preset-knob-model.ts` states why).
-import { clampKnobNumber, knobIssue } from "../lib/rule-preset-knob-model.ts";
+import { clampKnobNumber, knobBlockingLine, knobIssue } from "../lib/rule-preset-knob-model.ts";
 
 export interface KnobFieldProps {
   readonly knob: RulePresetKnobView;
@@ -107,10 +106,26 @@ function NumberKnobField({
   );
 }
 
+/** A `text` knob is a TEXTAREA, not an Input (#655). These knobs carry PROMPT SENTENCES — the literal text
+ *  the rule sends to the model, up to 2000 characters — and a single-line `Input` showed 44% of the pacing
+ *  nudge's own 93-character default (measured `clientWidth=291 scrollWidth=663`): a host minted, and paid
+ *  for, a prompt they could not read. `rows={1}` keeps the SHORT text knobs (a veil marker, an entry name)
+ *  looking like the one-line controls they are — `field-sizing: content` grows the box only when the value
+ *  actually wraps — and the ceiling turns a long value into the field's own scroll rather than a box that
+ *  pushes the Add button off the popover. */
+const TEXT_KNOB_MAX_ROWS = 6;
+
 function TextKnobField({ knob, descriptor, value, onChange, showIssue }: KnobFieldProps & { readonly descriptor: RulePresetTextKnobDescriptor }): ReactElement {
   return (
     <KnobRow knob={knob} issue={showIssue ? knobIssue(descriptor, value) : null}>
-      <Input aria-label={knob.label} value={typeof value === "string" ? value : ""} onValueChange={(next): void => onChange(next)} />
+      <Textarea
+        aria-label={knob.label}
+        rows={1}
+        maxRows={TEXT_KNOB_MAX_ROWS}
+        maxLength={descriptor.maxLength}
+        value={typeof value === "string" ? value : ""}
+        onValueChange={(next): void => onChange(next)}
+      />
     </KnobRow>
   );
 }
@@ -145,7 +160,12 @@ function ChoiceKnobField({
     <KnobRow knob={knob} issue={showIssue ? knobIssue(descriptor, value) : null}>
       <Select<string>
         aria-label={knob.label}
-        items={descriptor.options.map((option) => ({ value: option, label: option }))}
+        // The descriptor's OWN labels (#655) — `options` are wire values (`ask`/`write`,
+        // `scenario`/`background`), and rendering them raw put three unexplained lowercase words in front
+        // of a host configuring a rule that spends money. The `?? option` is the honest degrade for the
+        // ERASED descriptor type (`Record<string, string>` loses the per-option `tsc` force the preset def
+        // has), the same posture `triggerLabel` takes on an unrecognized stored discriminator.
+        items={descriptor.options.map((option) => ({ value: option, label: descriptor.optionLabels[option] ?? option }))}
         value={typeof value === "string" ? value : descriptor.default}
         onValueChange={(next): void => onChange(next ?? descriptor.default)}
       />
@@ -224,6 +244,50 @@ const ENTITY_REF_FIELDS: { readonly [TEntity in RulePresetEntityKind]: (props: K
 function EntityRefKnobField({ descriptor, ...props }: KnobFieldProps & { readonly descriptor: RulePresetEntityRefKnobDescriptor }): ReactElement {
   const EntityField = ENTITY_REF_FIELDS[descriptor.entity];
   return <EntityField {...props} />;
+}
+
+export interface KnobBlockingLineProps {
+  /** The first knob whose value is not yet usable — what the mint is waiting on. */
+  readonly knob: RulePresetKnobView;
+  readonly chatId: ChatId;
+}
+
+/** The lorebook arm of the blocking line. It asks the SAME chat-scoped read the chooser above it asks
+ *  (react-query dedupes them into one request), because the two must agree: when the room has no books the
+ *  chooser correctly says so and points at Lorebooks, while the blocking line underneath used to say
+ *  "Choose a lorebook to add this rule." — an instruction that cannot be obeyed on this surface, sitting in
+ *  the position a host reads LAST before pressing Add (#655). An empty chooser is not a missing CHOICE, it
+ *  is a missing PREREQUISITE, and only the read knows which one it is. */
+function WorldInfoBookBlockingLine({ knob, chatId }: KnobBlockingLineProps): ReactElement {
+  const trpc = useTRPC();
+  const books = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
+  // Only a SETTLED empty read re-points the line: while it is loading or errored there is no evidence the
+  // room lacks books, and naming the wrong door is worse than naming the generic one.
+  const nothingToChoose = books.isSuccess && books.data.length === 0;
+  return (
+    <Text voice="gloss">
+      {nothingToChoose ? "Attach a lorebook under Lorebooks, higher up this tab — then this rule can be added." : knobBlockingLine(knob)}
+    </Text>
+  );
+}
+
+/** The entity axis → its blocking line, the twin of `ENTITY_REF_FIELDS` above and a mapped-type Record for
+ *  the same reason: each entity's "is there anything to choose here" question is its own chat-scoped read. */
+const ENTITY_REF_BLOCKING_LINES: { readonly [TEntity in RulePresetEntityKind]: (props: KnobBlockingLineProps) => ReactElement } = {
+  worldInfoBook: WorldInfoBookBlockingLine,
+};
+
+/** The line above a blocked Add naming what is missing. A COMPONENT and not a string, because one arm's
+ *  answer depends on a live chat-scoped read: `lib/rule-preset-knob-model.ts`'s `knobBlockingLine` is the
+ *  pure default, and the `entityRef` arm overrides it when its chooser has nothing to offer. It mounts only
+ *  while the mint is blocked, so the read it runs is never speculative. */
+export function KnobBlockingLine({ knob, chatId }: KnobBlockingLineProps): ReactElement {
+  const descriptor: RulePresetKnobDescriptor = knob;
+  if (descriptor.kind !== "entityRef") {
+    return <Text voice="gloss">{knobBlockingLine(knob)}</Text>;
+  }
+  const BlockingLine = ENTITY_REF_BLOCKING_LINES[descriptor.entity];
+  return <BlockingLine knob={knob} chatId={chatId} />;
 }
 
 /** One knob's editor, dispatched exhaustively over its descriptor kind (§5.5 — a new
