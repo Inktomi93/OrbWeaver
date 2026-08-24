@@ -29,7 +29,7 @@ export function createRunSnippet(ctx: PluginContext): (params: RunSnippetParams)
     // `pluginId: null` — a transient snippet has no persistent plugin row; its fixed grant profile omits
     // storage.kv / notify / chat.quick_reply, so the bridge's plugin-scoped closures are unreachable (the
     // membrane's capability gate refuses them first).
-    const bridge = buildPluginBridge(ctx.ops, caller.userId, null);
+    const bridge = buildPluginBridge(ctx.ops, caller.userId, null, ctx.notifyFloor);
     // A snippet is a human-initiated one-shot — the cascade ROOT (automationDepth 0); a turn it triggers stamps 1.
     return await ctx.host.runSnippet({ code, grants, bridge, chat: { chatId, canWrite: authority.canWrite, automationDepth: 0 } });
   };

@@ -32,6 +32,7 @@ import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginHostOps } from "../contract/ops.ts";
+import type { NotifyFloor } from "./notify-floor.ts";
 
 /** The per-plugin ≤64-entries-per-book ceiling — the plugin mirror of automation's `RULE_MAX_ENTRIES_PER_BOOK`
  *  (a looping inserter fills a book otherwise). Counted over the plugin's OWN title namespace, so one plugin's
@@ -57,7 +58,7 @@ function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
  *  (`entryKey`→`title`, `contentTemplate`→`content`; the guest's `position` hint has no target in the shared
  *  writer and is dropped); imagery forwards the action args + admitted chat to the front door and hands the guest
  *  ONLY `{assetId}` (cost never crosses the realm boundary). */
-export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, pluginId: PluginId | null): PluginBridge {
+export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, pluginId: PluginId | null, notifyFloor: NotifyFloor): PluginBridge {
   // The plugin-scoped ops (storage / notify / quick_reply) are keyed by a PERSISTENT pluginId — a transient
   // snippet has none (`null`). Its fixed grant profile omits storage.kv / notify / chat.quick_reply, so the
   // membrane's capability gate never reaches these closures on the snippet path; a `null` here throws only if the
@@ -167,8 +168,17 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // present human roster of the ADMITTED chat), so a plugin can never notify a non-participant. The notice
     // source stamps THIS plugin (never a synthetic rule).
     notifications: {
-      post: (chatId, recipient, message) =>
-        ops.notifications.post({ pluginId: requirePluginId("notifications.post"), installerUserId, chatId, recipient, message }),
+      // `async` so a refusal is a REJECTED PROMISE, never a synchronous throw out of a `Promise`-typed op —
+      // every other membrane refusal (capability / handle / host-authority) reaches the guest as a rejection,
+      // and a caller awaiting this one must not need a try/catch instead of `.catch`.
+      post: async (chatId, recipient, message): Promise<void> => {
+        const id = requirePluginId("notifications.post");
+        // THE 60 s FLOOR (02 §2). Claimed BEFORE the first await, so the check-and-record is atomic against
+        // the ≤32 concurrent host calls the membrane admits — a check that awaited before recording would let
+        // a burst through the gap.
+        notifyFloor.admit(id, chatId);
+        await ops.notifications.post({ pluginId: id, installerUserId, chatId, recipient, message });
+      },
     },
     // Transient quick-reply chips onto the chat's automation bus — host-authority is gated UPSTREAM in the
     // membrane (`InvocationChat.canWrite`); the source stamps THIS plugin.

@@ -6,6 +6,7 @@
 
 import type { AutomationAction, AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
+import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId } from "@orb/kit/ids";
@@ -14,8 +15,9 @@ import { AutomationReservedTriggerError, RuleValidationError } from "../contract
 import { isBookAttachedToChat } from "../persistence/canon-reads.ts";
 
 /** The per-rule cooldown floor (seconds) enforced when a `post_notification` arm is present — inbox spam
- *  trains dismissal. */
-const POST_NOTIFICATION_COOLDOWN_FLOOR = 60;
+ *  trains dismissal. DERIVED from the notice's own wire vocabulary (one home, two enforcers: this authoring
+ *  gate and the plugin `notify` call-time floor), never a second literal. */
+const POST_NOTIFICATION_COOLDOWN_FLOOR = AUTOMATION_NOTICE_COOLDOWN_SECONDS;
 /** The per-rule fires/hour ceiling (default 30, cap 240). */
 const RULE_MAX_FIRES_CAP = 240;
 export const RULE_MAX_FIRES_DEFAULT = 30;
