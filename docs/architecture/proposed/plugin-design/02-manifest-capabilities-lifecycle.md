@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-07-03
+updated: 2026-08-24
 ---
 
 # 02 — Manifest, Capabilities, and the `domain/plugin` Lifecycle
@@ -26,6 +26,7 @@ export const PLUGIN_CAPABILITIES = [
   "notify",
   "turn.trigger",       // SPEND
   "imagery.generate",   // SPEND
+  "llm.quiet",          // SPEND — a non-canon generation on the installer's summarize connection; writes NOTHING
   "events.subscribe",
   "tools.register",     // D48
   "net.fetch",          // requires netHosts
@@ -76,15 +77,26 @@ never a boolean the guest trusts — each maps to a concrete host-side mechanism
 | `notify` | `notifications.post` | grant + host + participants-only recipients + the 60 s floor |
 | `turn.trigger` | `chat.requestTurn` | grant + host + the FULL automation budget/consent stack: `automation_budgets` spend ceilings, `initiator:"plugin"` + depth tagging, D17 hosted-cred consent (fail-closed) — byte-for-byte the `trigger_turn` action's gates |
 | `imagery.generate` | `imagery.generatePicture` | grant + host + the same SPEND ceilings |
+| `llm.quiet` | `llm.quiet` | grant + an HOURLY per-plugin call floor + a membrane prompt cap + the `quiet_generate` output posture. Deliberately NOT host-gated and NOT chat-scoped: it writes no room state and carries no room context, so `canWrite` would claim a protection it does not provide. CLASS 1 — commits nothing, so it never touches the message-write wall. The connection/credential resolve under the INSTALLER's Principal (the `/autobg` `summarizeQuiet` seam), so D17 governs it exactly as it governs every other derive-role call |
 | `events.subscribe` | `events.on` | grant at activation; delivery filtered to chats where the installer participates (a plugin never observes a room its owner can't see) |
 | `tools.register` | `tools.register` | grant at activation; INVOCATION is gated by the tool-use registry's own `can()` row as the installing principal (D48 — 03 §5) |
-| `net.fetch` | `net.fetch` | grant + exact-host allowlist + SSRF guard + deadline/size caps (01 §2) |
+| `net.fetch` | `net.fetch` | grant + exact-host allowlist + SSRF guard + deadline/size caps (01 §2) + an HOURLY per-plugin EGRESS floor. The floor is the only bound on a RATE: `safeFetch` bounds each REQUEST and the manifest bounds the DESTINATIONS, while `HOST_CALLS_IN_FLIGHT_MAX` bounds CONCURRENCY — so without it a plugin subscribed to `messageCommitted` egressed once per committed message, forever (the D46 review's tracked finding). The belt sits on the RESOURCE, not on event delivery: a delivery-side belt would miss the identical egress from a tool handler or a D50 transform |
 
 **Grant flow — who approves:** installing and granting are ONE act by ONE person: the plugin's
 **owner** (the installing principal). `installPlugin` presents the declared capability list; the
 caller confirms; `granted_capabilities` is stored as the confirmed SUBSET (a paranoid owner may
-grant less; the guest feature-detects via `host.grants`). Re-grant required when an UPGRADE
-declares new capabilities (upgrade with a superset → row lands `disabled` until re-confirmed).
+grant less; the guest feature-detects via `host.grants`). Re-grant required when an UPGRADE widens
+declared REACH — a new capability, **or** a `netHosts` entry the prior manifest never declared
+(`net.fetch` is parameterized by its allowlist, so a swapped host re-arms the egress wall at a
+destination nobody confirmed). Such an upgrade lands the row `disabled` and carries forward the
+INTERSECTION of the prior grant with the newly-declared set, so the new capability is not granted.
+**Re-confirming is its own verb, `setGrant` — never a side effect of re-enabling.** As built,
+`setEnabled` activates with the STORED grant and recomputes nothing; an enable that recomputed the
+grant would silently widen authority on every restart, which is the same defect in the opposite
+direction. `setGrant` writes the new subset, refuses anything outside the persisted manifest's
+declared set, requires the caller to ECHO the exact `netHosts` list it displayed whenever
+`net.fetch` is in the grant (the anti-TOCTOU pin — an upgrade landing under a rendered consent
+screen must not arm a host the owner never saw), and never enables a disabled plugin.
 Spend capabilities carry no extra approver — the installer's own D17/budget gates already bound
 them (an installer who isn't the box owner simply cannot consent hosted-cred spend into existence).
 *(Rejected: a separate server-owner approval step for every user install — v1 install is
@@ -131,8 +143,12 @@ plugin is corruption, and `uninstallPlugin` deletes row-then-asset in one verb. 
 installPlugin(ctx, { bundle: Uint8Array, grant: PluginCapability[] }): Promise<PluginView>
   // unzip → validate manifest (zod) + hostVersion served + grant ⊆ declared → store bundle in CAS
   // → row status 'disabled' (enabling is a second explicit act, like rules)
-upgradePlugin(ctx, { pluginId, bundle }): Promise<PluginView>       // slug must match; new caps ⇒ lands disabled + re-grant (§2)
-setPluginEnabled(ctx, { pluginId, enabled }): Promise<void>         // enabled ⇒ activate in the host (03 §1); disable ⇒ dispose instance + deregister tools/transforms/subs
+upgradePlugin(ctx, { pluginId, bundle }): Promise<PluginView>       // slug must match; widened reach ⇒ lands disabled, grant intersected (§2)
+setPluginGrant(ctx, { pluginId, grant, acknowledgedNetHosts }): Promise<PluginView>
+  // the RE-CONSENT act (§2): grant ⊆ the PERSISTED manifest's declared set; net.fetch requires the
+  // caller to echo the netHosts it displayed; restarts a resident so running grants == the row;
+  // NEVER enables a disabled plugin (enable and re-grant stay two separate owner decisions)
+setPluginEnabled(ctx, { pluginId, enabled }): Promise<void>         // enabled ⇒ activate in the host (03 §1) under the STORED grant; disable ⇒ dispose instance + deregister tools/transforms/subs
 uninstallPlugin(ctx, { pluginId }): Promise<void>                   // dispose → deregister → delete row (+ KV CASCADE) → delete bundle asset
 listPlugins(ctx): Promise<PluginView[]>                             // fetchOwned
 getPluginLog(ctx, { pluginId, limit? }): Promise<PluginLogView[]>   // the host.log ring (03 §3)

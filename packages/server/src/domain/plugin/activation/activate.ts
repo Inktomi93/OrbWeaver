@@ -71,7 +71,7 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     // per-plugin spend gate was stripped for enterprise spend enforcement; a runaway plugin's turns are
     // bounded by the engine's per-member turn RATE budget + the cascade-depth guard, and cost VISIBILITY rides
     // the stats domain.)
-    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, input.pluginId, ctx.notifyFloor);
+    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, input.pluginId, ctx.belts);
     const outcome = await ctx.host.createInstance({ mainJs, grants: input.grants, bridge, chat: null, ...(netHosts !== undefined ? { netHosts } : {}) });
     if (!outcome.ok) {
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: outcome.error, updatedAt: ctx.now() });

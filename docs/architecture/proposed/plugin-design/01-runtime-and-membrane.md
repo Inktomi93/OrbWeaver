@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-07-03
+updated: 2026-08-24
 ---
 
 # 01 — The Runtime and the Membrane: `PluginHostV1` in Full
@@ -120,6 +120,21 @@ export interface PluginHostV1 {
      *  SAME GenerateImageActionArgs shape the action arm imports (imagery-design/01 §6) — one
      *  vocabulary across rule, tool, and plugin. */
     generatePicture(chat: ChatHandle, p: GenerateImageActionArgs): Promise<{ assetId: string }>;
+  };
+
+  readonly llm: {
+    /** capability: llm.quiet — SPEND class, CLASS 1 (outside the room): ONE bounded, non-canon
+     *  generation on the INSTALLING PRINCIPAL's own resolved `summarize`-role connection. Commits no
+     *  message, emits no bus event, takes no turn slot — the guest gets raw text and must route it
+     *  through a separately-granted capability to do anything with it.
+     *  Bounds: the grant; an HOURLY per-plugin call floor claimed host-side BEFORE the generation
+     *  (`domain/plugin/substrate/rate-floor.ts` — the ≤32-in-flight cap bounds CONCURRENCY, never a
+     *  rate, so it is not a spend bound); a membrane prompt-length cap; the side-gen `quiet_generate`
+     *  posture for the output budget. NOT host-authority gated — it writes no room state, so `canWrite`
+     *  (the room-state write ceiling) would claim a protection this call does not provide. No chat
+     *  scope is required: the call carries no room context at all. The system prompt is HOST-authored;
+     *  the guest fills only the user slot, and the funder is closed over domain-side. */
+    quiet(prompt: string): Promise<string>;
   };
 
   readonly events: {

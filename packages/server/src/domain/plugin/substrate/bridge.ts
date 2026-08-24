@@ -27,11 +27,19 @@
 // a runaway plugin's autonomous turns stay bounded by the engine's per-member turn RATE budget + the
 // cascade-depth guard (resolved inside chat's `requestTurn`); its images are clamped n≤4 + the membrane's ≤32
 // concurrent-host-call cap. Cost VISIBILITY rides the stats domain off the imagery/chat writes themselves.
+//
+// THE BELTS THIS FILE CLAIMS, and why they are claimed HERE rather than at the membrane. Three capabilities
+// have a bound that no per-call check can express — `notify` (a durable row per member, per call), `net.fetch`
+// (unbounded egress rate) and `llm.quiet` (unbounded spend rate). Each ceiling is per INSTALLED PLUGIN, and
+// the membrane is authority-blind by construction: it holds no `pluginId` and no principal, so it cannot key
+// any of them. The bridge is the first place that knows whose call this is, so the claim lives here, always
+// BEFORE the first `await` — the membrane admits up to 32 concurrent host calls per instance, and a
+// check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
 import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
-import type { NotifyFloor, PluginHostOps } from "../contract/ops.ts";
+import type { PluginBelts, PluginHostOps } from "../contract/ops.ts";
 
 /** The per-plugin ≤64-entries-per-book ceiling — the plugin mirror of automation's `RULE_MAX_ENTRIES_PER_BOOK`
  *  (a looping inserter fills a book otherwise). Counted over the plugin's OWN title namespace, so one plugin's
@@ -57,11 +65,14 @@ function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
  *  (`entryKey`→`title`, `contentTemplate`→`content`; the guest's `position` hint has no target in the shared
  *  writer and is dropped); imagery forwards the action args + admitted chat to the front door and hands the guest
  *  ONLY `{assetId}` (cost never crosses the realm boundary). */
-export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, pluginId: PluginId | null, notifyFloor: NotifyFloor): PluginBridge {
-  // The plugin-scoped ops (storage / notify / quick_reply) are keyed by a PERSISTENT pluginId — a transient
-  // snippet has none (`null`). Its fixed grant profile omits storage.kv / notify / chat.quick_reply, so the
-  // membrane's capability gate never reaches these closures on the snippet path; a `null` here throws only if the
-  // membrane ever DID reach them (a defensive contradiction of the grant profile, never a live path).
+export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, pluginId: PluginId | null, belts: PluginBelts): PluginBridge {
+  // The plugin-scoped ops (storage / notify / quick_reply / llm.quiet / the net.fetch egress claim) are keyed
+  // by a PERSISTENT pluginId — a transient snippet has none (`null`). Its fixed grant profile omits every one
+  // of those capabilities, so the membrane's capability gate never reaches these closures on the snippet path;
+  // a `null` here throws only if the membrane ever DID reach them (a defensive contradiction of the grant
+  // profile, never a live path). For the two BELTED capabilities the requirement is stronger than plumbing:
+  // an hourly ceiling has to be keyed to something durable, and an anonymous one-shot has no identity to bill
+  // or to bound — so "no pluginId" and "may not egress or spend" are the same fact, not two.
   const requirePluginId = (fn: string): PluginId => {
     if (pluginId === null) {
       throw new Error(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
@@ -175,9 +186,28 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         // THE 60 s FLOOR (02 §2). Claimed BEFORE the first await, so the check-and-record is atomic against
         // the ≤32 concurrent host calls the membrane admits — a check that awaited before recording would let
         // a burst through the gap.
-        notifyFloor.admit(id, chatId);
+        belts.notify.admit(id, chatId);
         await ops.notifications.post({ pluginId: id, installerUserId, chatId, recipient, message });
       },
+    },
+    // THE QUIET GENERATION (`llm.quiet`, SPEND). The guest supplies ONLY the prompt; the installer — and so the
+    // credential, the connection and the spend attribution — is closed over here and can never be named by the
+    // guest, the same posture `requestTurn`'s funder takes. The HOURLY floor is claimed BEFORE the first await,
+    // for the same reason the notify floor's is: the membrane admits up to 32 concurrent host calls per
+    // instance, so a claim that awaited first would let a burst straight through the gap. `async` so the
+    // refusal reaches the guest as a REJECTED promise, matching every other membrane refusal.
+    llm: {
+      quiet: async (prompt): Promise<{ readonly text: string }> => {
+        const id = requirePluginId("llm.quiet");
+        belts.quietLlm.admit(id);
+        return await ops.llm.quiet({ installerUserId, prompt });
+      },
+    },
+    // The `net.fetch` HOURLY egress claim. Infra performs the fetch (`safeFetch` is the audited SSRF guard and
+    // lives in infra — a domain may not import it), so what crosses down is only the admission, keyed by a
+    // pluginId infra never sees. Synchronous check-and-claim, before the fetch, same atomicity argument.
+    admitEgress: (): void => {
+      belts.egress.admit(requirePluginId("net.fetch"));
     },
     // Transient quick-reply chips onto the chat's automation bus — host-authority is gated UPSTREAM in the
     // membrane (`InvocationChat.canWrite`); the source stamps THIS plugin.

@@ -163,6 +163,8 @@ function fakeBridge(): {
   lore: { count: number; chatIds: ChatId[] };
   pics: { count: number };
   turns: { count: number; lastDepth: number; args: readonly unknown[] };
+  quiets: { prompts: string[] };
+  egress: { count: number };
 } {
   const kv = new Map<string, string>([["greeting", "hello-from-kv"]]);
   // The plugin-PRIVATE store the bridge closes pluginId/installer over (the fake models it as a flat map — the
@@ -176,6 +178,8 @@ function fakeBridge(): {
   // requestTurn records the args the membrane forwarded — the fake bridge receives ONLY (chatId, depth, p); the
   // FUNDER is closed over domain-side, so its absence here IS the "infra stays authority-blind" proof.
   const turns: { count: number; lastDepth: number; args: readonly unknown[] } = { count: 0, lastDepth: -1, args: [] };
+  const quiets: { prompts: string[] } = { prompts: [] };
+  const egress = { count: 0 };
   const bridge: PluginBridge = {
     chat: {
       listMessages: () => Promise.resolve([{ id: "m1", role: "user", authorDisplayName: "U", characterId: null, seq: 1, content: "hi" }]),
@@ -237,8 +241,20 @@ function fakeBridge(): {
       chips.push(choices.map((c) => ({ label: c.label, sendText: c.sendText })));
       return Promise.resolve();
     },
+    // The quiet generation records its prompt for the same reason `requestTurn` records its args: the fake
+    // receives ONLY the prompt string, so the ABSENCE of a funder/connection/chat here IS the proof that a
+    // guest cannot name whose credential it spends — the installer is closed over domain-side.
+    llm: {
+      quiet: (prompt) => {
+        quiets.prompts.push(prompt);
+        return Promise.resolve({ text: "quiet-answer" });
+      },
+    },
+    admitEgress: (): void => {
+      egress.count += 1;
+    },
   };
-  return { bridge, kv, store, notices, chips, writes, lore, pics, turns };
+  return { bridge, kv, store, notices, chips, writes, lore, pics, turns, quiets, egress };
 }
 
 const noChat: InvocationChat | null = null;
@@ -423,9 +439,10 @@ describe("membrane — every gated namespace is present (the P4b-tail is now LIV
       "events.subscribe",
       "chat.transform",
       "net.fetch",
+      "llm.quiet",
     ] as const;
     const main =
-      "const h = orb.host(1); const has = (k) => k in h; orb.host(1).log.info(JSON.stringify({ chat: has('chat'), variables: has('variables'), tools: has('tools'), grants: Array.isArray(h.grants), worldInfo: has('worldInfo'), imagery: has('imagery'), storage: has('storage'), notifications: has('notifications'), events: has('events'), transforms: has('transforms'), net: has('net'), requestTurn: typeof h.chat.requestTurn === 'function', surfaceQuickReply: typeof h.chat.surfaceQuickReply === 'function', storageGet: typeof h.storage.get === 'function', notifyPost: typeof h.notifications.post === 'function' }));";
+      "const h = orb.host(1); const has = (k) => k in h; orb.host(1).log.info(JSON.stringify({ chat: has('chat'), variables: has('variables'), tools: has('tools'), grants: Array.isArray(h.grants), worldInfo: has('worldInfo'), imagery: has('imagery'), storage: has('storage'), notifications: has('notifications'), events: has('events'), transforms: has('transforms'), net: has('net'), llm: has('llm'), requestTurn: typeof h.chat.requestTurn === 'function', surfaceQuickReply: typeof h.chat.surfaceQuickReply === 'function', storageGet: typeof h.storage.get === 'function', notifyPost: typeof h.notifications.post === 'function' }));";
     const outcome = await host.createInstance({ mainJs: main, grants: [...allGrants], bridge, chat: { chatId: CHAT, canWrite: true, automationDepth: 0 } });
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) {
@@ -445,6 +462,7 @@ describe("membrane — every gated namespace is present (the P4b-tail is now LIV
       events: true,
       transforms: true,
       net: true,
+      llm: true, // llm.quiet — the SPEND-class quiet generation namespace
       requestTurn: true,
       surfaceQuickReply: true, // chat.quick_reply — now installed
       storageGet: true,

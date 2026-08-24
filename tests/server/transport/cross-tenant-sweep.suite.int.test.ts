@@ -1315,12 +1315,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "admin.revokeUserSessions": "admin-gated: role gate",
   "admin.vllmEngines": "admin-gated: role gate",
   "admin.restartVllmEngine": "admin-gated: role gate",
-  // plugin (D46) — install/upgrade/setEnabled/uninstall gate on `can(caller,"admin",{kind:"global"})` FIRST
+  // plugin (D46) — install/upgrade/setGrant/setEnabled/uninstall gate on `can(caller,"admin",{kind:"global"})` FIRST
   // (owner∪admin, 02 §4), so a non-admin stranger is refused by the role gate BEFORE any pluginId ownership
   // read — the admin.* pattern (a role gate, not an IDOR). `list` is self-scoped fetchOwned. `getLog` (owner-
   // scoped, not admin-gated) IS probed above.
   "plugin.install": "admin-gated: install authority role gate (creates the caller's own plugin, no foreign id)",
   "plugin.upgrade": "admin-gated: the install-authority role gate precedes the pluginId ownership check",
+  "plugin.setGrant": "admin-gated: the install-authority role gate precedes the pluginId ownership check (the re-consent act, same door as upgrade)",
   "plugin.setEnabled": "admin-gated: the install-authority role gate precedes the pluginId ownership check",
   "plugin.uninstall": "admin-gated: the install-authority role gate precedes the pluginId ownership check",
   "plugin.list": "self-scoped: the caller's own plugins (fetchOwned)",

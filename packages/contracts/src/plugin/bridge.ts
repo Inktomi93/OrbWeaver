@@ -73,6 +73,33 @@ export interface PluginBridge {
   readonly notifications: {
     readonly post: (chatId: ChatId, recipient: NotificationRecipient, message: string) => Promise<void>;
   };
+  /** ONE bounded non-canon generation on the INSTALLER's own resolved `summarize`-role connection
+   *  (`llm.quiet`, SPEND). The domain builder closes the installer over it — a guest supplies ONLY the prompt
+   *  text and can never name a funder, a connection, a model, or a chat. It also claims the plugin's HOURLY
+   *  quiet-call floor before spending (the check-and-claim is inside the builder, before the first await, for
+   *  the same reason the notify floor's is: the membrane admits up to 32 concurrent host calls per instance,
+   *  so a check that awaited before recording would let a burst straight through the gap). Returns raw text;
+   *  the guest never sees cost (cost VISIBILITY rides the stats domain off the generation itself). */
+  readonly llm: {
+    readonly quiet: (prompt: string) => Promise<{ readonly text: string }>;
+  };
+  /** CHECK-AND-CLAIM one `net.fetch` egress slot for this plugin's hourly floor; THROWS when the plugin is
+   *  over its ceiling. Synchronous and atomic for the same reason `NotifyFloor.admit` is.
+   *
+   *  WHY THE ADMISSION IS A BRIDGE MEMBER WHILE THE FETCH IS NOT: `safeFetch` is the audited SSRF guard and it
+   *  lives in `infra/network` — a domain may not import it, so infra must keep PERFORMING the fetch. But the
+   *  belt is per-INSTALLED-PLUGIN state, which infra cannot key (it holds no `pluginId` and is authority-blind
+   *  by construction). So the domain hands the admission down as a closure, exactly as it hands `netHosts`
+   *  down as data, and infra calls it without knowing whose budget it just spent.
+   *
+   *  WHAT IT CLOSES (the D46 review's tracked finding, `2026-08-24-d46-membrane-review.md` §8): `safeFetch`
+   *  bounds each REQUEST — deadline, byte cap, redirect budget — and the manifest bounds the target SET, but
+   *  nothing bounded the RATE. A plugin subscribing to `messageCommitted` egresses once per committed message,
+   *  forever; the ≤32-in-flight cap is a concurrency bound and says nothing about how many calls per hour.
+   *  The belt is on the RESOURCE (egress), not on the amplifier (event delivery): a delivery-side belt would
+   *  miss the identical egress reachable from a tool handler or a D50 transform, while throttling legitimate
+   *  non-egress work. */
+  readonly admitEgress: () => void;
   /** Surface transient quick-reply chips into the admitted chat (`surfaceQuickReply`; the automation-bus
    *  `quickReplySurfaced` event). Host-authority gated UPSTREAM in the membrane (same write ceiling as
    *  the plugin's other chat writes) via `InvocationChat.canWrite`. The domain builder closes over the `pluginId`

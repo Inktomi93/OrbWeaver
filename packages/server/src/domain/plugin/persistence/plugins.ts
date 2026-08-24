@@ -14,8 +14,11 @@ import type { PluginView } from "../contract/results.ts";
 /** The stored `plugins` row. Homed as the db `$inferSelect` (the RuleRow precedent) — persistence's unit. */
 type PluginRow = typeof plugins.$inferSelect;
 
-/** Project a row to the owner-facing `PluginView`. `builtAgainst` is lifted from the persisted manifest
- *  json (provenance rides INSIDE the manifest — no column); `null` when the manifest declared none. */
+/** Project a row to the owner-facing `PluginView` — the ONE projection (the install verb builds its return
+ *  through this too, so a field added here can never be missing from a freshly-installed row's view).
+ *  `builtAgainst`, `declaredCapabilities` and `netHosts` are all lifted from the persisted manifest json
+ *  (provenance and the DECLARED ask ride INSIDE the manifest — no denormalized columns); `null` when the
+ *  manifest declared none. */
 export function toPluginView(row: PluginRow): PluginView {
   return {
     id: row.id,
@@ -25,6 +28,8 @@ export function toPluginView(row: PluginRow): PluginView {
     status: row.status,
     origin: row.origin,
     grantedCapabilities: row.grantedCapabilities,
+    declaredCapabilities: row.manifest.capabilities,
+    netHosts: row.manifest.netHosts ?? null,
     builtAgainst: row.manifest.builtAgainst ?? null,
     consecutiveCrashes: row.consecutiveCrashes,
     lastError: row.lastError,
@@ -139,6 +144,26 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
       lastError: null,
       updatedAt: row.updatedAt,
     })
+    .where(eq(plugins.id, pluginId));
+}
+
+/** The RE-GRANT write: replace `granted_capabilities` and set the resulting status, leaving the manifest,
+ *  the bundle and the crash counter untouched. Deliberately NARROW — the only column a consent act may move is
+ *  the grant (plus the lifecycle status the verb re-derives), so a re-grant can never smuggle a manifest or a
+ *  bundle swap past the install/upgrade trust edge. `lastError` clears: the row's stored failure described the
+ *  PREVIOUS grant, and carrying it forward would misattribute it to this one. */
+// @owner-scope-write-ok: the re-grant write. The `plugins` row's owner is the installing principal;
+// every user-facing plugin verb (`set-enabled`/`upgrade`/`set-grant`/`uninstall`) loads it through the
+// owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends
+// the day a pluginId reaches a plugin write without that load.
+export async function applyGrant(
+  db: Db,
+  pluginId: PluginId,
+  update: { readonly grantedCapabilities: readonly PluginCapability[]; readonly status: PluginStatus; readonly updatedAt: number },
+): Promise<void> {
+  await db
+    .update(plugins)
+    .set({ grantedCapabilities: [...update.grantedCapabilities], status: update.status, lastError: null, updatedAt: update.updatedAt })
     .where(eq(plugins.id, pluginId));
 }
 

@@ -41,16 +41,27 @@ export {
   PluginAlreadyInstalledError,
   PluginCrashedError,
   PluginDowngradeRefusedError,
+  PluginNetHostsUnacknowledgedError,
   PluginNotFoundError,
   PluginSnippetBusyError,
 } from "./contract/errors.ts";
-export type { NotifyFloor, PluginActivationScope, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./contract/ops.ts";
+export type {
+  NotifyFloor,
+  PluginActivationScope,
+  PluginBelts,
+  PluginHostOps,
+  PluginInvokeHandler,
+  PluginRateFloor,
+  PluginRegistrationHandle,
+  SnippetGate,
+} from "./contract/ops.ts";
 export type {
   GetPluginLogParams,
   InstallPluginParams,
   ListPluginsParams,
   RunSnippetParams,
   SetPluginEnabledParams,
+  SetPluginGrantParams,
   UninstallPluginParams,
   UpgradePluginParams,
 } from "./contract/params.ts";
@@ -58,6 +69,7 @@ export type { PluginLogView, PluginView, SnippetResult } from "./contract/result
 export type { CreateInstanceInput, CreateInstanceOutcome, PluginBudgets, PluginHostPort, PluginService } from "./contract/service.ts";
 export { createPluginService } from "./service.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
+export { createPluginRateFloor, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOUR } from "./substrate/rate-floor.ts";
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";

@@ -21,6 +21,7 @@ export const PLUGIN_CAPABILITIES = [
   "notify",
   "turn.trigger", // SPEND
   "imagery.generate", // SPEND
+  "llm.quiet", // SPEND — a non-canon generation on the installer's own summarize-role connection; writes NOTHING
   "events.subscribe",
   "tools.register", // D48 tool-use registry, source (b)
   "net.fetch", // requires netHosts
@@ -59,12 +60,18 @@ const PLUGIN_SEMVER_RE = /^\d+\.\d+\.\d+$/;
  *
  *  IP LITERALS are NOT refused here and never were (the charset regex accepted `169.254.169.254` too) — the
  *  real enforcer is `validateUrl` in that same egress module, which blocks every IP-literal host on the
- *  non-owner-configured path (`blockEgress("ip-literal", …)`), which is the path plugin `net.fetch` takes. */
-const netHostSchema = z.hostname();
+ *  non-owner-configured path (`blockEgress("ip-literal", …)`), which is the path plugin `net.fetch` takes.
+ *
+ *  EXPORTED because the re-grant consent act needs the SAME grammar: `plugin.setGrant` makes the caller
+ *  ACKNOWLEDGE the exact host list it displayed, and validating that echo against a second, hand-rolled host
+ *  rule is how the two spellings drift. One grammar, both boundaries. */
+export const pluginNetHostSchema = z.hostname();
 const NAME_MAX = 80;
 const DESCRIPTION_MAX = 500;
 const AUTHOR_MAX = 120;
-const NET_HOSTS_MAX = 8;
+/** The per-manifest `netHosts` ceiling — also the bound on the re-grant acknowledgement echo (`setGrant`),
+ *  which can never legitimately name more hosts than a manifest may declare. */
+export const PLUGIN_NET_HOSTS_MAX = 8;
 const ENGINE_VERSION_MAX = 40;
 const ENGINE_COMMIT_MAX = 64;
 
@@ -95,7 +102,7 @@ export const pluginManifestSchema = z
     description: z.string().max(DESCRIPTION_MAX),
     author: z.string().max(AUTHOR_MAX).optional(),
     capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).max(PLUGIN_CAPABILITIES.length),
-    netHosts: z.array(netHostSchema).max(NET_HOSTS_MAX).optional(),
+    netHosts: z.array(pluginNetHostSchema).max(PLUGIN_NET_HOSTS_MAX).optional(),
     /** The cascade opt-in — mirrors an automation rule's `matchAutomationEvents` column.
      *  `false`/absent (fail-closed default) ⇒ the plugin's `events.on` handlers receive ONLY human-plane
      *  (depth-0) facts; a depth ≥ 1 automation/plugin-caused fact is suppressed. `true` ⇒ cascade facts deliver

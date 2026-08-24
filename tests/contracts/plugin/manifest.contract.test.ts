@@ -16,7 +16,13 @@ const BASE = {
   capabilities: ["chat.read"] as const,
 };
 
-test("PLUGIN_CAPABILITIES is the pinned 13-member axis (02 §1) in confirm-dialog order", () => {
+// THE ORDER IS THE CONFIRM-DIALOG DISPLAY ORDER (`manifest.ts` says so), so this `toEqual` is not a count pin
+// wearing a list's clothes — it is the consent screen's reading order, and the client's `CAPABILITY_COPY_ROWS`
+// is written to match it. `llm.quiet` was inserted at position 11 rather than appended: it is SPEND class, and
+// the three spend capabilities (`turn.trigger`, `imagery.generate`, `llm.quiet`) sit adjacent so the "Costs
+// money" badge and the reading order reinforce each other on a screen whose scan question is "what can this
+// cost me". Moving a member is a UX decision, not a refactor.
+test("PLUGIN_CAPABILITIES is the pinned 14-member axis (02 §1) in confirm-dialog order", () => {
   expect(PLUGIN_CAPABILITIES).toEqual([
     "chat.read",
     "chat.variables.write",
@@ -28,6 +34,7 @@ test("PLUGIN_CAPABILITIES is the pinned 13-member axis (02 §1) in confirm-dialo
     "notify",
     "turn.trigger",
     "imagery.generate",
+    "llm.quiet",
     "events.subscribe",
     "tools.register",
     "net.fetch",

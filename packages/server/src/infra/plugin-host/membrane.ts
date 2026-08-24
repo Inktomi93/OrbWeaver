@@ -34,7 +34,14 @@ import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import type { SafeFetchOptions } from "../network/egress.ts";
 import { safeFetch } from "../network/egress.ts";
-import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
+import {
+  HOST_CALLS_IN_FLIGHT_MAX,
+  HOST_FN_ARGS_MAX_BYTES,
+  HOST_FN_DEADLINE_MS,
+  HOST_FN_RESULT_CAP_BYTES,
+  PLUGIN_NET_MAX_BYTES,
+  PLUGIN_QUIET_PROMPT_MAX_CHARS,
+} from "./budgets.ts";
 import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
@@ -142,8 +149,10 @@ interface AsyncFnSpec {
  *  chat.surfaceQuickReply (chat.quick_reply — host-authority gated), worldInfo.upsertEntry,
  *  imagery.generatePicture, chat.requestTurn (turn.trigger — SPEND, host-authority + cascade-depth+1 gated),
  *  global_vars, storage.get/set/delete/list (storage.kv — plugin-private KV), notifications.post (notify —
- *  participant-only durable notice), tools.register, transforms.register + events.on (SYNC collect — the domain
- *  wires the band/apply/delivery/unregister), net.fetch (SSRF-guarded, manifest-allowlisted). Every host fn is
+ *  participant-only durable notice), llm.quiet (SPEND — a non-canon generation on the installer's summarize
+ *  connection, hourly-floored domain-side), tools.register, transforms.register + events.on (SYNC collect — the
+ *  domain wires the band/apply/delivery/unregister), net.fetch (SSRF-guarded, manifest-allowlisted, hourly
+ *  egress-floored domain-side). Every host fn is
  *  gated at the FUNCTION by its `PluginCapability`; the ops are composed DOMAIN-side (the bridge closes over the
  *  installer/pluginId) so the membrane stays authority-blind. `grants` is guest-readable data so a plugin can
  *  feature-detect. */
@@ -155,6 +164,7 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setVariables(ctx, surface, runtime);
   setStorage(ctx, surface, runtime);
   setNotifications(ctx, surface, runtime);
+  setLlm(ctx, surface, runtime);
   setTools(ctx, surface, runtime);
   setTransforms(ctx, surface, runtime);
   setEvents(ctx, surface, runtime);
@@ -471,6 +481,41 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
   ctx.setProp(surface, "notifications", notifications);
 }
 
+/** llm.quiet — capability llm.quiet. ONE bounded, non-canon generation on the INSTALLER's own resolved
+ *  summarize-role connection; the guest supplies ONLY a prompt string and gets raw text back.
+ *
+ *  NO CHAT SCOPE, NO HOST AUTHORITY — deliberately, and the reasons are different from each other. No chat:
+ *  the call carries no room context at all (the bridge op takes a prompt and nothing else), so demanding an
+ *  admitted handle would be a ceremony that describes nothing. No host authority: `canWrite` is the ROOM-STATE
+ *  write ceiling and this writes no room state — gating on it would claim a protection this call does not need
+ *  and does not provide. What DOES bound it is the grant, the length cap below, and the plugin's HOURLY quiet
+ *  floor, which the domain bridge claims before it spends. The floor is not optional decoration: without it
+ *  the only ceiling would be `HOST_CALLS_IN_FLIGHT_MAX`, which bounds CONCURRENCY and not rate, i.e. 32 at a
+ *  time as fast as they settle, forever, on the installer's credential.
+ *
+ *  The prompt is REFUSED over `PLUGIN_QUIET_PROMPT_MAX_CHARS` rather than truncated — see that constant. */
+function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using llm = ctx.newObject();
+  attachAsync(ctx, llm, {
+    name: "quiet",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "llm.quiet");
+      const prompt = args[0];
+      if (typeof prompt !== "string") {
+        throw new Error("plugin host: llm.quiet requires a prompt string");
+      }
+      if (prompt.length > PLUGIN_QUIET_PROMPT_MAX_CHARS) {
+        throw new Error(`plugin host: llm.quiet prompt exceeds the ${PLUGIN_QUIET_PROMPT_MAX_CHARS}-character cap`);
+      }
+      const { text } = await runtime.bridge.llm.quiet(prompt);
+      return text;
+    },
+  });
+  ctx.setProp(surface, "llm", llm);
+}
+
 /** tools.register — SYNC, activation-time. Captures the guest handler HANDLE for the resident-handler
  *  runtime (the Sandbox keeps it alive + mints the ref); collects `{name, description, parameters}`. A snippet
  *  (no tools.register grant) hits the capability throw here — the "no registration from a transient snippet"
@@ -584,6 +629,12 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       if (typeof url !== "string") {
         throw new Error("plugin host: net.fetch requires a URL string");
       }
+      // THE HOURLY EGRESS FLOOR — claimed BEFORE the fetch and before the first await, so the check-and-claim
+      // is atomic against the ≤32 concurrent host calls this membrane admits. The belt itself is domain state
+      // (per installed plugin); infra only calls the closure the bridge handed it, and stays authority-blind.
+      // `safeFetch` bounds each REQUEST and the manifest bounds the DESTINATIONS; this is the only thing that
+      // bounds the RATE (the D46 review's tracked finding — see `PluginBridge.admitEgress`).
+      runtime.bridge.admitEgress();
       const res = await safeFetch(url, buildNetOptions(runtime.netHosts, args[1]));
       const body = NET_TEXT_DECODER.decode(await res.bytes());
       return { status: res.status, body };

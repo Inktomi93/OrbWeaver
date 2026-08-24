@@ -6,8 +6,17 @@
 // instance → store the new bundle → swap the row → reap the now-orphaned old bundle asset → land `disabled`.
 //
 // Re-grant on WIDENED REACH: a manifest that declares a capability the prior grant never confirmed — OR a
-// `netHosts` entry the prior manifest never declared — lands the row `disabled` (the owner re-enables,
-// re-confirming). Both arms are the SAME rule, because what the owner consented to is what the plugin may REACH,
+// `netHosts` entry the prior manifest never declared — lands the row `disabled`, and the grant carried forward
+// is the INTERSECTION (`normalizeGrant`), so the newly-declared capability is NOT granted. Re-confirming is the
+// separate `setGrant` verb (`verbs/set-grant.ts`), then an explicit enable.
+//
+// TRUTH-REPAIR (2026-08-24): this header used to say "the owner re-enables, re-confirming", and that was a
+// comment overstating a security mechanism — `setEnabled` activates with the STORED grant and never recomputes
+// one, so re-enabling could not re-confirm anything and the newly-declared capability stayed ungranted forever.
+// It failed CLOSED, so it was a dead-end UX rather than a hole; `setGrant` is the missing half. Do not
+// re-collapse the two acts: an enable that recomputed the grant would silently widen authority on every restart.
+//
+// Both arms are the SAME rule, because what the owner consented to is what the plugin may REACH,
 // not which capability NAMES it holds: `net.fetch` is parameterized by its exact-host allowlist, so swapping
 // `api.vendor.example` for `collector.attacker.example` re-arms the egress wall at an unconfirmed destination
 // while the capability set is byte-identical. Comparing capabilities alone was blind to that (P3-H).

@@ -2,8 +2,10 @@
 // DECLARES a capability set; the installing owner CONFIRMS a subset (`granted_capabilities`); every host
 // function enforces its capability per call against that confirmed subset. Two invariants live here as pure
 // predicates the verbs enforce (throwing the typed errors): a grant must be ⊆ the declared set (install /
-// upgrade), and an upgrade that DECLARES a capability the prior grant never confirmed must land `disabled`
-// for re-confirmation ("upgrade with a superset → disabled until re-granted").
+// upgrade / setGrant), and an upgrade that DECLARES a capability the prior grant never confirmed must land
+// `disabled` for re-confirmation ("upgrade with a superset → disabled until re-granted"). The RE-GRANT itself is
+// `verbs/set-grant.ts` — which also reuses {@link widenedNetHosts} as its acknowledgement check, so "what counts
+// as a new destination" has exactly one definition across the upgrade trigger and the consent act.
 //
 // WHAT THE OWNER ACTUALLY CONSENTED TO IS *REACH*, NOT A LIST OF CAPABILITY NAMES (02 §2, read honestly).
 // `net.fetch` is the one capability whose reach is parameterized by the manifest — the exact-host `netHosts`

@@ -57,6 +57,14 @@ export const HOST_FN_RESULT_CAP_BYTES = 1_048_576;
  *  as a CONTAINED result-cap refusal (never a leak). LEAN — tune against measured plugin API sizes. */
 export const PLUGIN_NET_MAX_BYTES = 1_000_000;
 
+/** Max prompt LENGTH (UTF-16 code units) a guest may hand `llm.quiet`. The generic inbound arg cap
+ *  (`HOST_FN_ARGS_MAX_BYTES`, 1 MiB) is a DoS bound and is far too loose for a SPEND surface: a 1 MiB prompt
+ *  is a quarter-million tokens of the installer's money per call. This is the money-shaped bound, and it
+ *  REFUSES rather than truncating — a silently shortened prompt returns a wrong answer the guest cannot
+ *  detect, and on a paid call that is worse than an error. 8 KiB is a LEAN: ample for an instruction plus a
+ *  scene's worth of context, small enough that the hourly call floor is the real ceiling. */
+export const PLUGIN_QUIET_PROMPT_MAX_CHARS = 8192;
+
 /** Concurrent STARTED-AND-UNSETTLED host-fn implementations per INSTANCE; call N+1 rejects (the bridge
  *  back-pressure). Counted over real host work, NOT over un-timed-out guest promises: `HOST_FN_DEADLINE_MS`
  *  bounds a host call without CANCELLING it, so charging the slot to the deadline race let a guest start 32
