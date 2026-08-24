@@ -156,7 +156,13 @@ export const LIVE_TRIGGERS = {
 // `no-inline-union-redecl`).
 
 /** The closed action-arm discriminators. A new arm fails the `ARM_EXECUTORS` mapped-type in the
- *  domain engine (exhaustive-dispatch). */
+ *  domain engine (exhaustive-dispatch).
+ *
+ *  `run_tool` is D146 clause (a) made concrete, and it is the reason that clause exists: a PLUGIN extends what
+ *  automation can DO without this tuple growing per contributor. The union member is FIRST-PARTY and
+ *  `tsc`-forced like every other member; the open-world contributor name rides INSIDE its payload
+ *  (`run_tool.name`). Adding an open arm — a `type: string` escape, a `plugin_*` wildcard member — is the
+ *  banned move: it defeats every exhaustive dispatch downstream (core/AGENTS.md §5.5). */
 export const AUTOMATION_ACTION_TYPES = [
   "set_variable",
   "transform_draft",
@@ -166,12 +172,18 @@ export const AUTOMATION_ACTION_TYPES = [
   "trigger_turn",
   "generate_image",
   "set_chat_background",
+  "run_tool",
 ] as const;
 export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
 
 // Rendered/stored bounds (named — `noMagicNumbers`).
 const VAR_KEY_MAX = 128;
-const VAR_VALUE_MAX = 4096;
+/** The chat/global variable VALUE bound, in characters. ONE home, TWO enforcers: the `set_variable` arm's
+ *  authoring cap (its `value` is a template a human wrote), and the `run_tool` arm's CAPTURE truncation, where
+ *  the bound stops being cosmetic — a captured tool result is a CONTRIBUTOR's bytes, and the variable plane is
+ *  a small KV that rides the CEL env into every later predicate and every later template render on that chat,
+ *  not a document store. Exported for that second enforcer (the arm executor truncates to it). */
+export const AUTOMATION_VARIABLE_VALUE_MAX = 4096;
 const TRANSFORM_TEMPLATE_MAX = 8192;
 const WI_ENTRY_KEY_MAX = 256;
 const WI_KEYS_MAX = 16;
@@ -183,6 +195,17 @@ const QUICK_REPLY_MAX_CHOICES = 4;
 const NOTIFICATION_MESSAGE_MAX = 200;
 const GUIDED_TEMPLATE_MAX = 4096;
 const AUTOBG_INSTRUCTION_MAX = 512;
+/** The `run_tool` arm's tool-NAME cap. LENGTH only, deliberately: the authoritative name contract is the
+ *  registry's own charset (`TOOL_NAME_RE`, `domain/tool-use/contract/params.ts` — the OpenAI-function ∩
+ *  MCP-tool intersection), and a rule's name is checked against the LIVE REGISTRY at mint by the automation
+ *  domain's `substrate/validate.ts`, which is a stronger test than any regex re-spelling here. Re-declaring it
+ *  in `contracts` would be a second home for one shape (§5.4) that could drift from the registry it describes;
+ *  the cap is here only so an oversized string cannot be stored. 64 = the registry charset's own bound. */
+const TOOL_NAME_MAX = 64;
+/** The `run_tool` arm's rendered-args cap. Sized to `TRANSFORM_TEMPLATE_MAX`'s class: the template renders to a
+ *  JSON document a guest tool's lifted zod schema then parses, so the bound is "a config-authored argument
+ *  object", not a prompt. */
+const TOOL_ARGS_TEMPLATE_MAX = 8192;
 /** The ordered action-arm cap. A rule carries 1..8 arms. */
 export const AUTOMATION_ACTION_ARMS_MIN = 1;
 export const AUTOMATION_ACTION_ARMS_MAX = 8;
@@ -207,8 +230,14 @@ export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
  *  NOT the same axis as the CONFIRM-FIRST (suggestible) set below: SPEND is about who pays and therefore what
  *  a rate refusal may offer to re-run; suggestible is about CONSENT — which arms a host may be asked to
  *  approve before they act. `set_chat_background` is suggestible and not spend-classed for exactly that
- *  reason (its quiet pick is cheap, but it changes what the room LOOKS like). */
-export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image"] as const satisfies readonly AutomationActionType[];
+ *  reason (its quiet pick is cheap, but it changes what the room LOOKS like).
+ *
+ *  `run_tool` is spend-classed CONSERVATIVELY and that is the honest reading, not a guess: the arm hands control
+ *  to a contributor's own code, and the capabilities a plugin can hold include `llm.quiet` (a model call on the
+ *  installer's connection), `net.fetch`, and image generation. The host therefore gets F4's "rate-capped — run
+ *  it now?" invitation when a run_tool rule is turned away by the fire-rate cap, which is the correct offer:
+ *  the money at stake is the author's own. */
+export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image", "run_tool"] as const satisfies readonly AutomationActionType[];
 export type SpendArmType = (typeof SPEND_ARM_TYPES)[number];
 
 /** S4 — the CONFIRM-FIRST flag, carried by the four SUGGESTIBLE arms and by nothing else (the shape IS the
@@ -230,7 +259,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     scope: z.enum(["chat", "global"]),
     key: z.string().min(1).max(VAR_KEY_MAX),
     op: z.enum(["set", "inc", "dec", "delete"]),
-    value: z.string().max(VAR_VALUE_MAX).optional(),
+    value: z.string().max(AUTOMATION_VARIABLE_VALUE_MAX).optional(),
   }),
   // 1.2 run a macro template over the draft (the D50 PromptTransform seam).
   z.object({
@@ -289,6 +318,41 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     type: z.literal("set_chat_background"),
     instruction: z.string().max(AUTOBG_INSTRUCTION_MAX).optional(),
     confirmFirst: confirmFirstSchema,
+  }),
+  // 1.9 run a registered TOOL by name (SPEND-classed — a tool may call a model, fetch, or generate an image).
+  //
+  // D146 (a): THIS IS THE CLOSED/OPEN BOUNDARY. The arm is first-party and `tsc`-forced; `name` is the
+  // open-world string a CONTRIBUTOR registered. Everything that dispatches on the arm vocabulary stays
+  // exhaustive, and everything that varies per contributor lives in one string field.
+  //
+  // `name` carries NO charset check here on purpose (see {@link TOOL_NAME_MAX}) — the registry is the
+  // authority and `createRule` resolves the name against it, so an unknown, malformed or NOT-YOURS name is a
+  // typed refusal at MINT rather than a stored rule that can only ever fail. `argsTemplate` is macro-rendered
+  // at FIRE time in the rule author's env (every arm's template discipline) and must render to a JSON object;
+  // the tool's own schema parses it, so a bad shape is the tool's errors-as-data answer, never a crash.
+  //
+  // NOT SUGGESTIBLE (no `confirmFirst`), decided with reasons rather than by omission: the four suggestible
+  // arms all describe a concrete, human-weighable act ("Take a turn", "Save a lore entry for X", "Illustrate
+  // the scene", "Change the room's background"). A confirm card for this arm could name the TOOL and nothing
+  // about what it will do — the effect lives in third-party code behind a name — so the ask would be a
+  // click-through, not consent (the same law that keeps `set_variable` out: a delta a host cannot weigh).
+  // Consent has also already happened twice by the time this arm can exist: the owner GRANTED `tools.register`
+  // at install, and the rule's author is both the chat host and the tool's own installer (the mint gate below
+  // admits nothing else).
+  z.object({
+    type: z.literal("run_tool"),
+    name: z.string().min(1).max(TOOL_NAME_MAX),
+    /** The macro-rendered JSON argument document. Defaults to the empty object — a zero-arg tool. */
+    argsTemplate: z.string().max(TOOL_ARGS_TEMPLATE_MAX).default("{}"),
+    /** Optionally capture the tool's result STRING into a variable, so a later arm / a later rule's predicate
+     *  can read it. Absent ⇒ nothing is captured. NEVER prose: a tool result is DATA back to the arm, and no
+     *  message-write op exists on this surface (the class-1 wall). The captured value is TRUNCATED to
+     *  {@link AUTOMATION_VARIABLE_VALUE_MAX} by the executor — see that constant for why the bound matters
+     *  more here than on an authored template. */
+    resultVar: z.string().min(1).max(VAR_KEY_MAX).optional(),
+    /** Which variable plane `resultVar` writes — the SAME vocabulary `set_variable.scope` uses (one axis, one
+     *  spelling). `chat` (the default) writes the room's runtime fold; `global` writes the AUTHOR's own plane. */
+    resultScope: z.enum(["chat", "global"]).default("chat"),
   }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
@@ -423,14 +487,25 @@ export type AutomationSuggestionKind = (typeof AUTOMATION_SUGGESTION_KINDS)[numb
 export const AUTOMATION_SUGGESTION_SUMMARY_MAX = 200;
 
 /** What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`, `confirmSuggestion`): a fire
- *  terminal, or `suggested` — the arms raised a pending ask instead of acting.
+ *  terminal, or one of the two NON-FIRE terminals below.
  *
- *  `suggested` is deliberately NOT a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the
- *  fire log's honesty (§3-S4 + §6 R5): NO row is written when an ask is raised, because a suggestion is not
- *  a fire — the CONFIRMED execution writes `fired`, stamped with the confirmer. Adding a suggestion terminal
- *  to the outcome tuple is a CHECK edit on a generated baseline and is recorded-unbuilt as R5. This type
- *  exists so a verb can still ANSWER "what happened?" without either lying (`fired`) or going silent. */
-export type AutomationRunOutcome = AutomationFireOutcome | "suggested";
+ *  Neither `suggested` nor `paused` is a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the
+ *  fire log's honesty (§3-S4 + §6 R5): NO row is written for either, because neither is a fire. Adding a
+ *  terminal to the outcome TUPLE is a CHECK edit on a generated baseline and is recorded-unbuilt as R5, so this
+ *  union is the house home for "a terminal a verb must be able to report and the log must not claim". It exists
+ *  so a verb can ANSWER "what happened?" without either lying (`fired`) or going silent.
+ *
+ *  • `suggested` — the arms raised a pending ask instead of acting. The CONFIRMED execution writes `fired`,
+ *    stamped with the confirmer.
+ *  • `paused` — D146 clause (d), THE CLAUSE WITH NO FIRST-PARTY ANALOGUE. A rule naming a CONTRIBUTOR's tool
+ *    (`run_tool`) whose contributor is not currently available to the rule's author does not act, and does not
+ *    ERROR. It must not error: an `arm_error` increments `consecutive_errors` and a rule auto-disables at 20
+ *    (`domain/automation/engine/dispatch.ts`), so treating a disabled plugin as a fault would silently eat
+ *    every rule naming its tools, and re-enabling the plugin would not bring them back. `paused` is
+ *    self-healing by construction — it changes NO stored state, so the very next event after the plugin comes
+ *    back dispatches normally. A first-party contributor cannot vanish; a plugin does so by ordinary user
+ *    action, which is why this terminal exists at all. */
+export type AutomationRunOutcome = AutomationFireOutcome | "suggested" | "paused";
 
 // ── the cascade origin + the automation bus ─────────────────────────────────────────────────────────
 /** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth.

@@ -24,7 +24,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedAsset, seedCharacter } from "../../chat/_support.ts";
 import type { HarnessOverrides } from "../_support.ts";
-import { makeAutomationHarness, principal, seedHostChat, seedUser } from "../_support.ts";
+import { makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
 
 const CHAT_OPENED: AutomationTrigger = { bus: "chat", type: "chatOpened" };
 const TURN_COMPLETED: AutomationTrigger = { bus: "chat", type: "turnCompleted" };
@@ -108,6 +108,7 @@ async function fireOpenedN(f: Fixture, n: number): Promise<void> {
  *  (this suite exercises the depth gate, never a real arm). */
 function depthOps(depth: number): AutomationOps {
   return {
+    tools: NO_TOOLS,
     chat: {
       getMessageFact: () => Promise.resolve(null),
       getTurnOrigin: () => Promise.resolve({ initiator: "automation" as const, automationDepth: depth }),
@@ -303,6 +304,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
   /** Real arm executors + a capturing var store; `readVariables` returns `{}` so the env is born empty. */
   function realArmOps(db: Awaited<ReturnType<typeof freshDb>>, captured: VarOp[]): { runArm: ArmDispatch; ops: AutomationOps } {
     const ops: AutomationOps = {
+      tools: NO_TOOLS,
       chat: {
         getMessageFact: () => Promise.resolve(null),
         getTurnOrigin: () => Promise.resolve(null),
@@ -415,6 +417,7 @@ describe("F3 durable auto-disable author notice", () => {
     const notices: NotificationEvent[] = [];
     // Capturing notifications op; every other op is inert (this suite only drives the error ceiling).
     const ops: AutomationOps = {
+      tools: NO_TOOLS,
       chat: {
         getMessageFact: () => Promise.resolve(null),
         getTurnOrigin: () => Promise.resolve(null),
@@ -530,6 +533,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
       },
     });
     const ops: AutomationOps = {
+      tools: NO_TOOLS,
       chat: {
         // Read ops off the REAL db (the fact resolver reads `getTurnOrigin` back off the posted slot).
         getMessageFact: () => Promise.resolve(null),

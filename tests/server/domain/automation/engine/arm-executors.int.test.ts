@@ -6,7 +6,7 @@
 // member turn budget + the cascade guard.)
 
 import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
-import { automationActionSchema } from "@orb/contracts/automation";
+import { AUTOMATION_VARIABLE_VALUE_MAX, automationActionSchema } from "@orb/contracts/automation";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
@@ -22,6 +22,8 @@ import type {
   AutomationImageRequest,
   AutomationImageResult,
   AutomationOps,
+  AutomationToolOutcome,
+  AutomationToolRequest,
   AutomationTurnRequest,
   AutomationTurnResult,
   DispatchFrame,
@@ -32,7 +34,7 @@ import { createSuggestionStore } from "../../../../../packages/server/src/domain
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
-import { arm, seedUser } from "../_support.ts";
+import { arm, NO_TOOLS, seedUser } from "../_support.ts";
 
 /** A stable sort for branded-string ids (biome `useArraySortCompare`). */
 function byId(a: string, b: string): number {
@@ -82,14 +84,25 @@ interface TurnOverrides {
   readonly throws?: Error;
 }
 
-function makeHarness(
-  db: Db,
-  imageResult: AutomationImageResult = { imageCount: 1 },
-  bg: BgOverrides = {},
-  turn: TurnOverrides = {},
-): { dispatch: ArmDispatch; captured: Captured } {
+/** The per-arm harness knobs, ONE bag. Was four positional params until `run_tool` (D146) needed a fifth seam
+ *  — a bag rather than a fifth position because the call sites that pass nothing read identically either way,
+ *  and the ones that pass a middle knob stop counting `undefined`s. */
+interface HarnessOptions {
+  readonly imageResult?: AutomationImageResult;
+  readonly bg?: BgOverrides;
+  readonly turn?: TurnOverrides;
+  /** D146 — the `run_tool` seam. Default {@link NO_TOOLS}: nothing is drivable, which is what an arm test that
+   *  does not care about tools should see (and a `run_tool` arm run against it PAUSES, never silently runs). */
+  readonly tools?: AutomationOps["tools"];
+}
+
+function makeHarness(db: Db, opts: HarnessOptions = {}): { dispatch: ArmDispatch; captured: Captured } {
+  const imageResult: AutomationImageResult = opts.imageResult ?? { imageCount: 1 };
+  const bg: BgOverrides = opts.bg ?? {};
+  const turn: TurnOverrides = opts.turn ?? {};
   const captured: Captured = { varOps: [], upserts: [], notifications: [], images: [], bus: [], setBackgrounds: [], quietPrompts: [], turns: [] };
   const ops: AutomationOps = {
+    tools: opts.tools ?? NO_TOOLS,
     chat: {
       getMessageFact: () => Promise.resolve(null),
       getTurnOrigin: () => Promise.resolve(null),
@@ -372,7 +385,7 @@ test("post_notification all_members → one automation-notice per present human 
 // ── 1.7 generate_image (the /imagine engine) ──────────────────────────────────────────────────────────
 test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.generatePicture", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, { imageCount: 2 });
+  const { dispatch, captured } = makeHarness(db, { imageResult: { imageCount: 2 } });
   const subjectCharacterId = mintTypeId(ID_PREFIX.character);
   const action = automationActionSchema.parse({
     type: "generate_image",
@@ -449,12 +462,9 @@ test("trigger_turn with no steer / no forced speaker omits both fields (normal a
 
 test("trigger_turn maps a requestTurn refusal (consent/authority/depth throw) to a typed arm_error, no fabricated success", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(
-    db,
-    undefined,
-    {},
-    { throws: new Error("a non-owner-triggered max-pro-sub turn requires explicit owner consent") },
-  );
+  const { dispatch, captured } = makeHarness(db, {
+    turn: { throws: new Error("a non-owner-triggered max-pro-sub turn requires explicit owner consent") },
+  });
   const frame = makeFrame({ chatId, authorUserId: host });
 
   const outcome = await dispatch(arm({ type: "trigger_turn" }), frame);
@@ -502,7 +512,7 @@ const AUTOBG_CHOICES = [
 
 test("set_chat_background: the quiet pick is sent the candidate NAMES and its choice is written to the chat background", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" });
+  const { dispatch, captured } = makeHarness(db, { bg: { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" } });
 
   const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
 
@@ -518,7 +528,7 @@ test("set_chat_background: the quiet pick is sent the candidate NAMES and its ch
 // PROSE-1 census 91 — the pick's task lead + reply contract are per-USER slots resolved against the ROOM HOST.
 test("set_chat_background: the quiet pick frames the candidates with the shipped prose clauses", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" });
+  const { dispatch, captured } = makeHarness(db, { bg: { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" } });
   await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(captured.quietPrompts[0]?.startsWith(`${PROSE_SLOTS["automation.autobg.task"].text}\n\n`)).toBe(true);
   expect(captured.quietPrompts[0]?.endsWith(`\n\n${PROSE_SLOTS["automation.autobg.reply"].text}`)).toBe(true);
@@ -526,12 +536,14 @@ test("set_chat_background: the quiet pick frames the candidates with the shipped
 
 test("set_chat_background: a host's prose overrides REPLACE both clauses, keeping the candidate frame", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, undefined, {
-    choices: AUTOBG_CHOICES,
-    quietReply: "Dusk Harbor",
-    prose: {
-      "automation.autobg.task": { text: "PICK A MOOD.", baseVersion: 1 },
-      "automation.autobg.reply": { text: "NAME ONLY.", baseVersion: 1 },
+  const { dispatch, captured } = makeHarness(db, {
+    bg: {
+      choices: AUTOBG_CHOICES,
+      quietReply: "Dusk Harbor",
+      prose: {
+        "automation.autobg.task": { text: "PICK A MOOD.", baseVersion: 1 },
+        "automation.autobg.reply": { text: "NAME ONLY.", baseVersion: 1 },
+      },
     },
   });
   await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
@@ -542,7 +554,7 @@ test("set_chat_background: a host's prose overrides REPLACE both clauses, keepin
 
 test("set_chat_background: the name match is case/space-insensitive", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "  dawn meadow  " });
+  const { dispatch, captured } = makeHarness(db, { bg: { choices: AUTOBG_CHOICES, quietReply: "  dawn meadow  " } });
   await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(captured.setBackgrounds).toEqual([{ authorUserId: host, chatId, background: BG_ALICE }]);
 });
@@ -551,10 +563,8 @@ test("set_chat_background: a host-authority refusal from the write is a typed ar
   const { db, host, chatId } = await setup();
   // The author lost host authority between the pre-dispatch gate and the write (a host-handoff race), so the
   // verb refuses. The arm must surface a typed arm_error (the rule stays healthy), never let the rejection escape.
-  const { dispatch, captured } = makeHarness(db, undefined, {
-    choices: AUTOBG_CHOICES,
-    quietReply: "Dusk Harbor",
-    setChatBackgroundThrows: new Error("chat: not_host"),
+  const { dispatch, captured } = makeHarness(db, {
+    bg: { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor", setChatBackgroundThrows: new Error("chat: not_host") },
   });
 
   const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
@@ -565,7 +575,7 @@ test("set_chat_background: a host-authority refusal from the write is a typed ar
 
 test("set_chat_background: an empty library is a soft no-op — no quiet call, no write", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, undefined, { choices: [], quietReply: "anything" });
+  const { dispatch, captured } = makeHarness(db, { bg: { choices: [], quietReply: "anything" } });
   const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(outcome).toEqual({ ok: true });
   expect(captured.quietPrompts).toEqual([]);
@@ -574,11 +584,133 @@ test("set_chat_background: an empty library is a soft no-op — no quiet call, n
 
 test("set_chat_background: an off-list / empty quiet reply is a soft no-op — no write, rule stays healthy", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Some Other Place" });
+  const { dispatch, captured } = makeHarness(db, { bg: { choices: AUTOBG_CHOICES, quietReply: "Some Other Place" } });
   const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(outcome).toEqual({ ok: true });
   expect(captured.quietPrompts).toHaveLength(1);
   expect(captured.setBackgrounds).toEqual([]);
+});
+
+// ── 1.9 run_tool (D146 — the CONTRIBUTOR bridge arm) ─────────────────────────────────────────────────
+// The arm's own behaviour: render → invoke → route the outcome. The RULE-level pause gate (which refuses
+// before any arm runs) is pinned at the dispatch engine (`handle-event.int.test.ts`); what these pin is the
+// arm's half — including the DEACTIVATED-MID-DISPATCH race, which is the only way an arm-level pause happens.
+
+/** A tool seam that answers for exactly `name` and nothing else, recording what it was handed. */
+function toolsThatRun(name: string, result: string, sink: AutomationToolRequest[]): AutomationOps["tools"] {
+  return {
+    isToolDrivableBy: (toolName): boolean => toolName === name,
+    runTool: (req): Promise<AutomationToolOutcome> => {
+      sink.push(req);
+      return Promise.resolve({ ok: true, result });
+    },
+  };
+}
+
+test("run_tool renders its argsTemplate in the author's env and hands the tool the RENDERED json", async () => {
+  const { db, host, chatId } = await setup();
+  const sink: AutomationToolRequest[] = [];
+  const { dispatch } = makeHarness(db, { tools: toolsThatRun("plugin_x_report", '{"mood":"grim"}', sink) });
+
+  const outcome = await dispatch(
+    arm({ type: "run_tool", name: "plugin_x_report", argsTemplate: '{"seed":{{roll:1}},"mood":"{{expr::vars.mood}}"}' }),
+    makeFrame({ chatId, authorUserId: host, vars: { mood: "grim" } }),
+  );
+
+  expect(outcome).toEqual({ ok: true });
+  // The tool never sees a template: the arm renders ONCE, at fire time, in the RULE AUTHOR's env — the same
+  // discipline every other templated arm follows, and the reason a tool cannot be handed macro syntax to run.
+  expect(sink).toEqual([{ authorUserId: host, chatId, name: "plugin_x_report", argsJson: '{"seed":1,"mood":"grim"}' }]);
+});
+
+test("run_tool captures its result into resultVar and WRITES THROUGH the shared env (a later arm reads it)", async () => {
+  const { db, host, chatId } = await setup();
+  const sink: AutomationToolRequest[] = [];
+  const { dispatch, captured } = makeHarness(db, { tools: toolsThatRun("plugin_x_report", "tense", sink) });
+  const frame = makeFrame({ chatId, authorUserId: host });
+
+  await dispatch(arm({ type: "run_tool", name: "plugin_x_report", resultVar: "mood" }), frame);
+
+  expect(captured.varOps).toEqual([{ chatId, ops: [{ op: "set", key: "mood", value: "tense" }] }]);
+  // The write-through is what makes "order is semantics" true for this arm too: the DB write alone would be
+  // invisible to the next arm and to every later rule in the same batch (the env is built once per batch).
+  expect(frame.env.vars["mood"]).toBe("tense");
+});
+
+test("run_tool TRUNCATES a captured result at the variable plane's cap — a guest cannot bloat the CEL env", async () => {
+  const { db, host, chatId } = await setup();
+  const sink: AutomationToolRequest[] = [];
+  const huge = "z".repeat(AUTOMATION_VARIABLE_VALUE_MAX + 500);
+  const { dispatch, captured } = makeHarness(db, { tools: toolsThatRun("plugin_x_report", huge, sink) });
+  const frame = makeFrame({ chatId, authorUserId: host });
+
+  const outcome = await dispatch(arm({ type: "run_tool", name: "plugin_x_report", resultVar: "blob" }), frame);
+
+  // The invocation SUCCEEDED — the tool ran and answered, so failing the rule over a long answer would be a
+  // lie about what happened. What is bounded is what lands in the plane every later predicate reads.
+  expect(outcome).toEqual({ ok: true });
+  expect(captured.varOps[0]?.ops[0]).toEqual({ op: "set", key: "blob", value: "z".repeat(AUTOMATION_VARIABLE_VALUE_MAX) });
+  // The SHARED env carries the same truncated value — a later predicate reads the bound, not the guest's blob.
+  const mirrored: string | undefined = frame.env.vars["blob"];
+  expect(mirrored).toHaveLength(AUTOMATION_VARIABLE_VALUE_MAX);
+});
+
+test("run_tool with no resultVar captures NOTHING (the result rides the fire log only — never prose)", async () => {
+  const { db, host, chatId } = await setup();
+  const sink: AutomationToolRequest[] = [];
+  const { dispatch, captured } = makeHarness(db, { tools: toolsThatRun("plugin_x_report", "secret", sink) });
+
+  const outcome = await dispatch(arm({ type: "run_tool", name: "plugin_x_report" }), makeFrame({ chatId, authorUserId: host }));
+
+  expect(outcome).toEqual({ ok: true });
+  // THE CLASS-1 WALL, pinned as an absence: a tool result is DATA back to the arm. There is no message write on
+  // this surface, so an uncaptured result reaches nothing at all — not the room, not the canon, not a variant.
+  expect(captured.varOps).toEqual([]);
+});
+
+test("run_tool: a tool FAILURE is an arm_error (a fault the error budget should eventually stop)", async () => {
+  const { db, host, chatId } = await setup();
+  const tools: AutomationOps["tools"] = {
+    isToolDrivableBy: () => true,
+    runTool: () => Promise.resolve({ ok: false, reason: "failed", error: "the guest refused: bad tag" }),
+  };
+  const { dispatch } = makeHarness(db, { tools });
+
+  const outcome = await dispatch(arm({ type: "run_tool", name: "plugin_x_report" }), makeFrame({ chatId, authorUserId: host }));
+
+  expect(outcome).toMatchObject({ ok: false, kind: "arm_error" });
+  expect(outcome).toMatchObject({ detail: expect.stringContaining("bad tag") });
+});
+
+test("run_tool: an UNAVAILABLE tool PAUSES the arm — never an arm_error (D146-d, the deactivate-mid-dispatch race)", async () => {
+  const { db, host, chatId } = await setup();
+  // The rule-level gate said the tool was there; the plugin was deactivated in the window before this call.
+  // The race must NOT be charged to the rule: `arm_error` increments `consecutive_errors` and auto-disables at
+  // 20, so a plugin toggled at the wrong moment would nibble the budget of every rule naming its tools.
+  const tools: AutomationOps["tools"] = {
+    isToolDrivableBy: () => false,
+    runTool: () => Promise.resolve({ ok: false, reason: "unavailable" }),
+  };
+  const { dispatch } = makeHarness(db, { tools });
+
+  const outcome = await dispatch(arm({ type: "run_tool", name: "plugin_x_report" }), makeFrame({ chatId, authorUserId: host }));
+
+  expect(outcome).toMatchObject({ ok: false, kind: "paused" });
+  // The CONTROL that keeps the assertion from passing vacuously: the two non-ok kinds are genuinely distinct,
+  // and only ONE of them is the kind the dispatch engine turns into an error tick.
+  expect(outcome).not.toMatchObject({ kind: "arm_error" });
+});
+
+test("run_tool: a template render error refuses BEFORE the tool is invoked", async () => {
+  const { db, host, chatId } = await setup();
+  const sink: AutomationToolRequest[] = [];
+  const { dispatch } = makeHarness(db, { tools: toolsThatRun("plugin_x_report", "ok", sink) });
+
+  // `{{roll}}` with no arg is a strict-args error (02 §5) — an unrendered template must never reach a guest.
+  const outcome = await dispatch(arm({ type: "run_tool", name: "plugin_x_report", argsTemplate: '{"n":{{roll}}}' }), makeFrame({ chatId, authorUserId: host }));
+
+  expect(outcome).toMatchObject({ ok: false, kind: "arm_error" });
+  expect(sink).toEqual([]);
 });
 
 test("the dispatcher handles EVERY action type (no unhandled-arm throw — the switch is exhaustive)", async () => {

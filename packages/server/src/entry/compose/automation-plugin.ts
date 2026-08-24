@@ -62,7 +62,7 @@ import {
   PLUGIN_QUIET_LLM_PER_HOUR,
 } from "#domain/plugin";
 import type { SettingsService } from "#domain/settings";
-import type { ToolUseService } from "#domain/tool-use";
+import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
 import { createPluginHost } from "#infra/plugin-host";
 import type { RoleClientsWithSignal } from "#infra/providers";
@@ -99,7 +99,11 @@ export interface AutomationPluginComposeDeps {
   readonly imagery: Pick<ImageryService, "generatePicture">;
   readonly settings: Pick<SettingsService, "getUserSettings">;
   readonly assets: Pick<AssetsService, "store" | "loadAssetBytes" | "assetCasRefById" | "reapIfOrphan">;
-  readonly toolUse: Pick<ToolUseService, "registerPluginTool">;
+  /** The tool registry seam. `registerPluginTool` is the membrane's PL-A registrar; the other four are the
+   *  `run_tool` arm's (D146): the direct-drive reachability predicate this seam re-checks itself, plus the
+   *  resolve→execute pair every other tool consumer already funnels through. Deliberately still a `Pick` —
+   *  neither automation nor the membrane may reach `register` (compose-time, first-party only). */
+  readonly toolUse: Pick<ToolUseService, "registerPluginTool" | "isToolDrivableBy" | "resolveTools" | "executeToolCalls">;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
   readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClientsWithSignal>;
   /** The author's default-preset generation params (the side-gen sampling ladder's middle rung — /autobg). */
@@ -199,6 +203,62 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // BG-F — the author-scoped chat-background write (chat's host-gated verb under the author's Principal).
     setChatBackground: async ({ authorUserId, chatId, background }) => {
       await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background });
+    },
+    // D146 — the `run_tool` arm's reachability predicate, forwarded verbatim. The POLICY (which entries a user
+    // may direct-drive) lives in `domain/tool-use/substrate/reachability.ts`, not here: this seam only carries
+    // the question across the cake, because automation may not import a sibling domain.
+    isToolDrivableBy: (toolName, authorUserId) => deps.toolUse.isToolDrivableBy(toolName, authorUserId),
+    // D146 — the `run_tool` arm's invocation. Runs the named tool as the rule AUTHOR through the SAME
+    // resolve→execute pipeline every other tool consumer uses (one execute path — a plugin tool driven by a
+    // rule meets exactly the belts it meets when a model calls it: its PL-C installer ceiling, its own
+    // per-invocation sandbox budget, and the crash policy).
+    runTool: async ({ authorUserId, chatId, name, argsJson }) => {
+      // THE AUTHORITATIVE reachability check, and it is here rather than only at the arm ON PURPOSE. The arm's
+      // gate is a UX decision (pause the rule before it does anything); this one is the security boundary, so
+      // it must not depend on a caller having asked first — an injected op that trusts its caller is one
+      // refactor away from being called by something that never checked. It also closes the TOCTOU: a plugin
+      // deactivated between the gate and here answers `unavailable`, which the arm turns back into a PAUSE
+      // rather than an error the rule pays for.
+      if (!deps.toolUse.isToolDrivableBy(name, authorUserId)) {
+        return { ok: false, reason: "unavailable" };
+      }
+      let set: ResolvedToolSet;
+      try {
+        set = deps.toolUse.resolveTools([name]);
+      } catch {
+        // `resolveTools` THROWS on an unknown name — its documented "at attach time this is OUR wiring bug"
+        // posture, which is right for a turn and wrong for this consumer. Reaching it here means the
+        // deactivation landed in the microtask between the check above and this line, so it is the same
+        // vanished-contributor answer, never a rule fault.
+        return { ok: false, reason: "unavailable" };
+      }
+      const records = await deps.toolUse.executeToolCalls(set, [{ toolCallId: `automation_${randomUUID()}`, name, arguments: argsJson }], {
+        // The tool acts AS the rule's author — on their grant, their credentials, their budget. Resolved by
+        // ROW READ like every other author→Principal edge in this file; a bare `UserId` carries no authority.
+        principal: await resolveOwnerPrincipal(authorUserId),
+        triggeredBy: authorUserId,
+        chatId,
+        // No turn exists — a rule dispatch is not a turn. This is also why turn-scoped first-party tools are
+        // not direct-drivable (`tool-use/substrate/reachability.ts` carries the receipts).
+        turnId: null,
+        // FAIL-CLOSED, deliberately. `roster` feeds the declarative `can()` ceiling, and only capability-NULL
+        // tools are drivable today (a plugin tool's real ceiling is its PL-C installer read, which does its
+        // own row read and ignores this field), so it is inert. The day a chat-scoped FIRST-PARTY tool
+        // becomes drivable, a null roster DENIES it errors-as-data — the safe failure — and whoever widens
+        // reachability must load the AUTHOR's real membership here to make it work. Handing over the
+        // triggering member's roster instead would be the exact wrong-principal bug PL-C was fixed for.
+        roster: null,
+      });
+      const record = records[0];
+      if (record === undefined || record.result === null) {
+        // `executeToolCalls` returns one record per call and never throws for a per-call failure, and a null
+        // `result` means "not executed" — its recurse-limit case, which a single direct call cannot reach.
+        // Either shape is a pipeline anomaly rather than a tool outcome, so it is reported as a FAILURE and
+        // never as a fabricated `ok` with an empty string (a rule capturing "" as its tool's answer would be
+        // the quiet kind of wrong).
+        return { ok: false, reason: "failed", error: `tool '${name}' produced no result record` };
+      }
+      return record.isError ? { ok: false, reason: "failed", error: record.result } : { ok: true, result: record.result };
     },
     // BG-F — the quiet summarize-role pick: one summarize generation under the author's connection. The side-gen
     // sampling ladder: the `autobg` floor (temp 0.2, 32 out — a deterministic name pick) ← the author's
