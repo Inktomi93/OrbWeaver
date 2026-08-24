@@ -5,6 +5,7 @@
 // them about, and a clamp would enable a rule that does something they did not ask for.
 
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { RuleValidationError } from "@orb/server/domain/automation";
 import { RULE_PRESETS } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
 import { resolveRulePresetKnobs, toRulePresetView } from "../../../../../packages/server/src/domain/automation/substrate/presets.ts";
@@ -13,6 +14,11 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const PACING = RULE_PRESETS.pacingNudge;
 const CHIPS = RULE_PRESETS.diceChips;
 const CLOCK = RULE_PRESETS.clockFires;
+/** The one `entityRef`-carrying preset (#630) — the auto-add-lore card's lorebook reference. */
+const LORE = RULE_PRESETS.autoAddLore;
+
+/** The entityRef refusal, verbatim: the host's noun, not "expected text" or a TypeID complaint. */
+const NO_BOOK_CHOSEN = /knob 'bookId': choose a lorebook/u;
 
 test("an empty override bag resolves to every descriptor's declared default", () => {
   expect(resolveRulePresetKnobs(PACING.knobs, {})).toEqual({
@@ -23,7 +29,11 @@ test("an empty override bag resolves to every descriptor's declared default", ()
 
 test("an override replaces exactly its own knob and leaves the rest at default", () => {
   expect(resolveRulePresetKnobs(PACING.knobs, { everyN: 3 })).toMatchObject({ everyN: 3 });
-  expect(resolveRulePresetKnobs(PACING.knobs, { everyN: 3 })["steer"]).toBe(PACING.knobs["steer"]?.default);
+  // Read off the NARROWED descriptor: `default` is no longer on every arm of the union (the `entityRef`
+  // kind has none, by construction — #630), so the read has to say which arm it means.
+  const steer = PACING.knobs["steer"];
+  expect(steer?.kind).toBe("text");
+  expect(resolveRulePresetKnobs(PACING.knobs, { everyN: 3 })["steer"]).toBe(steer?.kind === "text" ? steer.default : undefined);
 });
 
 test("a number knob refuses out-of-range and non-integer values (refused, never clamped)", () => {
@@ -51,6 +61,22 @@ test("a textList knob refuses an emptied list, an over-long deck, and an empty e
 test("a choice knob refuses an off-list option", () => {
   expect(() => resolveRulePresetKnobs(CLOCK.knobs, { firedArm: "shout" })).toThrow(RuleValidationError);
   expect(resolveRulePresetKnobs(CLOCK.knobs, { firedArm: "notify" })["firedArm"]).toBe("notify");
+});
+
+test("#630: an entityRef knob refuses an ABSENT choice — the kind with no default has nothing to bypass", () => {
+  // The A3-verify hazard, closed structurally: `resolveKnob` hands a descriptor default back UNVALIDATED,
+  // so a `default: ""` on a reference would have ridden into a mint. The kind carries no default at all,
+  // and the refusal is the host's own noun rather than a TypeID complaint from deep inside the arm schema.
+  expect(() => resolveRulePresetKnobs(LORE.knobs, {})).toThrow(NO_BOOK_CHOSEN);
+  expect(() => resolveRulePresetKnobs(LORE.knobs, { bookId: "" })).toThrow(NO_BOOK_CHOSEN);
+});
+
+test("#630: an entityRef knob PARSES the id through its axis schema — a non-TypeID never reaches a builder", () => {
+  expect(() => resolveRulePresetKnobs(LORE.knobs, { bookId: "Ashfall Canon" })).toThrow(RuleValidationError);
+  // A well-formed id of the WRONG entity is refused too — the schema pins the prefix, not just the shape.
+  expect(() => resolveRulePresetKnobs(LORE.knobs, { bookId: mintTypeId(ID_PREFIX.character) })).toThrow(RuleValidationError);
+  const bookId = mintTypeId(ID_PREFIX.worldBook);
+  expect(resolveRulePresetKnobs(LORE.knobs, { bookId })["bookId"]).toBe(bookId);
 });
 
 test("an override naming a knob the preset does not declare is REFUSED, never silently dropped", () => {

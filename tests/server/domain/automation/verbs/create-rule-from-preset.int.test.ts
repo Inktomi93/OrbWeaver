@@ -40,9 +40,13 @@ import { FIXED_NOW_MS, makeAutomationHarness, principal, seedHostChat, seedUser 
 
 /** The typed refusals these suites assert (hoisted — `useTopLevelRegex`). */
 const BAD_KNOB = /knob 'everyN'/;
-/** The empty book knob refuses at the ARM SCHEMA first (a TypeID is 26 chars); a real-but-unattached
- *  id refuses one step later at `createRule`'s attachment check. Either way: typed, at mint, never stored. */
-const NO_BOOK = /Suffix should have 26 characters/u;
+/** An UNCHOSEN book now refuses at the KNOB, in the host's own noun (#630 — the `entityRef` kind carries no
+ *  default, so there is no `""` to fall through the arm schema's "Suffix should have 26 characters"). A
+ *  real-but-unattached id still refuses one step later at `createRule`'s attachment check — that one is a
+ *  LIVE fact no picker can pre-empt. Either way: typed, at mint, never stored. */
+const NO_BOOK = /knob 'bookId': choose a lorebook/u;
+/** The LIVE half of the same guard — `substrate/validate.ts`'s attachment probe, one step after the knob. */
+const UNATTACHED_BOOK = /is not attached to this chat/u;
 
 /** #1's idle window is expressed in epoch-ms; the preset substitutes hours × this. */
 const MS_PER_HOUR = 3_600_000;
@@ -475,6 +479,19 @@ describe("§4 #3 auto-add lore entries (confirm-first BY DEFAULT)", () => {
   test("REFUSES at mint without a book — the knob has no usable default and the refusal is typed", async () => {
     const f = await setup();
     await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: {} })).rejects.toThrow(NO_BOOK);
+  });
+
+  test("#630: a REAL book that is not attached to THIS chat still refuses at mint, one step later", async () => {
+    // The picker offers only this chat's attached books, but attachment is a LIVE fact: a listed book can
+    // stop qualifying between the form's render and the press. That refusal must stay reachable — it is
+    // what `mintFailureToast` shows the host instead of a card that quietly did nothing.
+    const f = await setup();
+    const bookId = mintTypeId(ID_PREFIX.worldBook);
+    await f.db.insert(worldBooks).values({ id: bookId, ownerId: f.host, name: "detached lore" });
+
+    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: { bookId } })).rejects.toThrow(
+      UNATTACHED_BOOK,
+    );
   });
 });
 

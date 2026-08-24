@@ -39,6 +39,14 @@ export const assets = sqliteTable(
     // gallery grid + variant pipeline read it without re-sniffing. GIF ⇒ true, APNG (acTL), animated WebP.
     // Drives `resolveVariant`'s bailout (don't downscale an animated asset — sharp drops animation).
     animated: integer("animated", { mode: "boolean" }).notNull().default(false),
+    // The other STORED byte-facts from the same store-time sniff: header-parsed pixel dimensions, so a
+    // render surface can RESERVE the image's true box before the bytes arrive (#625, the reservation half
+    // of #622) without decoding anything. NULLABLE on purpose and NOT a defect: a non-image asset (a zip,
+    // a pdf), an unrecognized signature, and a truncated header all legitimately have no dimensions — the
+    // render side falls back to the `auto 16 / 9` placeholder, which is correct, just not reserved.
+    // Pre-#625 rows are NULL for the same reason (no backfill: the fallback already handles them).
+    width: integer("width"),
+    height: integer("height"),
     uploadedAt: integer("uploaded_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (table) => [

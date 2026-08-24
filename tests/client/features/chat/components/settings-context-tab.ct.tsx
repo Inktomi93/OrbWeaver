@@ -75,11 +75,27 @@ const ACTIVE_DOCUMENTS = [
   },
 ];
 
+// The Lorebooks section's own suspense read (#640) — this tab is its production mount, so every arm must
+// stub it or the section's boundary swallows the failure and the tab's composition contract silently stops
+// covering it (the ACTIVE_DOCUMENTS precedent two blocks up). `worldInfo.listForChat` is member-read and NOT
+// owner-filtered, so host and member arms get the identical rows.
+const ROOM_BOOKS = [{ id: "worldbook_ct_0000000000001", name: "Ashfall Canon", description: null, createdAt: 1_700_000_000_000, role: null }];
+
+// The picker's own read (`worldInfo.listBooks` — the caller's whole library, unpaged). Only the tests that
+// OPEN the picker need it: a closed FormDialog never mounts its body, which is why the arms above can stay
+// green with `trpc.unstubbed()` empty. Two books: one already attached (subtracted by `attachableBooks`) and
+// one genuinely offerable, so the offer set is a real subtraction rather than a pass-through.
+const OWNED_BOOKS = [
+  { id: "worldbook_ct_0000000000001", name: "Ashfall Canon", description: null, createdAt: 1_700_000_000_000 },
+  { id: "worldbook_ct_0000000000002", name: "Session Notes", description: "Running notes", createdAt: 1_700_000_000_001 },
+];
+
 test("committed host + group: BOTH sections render as h3 headings", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -117,6 +133,7 @@ for (const arm of [
       "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
       "chat.setRoomOverrides": () => ({}),
       "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+      "worldInfo.listForChat": () => ROOM_BOOKS,
       "chat.listChatInjections": () => [],
       "chat.getUserMacroPicks": () => EMPTY_PICKS,
       "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -129,7 +146,9 @@ for (const arm of [
     // Barrier on a SETTLED body of the last-declared section in this arm, so the assertions below are not
     // read while boundaries are still in their skeleton fallback (a pending boundary shows neither the
     // error text nor the control, and would pass both arms vacuously).
-    const settled = arm.isHost ? component.getByRole("textbox", { name: "Tool rounds per turn" }) : component.getByText("The Crimson Court");
+    // #640 moved the member arm's last-declared section: Lorebooks now sits after Documents, so the barrier
+    // is that section's own settled row rather than the documents rack's.
+    const settled = arm.isHost ? component.getByRole("textbox", { name: "Tool rounds per turn" }) : component.getByText("Ashfall Canon");
     await expect(settled).toBeVisible();
 
     // Cause first, symptom second: an unfed read names ITSELF here, instead of surfacing three sections
@@ -163,6 +182,7 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
     "chat.getGroupConfig": hold,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -201,6 +221,7 @@ test("committed non-host: Group behavior is ABSENT, Field overrides persists (re
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -221,6 +242,7 @@ test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrid
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -248,6 +270,7 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -275,6 +298,7 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -296,6 +320,7 @@ function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -322,6 +347,7 @@ test("member: the display-scripts switch is ABSENT (host-only omit — a member 
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -337,6 +363,7 @@ test("count chips: Field overrides shows 'N set' and Injections shows its count 
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [
       { id: "inj_1", position: "in_prompt", role: "system", depth: 0, content: "a" },
       { id: "inj_2", position: "in_chat", role: "system", depth: 3, content: "b" },
@@ -359,6 +386,7 @@ test("count chips: no chip when nothing is set (a '0' chip would be noise)", asy
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -384,6 +412,7 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -433,6 +462,7 @@ test("D-1: the host-ops trio sits under a 'Host controls' group — and a member
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -470,6 +500,7 @@ test("BG-C: with no chat-set background, the Background row names the CARD-carri
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -487,6 +518,7 @@ test("BG-C: a room with NO carried background gets no provenance gloss (never an
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -503,6 +535,7 @@ test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, ne
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -522,6 +555,7 @@ test("D-4: the Documents section renders directly after Injections, for a host A
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -546,6 +580,7 @@ test("D-4: a MEMBER gets the Documents section too (member-readable), with no ad
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
@@ -556,4 +591,122 @@ test("D-4: a MEMBER gets the Documents section too (member-readable), with no ad
   await expect(component.getByRole("heading", { name: "Documents 1", level: 3 })).toBeVisible();
   await expect(component.getByText("The Crimson Court")).toBeVisible();
   await expect(component.getByRole("button", { name: "Add from your bank" })).toHaveCount(0);
+});
+
+// ── #640: THE LOREBOOKS RACK — the chat-attach affordance that did not exist ──────────────────────────
+// `chat_books` rows were written ONLY by the server (the attach verb, ST import, the host-handoff repoint),
+// so a host could not put a book in their own room and the automation rule-preset's lorebook picker was
+// uncompletable in every fresh room. Placement is again the ruling, so the first assertion is ORDER.
+
+const ATTACH_BOOK = "worldInfo.attachToChat";
+const DETACH_BOOK = "worldInfo.detachFromChat";
+
+function stubLorebooks(page: Page): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "worldInfo.listBooks": () => OWNED_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    "chat.getChat": () => CHAT_DETAIL,
+    [ATTACH_BOOK]: () => null,
+    [DETACH_BOOK]: () => ({ detached: true }),
+  });
+}
+
+test("#640: the Lorebooks section renders directly after Documents, above the host-only band", async ({ mount, page }) => {
+  await stubLorebooks(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  await expect(component.getByRole("heading", { name: "Lorebooks 1", level: 3 })).toBeVisible();
+
+  // `allTextContents`, not `allInnerTexts`: the kicker voice is uppercase and innerText reports the
+  // TRANSFORMED text (the D-4 test's own note).
+  const named = await component.getByRole("heading", { level: 3 }).allTextContents();
+  const at = (label: string): number => named.findIndex((text) => text.trim().startsWith(label));
+  expect(at("Lorebooks")).toBe(at("Documents") + 1);
+  // Member-readable, so it cannot live inside Host controls.
+  expect(at("Lorebooks")).toBeLessThan(at("Host controls"));
+});
+
+test("#640: the rack SAYS what attaching permits — write reach, not just a reference", async ({ mount, page }) => {
+  // Attachment IS the room's consent (`engine/arm-executors.ts`: a rule may only write into a book attached
+  // here), so a host granting it has to read that in words. A quiet row would be the affordance lie.
+  await stubLorebooks(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  const section = component.locator("section").filter({ hasText: "Ashfall Canon" }).last();
+  await expect(section.getByText("can write new entries into", { exact: false })).toBeVisible();
+  // …and it does NOT claim attachment is the only gate: books stay owner-owned (D23), so the sentence is
+  // scoped to the host's OWN books rather than to any book a rule might name.
+  await expect(section.getByText("one of your own books", { exact: false })).toBeVisible();
+});
+
+test("#640 host: attaching from the picker fires attachToChat with THAT book and this room", async ({ mount, page }) => {
+  const trpc = await stubLorebooks(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  await component.getByRole("button", { name: "Attach a lorebook" }).click();
+  // The offer set is a real SUBTRACTION: the already-attached book is not offered back, the other one is.
+  await expect(page.getByRole("button", { name: "Attach Ashfall Canon to this chat" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Attach Session Notes to this chat" }).click();
+
+  await expect
+    .poll(() => trpc.lastInput(ATTACH_BOOK), { intervals: [20, 50, 100] })
+    .toMatchObject({ bookId: "worldbook_ct_0000000000002", chatId: "chat_ct_keystone" });
+});
+
+test("#640 host: the row's overflow menu detaches THIS book from THIS room", async ({ mount, page }) => {
+  const trpc = await stubLorebooks(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  await component.getByRole("button", { name: "Actions for Ashfall Canon" }).click();
+  await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
+
+  await expect
+    .poll(() => trpc.lastInput(DETACH_BOOK), { intervals: [20, 50, 100] })
+    .toMatchObject({ bookId: "worldbook_ct_0000000000001", chatId: "chat_ct_keystone" });
+});
+
+test("#640 member: the rows are visible, and there is NO attach and NO detach (permission-OMIT, not disabled)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+
+  await expect(component.getByRole("heading", { name: "Lorebooks 1", level: 3 })).toBeVisible();
+  await expect(component.getByText("Ashfall Canon")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Attach a lorebook" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Actions for Ashfall Canon" })).toHaveCount(0);
+  // The member gloss says why books they cannot touch are shaping their turns.
+  await expect(component.getByText("Only the host attaches or removes one.", { exact: false })).toBeVisible();
+});
+
+test("#640: a room with NO books attached says so rather than rendering an empty block", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => [],
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  await expect(component.getByText("No lorebooks are attached to this chat yet.")).toBeVisible();
+  // A "0" chip would be noise — the heading stays the bare label (the count-chip rule).
+  await expect(component.getByRole("heading", { name: "Lorebooks", exact: true, level: 3 })).toBeVisible();
+  // …and the way out is still offered, which is the whole point of the row.
+  await expect(component.getByRole("button", { name: "Attach a lorebook" })).toBeVisible();
 });
