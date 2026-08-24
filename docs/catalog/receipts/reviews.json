@@ -535,6 +535,37 @@
       ]
     },
     {
+      "path": "docs/reviews/security/2026-08-24-d46-membrane-review.md",
+      "assignedSha256": "d808f5a0e60970c313b4245b657bbf9e5f559f0e26add76004f49006e526560f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d808f5a0e60970c313b4245b657bbf9e5f559f0e26add76004f49006e526560f",
+      "verifiedCommit": "0dfb6c0b4047d5ead5809e9cbe9e9785ff70056f",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "cb-d46-secreview (security-executor, 2026-08-24, commit d3e29080d\u2192merged 0dfb6c0b4): full-read exposure review of the BUILT plugin server stack (infra/plugin-host + domain/plugin + contracts/plugin + automation plugin-subscribers). Verdict NOT READY, 5 enumerable blockers, no re-architecture.",
+        "isolation core verified load-bearing (not inherited): capability gate from one tsc-checked contract map; per-invocation CSPRNG opaque handles; inert marshalling; per-hop SSRF wall pinned to manifest allowlist (DNS-rebind closed); KV scoping in every WHERE; D16 delivery floor proven by breaking the belt (2 tests red, restored)",
+        "blockers: P1 never-settling guest promise hangs invocation forever (positive control: while(true) dies 5.018s, new Promise(()=>{}) never returns; member-reachable via runSnippet; bypasses 3-strike auto-disable); P1 plugin-tool PL-C ceiling uses caller roster (latent until turn-attach); P2 live performance.now() in guest realm (determinism law false, 3 no-ambient tests blind); P2 plugin lore raw-text macro-expands to durable setvar without grant; P2 notify lacks 60s floor"
+      ],
+      "summary": "cb-d46-secreview exposure review of the D46 plugin membrane: NOT READY, 5 enumerable blockers (2\u00d7P1 hang + PL-C roster, 3\u00d7P2 performance.now/lore-macro/notify-cooldown), isolation core sound and proven load-bearing; the #24 gate.",
+      "claims": [
+        {
+          "claim": "The built plugin membrane is NOT READY to expose: 5 enumerable blocking conditions, isolation core sound but the invocation-hang and PL-C-roster P1s are exploitable on exposure.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/membrane.ts:445"
+            },
+            {
+              "kind": "issue",
+              "target": "#605"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/server-usage-settlement-receipt-2026-08-20.md",
       "assignedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
       "disposition": "current",
