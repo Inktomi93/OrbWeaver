@@ -15,11 +15,15 @@ const SETTINGS_VIEW = {
   updatedAt: 0,
 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
+/** The viewer identity every settings-shell mount resolves for pane nav (`sessions.me`, e.g.
+ *  `use-settings-viewer-view.ts`) — feeding it runs that resolution for real instead of the no-data branch. */
+const VIEWER = { userId: "user_ct_section_status", globalRole: "user", handle: "section_status" };
 
 test("a failing section renders inline at its anchor WITH a retry, even while hosted", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_PROC]: () => trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }),
+    "sessions.me": () => VIEWER,
   });
   await mount(<SettingsShellStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();

@@ -1,59 +1,15 @@
 {
-  "tests/client/a11y/accessible-name-quality.suite.ct.tsx :: chat.checkSendAvailability": {
-    "count": 1,
-    "why": "this mount requests `chat.checkSendAvailability` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/a11y/accessible-name-quality.suite.ct.tsx :: chat.getChat": {
-    "count": 1,
-    "why": "this mount requests `chat.getChat` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/a11y/accessible-name-quality.suite.ct.tsx :: chat.listChats": {
-    "count": 1,
-    "why": "this mount requests `chat.listChats` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/a11y/accessible-name-quality.suite.ct.tsx :: chat.listMessages": {
-    "count": 1,
-    "why": "this mount requests `chat.listMessages` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/a11y/accessible-name-quality.suite.ct.tsx :: persona.list": {
-    "count": 1,
-    "why": "this mount requests `persona.list` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/a11y/accessible-name-quality.suite.ct.tsx :: sessions.me": {
-    "count": 1,
-    "why": "the session identity read is unfed, so this mount's viewer resolves through the no-data branch and nothing here exercises the identity-dependent path."
-  },
-  "tests/client/a11y/accessible-name-quality.suite.ct.tsx :: settings.getUserSettings": {
-    "count": 1,
-    "why": "the viewer's settings row is unfed, so every appearance/tier reader in this mount falls to its default branch and the settings-driven presentation path never runs here."
-  },
-  "tests/client/components/greeting-studio.ct.tsx :: character.update": {
-    "count": 1,
-    "why": "this mount requests `character.update` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/components/greeting-studio.ct.tsx :: settings.getUserSettings": {
-    "count": 1,
-    "why": "the viewer's settings row is unfed, so every appearance/tier reader in this mount falls to its default branch and the settings-driven presentation path never runs here."
-  },
-  "tests/client/data/bus/use-chat-bus.ct.tsx :: stream.attach": {
-    "count": 1,
-    "why": "the bus ATTACH mutation is unfed (a batched HTTP mutation, not the SSE leg — use-orb-socket.ts:7), so the room/user bus rides routeTrpc's lenient null instead of a served response."
-  },
-  "tests/client/data/bus/use-orb-socket.ct.tsx :: stream.attach": {
-    "count": 1,
-    "why": "the bus ATTACH mutation is unfed (a batched HTTP mutation, not the SSE leg — use-orb-socket.ts:7), so the room/user bus rides routeTrpc's lenient null instead of a served response."
-  },
-  "tests/client/data/bus/use-user-bus.ct.tsx :: stream.attach": {
-    "count": 1,
-    "why": "the bus ATTACH mutation is unfed (a batched HTTP mutation, not the SSE leg — use-orb-socket.ts:7), so the room/user bus rides routeTrpc's lenient null instead of a served response."
-  },
   "tests/client/data/use-prompt-macro-suggestions.ct.tsx :: settings.getUserSettings": {
     "count": 1,
-    "why": "the viewer's settings row is unfed, so every appearance/tier reader in this mount falls to its default branch and the settings-driven presentation path never runs here."
+    "ratified": 1,
+    "why": "the NO-EMPTY-WINDOW test (header §3) deliberately withholds this read forever — a settled fallback to the builtin catalog is the behavior under test, not an incidental gap. Feeding it would test a different arm than the one this test names.",
+    "cite": ["tests/client/data/use-prompt-macro-suggestions.ct.tsx"]
   },
   "tests/client/data/use-session-recovery.ct.tsx :: sessions.me": {
     "count": 1,
-    "why": "the session identity read is unfed, so this mount's viewer resolves through the no-data branch and nothing here exercises the identity-dependent path."
+    "ratified": 1,
+    "why": "the in-flight-identity test deliberately withholds `sessions.me` — an unresolved read that leaves the hook unbound (never suspending, never navigating) IS the subject under test, distinct from the sibling test that feeds a viewer.",
+    "cite": ["tests/client/data/use-session-recovery.ct.tsx"]
   },
   "tests/client/features/app-shell/surfaces/app-shell.ct.tsx :: databank.bankHealth": {
     "count": 1,
@@ -318,57 +274,5 @@
   "tests/client/features/workloads/surfaces/backup-settings-surface.ct.tsx :: stream.attach": {
     "count": 1,
     "why": "the bus ATTACH mutation is unfed (a batched HTTP mutation, not the SSE leg — use-orb-socket.ts:7), so the room/user bus rides routeTrpc's lenient null instead of a served response."
-  },
-  "tests/client/forms/form-identity.suite.ct.tsx :: chat.checkSendAvailability": {
-    "count": 1,
-    "why": "this mount requests `chat.checkSendAvailability` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/forms/form-identity.suite.ct.tsx :: chat.getChat": {
-    "count": 1,
-    "why": "this mount requests `chat.getChat` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/forms/form-identity.suite.ct.tsx :: chat.listMessages": {
-    "count": 1,
-    "why": "this mount requests `chat.listMessages` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/forms/form-identity.suite.ct.tsx :: settings.getUserSettings": {
-    "count": 1,
-    "why": "the viewer's settings row is unfed, so every appearance/tier reader in this mount falls to its default branch and the settings-driven presentation path never runs here."
-  },
-  "tests/client/forms/save-status-seam.ct.tsx :: sessions.me": {
-    "count": 1,
-    "why": "the session identity read is unfed, so this mount's viewer resolves through the no-data branch and nothing here exercises the identity-dependent path."
-  },
-  "tests/client/forms/section-save-status.ct.tsx :: sessions.me": {
-    "count": 1,
-    "why": "the session identity read is unfed, so this mount's viewer resolves through the no-data branch and nothing here exercises the identity-dependent path."
-  },
-  "tests/client/routes/app-root.ct.tsx :: chat.checkSendAvailability": {
-    "count": 1,
-    "why": "this mount requests `chat.checkSendAvailability` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/routes/app-root.ct.tsx :: regex.listRoomDisplayScripts": {
-    "count": 1,
-    "why": "this mount requests `regex.listRoomDisplayScripts` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/routes/app-root.ct.tsx :: regex.listScripts": {
-    "count": 1,
-    "why": "this mount requests `regex.listScripts` and nobody stubs it, so the pipeline behind that read runs INERT in this file — a regression inside it is invisible here."
-  },
-  "tests/client/routes/app-root.ct.tsx :: sessions.me": {
-    "count": 1,
-    "why": "the session identity read is unfed, so this mount's viewer resolves through the no-data branch and nothing here exercises the identity-dependent path."
-  },
-  "tests/client/routes/app-root.ct.tsx :: settings.getUserSettings": {
-    "count": 1,
-    "why": "the viewer's settings row is unfed, so every appearance/tier reader in this mount falls to its default branch and the settings-driven presentation path never runs here."
-  },
-  "tests/client/routes/app-root.ct.tsx :: stream.attach": {
-    "count": 1,
-    "why": "the bus ATTACH mutation is unfed (a batched HTTP mutation, not the SSE leg — use-orb-socket.ts:7), so the room/user bus rides routeTrpc's lenient null instead of a served response."
-  },
-  "tests/client/routes/app-root.ct.tsx :: stream.detach": {
-    "count": 1,
-    "why": "the bus DETACH mutation is unfed, same batched-HTTP leg as attach."
   }
 }
