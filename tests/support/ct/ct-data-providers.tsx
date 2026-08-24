@@ -51,6 +51,7 @@ import { connectionsPane } from "@orb/client/features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
 import { corpusSection } from "@orb/client/features/discovery";
 import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
+import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
@@ -232,6 +233,9 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   addDocument: addDocumentModal,
   you: youModal,
   reauth: reauthModal,
+  imagine: imagineModal,
+  imageDetail: imageDetailModal,
+  imageEdit: imageEditModal,
 };
 
 const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);

@@ -1,7 +1,10 @@
 // The media content block renderer: routes an image/audio/video block through the gated MessageMedia
-// (asset-vs-external dispatch, external click-to-load gate) and, for image/video, a click-to-zoom
-// Lightbox. Asset src (asset:<id>) resolves via the row's AttachmentUrlProvider (own origin, always
-// renders); external src is gated by allowExternal, never auto-loading a third-party fetch.
+// (asset-vs-external dispatch, external click-to-load gate). An OWN-ORIGIN image opens the imagery DETAIL
+// lightbox (provenance + edit + set-as-background — interaction-direction-spec.md §7 B5) via the #state
+// `openImageDetail` action (chat never imports imagery); video and any external/no-chat case keep the plain
+// zoom Lightbox (an untrusted image we don't own has no provenance to read and no edit path). Asset src
+// (asset:<id>) resolves via the row's AttachmentUrlProvider (own origin, always renders); external src is
+// gated by allowExternal, never auto-loading a third-party fetch.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { AssetId } from "@orb/kit/ids";
@@ -11,6 +14,7 @@ import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { openImageDetail, useActiveChatId } from "#state";
 import { useAttachmentUrl } from "../hooks/attachment-url-context.tsx";
 
 type MediaBlock = Extract<MessageContentBlock, { kind: "media" }>;
@@ -47,6 +51,9 @@ const VIDEO_MIME_PREFIX = "video/";
 
 function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; readonly assetId: AssetId }): ReactElement {
   const resolved = useAttachmentUrl(assetId);
+  // The image only ever renders inside the OPEN thread, so at click time the active chat IS this image's
+  // chat — pinned into the detail subject so a set-as-background write can't target a later-navigated room.
+  const chatId = useActiveChatId();
   if (resolved === undefined) {
     return (
       <Text as="span" voice="gloss" data-slot="message-media-asset-pending">
@@ -58,6 +65,20 @@ function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; reado
   // here, off the resolved asset's stored mime — an mp4/webm attachment renders the native <video> arm.
   // A gif keeps the <img> arm (browsers animate it natively; only the MODEL wire treats it as frames).
   const media = resolved.mime.startsWith(VIDEO_MIME_PREFIX) ? "video" : block.media;
+  // An own-origin IMAGE opens the imagery detail lightbox (provenance + edit + set-as-background); video —
+  // and the null-chat fallback — keep the plain zoom Lightbox.
+  if (media === "image" && chatId !== null) {
+    return (
+      <MessageMedia
+        src={{ kind: "asset", url: resolved.url }}
+        media="image"
+        alt={block.alt}
+        {...(block.dims === undefined ? {} : { dims: block.dims })}
+        allowExternal={true}
+        onActivate={(): void => openImageDetail({ assetId, chatId, url: resolved.url, alt: block.alt })}
+      />
+    );
+  }
   return <MediaWithZoom block={{ ...block, media }} src={{ kind: "asset", url: resolved.url }} allowExternal={true} />;
 }
 

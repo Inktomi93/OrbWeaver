@@ -57,6 +57,7 @@ import { connectionsPane } from "#features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
 import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#features/home";
+import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
@@ -177,7 +178,11 @@ const messageToolsRenderers = createContributorRegistry<MessageToolsRenderer>("m
 // palette's former hardcoded "Create" rows, now owned by their own features; a grafted feature (automation,
 // a plugin surface) appends its commands the same way, without importing chat. Delivered via a context
 // provider, so a build/CT with no Provider has zero commands and every send is a plain send.
-const slashCommands = createContributorRegistry<SlashCommandContribution>("slash-commands", [...chatSlashCommands, ...characterSlashCommands]);
+const slashCommands = createContributorRegistry<SlashCommandContribution>("slash-commands", [
+  ...chatSlashCommands,
+  ...characterSlashCommands,
+  ...imagerySlashCommands,
+]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
@@ -245,6 +250,12 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   you: youModal,
   // Opened by the session-recovery ladder, never by a human affordance (staleness §4.4 rung 1).
   reauth: reauthModal,
+  // The imagery flow's three content-triggered modals (interaction-direction-spec.md §7 B5) — opened from
+  // chat content (the /imagine command, a message image click, the detail Edit action) via the imagery-store
+  // #state actions, never a chrome affordance (all `placement:"surface"`).
+  imagine: imagineModal,
+  imageDetail: imageDetailModal,
+  imageEdit: imageEditModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail
