@@ -190,10 +190,26 @@ const DEBT_BEAT_VAR_KEY = "debtBeat";
 /** #1's beat stamp — the wall-clock of the last committed message, written by R1 and read by R2. */
 const LAST_BEAT_VAR_KEY = "lastBeatMs";
 
-/** The illustration modes a scene-cadence preset may pick: the two SCENE modes plus verbatim `free`. The
+/** The illustration modes a scene-cadence preset may pick: the two SCENE modes, and ONLY those. The
  *  character/face/multimodal modes need a subject + an avatar and are the `/imagine` surface's, not a
- *  standing rule's. */
-const ILLUSTRATE_MODES = ["scenario", "background", "free"] as const satisfies readonly PromptTemplateMode[];
+ *  standing rule's.
+ *
+ *  `free` WAS OFFERED HERE AND COULD NOT RUN (#655). This preset's arm carries no `prompt` — `free` is the
+ *  prompt-VERBATIM mode, and `generatePicture` refuses it outright when none is supplied
+ *  (`domain/imagery/verbs/generate-picture.ts:90-92`, `'imagery: "free" mode requires a prompt'`), so a
+ *  host who picked it minted a rule that raised an `action_error` on every single fire. Adding a prompt
+ *  knob is not the fix either: a present `prompt` SKIPS extraction (`contract/params.ts:27`), which is
+ *  precisely what the two scene modes exist to do. An option that cannot work is worse than an option that
+ *  is merely unlabelled, so it is gone rather than captioned. */
+const ILLUSTRATE_MODES = ["scenario", "background"] as const satisfies readonly PromptTemplateMode[];
+
+/** Host labels for the illustration modes — the same words the `/imagine` surface uses for the same wire
+ *  values (`features/imagery/components/imagine-body.tsx`'s `MODE_LABELS`), so one concept has one name
+ *  across the app. */
+const ILLUSTRATE_MODE_LABELS = {
+  scenario: "Scene",
+  background: "Background",
+} as const satisfies { readonly [TMode in (typeof ILLUSTRATE_MODES)[number]]: string };
 
 // ── the catalogue ─────────────────────────────────────────────────────────────────────────────────────
 // §4 rows #1/#3/#10 (confirm-first + suggestion riders) are A4's; #8 rides A2's per-choice `mode` field;
@@ -287,8 +303,9 @@ const AUTO_ADD_LORE = defineRulePreset({
     confirmFirst: {
       kind: "choice",
       label: "Before writing",
-      help: "Ask keeps a card in the room until you say yes; Write does it silently.",
+      help: "Ask first keeps a card in the room until you say yes; Write silently does it without asking.",
       options: ["ask", "write"],
+      optionLabels: { ask: "Ask first", write: "Write silently" },
       default: "ask",
     },
   },
@@ -417,7 +434,14 @@ const ILLUSTRATE_SCENES = defineRulePreset({
       min: CADENCE_MIN,
       max: CADENCE_MAX,
     },
-    mode: { kind: "choice", label: "What to draw", options: ILLUSTRATE_MODES, default: "scenario" },
+    mode: {
+      kind: "choice",
+      label: "What to draw",
+      help: "Scene draws the moment that just played; Background draws the place it happened, with nobody in it.",
+      options: ILLUSTRATE_MODES,
+      optionLabels: ILLUSTRATE_MODE_LABELS,
+      default: "scenario",
+    },
   },
   rules: (knobs) => [
     {
@@ -478,8 +502,9 @@ const CLOCK_FIRES = defineRulePreset({
     firedArm: {
       kind: "choice",
       label: "When it fills",
-      help: "Narrate it in the room, or just notify you.",
+      help: "Narrate it in the room (this asks for a reply, so it costs a model call), or just notify you.",
       options: ["narrate", "notify"],
+      optionLabels: { narrate: "Narrate it in the room", notify: "Notify me" },
       default: "narrate",
     },
     firedText: {

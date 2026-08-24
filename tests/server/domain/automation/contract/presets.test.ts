@@ -217,6 +217,35 @@ test("a choice knob substitutes into the generate_image arm's mode", () => {
   expect(rule?.arms[0]).toMatchObject({ type: "generate_image", mode: "background", quiet: false });
 });
 
+test("#655: every choice knob in the catalogue labels EVERY option it offers", () => {
+  // `options` are wire values the builder branches on; without labels the picker's only honest render was
+  // the raw value, so a host configuring a money-spending image rule chose between `scenario`, `background`
+  // and `free`. A missing label also fails `tsc` at the def — this is the runtime half, over the erased
+  // registry, and it also proves no preset ships an EXTRA label for an option it no longer offers.
+  const labelled: string[] = [];
+  for (const knob of RULE_PRESET_IDS.flatMap((id) => Object.values(presetOf(id).knobs))) {
+    if (knob.kind !== "choice") {
+      continue;
+    }
+    labelled.push(knob.label);
+    expect(Object.keys(knob.optionLabels).toSorted()).toEqual([...knob.options].toSorted());
+    expect(Object.values(knob.optionLabels).filter((label) => label.trim().length === 0)).toEqual([]);
+  }
+  // The denominator, so a catalogue that lost its choice knobs cannot print a clean zero here.
+  expect(labelled).toEqual(["Before writing", "What to draw", "When it fills"]);
+});
+
+test("#655: the illustrate preset does not offer `free` — its every fire would be an action_error", () => {
+  // `free` is the prompt-VERBATIM mode and this preset's arm carries no prompt, so `generatePicture` refuses
+  // it outright (`domain/imagery/verbs/generate-picture.ts`: 'imagery: "free" mode requires a prompt'). It
+  // was an offered option on a SPEND arm that could never once succeed. A prompt knob is not the alternative:
+  // a present prompt SKIPS extraction, which is exactly what the two scene modes exist to do.
+  const mode = presetOf("illustrateScenes").knobs["mode"];
+  expect(mode?.kind).toBe("choice");
+  expect(mode?.kind === "choice" ? mode.options : []).toEqual(["scenario", "background"]);
+  expect(() => resolveRulePresetKnobs(presetOf("illustrateScenes").knobs, { mode: "free" })).toThrow();
+});
+
 test("the two-rule presets order the COUNTER above the THRESHOLD (position order is the same-batch mechanism)", () => {
   // The dispatch runs a chat's rules in position order over ONE shared, write-through env — so the counter
   // must be minted first or the threshold reads the pre-increment value for a whole batch.
