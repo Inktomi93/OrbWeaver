@@ -22,6 +22,17 @@ export const NEEDS_CONTINUATION = "Continue this reply first — there's no adde
 /** The generate-image-from-text button when the composer is empty — the typed text IS the image prompt. */
 export const IMAGE_GEN_NEEDS_TEXT = "Type a message to turn into an image";
 
+// The two IMAGE DOORS in the ✨ Media group name what they cost, because both of them cost (#623 P1). The
+// fast door spends the moment it is clicked with nothing shown first; the /imagine door is the one that lets
+// you pick a mode and read the prompt before paying. Neither reason is a disabled-state message — these are
+// enabled-row `title` helpers, the REGENERATE_PLAIN_HELPER idiom.
+
+/** The ENABLED generate-image-from-text row's helper — it spends immediately, with no preview step. */
+export const IMAGE_GEN_SPENDS_NOW = "Spends right away — your typed text is sent as the prompt, as-is.";
+
+/** The ✨-menu row that opens the `/imagine` modal — the mode + preview door, findable without typing `/`. */
+export const IMAGINE_DOOR_HELPER = "Pick a mode, preview the prompt (and its price) before the image spend — the /imagine surface.";
+
 // `IMAGE_GEN_NEEDS_CHAT` ("Send the first message, then generate images from your text") was DELETED
 // 2026-08-14: image generation posts into a real chat, and the room now HAS one from the creation click.
 

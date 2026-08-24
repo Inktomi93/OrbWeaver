@@ -8,7 +8,9 @@
 //   • Continuation — Undo / Revert continuation
 //   • Media  — Attach images & video (the sanctioned FileDropzone, ref-triggered off the row so the input is
 //              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
-//              #317) · Generate image from text
+//              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
+//              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
+//              are here because both cost money and only one used to be findable (#623 P1-IA).
 //   • Plot   — game-only: the six plot steers nested under a Plot submenu (P1-B) + the Offer choices one-shot
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
 // never hidden.
@@ -19,12 +21,12 @@ import { Button } from "@orb/ui/button";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Compass, Eraser, Icon, ImagePlus, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
+import { Compass, Eraser, Icon, ImagePlus, Images, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
+import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
@@ -43,6 +45,13 @@ export interface ComposerImageControls {
   readonly generateReason: string | undefined;
   readonly generating: boolean;
   readonly onGenerate: () => void;
+  /** Opens the `/imagine` modal seeded with whatever is typed (#623 P1-IA) — the SECOND, safer image door.
+   *
+   *  ALWAYS actionable, and that asymmetry is the point: generate-from-text needs a prompt because the typed
+   *  text IS the prompt, while an extraction mode reads the conversation instead — so on the empty composer
+   *  a first-timer meets an enabled door that shows the price before spending, not a greyed-out one. Free
+   *  mode with no text is a legal seed (the modal's own Generate carries the gate). */
+  readonly onOpenImagine: () => void;
 }
 
 interface UtilityMenuProps {
@@ -200,15 +209,27 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         <MenuGroup>
           <MenuGroupLabel>Media</MenuGroupLabel>
           <AttachMediaItem maxAttachmentBytes={image.maxAttachmentBytes} disabled={image.uploadDisabled} onAddFiles={image.onAddFiles} />
+          {/* TWO IMAGE DOORS, BOTH FINDABLE (#623 P1-IA). The split itself is a RULING, not an accident —
+              `features/imagery/index.ts`'s scope fence keeps this fast composer-owned door in chat and calls
+              /imagine "the richer surface (mode + preview) BESIDE it, not a replacement". What was defective
+              was that only the blind-spend door was discoverable: /imagine was reachable only by knowing to
+              type `/`, so a first-timer's default path spends with no mode, no preview and no stated price.
+              So the ruling stands and its symptom is closed by putting the beside-door literally beside it.
+              This row names its spend (an enabled `title` is the Regenerate/`helper` idiom, not a disabled
+              reason); the row under it is the one that lets you look first. */}
           <MenuItem
             closeOnClick={false}
             disabled={!image.canGenerate}
-            title={image.canGenerate ? undefined : image.generateReason}
+            title={image.canGenerate ? IMAGE_GEN_SPENDS_NOW : image.generateReason}
             data-testid={testId("composerGenerateImage")}
             onClick={image.canGenerate ? image.onGenerate : undefined}
           >
             <Icon icon={Sparkles} size="sm" />
             {image.generating ? "Generating image…" : "Generate image from text"}
+          </MenuItem>
+          <MenuItem data-testid={testId("composerOpenImagine")} onClick={image.onOpenImagine} title={IMAGINE_DOOR_HELPER}>
+            <Icon icon={Images} size="sm" />
+            Imagine — modes & preview…
           </MenuItem>
         </MenuGroup>
         {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one Plot

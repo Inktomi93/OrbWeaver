@@ -36,7 +36,7 @@ import { useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
-import { setComposerDraft, useComposerDraft } from "#state";
+import { openImagine, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
@@ -363,6 +363,9 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
     generateReason: imageGenReason,
     generating: generateImage.isPending,
     onGenerate: generateFromText,
+    // The SECOND image door (#623) — the same `openImagine` #state action the `/imagine` slash runner fires
+    // (never a `#features/imagery` import, §5.1). Seeded, not cleared: nothing has been spent yet.
+    onOpenImagine: (): void => openImagine({ chatId, mode: "free", prompt: trimmed }),
   };
 
   return (

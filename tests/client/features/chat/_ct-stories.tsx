@@ -64,6 +64,7 @@ import {
   toggleMessageSelected,
   useActiveSection,
   useContextTab,
+  useImagineSeed,
   useNewChatIntent,
   useOpenModal,
   useOpenOverlayPanel,
@@ -1223,8 +1224,20 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
       </button>
       {/* The notify sink (see bindNotify above) — rendered LAST so it never shifts the composer's own layout. */}
       <p data-testid="composer-notified">{notified}</p>
+      {/* The ✨ menu's SECOND image door (#623) writes the imagery INTENT store, and the store is what the
+          shell's imagine modal reads. This story has no ModalHost, so the seed IS the observable — read
+          through the real `useImagineSeed` selector, never a story-local mirror. */}
+      <ImagineSeedProbe />
     </div>
   );
+}
+
+/** Prints the imagery intent store's current `/imagine` seed as `<mode>|<prompt>` (empty when nothing has
+ *  opened the modal) — the observable for the ✨ menu's Imagine door, which fires the same `openImagine`
+ *  #state action the slash runner does. */
+function ImagineSeedProbe(): ReactElement {
+  const seed = useImagineSeed();
+  return <p data-testid="composer-imagine-seed">{seed === undefined ? "" : `${seed.mode}|${seed.prompt}`}</p>;
 }
 
 /** The composer wired to the real data layer (routeTrpc stubs the network) + the turn-lifecycle

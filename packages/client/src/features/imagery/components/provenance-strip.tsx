@@ -11,12 +11,8 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { SkeletonRows, useTRPC } from "#data";
-
-// A generated cost is dollars; show four decimals (a single image is fractions of a cent to a few cents).
-const COST_DECIMALS = 4;
-function formatCost(costUsd: number): string {
-  return `$${costUsd.toFixed(COST_DECIMALS)}`;
-}
+// One cost voice for the whole feature (#623) — the imagine modal's read receipt writes a spend the same way.
+import { formatCost } from "../lib/format-cost.ts";
 
 export function ProvenanceStrip({ assetId }: { readonly assetId: AssetId }): ReactElement {
   const trpc = useTRPC();

@@ -122,6 +122,44 @@ body {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent);
     }
+    /* #623 — THE MODAL SLOTS TAKE D144'S POLARITY FLOOR OVER ART. The rule above is the pane rule's twin and
+     * carries the pane rule's defect: a FIXED 70% of the popup's own tint means 30% of whatever is behind it
+     * lands inside it, and behind a modal is the room wallpaper. Measured in the CT browser over worst-legal
+     * (black) art, LIGHT palette, on `--color-muted-foreground` — the weakest ink a popup paints: 3.69:1,
+     * the SAME number #237 measured on the list pane. Side-eye measured the live consequence on the /imagine
+     * modal's spend controls at 4.25-4.29:1 while the dark arm read 7.06-7.50:1.
+     *
+     * THE FIX IS #237's, VERBATIM IN MECHANISM — this is an ADOPTION of the reading plate, not a tenth
+     * bespoke rule. `--color-reading-plate` is the house answer to "a translucent backing over arbitrary
+     * art": its alpha is SOLVED (kit/theme-derivation `readingPlateAlpha`, #217) against the worst legal art
+     * for the palette's polarity, never designed. No new number is invented here: both partners of the mix
+     * are at or above the plate's own derived alpha, so the composite is too, by construction, at every value
+     * of `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' raises.
+     *
+     * BLACK ART REMAINS THE BOUND EVEN THOUGH A MODAL ALSO HAS `--color-backdrop` UNDER IT. The scrim is a
+     * polarity-FIXED dark smoke, so under a LIGHT popup it only ever darkens what is behind — the direction
+     * the light arm's worst case already assumes. The scrim is an additional guarantee stacked under this
+     * one, never a reason to relax it (the same conservatism `readingPlateAlpha`'s own docstring states about
+     * the #487 wallpaper floor).
+     *
+     * ONLY THE LIGHT ARM MOVES (D144(d): the sacred dark rooms do not move a pixel), and the dark arm
+     * re-spells the rule above verbatim so it stays byte-identical.
+     *
+     * THE SELECTOR REACHES THE POPUP AS A SIBLING, NOT A DESCENDANT, AND THAT IS ANATOMY: `DialogPopup`
+     * portals to the themed portal root, which app-shell.tsx renders as a SIBLING of `.shell-grid`
+     * (`<div ref={portalRootRef} className="contents" data-slot="portal-root" />`). A
+     * `.shell-grid[data-has-bg-image] [data-slot="dialog-popup"]` descendant selector matches nothing in the
+     * app. The cascade fixture's dialog probes were moved out of the grid in the same commit for exactly that
+     * reason — before it, the pin below could not have seen its own subject.
+     * Rendered pin: the three `#623:` cases in tests/client/features/app-shell/surfaces/app-shell.ct.tsx
+     * (the light arm's AA floor by framebuffer · the dark arm byte-identical · the whole-glass census). */
+    html[data-blur-modals] .shell-grid[data-has-bg-image] ~ [data-slot="portal-root"] [data-slot="dialog-popup"],
+    html[data-blur-modals] .shell-grid[data-has-bg-image] ~ [data-slot="portal-root"] [data-slot="alert-dialog-popup"] {
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent)
+      );
+    }
     /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
     html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));

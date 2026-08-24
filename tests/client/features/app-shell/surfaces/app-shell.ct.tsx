@@ -19,7 +19,7 @@ import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearanc
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
-import { GrainDoublePaintFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
+import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
   AppShellChatsProjectionIntentStory,
   AppShellDropGuardStory,
@@ -3212,16 +3212,22 @@ function afterDisplayOf(shell: Locator): Promise<string> {
   return shell.evaluate((el) => getComputedStyle(el, "::after").display);
 }
 
+// BOTH READ `.shell-grid` BY ITS TESTID, never the mount root. The grain rule's host is
+// `html[data-texture="grain"] .shell-grid::after`, and these used to pass the mount-result locator — which
+// worked only for as long as the fixture's single root element HAPPENED to be the grid. #623 gave the fixture
+// a portalled sibling (production's dialog home), and the pair immediately showed the hazard: the `more` arm
+// went red against the mount container's absent `::after`, while its `no-preference` twin kept PASSING —
+// vacuously, on the same absent pseudo-element. Naming the host is the honest read either way.
 test("contrast: more drops the grain overlay (a noise texture works against a stated contrast preference)", async ({ mount, page }) => {
   await emulateContrast(page, "more");
   const shell = await mount(<ShellCascadeFixture surfaceTexture="grain" />);
-  await expect.poll(() => afterDisplayOf(shell), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => afterDisplayOf(shell.getByTestId("shell-grid")), { intervals: [20, 50, 100] }).toBe("none");
 });
 
 test("under contrast: no-preference the same grain overlay still paints — the drop is the preference's doing", async ({ mount, page }) => {
   await emulateContrast(page, "no-preference");
   const shell = await mount(<ShellCascadeFixture surfaceTexture="grain" />);
-  await expect.poll(() => afterDisplayOf(shell), { intervals: [20, 50, 100] }).not.toBe("none");
+  await expect.poll(() => afterDisplayOf(shell.getByTestId("shell-grid")), { intervals: [20, 50, 100] }).not.toBe("none");
 });
 
 // ── #435: ONE grain layer per pixel ────────────────────────────────────────────────────────────────
@@ -4286,4 +4292,122 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
     type: "pane-contrast",
   });
   expect(ratio).toBeGreaterThanOrEqual(4.5);
+});
+
+// ── #623: THE MODAL SLOTS NEVER ADOPTED D144'S OVER-ART FLOOR ──────────────────────────────────────
+// Side-eye pixel-sampled the /imagine modal live under the LIGHT palette over a room wallpaper: "Preview
+// prompt" 4.25:1, the blind-spend hint 4.29:1, the "Character" mode button 4.26:1 — all below AA — while the
+// same tokens measured 7.06-7.50:1 under the owner's dark arm and 7.62:1 in a modal over an opaque backdrop.
+// That is the #237 defect one surface over: `html[data-blur-modals] [data-slot="dialog-popup"]` mixes
+// `--color-popover` at a FIXED `--blur-fill-chrome` over `transparent`, so 30% of whatever is behind the
+// popup lands inside it — and what is behind it is arbitrary art, which this feature itself puts there
+// ("Set as background" hangs a generated image behind the room).
+//
+// It is an ADOPTION, not a new mechanism and not a regression: `--color-reading-plate`
+// (kit/theme-derivation `readingPlateAlpha`) already solves "a translucent backing over worst-case art"
+// polarity-aware, #217 minted it, #237 threaded it into `.shell-panel`, and a search of every plate/polarity
+// row (#204 #217 #218 #221 #223 #229 #232 #237 #241 #468 #487) turns up none that ever covered a popup.
+//
+// THE FIXTURE HAD TO BE FIXED FIRST. Its dialog probes used to sit inside `.shell-grid`; production portals a
+// popup to a SIBLING `[data-slot="portal-root"]`, so a grid-scoped selector would have measured green here
+// and shipped nothing at all. See `_cascade-fixtures.tsx`.
+const AA_NORMAL = 4.5;
+
+/** The ink a probe would paint at `varName`, decoded through a canvas so an `oklch()` token becomes RGB — a
+ *  regex over the computed string cannot do it, because the value passes through VERBATIM as `oklch(...)`. */
+function tokenInk(probe: Locator, varName: string): Promise<Rgb> {
+  return probe.evaluate((el, name) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.fillStyle = getComputedStyle(el).getPropertyValue(name).trim();
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return { b: b ?? 0, g: g ?? 0, r: r ?? 0 };
+  }, varName);
+}
+
+/** The contrast a surface's WEAKEST ink actually achieves: `--color-muted-foreground` against the pixels that
+ *  LAND inside the probe over worst-case art. Muted, not `color`, for #237's reason — a surface's
+ *  full-strength foreground survives the 70% fill on its own margin, so a pin on it passes while the surface
+ *  is still failing where it hurts (side-eye measured exactly the muted family here: the spend hint, the
+ *  ghost read-the-chat button, the unselected mode labels). */
+async function landedMutedContrast(page: Page, probe: Locator): Promise<{ readonly ratio: number; readonly landed: Rgb; readonly ink: Rgb }> {
+  const box = await probe.boundingBox();
+  expect(box, "the probe must be laid out before its pixels can be sampled").not.toBeNull();
+  const { x, y, width, height } = box as NonNullable<typeof box>;
+  const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
+  const ink = await tokenInk(probe, "--color-muted-foreground");
+  return { ink, landed, ratio: contrastRatio(ink, landed) };
+}
+
+test("#623: over worst-case art a LIGHT palette's DIALOG POPUP clears AA on its weakest ink", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // The wallpaper is a paint layer the grid goes transparent for, so the worst LEGAL art (a pure-black photo
+  // at BACKGROUND_DIM_MIN 0) is reproduced by painting the page behind it.
+  await page.evaluate(() => {
+    document.body.style.background = "#000";
+  });
+  const light = await mount(<OverArtGlassCensusFixture dataTheme="light" />);
+  const dialog = await landedMutedContrast(page, light.getByTestId("census-dialog"));
+  test.info().annotations.push({
+    description: `dialog ${dialog.ratio.toFixed(2)}:1 · muted ink rgb(${dialog.ink.r},${dialog.ink.g},${dialog.ink.b}) vs LANDED rgb(${dialog.landed.r},${dialog.landed.g},${dialog.landed.b})`,
+    type: "over-art-contrast",
+  });
+  expect(dialog.ratio).toBeGreaterThanOrEqual(AA_NORMAL);
+});
+
+test("#623: the DARK arm's dialog popup does not move a pixel (D144(d) — the sacred rooms stand)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const dark = await mount(<OverArtGlassCensusFixture />);
+  const overArt = await bgColorOf(dark.getByTestId("census-dialog"));
+  await dark.unmount();
+  // The same slot with NO wallpaper: the fix is `light-dark()`-gated, so the dark arm must be byte-identical.
+  const plain = await mount(<ShellCascadeFixture blurSurfaces={["modals"]} />);
+  expect(overArt).toBe(await bgColorOf(plain.getByTestId("dialog-probe")));
+});
+
+// THE BLAST RADIUS IS EVERY DIALOG, so it is measured rather than argued. `[data-slot="dialog-popup"]` is
+// what the settings modal, the command palette, New chat, Add document, Account and the imagery modals all
+// paint through (one `DialogPopup`), and the raise must be invisible to every one of them when there is no
+// wallpaper to composite. The OTHER overlay families are untouched by construction — Popover, Select, Menu
+// and Drawer carry their own slots and appear nowhere in the new selector.
+test("#623: with NO wallpaper the LIGHT arm's dialog popup is byte-identical (the raise is art-gated)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const withArt = await mount(<ShellCascadeFixture blurSurfaces={["modals"]} dataTheme="light" hasBgImage={true} />);
+  const artFill = await bgColorOf(withArt.getByTestId("dialog-probe"));
+  await withArt.unmount();
+  const plain = await mount(<ShellCascadeFixture blurSurfaces={["modals"]} dataTheme="light" />);
+  const plainFill = await bgColorOf(plain.getByTestId("dialog-probe"));
+  // `ShellCascadeFixture` gives the popup its production home (a portalled SIBLING of the grid), so the
+  // wallpaper-gated rule genuinely applies in the first arm and genuinely does not in the second.
+  expect(artFill).not.toBe(plainFill);
+  expect(alphaOf(artFill)).toBeGreaterThan(alphaOf(plainFill));
+});
+
+// The CENSUS the fix did NOT change, reported so the next reader knows which glass spellings are already safe
+// and which are the same defect waiting to be filed. `.shell-panel` took the floor at #237 and is the control
+// (it must PASS, or the instrument is lying). `.shell-main` and `[data-slot="composer"]` are the two
+// remaining `color-mix(…, transparent)` glass surfaces that were never threaded — out of #623's lane,
+// MEASURED here rather than guessed at, and annotated whichever way they land.
+test("#623 census: every other glass surface over worst-case art, LIGHT arm — measured, not assumed", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(() => {
+    document.body.style.background = "#000";
+  });
+  const light = await mount(<OverArtGlassCensusFixture dataTheme="light" />);
+  const panel = await landedMutedContrast(page, light.getByTestId("census-panel"));
+  const main = await landedMutedContrast(page, light.getByTestId("census-main"));
+  const composer = await landedMutedContrast(page, light.getByTestId("census-composer"));
+  test.info().annotations.push({
+    description: `panel(#237, control) ${panel.ratio.toFixed(2)}:1 · shell-main ${main.ratio.toFixed(2)}:1 · composer ${composer.ratio.toFixed(2)}:1 — AA floor ${AA_NORMAL}`,
+    type: "over-art-census",
+  });
+  // Only the surface #237 already fixed is ASSERTED: it is this census's positive control, and a census that
+  // RED on surfaces this lane is fenced out of would be parking someone else's work inside a failing test.
+  expect(panel.ratio).toBeGreaterThanOrEqual(AA_NORMAL);
 });

@@ -5,8 +5,11 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { DetailFlowStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { DetailFlowStory, DetailToastStory } from "../_ct-stories.tsx";
+
+/** The production toast outlet's root — counting these is the whole #623 P1 assertion (the defect was TWO). */
+const TOAST_ROOT = '[data-slot="toast-root"]';
 
 // A 1×1 transparent PNG — an own-origin asset src the media primitive renders without a network fetch.
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -98,4 +101,60 @@ test("image detail: Edit image opens the edit body on the same asset", async ({ 
   await cmp.getByRole("button", { name: "Edit image" }).click();
   // The mini-host swaps to the edit body — its instruction field is the tell.
   await expect(cmp.getByRole("textbox", { name: "Edit instruction" })).toBeVisible();
+});
+
+test("#623: detail → edit is no longer a ONE-WAY door — Back returns to the same image", async ({ mount, page }) => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const assetId = mintTypeId(ID_PREFIX.asset);
+  await routeTrpc(page, { "imagery.readProvenance": null });
+  const cmp = await mount(<DetailFlowStory assetId={assetId} chatId={chatId} url={PNG} />);
+
+  await cmp.getByRole("button", { name: "Edit image" }).click();
+  await expect(cmp.getByRole("textbox", { name: "Edit instruction" })).toBeVisible();
+  // `openImageEdit` CLEARS `detailSubject`, so before #623 the only exit from here was Escape — straight to
+  // the room, past the image the viewer came from. The return leg re-opens detail on the SAME subject.
+  await cmp.getByRole("button", { name: "Back to the image" }).click();
+  await expect(cmp.getByRole("button", { name: "Set as background" })).toBeVisible();
+});
+
+// ── #623 P1: the success toast used to fire before the write settled, and LIED on failure ──────────────
+// `setBackground.mutate(...)` then `toast.add({title:"Set as chat background"})` on the next line, while the
+// mutation carries `errorToast: "Couldn't set the chat background."` — a refused write (host-only gate, asset
+// ownership) painted BOTH and the viewer could not tell which was true. These run on `DetailToastStory`,
+// the only stack where both channels land on one manager, so a regression is countable rather than invisible.
+
+test("#623: a REFUSED background write shows exactly ONE toast, and it is the failure", async ({ mount, page }) => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const assetId = mintTypeId(ID_PREFIX.asset);
+  await routeTrpc(page, {
+    "imagery.readProvenance": null,
+    "assets.resolveBlobRefs": [{ assetId, hash: "cafebabe", mime: "image/png" }],
+    "chat.setChatBackground": () => trpcError({ code: "FORBIDDEN", message: "host only" }),
+  });
+  const cmp = await mount(<DetailToastStory assetId={assetId} chatId={chatId} url={PNG} />);
+  await cmp.getByRole("button", { name: "Set as background" }).click();
+
+  const toasts = page.locator(TOAST_ROOT);
+  await expect(toasts).toHaveCount(1);
+  await expect(toasts).toContainText("Couldn't set the chat background.");
+  // The lie, spelled out: the success line must be nowhere on the page.
+  await expect(page.getByText("Set as chat background", { exact: true })).toBeHidden();
+});
+
+test("#623: a SETTLED background write shows exactly ONE toast, and it names the revert home", async ({ mount, page }) => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const assetId = mintTypeId(ID_PREFIX.asset);
+  await routeTrpc(page, {
+    "imagery.readProvenance": null,
+    "assets.resolveBlobRefs": [{ assetId, hash: "cafebabe", mime: "image/png" }],
+    "chat.setChatBackground": { kind: "asset" },
+  });
+  const cmp = await mount(<DetailToastStory assetId={assetId} chatId={chatId} url={PNG} />);
+  await cmp.getByRole("button", { name: "Set as background" }).click();
+
+  const toasts = page.locator(TOAST_ROOT);
+  await expect(toasts).toHaveCount(1);
+  // This repaints the whole room from a lightbox button; the toast is the only place that can say where to
+  // undo it, and the revert home (context → "This chat" → Background) is real.
+  await expect(toasts).toContainText("Change it any time in the This chat panel → Background.");
 });

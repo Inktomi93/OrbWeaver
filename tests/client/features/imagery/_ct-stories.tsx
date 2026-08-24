@@ -11,7 +11,8 @@ import { openImageDetail, openImageEdit, openImagine, useOpenModal } from "@orb/
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The shell ModalHost's body-swap, narrowed to the three imagery slots — renders whichever the store says is
  *  open (null before the seed effect runs; the CT barriers on the settled body). */
@@ -63,6 +64,23 @@ export function DetailFlowStory({ chatId, assetId, url }: { readonly chatId: Cha
     <CtDataProviders>
       <ImageryHost />
     </CtDataProviders>
+  );
+}
+
+/** The detail lightbox on the REAL app QueryClient + the production toast outlet — the ONE stack in which a
+ *  mutation's `meta.errorToast` and the body's own `toast.add` land on the SAME manager. That is what makes
+ *  "exactly one toast, and it is the true one" (#623 P1) assertable: on the plain `CtDataProviders` client
+ *  the error channel does not exist at all, so a double-toast defect would be invisible. */
+export function DetailToastStory({ chatId, assetId, url }: { readonly chatId: ChatId; readonly assetId: AssetId; readonly url: string }): ReactElement {
+  useEffect(() => {
+    openImageDetail({ assetId, chatId, url, alt: "a generated image" });
+  }, [assetId, chatId, url]);
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <ImageryHost />
+      </CtToastSurface>
+    </CtAppDataProviders>
   );
 }
 
