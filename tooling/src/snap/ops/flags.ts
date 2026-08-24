@@ -194,6 +194,16 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--wait-for": (a, rest, page) => {
     pushStep(a, { kind: "waitfor", selector: rest.shift() ?? "", page });
   },
+  // --upload <selector>=<path[,path...]> (#651): LAST '=' splits (--fill/--key convention); boundary +
+  // existence + real-input resolution happen at DRIVE time (_shared/upload.ts) — parse stays side-effect free.
+  "--upload": (a, rest, page) => {
+    const s = splitLastEq(rest.shift() ?? "");
+    const paths = s.tail
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p !== "");
+    pushStep(a, { kind: "upload", selector: s.head, paths, page });
+  },
   // ── SPA navigation (dev nav bridge __orb.nav) — queued INLINE with the steps, argv order ──
   "--goto": (a, rest, page) => {
     pushNav(a, { kind: "goto", target: rest.shift() ?? "", page });
@@ -379,6 +389,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--fill",
   "--key",
   "--wait-for",
+  "--upload",
   "--goto",
   "--open-chat",
   "--open-character",
@@ -419,6 +430,7 @@ export const PAGE_TARGET_FLAGS = new Set([
   "--fill",
   "--key",
   "--wait-for",
+  "--upload",
   "--goto",
   "--open-chat",
   "--open-character",
