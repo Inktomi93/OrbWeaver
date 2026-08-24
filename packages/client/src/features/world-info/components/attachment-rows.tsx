@@ -3,7 +3,9 @@
 // index), so each row owns the ONE membership query for its target and derives "is THIS book attached?" from
 // it. A `Switch` toggles attach/detach; for characters the `role` axis (primary/auxiliary — the card-bound
 // vs installation-extra distinction) rides an inline `Select` shown only while attached (attachToCharacter is
-// an idempotent upsert, so re-attaching with a new role re-stamps it). Chat scope is deferred at transport.
+// an idempotent upsert, so re-attaching with a new role re-stamps it). The CHAT scope has no row here on
+// purpose — it is host-gated over a membership-scoped room, so its affordance lives in the room (#640; the
+// panel header states the ruling).
 
 import type { WorldBookRole } from "@orb/contracts/world-info";
 import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";

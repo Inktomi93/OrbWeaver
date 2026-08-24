@@ -93,10 +93,15 @@ const LORE_PRESET = {
   ],
 };
 
+/** Named because the #640 end-to-end drives the picker BY this name — an index read into `ROOM_BOOKS` is
+ *  `possibly undefined` under the tests program's `noUncheckedIndexedAccess`, while biome's type service
+ *  disagrees and calls the guarding optional chain useless, so neither `?.` nor `[0]` is spellable there. */
+const ATTACHABLE_BOOK_NAME = "Ashfall Canon";
+
 // The two books this room has attached — what `worldInfo.listForChat` answers, and therefore exactly the
 // set the picker may offer (the same set `substrate/validate.ts` accepts at mint).
 const ROOM_BOOKS = [
-  { id: "worldbook_ct_lore_0001", name: "Ashfall Canon", description: null, createdAt: 2, role: null },
+  { id: "worldbook_ct_lore_0001", name: ATTACHABLE_BOOK_NAME, description: null, createdAt: 2, role: null },
   { id: "worldbook_ct_lore_0002", name: "Session Notes", description: null, createdAt: 1, role: null },
 ];
 
@@ -244,6 +249,11 @@ test("#630: a room with NO attached books says so — an empty dropdown would be
 
   await expect(page.getByText("This room has no lorebooks attached yet, so there is nothing for this rule to write into.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Lorebook" })).toHaveCount(0);
+  // #640: …and it now POINTS somewhere. The copy deliberately prescribed nothing while no client affordance
+  // attached a book to a chat; the "This chat" tab's Lorebooks section is that affordance, and it is the SAME
+  // attachment `substrate/validate.ts` gates this mint on — so the sentence names the one place that makes
+  // this card completable instead of leaving the host at a dead end.
+  await expect(page.getByText("Attach one under Lorebooks", { exact: false })).toBeVisible();
 });
 
 test("#630: the typed mint refusal stays reachable — a listed book that stopped qualifying is SAID", async ({ mount, page }) => {
@@ -465,6 +475,9 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
     "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
     "databank.listActiveForChat": () => [],
+    // #640: the tab now carries a Lorebooks section too, and its read must be fed or that boundary
+    // error-arms silently inside this composition.
+    "worldInfo.listForChat": () => ROOM_BOOKS,
     "automation.listRules": () => [RULE],
     "automation.listFires": () => [],
     "automation.listRulePresets": () => [PACING_PRESET],
@@ -491,12 +504,75 @@ test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a pr
     // arm (which is what the chat tab's own CT does today — reported, not fixed here).
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
     "databank.listActiveForChat": () => [],
+    "worldInfo.listForChat": () => ROOM_BOOKS,
   });
 
   const component = await mount(<RulesInThisChatTabStory chatId={CHAT} isHost={false} />);
 
   await expect(component.getByRole("heading", { name: "Macro picks", exact: true, level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Rules", exact: true, level: 3 })).toHaveCount(0);
+});
+
+// ── #640: THE END-TO-END — attach a lorebook in the room, and the auto-add-lore card becomes completable ──
+// This is the row's whole point. The catalogue's "natural first card" was uncompletable in every fresh room
+// because `chat_books` had no client writer at all, so the picker's honest empty state had nowhere to send
+// the host. Both halves now live in ONE pane, so ONE mount can walk the whole path.
+//
+// WHAT THE REMOUNT IS AND IS NOT. The app runs `staleTime: Infinity` — the bus, not a refetch, is every
+// read's freshness driver, and `worldInfo.attachToChat` emits `worldInfoChanged`, whose USER_BUS_FILTERS arm
+// path-invalidates `worldInfo` (data/invalidation.ts:221) and therefore this very read. A CT has no socket,
+// so the remount below stands in for that tick — a fresh QueryClient per `mount()` (ct-data-providers.tsx).
+// The claim it proves is the one that matters and could not be checked before: the write the rack sends is
+// the write that makes the picker offer the book. The bus leg is the persona-lorebook wire, already pinned.
+test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto-add-lore card can be completed", async ({ mount, page }) => {
+  // The room's attachment list, MUTABLE — the stub answers what the server would after the write lands.
+  const attached: unknown[] = [];
+  const trpc = await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
+    "chat.getVariablePicks": () => ({ variables: [], values: {} }),
+    "chat.getChat": () => ({ id: CHAT, viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+    "databank.listActiveForChat": () => [],
+    "automation.listRules": () => [],
+    "automation.listFires": () => [],
+    "automation.listRulePresets": () => [LORE_PRESET],
+    "worldInfo.listForChat": () => [...attached],
+    "worldInfo.listBooks": () => ROOM_BOOKS,
+    "worldInfo.attachToChat": () => {
+      attached.push({ id: "worldbook_ct_lore_0001", name: ATTACHABLE_BOOK_NAME, description: null, createdAt: 2, role: null });
+      return null;
+    },
+  });
+
+  const before = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
+
+  // ① The dead end, as reported: no books, so the card says so — and now names the way out.
+  await before.getByRole("button", { name: "Add a rule", exact: true }).click();
+  await page.getByText("Auto-add lore entries").click();
+  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toBeVisible();
+  await expect(page.getByText("Attach one under Lorebooks", { exact: false })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // ② The way out, taken — in the same pane the sentence points at.
+  await before.getByRole("button", { name: "Attach a lorebook" }).click();
+  await page.getByRole("button", { name: `Attach ${ATTACHABLE_BOOK_NAME} to this chat` }).click();
+  await expect.poll(() => trpc.lastInput("worldInfo.attachToChat"), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT });
+  await before.unmount();
+
+  // ③ The room now carries the book — and the card that was uncompletable can be completed.
+  const after = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
+  await expect(after.getByText(ATTACHABLE_BOOK_NAME, { exact: true }).first()).toBeVisible();
+  await after.getByRole("button", { name: "Add a rule", exact: true }).click();
+  await page.getByText("Auto-add lore entries").click();
+  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toHaveCount(0);
+  const chooser = page.getByRole("combobox", { name: "Lorebook" });
+  await expect(chooser).toBeVisible();
+  await chooser.click();
+  await expect(page.getByRole("option", { name: ATTACHABLE_BOOK_NAME, exact: true })).toBeVisible();
+
+  // The rendered receipt of the whole row (reports/ is ephemera, never a committed artifact).
+  await page.screenshot({ path: "reports/snaps/cb-aa-attach-then-pick.png" });
 });
 
 // ── The RESTYLE's own floor: geometry + contrast + tap targets, at every real width, in both themes ────
