@@ -106,7 +106,13 @@ export function mintKnobOverrides(knobs: readonly RulePresetKnobView[], values: 
 }
 
 /** The line above a blocked Add naming what is missing. "Fill in" is a TYPING instruction and would be a
- *  small lie over a chooser — an entityRef is picked, not filled. */
+ *  small lie over a chooser — an entityRef is picked, not filled.
+ *
+ *  THE PURE DEFAULT, not the whole answer (#655). An `entityRef` whose chooser has NOTHING to offer is
+ *  blocked on a PREREQUISITE, not on a choice, and "Choose a lorebook to add this rule." is then an
+ *  instruction the host cannot obey — but which door to name is a live chat-scoped read, which is not this
+ *  module's business (it is pure over the descriptors by construction). `KnobBlockingLine`, in
+ *  `components/rule-preset-knob-field.tsx`, owns that override and falls back here for every other case. */
 export function knobBlockingLine(knob: RulePresetKnobView): string {
   const descriptor: RulePresetKnobDescriptor = knob;
   return descriptor.kind === "entityRef"

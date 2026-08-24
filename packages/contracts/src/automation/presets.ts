@@ -116,10 +116,21 @@ export interface RulePresetTextListKnobDescriptor extends RulePresetKnobBase {
 
 /** A one-of knob. Generic in its OPTION literal union so a preset builder reading it gets the narrow type
  *  (e.g. a `PromptTemplateMode` subset) rather than a bare `string` — the default parameter is what lets the
- *  erased union below stay one type. */
+ *  erased union below stay one type.
+ *
+ *  IT CARRIES ITS OWN LABELS, and that channel is not decoration (#655). `options` are WIRE values — the CEL
+ *  branch keys and arm discriminators a builder switches on (`ask`/`write`, `scenario`/`background`/`free`) —
+ *  and without a label channel the picker's only honest render was the raw value, so a host configuring a
+ *  money-spending image rule chose between three unexplained lowercase words while the help line directly
+ *  beneath named "Ask" and "Write", two options the control did not spell. A MAPPED-TYPE Record over the
+ *  option union (§5.5's other sanctioned dispatch shape, the `RULE_PRESET_ENTITY_NOUNS` precedent) rather
+ *  than a parallel array: an option without a label fails `tsc` at the preset def, so the two cannot drift
+ *  and there is no ordering to keep in sync. */
 export interface RulePresetChoiceKnobDescriptor<TOption extends string = string> extends RulePresetKnobBase {
   readonly kind: "choice";
   readonly options: readonly TOption[];
+  /** What the picker SHOWS for each wire value — host vocabulary, never the discriminator. */
+  readonly optionLabels: Readonly<Record<TOption, string>>;
   readonly default: TOption;
 }
 
@@ -196,5 +207,20 @@ export interface RulePresetView {
   /** S4: the preset's fires SUGGEST rather than act. Carried here at A3 (the def declares it and the view
    *  projects it); the suggestion machinery itself is A4's. */
   readonly confirmFirst: boolean;
+  /** Whether this preset MINTS A RECURRING CHARGE at its default knobs — its rules carry an arm in
+   *  `SPEND_ARM_TYPES` (a model call the host funds), so enabling it bills them on a cadence, forever.
+   *
+   *  IT EXISTS BECAUSE THE PICKER HAD NO SPEND SIGNAL AT ALL (#655). Seven of the eleven committed presets
+   *  spend — "Periodic pacing nudge" fires a `trigger_turn` every 8 beats — and the only place the word
+   *  appeared was a row's overflow menu, two clicks deep, AFTER the rule was already minted. The house bar
+   *  is that a spend is visible at the DECISION point.
+   *
+   *  DEFAULT-KNOB SEMANTICS, stated because one preset's answer moves with a knob: `clockFires` emits a
+   *  `trigger_turn` under `firedArm: "narrate"` and a free `post_notification` under `"notify"`. The
+   *  projection DERIVES this by running the def's own builder over its descriptor defaults
+   *  (`substrate/presets.ts`), which is exactly the configuration a host mints by pressing Add without
+   *  touching a knob — so the catalogue row is true for the row it labels. Never a hand-maintained flag: a
+   *  boolean an author forgets to flip is a lie on a money surface. */
+  readonly spends: boolean;
   readonly knobs: readonly RulePresetKnobView[];
 }

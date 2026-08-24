@@ -1,7 +1,8 @@
 // Playwright-chromium bootstrap shared by the browser probes.
 // INIT SCRIPTS SHIP AS RAW STRINGS, not functions: the DOM-less tsconfig aggregator won't
-// compile a function body touching `window`, and tsx's esbuild keepNames `__name` helper
-// doesn't exist inside the browser context when the function is serialized.
+// compile a function body touching `window`. (The historical second reason — tsx's esbuild
+// keepNames `__name` helper breaking serialized functions — died with the 2026-08-03 tsx shed;
+// the lib-mismatch reason stands alone.)
 
 import process from "node:process";
 import type { Browser, BrowserContext, ConsoleMessage, Page } from "@playwright/test";
