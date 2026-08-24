@@ -159,9 +159,13 @@ function ChoiceKnobField({
  *
  *  `useQuery`, NOT `useSuspenseQuery`: suspending HERE would throw the whole popover body back to its
  *  `QueryBoundary` fallback mid-form, and the three non-pickable outcomes are things a host needs to READ
- *  rather than a spinner over the whole card. The empty arm deliberately prescribes nothing: no client
- *  affordance attaches a book to a chat today, so a "go attach one" line would point at a door that is not
- *  there (reported separately). */
+ *  rather than a spinner over the whole card.
+ *
+ *  THE EMPTY ARM NOW POINTS SOMEWHERE (#640). It used to prescribe nothing on purpose — no client affordance
+ *  attached a book to a chat, so a "go attach one" line would have pointed at a door that was not there. The
+ *  door exists now: the "This chat" tab's Lorebooks section (`features/chat/chat-books-section.tsx`), which
+ *  is the SAME attachment `substrate/validate.ts` gates the mint on, so the sentence names the one place
+ *  that makes this card completable. */
 function WorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }: KnobFieldProps): ReactElement {
   const trpc = useTRPC();
   const books = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
@@ -186,7 +190,10 @@ function WorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }: Kn
   if (items.length === 0) {
     return (
       <KnobRow knob={knob} issue={null}>
-        <Text voice="gloss">This room has no lorebooks attached yet, so there is nothing for this rule to write into.</Text>
+        <Text voice="gloss">
+          This room has no lorebooks attached yet, so there is nothing for this rule to write into. Attach one under Lorebooks, higher up this tab, and it can
+          be picked here.
+        </Text>
       </KnobRow>
     );
   }

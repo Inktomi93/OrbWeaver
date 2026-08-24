@@ -54,6 +54,7 @@ import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJu
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
+import { pluginsPane } from "@orb/client/features/plugin";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { regexCollection } from "@orb/client/features/regex";
@@ -300,6 +301,7 @@ const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = 
   backup: backupPane,
   "chat-behavior": chatBehaviorPane,
   connections: connectionsPane,
+  plugins: pluginsPane,
   admin: adminPane,
 };
 

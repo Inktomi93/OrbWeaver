@@ -19,9 +19,14 @@ export type CreateAgentToolServer = (opts: { readonly tools: readonly AgentToolS
 
 /** Where a tool came from. `plugin` is LIVE: `registerPluginTool` (`contract/service.ts`) is wired at
  *  `entry/compose/automation-plugin.ts`, namespacing guest tools `plugin_<slug>_<name>`. Its ceiling
- *  resolves the INSTALLER's present role in the invocation chat (never the caller's), and automation
- *  reaches these tools through the `run_tool` arm — so a plugin extends what automation can DO without
- *  growing the closed arm union. Per-TURN attach is a separate, still-unbuilt seam (#24). */
+ *  resolves the INSTALLER's present role in the invocation chat (never the caller's).
+ *
+ *  NO AUTOMATION ARM REACHES THESE TOOLS TODAY. `AUTOMATION_ACTION` is a closed 8-member tuple
+ *  (`contracts/automation/index.ts`) and `run_tool` is NOT one of them — it is a PROPOSED platform row
+ *  (the automation-platform-axes design §3), not a built arm. A registered plugin tool is therefore
+ *  reachable only by a caller that already names it; both doors an author would expect are unbuilt:
+ *  the `run_tool` arm, and per-TURN attach (the S2 `toolNames` axis — the wire attach set is the union
+ *  of teaching contributions' `toolNames`, and rpg is the only contributor). Both are #24. */
 export const TOOL_SOURCES = ["builtin", "plugin"] as const;
 export type ToolSource = (typeof TOOL_SOURCES)[number];
 

@@ -19,8 +19,9 @@
 // (features/*/lib/*-chrome.tsx). Everywhere else re-declares a parallel chrome registry — RED.
 //
 // SCOPE: the SectionId, ModalSlotId, AND SettingsCategoryId vocabularies (all LIVE — the SettingsCategoryId
-// arm lands at M6.1; its allowlist mirrors the modal arm: the tuple homes (section-ids.ts/shell-store.ts), the door, and
-// its own co-located *-pane.tsx defs) PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
+// arm lands at M6.1; its allowlist mirrors the modal arm: the TUPLE HOMES (`TUPLE_HOME_SUFFIXES` below —
+// section-ids.ts/shell-store.ts/settings-categories.ts), the door, and its own co-located *-pane.tsx defs)
+// PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
 import type { Expression, ObjectLiteralExpression, Project, SourceFile, Node as TsMorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -136,12 +137,19 @@ function readVocabs(project: Project): readonly Vocab[] {
   ];
 }
 
-/** The sanctioned homes for a vocab-keyed map: the vocabulary tuple + door (shell-store/main.tsx, shared
- *  by both vocabs) and the vocab's own co-located definition files. */
+/** The TUPLE HOMES — the state modules that legitimately hold a bare all-ids string array, because the
+ *  array IS the vocabulary rather than a map over it. A vocab's tuple gets its own module once it has two
+ *  readers; `settings-categories.ts` was split out of `shell-store.ts` on 2026-08-24 for exactly that
+ *  reason (and because shell-store was seven lines under its `component-size` cap, so adding ONE member
+ *  re-wrapped the tuple and REDDED that gate). Note the gate reads the tuples BY SYMBOL — `readTuple(project,
+ *  "SETTINGS_CATEGORY_IDS")`, the path-keyed-gates-die-on-rename discipline — so a tuple that moves stays
+ *  VISIBLE; only this allowlist has to learn its new home. */
+const TUPLE_HOME_SUFFIXES: readonly string[] = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/settings-categories.ts"];
+
+/** The sanctioned homes for a vocab-keyed map: a vocabulary TUPLE HOME + the door (main.tsx, shared by
+ *  every vocab) and the vocab's own co-located definition files. */
 function isAllowlisted(repoRelPath: string, vocab: Vocab): boolean {
-  return (
-    repoRelPath.endsWith("/state/shell-store.ts") || repoRelPath.endsWith("/state/section-ids.ts") || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath)
-  );
+  return TUPLE_HOME_SUFFIXES.some((home) => repoRelPath.endsWith(home)) || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath);
 }
 
 /** A parallel vocab map = an object literal whose NAMED keys are ALL vocab ids, ≥2 of them. Requiring
@@ -451,6 +459,12 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/lib/appearance-pane.tsx": "export const M = { account: 1, appearance: 2 };\n",
       },
       why: "a SettingsCategoryId-keyed object literal inside a co-located *-pane.tsx def file — allowlisted, must pass",
+    },
+    {
+      files: {
+        "packages/client/src/state/settings-categories.ts": 'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
+      },
+      why: "the SETTINGS_CATEGORY_IDS tuple in its OWN state module (split out of shell-store.ts 2026-08-24) — a TUPLE HOME, allowlisted, must pass. The tuple is read BY SYMBOL, so moving it never blinds the gate; this row pins that the new home is sanctioned rather than merely unseen.",
     },
     {
       files: {

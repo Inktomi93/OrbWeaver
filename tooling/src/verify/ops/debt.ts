@@ -52,6 +52,7 @@ import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
 import { BASELINE_REL as PLATE_BASELINE_REL } from "../gates/over-art-plate-arm.ts";
 import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
+import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm debt");
@@ -97,6 +98,12 @@ export const LEDGERS: readonly Ledger[] = [
     rel: ORPHAN_BASELINE_REL,
     unit: "orphan export",
     why: "the 2026-08-03 export-rot sweep's UNDECIDED rows — the swept tree, NOT a permission slip. Ends per row when the export is consumed, `@public`-tagged, or deleted.",
+  },
+  {
+    owner: "ct-unfed-reads (CT tier)",
+    rel: CT_UNFED_BASELINE_REL,
+    unit: "unfed (CT file, procedure) pair",
+    why: "one CT mount that requests a tRPC procedure nobody stubbed, so the pipeline behind it runs INERT and a regression inside it is invisible to that file (#629/#637). Ends per row when the read is FED at every routeTrpc site in the file and the row is deleted — the ratchet REDs a row whose read is gone, so the shrink cannot be skipped.",
   },
 ];
 

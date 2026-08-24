@@ -1,7 +1,8 @@
 // The world-info CRUD + attachment mutations, one createEntityMutation per verb. Attachment writes
 // (global/character/persona) are the "activation" surface: a book fires in a chat's per-turn pool when
-// attached at one of those scopes. The chat scope is deferred at transport, so only the three
-// owner-scoped surfaces are wired here.
+// attached at one of those scopes. Only the three OWNER-scoped surfaces are wired here: the fourth scope
+// (chat) is host-gated over a membership-scoped room, so its writes live with that authority, in
+// `features/chat/hooks/use-chat-book-mutations.ts` (#640).
 //
 // THE ROSTER READ IS A THIRD COUPLED SITE (R2): `listBooksWithUsage` backs the Configuration workspace's
 // rows, and its two DERIVED numbers move on writes that touch neither the book list nor a single book —

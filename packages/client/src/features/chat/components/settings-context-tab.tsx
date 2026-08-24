@@ -23,6 +23,11 @@
 // lands directly AFTER Injections. Same family ("extra content entering this room's prompt"), and it is
 // member-READABLE, so it belongs above the host-only band rather than inside it.
 //
+// "LOREBOOKS" LANDS DIRECTLY AFTER IT (#640) — the same family one step further, and member-readable for the
+// same reason (`worldInfo.listForChat` is `requireChatMember`). It is also the WRITE surface that had no
+// client affordance at all: `chat_books` rows were server-written only, so the automation rule-preset's
+// lorebook picker had an empty list in every fresh room and nowhere to send the host.
+//
 // FOREIGN SECTIONS GRAFT INTO THE HOST-OPS BAND (#616, owner ruling 2026-08-24). The tab body is the
 // house's one sectioned per-chat-configuration pane, so a foreign feature's per-chat knobs belong IN it —
 // not in a tab of their own beside it. `sections` is the §6c `ChatSettingsSectionContribution` registry
@@ -46,6 +51,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
+import { ChatBooksSection } from "./chat-books-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
@@ -103,6 +109,15 @@ function DocumentsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   return <HeadingWithCount count={data?.length ?? 0} label="Documents" />;
 }
 
+// The Lorebooks count, on the same non-suspending shared-cache idiom as the two above (#640). Every viewer
+// receives the same rows — `worldInfo.listForChat` is member-read and NOT owner-filtered (the room's books
+// are room-public prompt content) — so unlike Documents there is no hidden subset for the chip to leak.
+function LorebooksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
+  return <HeadingWithCount count={data?.length ?? 0} label="Lorebooks" />;
+}
+
 export interface CommittedSettingsTabProps {
   readonly chatId: ChatId;
   readonly roomOverrides: RoomOverrides;
@@ -143,6 +158,20 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
         >
           <ChatDocumentsSection chatId={chatId} isHost={isHost} />
+        </QueryBoundary>
+      </Section>
+      {/* Lorebooks (#640) — the per-chat world-info rack, directly after Documents because it is the SAME
+          family one step further ("extra content entering this room's prompt", here as keyword-fired
+          entries) and, like Documents, member-READABLE: `worldInfo.listForChat` is `requireChatMember`, so a
+          member sees the rows and simply gets no attach and no detach (the §8.1 permission-OMIT at ROW
+          level). It is also the door the automation rule-preset lorebook picker points at: a rule may only
+          write into a book attached HERE, so this is where a room with none goes to get one. */}
+      <Section kicker={<LorebooksHeading chatId={chatId} />}>
+        <QueryBoundary
+          fallback={<SkeletonRows count={2} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
+        >
+          <ChatBooksSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
       </Section>
       {/* Macro picks (#24) — the per-chat user-macro INPUT picks. NOT host-gated: the picks are room play
