@@ -64,6 +64,9 @@ const PROJECT_SITES: ExemptionTable = {
   "tooling/src/verify/gates/dangling-refs.ts": {
     why: "fsBacked: reads gate descriptor SOURCE off real disk (readdirSync over the gates dir) so it works identically inside a conformance temp tree, where the shared workspace does not exist. Ends if the arm is folded onto the shared project the way diagnostic-legibility was (§2.2).",
   },
+  "tooling/src/verify/lib/config-static-read.ts": {
+    why: "ONE scratch parser (`useInMemoryFileSystem`) for the repo-ROOT code configs — eslint.config.js and .dependency-cruiser.cjs. They are genuinely outside the shared workspace (harnessGlobs covers packages/*/src, tests/ and tooling/src/, never a root .js/.cjs), so getWorkspace() structurally cannot serve them, and the two liveness gates that read them would otherwise each construct their own. Ends if the root configs ever join harnessGlobs.",
+  },
   "tooling/src/verify/gates/enforcement-registry-parity.ts": {
     why: "fsBacked, same reason as dangling-refs: it reconciles the on-disk gate corpus against the enforcement doc, and a conformance temp tree has no shared workspace to read from. Ends on the same diagnostic-legibility-style fold-in.",
   },
