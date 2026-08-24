@@ -60,6 +60,53 @@ export type ChatSurfaceContribution =
       readonly body: (state: ChatMessageSurfaceState) => ReactNode;
     };
 
+// ── The "This chat" tab's SECTION seam (§6c — the THIRTEENTH contributor family) ───────────────────────
+// The §6c families above graft a whole TAB (`contextTabs`), the whole PANE (`regions`), or a spot in the
+// transcript (surface anchors). None of them could express what the interaction-direction-spec §7 B2 IA
+// asks for: ONE MORE SECTION inside an existing tab body — automation's Rules beside Injections /
+// Documents / Host controls in "This chat". Chat's `CommittedSettingsTab` is a chat-feature component and
+// `client-features-no-cross` forbids it importing automation's surface at runtime, so the IA was
+// unreachable and B2 shipped a host-only "Rules" TAB instead (a 5th tab that overflowed the strip at
+// 1024px, and split per-chat configuration across two homes). OWNER RULING 2026-08-24 ("im fine with it
+// going in this chat", #616) authorized this family; the tab graft was retired in the same change.
+//
+// THE HOST OWNS THE GRAMMAR, the contributor owns only the content: the contribution carries a `kicker`
+// (its name in the band's own micro-caps voice) and a `body`, and the tab wraps both in the SAME
+// `<Section kicker>` its own sections use. So a grafted section can never invent its own grouping chrome,
+// and it inherits the pane's voice for free — which is precisely what the side-eye pass asked for.
+
+/** The "This chat" SECTION-anchor vocabulary (§6c) — closed `as const` tuple, so an unlisted anchor is
+ *  unspellable. `host-controls` is the tab's HOST-ONLY band (Background · Group behavior · Appearance ·
+ *  Tool use): the whole band is omitted for a member, so a contribution there is host-gated by MOUNT, not
+ *  by a predicate it could forget to write. A member-readable anchor is one tuple entry + one named arm on
+ *  the union below, the {@link CharacterDetailContribution} extension shape. */
+export const CHAT_SETTINGS_SECTION_ANCHORS = ["host-controls"] as const;
+export type ChatSettingsSectionAnchor = (typeof CHAT_SETTINGS_SECTION_ANCHORS)[number];
+
+/** The "This chat" section projection — what the tab body can supply a contributor. The room's committed
+ *  `chatId` and nothing else, deliberately: the anchor's own host-only mount already answers the one
+ *  permission question a section there could ask, and a projection field nobody reads is a promise the
+ *  host would have to keep. A new availability input lands HERE (the `SlashCommandContext` posture). */
+export interface ChatSettingsSectionState {
+  readonly chatId: ChatId;
+}
+
+/** The `host-controls` arm — a section inside the "This chat" tab's host-only band. */
+interface ChatSettingsHostControlsContribution {
+  readonly id: string;
+  readonly anchor: Extract<ChatSettingsSectionAnchor, "host-controls">;
+  /** The section's NAME, rendered by the host as its `<Section kicker>` (a real `<h3>` in the pane's
+   *  micro-caps voice) — never spelled by the contributor's own body. */
+  readonly kicker: string;
+  readonly when?: (state: ChatSettingsSectionState) => boolean;
+  readonly body: (state: ChatSettingsSectionState) => ReactNode;
+}
+
+/** A "This chat" SECTION contribution (§6c) — a discriminated union BY ANCHOR (the
+ *  {@link ChatSurfaceContribution} shape). One arm today; the `anchor` literal narrows `when`/`body` to
+ *  their own state at every call site with zero casts. */
+export type ChatSettingsSectionContribution = ChatSettingsHostControlsContribution;
+
 // ── S1: the in-chat CONTROL seam (interaction-direction-spec.md §3-S1) ────────────────────────────────
 // ONE registry + behavior contract for TRANSIENT interactive controls near the transcript/composer — the
 // generalization of the click/consume contract `choice-send-provider.tsx` already spells for the `:::choices`

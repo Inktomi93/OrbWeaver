@@ -1,7 +1,7 @@
 // automation/ front door (UI-Arch §2.1) — the ONLY entry into the automation slice (dep-cruiser
 // `client-feature-front-door`). It exports the S4 suggest/confirm CONTROL SOURCE the door appends to chat's
-// `chat-controls` registry, and — B2 — the `RulesSection` the chat "This chat" tab grafts into its host-
-// controls band (the rule list + enable toggle + Test/Run-now + the "Add rule…" preset picker + fire log).
+// `chat-controls` registry, and — B2 — the `automationRulesSection` contribution the chat "This chat" tab
+// renders inside its host-controls band (the rule list + enable toggle + Test/Run-now + the "Add rule…" preset picker + fire log).
 //
 // WHY THE FEATURE EXISTS AT ALL: a control SOURCE and a rules panel are BOTH foreign surfaces grafting onto
 // chat's band/tab, and `client-features-no-cross` makes the alternative (putting them inside the chat
@@ -16,5 +16,5 @@ export { RulesSection } from "./components/rules-section.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
 export { automationPane } from "./lib/automation-pane.tsx";
-export { automationRulesContextTab } from "./lib/rules-context-tab.tsx";
+export { automationRulesSection } from "./lib/rules-settings-section.tsx";
 export { automationSuggestionSource } from "./lib/suggestion-control-source.ts";

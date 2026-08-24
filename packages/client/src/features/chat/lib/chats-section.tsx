@@ -3,15 +3,17 @@
 // CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the room projection;
 // `useChatContextState` pairs with the tabs so `S` never crosses the shell seam. The tabs used to carry a
 // DRAFT twin per body (a rowless room wrote a client draft-config store instead of the verbs) — gone with
-// draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): one body per tab, one set of verbs. `makeChatsSection` takes its four contributor
+// draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): one body per tab, one set of verbs. `makeChatsSection` takes its five contributor
 // seams as ONE named-field bundle (§12 row 5, gate `section-factory-contribution-bundle`) — context tabs
-// (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers — so rpg/agents graft at the door
-// without importing chat, and a fifth seam is a FIELD rather than an arity churn at every caller.
+// (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers + the "This chat" SECTION seam
+// (#616) — so rpg/agents/automation graft at the door without importing chat. The bundle is exactly why
+// the fifth seam cost one FIELD and zero arity churn at the door and both CT overrides.
 
 import { Eye, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import type {
   ChatContextState,
   ChatContextTabId,
+  ChatSettingsSectionContribution,
   ChatSurfaceContribution,
   CommittedChatContext,
   ContextRegionDef,
@@ -51,44 +53,53 @@ function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
 
 // Flat declared order encodes the Members-default (§6b): members first ⇒ the generic resolve picks it as
 // the active tab whenever visible, else the first visible tab.
-const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly id: ChatContextTabId })[] = [
-  {
-    id: "members",
-    label: "Members",
-    icon: Users,
-    when: (s) => membersTabJustified(s.participants, s.multiHumanCapable, s.isHost),
-    body: (s) => <CommittedMembersTab {...toMembersTabProps(s)} />,
-  },
-  // Overrides + Injections + Group + Background + Tool-use consolidated into ONE "This chat" tab
-  // (the former "Appearance overrides" tab and the separate "Injections" meta-tab merged).
-  // Always visible (Field overrides + Injections show for everyone); the former Group tab's host+group-chat
-  // gate + the Tool-use host gate + the Background host gate live at SECTION granularity inside the body —
-  // the permission-omit, now per-section so the strip drops slots without dropping controls.
-  {
-    id: "settings",
-    label: "This chat",
-    icon: SlidersHorizontal,
-    body: (s) => (
-      <CommittedSettingsTab
-        chatId={s.chatId}
-        roomOverrides={s.roomOverrides}
-        isHost={s.isHost}
-        background={s.background}
-        showGroup={s.isHost && resolveIsGroupChat(s.participants)}
-      />
-    ),
-  },
-  {
-    id: "preview",
-    label: "Preview",
-    icon: Eye,
-    // HOST-ONLY (HUD-1 §4): `when` already omits it for a member; `crown` is how a CLAIMANT paints that
-    // fact — the crown-gold glyph that reads "host-only" without spending a word on it.
-    crown: true,
-    when: (s) => s.isHost,
-    body: (s) => <AssemblyPreviewPanel chatId={s.chatId} />,
-  },
-];
+//
+// A FUNCTION OF THE SECTION SEAM, not a module const (#616): the "This chat" body forwards the §6c
+// SECTION contributors, which arrive at the factory. The list itself is unchanged data — it is built once
+// per `makeChatsSection` call (once per app), not per render.
+function chatContextTabs(
+  settingsSections: ContributorRegistry<ChatSettingsSectionContribution>,
+): readonly (ContextTabDef<ChatContextState> & { readonly id: ChatContextTabId })[] {
+  return [
+    {
+      id: "members",
+      label: "Members",
+      icon: Users,
+      when: (s) => membersTabJustified(s.participants, s.multiHumanCapable, s.isHost),
+      body: (s) => <CommittedMembersTab {...toMembersTabProps(s)} />,
+    },
+    // Overrides + Injections + Group + Background + Tool-use consolidated into ONE "This chat" tab
+    // (the former "Appearance overrides" tab and the separate "Injections" meta-tab merged).
+    // Always visible (Field overrides + Injections show for everyone); the former Group tab's host+group-chat
+    // gate + the Tool-use host gate + the Background host gate live at SECTION granularity inside the body —
+    // the permission-omit, now per-section so the strip drops slots without dropping controls.
+    {
+      id: "settings",
+      label: "This chat",
+      icon: SlidersHorizontal,
+      body: (s) => (
+        <CommittedSettingsTab
+          chatId={s.chatId}
+          roomOverrides={s.roomOverrides}
+          isHost={s.isHost}
+          background={s.background}
+          showGroup={s.isHost && resolveIsGroupChat(s.participants)}
+          sections={settingsSections}
+        />
+      ),
+    },
+    {
+      id: "preview",
+      label: "Preview",
+      icon: Eye,
+      // HOST-ONLY (HUD-1 §4): `when` already omits it for a member; `crown` is how a CLAIMANT paints that
+      // fact — the crown-gold glyph that reads "host-only" without spending a word on it.
+      crown: true,
+      when: (s) => s.isHost,
+      body: (s) => <AssemblyPreviewPanel chatId={s.chatId} />,
+    },
+  ];
+}
 
 /** The chat section's contributor seams as ONE named-field bundle (client-architecture-lockdown.md §12
  *  row 5, gate `section-factory-contribution-bundle`): a fifth seam is a FIELD here, not another positional
@@ -102,9 +113,12 @@ interface ChatsSectionContributors {
   readonly surfaces: ContributorRegistry<ChatSurfaceContribution>;
   /** §6c — the per-tool-name renderers; zero ⇒ every tool record renders through the generic fallback. */
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
+  /** §6c — the "This chat" tab's SECTION contributors (#616): a foreign feature's own section inside the
+   *  host-ops band, rendered by `CommittedSettingsTab` in the pane's own `<Section kicker>` grammar. */
+  readonly settingsSections: ContributorRegistry<ChatSettingsSectionContribution>;
 }
 
-export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRenderers }: ChatsSectionContributors): SectionDefinition {
+export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRenderers, settingsSections }: ChatsSectionContributors): SectionDefinition {
   return {
     id: "chats",
     rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobile: "tab" },
@@ -131,7 +145,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     header: () => <ChatsTopbarHeader />,
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
-      tabs: CHAT_CONTEXT_TABS,
+      tabs: chatContextTabs(settingsSections),
       // No panel-header identity slot (Context-Panel-Program §1 Q3 / §0 IA de-dup): the topbar owns the
       // chat's avatar + title, so the CONTEXT band no longer re-renders the same cluster 300px away — the
       // band reduces to neutral chrome above the tab strip. (`ChatContextHeader` was DELETED for knip;

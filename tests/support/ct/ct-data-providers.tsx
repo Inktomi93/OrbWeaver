@@ -81,6 +81,7 @@ import { worldInfoCollection, worldInfoSettingsSection } from "@orb/client/featu
 import type {
   CharacterDetailContribution,
   ChatContextState,
+  ChatSettingsSectionContribution,
   ChatSurfaceContribution,
   CollectionContribution,
   ContextRegionDef,
@@ -178,6 +179,9 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 // The per-tool-name renderer seam, empty as at the real door — every tool record falls back to `ToolCallBlock`.
 const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", []);
+// The "This chat" SECTION seam (#616), empty here: a shell CT proves the tab's OWN sections, and the
+// automation graft is proved by its own CT, which wires this registry itself.
+const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", []);
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
@@ -208,6 +212,7 @@ const REAL: Record<SectionId, SectionDefinition> = {
     contextRegions: chatContextRegions,
     surfaces: chatSurfaceContributors,
     toolRenderers: chatToolRenderers,
+    settingsSections: chatSettingsSections,
   }),
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
@@ -409,6 +414,7 @@ export function CtChatContributorSectionRegistry({
       contextRegions: contextRegions ?? chatContextRegions,
       surfaces: surfaceContributors ?? chatSurfaceContributors,
       toolRenderers: chatToolRenderers,
+      settingsSections: chatSettingsSections,
     }),
   });
   return (

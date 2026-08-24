@@ -73,11 +73,38 @@ export const useRunRuleNow = createEntityMutation<RuleActionVars, inferOutput<Tr
   errorToast: "Couldn't run that rule.",
 });
 
+/** The generic mint refusal — used when the verb's reason is empty or is an internal one no host can act
+ *  on (an override naming a knob the rule preset does not declare is a client bug, not a user mistake). */
+const MINT_FAILED = "Couldn't add that rule.";
+
+/** The server's per-setting refusal shape (`substrate/presets.ts::refuse`) — the word "knob", the raw
+ *  camelCase key in quotes, a colon, then the reason. Both the word and the key are developer vocabulary;
+ *  side-eye #621 P2-4 caught them being shown to a host verbatim. */
+const KNOB_REFUSAL_RE = /^knob '([^']+)': (.+)$/su;
+
+/** `bookId` → `Book id` — the field as the picker names it, near enough to its own label to be found. */
+function humanizeKnobKey(key: string): string {
+  const spaced = key.replace(/([a-z\d])([A-Z])/gu, "$1 $2").toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 /** The inline refusal copy for a preset mint — the verb's own leak-free reason when it threw one (an
  *  off-bounds knob, an empty/invalid book id, a book not attached to this chat), else a generic fallback.
- *  This is what surfaces "the book must already be attached to this chat" rather than a silent no-op. */
+ *  This is what surfaces "the book must already be attached to this chat" rather than a silent no-op —
+ *  with the server's developer-shaped per-setting refusals rewritten into the host's own vocabulary. */
 function mintFailureToast(error: unknown): string {
-  return error instanceof Error && error.message.length > 0 ? error.message : "Couldn't add that rule.";
+  if (!(error instanceof Error) || error.message.length === 0) {
+    return MINT_FAILED;
+  }
+  if (!error.message.startsWith("knob ")) {
+    return error.message; // a plain typed refusal ("that book is not attached to this chat") — already host copy.
+  }
+  const knobRefusal = KNOB_REFUSAL_RE.exec(error.message);
+  const key = knobRefusal?.[1];
+  const reason = knobRefusal?.[2];
+  // A non-matching `knob …` message is the "not a knob of this rule preset" arm — a client bug, not
+  // something a host can fix, so it gets the generic line rather than the internals.
+  return key === undefined || reason === undefined ? MINT_FAILED : `${humanizeKnobKey(key)}: ${reason}`;
 }
 
 /** Mint a preset's ordered rule SET into a chat (host-only; born disabled). Invalidates the rules list on

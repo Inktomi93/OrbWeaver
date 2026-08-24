@@ -4,7 +4,9 @@
 // pick → set knobs → add; a minted rule is born DISABLED and appears in the list beside hand-authored ones.
 //
 // VOCABULARY (owner ruling, #599): "preset" bare means a GENERATION preset. These are RULE presets — every
-// user-facing string here says "rule" (the trigger is "Add rule…", never "preset picker").
+// user-facing string here says "rule" (the trigger is "Add a rule", never "preset picker"). ONE noun, one
+// spelling: the trigger and the popover title are the same words (side-eye #621 P3-1 — the concept had
+// three names across one popover).
 //
 // KNOB EDITORS dispatch EXHAUSTIVELY over the descriptor `kind` (§5.5): a new `RulePresetKnobKind` fails
 // `tsc` at the `never` default. The switch runs on a `RulePresetKnobDescriptor`-typed local, NOT on the
@@ -16,9 +18,16 @@
 // Two client-side guards beyond the wire, both defense-in-depth against a server whose knob DEFAULTS bypass
 // their own bounds (`substrate/presets.ts::resolveKnob` returns the default unvalidated — A3-verify note):
 // number inputs CLAMP to [min,max] on entry, and a required text knob (an empty-default reference like a
-// lorebook id) blocks the mint with an inline "Required" until it is filled — so a book-needing rule
-// surfaces the missing book BEFORE the mint, and if the mint still refuses typed (a book not attached to
-// this chat), the reason rides the mutation's error toast.
+// lorebook id) blocks the mint until it is filled — so a book-needing rule surfaces the missing book BEFORE
+// the mint, and if the mint still refuses typed (a book not attached to this chat), the reason rides the
+// mutation's error toast.
+//
+// THE BLOCK IS ANNOUNCED, NEVER PRE-ACCUSED (side-eye #621 P1-4). It used to render the issue at FIRST
+// PAINT — the catalogue's stated natural-first card ("Auto-add lore entries") opened red-ringed and
+// "Required." before the host had typed a character, reading as already-rejected — behind a `disabled` Add
+// button that still painted its full primary fill, so the surface looked live and did nothing. Now: issues
+// appear per field on first edit, the Add button is REAL (pressing it reveals every issue rather than
+// swallowing the press), and the blocking field is named in a line above it.
 
 import type {
   RulePresetChoiceKnobDescriptor,
@@ -137,6 +146,11 @@ interface KnobFieldProps {
   readonly knob: RulePresetKnobView;
   readonly value: KnobValue | undefined;
   readonly onChange: (next: KnobValue) => void;
+  /** Show the blocking issue on the FIELD. False until the host has touched it or pressed Add: a form that
+   *  opens red-ringed and "Required." before anyone types reads as already-rejected (side-eye #621 P1-4 —
+   *  the catalogue's stated natural-first card opened that way). The Add button still says what is
+   *  missing, so nothing is hidden; only the accusation waits its turn. */
+  readonly showIssue: boolean;
 }
 
 /** The labeled row every knob editor sits in — label + optional help + the inline validity issue. Shared by
@@ -169,9 +183,15 @@ function KnobRow({
 // structurally true (one field each), and each arm gets its own NARROWED descriptor type instead of the
 // widened local the switch needed. (The gate's mis-count of exclusive arms is reported separately.)
 
-function NumberKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetNumberKnobDescriptor }): ReactElement {
+function NumberKnobField({
+  knob,
+  descriptor,
+  value,
+  onChange,
+  showIssue,
+}: KnobFieldProps & { readonly descriptor: RulePresetNumberKnobDescriptor }): ReactElement {
   return (
-    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+    <KnobRow knob={knob} issue={showIssue ? knobIssue(descriptor, value) : null}>
       <NumberField
         aria-label={knob.label}
         min={descriptor.min}
@@ -183,17 +203,23 @@ function NumberKnobField({ knob, descriptor, value, onChange }: KnobFieldProps &
   );
 }
 
-function TextKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetTextKnobDescriptor }): ReactElement {
+function TextKnobField({ knob, descriptor, value, onChange, showIssue }: KnobFieldProps & { readonly descriptor: RulePresetTextKnobDescriptor }): ReactElement {
   return (
-    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+    <KnobRow knob={knob} issue={showIssue ? knobIssue(descriptor, value) : null}>
       <Input aria-label={knob.label} value={typeof value === "string" ? value : ""} onValueChange={(next): void => onChange(next)} />
     </KnobRow>
   );
 }
 
-function TextListKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetTextListKnobDescriptor }): ReactElement {
+function TextListKnobField({
+  knob,
+  descriptor,
+  value,
+  onChange,
+  showIssue,
+}: KnobFieldProps & { readonly descriptor: RulePresetTextListKnobDescriptor }): ReactElement {
   return (
-    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+    <KnobRow knob={knob} issue={showIssue ? knobIssue(descriptor, value) : null}>
       <Textarea
         aria-label={knob.label}
         rows={3}
@@ -204,9 +230,15 @@ function TextListKnobField({ knob, descriptor, value, onChange }: KnobFieldProps
   );
 }
 
-function ChoiceKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetChoiceKnobDescriptor }): ReactElement {
+function ChoiceKnobField({
+  knob,
+  descriptor,
+  value,
+  onChange,
+  showIssue,
+}: KnobFieldProps & { readonly descriptor: RulePresetChoiceKnobDescriptor }): ReactElement {
   return (
-    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+    <KnobRow knob={knob} issue={showIssue ? knobIssue(descriptor, value) : null}>
       <Select<string>
         aria-label={knob.label}
         items={descriptor.options.map((option) => ({ value: option, label: option }))}
@@ -251,10 +283,17 @@ function RulePresetConfigure({ chatId, preset, onBack, onDone }: RulePresetConfi
   const invalidation = useInvalidation();
   const mint = useCreateRuleFromPreset({ trpc, invalidation });
   const [values, setValues] = useState<KnobValues>(() => defaultValues(preset.knobs));
+  // Which fields may accuse yet: a key lands here on first edit, and pressing a blocked Add reveals them
+  // all at once (side-eye #621 P1-4 — the form used to open red before the host had touched anything).
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
 
-  const hasIssue = preset.knobs.some((knob) => knobIssue(knob, values[knob.key]) !== null);
+  const blocked = preset.knobs.find((knob) => knobIssue(knob, values[knob.key]) !== null);
 
   const add = (): void => {
+    if (blocked !== undefined) {
+      setTouched(new Set(preset.knobs.map((knob) => knob.key)));
+      return;
+    }
     mint.mutate({ chatId, presetId: preset.id, knobs: mintOverrides(preset.knobs, values) }, { onSuccess: () => onDone() });
   };
 
@@ -268,9 +307,22 @@ function RulePresetConfigure({ chatId, preset, onBack, onDone }: RulePresetConfi
       </Row>
       <Text voice="gloss">{preset.summary}</Text>
       {preset.knobs.map((knob) => (
-        <KnobField key={knob.key} knob={knob} value={values[knob.key]} onChange={(next): void => setValues((prev) => ({ ...prev, [knob.key]: next }))} />
+        <KnobField
+          key={knob.key}
+          knob={knob}
+          value={values[knob.key]}
+          showIssue={touched.has(knob.key)}
+          onChange={(next): void => {
+            setTouched((prev) => new Set(prev).add(knob.key));
+            setValues((prev) => ({ ...prev, [knob.key]: next }));
+          }}
+        />
       ))}
-      <Button intent="primary" size="sm" disabled={hasIssue} loading={mint.isPending} onClick={add}>
+      {/* The blocking reason is SAID, not merely enforced: an amber-filled button that does nothing on
+          click is the same dead end whether or not it is `disabled` (side-eye #621 P1-4). Pressing it
+          reveals every field's issue instead. */}
+      {blocked === undefined ? null : <Text voice="gloss">{`Fill in "${blocked.label}" to add this rule.`}</Text>}
+      <Button intent="primary" size="sm" loading={mint.isPending} onClick={add}>
         {preset.ruleCount > 1 ? `Add ${preset.ruleCount} rules` : "Add rule"}
       </Button>
     </Stack>
@@ -342,7 +394,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
         render={
           <Button intent="secondary" size="sm">
             <Icon icon={Plus} size="sm" />
-            Add rule…
+            Add a rule
           </Button>
         }
       />
@@ -353,7 +405,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
         <PopoverTitle>Add a rule</PopoverTitle>
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="the rule catalogue" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the rules you can add" onRetry={retry} />}
         >
           <RulePresetPickerBody chatId={chatId} onDone={(): void => setOpen(false)} />
         </QueryBoundary>
