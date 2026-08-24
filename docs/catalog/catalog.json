@@ -425,9 +425,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 357,
-      "bytes": 173755,
-      "sha256": "7dde5ee9c01fb9173897826c9d5711cd977c53bfccc61885fafd0b7d0f732370",
+      "lines": 359,
+      "bytes": 176998,
+      "sha256": "ab7459b333ec2452d5ff07f1f2f7c57d5fb869ccecdcba7d9119df991d0fca45",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -440,12 +440,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "7dde5ee9c01fb9173897826c9d5711cd977c53bfccc61885fafd0b7d0f732370",
+        "assignedSha256": "ab7459b333ec2452d5ff07f1f2f7c57d5fb869ccecdcba7d9119df991d0fca45",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "7dde5ee9c01fb9173897826c9d5711cd977c53bfccc61885fafd0b7d0f732370",
-        "verifiedCommit": "67c708a4d8119f1feb1da782b83c5a8aa9f430d2",
+        "verifiedSha256": "ab7459b333ec2452d5ff07f1f2f7c57d5fb869ccecdcba7d9119df991d0fca45",
+        "verifiedCommit": "599fe3a3db2c9ee823e59b3fef4188237f1b0edf",
         "verifiedAt": "2026-08-24",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -463,7 +463,8 @@
           "delta re-verify 2026-08-23 (#578, model-prose terminal): the changed lines record that ledger machinery deletion, re-derived against the deleted baseline/generator on the tree",
           "delta re-verify 2026-08-23 (#569, lane class-build) at ca67d1f2db6db41162dfe260c957e857bc9cc0fc: ONE new ACTIVE row (ratchet-row-integrity) + the count line 220->221, plus delta text on the suppressions and duplicate-action-doors rows recording the DEBT-vs-RATIFIED classification. Each changed line re-read against the landed descriptors (the four arms + the ledger-row scan unit; the derived RATIFIED_RULES partition and its two both-ways arms); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 221/221 gates on the same tree (555 admitted = 208 debt + 347 ratified); scoped check:docs green.",
           "delta re-verify 2026-08-24 (#588, lane cb-gate-biome-liveness): ONE new ACTIVE row (biome-grant-liveness) + the count line 221->222. Row re-read against the landed descriptor (five arms + the one exemption row + the rename-proof include-count anchor); enforcement-registry-parity reconciles the count against loadGates(); structure single-pass clean at 222/222 gates on the same tree; scoped check:docs green.",
-          "delta re-verify 2026-08-24 (#607, lane cb-tooling-honesty, merged 67c708a4d): ONE new ACTIVE row (tsconfig-entry-liveness) + the count line 222->223. Double-ratified: gate-conformance 2/2 (7 mustFlag + 3 mustPass) AND the permanent pin tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts 11/11 (dead-row RED both directions, absent/unparseable/zero-row loud, both exempt arms, real tsconfig set GREEN); structure single-pass ran 223/223 COMPLETE with enforcement-registry-parity GREEN at the bumped count; the gate's first real target was a genuine dead row (preset-editor-bridge.int.test.ts, deleted at 7af80d242, removed from tsconfig.json exclude + tsconfig.tests-dom.json include at landing)."
+          "delta re-verify 2026-08-24 (#607, lane cb-tooling-honesty, merged 67c708a4d): ONE new ACTIVE row (tsconfig-entry-liveness) + the count line 222->223. Double-ratified: gate-conformance 2/2 (7 mustFlag + 3 mustPass) AND the permanent pin tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts 11/11 (dead-row RED both directions, absent/unparseable/zero-row loud, both exempt arms, real tsconfig set GREEN); structure single-pass ran 223/223 COMPLETE with enforcement-registry-parity GREEN at the bumped count; the gate's first real target was a genuine dead row (preset-editor-bridge.int.test.ts, deleted at 7af80d242, removed from tsconfig.json exclude + tsconfig.tests-dom.json include at landing).",
+          "delta re-verify 2026-08-24 (#614, lane cb-tooling-honesty, merged 35c5c7e05): TWO new ACTIVE rows (eslint-grant-liveness, depcruise-grant-liveness) + count 223->225, plus the table-tail blank line that had put both rows OUTSIDE the table removed (the formatter escaped their leading pipe and enforcement-registry-parity reported them missing — both instruments were correct; the blank line was the cause). Rows re-read against the landed descriptors; structure single-pass ran 225/225 COMPLETE with parity GREEN at the bumped count; both gates double-ratified (conformance 13 arms; pins 22/22, liveness family 44/44) with the measured near-miss pinned as a permanent control (an accumulate-only cycle fence would have turned 8 live depcruise rows into false REDs on load-bearing import law)."
         ],
         "claims": [
           {
