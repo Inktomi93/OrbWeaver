@@ -79,7 +79,15 @@
 //     path: a REPO-TRACKED script passes through to the normal rules (it is reviewed code — re-linting
 //     the repo on every call is not this hook's job), an UNTRACKED one (scratchpad, worktree-local, /tmp)
 //     has its CONTENTS classified through this same `classify` and the strictest verdict merges with the
-//     rest of the command. The body is classified WHOLE, not line-by-line: real wrappers use `\`
+//     rest of the command. THE OPERAND IS RESOLVED OFF THE RAW WORDS (#631, 2026-08-24): quotes stripped,
+//     `$VAR` expanded from the command's own assignments, `bash`'s flags skipped and the script's trailing
+//     ARGS not mistaken for it — reading it off the BLANKED text made `bash "$SP/run.sh"` resolve to
+//     nothing and `bash "/abs/run.sh" arg` resolve to the ARGUMENT, so the guard returned a content
+//     verdict on a body it never opened (owner-confirmed: those two spellings EXECUTED with no prompt,
+//     while the identical script denied bare). And when the command does not pin the path down at all —
+//     an unassigned variable, a substitution, a glob — the stage is an `ask`, never silence: with `allow`
+//     bypassing the permission flow, "I did not look" must never read as "I have no objection".
+//     The body is classified WHOLE, not line-by-line: real wrappers use `\`
 //     continuations and put `rm -rf playwright/.cache` on its own line, so per-line judgement would deny
 //     the sanctioned CT recipe. Bounded by construction — one level deep (a script invoked from a script
 //     body is `ask`, never a recursive walk) and a 64KB read cap.
@@ -474,13 +482,19 @@ const SCRIPT_SHELL_EXEC = /^(?:\S*\/)?(?:sh|bash|zsh|ksh|dash)$/;
 // this (single dash only). The string itself is classified by the nested-command pass below, which is the
 // same defect class one layer down: visibility, not rule weakness.
 const SCRIPT_INLINE_FLAG = /^-[a-zA-Z]*[cs][a-zA-Z]*$/;
-// The operand must resolve LITERALLY: no glob, no expansion. `bash $SP/run.sh` reaches here but cannot be
-// resolved, so it is skipped (fail-open).
-const SCRIPT_OPERAND = /^[\w./@:+-]+$/;
-// …and the same path in quotes (`bash "/tmp/run.sh"`) is the SAME file, so quoting must not hide the body.
-// Read off the RAW stage, which is safe only because the exec head was found in the BLANKED text: a
-// heredoc body or a comment has no head there, so this line is never reached for them.
-const SCRIPT_QUOTED_OPERAND = /(['"])([\w./@:+-]+)\1/;
+// The operand must resolve LITERALLY. Quoting is stripped and `$VAR`/`${VAR}` are expanded from the
+// command's OWN assignments first (shellWords + assignedVars); what survives that may still be unknowable —
+// an unassigned variable, a substitution, a glob. Those NO LONGER skip silently: an unresolvable operand is
+// an `ask`, because the guard cannot see what will execute (#631). A resolvable path that does not EXIST
+// still fails open — that command dies in the shell with ENOENT, so there is nothing to judge.
+const SCRIPT_UNRESOLVED = /[$`*?[]/;
+// A redirect word is never the file operand: `bash < run.sh`, `bash x.sh > log`, `bash x.sh 2>&1`,
+// `bash x.sh <<EOF`. The operator-only form (`>` / `2>` / `<`) also consumes the word after it (its target).
+const REDIRECT_WORD = /^&?\d*(?:>>|>|<<|<)/;
+const REDIRECT_OPERATOR_ONLY = /^&?\d*(?:>>|>|<<|<)&?\d*$/;
+// `~/x.sh` is the same file as `$HOME/x.sh`; expanding it keeps a routine spelling out of the ask above.
+const HOME_PREFIX = /^~(?=\/)/;
+const HOME_DIR = process.env.HOME ?? null;
 const SCRIPT_WRAPPER_TOKEN = /^(?:timeout|nice|setsid|nohup|env|exec)$/;
 const SCRIPT_WRAPPER_ARG = /^(?:-n\s*)?\d+[a-z]?$/;
 const SCRIPT_MAX_BYTES = 64 * 1024;
@@ -559,6 +573,8 @@ const REASONS = {
     `This runs the untracked script ${script}, and tool-guard read its CONTENTS — a wrapper file is not a shield, the rules judge what actually executes.${line === null ? "" : `\nThe line that decided it:\n    ${line}`}\n\n${inner}`,
   scriptTooLarge: (script, bytes) =>
     `${script} is ${bytes} bytes, past the ${SCRIPT_MAX_BYTES}-byte body-inspection cap, so tool-guard cannot see what it runs and will not wave it through blind. Split the wrapper, or run the commands directly.`,
+  scriptUnresolvedOperand: (spelling) =>
+    `This runs a script tool-guard could not IDENTIFY: the operand \`${spelling.length > SCRIPT_LINE_MAX ? `${spelling.slice(0, SCRIPT_LINE_MAX)}…` : spelling}\` still carries an expansion, a substitution or a glob after the command's own assignments were resolved, so the guard cannot read the body — and it will not wave an unreviewed body through blind. A PreToolUse \`allow\` bypasses the permission flow entirely, so "I did not look" must never read as "I have no objection" (#631: \`bash "$SP/run.sh"\` and \`bash "/abs/run.sh" arg\` both executed unread). Write the path literally, or assign it in THIS command — \`SP=/abs/dir; bash "$SP/run.sh"\` resolves and is read.`,
   scriptDepthCap: (script) =>
     `A wrapper script that invokes another wrapper script (${script}) — tool-guard reads ONE level of script body, so what this ultimately runs is unseen. Flatten it: invoke the inner script directly from your Bash call, or inline its commands.`,
   nestedCommand: (kind, snippet, inner) =>
@@ -1011,19 +1027,107 @@ function execHead(text) {
   return { tokens, index: i, exec: tokens[i] };
 }
 
-/** An unquoted operand token, verified to read identically in the ORIGINAL text. */
-function literalOperand(command, stage, token) {
-  if (!SCRIPT_OPERAND.test(token[0])) {
-    return null;
+/** Raw text split into SHELL WORDS: quotes stripped and adjacent segments joined exactly as the shell joins
+ *  `"a"b'c'` → `abc`, backslash escapes honoured outside single quotes. `value` is the argv entry the shell
+ *  would build BEFORE expansion, `raw` is the text as written (so a redirect is still recognisable), `start`
+ *  is the word's offset in `text`, and `unterminated` flags a quote that never closed.
+ *
+ *  WHY IT EXISTS (#631): an interpreter's operand is a PATH, and a path is the same file quoted or not. The
+ *  operand used to be read off the BLANKED text, where a quoted path is a run of spaces — so `bash
+ *  "$SP/run.sh"` resolved to NOTHING and `bash "/abs/run.sh" arg` resolved to the TRAILING ARGUMENT, and in
+ *  both cases the guard returned a content verdict on a body it never opened. Reading the operand off the
+ *  RAW stage is safe for the reason it always was: the exec head is still found in the
+ *  BLANKED text, so a comment, a heredoc body or a quoted argument never conjures an invocation. */
+export function shellWords(text) {
+  const words = [];
+  let cur = null;
+  let quote = null;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quote === null && /\s/.test(ch)) {
+      if (cur !== null) {
+        words.push(cur);
+        cur = null;
+      }
+      continue;
+    }
+    if (cur === null) {
+      cur = { value: "", raw: "", start: i, unterminated: false };
+    }
+    if (quote !== "'" && ch === "\\" && i + 1 < text.length) {
+      cur.raw += ch + text[i + 1];
+      cur.value += text[i + 1];
+      i += 1;
+      continue;
+    }
+    cur.raw += ch;
+    if (quote === null && (ch === '"' || ch === "'")) {
+      quote = ch;
+      continue;
+    }
+    if (ch === quote) {
+      quote = null;
+      continue;
+    }
+    cur.value += ch;
   }
-  const from = stage.start + token.index;
-  return command.slice(from, from + token[0].length) === token[0] ? token[0] : null;
+  if (cur !== null) {
+    cur.unterminated = quote !== null;
+    words.push(cur);
+  }
+  return words;
 }
 
-/** The literal script paths a command would EXECUTE, one per pipeline stage: `bash <path>`, `sh <path>`
- *  (leading env assignments and timeout/nice/setsid/nohup/env/exec wrappers allowed, flags and trailing
- *  args ignored), or a bare `<path>.sh` head. The executable is read off the BLANKED text — so a shell
- *  name sitting in a comment, a heredoc body or a quoted argument is never mistaken for an invocation. */
+/** The interpreter's FILE operand among the words after the exec head: `undefined` when there is none (a
+ *  bare `bash` reads stdin), `null` when a leading `-c`/`-s` means the operand is an inline command STRING
+ *  (no body to read — the nested-command pass judges it). Bash's own flags come first and the FIRST
+ *  non-flag word is the script; everything after it is that SCRIPT's argv, which is exactly why a trailing
+ *  argument must never be mistaken for the operand. Redirects are skipped wherever they sit. */
+function shellFileOperand(words) {
+  for (let i = 0; i < words.length; i += 1) {
+    const w = words[i];
+    if (w === undefined) {
+      continue;
+    }
+    if (REDIRECT_OPERATOR_ONLY.test(w.raw)) {
+      i += 1; // `> log` / `< run.sh`: the next word is the redirect TARGET, not argv
+      continue;
+    }
+    if (REDIRECT_WORD.test(w.raw)) {
+      continue; // `>log`, `2>&1`, `<<EOF`
+    }
+    if (w.value.startsWith("-") && w.value !== "-" && w.value !== "--") {
+      if (SCRIPT_INLINE_FLAG.test(w.value)) {
+        return null;
+      }
+      continue;
+    }
+    if (w.value === "--") {
+      continue;
+    }
+    return w;
+  }
+  return undefined;
+}
+
+/** One operand word → the literal path it names, or `{path: null}` when the command itself does not pin it
+ *  down. `$VAR`/`${VAR}` are expanded from the command's OWN assignments only (`assignedVars` — an unknown
+ *  name is left as written, so it stays unresolvable), `~/` from `$HOME`. */
+function resolveScriptOperand(word, vars) {
+  if (word.unterminated) {
+    return { path: null, spelling: word.raw };
+  }
+  const expanded = expandAssigned(word.value, vars);
+  const home = HOME_DIR === null ? expanded : expanded.replace(HOME_PREFIX, HOME_DIR);
+  return { path: home.length === 0 || SCRIPT_UNRESOLVED.test(home) ? null : home, spelling: word.raw };
+}
+
+/** The script targets a command would EXECUTE, one per pipeline stage: `bash <path>`, `sh <path>` (leading
+ *  env assignments and timeout/nice/setsid/nohup/env/exec wrappers allowed, bash's own flags skipped, the
+ *  script's trailing args NOT mistaken for it), or a bare `<path>.sh` head. Each entry is either a resolved
+ *  `path` or `{path: null}` — "there is a script here and the guard cannot tell WHICH", which the caller
+ *  turns into an ask rather than silence. The executable is read off the BLANKED text; the operand off the
+ *  RAW words of the same stage. */
 export function scriptTargets(command, blank, clauses) {
   const found = [];
   for (const clause of clauses) {
@@ -1032,25 +1136,27 @@ export function scriptTargets(command, blank, clauses) {
       if (!SCRIPT_STAGE_HINT.test(text)) {
         continue;
       }
-      const { tokens, index: i, exec } = execHead(text);
+      const { exec } = execHead(text);
       if (exec === undefined) {
         continue;
       }
-      let script = null;
-      if (SCRIPT_SHELL_EXEC.test(exec[0])) {
-        const rest = tokens.slice(i + 1);
-        if (rest.some((t) => SCRIPT_INLINE_FLAG.test(t[0]))) {
-          continue; // `-c`/`-s`: the operand is an inline command string, not a file
-        }
-        const operand = rest.find((t) => !t[0].startsWith("-"));
-        const afterHead = command.slice(stage.start + exec.index + exec[0].length, stage.end);
-        script = operand === undefined ? (afterHead.match(SCRIPT_QUOTED_OPERAND)?.[2] ?? null) : literalOperand(command, stage, operand);
-      } else if (exec[0].endsWith(".sh")) {
-        script = literalOperand(command, stage, exec);
+      const isShell = SCRIPT_SHELL_EXEC.test(exec[0]);
+      if (!isShell && !exec[0].endsWith(".sh")) {
+        continue;
       }
-      if (script !== null) {
-        found.push(script);
+      const words = shellWords(command.slice(stage.start, stage.end));
+      const head = words.findIndex((w) => w.start <= exec.index && exec.index < w.start + w.raw.length);
+      if (head === -1) {
+        // Structurally unreachable (a token found in the blanked text has non-space raw at that index, so
+        // some word covers it) — but if the two views ever disagree, the guard has NOT identified what runs.
+        found.push({ path: null, spelling: text.trim() });
+        continue;
       }
+      const word = isShell ? shellFileOperand(words.slice(head + 1)) : words[head];
+      if (word === undefined || word === null) {
+        continue; // `bash` on stdin, or a `-c`/`-s` inline string the nested pass owns
+      }
+      found.push(resolveScriptOperand(word, assignedVars(command, blank, clauses, stage.start)));
     }
   }
   return found;
@@ -1166,13 +1272,17 @@ function oneScriptVerdict(operand, ctx, depth) {
 function scriptBodyVerdict(command, blank, clauses, ctx) {
   try {
     const depth = ctx.scriptDepth ?? 1;
-    const targets = [...new Set(scriptTargets(command, blank, clauses))]; // `bash x.sh && bash x.sh` reads once
+    // `bash x.sh && bash x.sh` reads once; two DIFFERENT unresolvable spellings still ask separately.
+    const targets = [...new Map(scriptTargets(command, blank, clauses).map((t) => [t.path ?? ` ${t.spelling}`, t])).values()];
     if (targets.length === 0) {
       return null;
     }
     let worst = null;
     for (const target of targets) {
-      const verdict = oneScriptVerdict(target, ctx, depth);
+      const verdict =
+        target.path === null
+          ? { decision: "ask", rule: "script-unresolved-operand", reason: REASONS.scriptUnresolvedOperand(target.spelling), contexts: [] }
+          : oneScriptVerdict(target.path, ctx, depth);
       if (verdict === null) {
         continue;
       }
