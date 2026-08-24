@@ -249,8 +249,17 @@ export function newId<T extends Branded<string>>(): T {
 }
 
 /** Zod schema for a STRICT TypeID at a request boundary: validates the `prefix_…` shape AND that
- *  the prefix matches — a `chat_…` where a `persona_…` is expected is rejected, not silently accepted. */
-export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>> {
+ *  the prefix matches — a `chat_…` where a `persona_…` is expected is rejected, not silently accepted.
+ *
+ *  The explicit `string` Input generic is load-bearing, not decoration: `z.ZodType`'s Input parameter
+ *  defaults to `unknown` (zod 4.4.3, verified against the installed `v4/classic/schemas.d.ts`), so
+ *  omitting it erases the brand at every `z.input<>` read of a schema built from this — an
+ *  `AutomationActionInput`-shaped field typed via this schema accepted an unbranded plain string with
+ *  no tsc error (planted control, cb-lorebook-picker 2026-08-24: swapping a branded knob for a plain-string
+ *  one still typechecked). Pinning Input=`string` here restores `z.input<>` to the brand across every
+ *  contract built on this function — the schema itself always accepted a bare string pre-transform, so
+ *  this is not a behavior change, only a type-level correction. */
+export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
   return z.string().transform((value, ctx): TypeIdOf<P> => {
     try {
       // fromString validates shape AND prefix; throws on mismatch/malformed.
