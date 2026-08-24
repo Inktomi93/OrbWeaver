@@ -75,8 +75,8 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
 
   expect(nav.capabilities()).toEqual({
     sections: ["home", "chats", "characters", "corpus", "config", "databank", "presets", "refinery", "analytics"],
-    modalSlots: ["theme", "settings", "account", "command", "newChat", "you", "addDocument", "reauth"],
-    settingsCategories: ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "admin"],
+    modalSlots: ["theme", "settings", "account", "command", "newChat", "you", "addDocument", "reauth", "imagine", "imageDetail", "imageEdit"],
+    settingsCategories: ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "plugins", "admin"],
     contextTabs: ["runs", "setup"],
     contextTabNames: [
       { id: "runs", label: "runs" },
@@ -131,53 +131,103 @@ test("openSettings() dispatches openSettingsTo; an unknown category refuses", ()
   expect(spy).not.toHaveBeenCalled();
 });
 
-test("contextTab() REVEALS the panel on a tab the mounted surface published; refuses empty + unknown", () => {
-  // `revealContextPanel` is the real UI deep-link action (opens the panel AND sets the tab); the bridge
-  // composes it instead of a bare `setContextTab`, so a collapsed panel actually switches. It is mocked so
-  // the DECISION (dispatch vs loud refusal) is the subject, exactly as the openChat arm spies `selectChat`.
-  const spy = vi.spyOn(state, "revealContextPanel").mockImplementation((): void => undefined);
+// ── contextTab: the arm that must not report a landing it cannot see (issue #656) ────────────────────
+// These assert through the STORE — what the mounted panel would actually show (`getContextTab()` that the
+// surface also publishes = `useContextTabSelection`'s active tab) — never through the return value, because
+// a false `ok:true` IS the defect. `revealContextPanel` is deliberately NOT mocked here: the landed tab is
+// the subject, and a mocked reveal writes nothing to land on.
+
+/** Put the store back to "no tabbed surface mounted, no tab requested" — the state a fresh navigation is in. */
+function resetContextTabs(): void {
+  state.publishContextTabIds([]);
+  state.setContextTab(null);
+}
+
+test("contextTab() LANDS the requested tab when the panel publishes AFTER the call — the #656 defect pin", async () => {
+  // The exact live shape: `--context-tab "This chat"` fired immediately after `--open-chat`, while the panel
+  // has not run its publish effect yet. The old arm read an EMPTY vocabulary, treated "nothing to validate
+  // against" as permission, and stored the raw LABEL — which the resolver cannot match, so it fell back to
+  // Members while the bridge said ok:true. The arm must instead WAIT for the publish and land `settings`.
+  resetContextTabs();
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
-  // Empty is refused before anything is read.
-  expect(nav.contextTab("").ok).toBe(false);
-  expect(spy).not.toHaveBeenCalled();
+  const pending = nav.contextTab("This chat");
+  setTimeout(() => {
+    state.publishContextTabs([
+      { id: "settings", label: "This chat" },
+      { id: "members", label: "Members" },
+    ]);
+  }, 25);
 
-  // A tabbed surface is mounted → its ids are the vocabulary. A published tab reveals; a typo refuses loud.
-  state.publishContextTabIds(["runs", "setup", "versions"]);
-  expect(nav.contextTab("setup")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("setup");
-
-  spy.mockClear();
-  const rejected = nav.contextTab("stpu");
-  expect(rejected.ok).toBe(false);
-  expect(rejected.ok ? "" : rejected.reason).toContain("runs (runs), setup (setup), versions (versions)");
-  expect(spy).not.toHaveBeenCalled();
+  expect(await pending).toEqual({ ok: true });
+  // The LANDING, read the way the panel resolves it: the stored tab is one the mounted surface publishes.
+  expect(state.getContextTab()).toBe("settings");
+  expect(state.getAvailableContextTabIds()).toContain("settings");
 });
 
-test("contextTab() accepts the unique visible label and dispatches its stable id", () => {
-  const spy = vi.spyOn(state, "revealContextPanel").mockImplementation((): void => undefined);
+test("contextTab() refuses LOUDLY when no tabbed context surface ever publishes — the other direction", async () => {
+  resetContextTabs();
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  const result = await nav.contextTab("lore");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("no tabbed context surface published any tabs");
+  // And it left NO lie behind: the unresolvable request was never stored as a tab id.
+  expect(state.getContextTab()).toBeNull();
+});
+
+test("contextTab() REVEALS a published tab, and refuses an empty name + a typo with DISTINGUISHABLE reasons", async () => {
+  resetContextTabs();
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  // Empty is refused before anything is read or opened.
+  const empty = await nav.contextTab("");
+  expect(empty.ok).toBe(false);
+  expect(empty.ok ? "" : empty.reason).toContain("empty");
+
+  // A tabbed surface is mounted → its ids are the vocabulary. A published tab lands.
+  state.publishContextTabIds(["runs", "setup", "versions"]);
+  expect(await nav.contextTab("setup")).toEqual({ ok: true });
+  expect(state.getContextTab()).toBe("setup");
+
+  // A typo is a DIFFERENT failure from "nothing published" — it names the offered vocabulary, and the
+  // previously-landed tab is untouched (a refusal never moves the panel).
+  const rejected = await nav.contextTab("stpu");
+  expect(rejected.ok).toBe(false);
+  expect(rejected.ok ? "" : rejected.reason).toContain("runs (runs), setup (setup), versions (versions)");
+  expect(rejected.ok ? "" : rejected.reason).not.toContain("published any tabs");
+  expect(state.getContextTab()).toBe("setup");
+});
+
+test("contextTab() accepts the unique visible label and lands its stable id", async () => {
+  resetContextTabs();
   state.publishContextTabs([
     { id: "settings", label: "This chat" },
     { id: "rpg.game", label: "Game" },
   ]);
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
-  expect(nav.contextTab("game")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("rpg.game");
+  expect(await nav.contextTab("game")).toEqual({ ok: true });
+  expect(state.getContextTab()).toBe("rpg.game");
 
-  spy.mockClear();
-  expect(nav.contextTab(" This chat ")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("settings");
+  expect(await nav.contextTab(" This chat ")).toEqual({ ok: true });
+  expect(state.getContextTab()).toBe("settings");
 });
 
-test("contextTab() best-effort reveals when NO tabbed context surface is mounted (nothing to validate against)", () => {
-  const spy = vi.spyOn(state, "revealContextPanel").mockImplementation((): void => undefined);
-  // No published tabs — the panel is closed or the context is `single`-kind, so the opaque request stands.
-  state.publishContextTabIds([]);
+test("contextTab() refuses an AMBIGUOUS label immediately rather than picking one", async () => {
+  resetContextTabs();
+  state.publishContextTabs([
+    { id: "chat.notes", label: "Notes" },
+    { id: "rpg.notes", label: "Notes" },
+  ]);
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
-  expect(nav.contextTab("lore")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("lore");
+  const result = await nav.contextTab("Notes");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("chat.notes, rpg.notes");
+  expect(state.getContextTab()).toBeNull();
 });
 
 test("closeModal() dispatches the real closeModal action", () => {

@@ -14,6 +14,7 @@ export const WALKER_RETURNS = `  return {
     accessibleNames: accessibleNames,
     actionDoors: actionDoors,
     controlAspects: controlAspects,
+    censusReach: censusReach,
     mainLandmarkPresent: mainLandmarkPresent,
     tabIndexes: tabIndexes,
     zIndexes: zIndexes,

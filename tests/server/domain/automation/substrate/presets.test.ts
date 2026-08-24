@@ -7,8 +7,13 @@
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { RuleValidationError } from "@orb/server/domain/automation";
+import type { ErasedRulePresetDef } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
 import { RULE_PRESETS } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
-import { resolveRulePresetKnobs, toRulePresetView } from "../../../../../packages/server/src/domain/automation/substrate/presets.ts";
+import {
+  resolveRulePresetKnobs,
+  rulePresetSpendsAtDefaults,
+  toRulePresetView,
+} from "../../../../../packages/server/src/domain/automation/substrate/presets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PACING = RULE_PRESETS.pacingNudge;
@@ -90,6 +95,49 @@ test("the picker projection flattens the knob schema and carries no CEL", () => 
   expect(view.knobs.map((knob) => knob.key)).toEqual(Object.keys(CLOCK.knobs));
   expect(view.knobs.map((knob) => knob.kind)).toEqual(["number", "choice", "text"]);
   expect(JSON.stringify(view)).not.toContain("vars.");
+});
+
+// ── #655: the SPEND signal ────────────────────────────────────────────────────────────────────────────
+// The picker had none, and seven of the eleven presets commit the host to a RECURRING model charge. These
+// pin that the answer is DERIVED from the arms the builder actually emits — the whole reason a hand-kept
+// `spends: boolean` on the def was refused: a flag an author forgets to flip is a lie on a money surface.
+
+/** The presets whose default configuration mints a `SPEND_ARM_TYPES` arm — read off the catalogue, and the
+ *  membership is the claim: `autoAddLore` writes a lore entry (free), `diceChips`/`openerChips`/`callAVote`
+ *  surface chips (free), and everything else asks for a turn or an image. */
+const SPENDING_PRESET_IDS = ["welcomeBackRecap", "pacingNudge", "illustrateScenes", "clockFires", "sceneVeil", "callback", "cutaways"];
+
+test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {
+  const spending = RULE_PRESET_IDS.filter((id) => toRulePresetView(RULE_PRESETS[id]).spends);
+  expect([...spending].toSorted()).toEqual([...SPENDING_PRESET_IDS].toSorted());
+  // The negative half, stated: the free four are free, and a surface that marked everything would be as
+  // useless as one that marked nothing.
+  expect(RULE_PRESET_IDS.filter((id) => !toRulePresetView(RULE_PRESETS[id]).spends).toSorted()).toEqual(
+    ["autoAddLore", "diceChips", "openerChips", "callAVote"].toSorted(),
+  );
+});
+
+test("#655: the answer FOLLOWS the arm a knob chooses — the clock spends narrating and not notifying", () => {
+  // This is the case that decided the design. `clockFires` emits `trigger_turn` under `firedArm: "narrate"`
+  // (its default, so the catalogue row says it costs) and a FREE `post_notification` under `"notify"` — no
+  // static fact about the def answers the question, only running the builder does. A def defaulting to
+  // notify must therefore derive FALSE off the identical machinery.
+  expect(rulePresetSpendsAtDefaults(CLOCK)).toBe(true);
+  const firedArm = CLOCK.knobs["firedArm"];
+  expect(firedArm?.kind).toBe("choice");
+  const notifyingClock: ErasedRulePresetDef = {
+    ...CLOCK,
+    knobs: { ...CLOCK.knobs, ...(firedArm?.kind === "choice" ? { firedArm: { ...firedArm, default: "notify" } } : {}) },
+  };
+  expect(rulePresetSpendsAtDefaults(notifyingClock)).toBe(false);
+});
+
+test("#655: the derivation survives the one knob kind with NO default — the entityRef probe", () => {
+  // `autoAddLore`'s `bookId` carries no descriptor default by construction (#630), so a naive "resolve the
+  // defaults and build" would refuse before it could read an arm. The probe hands the builder a placeholder
+  // it never mints; the arm TYPE it emits (`insert_world_info_entry`) is all that is read.
+  expect(() => rulePresetSpendsAtDefaults(LORE)).not.toThrow();
+  expect(rulePresetSpendsAtDefaults(LORE)).toBe(false);
 });
 
 test("every committed preset projects a complete, well-formed picker view", () => {

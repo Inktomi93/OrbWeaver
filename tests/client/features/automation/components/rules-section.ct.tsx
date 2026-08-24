@@ -15,7 +15,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
@@ -29,6 +29,13 @@ const RUN_NOW_ITEM = /Run now/u;
 const LAST_RAN_LINE = /^Last ran /u;
 /** The defect this row killed: a TEXT BOX asking for a lorebook id. Any textbox named for the lorebook knob. */
 const LOREBOOK_TEXTBOX = /Lorebook/u;
+/** WCAG 2.5.5's coarse-pointer target floor — asserted on the RESOLVED token before it is trusted, so a
+ *  fine-pointer run (where the token answers 28) cannot read as a pass. */
+const WCAG_TOUCH_FLOOR_PX = 44;
+/** #655: the SPEND sentence the catalogue owed and did not have. */
+const SPEND_LINE = "Costs a model call each time it fires.";
+/** #655: a real prompt-length `text` knob default — the shape a one-line `Input` showed 44% of. */
+const CLOCK_PROMPT_DEFAULT = "The pressure that has been building finally breaks into the scene, and nobody in the room is ready for it.";
 
 // One rule minted from the §4 catalogue — born disabled, carrying the catalogue entry's own summary as its
 // `description` (what `createRuleFromPreset` stores) and a SPEND arm (`generate_image`).
@@ -71,6 +78,9 @@ const PACING_PRESET = {
   summary: "Every few beats, quietly ask the narrator to shift the pacing.",
   ruleCount: 1,
   confirmFirst: false,
+  // #655: its arm is a `trigger_turn` — a full model call, every 8 beats, forever, once enabled. The
+  // catalogue said nothing about that until this field existed.
+  spends: true,
   knobs: [
     { key: "everyN", kind: "number", label: "Every N beats", default: 8, min: 2, max: 200 },
     { key: "steer", kind: "text", label: "Nudge", default: "Shift the pacing.", maxLength: 600 },
@@ -87,9 +97,37 @@ const LORE_PRESET = {
   summary: "Every so often, offer to write what has happened into one of this room's lorebooks.",
   ruleCount: 1,
   confirmFirst: true,
+  // #655: its only arm writes a lore entry — free. The contrast that proves the spend line is DERIVED from
+  // the preset's arms rather than pasted onto every row.
+  spends: false,
   knobs: [
     { key: "bookId", kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to write into — one of this room's own." },
     { key: "everyN", kind: "number", label: "Every N messages", default: 10, min: 2, max: 200 },
+  ],
+};
+
+/** The CHOICE + long-TEXT rule preset (the clock). It carries the two knob shapes #655 fixed on the form
+ *  side: a `choice` whose options are wire values (`narrate`/`notify`) and now carry their own host labels,
+ *  and a `text` knob holding a whole PROMPT SENTENCE, which a single-line `Input` clipped. */
+const CLOCK_PRESET = {
+  id: "clockFires",
+  title: "Clock fires when full",
+  summary: "A countdown fills one step per beat; when it is full, something happens and it resets.",
+  ruleCount: 2,
+  confirmFirst: false,
+  spends: true,
+  knobs: [
+    { key: "n", kind: "number", label: "Beats to fill", default: 4, min: 1, max: 100 },
+    {
+      key: "firedArm",
+      kind: "choice",
+      label: "When it fills",
+      help: "Narrate it in the room (this asks for a reply, so it costs a model call), or just notify you.",
+      options: ["narrate", "notify"],
+      optionLabels: { narrate: "Narrate it in the room", notify: "Notify me" },
+      default: "narrate",
+    },
+    { key: "firedText", kind: "text", label: "What happens", default: CLOCK_PROMPT_DEFAULT, maxLength: 600 },
   ],
 };
 
@@ -573,6 +611,181 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
 
   // The rendered receipt of the whole row (reports/ is ephemera, never a committed artifact).
   await page.screenshot({ path: "reports/snaps/cb-aa-attach-then-pick.png" });
+});
+
+// ── #655: the spend signal, the readable form, and the door that can be opened ────────────────────────
+// The surface's remaining defects after #621/#630/#640, all of them at the DECISION point: a host could not
+// tell what a rule preset would COST before minting it, could not read the prompt they were minting, chose
+// between raw wire values, and was told to make a choice the surface could not offer. Every pin below was
+// RED against the pre-fix client source (measured by reverting the four client files to HEAD).
+
+/** The type step a resolved `--text-*` token computes to in THIS document — never a px literal, so a token
+ *  retune moves the assertion instead of breaking it. */
+function stepPx(page: Page, token: string): Promise<string> {
+  return page.evaluate((name: string) => {
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    probe.style.fontSize = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const px = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return px;
+  }, token);
+}
+
+/** Open the picker and return its popup. */
+async function openPicker(page: Page): Promise<Locator> {
+  await page.getByRole("button", { name: "Add a rule", exact: true }).click();
+  const popup = page.getByRole("dialog");
+  await expect(popup).toBeVisible();
+  return popup;
+}
+
+test("#655: the catalogue names the recurring CHARGE before the mint, and stays silent on a free preset", async ({ mount, page }) => {
+  await stub(page, { rules: [], presets: [PACING_PRESET, LORE_PRESET] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const popup = await openPicker(page);
+
+  // The spending preset says so IN ITS OWN ROW — not two clicks deep in an overflow menu after the rule
+  // already exists, which is where the only mention of spend used to live.
+  await expect(popup.getByRole("button", { name: "Periodic pacing nudge" })).toContainText(SPEND_LINE);
+  // …and the free one does not, which is what makes the marker mean anything.
+  await expect(popup.getByRole("button", { name: "Auto-add lore entries" })).not.toContainText(SPEND_LINE);
+  await expect(popup.getByText(SPEND_LINE)).toHaveCount(1);
+
+  // The rendered receipt for the row (reports/ is ephemera, never a committed artifact).
+  await page.screenshot({ path: "reports/snaps/cb-rules-spend-catalogue.png" });
+
+  // It survives the step change: the knob form is where Add is actually pressed.
+  await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
+  await expect(popup.getByText(SPEND_LINE)).toBeVisible();
+});
+
+test("#655: the catalogue's decision sentence reads at the label step, above the 10.5px functional floor", async ({ mount, page }) => {
+  await stub(page, { rules: [], presets: [PACING_PRESET] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const popup = await openPicker(page);
+
+  const [micro, label, title] = await Promise.all([stepPx(page, "--text-micro"), stepPx(page, "--text-label"), stepPx(page, "--text-title")]);
+  expect(micro).not.toBe(label);
+  const summary = popup.getByText("Every few beats, quietly ask the narrator to shift the pacing.", { exact: false });
+  await expect.poll(() => summary.evaluate((el) => getComputedStyle(el).fontSize), { intervals: [20, 50, 100, 200] }).toBe(label);
+  // …and the title stays a step ABOVE it, or lifting the summary would just have flattened the row into
+  // two identical 13px lines.
+  await expect
+    .poll(() => popup.getByText("Periodic pacing nudge", { exact: true }).evaluate((el) => getComputedStyle(el).fontSize), {
+      intervals: [20, 50, 100, 200],
+    })
+    .toBe(title);
+});
+
+test("#655: a prompt knob is a TEXTAREA showing the whole prompt, and a choice offers host words", async ({ mount, page }) => {
+  await stub(page, { rules: [], presets: [CLOCK_PRESET] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const popup = await openPicker(page);
+  await popup.getByRole("button", { name: "Clock fires when full" }).click();
+
+  // The `text` knob carries the literal sentence the rule sends to the model. A single-line Input showed
+  // 44% of it (measured `value.len=93 clientWidth=291 scrollWidth=663 tag=INPUT`).
+  const prompt = page.getByRole("textbox", { name: "What happens" });
+  await expect(prompt).toHaveValue(CLOCK_PROMPT_DEFAULT);
+  // ONESHOT-OK: the settled `toHaveValue` above is this control's own rendered state, and an element's
+  // TAG NAME is not mutable async state — a retry could only re-read the same node.
+  expect(await prompt.evaluate((el) => el.tagName)).toBe("TEXTAREA");
+  await expect.poll(() => prompt.evaluate((el) => el.scrollHeight - el.clientHeight), { intervals: [20, 50, 100, 200] }).toBeLessThanOrEqual(1);
+
+  // The `choice` knob's options were the WIRE values — `narrate`/`notify` as user-facing words.
+  await page.getByRole("combobox", { name: "When it fills" }).click();
+  await expect(page.getByRole("option", { name: "Narrate it in the room", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Notify me", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "narrate", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "notify", exact: true })).toHaveCount(0);
+});
+
+test("#655: with no lorebook attached, the blocking line names the DOOR, not an impossible choice", async ({ mount, page }) => {
+  await stub(page, { rules: [], presets: [LORE_PRESET], books: [] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const popup = await openPicker(page);
+  await popup.getByRole("button", { name: "Auto-add lore entries" }).click();
+  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toBeVisible();
+
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  // The line above Add used to say "Choose a lorebook to add this rule." — directly contradicting the field
+  // three lines up, in the position a host reads LAST, and naming an action this surface cannot perform.
+  await expect(page.getByText("Attach a lorebook under Lorebooks, higher up this tab", { exact: false })).toBeVisible();
+  await expect(page.getByText("Choose a lorebook to add this rule.")).toHaveCount(0);
+});
+
+test("#655: with a book attached, the blocking line still asks for the CHOICE (the fix did not swallow the old arm)", async ({ mount, page }) => {
+  await stub(page, { rules: [], presets: [LORE_PRESET] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const popup = await openPicker(page);
+  await popup.getByRole("button", { name: "Auto-add lore entries" }).click();
+  await expect(page.getByRole("combobox", { name: "Lorebook" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  await expect(page.getByText("Choose a lorebook to add this rule.")).toBeVisible();
+  await expect(page.getByText("Attach a lorebook under Lorebooks", { exact: false })).toHaveCount(0);
+});
+
+// The reported two-step defect had two halves and only ONE of them is fixed here. This pins that half: the
+// popover speaks with ONE heading and the heading names the step. The GEOMETRIC half (the frame's width and
+// anchor moving between steps) is NOT pinned, because both call-site levers were tried and measured wrong —
+// `min-w-cq-sm` overflowed the positioner's available width at the 384px docked pane, and `side`/`align`
+// only re-anchored a genuinely different box. It needs a `PopoverPopup` width variant in `@orb/ui` and a
+// real-host receipt; an assertion here would either encode this CT's short page as the spec or, worse,
+// pass while the real surface still jumps. (cb-rules-spend, 2026-08-24 — receipts in the picker's comment.)
+test("#655: the picker speaks with ONE heading, and the heading names the step", async ({ mount, page }) => {
+  await stub(page, { rules: [], presets: [PACING_PRESET, LORE_PRESET] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const popup = await openPicker(page);
+
+  // Step 2 used to render a SECOND title inside the body while this one still said "Add a rule", so the
+  // dialog's accessible name never changed and a sighted host read two titles in reversed order.
+  await expect(popup.getByRole("heading", { name: "Add a rule" })).toBeVisible();
+
+  await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
+  await expect(popup.getByRole("heading", { name: "Periodic pacing nudge" })).toBeVisible();
+  await expect(popup.getByRole("heading", { name: "Add a rule" })).toHaveCount(0);
+  await expect(popup.getByRole("heading")).toHaveCount(1);
+
+  // Back returns the heading to the catalogue's — and closing forgets the pick entirely, so re-opening does
+  // not land on a form the host already walked away from.
+  await popup.getByRole("button", { name: "Back" }).click();
+  await expect(popup.getByRole("heading", { name: "Add a rule" })).toBeVisible();
+  await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
+  await page.keyboard.press("Escape");
+  await expect(popup).toHaveCount(0);
+  const reopened = await openPicker(page);
+  await expect(reopened.getByRole("heading", { name: "Add a rule" })).toBeVisible();
+});
+
+// The fire log is the "why didn't my rule fire" surface and this disclosure is its ONLY door. It shipped
+// `inline` — text-height, with `::after` resolving `content: none`, so no touch layer was in play at all.
+// A NARROW VIEWPORT WOULD NOT SEE THIS: pointer class is a browser-context flag, and at a fine pointer the
+// floor token answers 28px, which the 16px box still fails but by a quarter of the real margin.
+test.describe("#655: coarse pointer — the fire-log door meets the touch floor", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
+
+  test("the Recent activity disclosure is reachable with a finger", async ({ mount, page }) => {
+    // ONESHOT-OK: pointer class is fixed when the browser CONTEXT is created (`hasTouch` above), not page
+    // state — there is nothing async for a poll to wait out, and a poll would only mask a config miss.
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await stub(page);
+    await mount(<RulesSectionStory chatId={CHAT} width={430} />);
+
+    const floor = await touchFloorPx(page);
+    expect(floor).toBeGreaterThanOrEqual(WCAG_TOUCH_FLOOR_PX);
+    const disclosure = page.getByRole("button", { name: "Recent activity for Illustrate the scene" });
+    await expect(disclosure).toBeVisible();
+    // THE BOX, not `hitExtent`, and the choice is measured rather than preferred. This trigger's fix is a
+    // REAL min-height (`size="control"`), not an overflowing `::after`, so its box IS its target — and
+    // `hitExtent` is structurally incapable of failing here: its `owns()` counts a point as owned when
+    // `elementFromPoint` returns an ANCESTOR (`hit.contains(el)`), which is how it sees a pseudo the DOM
+    // has no node for. Walking out of a 16px trigger lands on the Stack that wraps it, so the sweep ran to
+    // its 80-step ceiling. Proven, not asserted: this test PASSED against the reverted 413×16 source while
+    // the other five #655 pins went red (cb-rules-spend, 2026-08-24) — reported as an instrument finding.
+    await expect.poll(async () => (await disclosure.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
+  });
 });
 
 // ── The RESTYLE's own floor: geometry + contrast + tap targets, at every real width, in both themes ────

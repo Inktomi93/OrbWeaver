@@ -12,7 +12,7 @@
 // them about, and a silent clamp is the kind of quiet wrongness this codebase's gates exist to prevent.
 
 import type { RulePresetKnobDescriptor, RulePresetKnobValue, RulePresetKnobView, RulePresetView } from "@orb/contracts/automation";
-import { RULE_PRESET_ENTITY_NOUNS, RULE_PRESET_ENTITY_REF_SCHEMAS } from "@orb/contracts/automation";
+import { RULE_PRESET_ENTITY_NOUNS, RULE_PRESET_ENTITY_REF_SCHEMAS, SPEND_ARM_TYPES } from "@orb/contracts/automation";
 import { RuleValidationError } from "../contract/errors.ts";
 import type { ErasedRulePresetDef, RulePresetKnobOverrides, RulePresetKnobSchema } from "../contract/presets.ts";
 
@@ -142,9 +142,61 @@ export function resolveRulePresetKnobs(knobs: RulePresetKnobSchema, overrides: R
   return resolved;
 }
 
+/** The knob value a SPEND PROBE hands a builder for one descriptor — its own default, and for the one kind
+ *  that has none, a placeholder.
+ *
+ *  THE `entityRef` PLACEHOLDER IS A TYPE PROBE, NEVER A DEFAULT, and the distinction is the whole reason
+ *  that kind carries no `default` (`@orb/contracts/automation`'s descriptor comment): a real default would
+ *  ride `resolveKnob`'s unvalidated path into a MINT. Nothing here is minted, persisted, or validated — the
+ *  bag exists only to make the builder run so its emitted arm TYPES can be read, and the value never leaves
+ *  this function's call. Do not "fix" it into a descriptor default. */
+function spendProbeValue(descriptor: RulePresetKnobDescriptor): RulePresetKnobValue {
+  switch (descriptor.kind) {
+    case "number":
+    case "text":
+    case "textList":
+    case "choice":
+      return descriptor.default;
+    case "entityRef":
+      return "";
+    default: {
+      const exhaustive: never = descriptor;
+      throw new Error(`unhandled rule-preset knob kind: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** Does this preset MINT A RECURRING CHARGE at its default knobs? DERIVED — the def's own builder is run and
+ *  its emitted arms are tested against the contract's `SPEND_ARM_TYPES`, so the picker's spend signal cannot
+ *  drift from what the mint actually creates. A hand-maintained `spends` flag on the def would be a boolean
+ *  an author forgets to flip, on a money surface (#655).
+ *
+ *  WHY THIS ONE RUNS THE BUILDER WHILE `ruleCount` STAYS DATA — the ruling survives, its input changed. That
+ *  field is DATA precisely so the picker can say "(1/2)" before a build, and it can be: a preset's rule COUNT
+ *  is knob-independent. Spend is not. `clockFires` emits a `trigger_turn` under `firedArm: "narrate"` and a
+ *  free `post_notification` under `"notify"`, so no static fact about the def answers the question — only the
+ *  builder does. The DEFAULT bag is the honest input because it is the configuration a host mints by pressing
+ *  Add without touching a knob, which is exactly the row the catalogue is labelling. */
+export function rulePresetSpendsAtDefaults(def: ErasedRulePresetDef): boolean {
+  const probe: Record<string, RulePresetKnobValue> = {};
+  for (const [key, descriptor] of Object.entries(def.knobs)) {
+    probe[key] = spendProbeValue(descriptor);
+  }
+  const spendArms: readonly string[] = SPEND_ARM_TYPES;
+  return def.rules(probe).some((rule) => rule.arms.some((arm) => spendArms.includes(arm.type)));
+}
+
 /** Project a def onto the picker's read model — the knob schema flattened to a keyed list. Carries no CEL
  *  and no arm templates (those are server logic; the client picks an id + knob values). */
 export function toRulePresetView(def: ErasedRulePresetDef): RulePresetView {
   const knobs: RulePresetKnobView[] = Object.entries(def.knobs).map(([key, descriptor]) => ({ ...descriptor, key }));
-  return { id: def.id, title: def.title, summary: def.summary, ruleCount: def.ruleCount, confirmFirst: def.confirmFirst, knobs };
+  return {
+    id: def.id,
+    title: def.title,
+    summary: def.summary,
+    ruleCount: def.ruleCount,
+    confirmFirst: def.confirmFirst,
+    spends: rulePresetSpendsAtDefaults(def),
+    knobs,
+  };
 }
