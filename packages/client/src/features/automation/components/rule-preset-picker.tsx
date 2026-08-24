@@ -20,7 +20,15 @@
 // surfaces the missing book BEFORE the mint, and if the mint still refuses typed (a book not attached to
 // this chat), the reason rides the mutation's error toast.
 
-import type { RulePresetKnobDescriptor, RulePresetKnobView, RulePresetView } from "@orb/contracts/automation";
+import type {
+  RulePresetChoiceKnobDescriptor,
+  RulePresetKnobDescriptor,
+  RulePresetKnobView,
+  RulePresetNumberKnobDescriptor,
+  RulePresetTextKnobDescriptor,
+  RulePresetTextListKnobDescriptor,
+  RulePresetView,
+} from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -131,53 +139,98 @@ interface KnobFieldProps {
   readonly onChange: (next: KnobValue) => void;
 }
 
-/** One knob's editor, dispatched exhaustively over its descriptor kind (§5.5). The switch runs on a plain
- *  `RulePresetKnobDescriptor` local (see the header) while `key`/`label`/`help` read off the view. */
-function KnobField({ knob, value, onChange }: KnobFieldProps): ReactElement {
-  const descriptor: RulePresetKnobDescriptor = knob;
-  const issue = knobIssue(descriptor, value);
-  const wrap = (control: ReactElement): ReactElement => (
+/** The labeled row every knob editor sits in — label + optional help + the inline validity issue. Shared by
+ *  the four per-kind editors below so the row grammar is spelled once. */
+function KnobRow({
+  knob,
+  issue,
+  children,
+}: {
+  readonly knob: RulePresetKnobView;
+  readonly issue: string | null;
+  readonly children: ReactElement;
+}): ReactElement {
+  return (
     <Field
       label={knob.label}
       orientation="vertical"
       {...(knob.help === undefined ? {} : { description: knob.help })}
       {...(issue === null ? {} : { error: issue })}
     >
-      {control}
+      {children}
     </Field>
   );
+}
 
+// ONE CONTROL PER COMPONENT, deliberately. The four editors were arms of a single switch inside `KnobField`
+// — mutually exclusive returns, so exactly one control ever renders — but `form-factory-for-multifield`
+// counts controlled inputs PER ENCLOSING COMPONENT with no notion of exclusive arms, so the dispatcher read
+// as a hand-rolled 4-field form. Splitting is the honest fix rather than a suppression: the count becomes
+// structurally true (one field each), and each arm gets its own NARROWED descriptor type instead of the
+// widened local the switch needed. (The gate's mis-count of exclusive arms is reported separately.)
+
+function NumberKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetNumberKnobDescriptor }): ReactElement {
+  return (
+    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+      <NumberField
+        aria-label={knob.label}
+        min={descriptor.min}
+        max={descriptor.max}
+        value={typeof value === "number" ? value : descriptor.default}
+        onValueChange={(next): void => onChange(next === null ? descriptor.default : clampNumber(next, descriptor.min, descriptor.max))}
+      />
+    </KnobRow>
+  );
+}
+
+function TextKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetTextKnobDescriptor }): ReactElement {
+  return (
+    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+      <Input aria-label={knob.label} value={typeof value === "string" ? value : ""} onValueChange={(next): void => onChange(next)} />
+    </KnobRow>
+  );
+}
+
+function TextListKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetTextListKnobDescriptor }): ReactElement {
+  return (
+    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+      <Textarea
+        aria-label={knob.label}
+        rows={3}
+        value={Array.isArray(value) ? value.join("\n") : ""}
+        onValueChange={(next): void => onChange(next.split("\n"))}
+      />
+    </KnobRow>
+  );
+}
+
+function ChoiceKnobField({ knob, descriptor, value, onChange }: KnobFieldProps & { readonly descriptor: RulePresetChoiceKnobDescriptor }): ReactElement {
+  return (
+    <KnobRow knob={knob} issue={knobIssue(descriptor, value)}>
+      <Select<string>
+        aria-label={knob.label}
+        items={descriptor.options.map((option) => ({ value: option, label: option }))}
+        value={typeof value === "string" ? value : descriptor.default}
+        onValueChange={(next): void => onChange(next ?? descriptor.default)}
+      />
+    </KnobRow>
+  );
+}
+
+/** One knob's editor, dispatched exhaustively over its descriptor kind (§5.5 — a new
+ *  `RulePresetKnobKind` fails `tsc` at the `never` default). The switch runs on a plain
+ *  `RulePresetKnobDescriptor` local (see the header) while `key`/`label`/`help` read off the view. */
+function KnobField(props: KnobFieldProps): ReactElement {
+  const descriptor: RulePresetKnobDescriptor = props.knob;
   switch (descriptor.kind) {
     case "number":
-      return wrap(
-        <NumberField
-          aria-label={knob.label}
-          min={descriptor.min}
-          max={descriptor.max}
-          value={typeof value === "number" ? value : descriptor.default}
-          onValueChange={(next): void => onChange(next === null ? descriptor.default : clampNumber(next, descriptor.min, descriptor.max))}
-        />,
-      );
+      return <NumberKnobField {...props} descriptor={descriptor} />;
     case "text":
-      return wrap(<Input aria-label={knob.label} value={typeof value === "string" ? value : ""} onValueChange={(next): void => onChange(next)} />);
+      return <TextKnobField {...props} descriptor={descriptor} />;
     case "textList":
-      return wrap(
-        <Textarea
-          aria-label={knob.label}
-          rows={3}
-          value={Array.isArray(value) ? value.join("\n") : ""}
-          onValueChange={(next): void => onChange(next.split("\n"))}
-        />,
-      );
+      return <TextListKnobField {...props} descriptor={descriptor} />;
     case "choice":
-      return wrap(
-        <Select<string>
-          aria-label={knob.label}
-          items={descriptor.options.map((option) => ({ value: option, label: option }))}
-          value={typeof value === "string" ? value : descriptor.default}
-          onValueChange={(next): void => onChange(next ?? descriptor.default)}
-        />,
-      );
+      return <ChoiceKnobField {...props} descriptor={descriptor} />;
     default: {
       const exhaustive: never = descriptor;
       throw new Error(`unhandled rule-preset knob kind: ${JSON.stringify(exhaustive)}`);
@@ -238,8 +291,12 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
           key={preset.id}
           aria-label={preset.title}
           intent="ghost"
-          size="sm"
-          className="h-auto justify-start py-2 text-left"
+          // `wrap` is the arm for exactly this: a CHOICE affordance carrying a sentence — the label wraps
+          // and the height follows the wrapped text, floored at the `sm` control height (the tap floor).
+          // A call-site `h-auto` would defeat the sealed box (`ui-size-via-variant`); the
+          // `message-choices-block` chip is the same shape and spells it the same way.
+          size="wrap"
+          className="justify-start text-left"
           onClick={(): void => onPick(preset)}
         >
           <Stack gap="tight">
@@ -289,7 +346,10 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
           </Button>
         }
       />
-      <PopoverPopup className="w-80 max-w-[90vw]">
+      {/* No call-site width: the popup slot already seals its own box (`max-w-cq-sm` + the
+          `max-h-(--available-height)` cap, capped-and-scrollable) — a `w-80` here would fight that seal
+          rather than express anything the primitive does not already own (`ui-size-via-variant`). */}
+      <PopoverPopup>
         <PopoverTitle>Add a rule</PopoverTitle>
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="line" />}

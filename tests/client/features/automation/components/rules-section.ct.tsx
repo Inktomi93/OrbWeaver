@@ -92,7 +92,7 @@ test("renders the chat's rules and toggles one — setRuleEnabled fires with the
   await toggle.click();
 
   await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(1);
-  expect(trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct1", enabled: true });
+  await expect.poll(() => trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct1", enabled: true });
 });
 
 test("Test runs the dry-run — testRule fires and the predicate verdict + arm preview render", async ({ mount, page }) => {
@@ -102,7 +102,7 @@ test("Test runs the dry-run — testRule fires and the predicate verdict + arm p
   await page.getByRole("button", { name: "Test" }).click();
 
   await expect.poll(() => trpc.count("automation.testRule")).toBe(1);
-  expect(trpc.lastInput("automation.testRule")).toMatchObject({ ruleId: "automationrule_ct1" });
+  await expect.poll(() => trpc.lastInput("automation.testRule")).toMatchObject({ ruleId: "automationrule_ct1" });
   await expect(page.getByText("Condition would match.")).toBeVisible();
   await expect(page.getByText("a moody scenario shot")).toBeVisible();
 });
@@ -114,7 +114,7 @@ test("Run now dispatches the rule — runRuleNow fires with the ruleId", async (
   await page.getByRole("button", { name: "Run now" }).click();
 
   await expect.poll(() => trpc.count("automation.runRuleNow")).toBe(1);
-  expect(trpc.lastInput("automation.runRuleNow")).toMatchObject({ ruleId: "automationrule_ct1" });
+  await expect.poll(() => trpc.lastInput("automation.runRuleNow")).toMatchObject({ ruleId: "automationrule_ct1" });
 });
 
 test("the picker mints a rule from a preset — createRuleFromPreset fires with the id + resolved knobs", async ({ mount, page }) => {
@@ -126,11 +126,13 @@ test("the picker mints a rule from a preset — createRuleFromPreset fires with 
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
 
   await expect.poll(() => trpc.count("automation.createRuleFromPreset")).toBe(1);
-  expect(trpc.lastInput("automation.createRuleFromPreset")).toMatchObject({
-    chatId: CHAT,
-    presetId: "pacingNudge",
-    knobs: { everyN: 8, steer: "Shift the pacing." },
-  });
+  await expect
+    .poll(() => trpc.lastInput("automation.createRuleFromPreset"))
+    .toMatchObject({
+      chatId: CHAT,
+      presetId: "pacingNudge",
+      knobs: { everyN: 8, steer: "Shift the pacing." },
+    });
 });
 
 test("a book-requiring preset blocks the mint until its lorebook id is filled", async ({ mount, page }) => {
@@ -150,7 +152,9 @@ test("a book-requiring preset blocks the mint until its lorebook id is filled", 
   await expect(add).toBeEnabled();
   await add.click();
   await expect.poll(() => trpc.count("automation.createRuleFromPreset")).toBe(1);
-  expect(trpc.lastInput("automation.createRuleFromPreset")).toMatchObject({ presetId: "autoAddLore", knobs: { bookId: "worldbook_ct_attached" } });
+  await expect
+    .poll(() => trpc.lastInput("automation.createRuleFromPreset"))
+    .toMatchObject({ presetId: "autoAddLore", knobs: { bookId: "worldbook_ct_attached" } });
 });
 
 test("the fire log shows a rule's recent fire", async ({ mount, page }) => {
@@ -164,7 +168,9 @@ test("the fire log shows a rule's recent fire", async ({ mount, page }) => {
         outcome: "fired",
         detail: null,
         automationDepth: 0,
-        firedAt: Date.now() - 1000,
+        // A FIXED epoch, never `Date.now()` (test-determinism): the log renders a relative time, and the
+        // assertion is on the outcome badge — a frozen stamp keeps the fixture reproducible run to run.
+        firedAt: 1_760_000_000_000,
       },
     ],
   });
