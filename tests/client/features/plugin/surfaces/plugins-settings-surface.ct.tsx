@@ -13,10 +13,10 @@
 // a client-side manifest read, and a story that passed the list in as a prop would prove nothing.
 //
 // THE WIDENED-REACH RE-CONSENT CASE is the last test and the one that most needs a rendered receipt. The
-// server lands a reach-widening upgrade `disabled` (`domain/plugin/verbs/upgrade.ts`), and this asserts the
-// row SAYS WHAT WIDENED — the new capability by name and consequence, the new host verbatim — plus the true
-// consequence: the extra permissions are NOT granted, because there is no re-grant verb (`setEnabled` takes
-// `{pluginId, enabled}` and activates with the stored grant). "It stayed off" alone is not legibility.
+// server lands a reach-widening upgrade `disabled` (`domain/plugin/verbs/upgrade.ts`) with `reconsentPending:
+// true`, and this asserts the row SAYS WHAT WIDENED — the new capability by name and consequence, the new
+// host verbatim — then drives the REAL escape path (`plugin.setGrant`) end to end and asserts the notice
+// clears once the server's own settled truth says the whole ask is granted.
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -70,7 +70,9 @@ const WEATHER_MANIFEST: ManifestFixture = {
 };
 
 /** The installed row the list read serves — a plain wire literal (the shape is pinned by the router + domain
- *  tests, never re-typed here). */
+ *  tests, never re-typed here). `declaredCapabilities` includes `turn.trigger`, which `grantedCapabilities`
+ *  does NOT — a paranoid owner's own choice at install, not a system-forced refusal, so `reconsentPending`
+ *  stays `false` even though declared ⊄ granted (the distinction the field exists to draw, #650 P1-1). */
 const INSTALLED_ROW = {
   id: "plugin_ct0000000000000000001",
   slug: "weather-teller",
@@ -78,7 +80,10 @@ const INSTALLED_ROW = {
   version: "1.0.0",
   status: "disabled",
   origin: "upload",
+  declaredCapabilities: ["chat.read", "turn.trigger", "net.fetch"],
   grantedCapabilities: ["chat.read", "net.fetch"],
+  netHosts: ["api.weather.example"],
+  reconsentPending: false,
   builtAgainst: null,
   consecutiveCrashes: 0,
   lastError: null,
@@ -185,8 +190,13 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   await page.getByRole("button", { name: "What Weather Teller is allowed to do" }).click();
   await expect(page.getByText("Read this room's messages")).toBeVisible();
   await expect(page.getByText("Reach the internet")).toBeVisible();
-  // It was granted a SUBSET at install; the row must not show the one it never got.
-  await expect(page.getByText("Ask for a reply on its own")).toHaveCount(0);
+  // THE ASKED-VS-ALLOWED PAIR (#650 P1-2): it was granted a SUBSET at install (`turn.trigger` declared, not
+  // granted), and the disclosure now says so rather than omitting the row entirely — the fix this row exists
+  // to prove. `"Ask for a reply on its own"` is VISIBLE (the label still renders) and its control column
+  // reads "Not granted" (P1-3's statement, not a disabled checkbox).
+  await expect(page.getByText("Ask for a reply on its own")).toBeVisible();
+  await expect(page.getByText("Not granted")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Ask for a reply on its own" })).toHaveCount(0);
 
   await page.getByRole("switch", { name: "Turn Weather Teller on" }).click();
   // SETTLED: the invalidate repainted the row from the server's new truth.
@@ -196,17 +206,40 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   expect(recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: INSTALLED_ROW.id, enabled: true });
 });
 
-test("an upgrade that WIDENS reach says exactly what widened, and that the extra permissions were not granted", async ({ mount, page }) => {
-  // The server's verdict for a reach-widening upgrade: the row lands `disabled` at the NEW version, and the
-  // grant is `normalizeGrant(newDeclared, priorGranted)` — the INTERSECTION, so the newly-declared
-  // capability is NOT in it. The list read follows the upgrade so the surface shows the post-upgrade truth.
+test("an upgrade that WIDENS reach says exactly what widened, and Allow closes the loop for real", async ({ mount, page }) => {
+  // The server's verdict for a reach-widening upgrade: the row lands `disabled` at the NEW version with
+  // `reconsentPending: true`, and the grant is `normalizeGrant(newDeclared, priorGranted)` — the
+  // INTERSECTION, so the newly-declared capability is NOT in it. `declaredCapabilities`/`netHosts` carry the
+  // full new ask; the re-consent notice is DERIVED from these three fields (plugin-row.tsx), not from a
+  // local snapshot the upgrade response handed the row — so the list read alone is what drives the notice.
   let upgraded = false;
-  const upgradedRow = { ...INSTALLED_ROW, version: "2.0.0", status: "disabled", grantedCapabilities: ["chat.read", "net.fetch"] };
-  await routeTrpc(page, {
-    "plugin.list": () => [upgraded ? upgradedRow : INSTALLED_ROW],
+  let allowed = false;
+  const upgradedRow = {
+    ...INSTALLED_ROW,
+    version: "2.0.0",
+    status: "disabled",
+    declaredCapabilities: ["chat.read", "net.fetch", "worldinfo.write"],
+    grantedCapabilities: ["chat.read", "net.fetch"],
+    netHosts: ["api.weather.example", "collector.elsewhere.example"],
+    reconsentPending: true,
+  };
+  // `setGrant` grants the WHOLE declared set and clears the flag — the server's own settled truth after
+  // "Allow", never faked client-side.
+  const allowedRow = { ...upgradedRow, grantedCapabilities: upgradedRow.declaredCapabilities, reconsentPending: false };
+  const recorder = await routeTrpc(page, {
+    "plugin.list": () => {
+      if (!upgraded) {
+        return [INSTALLED_ROW];
+      }
+      return [allowed ? allowedRow : upgradedRow];
+    },
     "plugin.upgrade": () => {
       upgraded = true;
       return upgradedRow;
+    },
+    "plugin.setGrant": () => {
+      allowed = true;
+      return allowedRow;
     },
     "plugin.getLog": () => [],
   });
@@ -226,6 +259,9 @@ test("an upgrade that WIDENS reach says exactly what widened, and that the extra
 
   const notice = page.getByRole("alert").filter({ hasText: "stayed off" });
   await expect(notice).toBeVisible();
+  // The row-level status also stops reading as a plain "Off" (P1-1) — the same durable flag that raised
+  // the notice is what this badge reads, so the two can never disagree.
+  await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
   // WHAT widened — the new capability by its own name and consequence, not a bare count.
   await expect(notice).toContainText("Write lorebook entries");
   await expect(notice).toContainText("lorebooks already attached to the room");
@@ -243,12 +279,25 @@ test("an upgrade that WIDENS reach says exactly what widened, and that the extra
   // screen. This assertion is the fence: an earlier revision badged EVERY host, including the one
   // carried forward unchanged.
   await expect(notice.getByText("New", { exact: true })).toHaveCount(1);
-  // The TRUE consequence. There is no re-grant verb, so "turn it back on to confirm" would be a lie.
-  await expect(notice).toContainText("did not grant the extra permissions");
-  await expect(notice).toContainText("remove it and install the new bundle");
-  // THE ESCAPE ACTION LIVES INSIDE THE NOTICE (P1-3): the true next step isn't just described in prose,
-  // it's a reachable control right here, not three UI regions away behind the row's unrelated ⋯ menu.
+  // THE ESCAPE ACTION LIVES INSIDE THE NOTICE (P1-3): a reachable control right here, not three UI regions
+  // away behind the row's unrelated ⋯ menu, and it is now a REAL path (P1-1), not a dead end.
   await expect(notice.getByRole("button", { name: REMOVE_WEATHER_TELLER })).toBeVisible();
+
+  await notice.getByRole("button", { name: "Allow the whole ask" }).click();
+
+  // SETTLED: barrier on the notice clearing (the server's own post-grant truth) BEFORE reading the recorder
+  // — the mutation is provably complete only once the invalidate has repainted the row.
+  await expect(notice).toHaveCount(0);
+  await expect(page.getByText("Off — asked for more than you allowed")).toHaveCount(0);
+  // The ANTI-TOCTOU ECHO: the server refuses a `setGrant` whose `acknowledgedNetHosts` doesn't match its
+  // own manifest, so the client MUST send exactly the host list it rendered (`plugin.netHosts`), not an
+  // empty array or a client-computed guess.
+  // ONESHOT-OK: the settle assertions above prove the call completed before this read.
+  expect(recorder.lastInput("plugin.setGrant")).toEqual({
+    pluginId: INSTALLED_ROW.id,
+    grant: upgradedRow.declaredCapabilities,
+    acknowledgedNetHosts: upgradedRow.netHosts,
+  });
 });
 
 test("the snippet console shows what a run logged, and shows a contained failure instead of hanging", async ({ mount, page }) => {
