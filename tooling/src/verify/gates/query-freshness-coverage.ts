@@ -129,6 +129,21 @@ const STATIC: ExemptionTable = {
   "assets.listOwned": {
     why: "driven by the upload front door `useUploadAsset` (data/use-upload-asset.ts) — every completed upload calls invalidation.invalidateFilters([trpc.assets.listOwned.pathFilter()]). The upload route is a raw multipart POST, not a tRPC mutation, so it can carry no `invalidates` and no bus event announces it; the hook IS the driver, and every feature upload (character/persona avatars, backgrounds, chat attachments) goes through it. Proven by tests/client/data/use-upload-asset.ct.tsx (the mounted listOwned read refetches after an upload).",
   },
+
+  // ── B2 automation RULES: TWO out-of-seam drivers per key (blind spot 4), plus one immutable catalogue ────
+  // The automation bus is deliberately NOT an invalidation seam — its client consumer is a REDUCER over the
+  // in-RAM pending-ask list (features/automation/lib/apply-automation-bus-event.ts), because a pending ask
+  // has no query behind it (RULED F1). The rule-lifecycle READS are driven from the feature instead, and
+  // both drivers are real and tested.
+  "automation.listRules": {
+    why: "TWO feature-local drivers (blind spot 4). (1) Every rule-lifecycle mutation `invalidates` it — setRuleEnabled/deleteRule/runRuleNow/createRuleFromPreset in features/automation/lib/rule-mutations.ts all carry trpc.automation.listRules.queryFilter({chatId}). (2) The REMOTE-fire edge, which no mutation can see: rules-section.tsx's `useRuleFeedInvalidation` joins the chat's `automation` bus room and calls invalidation.invalidateFilters([listRules.queryFilter]) on ruleFired/ruleErrored/ruleAutoDisabled/rulesChanged, so a rule firing from a real turn moves `enabled`/`lastFiredAt`/`lastError` without a local write. Proven by tests/client/features/automation/components/rules-section.ct.tsx (toggle/Test/Run-now each drive the proc and the list reconciles).",
+  },
+  "automation.listFires": {
+    why: "Same TWO drivers as automation.listRules, keyed by ruleId: testRule/runRuleNow `invalidates` trpc.automation.listFires.queryFilter({ruleId}) (rule-mutations.ts), and the automation-room feed in rules-section.tsx invalidates the fired rule's log on ruleFired/ruleErrored. This is the host's 'why didn't my rule fire' log, so the REMOTE edge is the one that matters — a bus-driven fire is exactly the row it exists to show.",
+  },
+  "automation.listRulePresets": {
+    why: "IMMUTABLE for the session: the rule-preset catalogue is a pure projection of a compile-time Record (domain/automation/contract/presets.ts via verbs/list-rule-presets.ts — no principal, no chat, no db, per its own header). It cannot change without a deploy, so no bus row is warranted and no mutation can move it; the picker refetching it would answer identically forever.",
+  },
 };
 
 // Empty today — every founding deferral was resolved 2026-08-01 (the twelve `stats.*` reads gained the
