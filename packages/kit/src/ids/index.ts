@@ -249,8 +249,24 @@ export function newId<T extends Branded<string>>(): T {
 }
 
 /** Zod schema for a STRICT TypeID at a request boundary: validates the `prefix_…` shape AND that
- *  the prefix matches — a `chat_…` where a `persona_…` is expected is rejected, not silently accepted. */
-export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>> {
+ *  the prefix matches — a `chat_…` where a `persona_…` is expected is rejected, not silently accepted.
+ *
+ *  The explicit `string` Input generic is load-bearing: `z.ZodType`'s Input parameter defaults to
+ *  `unknown` (zod 4.4.3, verified against the installed `v4/classic/schemas.d.ts:6`), so omitting it
+ *  made `z.input<>` of every schema built from this `unknown` — and `unknown` as a property type accepts
+ *  ANY value on assignment: not merely a wrong-prefixed string but a number, an object, anything. Pinning
+ *  Input=`string` closes that. Not a behavior change; the schema always accepted a bare string pre-transform.
+ *
+ *  WHAT THIS DOES NOT DO, stated because the row that prompted it (#641) claimed otherwise and a reader
+ *  would otherwise trust the wrong wall: it does NOT restore BRAND enforcement at the input seam, and no
+ *  Input generic could. `z.input<>` of a validating `.transform()` is by definition the PRE-parse shape —
+ *  the raw string a caller hands in BEFORE branding happens — so it never carried the brand in any zod
+ *  version. The brand lives on Output (`z.infer<>`), which was always correctly typed here and was never
+ *  the defect. A wrong-branded-but-right-SHAPED value is therefore structurally uncatchable through this
+ *  schema; catching that class needs a typed resolution axis instead — the `entityRef` knob kind
+ *  (`contracts/automation/presets.ts` + the real `.safeParse` at `domain/automation/substrate/presets.ts`)
+ *  is the worked example, and is what actually fixed the case #641 mis-cited as this seam's evidence. */
+export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
   return z.string().transform((value, ctx): TypeIdOf<P> => {
     try {
       // fromString validates shape AND prefix; throws on mismatch/malformed.
