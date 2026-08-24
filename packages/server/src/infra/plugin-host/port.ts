@@ -42,7 +42,10 @@ export interface CreateInstanceInputIn {
    *  manifest) — the SSRF wall for `net.fetch`. Omitted ⇒ `[]` (fail-closed: no host reachable). NEVER
    *  guest-supplied, NEVER `ANY_HOST`. */
   readonly netHosts?: readonly string[];
-  readonly budgets?: { readonly cpuDeadlineMs: number; readonly memoryLimitBytes: number };
+  /** Per-instance DoS budgets (the domain leaves them absent → the shared defaults). `settleGraceMs` is the
+   *  grace above `cpuDeadlineMs` before an invocation is force-ENDED in real time; absent ⇒
+   *  `PLUGIN_INVOCATION_SETTLE_GRACE_MS`. */
+  readonly budgets?: { readonly cpuDeadlineMs: number; readonly memoryLimitBytes: number; readonly settleGraceMs?: number };
 }
 
 /** One log line as the domain reads it (structurally the domain's `PluginLogView`). */
@@ -81,11 +84,18 @@ function toLog(lines: readonly string[], at: number): PluginLogLineOut[] {
 // per instance is the single correct home. `runSnippet` (fresh disposed sandbox per call) + `createInstance`
 // (activation, once) never share a resident, so they need no serialization.
 //
+// WHAT MAKES THE QUEUE ADVANCE (corrected — the earlier "each item rides cpuDeadlineMs" was FALSE): the
+// interrupt handler preempts guest BYTECODE only, so a handler returning `new Promise(() => {})` never
+// deadlined — `invokeHandler` never settled, `queueDepth` never decremented, and after EVENT_QUEUE_DEPTH such
+// invokes the instance refused everything FOREVER while the row still said `enabled`. The bound that actually
+// holds is the Sandbox's INVOCATION SETTLEMENT deadline (`cpuDeadlineMs + settleGraceMs`), which ends a hung
+// invocation as `ok:false` → this `run` rejects → the `.finally` arms below advance the tail and decrement.
+//
 // The queue is a per-instance tail-promise chain: each invoke's `setInvocationChat`→`invokeHandler` pair runs
 // to completion (fulfilment OR rejection OR deadline) before the next invoke on the SAME instance begins, so the
 // shared scope is never mutated under a mid-flight guest. The chain advances in a `.finally` on both settle
-// arms, so a rejected/deadlined invoke cannot wedge the tail (each item still carries the per-invoke
-// `cpuDeadlineMs` inside `invokeHandler`, so a hung guest deadlines and the queue advances). BOUNDED (a DoS
+// arms, so a rejected/deadlined invoke cannot wedge the tail (each item is bounded by `invokeHandler`'s
+// SETTLEMENT deadline, so a hung guest ENDS and the queue advances). BOUNDED (a DoS
 // backstop): at most `EVENT_QUEUE_DEPTH` invokes may be pending (queued or running) per instance — a hostile
 // flood of concurrent deliveries must not unbounded-queue and pin the sandbox forever. The N+1 invoke is REFUSED
 // with a CONTAINED typed error (never a process abort): the fire-and-forget `deliver` swallows it (the fan-out's

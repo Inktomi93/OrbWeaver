@@ -16,10 +16,11 @@ export {
   LOG_BYTES_PER_INVOCATION,
   LOG_LINES_PER_INVOCATION,
   PLUGIN_INVOCATION_CPU_MS,
+  PLUGIN_INVOCATION_SETTLE_GRACE_MS,
   PLUGIN_MEMORY_LIMIT_BYTES,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
 export { getPluginQuickJS } from "./module.ts";
 export { createPluginHost, type PluginHostSeamDeps } from "./port.ts";
 export { type HostSeams, installRealm, LogRing } from "./realm.ts";
-export { boundHostFn, type EvalOutcome, type GuestError, Sandbox, type SandboxLimits } from "./sandbox.ts";
+export { boundHostFn, type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";
