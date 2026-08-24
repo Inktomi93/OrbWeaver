@@ -56,7 +56,8 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     // verbatim to the SSRF wall (`activation/activate.ts` → `createInstance({netHosts})`).
     const newHosts = widenedNetHosts(manifest.netHosts ?? [], existing.manifest.netHosts ?? []);
     const granted = normalizeGrant(manifest.capabilities, existing.grantedCapabilities);
-    const reactivate = existing.status === "enabled" && newCaps.length === 0 && newHosts.length === 0;
+    const widened = newCaps.length > 0 || newHosts.length > 0;
+    const reactivate = existing.status === "enabled" && !widened;
 
     // Stop the old resident instance (running the OLD code) before the swap.
     deps.deactivate(pluginId);
@@ -70,6 +71,11 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
       bundleAssetId: stored.assetId,
       grantedCapabilities: granted,
       status: "disabled",
+      // RECORD THE SYSTEM'S OWN REFUSAL, here and nowhere else: this is the one moment the PRIOR manifest —
+      // the only source of the "what widened" fact — still exists before being overwritten. Without the flag
+      // a forced disable renders identically to the owner's own toggle-off, so the surface would present our
+      // refusal as their decision. A non-widening upgrade writes `false`, which is equally honest.
+      pendingReconsent: widened,
       updatedAt: now,
     });
     // The old bundle asset is now unreferenced (the row points at the new asset) — reap it. `reapIfOrphan`

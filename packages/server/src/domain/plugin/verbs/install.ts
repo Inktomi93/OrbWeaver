@@ -46,6 +46,8 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       grantedCapabilities: granted,
       status: "disabled" as const,
       origin: "upload" as const,
+      // Nothing to re-consent TO: the owner just chose this grant against this manifest.
+      pendingReconsent: false,
       consecutiveCrashes: 0,
       lastError: null,
       installedAt: now,

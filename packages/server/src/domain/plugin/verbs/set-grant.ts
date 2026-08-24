@@ -62,11 +62,17 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
 
     const granted = normalizeGrant(declared, grant);
     const wasEnabled = existing.status === "enabled";
+    // CLEAR the system's recorded refusal iff the owner has now consented to the WHOLE ask. A PARTIAL re-grant
+    // leaves it standing, and that is the point: the plugin is still asking for something they have not
+    // allowed, and a surface that stopped saying so would be the same lie the flag exists to fix, pointing the
+    // other way. The `net.fetch` half is already satisfied by the acknowledgement gate above — reaching this
+    // line with `net.fetch` granted means every declared host was echoed.
+    const stillPending = ungrantableCapabilities(granted, declared).length > 0;
 
     // Tear the resident down BEFORE the write (idempotent on a non-resident) — see the header: a running guest
     // holds the grants it was activated with, so the write must never leave one enforcing a superseded subset.
     deps.deactivate(pluginId);
-    await applyGrant(ctx.db, pluginId, { grantedCapabilities: granted, status: "disabled", updatedAt: ctx.now() });
+    await applyGrant(ctx.db, pluginId, { grantedCapabilities: granted, status: "disabled", pendingReconsent: stillPending, updatedAt: ctx.now() });
     if (wasEnabled) {
       // Re-activation is a RESTORE of the state the owner already chose, not an implicit enable: only a row
       // that was `enabled` comes back up, and it comes back up under the grant just written. A contained

@@ -750,6 +750,7 @@ CREATE TABLE `plugins` (
 	`granted_capabilities` text NOT NULL,
 	`status` text NOT NULL,
 	`origin` text NOT NULL,
+	`pending_reconsent` integer DEFAULT false NOT NULL,
 	`consecutive_crashes` integer DEFAULT 0 NOT NULL,
 	`last_error` text,
 	`installed_at` integer NOT NULL,
