@@ -5,7 +5,7 @@ model: opus
 effort: high
 mcpServers: ["authentik"]
 memory: project
-color: magenta
+color: cyan
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---
 
