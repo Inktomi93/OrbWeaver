@@ -56,6 +56,7 @@ import {
   backfillMemory,
   createActiveTurns,
   createChatService,
+  createChatTeachingContributions,
   createClaimChat,
   createGetMembership,
   createGetPendingUserText,
@@ -319,6 +320,10 @@ export interface ChatComposeInput {
   /** The injected rpg turn ops (rpg-design/05 §0) — OPTIONAL; absent wires `ChatContext.rpg` to null
    *  (byte-identical no-op). Built at the composition root over the rpg service + its standalone gather op. */
   readonly rpg?: ChatContext["rpg"] | undefined;
+  /** FOREIGN S2 teaching contributions (interaction-direction-spec §3-S2) — OPTIONAL; absent wires the
+   *  registry to chat's own contribution alone (byte-identical no-op, the `rpg`/`expressions` precedent).
+   *  Chat's own contributor is ALWAYS present, which is why the ctx field itself is not nullable. */
+  readonly teaching?: ChatContext["teaching"] | undefined;
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
@@ -1233,6 +1238,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Null ⇒ rpg not wired (byte-identical no-op — the `expressions`/`tools` precedent). The 5 injected rpg
     // turn ops fire at GATHER / preset-resolve / send-commit / turn-end.
     rpg: input.rpg ?? null,
+    // The S2 teaching registry (interaction-direction-spec §3-S2): chat's OWN contribution (the rpg-gather
+    // projection, order 0) plus whatever later rows wire in (C1's automation guidance is the next one).
+    // Absent input ⇒ chat's alone ⇒ byte-identical, and the registry is never null so a game turn's state
+    // block can never be silently dropped by a forgotten wiring.
+    teaching: [...createChatTeachingContributions(), ...(input.teaching ?? [])],
     // The D50 PromptTransform apply op — the registry's `apply`. Zero registrants ⇒ byte-identical.
     promptTransforms: promptTransformRegistry.apply,
   };

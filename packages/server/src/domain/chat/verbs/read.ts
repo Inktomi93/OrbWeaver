@@ -148,6 +148,7 @@ import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { collectTeaching, DEFAULT_TEACHING_KNOBS } from "../substrate/teaching.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -486,33 +487,51 @@ function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   return built?.registry ?? null;
 }
 
-/** A game chat's GATHER contribution for a PREVIEW (rpg-design/05 §1) — the depth-0 state-block reminder +
- *  the rpg macro/CEL feed, exactly as the turn path stages them, so a preview of a game chat shows what the
- *  model actually reads (without this the whole state block is INVISIBLE to the host's honesty instrument).
+/** The PREVIEW's gather half — the rpg macro/CEL feed (rpg-design/05 §1) plus the S2 teaching collection
+ *  (whose contributor #0 carries a game's depth-0 state-block reminder), staged exactly as the turn path
+ *  stages them so the host's honesty instrument shows what the model actually reads (without this the whole
+ *  state block is INVISIBLE there, and a later teaching contributor would be invisible the same way).
  *  Read-only + turnless: no pending user text, `respondsToLatestUserTurn: false` (no dice-feed eligibility),
- *  nothing staged, nothing persisted. `null` op / non-game ⇒ `{}` ⇒ a byte-identical non-game build. */
-async function previewRpgFields(
+ *  nothing staged, nothing persisted. Non-game + nothing teaching ⇒ `{}` ⇒ a byte-identical build. */
+async function previewGatherFields(
   ctx: ChatContext,
-  chatId: ChatId,
-  steerIdentity: { readonly user: string | undefined; readonly char: string },
-  /** PROSE-1 — the previewed preset's teach/heading overrides, threaded for the same reason the whole gather is:
-   *  the preview must show the bytes the model actually receives, and a host who re-authored a teach on this
-   *  preset would otherwise read the shipped default on their own honesty instrument. */
-  prose: ProseOverrides,
+  args: {
+    readonly chatId: ChatId;
+    /** The room's frozen host (D19) — the identity the collection resolves under, exactly as a turn does. */
+    readonly hostUserId: UserId;
+    readonly steerIdentity: { readonly user: string | undefined; readonly char: string };
+    /** PROSE-1 — the previewed preset's teach/heading overrides, threaded for the same reason the whole gather
+     *  is: the preview must show the bytes the model actually receives, and a host who re-authored a teach on
+     *  this preset would otherwise read the shipped default on their own honesty instrument. */
+    readonly prose: ProseOverrides;
+  },
 ): Promise<{
   rpgMacros?: Readonly<Record<string, string>>;
-  rpgInjections?: readonly ChatInjection[];
+  teachingInjections?: readonly ChatInjection[];
   rpgCelBindings?: Readonly<Record<string, unknown>>;
 }> {
   const rpg =
-    ctx.rpg === null ? null : await ctx.rpg.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, steerIdentity, prose });
-  if (rpg === null) {
-    return {};
-  }
+    ctx.rpg === null
+      ? null
+      : await ctx.rpg.gatherTurnContext({
+          chatId: args.chatId,
+          pendingUserText: undefined,
+          respondsToLatestUserTurn: false,
+          steerIdentity: args.steerIdentity,
+          prose: args.prose,
+        });
+  // The preview runs the SAME S2 collection a turn runs (`buildTurnContext`), for the same reason it runs the
+  // gather at all: the host's honesty instrument must show every injection the model actually receives, not
+  // just the ones chat happens to read itself. Empty collection ⇒ the field is omitted ⇒ byte-identical.
+  const teaching = await collectTeaching(ctx.teaching, {
+    chatId: args.chatId,
+    runAsUserId: args.hostUserId,
+    knobs: DEFAULT_TEACHING_KNOBS,
+    rpgGather: rpg,
+  });
   return {
-    rpgMacros: rpg.macros,
-    rpgInjections: rpg.injections,
-    ...(rpg.celBindings !== undefined ? { rpgCelBindings: rpg.celBindings } : {}),
+    ...(rpg === null ? {} : { rpgMacros: rpg.macros, ...(rpg.celBindings !== undefined ? { rpgCelBindings: rpg.celBindings } : {}) }),
+    ...(teaching.injections.length > 0 ? { teachingInjections: teaching.injections } : {}),
   };
 }
 
@@ -535,18 +554,18 @@ async function buildPreviewContext(
   const participants = await opts.deps.loadParticipantViews(chatId);
   // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
   // the active persona; `{{char}}` = the Ruling-B joined present cast (a preview has no triggering speaker).
-  const rpgFields = await previewRpgFields(
-    ctx,
+  const gatherFields = await previewGatherFields(ctx, {
     chatId,
-    {
+    hostUserId: inputs.hostUserId,
+    steerIdentity: {
       user: inputs.foreign.personas.active?.name,
       char: participants
         .filter((p) => classifyParticipant(p)?.kind === "character")
         .map((p) => p.displayName)
         .join(", "),
     },
-    composeProse({ preset: inputs.foreign.promptConfig.prose }),
-  );
+    prose: composeProse({ preset: inputs.foreign.promptConfig.prose }),
+  });
   const gathered = await gatherAssembleContext(
     ctx,
     {
@@ -559,7 +578,7 @@ async function buildPreviewContext(
       // null-stamp guard needs that identity or the preview would floor the host's own unstamped rows
       // while the real turn borrows for them.
       triggerUserId: inputs.hostUserId,
-      ...rpgFields,
+      ...gatherFields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...(opts.registry !== null ? { macroRegistry: opts.registry } : {}),

@@ -9,9 +9,14 @@ export type { ChatContext, ChatServiceDeps } from "./context.ts";
 // its structural gather result (rpg-design/05 §0). `ChatContext.rpg` binds a real value only when domain/rpg
 // lands (chat.ts `input.rpg`); until then the field is null and the names have no by-name consumer, so the
 // door keeps the seam reachable (the rpg-facing `GetMembership`/`PostNarratorMessage` precedent).
+// The S2 teaching seam (interaction-direction-spec §3-S2) ships its types on this same door:
+// `ChatTeachingRegistry` is what the composition root assembles onto `ChatContext.teaching`, and
+// `TeachingContribution`/`TeachingContext`/`TeachingCollection`/`TeachingKnobs` are the shape every later
+// contributing domain implements against.
 export type {
   ChatRpgGatherResult,
   ChatRpgOps,
+  ChatTeachingRegistry,
   ChatToolExecFrame,
   ChatToolOps,
   ChatToolSet,
@@ -42,6 +47,10 @@ export type {
   RpgTurnContext,
   RpgTurnTranscriptMessage,
   SetRpgPointer,
+  TeachingCollection,
+  TeachingContext,
+  TeachingContribution,
+  TeachingKnobs,
   ViewerVisibility,
 } from "./contract/context.ts";
 export type { ChatOpCode } from "./contract/errors.ts";
@@ -122,6 +131,9 @@ export { createPromptTransformRegistry, PROMPT_TRANSFORM_DEADLINE_MS } from "./s
 // The standalone (out-of-turn) variable write (automation-design/03 §1.1) — the injected `applyVariableOps`
 // op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
 export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
+// Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — contributor #0,
+// the rpg-gather projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
+export { createChatTeachingContributions } from "./teaching-contribution.ts";
 // The rpg-facing generic chat surface (rpg-design/02 §1.1) — wired into `RpgContext.chat` at the composition
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // THE husk→real claim chokepoint (R0). Exported because the narrator op is built OUTSIDE

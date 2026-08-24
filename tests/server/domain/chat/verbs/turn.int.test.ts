@@ -166,6 +166,12 @@ function harness(
     /** Override the resolved connection wholesale (the R1 pin needs a TOOLS-capable capability, which
      *  `testConnection`'s minimal descriptor deliberately lacks). */
     connection?: ResolvedConnection;
+    /** The S2 teaching registry (default = the composition root's own: chat's rpg-gather projection). The R2
+     *  attach-matrix pins add a contribution that DECLARES a registry tool name. */
+    teaching?: ChatContext["teaching"];
+    /** The tool-use ops (default null = not wired). The R2 attach pins wire a fake so the declared name can
+     *  actually resolve to a wire tool. */
+    tools?: ChatContext["tools"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -207,6 +213,8 @@ function harness(
     ...(over.resolveUserEnabled !== undefined ? { resolveUserEnabled: over.resolveUserEnabled } : {}),
     ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
+    ...(over.teaching !== undefined ? { teaching: over.teaching } : {}),
+    ...(over.tools !== undefined ? { tools: over.tools } : {}),
   });
   const emit = (event: ChatBusEvent): Promise<void> => {
     events.push(event);
@@ -2978,6 +2986,74 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
   // NULL, not `[]` — the consumer must be able to tell "no fold happened" from "the fold found nothing".
   expect(flushes).toEqual([null]);
+});
+
+// ── R2: THE ATTACH MATRIX, proved on a REAL turn ───────────────────────────────────────────────
+// `attachedToolNames` is now the UNION over the S2 teaching contributions' `toolNames` — teach and attach
+// travel together (spec R2). `pipeline.test.ts` pins what the pipeline does with a name set; the collector
+// unit pins the union itself. These pin the hop between them, which no other test can see: a REGISTERED
+// contribution's declared name surviving collect → BuiltTurnContext → TurnPrep → the wire, and the capability
+// gate still dropping it on a model that cannot carry tools (attach is capability-gated, authority runs at
+// execute).
+
+/** A teaching contribution that declares a registry tool name and teaches nothing. */
+function toolDeclaringTeacher(name: string): NonNullable<ChatContext["teaching"]>[number] {
+  return { id: "test.attach", order: 1, collect: () => Promise.resolve({ injections: [], toolNames: [name] }) };
+}
+
+/** The tool-use ops the attach path needs: resolve the declared names into the opaque `ChatToolSet`, then
+ *  project that set onto the wire. No fabrication — `ChatToolSet` is `unknown` by contract (chat never
+ *  narrows it), so a fake owns its own shape and narrows it back on the way out. */
+function fakeChatToolOps(): NonNullable<ChatContext["tools"]> {
+  return {
+    resolveTools: (names) => ({ names }),
+    toWireTools: (set) =>
+      (set as { readonly names: readonly string[] }).names.map((n) => ({ name: n, description: "d", parameters: { type: "object" as const } })),
+    toAgentToolServer: () => Promise.resolve({}),
+    executeToolCalls: () => Promise.resolve([]),
+  };
+}
+
+test("R2 end-to-end: a teaching contribution's declared tool name reaches the WIRE on a real send", async () => {
+  const { host, chatId, names } = await seedRoom("attach_on", ["aria"]);
+  const requests: unknown[] = [];
+  const h = harness(db, names, {
+    teaching: [toolDeclaringTeacher("tick_clock")],
+    tools: fakeChatToolOps(),
+    connection: TOOLS_CONNECTION,
+    onChatRequest: (req) => requests.push(req),
+  });
+
+  await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
+
+  const attached = requests[0] as { tools?: { name: string }[]; toolChoice?: unknown };
+  expect(attached.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
+  expect(attached.toolChoice).toEqual({ mode: "auto" });
+});
+
+test("R2 end-to-end: the SAME declaration on a tools-INCAPABLE model is dropped — attach is capability-gated", async () => {
+  const { host, chatId, names } = await seedRoom("attach_off", ["aria"]);
+  const requests: unknown[] = [];
+  // `testConnection`'s default capability carries no `tools` axis — the honesty gate drops the attachment.
+  const h = harness(db, names, {
+    teaching: [toolDeclaringTeacher("tick_clock")],
+    tools: fakeChatToolOps(),
+    onChatRequest: (req) => requests.push(req),
+  });
+
+  await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
+
+  expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
+});
+
+test("R2 end-to-end: NO contribution declares a name — the request carries no tools field (byte-identical)", async () => {
+  const { host, chatId, names } = await seedRoom("attach_none", ["aria"]);
+  const requests: unknown[] = [];
+  const h = harness(db, names, { tools: fakeChatToolOps(), connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
+
+  await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+
+  expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
 });
 
 // ── M2 keep-last-X: ABSENT ≠ ZERO, proved at the TURN seam ───────────────────────────────────────

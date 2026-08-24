@@ -10,6 +10,10 @@
 // - `workload-contributions.ts` is the ratified, cross-domain 10th slot (the workloads junk-drawer exit):
 //   the domain's OWN background-work contributions, compose-built over its own verbs. Same shape of
 //   exception as guard.ts — I/O-touching, not a verb, and cross-domain by construction.
+// - `teaching-contribution.ts` is the ratified, cross-domain 11th slot (the S2 model-teaching seam):
+//   the domain's OWN contributions to "what this chat's model is told it can do", compose-built over its
+//   own verbs and assembled into `ChatContext.teaching` at `entry/compose`. Same shape of exception as
+//   `workload-contributions.ts` — I/O-touching, not a verb, cross-domain by construction.
 // - A handful of domain-specific root singletons, each individually justified inline below
 //   (`DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES`) but not yet promoted to the cross-domain ledger.
 import { existsSync, readdirSync, statSync } from "node:fs";
@@ -24,12 +28,18 @@ const REQUIRED_DIRS = ["contract", "verbs"] as const;
 /** Cross-domain ratified root slots, allowed at ANY domain root:
  *  - `guard.ts` — the ratified `can()` authority-seam pattern (Core-Laws-and-Precedents.md,
  *    Identity/auth/permission "Committed decisions").
+ *  - `teaching-contribution.ts` — the ONE home of a domain's S2 MODEL-TEACHING contributions (the
+ *    teaching seam's exit: domains DECLARE what the model is told it can do + which registry tools attach,
+ *    one chat-side collector folds them onto the single injection channel). A compose-built factory over
+ *    the domain's OWN ops, so it can't live in zero-I/O `substrate/` and it isn't a verb; naming it as a
+ *    cross-domain slot is what keeps "where does this domain teach the model?" answerable without reading
+ *    the turn path. Chat occupies it with contributor #0 (the rpg-gather projection).
  *  - `workload-contributions.ts` — the ONE home of a domain's background-work contributions (the
  *    workloads junk-drawer exit: domains raise seams, the worker skims them). A compose-built factory
  *    over the domain's OWN verbs, so it can't live in zero-I/O `substrate/` and it isn't a verb; naming
  *    it as a cross-domain slot is what makes "where does this domain's queued work live?" answerable
  *    without reading the queue. */
-const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "workload-contributions.ts"] as const;
+const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "teaching-contribution.ts", "workload-contributions.ts"] as const;
 
 const GATE_SELF = "tooling/src/verify/gates/feature-structure.ts";
 /** Real-tree anchor (GATE-AUTHORING.md §4.5): a domain every real run has and no example builds. */

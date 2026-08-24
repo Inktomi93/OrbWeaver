@@ -326,9 +326,11 @@ export async function gatherAssembleContext(
     /** A game turn's `{{expr::…}}` CEL activation (parity-plus §12) — the data-only `{ rpg: <tracker view tree> }`,
      *  threaded verbatim onto the AssembleContext's `celBindings`. Absent ⇒ `{{expr::rpg.…}}` errors-to-"". */
     readonly rpgCelBindings?: Readonly<Record<string, unknown>> | undefined;
-    /** A game turn's depth-0 format-reminder injection(s) (rpg-design/05 §1) — merged into the chat injection
-     *  list (recency-biased, nearest generation via their `depth:0`). Absent ⇒ no rpg injection. */
-    readonly rpgInjections?: readonly ChatInjection[] | undefined;
+    /** The S2 teaching collection's injections (`substrate/teaching.ts`) — every registered contribution's
+     *  prose steering for THIS turn, ALREADY origin-stamped by its producer, merged into the chat injection
+     *  list (a game turn's depth-0 reminder is recency-biased nearest generation via its `depth:0`). Absent /
+     *  empty ⇒ only the chat's own `chat_injections` rows (byte-identical to a turn with nothing teaching). */
+    readonly teachingInjections?: readonly ChatInjection[] | undefined;
     /** The per-turn user-macro RENDER + FREEZE registries (WAVE MU) — threaded verbatim to the pure build.
      *  Absent ⇒ the pure build falls back to the process singletons (byte-identical non-user-macro turn). */
     readonly macroRegistry?: MacroRegistry | undefined;
@@ -435,10 +437,14 @@ export async function gatherAssembleContext(
       // Threaded RAW — `buildAssembleContext` owns the `?? null` floor (one home for the fail-closed default).
       triggerUserId: args.triggerUserId,
       recentMessages,
-      // The user/WI injections + a game turn's depth-0 reminder injection(s); absent rpg ⇒ unchanged.
-      // The rpg reminder is stamped `game-state` HERE (the ONE merge site) so the BUILD walk can account the
-      // state block as its own budget source without chat ever reading an rpg type.
-      userInjections: [...injectionRows.map(toChatInjection), ...(args.rpgInjections ?? []).map((i): ChatInjection => ({ ...i, origin: "game-state" }))],
+      // The chat's own injection ROWS + the S2 teaching collection's injections; nothing teaching ⇒ unchanged.
+      // The teaching half arrives PRE-STAMPED (each contribution owns its `origin`, e.g. chat's rpg projection
+      // stamps `game-state` — `domain/chat/teaching-contribution.ts`) so the BUILD walk accounts each source
+      // under its own budget row. The stamp used to live HERE, which was right while rpg was the only
+      // contributor and became wrong the moment the merge went generic: a merge-site stamp would relabel every
+      // later contributor as game state. The rows are NOT deduped against the teaching half — a host may
+      // legitimately author an injection identical to a machine one, and this seam does not edit their canon.
+      userInjections: [...injectionRows.map(toChatInjection), ...(args.teachingInjections ?? [])],
       memory: memory.text,
       // The recall EXPLANATION rides beside the text it explains (#250) — the trace's memory row. Absent only
       // when recall never ran (no character to key on).
