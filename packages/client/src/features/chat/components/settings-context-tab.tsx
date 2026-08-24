@@ -57,6 +57,7 @@ import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 import { InjectionsManager } from "./injections-manager.tsx";
 import { MacroPicksSection } from "./macro-picks-section.tsx";
+import { OfferChoicesControl } from "./offer-choices-control.tsx";
 import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab.tsx";
 import { ToolRecurseControl } from "./tool-recurse-control.tsx";
 
@@ -237,6 +238,19 @@ function HostControls({
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the display-script setting" onRetry={retry} />}
           >
             <HostDisplayScriptsControl chatId={chatId} />
+          </QueryBoundary>
+        </Section>
+        {/* Storytelling (B1) — the room's standing offer-choices posture. Sits in the host band and NOT with
+            Field overrides/Injections above it because, unlike those, it is not something a member may set:
+            it changes what the model is told for everyone in the room. Reads the same getChat this tab
+            already loaded plus the host's own settings default (the inherit seam), so the QueryBoundary
+            matches its two neighbours' exactly. */}
+        <Section kicker="Storytelling">
+          <QueryBoundary
+            fallback={<SkeletonRows count={1} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the offer-choices setting" onRetry={retry} />}
+          >
+            <OfferChoicesControl chatId={chatId} />
           </QueryBoundary>
         </Section>
         {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary

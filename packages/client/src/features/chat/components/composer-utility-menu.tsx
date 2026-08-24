@@ -4,14 +4,16 @@
 //   • Input  — Recover input (recall the last FIRED steer — the D57 ring, owner-clarified) · Corrections (the
 //              rewrite/OOC dialog) · Clear input
 //   • Reply  — Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
-//              steer-aware reroll stays the ⟳ Swipe icon, §2.3e dual-home) · Simple send (post without generating)
+//              steer-aware reroll stays the ⟳ Swipe icon, §2.3e dual-home) · Simple send (post without
+//              generating) · Offer choices (R3/B1 — the ONE-SHOT ask for the next reply; un-game-gated and
+//              moved out of Plot, because the standing sibling and the fence renderer are both general now)
 //   • Continuation — Undo / Revert continuation
 //   • Media  — Attach images & video (the sanctioned FileDropzone, ref-triggered off the row so the input is
 //              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
 //              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
 //              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
 //              are here because both cost money and only one used to be findable (#623 P1-IA).
-//   • Plot   — game-only: the six plot steers nested under a Plot submenu (P1-B) + the Offer choices one-shot
+//   • Plot   — game-only: the six plot steers nested under a Plot submenu (P1-B)
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
 // never hidden.
 
@@ -26,7 +28,7 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, Me
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
+import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
@@ -68,6 +70,11 @@ interface UtilityMenuProps {
   readonly onRegenerate: (() => void) | undefined;
   /** The P5 game steers — present only when the chat is a live game (game-only, D110-4). */
   readonly game: { readonly plotAvailable: boolean; readonly onSteer: (kind: GuidedGameSteerKind) => void } | undefined;
+  /** R3 (B1) — the ONE-SHOT "offer choices" ask for the next reply. ALWAYS present: the fence renders and the
+   *  chips compose in any room, so the ask is not a game affordance. Its standing sibling is the "This chat"
+   *  toggle. Separate from `game` on purpose — a prop that only existed on the game bundle is exactly how it
+   *  ended up game-gated in the first place. */
+  readonly onOfferChoices: () => void;
   /** The re-homed image controls (attach + generate-from-text). */
   readonly image: ComposerImageControls;
 }
@@ -103,6 +110,11 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
       onSimpleSend={hasText ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
       // Regenerate is a plain reroll of the tail assistant, distinct from the steer-aware top-row action.
       onRegenerate={canTargetTail && idle ? (): void => guided.fireSwipe("") : undefined}
+      // R3: the same trusted-template funnel the game steers ride (`gameSteer:"choices"` — the wire carries
+      // the KIND, the server holds the bytes), fired from every room rather than only a game one. The
+      // template it resolves (`GUIDED_GAME_STEERS.choices`) is a plain literal with no rpg macros, so a
+      // non-game chat resolves it identically.
+      onOfferChoices={(): void => guided.fireGameSteer("choices")}
       game={game.isGame ? { plotAvailable: game.plotAvailable, onSteer: guided.fireGameSteer } : undefined}
       image={image}
     />
@@ -110,7 +122,8 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
 }
 
 function UtilityMenu(props: UtilityMenuProps): ReactElement {
-  const { hasText, canTargetTail, canUndoRevert, onRewrite, onRecall, onUndo, onRevert, onClear, onSimpleSend, onRegenerate, game, image } = props;
+  const { hasText, canTargetTail, canUndoRevert, onRewrite, onRecall, onUndo, onRevert, onClear, onSimpleSend, onRegenerate, onOfferChoices, game, image } =
+    props;
   const recentSteers = useRecentSteers();
   return (
     <Menu>
@@ -184,6 +197,17 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             enabled={onSimpleSend !== undefined}
             disabledReason={hasText ? "Send your first message normally, then Simple send is available" : "Type a message to post"}
           />
+          {/* R3 (B1) — UN-GAME-GATED, and it lives HERE now rather than in the game-only Plot group below.
+              It never was a plot steer (the Plot comment already said so); it was game-gated only because the
+              standing `:::choices` posture used to exist only as an rpg feature. Both halves of the pair are
+              general now — the room-level toggle is in "This chat", the tokenizer renders the fence in any
+              room, and the chip click composes in any room — so a one-shot ask that works everywhere must be
+              REACHABLE everywhere. Rendered ONCE: moving it out of Plot rather than duplicating it is the
+              #568/#570 one-door rule, so a game chat gets the same single item, in the same place. */}
+          <MenuItem data-testid={testId("composerGuidedGameSteer")} onClick={onOfferChoices} title={OFFER_CHOICES_ONE_SHOT}>
+            <Icon icon={ListOrdered} size="sm" />
+            Offer choices
+          </MenuItem>
         </MenuGroup>
         <MenuSeparator />
         {/* CONTINUATION — undo/revert the last continuation. */}
@@ -233,18 +257,17 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
           </MenuItem>
         </MenuGroup>
         {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one Plot
-            submenu (side-eye P1-B — no more flat icon-less dump); Offer choices is its own item (not a plot
-            steer). Plot steers are APPLICABILITY-gated on plotProgression (the submenu is absent when off). */}
-        {game !== undefined ? (
+            submenu (side-eye P1-B — no more flat icon-less dump). "Offer choices" USED to sit here as its own
+            item; R3 moved it up to Reply, where it is reachable in every room (see its comment there). Plot
+            steers are APPLICABILITY-gated on plotProgression (the submenu is absent when off), so a game whose
+            plot progression is off now contributes no Plot group at all — the group had exactly one non-plot
+            tenant and it left. */}
+        {game !== undefined && game.plotAvailable ? (
           <>
             <MenuSeparator />
             <MenuGroup>
               <MenuGroupLabel>Plot</MenuGroupLabel>
-              {game.plotAvailable ? <PlotSteersSubmenu onSteer={game.onSteer} /> : null}
-              <MenuItem data-testid={testId("composerGuidedGameSteer")} onClick={(): void => game.onSteer("choices")}>
-                <Icon icon={ListOrdered} size="sm" />
-                Offer choices
-              </MenuItem>
+              <PlotSteersSubmenu onSteer={game.onSteer} />
             </MenuGroup>
           </>
         ) : null}

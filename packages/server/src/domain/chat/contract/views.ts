@@ -187,6 +187,15 @@ export interface ChatDetail {
    *  `chat.setHostDisplayScripts` (host-gated). Room-public — a member reads it too, because it explains
    *  why their transcript looks the way it does. */
   readonly hostDisplayScripts: boolean;
+  /** B1 — this room's OWN offer-choices posture (`metadata.offerChoices`), or `null` when the room has never
+   *  been pinned and therefore INHERITS the viewer-host's per-user default. The RAW tri-state, deliberately
+   *  not the resolved boolean: the resolution needs the HOST's `UserSettings.chat.offerChoices`, which this
+   *  projection does not read (and must not, for a member viewer) — while the one surface that resolves it,
+   *  the host's own toggle, already holds the host's settings because the viewer IS the host there. So the
+   *  wire carries the fact and `resolveOfferChoices` (@orb/contracts/chat) carries the rule, once. WRITE:
+   *  `chat.setOfferChoices` (host-gated). Room-public on the read — a member may see why the model keeps
+   *  offering choices. */
+  readonly offerChoices: boolean | null;
   /** BG-C — the host-set per-chat carried BACKGROUND source (parsed `metadata.background`), or `null` when
    *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
    *  for every viewer in any other composition (client-resolved). */

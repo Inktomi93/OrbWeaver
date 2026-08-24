@@ -182,6 +182,17 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
             all (FK cascade), on a cutoff measured from the chat's CREATION — not last activity — and only
             for chats you host. The sweep is the fire-and-forget call the Home temp-chat tile makes on
             mount, so an expired room can outlive its TTL until you next open Home. */}
+        {/* B1 — the DEFAULT this user's new rooms inherit, not a switch that reaches any existing room: the
+            per-room value always wins, and a room that has been pinned either way ignores this. The copy has
+            to say so, or a host who flips it here and sees an old room unchanged reads it as broken. */}
+        <form.AppField name="offerChoices">
+          {(field): ReactElement => (
+            <field.SwitchField
+              label="Offer choices in new chats"
+              description="New chats start out asking the model to end replies with a few numbered options; clicking one puts it in your composer to edit before you send. Existing chats keep whatever they are set to — change one in its This chat tab."
+            />
+          )}
+        </form.AppField>
         <form.AppField name="tempChatTtlHours">
           {(field): ReactElement => (
             <field.NumberField

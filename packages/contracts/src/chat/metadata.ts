@@ -269,4 +269,24 @@ export interface ChatMetadata {
    *  it. Host-set, host-only (`chat.setHostDisplayScripts`); it governs RENDER only — no wire payload, no
    *  canon, no composer/edit text is touched on either arm. */
   hostDisplayScripts?: boolean;
+  /** B1 / RULED F2 — the per-room "offer choices" POSTURE: whether this chat's model is taught the standing
+   *  `:::choices` fence (the reading surface renders the options as click-to-compose affordances).
+   *
+   *  TRI-STATE BY ABSENCE, and that is the whole point: `true`/`false` are the host's explicit per-room
+   *  choice, and ABSENT means INHERIT the host's own per-user default (`UserSettings.chat.offerChoices`) —
+   *  which is what makes a NEWLY-CREATED room born with the posture its host plays in, without any
+   *  create-time copy of the value into the blob. Resolve through {@link resolveOfferChoices}, never with an
+   *  ad-hoc `?? false`. Host-set (`chat.setOfferChoices`); room-public on the read (a member sees why the
+   *  model keeps offering choices). Distinct from the GAME's own `features.cyoa` knob, which is rpg's and
+   *  untouched — a chat with both on gets ONE teach (the S2 double-teach guard, `substrate/teaching.ts`). */
+  offerChoices?: boolean;
+}
+
+/** THE PRECEDENCE, one home: **the room's explicit choice wins; an absent room value inherits the host's
+ *  per-user default** (`UserSettings.chat.offerChoices`, itself defaulting to off). Two callers by design —
+ *  the SERVER resolves it per turn into the S2 teaching knobs, and the CLIENT resolves it to seat the host's
+ *  toggle — so the rule lives here in `contracts` rather than being spelled `?? default` on both sides of the
+ *  wire, where the two spellings could drift into a toggle that lies about what the model is being told. */
+export function resolveOfferChoices(roomValue: boolean | undefined, userDefault: boolean): boolean {
+  return roomValue ?? userDefault;
 }

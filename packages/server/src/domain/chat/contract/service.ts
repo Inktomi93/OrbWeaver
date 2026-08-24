@@ -88,6 +88,7 @@ import type {
   SetHostDisplayScriptsParams,
   SetMemberHistoryVisibilityParams,
   SetMessageHiddenParams,
+  SetOfferChoicesParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetSeededGreetingParams,
@@ -332,6 +333,11 @@ export interface ChatService {
   readonly setChatBackground: (params: SetChatBackgroundParams) => Promise<ThemeBackground>;
   /** D121-E display-tier room OPTION — host-only. Returns the stored value. */
   readonly setHostDisplayScripts: (params: SetHostDisplayScriptsParams) => Promise<boolean>;
+
+  /** B1 — the per-room offer-choices posture (`chatMetadata.offerChoices`), host-only. Returns the stored
+   *  value. Unlike its display-scripts neighbour this one reaches the PROMPT: on, the turn teaches the model
+   *  the standing `:::choices` fence. */
+  readonly setOfferChoices: (params: SetOfferChoicesParams) => Promise<boolean>;
 
   /** Host-only write of the per-chat tool-call recursion cap (`chatMetadata.toolRecurseLimit`, 1..20).
    *  Returns the stored value. */

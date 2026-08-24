@@ -372,7 +372,7 @@ async function hoverOpenSubmenu(trigger: Locator, submenu: Locator): Promise<voi
   }
 }
 
-test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
+test("game steers live in the ✨ menu (the Plot submenu) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
@@ -384,11 +384,10 @@ test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a
   await component.getByRole("button", { name: "Message tools" }).click();
   await expectPopupSettled(page.getByRole("menu", { name: "Message tools" }));
 
-  // The always-present Offer choices sits directly in the Plot group; the six plot steers nest under a Plot
-  // submenu (side-eye P1-B). Open the submenu, then fire one. HOVER, not click: Base UI's SubmenuTrigger
-  // wires `ignoreMouse` to `openOnHover`, so a mouse click on it is a deliberate no-op — the pointer landing
-  // on the row (100ms hover intent) is the only mouse-driven open.
-  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
+  // The six plot steers nest under a Plot submenu (side-eye P1-B). Open the submenu, then fire one. HOVER,
+  // not click: Base UI's SubmenuTrigger wires `ignoreMouse` to `openOnHover`, so a mouse click on it is a
+  // deliberate no-op — the pointer landing on the row (100ms hover intent) is the only mouse-driven open.
+  // ("Offer choices" left this group at R3/B1 — it renders in Reply now, in every room; its own arms below.)
   await hoverOpenSubmenu(page.getByRole("menuitem", { name: "Plot" }), page.getByRole("menu", { name: "Plot" }));
   await page.getByRole("menuitem", { name: "Advance the act" }).click();
 
@@ -397,7 +396,7 @@ test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a
   expect(trpc.lastInput("chat.generate")).toMatchObject({ guided: { action: "response", gameSteer: "advance" } });
 });
 
-test("Plot submenu is APPLICABILITY-gated off when plotProgression is false (Offer choices still shows)", async ({ mount, page }) => {
+test("Plot submenu is APPLICABILITY-gated off when plotProgression is false — and the group goes with it", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
@@ -406,16 +405,50 @@ test("Plot submenu is APPLICABILITY-gated off when plotProgression is false (Off
   });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
-  // The whole Plot submenu is absent (never a disabled twin); Offer choices always present on a game.
+  // The whole Plot submenu is absent (never a disabled twin). Since R3 took its one non-plot tenant away,
+  // the GROUP LABEL must go too — a "Plot" heading over nothing is the empty-promise the omit doctrine bans.
   await expect(page.getByRole("menuitem", { name: "Plot", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
+  await expect(page.getByText("Plot", { exact: true })).toHaveCount(0);
 });
 
-test("game steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount, page }) => {
+test("PLOT steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no rpg pointer → not a game
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
-  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Plot", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Advance the act" })).toHaveCount(0);
+});
+
+// ── R3 (B1): the "Offer choices" ONE-SHOT is un-game-gated ────────────────────────────────────────────
+// The owner's test names a PLAIN chat, so that is what these mount. The affordance is asserted the way a
+// user meets it — an accessible menuitem name — and the fire is asserted on the DECODED WIRE, because
+// "the item rendered" and "the item asks for choices" are different claims and only the second one matters.
+test("a NON-GAME chat's ✨ menu offers 'Offer choices', and it fires the choices gameSteer KIND", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => ({}) });
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await expectPopupSettled(page.getByRole("menu", { name: "Message tools" }));
+
+  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Offer choices" }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. The wire carries the KIND, never template text.
+  expect(trpc.lastInput("chat.generate")).toMatchObject({ guided: { action: "response", gameSteer: "choices" } });
+});
+
+test("'Offer choices' renders EXACTLY ONCE on a game chat — moved out of Plot, not duplicated into two doors", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": () => GAME_CHAT,
+    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
+  });
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await expectPopupSettled(page.getByRole("menu", { name: "Message tools" }));
+
+  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toHaveCount(1);
 });
 
 // ARM B (the templating fork, rows 53-73): the Rewrite modal's toggle picks ride the wire as KINDS. The

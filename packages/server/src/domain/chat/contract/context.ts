@@ -1011,10 +1011,22 @@ type GetRoomOverridesOp = (rawMetadata: unknown) => RoomOverrides;
  *  ADDITIVELY — one NAMED field per contribution that needs one, never a bag: a contribution reads the knob
  *  it was built for and a new knob is a tsc-visible field, not a lookup that silently resolves undefined.
  *  ONE field today (`offerChoices`, the B1 knob — RULED F2 chat-homed). The resolver is
- *  `substrate/teaching.ts`'s `DEFAULT_TEACHING_KNOBS`. */
+ *  `substrate/teaching.ts`'s `resolveTeachingKnobs`. */
 export interface TeachingKnobs {
-  /** Whether this chat asks the model to offer choices (the standing `:::choices` fence). */
+  /** Whether this chat asks the model to offer choices (the standing `:::choices` fence) — the room's own
+   *  `chatMetadata.offerChoices` when set, else the frozen host's per-user default (`resolveOfferChoices`). */
   readonly offerChoices: boolean;
+}
+
+/** The NAMES a `names-only` macro render binds when a teach slot's host OVERRIDE types `{{user}}`/`{{char}}`
+ *  ({@link TeachingContext.identity}). Chat owns this resolution for the whole turn (Chat-Macro-Resolution
+ *  ruling B) and hands the resolved pair down — a contribution never re-derives a protagonist. */
+export interface TeachingIdentity {
+  /** The ACTIVE/triggering persona's name, or `undefined` when the turn has none (⇒ the kit floor). */
+  readonly user: string | undefined;
+  /** The Ruling-B host/null-speaker `{{char}}`: the JOINED CAST in a multi-character room, the single
+   *  character in solo, `""` for an empty cast. */
+  readonly char: string;
 }
 
 /** The ONE input a teaching contribution reasons from — assembled ONCE per turn in `buildTurnContext`, after
@@ -1025,6 +1037,18 @@ export interface TeachingContext {
   readonly chatId: ChatId;
   readonly runAsUserId: UserId;
   readonly knobs: TeachingKnobs;
+  /** The TURN PRESET's composed prose overrides (`composeProse({ preset: promptConfig.prose })`). REQUIRED,
+   *  not optional, and that is the enforcement: a teach's text lives in `PROSE_SLOTS` and is PRESET-EDITABLE,
+   *  so a contribution that resolved the bare baseline instead would emit DIFFERENT BYTES than the same slot
+   *  resolved by another contributor (rpg's reminder resolves it through the preset) — and the double-teach
+   *  guard collapses on CONTENT, so a divergence there re-opens the exact duplicate-instruction defect the
+   *  guard exists to close. An optional field would make that divergence the silent default at any collection
+   *  site that forgot it; a required one makes tsc name the site. */
+  readonly prose: ProseOverrides;
+  /** The names a host override's `{{user}}`/`{{char}}` bind to ({@link TeachingIdentity}) — REQUIRED for the
+   *  same byte-identity reason as `prose`: rpg renders a macro-bearing override through the names-only
+   *  registry, so a contribution that skipped the render would ship literal braces AND break the collapse. */
+  readonly identity: TeachingIdentity;
   /** THIS turn's rpg gather, or `null` for a non-game chat / unwired rpg. Present so a contribution can see
    *  what the GAME already teaches before teaching it a second time (the double-teach case). It is the SAME
    *  object chat's own contribution projects — never a re-run of the gather. */

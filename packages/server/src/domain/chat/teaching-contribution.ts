@@ -12,6 +12,8 @@
 // cardKeepLastX, terminalTools — are untouched by this seam and still ride `buildTurnContext` directly.
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import { resolveProseText } from "@orb/contracts/prose";
+import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
 import type { ChatTeachingRegistry, TeachingCollection, TeachingContext, TeachingContribution } from "./contract/context.ts";
 
 /** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.
@@ -36,7 +38,83 @@ const rpgGatherProjection: TeachingContribution = {
     }),
 };
 
+// ── The B1 offer-choices teach ──────────────────────────────────────────────────────────────────────────
+//
+// THIS BELONGS IN CHAT'S OWN CONTRIBUTION FILE, not a new `domain/<x>/teaching-contribution.ts` root slot:
+// a D117 root-slot ratification is what a DOMAIN spends to raise its own seam into chat, and there is no
+// second domain here — the knob is chat-homed (RULED F2: `chatMetadata.offerChoices` over the host's
+// per-user default) and the teach is a chat-level posture. Do not "promote" this to a root slot for
+// symmetry with rpg; the symmetry would be with a domain that does not exist.
+
+/** The ONE choices-teach text, resolved the way rpg resolves it so the two are the SAME BYTES.
+ *
+ *  `PROSE_SLOTS["rpg.reminder.cyoaTeach"]` is the slot's one home (S2: NO second prose home). Two resolution
+ *  steps, both mirroring `domain/rpg/substrate/reminder.ts`'s `resolveTeach`, and both load-bearing:
+ *   1. the PRESET override wins over the shipped default (`resolveProseText` — the slot is `home: "preset"`,
+ *      and a host who re-authored it must not get the baseline here and their own text there);
+ *   2. a macro-BEARING override renders through the names-only registry, so a host who typed `{{user}}` gets
+ *      the name and never literal braces. The shipped default is macro-free, so it never touches the engine
+ *      (the `!includes("{{")` fast path) and is byte-identical to the pre-B1 constant.
+ *  The registry is kit's (`createNamesOnlyRegistry` — ONE engine, every call site, so identity resolves and
+ *  `{{random}}`/`{{setvar}}`/… re-emit verbatim). This is chat CALLING the shared engine, not a second home
+ *  for the slot. */
+const CHOICES_TEACH_SLOT_ID = "rpg.reminder.cyoaTeach" as const;
+const CHOICES_NAMES_REGISTRY = createNamesOnlyRegistry();
+/** The `{{user}}` floor when the turn has no active persona. Bound to the literal rpg's gather uses
+ *  (`domain/rpg/chat-ops/gather.ts:126` — `steerIdentity.user ?? "User"`), NOT `@orb/kit/persona`'s
+ *  `DEFAULT_PERSONA_NAME` ("Traveler"): the requirement here is byte-identity with the OTHER arm resolving
+ *  this same slot, and a different floor would make a personaless turn's override render two different
+ *  strings — which is precisely the containment miss below. If rpg's floor ever moves, this moves with it. */
+const CHOICES_USER_FLOOR = "User";
+function resolveChoicesTeach(tctx: TeachingContext): string {
+  const text = resolveProseText(CHOICES_TEACH_SLOT_ID, tctx.prose);
+  if (!text.includes("{{")) {
+    return text;
+  }
+  const macros = { char: tctx.identity.char, user: tctx.identity.user ?? CHOICES_USER_FLOOR, persona: "", scenario: "", env: {} };
+  return processMacros(text, macros, CHOICES_NAMES_REGISTRY);
+}
+
+/** Contributor #1 — the B1 standing "offer choices" posture: when this room's resolved knob is ON, tell the
+ *  model it may end a turn with the `:::choices` fence. OFF ⇒ `[]` ⇒ the turn is byte-identical.
+ *
+ *  THE SUPPRESSION ARM IS NOT THE COLLECTOR'S EXACT-MATCH GUARD, and this is a corrected premise (2026-08-24,
+ *  B1): `substrate/teaching.ts`'s guard collapses injections that are byte-identical as a WHOLE, and A1
+ *  assumed a game's cyoa teach arrives as its own injection. It does not. rpg pushes every teach into ONE
+ *  `blocks` array with the game-state block, the delta and the steering license
+ *  (`domain/rpg/substrate/reminder.ts:459`), joins them (`:571`), and emits exactly ONE injection
+ *  (`domain/rpg/chat-ops/gather.ts:183,206`) — `buildLiteReminder` has no other caller. So on a real game turn
+ *  the teach is a SUBSTRING of a larger blob and the exact-match guard cannot see it; without this arm a game
+ *  chat running cyoa AND this knob would be told the same thing twice.
+ *
+ *  So the check is CONTAINMENT of the exact resolved text in what this turn's gather already contributed. It
+ *  is narrow on purpose — the same bytes, resolved the same way, never a fuzzy match — and it lives HERE
+ *  rather than in the generic collector, which must not learn to sniff inside another domain's blob. It reads
+ *  `tctx.rpgGather` (the structural gather chat already owns), so it is independent of contributor order. */
+const offerChoicesTeach: TeachingContribution = {
+  id: "chat.offer-choices",
+  order: 1,
+  collect: (tctx: TeachingContext): Promise<TeachingCollection> => {
+    if (!tctx.knobs.offerChoices) {
+      return Promise.resolve(EMPTY_COLLECTION);
+    }
+    const teach = resolveChoicesTeach(tctx);
+    const alreadyTaught = (tctx.rpgGather?.injections ?? []).some((injection) => injection.content.includes(teach));
+    if (alreadyTaught) {
+      return Promise.resolve(EMPTY_COLLECTION);
+    }
+    // The SAME placement rpg's reminder uses (`in_chat` depth 0, `system`) — a teach is standing prompt
+    // content for the turn about to run, and the depth-0 in-chat splice is where this codebase puts it.
+    // Unstamped `origin`: the merge stamps it, and this is not game state.
+    return Promise.resolve({ injections: [{ position: "in_chat", depth: 0, role: "system", content: teach }], toolNames: [] });
+  },
+};
+
+/** The no-op collection — one frozen value so an OFF/suppressed arm allocates nothing and every "contributed
+ *  nothing" path is the same object the collector's empty-registry arm produces. */
+const EMPTY_COLLECTION: TeachingCollection = { injections: [], toolNames: [] };
+
 /** Chat's own teaching contributions, in registration order (the collector sorts by `order`). */
 export function createChatTeachingContributions(): ChatTeachingRegistry {
-  return [rpgGatherProjection];
+  return [rpgGatherProjection, offerChoicesTeach];
 }

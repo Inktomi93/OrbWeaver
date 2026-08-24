@@ -502,6 +502,15 @@ export interface SetHostDisplayScriptsParams extends ChatScopedParams {
   readonly enabled: boolean;
 }
 
+/** `setOfferChoices` — host-only write of the B1 offer-choices POSTURE (`chatMetadata.offerChoices`).
+ *  `enabled` is what this ROOM is pinned to; there is no "clear back to inherit" arm, because the host's
+ *  own toggle only ever sends the state they just chose (a fresh room, having never been written, is the
+ *  inherit case). Governs PROMPT CONTENT — with it on, the turn teaches the model the standing `:::choices`
+ *  fence — so it is host authority, not a viewer preference. */
+export interface SetOfferChoicesParams extends ChatScopedParams {
+  readonly enabled: boolean;
+}
+
 /** `setToolRecurseLimit` — host-only write of the per-chat tool-call recursion cap
  *  (`chatMetadata.toolRecurseLimit`, 1..20). Bounds how many times a turn may re-enter the engine on a
  *  `finishReason:"tool"` before it stops. */

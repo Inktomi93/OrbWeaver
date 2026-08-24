@@ -8,7 +8,16 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type { AssembleContext, DurableChatBusEvent, GroupConfig, MacroFreezeRecord, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatMetadata,
+  DurableChatBusEvent,
+  GroupConfig,
+  MacroFreezeRecord,
+  MessageView,
+  SpeakerRef,
+  UserMacroDraws,
+} from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType, GuidedImpersonatePerson, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
@@ -85,7 +94,7 @@ import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden }
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
-import { collectTeaching, DEFAULT_TEACHING_KNOBS } from "../substrate/teaching.ts";
+import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
 
 /** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
@@ -525,6 +534,11 @@ async function buildTurnContext(
      *  `{{char}}` follows the SAME value every other human-authored `{{char}}` uses (never a re-derived
      *  protagonist). Empty for an empty cast. */
     readonly castCharForHostRow: string;
+    /** THIS chat's parsed `metadata` blob — the room half of the B1 offer-choices knob (the host half rides
+     *  `foreign.chatBehavior`). Threaded from the CALLER rather than re-read here because every caller already
+     *  holds the row (`requireHost`/`requireParticipant` loaded it, or the drain path read it), so the turn
+     *  path buys no extra query; REQUIRED so tsc names any future caller that forgets it. */
+    readonly chatMetadata: ChatMetadata;
   },
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
@@ -551,13 +565,18 @@ async function buildTurnContext(
   //      multi-character room, the single character in solo), so the steeringNote's `{{char}}` matches every
   //      other human-authored `{{char}}` (rpg splices chat's value, never re-derives a protagonist).
   // Threaded so rpg renders the steeringNote's macros (guided-safe) instead of shipping literal braces.
+  // The turn preset's composed prose overrides + the Ruling-B identity pair, hoisted because BOTH the rpg
+  // gather and the S2 teaching collection resolve prose slots from them — and they must resolve the SAME
+  // bytes or the choices-teach containment check below cannot see a game's teach (`teaching-contribution.ts`).
+  const turnProse = composeProse({ preset: foreign.promptConfig.prose });
+  const teachIdentity = { user: foreign.personas.active?.name, char: args.castCharForHostRow };
   const rpg =
     ctx.rpg !== null
       ? await ctx.rpg.gatherTurnContext({
           chatId: args.chatId,
           pendingUserText: args.pendingUserText,
           respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
-          steerIdentity: { user: foreign.personas.active?.name, char: args.castCharForHostRow },
+          steerIdentity: teachIdentity,
           // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
           // same cut this turn's canon context takes, so a reroll is never told the abandoned variant's beats.
           regenSlotMessageId: args.regenSlotMessageId,
@@ -566,7 +585,7 @@ async function buildTurnContext(
           // storage its slot actually homes in, so a stale key in the blob is inert rather than authoritative.
           // `foreign.promptConfig` is the REDIRECTED preset on a game turn (`presetOverride`, resolved above), so
           // the teaches a table authored on its GM preset are the ones the reminder gets.
-          prose: composeProse({ preset: foreign.promptConfig.prose }),
+          prose: turnProse,
         })
       : null;
   // THE S2 TEACHING COLLECTION — the ONE assembly of "what this chat's model is told it can do", collected
@@ -576,7 +595,10 @@ async function buildTurnContext(
   const teaching = await collectTeaching(ctx.teaching, {
     chatId: args.chatId,
     runAsUserId: args.runAsUserId,
-    knobs: DEFAULT_TEACHING_KNOBS,
+    // B1 — the room's own posture over the frozen host's per-user default; ONE precedence home.
+    knobs: resolveTeachingKnobs(args.chatMetadata, foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR),
+    prose: turnProse,
+    identity: teachIdentity,
     rpgGather: rpg,
   });
   // The per-turn user-macro registries (WAVE MU delivery) — resolved ONCE via the top-level helper (kept out
@@ -1394,6 +1416,7 @@ async function commitUserTurn(
       guided,
       // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
       castCharForHostRow: joinedCastName(room.castNames),
+      chatMetadata: membership.chat.metadata,
     },
     sendOut,
   );
@@ -1578,6 +1601,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
           guided,
           // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
           castCharForHostRow: joinedCastName(room.castNames),
+          chatMetadata: membership.chat.metadata,
         }),
       };
     });
@@ -1696,6 +1720,10 @@ async function resolveTurnBase(
     readonly chatId: ChatId;
     readonly kind: TurnKind;
     readonly anchorPersonaId: PersonaId | null;
+    /** THIS chat's parsed `metadata` blob — threaded straight through to `buildTurnContext` (the B1 knob's
+     *  room half). Rides beside `anchorPersonaId` for the same reason: both come off the chat row every
+     *  caller here has already loaded. */
+    readonly chatMetadata: ChatMetadata;
     /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker. REQUIRED;
      *  a turn with no live triggering human states `{kind:"none"}` (the retired absent arm bound
      *  `personaIds[0]`, a presence-order-arbitrary bystander). */
@@ -1751,6 +1779,7 @@ async function resolveTurnBase(
     ...(args.frozenUserMacroDraws !== undefined ? { frozenUserMacroDraws: args.frozenUserMacroDraws } : {}),
     // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
     castCharForHostRow: joinedCastName(room.castNames),
+    chatMetadata: args.chatMetadata,
   });
   return {
     room,
@@ -1904,6 +1933,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
         chatId,
         kind: "swipe",
         anchorPersonaId: membership.chat.anchorPersonaId,
+        chatMetadata: membership.chat.metadata,
         trigger: humanTrigger(principal.userId, membership.activePersonaId),
         respondsToLatestUserTurn,
         // VER-1b: this turn REGENERATES `messageId` — the slot whose currently-selected variant is the one being
@@ -1972,6 +2002,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
         chatId,
         kind: "continue",
         anchorPersonaId: membership.chat.anchorPersonaId,
+        chatMetadata: membership.chat.metadata,
         trigger: humanTrigger(principal.userId, membership.activePersonaId),
         guided,
         // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
@@ -2099,6 +2130,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       chatId,
       kind: "impersonate",
       anchorPersonaId: membership.chat.anchorPersonaId,
+      chatMetadata: membership.chat.metadata,
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       guided,
@@ -2192,6 +2224,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         chatId,
         kind: "generate",
         anchorPersonaId: membership.chat.anchorPersonaId,
+        chatMetadata: membership.chat.metadata,
         trigger: humanTrigger(principal.userId, membership.activePersonaId),
         guided,
       });
@@ -2345,6 +2378,7 @@ async function runDeferredRound(
       respondsToLatestUserTurn: true,
       // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
       castCharForHostRow: joinedCastName(room.castNames),
+      chatMetadata: chat.metadata,
     });
   using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   const base: RoundBase = {
@@ -2534,6 +2568,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
         ...(guided !== undefined ? { guided } : {}),
         // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
         castCharForHostRow: joinedCastName(room.castNames),
+        chatMetadata: chat.metadata,
       });
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
