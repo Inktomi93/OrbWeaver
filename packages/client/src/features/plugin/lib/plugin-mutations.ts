@@ -50,6 +50,19 @@ export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["
 });
 
 /**
+ * The RE-CONSENT act (#650 P1-1/P1-3) — grants a NEW subset against the currently-installed manifest. `grant`
+ * is the WHOLE new set, not a delta (the verb's own contract: a consent surface shows the complete
+ * asked-vs-allowed picture and sends back exactly what it displayed). This is what turns the re-consent
+ * notice's escape into a real path instead of "remove and reinstall": before this verb existed, a widening
+ * upgrade's un-granted capability was permanently un-grantable short of dropping the plugin's storage.
+ */
+export const useSetPluginGrant = createEntityMutation<inferInput<Trpc["plugin"]["setGrant"]>, inferOutput<Trpc["plugin"]["setGrant"]>>({
+  options: (trpc) => trpc.plugin.setGrant.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.plugin.list.queryFilter(), trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId })],
+  errorToast: serverReason("Couldn't update that plugin's permissions."),
+});
+
+/**
  * Turn a plugin on or off. OPTIMISTIC on the `plugin.list` cache so the switch paints before the round trip
  * — a discrete-write control outside any autosave form — then reconciled by the settle invalidate.
  *

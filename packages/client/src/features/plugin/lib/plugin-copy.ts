@@ -5,7 +5,7 @@
 // `UncoveredCapability` a non-`never` type and the `Exhaustive<…>` alias below un-typable, so the grant
 // screen can never render a checkbox whose consequence is unexplained. That is the enforcement tier for "a
 // user must be able to see exactly what they are agreeing to" — the #24 security requirement — and it is the
-// coupled site a future capability (the parked `llm.quiet`) has to pass through.
+// coupled site a future capability has to pass through.
 //
 // WHY AN ORDERED ARRAY AND NOT A `Record<PluginCapability, …>`, stated so nobody "simplifies" it back: the
 // Record is the house shape and was written first, but ONE capability member (`global_vars`) is snake_case,
@@ -143,8 +143,8 @@ export const CAPABILITY_COPY_ROWS = [
 /**
  * THE COMPLETENESS PIN, carried by a real value rather than a dead type alias. It is the identity function,
  * but its declared type says "every `PluginCapability` is one of the ids the table above spells" — so the
- * day `PLUGIN_CAPABILITIES` gains a member with no row (the parked `llm.quiet`), `(c) => c` stops
- * typechecking HERE and the grant screen cannot ship an unexplained consent checkbox.
+ * day `PLUGIN_CAPABILITIES` gains a member with no row, `(c) => c` stops typechecking HERE and the grant
+ * screen cannot ship an unexplained consent checkbox.
  */
 const asExplainedCapability: (capability: PluginCapability) => (typeof CAPABILITY_COPY_ROWS)[number]["id"] = (capability) => capability;
 
@@ -182,12 +182,25 @@ export function grantSummaryLine(granted: readonly PluginCapability[]): string |
   return `Granting ${permissions} — ${notableWord} past the sandbox or spends your budget.`;
 }
 
-/** The lifecycle status as a row's state line — never the raw wire word. */
-export function statusCopy(status: PluginStatus): { readonly label: string; readonly intent: "success" | "neutral" | "danger" } {
+/**
+ * The lifecycle status as a row's state line — never the raw wire word. `reconsentPending` (#650 P1-1) is
+ * consulted for the `disabled` arm ONLY: it distinguishes "the owner turned this off" from "the system
+ * refused it on the owner's behalf" — a widening upgrade that landed the row `disabled` reads identically to
+ * the owner's own toggle-off otherwise, and the surface would be presenting the system's refusal as the
+ * person's decision. `warning` rather than `neutral` because it names an OPEN question ("this still needs
+ * you"), not a settled state — the row below carries the actual re-consent notice + action.
+ */
+export function statusCopy(
+  status: PluginStatus,
+  reconsentPending: boolean,
+): { readonly label: string; readonly intent: "success" | "neutral" | "warning" | "danger" } {
   if (status === "enabled") {
     return { label: "On", intent: "success" };
   }
-  return status === "errored" ? { label: "Stopped after an error", intent: "danger" } : { label: "Off", intent: "neutral" };
+  if (status === "errored") {
+    return { label: "Stopped after an error", intent: "danger" };
+  }
+  return reconsentPending ? { label: "Off — asked for more than you allowed", intent: "warning" } : { label: "Off", intent: "neutral" };
 }
 
 /**

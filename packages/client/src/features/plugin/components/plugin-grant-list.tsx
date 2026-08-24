@@ -15,14 +15,16 @@
 // case. The caller computes it from the same two inputs the server compares, so the mark agrees with the
 // server's own verdict.
 //
-// THERE IS DELIBERATELY NO EQUIVALENT FOR HOSTS, and that is a correctness decision, not an omission. The
-// server compares a new manifest's `netHosts` against the PRIOR MANIFEST's (`domain/plugin/verbs/upgrade.ts`),
-// and `PluginView` projects neither the declared capabilities nor `netHosts` — so a client CANNOT know which
-// hosts are new. An earlier revision of this component marked EVERY host "New" on a re-consent, which put a
-// false claim on the security surface (the CT receipt showed `api.weather.example` — carried forward
-// unchanged from v1 — wearing a New badge). The host list is therefore rendered plainly, as "what this
-// version can reach", which is true and is what consent to an exact-host allowlist actually needs. When the
-// projection lands, a host-delta mark is an ADDITION here, not a rewrite.
+// THERE IS DELIBERATELY NO EQUIVALENT FOR HOSTS, and that is a correctness decision, not an omission — even
+// now that `PluginView` projects `declaredCapabilities` and `netHosts` (#650 P1-2). The server judges a
+// widening against the PRIOR manifest's `netHosts` (`domain/plugin/verbs/upgrade.ts`), and nothing persists
+// THAT — the row's `manifest` column is overwritten on every upgrade, so by the time a re-consent notice
+// renders, the "before" host list is already gone. A client can know the CURRENT host list, never the delta.
+// An earlier revision of this component marked EVERY host "New" on a re-consent, which put a false claim on
+// the security surface (the CT receipt showed `api.weather.example` — carried forward unchanged from v1 —
+// wearing a New badge). The host list is therefore rendered plainly, as "what this version can reach", which
+// is true and is what consent to an exact-host allowlist actually needs. A host-delta mark would need a
+// SECOND persisted column (the prior list) to ever be added correctly.
 //
 // A11Y: each row is a real `Field` label wrapping its `Checkbox`, so the control has an accessible name and
 // the whole row is the hit target (the side-eye 2026-08-09 P1-9 ruling — twelve bare checkboxes beside
@@ -169,6 +171,13 @@ export function PluginGrantList({
   const addedSet = new Set<PluginCapability>(addedCapabilities ?? []);
   const rows = orderedDeclared(declared);
   const unexplained = unexplainedCount(declared);
+  // The host list rides `netHosts` alone (DECLARED, not granted) — this component shows what a screen is
+  // ASKING about or has ASKED about, checked or not, same as every other capability row. A caller whose
+  // screen instead means "what is CONFIRMED" (the durable disclosure — past tense, not a live confirm) is
+  // responsible for gating its OWN `netHosts` prop on whether `net.fetch` is actually granted before
+  // passing it in; doing that gate HERE would hide the host list from the re-consent notice's own newly-
+  // asked, not-yet-granted `net.fetch` case, which is exactly the reach a person needs to see to decide.
+  const showHosts = netHosts.length > 0;
 
   return (
     <Stack gap="block">
@@ -194,7 +203,7 @@ export function PluginGrantList({
         </Text>
       ) : null}
 
-      {netHosts.length === 0 ? null : (
+      {showHosts ? (
         <Stack gap="field">
           <Stack gap="tight">
             <Text voice="label">
@@ -224,7 +233,7 @@ export function PluginGrantList({
             ))}
           </ul>
         </Stack>
-      )}
+      ) : null}
     </Stack>
   );
 }

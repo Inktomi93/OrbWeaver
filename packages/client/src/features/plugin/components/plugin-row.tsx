@@ -1,25 +1,26 @@
 // plugin-row — one installed plugin: what it is, whether it is on, what it is allowed to do, its log, and
 // the two lifecycle acts that are not a toggle (update the bundle, remove it).
 //
-// THE RE-CONSENT CASE IS THE HARD PART, and the copy here is deliberately narrower than the design's own
-// words, because the mechanism is narrower. `upgrade` recomputes the grant as `normalizeGrant(newDeclared,
-// priorGranted)` — the INTERSECTION (`domain/plugin/substrate/grants.ts:26-29`) — so a NEWLY-DECLARED
-// capability is recorded as NOT granted, and the row lands `disabled`. `setEnabled` then activates with
-// `existing.grantedCapabilities` and takes no grant argument (`verbs/set-enabled.ts:24`); there is no
-// re-grant verb on the router at all. So "turn it back on to re-confirm" — which is what `upgrade.ts`'s own
-// header and the parked design set both say — would be FALSE COPY on the one screen that must not lie: the
-// loop fails CLOSED (the plugin never gets what nobody allowed), but re-enabling grants nothing. The banner
-// therefore says what is true: the extra permissions are not granted, turning it on runs it with what you
-// already allowed, and allowing more means removing and reinstalling. The gap is reported, not papered over.
+// THE RE-CONSENT NOTICE IS DERIVED, NOT LOCAL STATE (#650 P1-1, corrected once the server started
+// projecting it). `plugin.reconsentPending` is a DURABLE server flag — true from the moment an upgrade
+// widened declared reach and forced this row `disabled`, cleared only when the owner re-consents to the
+// WHOLE current ask via `setGrant`. Before this field existed, the notice lived in a local `useState` that
+// died on unmount or reload — the very defect #650 was filed over ("consent you can't revisit isn't
+// consent"). Deriving it from `plugin.declaredCapabilities`/`grantedCapabilities`/`netHosts` every render
+// means the notice survives a reload, a re-navigation, anything short of the owner actually resolving it.
 //
-// The DELTA the banner shows is the capability arm only, computed client-side from the SAME two inputs the
-// server compares (`manifest.capabilities` from the pre-flight bundle read × the row's `grantedCapabilities`
-// — `verbs/upgrade.ts:42`), so it agrees with the server's verdict by construction. The netHosts arm is NOT
-// computable here: the server compares against the PRIOR MANIFEST's hosts and `PluginView` projects neither
-// the declared capabilities nor `netHosts`. The new bundle's FULL host list is rendered instead — legible
-// consent, honestly not a delta.
+// THE ESCAPE IS A REAL PATH, NOT A DEAD END. `setGrant` is an EXPLICIT re-consent act — it never enables (a
+// disabled plugin stays disabled) and enabling never re-grants (`setEnabled` still reads the stored grant) —
+// so granting and running stay two separate owner decisions, on purpose. The notice's "Allow" button grants
+// the plugin's WHOLE currently-declared ask (the same "default = everything asked, checked" posture the
+// install card takes), which is what actually clears `reconsentPending`; a partial grant would leave it
+// standing, honestly, because the plugin is still asking for something not yet allowed.
+//
+// `net.fetch` NEEDS THE ACKNOWLEDGEMENT ECHO. Every other capability is consented to BY NAME; `net.fetch`'s
+// reach is `netHosts`, which the owner never types, so the caller echoes back the EXACT host list it
+// rendered (`plugin.netHosts ?? []`) and the server refuses if a manifest host is missing from that echo —
+// the anti-TOCTOU guard against a manifest moving under a rendered consent screen.
 
-import type { PluginCapability } from "@orb/contracts/plugin";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -37,19 +38,11 @@ import { notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { builtAgainstLine, REMOVE_PLUGIN_DESCRIPTION, reConsentLine, statusCopy } from "../lib/plugin-copy.ts";
-import { useSetPluginEnabled, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
+import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";
 
 type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
-
-/** What the last upgrade asked for beyond the confirmed grant — held only while the row is mounted, because
- *  nothing durable records it (see the header's projection note). */
-interface WidenNotice {
-  readonly capabilities: readonly PluginCapability[];
-  readonly netHosts: readonly string[];
-  readonly declared: readonly PluginCapability[];
-}
 
 export interface PluginRowProps {
   readonly plugin: PluginView;
@@ -60,35 +53,25 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
   const invalidation = useInvalidation();
   const setEnabled = useSetPluginEnabled({ trpc, invalidation });
   const upgrade = useUpgradePlugin({ trpc, invalidation });
+  const setGrant = useSetPluginGrant({ trpc, invalidation });
   const uninstall = useUninstallPlugin({ trpc, invalidation });
-  const [widened, setWidened] = useState<WidenNotice | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const status = statusCopy(plugin.status);
+  const status = statusCopy(plugin.status, plugin.reconsentPending);
   const provenance = builtAgainstLine(plugin.builtAgainst);
 
-  const applyUpgrade = (preview: PluginBundlePreview): void => {
-    // The SAME comparison the server makes (`newlyDeclaredCapabilities(manifest.capabilities,
-    // existing.grantedCapabilities)`), so the notice and the server's disable decision cannot disagree.
-    const granted = new Set<PluginCapability>(plugin.grantedCapabilities);
-    const newCapabilities = preview.manifest.capabilities.filter((capability) => !granted.has(capability));
-    upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).then(
-      (updated) => {
-        // The server's own verdict is the row's `status`: a widening upgrade lands `disabled`. Only then is
-        // there anything to re-consent to, so the notice keys off THAT rather than off the local delta.
-        if (updated.status === "disabled" && (newCapabilities.length > 0 || (preview.manifest.netHosts ?? []).length > 0)) {
-          setWidened({
-            capabilities: newCapabilities,
-            netHosts: preview.manifest.netHosts ?? [],
-            declared: preview.manifest.capabilities,
-          });
-          return;
-        }
-        setWidened(null);
-        notify.success(`${plugin.name} is now ${updated.version}.`);
-      },
-      () => undefined,
-    );
+  const applyUpgrade = async (preview: PluginBundlePreview): Promise<void> => {
+    const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(() => undefined);
+    if (updated === undefined) {
+      return;
+    }
+    // The server's own verdict, not a client-computed guess: `reconsentPending` is exactly the durable
+    // flag the notice below renders from, so the toast and the notice can never disagree.
+    if (updated.reconsentPending) {
+      notify.info(`${plugin.name} stayed off — this update asks for more than you've allowed. Check below.`);
+      return;
+    }
+    notify.success(`${plugin.name} is now ${updated.version}.`);
   };
 
   const onUpgradeFile = (file: File): void => {
@@ -164,14 +147,17 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
         </Text>
       )}
 
-      {widened === null ? null : (
+      {plugin.reconsentPending ? (
         <ReConsentNotice
-          notice={widened}
+          allowing={setGrant.isPending}
+          onAllow={(): void => {
+            setGrant.mutate({ acknowledgedNetHosts: [...(plugin.netHosts ?? [])], grant: [...plugin.declaredCapabilities], pluginId: plugin.id });
+          }}
           onRemove={(): void => uninstall.mutate({ pluginId: plugin.id })}
-          pluginName={plugin.name}
+          plugin={plugin}
           removing={uninstall.isPending}
         />
-      )}
+      ) : null}
 
       <Collapsible>
         <CollapsibleTrigger aria-label={`What ${plugin.name} is allowed to do`}>
@@ -185,16 +171,25 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             checkbox's. Scoped here rather than widened in `@orb/ui`: only a right-docked control inside a
             height-animated panel hits this, and this is the one place plugin-grant-list.tsx pairs the two. */}
         <CollapsiblePanel className="pe-3">
-          {plugin.grantedCapabilities.length === 0 ? (
+          {plugin.declaredCapabilities.length === 0 ? (
             <Text prose={true} voice="gloss">
               Nothing. It can run its own code and reach nothing else.
             </Text>
           ) : (
+            // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
+            // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
+            // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
+            // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
+            //
+            // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
+            // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
+            // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
+            // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
             <PluginGrantList
               capabilitiesLabel={`What ${plugin.name} is allowed to do`}
-              declared={plugin.grantedCapabilities}
+              declared={plugin.declaredCapabilities}
               granted={plugin.grantedCapabilities}
-              netHosts={[]}
+              netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
             />
           )}
         </CollapsiblePanel>
@@ -218,52 +213,61 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
 }
 
 interface ReConsentNoticeProps {
-  readonly notice: WidenNotice;
-  readonly pluginName: string;
-  /** Fires the SAME uninstall the row's overflow menu triggers — the notice's own escape action (P1-3). */
+  readonly plugin: PluginView;
+  /** Grants the WHOLE currently-declared ask (file header) — the only write that can clear
+   *  `reconsentPending`, since a partial grant honestly leaves it standing. */
+  readonly onAllow: () => void;
+  /** Fires the SAME uninstall the row's overflow menu triggers — the notice's other escape action (P1-3). */
   readonly onRemove: () => void;
+  readonly allowing: boolean;
   readonly removing: boolean;
 }
 
-/** The widened-reach notice — what the update asked for beyond the confirmed grant, and the TRUE path to
- *  allowing it. `role="alert"`: it appears asynchronously after a file pick and is the whole reason the
- *  plugin stopped.
+/** The re-consent notice — what the plugin currently asks for beyond the confirmed grant, and the TWO true
+ *  paths forward: allow the whole ask, or remove it. `role="alert"` because it renders whenever
+ *  `plugin.reconsentPending` is true, which is a standing fact about the row, not a one-shot toast.
  *
  * THE ESCAPE ACTION LIVES INSIDE THE NOTICE (side-eye #650 P1-3), not just described in its prose and left
  * for a person to hunt down behind the row's unrelated `⋯` menu. The prior shape had every ungranted
  * capability rendered as a DISABLED CHECKBOX, which looked exactly like a control that would grant the
- * missing permission if ticked — clicking it did nothing, silently, and the actual next step ("remove it
- * and install the new bundle") was three UI regions away. `PluginGrantList` now renders those rows as a
- * "Not granted" statement instead of an inert control (see its own header); this button is the other half
- * — the action the statement's sentence points at, reachable without leaving the alert region. */
-function ReConsentNotice({ notice, onRemove, pluginName, removing }: ReConsentNoticeProps): ReactElement {
+ * missing permission if ticked — clicking it did nothing, silently. `PluginGrantList` now renders those
+ * rows as a "Not granted" statement instead of an inert control (see its own header); "Allow" is the real
+ * action the statement's sentence used to only gesture at ("remove it and install the new bundle" — that
+ * sentence is gone; it was never true once `setGrant` existed to close the loop directly). */
+function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing }: ReConsentNoticeProps): ReactElement {
+  // The delta this notice exists to explain: everything currently declared that isn't yet granted. Computed
+  // from the SAME two durable fields `reconsentPending` itself is judged against, so the notice can never
+  // disagree with the flag that triggered it.
+  const ungranted = plugin.declaredCapabilities.filter((capability) => !plugin.grantedCapabilities.includes(capability));
   return (
-    <Stack aria-label={`What the update to ${pluginName} asked for`} gap="block" role="alert">
-      <Text voice="promoted">{reConsentLine(notice.capabilities)}</Text>
+    <Stack aria-label={`What ${plugin.name} asks for beyond what you've allowed`} gap="block" role="alert">
+      <Text voice="promoted">{reConsentLine(ungranted)}</Text>
       <Text prose={true} voice="gloss">
-        Orbweaver did not grant the extra permissions. Turning {pluginName} back on runs it with only what you had already allowed — to allow more, remove it
-        and install the new bundle.
+        Orbweaver did not grant the extra permissions, so {plugin.name} stayed off. Allowing the whole ask below grants it — turning it back on is still a
+        separate step, above — or remove it.
       </Text>
-      {/* The checked/unchecked state is the point: a new capability renders UNCHECKED, because that is
-          literally what the server stored (`normalizeGrant` intersects the new declared set with the prior
-          grant). A person can see that the thing being asked for is the thing they do not have. */}
+      {/* Read-only + `addedCapabilities`: the ungranted rows render as "Not granted" statements (P1-3), and
+          the NEW mark on each names exactly what this notice is about. */}
       <PluginGrantList
-        addedCapabilities={notice.capabilities}
-        capabilitiesLabel={`What the update to ${pluginName} asked for`}
-        declared={notice.declared}
-        granted={notice.declared.filter((capability) => !notice.capabilities.includes(capability))}
-        netHosts={notice.netHosts}
+        addedCapabilities={ungranted}
+        capabilitiesLabel={`What ${plugin.name} asks for`}
+        declared={plugin.declaredCapabilities}
+        granted={plugin.grantedCapabilities}
+        netHosts={plugin.netHosts ?? []}
         netHostsHeading="Hosts this version can reach"
       />
       <Row gap="field" justify="start">
+        <Button intent="primary" loading={allowing} onClick={onAllow} size="sm">
+          Allow the whole ask
+        </Button>
         <ConfirmDialog
           confirmLabel="Remove plugin"
           description={REMOVE_PLUGIN_DESCRIPTION}
           onConfirm={onRemove}
-          title={`Remove "${pluginName}"?`}
+          title={`Remove "${plugin.name}"?`}
           trigger={
             <Button intent="destructive" loading={removing} size="sm">
-              Remove {pluginName}
+              Remove {plugin.name}
             </Button>
           }
         />
