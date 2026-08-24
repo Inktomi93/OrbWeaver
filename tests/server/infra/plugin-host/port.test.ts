@@ -10,7 +10,7 @@ import type { NotificationRecipient } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { createPluginHost, Sandbox } from "@orb/server/infra/plugin-host";
+import { createPluginHost, EVENT_QUEUE_DEPTH, PLUGIN_INVOCATION_SETTLE_GRACE_MS, PLUGIN_MEMORY_LIMIT_BYTES, Sandbox } from "@orb/server/infra/plugin-host";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -22,6 +22,7 @@ const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9
 const INBOUND_CAP_RE = /inbound cap/u;
 const QUEUE_FULL_RE = /queue full/u;
 const HANDLER_BOOM_RE = /handler boom/u;
+const INVOCATION_ENDED_RE = /invocation ended/u;
 
 /** The concurrency-belt witness guest (a resident tool): (1) await a HUNG getVariables — returns control to the
  *  event loop mid-invocation, opening the race window; (2) requestTurn — forwards ITS invocation's
@@ -1191,6 +1192,118 @@ describe("port.invoke — per-instance FIFO serialization (concurrency belt on t
     await expect(boomDone).rejects.toThrow(HANDLER_BOOM_RE);
     // The tail advanced past the rejection — the queued good invoke ran and returned.
     expect(await okDone).toBe("fine");
+    host.dispose(outcome.instance);
+  });
+});
+
+// The FIFO's "a hung guest deadlines and the queue advances" claim was FALSE until the settlement deadline
+// landed: the interrupt preempts BYTECODE only, so a handler returning `new Promise(() => {})` never settled —
+// `queueDepth` never decremented and, after EVENT_QUEUE_DEPTH such invokes, the instance refused EVERYTHING
+// forever while its row still said `enabled`. These are the wedge pins.
+describe("the invocation SETTLEMENT deadline through the port (the FIFO wedge + the snippet leak)", () => {
+  /** A resident instance carrying a hanging handler + a healthy one, on a TIGHT settlement wall. */
+  async function residentHangTool(
+    host: ReturnType<typeof createPluginHost>,
+  ): Promise<{ instance: PluginInstance; hang: PluginHandlerRef; ok: PluginHandlerRef }> {
+    const { bridge } = fakeBridge();
+    const main = `
+      const h = orb.host(1);
+      h.tools.register({ name: "hang", description: "never settles", parameters: { type: "object", properties: {} }, handler: () => new Promise(() => {}) });
+      h.tools.register({ name: "ok", description: "fine", parameters: { type: "object", properties: {} }, handler: async () => "healthy" });
+      'ok';`;
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["tools.register"],
+      bridge,
+      chat: noChat,
+      budgets: { cpuDeadlineMs: 100, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: 150 },
+    });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const hang = outcome.instance.tools.find((t) => t.name === "hang")?.handler;
+    const ok = outcome.instance.tools.find((t) => t.name === "ok")?.handler;
+    if (hang === undefined || ok === undefined) {
+      throw new Error("no handler refs");
+    }
+    return { instance: outcome.instance, hang, ok };
+  }
+
+  test("a hung handler's invoke REJECTS and the per-instance FIFO advances (it no longer wedges)", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { instance, hang, ok } = await residentHangTool(host);
+    await expect(host.invoke(instance, hang, "{}", noChat)).rejects.toThrow(INVOCATION_ENDED_RE);
+    // The instance is NOT collateral damage: its other tools still run (one hung handler must not kill a
+    // plugin's whole surface — there is no lazy re-activation to recover it).
+    expect(await host.invoke(instance, ok, "{}", noChat)).toBe("healthy");
+    host.dispose(instance);
+  });
+
+  test("a FLOOD of hung invokes drains instead of pinning the instance forever (queueDepth is released)", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { instance, hang, ok } = await residentHangTool(host);
+    // Fill the bounded FIFO with hangs. Pre-fix every one of these was permanently pending, so the instance
+    // was dead — tools, transforms and event handlers all refused with `queue full` while the row said enabled.
+    const flood = Array.from({ length: EVENT_QUEUE_DEPTH }, () => host.invoke(instance, hang, "{}", noChat).catch(() => "ended"));
+    expect(await Promise.all(flood)).toEqual(new Array(EVENT_QUEUE_DEPTH).fill("ended"));
+    // The queue is empty again — a healthy invoke is admitted and runs.
+    expect(await host.invoke(instance, ok, "{}", noChat)).toBe("healthy");
+    host.dispose(instance);
+  });
+
+  test("a hung SNIPPET returns instead of stranding its 32 MiB context (the member-reachable path)", { timeout: LONG }, async () => {
+    // `plugin.runSnippet` is a plain authedProcedure on the loose `general` bucket (600 req/min per user), and
+    // its sandbox is scope-owned (`using`) — a scope that never exits never disposes, so before the settlement
+    // deadline ONE line of guest JS, repeated, was an unbounded per-call context leak inside the ONE shared
+    // WASM module. The snippet wall is SNIPPET_WALL_MS + the grace (the grace is load-bearing — see the
+    // legitimate-slow-host-call pin below), so this test runs for that long by design.
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const result = await host.runSnippet({
+      code: "new Promise(() => {})",
+      grants: ["chat.read"],
+      bridge,
+      chat: { chatId: CHAT, canWrite: false, automationDepth: 0 },
+    });
+    expect(result.error).toBeDefined();
+    expect(result.error).toMatch(INVOCATION_ENDED_RE);
+  });
+
+  test("the wall does NOT end a guest legitimately awaiting a host call slower than its CPU deadline", { timeout: LONG }, async () => {
+    // WHY THE GRACE IS THE HOST-FN DEADLINE, pinned: the interrupt does NOT reliably fire on the short
+    // continuation after an `await`, so `const r = await h.net.fetch(u); return r.body` SUCCEEDS well past
+    // `cpuDeadlineMs` (measured: a 1.5 s host call under a 200 ms cpu deadline returns its value). A settlement
+    // wall tighter than one host-fn deadline would therefore kill working plugins, not hung ones.
+    const host = makeHost();
+    const base = fakeBridge().bridge;
+    const bridge: PluginBridge = {
+      ...base,
+      chat: { ...base.chat, getVariables: () => new Promise((resolve) => setTimeout(() => resolve({ tension: "9" }), 800)) },
+    };
+    const main = `
+      const h = orb.host(1);
+      h.tools.register({
+        name: "slow",
+        description: "awaits a slow host call",
+        parameters: { type: "object", properties: {} },
+        handler: async () => "got:" + (await h.chat.getVariables(h.chat.current())).tension,
+      });
+      'ok';`;
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["tools.register", "chat.read"],
+      bridge,
+      chat: noChat,
+      budgets: { cpuDeadlineMs: 200, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: PLUGIN_INVOCATION_SETTLE_GRACE_MS },
+    });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    expect(await host.invoke(outcome.instance, ref, "{}", { chatId: CHAT, canWrite: false, automationDepth: 0 })).toBe("got:9");
     host.dispose(outcome.instance);
   });
 });

@@ -10,7 +10,7 @@
 
 import process from "node:process";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { boundHostFn, getPluginQuickJS, Sandbox } from "@orb/server/infra/plugin-host";
+import { boundHostFn, getPluginQuickJS, PLUGIN_INVOCATION_ENDED, Sandbox } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle, VmCallResult } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
@@ -199,6 +199,69 @@ describe("Sandbox — DoS containment (the runtime pin)", () => {
       expect((await fresh.evalGuest("1 + 1")).value).toBe("2");
     } finally {
       fresh.dispose();
+    }
+  });
+});
+
+// The interrupt handler preempts guest BYTECODE only (budgets.ts header), so a guest that STOPS executing —
+// `new Promise(() => {})`, an await that never resumes — is structurally invisible to it: before the settlement
+// deadline landed, `runToSettlement` awaited such a guest FOREVER (measured: the control below dies at ~5 s
+// while a never-settling promise never returned), stranding the context, wedging the per-instance FIFO, and
+// hiding the hang from the 3-strike crash policy (which only ever counts a REJECTION).
+describe("Sandbox — the invocation SETTLEMENT deadline (what the interrupt cannot bound)", () => {
+  test("a guest promise that never settles ENDS the invocation at the wall (not a hang)", async () => {
+    const sandbox = await Sandbox.create(makeSeams(), { limits: { cpuDeadlineMs: 100, settleGraceMs: 150 } });
+    try {
+      const start = process.hrtime();
+      const outcome = await sandbox.evalGuest("new Promise(() => {})");
+      const took = elapsedMs(start);
+      expect(outcome.ok).toBe(false);
+      // The design's `PluginInvocationEnded` (03 §3), as DATA — nothing crosses back into the guest realm.
+      expect(outcome.error?.name).toBe(PLUGIN_INVOCATION_ENDED);
+      // It ended at the WALL (cpu + grace), not at the cpu deadline and not never.
+      expect(took).toBeGreaterThanOrEqual(200);
+      expect(took).toBeLessThan(3000);
+      // Handle discipline holds through the ended path — the taken guest-promise handle was freed (an alive
+      // handle at teardown ABORTS the shared WASM module; see the next test).
+      expect(sandbox.pendingHandles).toBe(0);
+    } finally {
+      sandbox.dispose();
+    }
+  });
+
+  test("after an ENDED invocation the instance still runs, tears down cleanly, and the PROCESS survives", async () => {
+    // THE HOST-CRASH PIN. `dispose()` with the abandoned guest-promise handle still alive aborts the shared
+    // WASM module (`Assertion failed: list_empty(&rt->gc_obj_list)` in JS_FreeRuntime) — which would kill every
+    // OTHER plugin's context in the process. A hung guest is guest-CONTROLLED, so that abort would be
+    // guest-reachable: this asserts the ended path frees what it took.
+    const sandbox = await Sandbox.create(makeSeams(), { limits: { cpuDeadlineMs: 100, settleGraceMs: 150 } });
+    expect((await sandbox.evalGuest("new Promise(() => {})")).ok).toBe(false);
+    // One hung handler must not kill the instance: a resident sandbox is ONE context shared by every
+    // tool/transform/event handler, and there is no lazy re-activation to recover it.
+    expect(sandbox.alive).toBe(true);
+    expect((await sandbox.evalGuest("1 + 1")).value).toBe("2");
+    sandbox.dispose();
+    expect(sandbox.alive).toBe(false);
+
+    const fresh = await Sandbox.create(makeSeams());
+    try {
+      expect((await fresh.evalGuest("40 + 2")).value).toBe("42");
+    } finally {
+      fresh.dispose();
+    }
+  });
+
+  test("the wall does NOT preempt a guest still burning bytecode — that stays the interrupt's kill", async () => {
+    // Ordering pin: the settlement wall sits ABOVE the cpu deadline by the grace, so a busy loop is still
+    // killed by the interrupt (`interrupted`), never mis-reported as an ended invocation.
+    const sandbox = await Sandbox.create(makeSeams(), { limits: { cpuDeadlineMs: 100, settleGraceMs: 5000 } });
+    try {
+      const outcome = await sandbox.evalGuest("while (true) {}");
+      expect(outcome.ok).toBe(false);
+      expect(outcome.error?.message).toContain("interrupted");
+      expect(outcome.error?.name).not.toBe(PLUGIN_INVOCATION_ENDED);
+    } finally {
+      sandbox.dispose();
     }
   });
 });

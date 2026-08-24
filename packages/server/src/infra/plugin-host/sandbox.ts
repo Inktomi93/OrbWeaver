@@ -5,6 +5,12 @@
 // the RESIDENT-HANDLER runtime — `main.js` registers guest tool callbacks at activation; the Sandbox keeps each
 // live handler HANDLE (keyed by a minted ref), and `invokeHandler` calls it under the per-invocation budget.
 //
+// TWO invocation bounds, do NOT conflate them: the QuickJS interrupt handler bounds guest BYTECODE
+// (`cpuDeadlineMs`), and the SETTLEMENT deadline bounds the INVOCATION in real time
+// (`cpuDeadlineMs + settleGraceMs`). Only the second can end a guest that has STOPPED executing bytecode —
+// `new Promise(() => {})`, an await that never resumes — which the interrupt is structurally blind to. On
+// expiry the invocation returns `PluginInvocationEnded` and the hung guest is left INERT (see `endInvocation`).
+//
 // Ownership discipline (the sharp edge quickjs-emscripten demands): EVERY handle the host mints must be
 // disposed. Per-invocation handles are disposed at end-of-invocation and counted (`pendingHandles`) so a leak
 // is a failing assertion; the realm/handler handles live for the sandbox lifetime and die with `dispose()`.
@@ -12,12 +18,13 @@
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { PluginCapability, PluginEventSubscription, PluginHandlerRef, PluginToolRegistration, PluginTransformRegistration } from "@orb/contracts/plugin";
-import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule } from "quickjs-emscripten-core";
+import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
 import {
   GUEST_MAX_STACK_BYTES,
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
   PLUGIN_INVOCATION_CPU_MS,
+  PLUGIN_INVOCATION_SETTLE_GRACE_MS,
   PLUGIN_INVOKE_ARGS_MAX_BYTES,
   PLUGIN_MEMORY_LIMIT_BYTES,
 } from "./budgets.ts";
@@ -26,12 +33,30 @@ import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
-/** Per-instance DoS limits. Both default to the shared budget constants; a snippet passes a wider wall. */
+/** Per-instance DoS limits. All default to the shared budget constants; a snippet passes a wider wall. */
 export interface SandboxLimits {
-  /** Per-invocation guest CPU deadline (real wall-time), ms. */
+  /** Per-invocation guest CPU deadline (real wall-time), ms — enforced by the QuickJS interrupt handler, which
+   *  preempts guest BYTECODE only. */
   readonly cpuDeadlineMs: number;
   /** WASM memory cap for the whole instance, bytes. */
   readonly memoryLimitBytes: number;
+  /** Grace above {@link cpuDeadlineMs} before the invocation is force-ENDED in real time
+   *  (`cpuDeadlineMs + settleGraceMs` = the settlement deadline). This is the bound the interrupt CANNOT
+   *  provide: see {@link PLUGIN_INVOCATION_SETTLE_GRACE_MS} for why it is the host-fn deadline. */
+  readonly settleGraceMs: number;
+}
+
+/** The `name` an ENDED invocation's error carries — the design's `PluginInvocationEnded` (03 §3), surfaced as
+ *  DATA on the outcome (nothing crosses back into the guest: its realm is torn down). The domain's crash policy
+ *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */
+export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
+
+/** The settlement-race sentinel — a unique symbol so a guest value can never impersonate the deadline arm. */
+const ENDED = Symbol("plugin-invocation-ended");
+
+/** The contained outcome every call into an instance whose realm was torn down by an ENDED invocation gets. */
+function endedInstanceOutcome(): EvalOutcome {
+  return { ok: false, error: { name: PLUGIN_INVOCATION_ENDED, message: "plugin host: this instance was torn down by an ENDED invocation" }, logs: [] };
 }
 
 /** The membrane wiring an instance boots with: the granted capability set + the authority-agnostic op bridge
@@ -63,6 +88,7 @@ export interface EvalOutcome {
 const DEFAULT_LIMITS: SandboxLimits = {
   cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
   memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES,
+  settleGraceMs: PLUGIN_INVOCATION_SETTLE_GRACE_MS,
 };
 
 function readError(ctx: QuickJSContext, handle: QuickJSHandle): GuestError {
@@ -223,15 +249,79 @@ export class Sandbox implements Disposable {
     this.outstanding -= 1;
   }
 
+  /** Race a guest settlement against the invocation's REAL-TIME settlement deadline. The interrupt handler
+   *  bounds guest BYTECODE; this bounds the INVOCATION — the two are not the same bound, and only this one can
+   *  end a guest that has stopped executing (a never-settling promise, a fire-and-forget await). The timer is
+   *  `unref`'d (it must never hold the process open) and cleared on the settle arm. */
+  private raceSettlement(native: Promise<VmCallResult<QuickJSHandle>>): Promise<VmCallResult<QuickJSHandle> | typeof ENDED> {
+    const wallMs = this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const wall = new Promise<typeof ENDED>((resolve) => {
+      timer = setTimeout(() => resolve(ENDED), wallMs);
+      timer.unref();
+    });
+    return Promise.race([native, wall]).finally(() => clearTimeout(timer));
+  }
+
+  /** End a HUNG invocation (`PluginInvocationEnded`, 03 §3): free the guest promise handle, drop the
+   *  invocation's unsettled host-call deferreds, and report the failure as data. What each step is for:
+   *
+   *  (1) `drop(handle)` — MANDATORY, not hygiene. The abandoned guest promise handle is host-owned; leaving it
+   *      alive means the eventual `ctx.dispose()` aborts the SHARED WASM module
+   *      (`Assertion failed: list_empty(&rt->gc_obj_list)` — MEASURED against this exact path), which would
+   *      take every OTHER plugin's context in the process with it. The naive "abandon the promise and dispose
+   *      the context" IS a guest-reachable host crash; this line is why it isn't.
+   *  (2) `drainPending()` — closes the SLEEPER-CONTINUATION class. The guest may be parked on a host call whose
+   *      deferred settles after the invocation ended; resuming then would run this invocation's continuation
+   *      inside the NEXT invocation's chat scope (it would read that invocation's `chat.current()`), the exact
+   *      shared-scope confusion the per-instance FIFO exists to prevent. Disposing the deferreds frees their
+   *      resolvers, so the membrane's late settle no-ops (`QuickJSDeferredPromise.resolve` is
+   *      `resolveHandle.alive`-guarded) and the parked continuation can never resume.
+   *
+   *  The CONTEXT deliberately survives. A resident instance is ONE context shared by every tool/transform/event
+   *  handler, so tearing it down over one hung handler would kill the whole plugin with no re-activation path
+   *  (03 §4's lazy re-activate is unbuilt) — and it buys nothing: (1)+(2) already leave the hung guest inert,
+   *  and its heap garbage is bounded by the instance's 32 MiB cap (a repeat hanger OOMs contained). The stranded
+   *  CONTEXT the review measured is the snippet path's, and there the caller's `using` frees it the moment this
+   *  outcome returns. The rejection also reaches `recordCrash`, so a repeat hanger auto-disables at 3 strikes. */
+  private endInvocation(handle: QuickJSHandle): EvalOutcome {
+    const logs = this.log.drain();
+    const wallMs = this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    this.drop(handle);
+    this.drainPending();
+    return {
+      ok: false,
+      error: { name: PLUGIN_INVOCATION_ENDED, message: `plugin host: invocation ended — it did not settle within its ${wallMs}ms wall` },
+      logs,
+    };
+  }
+
+  /** Dispose every host-call deferred still UNSETTLED and forget them. Shared by the ended-invocation path and
+   *  teardown: an unsettled guest Promise still holding host resolvers at `ctx.dispose()` aborts the shared
+   *  WASM module, and a late host settle against a disposed deferred is a no-op by construction. */
+  private drainPending(): void {
+    for (const deferred of this.state.pending) {
+      deferred.dispose();
+    }
+    this.state.pending.clear();
+  }
+
   /** Drive one guest computation (an eval or a resident-handler call) under the per-invocation budget: pump the
    *  promise bridge to settlement, project the result to a string, contain any throw/deadline/OOM as `ok:false`.
    *  Shared by `evalGuest` + `invokeHandler`. */
   private async runToSettlement(produce: () => ReturnType<QuickJSContext["evalCode"]>): Promise<EvalOutcome> {
+    if (!this.ctx.alive) {
+      // A prior invocation hit its settlement wall and took the realm with it (see `endInvocation`). Report the
+      // same contained failure rather than touching a dead context — the caller's FIFO advances, the crash
+      // policy counts it, and the plugin auto-disables at the threshold.
+      return endedInstanceOutcome();
+    }
     this.log.reset();
     this.state.inFlight.count = 0;
     // The DoS deadline reads a MONOTONIC real clock (performance.now), NOT the guest's injected seam: the
     // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE only —
-    // host calls self-bound separately (membrane's attachAsync).
+    // host calls self-bound separately (membrane's attachAsync), and the whole invocation is bounded by the
+    // settlement race below (the interrupt cannot see a guest that has stopped executing).
     const startMs = performance.now();
     this.ctx.runtime.setInterruptHandler(() => performance.now() - startMs > this.limits.cpuDeadlineMs);
     try {
@@ -244,7 +334,10 @@ export class Sandbox implements Disposable {
       const handle = this.take(result.value);
       const native = this.ctx.resolvePromise(handle);
       this.ctx.runtime.executePendingJobs();
-      const settled = await native;
+      const settled = await this.raceSettlement(native);
+      if (settled === ENDED) {
+        return this.endInvocation(handle);
+      }
       this.drop(handle);
 
       if (settled.error) {
@@ -258,7 +351,10 @@ export class Sandbox implements Disposable {
       this.drop(wrapped);
       return { ok: true, value, logs: this.log.drain() };
     } finally {
-      this.ctx.runtime.removeInterruptHandler();
+      // `alive`-guarded: the ENDED arm disposes the context inside the try, and touching a dead runtime throws.
+      if (this.ctx.alive) {
+        this.ctx.runtime.removeInterruptHandler();
+      }
     }
   }
 
@@ -275,6 +371,11 @@ export class Sandbox implements Disposable {
    *  oversized delivery fails CONTAINED before it ever reaches the guest heap (the domain field-caps the fact
    *  content separately; this is the coarse whole-payload DoS backstop). */
   async invokeHandler(ref: PluginHandlerRef, argsJson: string): Promise<EvalOutcome> {
+    if (!this.ctx.alive) {
+      // Checked BEFORE the ref lookup so a torn-down instance reports WHY (an ended invocation) instead of the
+      // misleading "unknown handler ref" a cleared handler map would produce.
+      return endedInstanceOutcome();
+    }
     const handler = this.state.handlers.get(ref);
     if (handler === undefined) {
       return { ok: false, error: { name: "Error", message: `plugin host: unknown handler ref ${ref}` }, logs: [] };
@@ -307,10 +408,7 @@ export class Sandbox implements Disposable {
     // shared WASM module (`list_empty(&rt->gc_obj_list)`) — a guest-REACHABLE host crash (fire a host call, never
     // await it, end the invocation). Disposing the deferred frees its promise + resolver handles so teardown is
     // clean; a late host-side settle is separately dropped by the `ctx.alive` guard in the membrane (attachAsync).
-    for (const deferred of this.state.pending) {
-      deferred.dispose();
-    }
-    this.state.pending.clear();
+    this.drainPending();
     for (const handle of this.state.handlers.values()) {
       handle.dispose();
     }
