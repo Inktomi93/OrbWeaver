@@ -32,4 +32,10 @@ if [ ! -e .env ]; then
   fi
 fi
 
-echo "worktree-bootstrap: done — deps + hooks ready"
+# 3. Subagent memory links. `memory: project` resolves against the AGENT'S CWD (verified in the
+#    shipped CLI bundle 2.1.241), so an isolated lane in THIS worktree reads THIS tree's
+#    .claude/agent-memory/<role>/ — without the links it boots with an empty index instead of the
+#    ~290-lesson shared store. Gitignored, hence provisioned rather than checked in.
+bash scripts/agent-memory-link.sh "$ROOT" || echo "  ↳ agent-memory link FAILED — lanes here boot with an empty memory index"
+
+echo "worktree-bootstrap: done — deps + hooks + agent memory ready"

@@ -1,26 +1,40 @@
 <!-- Moved here from ~/.claude/CLAUDE.md on 2026-08-13 (owner: "move our orchestration instructions to
-     the orbweaver project"). It lived globally but every role below except scout/Explore is an orbweaver
-     agent, so it was costing context in every other repo to describe agents that did not exist there.
-     `.claude/rules/*.md` without `paths:` frontmatter loads at launch with the same priority as
-     `.claude/CLAUDE.md`, AND project rules are part of the hierarchy subagents receive — so this reaches
-     lane agents, which is why the subagent opt-out below still has to be the first line.
+     the orbweaver project"). SPLIT on 2026-08-24 (lane cb-agent-fleet): this file was 389 lines, opened
+     by telling every subagent to ignore it, and was injected into every lane anyway — paying full
+     context and then suppressing itself. Nothing was deleted; the lane-binding half moved to
+     `.claude/rules/lane-standing-facts.md` and three path-scoped rules took the rest.
 
-     THREE HOMES, DELIBERATELY SPLIT — do not merge them:
-       · THIS FILE = durable delegation + agent-operations POLICY (roles, tiers, briefs, lane/load,
-         merge, overnight, and push posture).
-       · docs/architecture/core/AGENTS.md §L = worktree-lane discipline.
-       · GitHub Project 1 = mutable CURRENT STATE (what is ready/running/blocked/verified).
-     docs/retro-workboard.md is RETIRED (owner, 2026-08-22) — the board + this file are the recovery path; its history is archaeology.
+     `.claude/rules/*.md` without `paths:` frontmatter loads at launch with the same priority as
+     `.claude/CLAUDE.md`, AND project rules are part of the hierarchy subagents receive — which is why
+     the opt-out below has to be first, and why it now names WHICH sections it suppresses.
+
+     THE HOMES — do not merge them:
+       · THIS FILE = orchestrator-only POLICY (roles, tiers, briefs, lane/load, merge, overnight, push).
+       · `.claude/rules/lane-standing-facts.md` = facts binding ANY working agent (always-on).
+       · `.claude/rules/gates-and-tooling.md` · `browser-and-instruments.md` · `db-schema.md`
+         = path-scoped; they load when an agent reads their files.
+       · `docs/architecture/core/AGENTS.md` §L = worktree-lane git discipline (its one home; this file
+         covers the orchestrator's side and must not restate §L).
+       · GitHub Project 1 = mutable CURRENT STATE (ready/running/blocked/verified).
+     docs/retro-workboard.md is RETIRED (owner, 2026-08-22) — the board + these rules are the recovery
+     path; its history is archaeology.
      If these homes disagree, the constitution/D-ledger wins on law and Project wins on lifecycle. -->
 
 # Orchestration (multi-model delegation)
 
-**If you are running AS a subagent — ANY subagent: a named role (scout, Explore, mech-executor, executor,
-verifier, security-executor, side-eye, stickler) or an ad-hoc/general-purpose one — ignore this file and
-just do the task you were given.** If your task needs another role, say so in your report and the
-orchestrator dispatches. (Nesting is banned by the harness, not by this text:
-`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` in `~/.claude/settings.json` `env`, plus every role below omits
-`Agent` from its `tools` list. Removing either restores Claude Code's depth-3 default.)
+**IF YOU ARE A SUBAGENT, THIS FILE IS NOT YOURS — but do not discard it wholesale.** Every section
+below is ORCHESTRATOR-ONLY policy: how work gets routed, briefed, tracked, merged, and paid for. You
+do not dispatch, you do not mutate GitHub Project 1, and you never spawn another agent — if your task
+needs a different role, say so in your report and the orchestrator dispatches. (Nesting is banned by
+the harness, not by this text: `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` in `~/.claude/settings.json`
+`env`, plus every role omits `Agent` from its `tools` list.)
+
+**What DOES bind you lives elsewhere and loads for you automatically:**
+`.claude/rules/lane-standing-facts.md` (always-on — staging, floors, suite load caps, the dev stack,
+tool hazards), `docs/architecture/core/AGENTS.md` §L (worktree git discipline),
+`.claude/agent-doctrine.md` (the build-process floor), and the path-scoped rules for gates, the
+browser tier, and the db schema. Read those. Skim this one only when you need to understand a decision
+the orchestrator made about your lane.
 
 You are the orchestrator. Keep planning, architecture, ambiguity resolution, and final judgment for
 yourself; delegate volume and execution to role agents. Quality is protected by VERIFICATION. For Codex,
@@ -32,6 +46,7 @@ effort remain the specialization axes.
 | `scout` / `Explore` | any search, lookup, "where/how is X" reconnaissance (pinned cheap — never let a background search inherit the main model) |
 | `mech-executor` | fully-specified mechanical work: pattern refactors, convention-following tests, docs, bulk edits, running gate/test suites |
 | `executor` | implementation needing judgment: features, bug fixes, design-sensitive refactors |
+| `forge` | frontier-tier think-then-build where the DESIGN is the risk — new subsystems, wide coupled-site changes, migrations a wrong architecture would force a rebuild of |
 | `security-executor` | anything security-sensitive (authn/authz, secrets, crypto, validation, CSRF, hardening) — never in the main session, never on Fable |
 | `verifier` | fresh-context CODE-correctness check (logic, tests, edge cases, trust boundaries) before reporting non-trivial work done |
 | `side-eye` | fresh-context UX / visual / a11y check of anything a user SEES — the other verification lens |
@@ -39,6 +54,12 @@ effort remain the specialization axes.
 
 **Two verification lenses — route by what changed:** logic / data / server → `verifier`; UI / rendered /
 a11y → `side-eye`; both if the change spans both.
+
+**All three review roles hold `SendMessage` (granted 2026-08-24) and are instructed to use it mid-run
+for exactly three things** — "I am probing REAL files on the shared tree", "the environment is lying",
+"my premise is refuted". Expect those mid-run and act on them: the day they could not speak, an
+unannounced gate probe was swept into a commit (shipping a blinded gate) and a stale `:5173` build sat
+undelivered through twenty minutes of merges.
 
 ## Rules
 
@@ -49,11 +70,10 @@ a11y → `side-eye`; both if the change spans both.
   file:line + `git log --all --grep="<key noun>" --oneline -5`. A board/audit row claiming work is
   UNBUILT owes the same tree receipt as one claiming it's done. A refusing lane costs \~5 min; a lane
   fixing a fixed thing costs an hour.
-- **Value-changing briefs name `types:graph` in the floor, never bare `pnpm typecheck`** (2026-08-14,
-  paid twice in one day): the per-package program is BLIND to `tests/` and `scripts/`, so a schema
-  column or rename leaves the shared factories/probes red in the one program nobody in the lane ran.
-  The orchestrator's half: run `node scripts/ts7.cjs --noEmit -p tsconfig.json` (\~15s) after EVERY
-  value-changing merge — the single skipped tripwire of 2026-08-14 was exactly the merge carrying
+- **Value-changing briefs name the RIGHT type program in the floor, never a bare `pnpm typecheck`**
+  (2026-08-14, paid twice in one day) — the three-program truth table is in `lane-standing-facts.md`.
+  The orchestrator's own half: run `node scripts/ts7.cjs --noEmit -p tsconfig.json` (\~15s) after
+  EVERY value-changing merge; the single skipped tripwire of 2026-08-14 was exactly the merge carrying
   the red.
 - **Reply routing: identify a lane by CONTENT ANCHOR + the dispatch map, never by role name**
   (2026-08-14, second misroute of the era — two live executors, an approval landed on the wrong
@@ -63,11 +83,10 @@ a11y → `side-eye`; both if the change spans both.
   "<role>"` is unroutable (the harness refuses or, worse, could hit the wrong lane). The orchestrator
   keeps a dispatch map (lane name → agentId) at dispatch time and ALWAYS replies by agentId — the
   role name is never an address.**
-- **Wrapper hygiene reaches briefs now:** the Bash guard classifies UNTRACKED script bodies
-  (2026-08-14) — a lane's helper scripts must carry sanctioned spellings inside (CT cache-clear
-  before playwright; redirect harness output to a log and read the log in a separate command, never
-  pipe into tail). Also: `tests/tooling/check-gates.int.test.ts` is NOT concurrency-safe with itself
-  (shared `__g_` fixture paths) — never let a lane floor and a drain battery overlap it.
+- **Briefs owe the wrapper-hygiene line** — the Bash guard classifies UNTRACKED script bodies
+  (2026-08-14), so a lane writing helper scripts needs the sanctioned spellings named. Also:
+  `tests/tooling/check-gates.int.test.ts` is NOT concurrency-safe with itself (shared `__g_` fixture
+  paths) — never let a lane floor and a drain battery overlap it.
 - **CODEX PROJECT ROLES USE SOL** (owner, 2026-08-20). Every Codex project-role manifest and ad-hoc
   Orbweaver dispatch uses `gpt-5.6-sol`; preserve the role's explicit reasoning effort. Claude still uses
   its own explicit role models. Any ad-hoc agent or workflow fan-out **MUST set `model` explicitly** —
@@ -83,12 +102,9 @@ a11y → `side-eye`; both if the change spans both.
   top — a re-delivery-free merge for the orchestrator.
 - Dispatch independent subagents in parallel / in the background and keep working — don't block on one
   agent while other dispatchable work waits.
-- **Lanes NEVER busy-wait on a long run (usage ruling 2026-08-21, paid ~30% of a weekly cap in one
-  day):** every sleep-loop poll re-bills cache reads on the lane's ENTIRE context — a 328k-context
-  lane polling a 90-min calibration at 45s intervals burned millions of token-equivalents saying
-  "not done yet". A lane that launches a >10-min detached run REPORTS AND STOPS (its report names
-  the log/exit-file); the orchestrator or a cron/monitor picks up the completion and resumes the
-  lane by SendMessage. Waiting is the orchestrator's cheap loop, never a fat lane context's.
+- **Waiting on a long run is YOUR cheap loop, never a fat lane context's** (usage ruling 2026-08-21,
+  paid ~30% of a weekly cap in one day). A lane that launches a >10-min detached run reports and stops,
+  naming its log/exit-file; you or a cron/monitor pick up the completion and resume it by SendMessage.
 - After two failed attempts at a tier, escalate one tier or take over — don't retry the same tier a third
   time.
 - Non-trivial changes pass a fresh-context lens (`verifier` and/or `side-eye`) before you report them done.
@@ -99,13 +115,13 @@ a11y → `side-eye`; both if the change spans both.
   is fixed in the SAME era it is found — file the row AND route it immediately (dispatch, or fold into
   the live lane already in that tool's area), at P2 regardless of the surface finding's own priority:
   every downstream lane consumes the instrument's output, so a lying tool multiplies its cost by every
-  run until fixed. The fix carries the zero-hygiene contract (planted positive controls both directions;
-  unsupported query shapes REFUSE loudly instead of printing a clean zero) and a clean-surface re-run
-  distinguishing fixed-false-positives from newly-visible real findings. **And the lie must become
-  IMPOSSIBLE TO REINTRODUCE (owner, 2026-08-22):** the planted fixture that reproduced the lie lands
-  as a COMMITTED red-first test in the tooling mirror (`tests/tooling/<tool>/…`) — a permanent pin,
-  never a one-time probe receipt — so any regression goes red in the suite forever. A lying-tool fix
-  without its permanent pin is not done.
+  run until fixed. The fix's own contract — planted controls in both directions, a loud refusal instead
+  of a clean zero, and the permanent committed pin in `tests/tooling/<tool>/…` — lives in
+  `.claude/rules/gates-and-tooling.md`; brief it.
+- **A brief or issue body stating a DATA-BINDING claim owes a ledger grep first** (the D58 lesson: the
+  orchestrator wrote "chats reference presets via turn settings" into an issue as fact; the ledger
+  already ruled the binding impossible and a gate already enforced it). Binding claims are re-derived,
+  never remembered.
 - **Don't delegate:** a single file-read you need right now, a decision, or anything the user asked you
   personally to judge.
 - **Session hygiene:** set up MCP servers / connectors BEFORE starting work — adding or removing one
@@ -174,6 +190,12 @@ a11y → `side-eye`; both if the change spans both.
 - **Docs-only integration under load:** run the required per-file formatter and scoped docs/catalog
   checks, commit with hooks bypassed when the whole-tree hook would duplicate the draining-train gate,
   then run one consolidated barrier on the integrated tree.
+- **Provisioning the shared agent memory (2026-08-24).** Every role carries `memory: project`, which
+  resolves against the AGENT'S CWD — so the main checkout AND every worktree need
+  `.claude/agent-memory/<role>` symlinked at the shared store. `pnpm agent-memory:link` does it, and
+  both `.claude/hooks/worktree-setup.sh` and `pnpm worktree:bootstrap` call it. The links are
+  gitignored, so a fresh clone needs the command once. Roles are READ-ONLY on that store by
+  instruction; **every write to it is yours**, and a lane's proposed lesson arrives as report text.
 
 ## Work control quick path
 
@@ -209,15 +231,20 @@ a11y → `side-eye`; both if the change spans both.
 ## What a brief must carry (subagents start almost naked)
 
 A non-fork subagent receives its own system prompt, the delegation message, the CLAUDE.md hierarchy
-(including this file), git status, and any preloaded `skills`. It does **NOT** receive: your conversation
-history, your **auto memory** (every pinned MEMORY.md lesson is main-session only), your output style, or
-anything you have already read. Its context window is sized by **its own** model, not yours.
+(this file, `lane-standing-facts.md`, and any path-scoped rule its reads trigger), git status, and any
+preloaded `skills`. It does **NOT** receive: your conversation history, your output style, or anything
+you have already read. Its context window is sized by **its own** model, not yours.
+
+**One nuance since 2026-08-24:** every role carries `memory: project` pointed at the SHARED project
+memory store, so a lane DOES boot with the `MEMORY.md` INDEX in its system prompt and can Read any
+topic file by name. It does not get the bodies, and it does not get the reasoning you did around them —
+so a load-bearing lesson is still restated in the brief, or named by its exact filename. Assume the
+index, never the body.
 
 So a brief owes, every time: the back-channel line (SendMessage mid-run) · scope fences vs sibling lanes ·
 `git -C` discipline · lane-unique scratch names · the exact CT files its floor must run ·
 re-verify-your-premise-first, and that a correct refusal is a SUCCESS · the WHY · and the hazards — every
-trap that ever bit was one no brief mentioned. **Any memory lesson the lane needs must be restated in the
-brief; it cannot read your memory.**
+trap that ever bit was one no brief mentioned.
 
 A lane that CREATES or EDITS anything under `docs/**` owes two more lines: the frontmatter block
 (`kind`/`status`/`updated` — the catalog gate reds a bare markdown file) and a scoped `pnpm check:docs`
@@ -225,44 +252,6 @@ in its floor — lefthook enforces catalog freshness, dangling references, and D
 push, so a doc written without them is debt the orchestrator inherits at the train gate. Review-writing
 roles (stickler) end their report with an issue-summary paragraph; the ORCHESTRATOR pastes it into the
 linked Project issue — no lane touches `work:item`.
-
-## Rulings minted 2026-08-19 (the 9/9 rail-sweep night — each paid for at least once)
-
-- **Fork-with-stated-default is the lane contract for recorded-ruling collisions.** A lane that hits a
-  recorded ruling states the fork WITH receipts, prices the arms, names its default + deadline, and KEEPS
-  WORKING on its other items. Never silently reverse a recorded ruling; never stall on it. The house
-  resolution idiom when a ruling must evolve: **"the ruling survives — its INPUT changed"** (preserve the
-  mechanism/text, change the condition, record both). Paid ~8× tonight, zero stalls.
-- **Same-file parallel lanes are FINE when hunk regions are pre-declared through main.** Both lanes state
-  their regions, NEITHER relocates hunks to dodge the merge (relocation is what breaks 3-way), and the
-  orchestrator resolves by union. The failure mode is silent relocation, not the shared file.
-- **The THREE-program typecheck truth table** (two briefs shipped wrong floors before this was pinned;
-  CORRECTED 2026-08-21 by planted control; RE-CORRECTED 2026-08-23 #571 by planted control): `types:graph`
-  (ts7 -p tsconfig.json) EXCLUDES packages/{ui,client}/src (bundler-mode) but sees tests/ + scripts/ —
-  and excludes `tests/{ui,client}/**/*.tsx` by directory **AND excludes `tests/e2e/` whole** (DOM-context
-  ruling 2026-07-24; `tests-dom` owns it — a lane touching tests/e2e MUST name `typecheck:tests-dom` in
-  its floor; types:graph is a false clean there); per-package `pnpm typecheck` sees ui/client src AND is the
-  ONLY program that owns `tests/**/*.ct.tsx` (a planted TS2322 in a .ct.tsx was caught by per-package
-  alone); `tests-dom` does NOT see CT tsx — its include is an explicit list of non-CT DOM-coupled
-  escapees. A floor claims coverage it verified — when uncertain, PLANT a control error; that is the
-  standard, not paranoia.
-- **The whole-tree single-pass runs after EVERY merge train, not only at drain** — tonight's corpus train
-  left 9 findings that every scoped lane floor structurally missed; the single-pass caught them 30 min
-  after merge instead of at the barrier.
-- **Workspace-package merges self-apply — the ruling survives, its INPUT changed (2026-08-21,
-  db25e3d1d):** vite source-consumes workspace packages (no stale prebundles) and the server
-  auto-respawns via `node --watch` when merged files land, so no manual restart-at-merge-window
-  exists any more. What REMAINS true: the merge-triggered server respawn WIPES in-memory wire/RPG
-  flight recorders — so still never land a merge under a live drive that depends on them, and
-  **never merge an instrument change (design-audit/snap/gates) while a drive is live without
-  messaging the driving lane** — its before/after deltas silently span two instruments otherwise.
-- **A brief or issue body stating a DATA-BINDING claim owes a ledger grep first** (the D58 lesson: the
-  orchestrator wrote "chats reference presets via turn settings" into an issue as fact; the ledger
-  already ruled the binding impossible and a gate already enforced it). Binding claims are re-derived,
-  never remembered.
-- **rg flag discipline is a standing hazard**: `-r` + shorthand cluster (`-rln`) silently REPLACES match
-  text — four offenses this era, three by the orchestrator. Spell `--files-with-matches`/`-n` out; a
-  tool-guard pattern for this is filed.
 
 ## Merge / load discipline (minted 2026-08-02, hardened 2026-08-13)
 
@@ -272,13 +261,17 @@ linked Project issue — no lane touches `work:item`.
 - **Under load:** merge with `--no-verify` on branch-side green receipts and run ONE consolidated check
   when lanes drain. Track the debt on the board. Never chain board edits behind a possibly-conflicting
   merge in one command — a conflict mid-chain bakes markers into committed files.
+- **The whole-tree single-pass runs after EVERY merge train, not only at drain** — one corpus train
+  left 9 findings that every scoped lane floor structurally missed; the single-pass caught them 30 min
+  after merge instead of at the barrier.
 - **Worktree lifecycle rides the CUSTOM hook pair — know it, use it (owner reminder 2026-08-22):**
   `WorktreeCreate` → `.claude/hooks/worktree-setup.sh` REPLACES built-in creation (it creates the
-  worktree AND runs the per-worktree `pnpm install` — 2s/48MiB via CAS hardlinks — plus env linking;
-  its stdout IS the worktree path). `WorktreeRemove` → `.claude/hooks/worktree-remove.sh` is the
-  paired teardown. Consequences: `isolation: "worktree"` dispatches get a WORKING tree for free —
-  never add "run pnpm install" to those briefs; a MANUAL `git worktree add` bypasses the hook and
-  MUST run `pnpm worktree:bootstrap` (§L.5) or every gate lies; teardown of hook-created trees goes
+  worktree, runs the per-worktree `pnpm install` — 2s/48MiB via CAS hardlinks — and links `.env`,
+  `settings.local.json` and the agent-memory dirs; its stdout IS the worktree path). `WorktreeRemove`
+  → `.claude/hooks/worktree-remove.sh` is the paired teardown. Consequences: `isolation: "worktree"`
+  dispatches get a WORKING tree for free — never add "run pnpm install" to those briefs; a MANUAL
+  `git worktree add` bypasses the hook and MUST run `pnpm worktree:bootstrap` (§L.5) or every gate
+  lies AND every lane there boots with an empty memory index; teardown of hook-created trees goes
   through the harness's remove (or replicates the remove hook's steps) — a bare `rm -rf` strands
   registered worktree metadata. Do NOT "solve" installs with enableGlobalVirtualStore (breaks tsc +
   type-aware lint).
@@ -295,95 +288,3 @@ linked Project issue — no lane touches `work:item`.
 - **Investigation lanes get instrumentation directives, not just symptoms** — the four-hop per-boundary
   diff (FE payload → server input → DB row → read-back) named a write-merge bug in one pass that
   endpoint-only debugging would have circled for hours.
-
-## Standing lane facts (2026-08-18 promotion — lanes: these bind you; briefs restate only DELTAS)
-
-Every lane, without being told per-brief:
-
-- **The dev stack self-heals on source changes — do NOT flag routine "needs restart"** (law corrected
-  2026-08-21; the old "vite prebundles workspace packages" fact died with 086c4e047). Workspace packages
-  are SOURCE-consumed by vite (zero `@orb/*` in `.vite/deps`; probed live: a `packages/ui` edit HMR'd
-  onto `:5173` with no restart); exports-map moves auto-restart vite via the `orb:workspace-exports-restart`
-  plugin; the server auto-respawns via `node --watch` over server/contracts/db/kit src (warm engines
-  re-adopted, seconds). The ONLY manual-restart triggers: `.env` edits, `pnpm install`/dep changes,
-  supervisor-script (`stack.sh`/`dev.sh`) edits, engine-posture changes. When in doubt, prove the served
-  module (`curl :5173/@fs/<abs path> | grep <symbol>`) instead of bouncing the stack. NOTE: a watched-src
-  save DOES respawn the server and wipes in-memory wire/RPG flight recorders — time merges accordingly
-  when a live drive depends on them.
-- **A snap stage's db is whatever its cached dir already holds** (corrected 2026-08-19 — the seed
-  copies the dev db only into a FRESH stage dir; a cached stage keeps its old state, which can be
-  thin). Verify provenance before using owner-corpus rows as receipts (fresh sha, or probe a known
-  row); when unverified, rendered receipts come from CT or live-main. Stage writes land in the
-  stage's copy — read-only discipline still applies to drives. The stage band (`:8888`/`:5273`) is
-  ONE pair — if a sibling holds it, fall back to CT and say so; never tear a sibling's stage down.
-- **`__orb.queries()` is a CACHE CENSUS, never an in-flight network count.** Any "N parallel
-  queries" perf claim owes a network re-derivation before a dedupe is prescribed.
-- **A CPU profile's top self-time frame can be the INSTRUMENT** (dev-only tooling). Attribute before
-  optimizing; a dev-only frame is a tooling fix, not an app fix.
-- **A point measurement never proves a range property.** Layout/balance fixes owe the width matrix
-  (both ends + any crossover) and the appearance arms BEFORE the arm is chosen; a single-width
-  receipt endorsing a "move X" fix is the shell-game setup the owner has explicitly banned.
-- **Scoped test invocations go through the NICED pnpm scripts, never raw npx (2026-08-21 — raw npx
-  bypasses the nice-19 priority that protects the co-hosted homelab):** node suites =
-  `pnpm test:scoped <paths> --maxWorkers=4` · CT = `pnpm ct:scoped <paths> --workers=2` (it carries
-  the cache-clear). Run from your worktree via `env -C` (never `cd`); your worktree's own
-  node_modules + package.json serve the scripts. playwright-ct runs PRODUCTION React
-  (StrictMode inert). The CT harness may mount its own copy of global surfaces (Toaster) — assert
-  on the instance that carries content, never a bare slot selector.
-  **Under multi-lane load add `--workers=2`** (measured 2026-08-21 at load-avg 170: default workers
-  = all tests time out at mount() on pure contention, zero signal; `--workers=2` = green in 53s).
-  **The same cap applies to NODE suites: lane runs add `--maxWorkers=4`
-  whenever any sibling lane is live (via `pnpm test:scoped` — see the invocation bullet)** (measured 2026-08-21: one lane's default 14 forks at ~90% CPU
-  each drove a 24-core box to load-avg 103 and STARVED THE CO-HOSTED HOMELAB — Authentik errored for
-  the owner. The box is not ours alone; vitest.config's maxWorkers:14 is the DEDICATED-box number,
-  briefs restate the cap). Long mutation/calibration runs are orchestrator-scheduled — a lane never
-  starts one without an explicit green light naming the concurrency.
-  **`route.abort()` defaults to `"failed"`, which makes chromium swap in an ERROR PAGE** — the
-  mounted tree disappears and every later assertion passes vacuously (`toBeHidden` on a destroyed
-  DOM); `route.abort("aborted")` is the only code that leaves the document standing.
-- **Probes**: `cp f f.bak; …; mv f.bak f` or `git show HEAD:<path>` — NEVER `git stash`/`checkout`/
-  `restore`. Red-first receipts run new pins against the UNMODIFIED source before any fix.
-- **@orb/ui primitives drop `data-testid`** (slot-only seal); ECharts `BarList` is a canvas —
-  text assertions speak for the frame, not the bars.
-- **A checker OOM / kill / timeout is exit-2 class — NEVER hand-wave it as load (owner ruling
-  2026-08-21; ts7/depcruise/lens OOMs were being shrugged off for weeks).** Exit 134/137, a heap
-  abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means THE RUN IS
-  NOT A VERDICT: no green may be claimed from it, and "probably contention" is a hypothesis you
-  prove by a quiet re-run, not a dismissal. The heap floor is WORKSPACE-WIDE: pnpm-workspace.yaml `nodeOptions: --max-old-space-size=16384`
-  reaches every pnpm-run script (node's default self-cap is ~4GB even on the 128GB box); ts7.cjs
-  carries the flag internally so bare `node scripts/ts7.cjs` gets it too. Bare `npx depcruise`/`npx
-  knip` spellings BYPASS the floor — invoke the pnpm rows — and so does a bare
-  `node tooling/src/<tool>/cli.ts …` (paid 2026-08-23: two exit-134 OOMs on a bare structure run;
-  the `pnpm check:structure` spelling picked up the floor and ran clean) — an OOM
-  under THAT ceiling is a real finding to report, never to rerun-until-green. Run-completeness
-  enforcement is #410. A search,
-  gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
-  invocation; a bare zero is "I couldn't measure", never "it isn't there". Two samplers that are
-  dead on this tree by construction: an `rgb(...)` regex (computed style passes `oklch` through
-  VERBATIM) and anything reading `getComputedStyle`/`elementFromPoint` to see a `mask-image`
-  (a mask is PAINT — only framebuffer sampling sees it).
-- **A SCHEMA-BASELINE edit DROPS the dev db at the next respawn — merge-window-scheduled, like a
-  recorder-dependent drive (2026-08-23, #533/#534).** Any change to `packages/db/src/migrations/**`
-  (hand-patch or regen) changes the baseline hash, and boot/migrate then RESETS the dev database — all
-  data, pre-launch by design. It cost a 1,242-chat ST import plus ten corpus passes (~8h GPU) once.
-  The tripwire is now a `[verify-notice]` line in `pnpm check`'s tail block ("THE NEXT SERVER RESPAWN
-  WILL DROP THE DEV DB") — READ IT; it never fails the run, so a green verdict does not mean nothing
-  happened. Before merging such a lane: schedule it like a merge window, and the moment the boot's
-  pre-migrate backup appears, PIN it (`touch data/orbweaver.db.backup-<stamp>.keep`) — a pinned backup
-  is exempt from `pruneDbBackups` forever; an unpinned one ages out of the recent-5/daily-7 budget.
-- **Seeded rows are never verification evidence, and a per-user-scoped empty read is evidence about
-  WHICH PRINCIPAL asked** — not about whether the data exists. Verify against model-populated /
-  real-principal state, and say which principal your receipt was taken as.
-- **Type floors run BOTH programs.** Per-package `types:packages` is structurally blind to `tests/`
-  and `scripts/`; `types:graph` (`node scripts/ts7.cjs --noEmit -p tsconfig.json`) is the program
-  that sees them. A lane changing a shared VALUE (enum member, wire field, user-facing label) also
-  owes the behavioral suites that assert the literal — `pnpm check` is static and runs no tests.
-- **Never run a whole-tree baseline/snapshot REGENERATOR on a shared or multi-lane tree** (the
-  fabrication baseline, suppressions, `drizzle generate`): it recomputes from the WHOLE working
-  tree and bakes a sibling's in-flight edits into your committed baseline. Hand-edit the single
-  row, or use the gate's own escape marker (line-adjacent, like `biome-ignore`).
-- **Read your own diff before you commit.** An Edit inserting a declaration directly above another
-  lands BETWEEN that declaration and its JSDoc, silently re-parenting the doc block — invisible to
-  biome, tsc, the gates and the suites. Anchor insertions on the opening `/**`, and read
-  `git show --stat` on your own commit (it is also what catches an unstaged deliverable and a
-  `Bin` byte-count on a `.ts`/`.tsx` = a NUL slipped into a template literal).

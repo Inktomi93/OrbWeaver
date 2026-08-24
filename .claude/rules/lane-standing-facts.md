@@ -1,0 +1,166 @@
+<!-- Split out of `.claude/rules/orchestration.md` on 2026-08-24 (lane cb-agent-fleet). That file was
+     389 lines, opened by telling every subagent to IGNORE it, and was injected into every lane
+     regardless — so the facts lanes actually need were paying full context and then being suppressed.
+     Nothing was deleted: orchestration.md kept the ORCHESTRATOR-ONLY policy, this file took everything
+     that binds a working agent, and three path-scoped rules took the content that only matters when
+     you touch their files. This file has NO `paths:` frontmatter, so it loads at launch for everyone.
+
+     THE HOMES — do not merge them:
+       · THIS FILE = facts that bind ANY agent doing work here (orchestrator included).
+       · `.claude/rules/orchestration.md` = delegation/lane/merge/overnight POLICY, orchestrator-only.
+       · `docs/architecture/core/AGENTS.md` §L = worktree-lane git discipline (its one home).
+       · `.claude/rules/gates-and-tooling.md` · `browser-and-instruments.md` · `db-schema.md`
+         = path-scoped, load when you read their files. The index below names them.
+       · GitHub Project 1 = mutable CURRENT STATE.
+     On conflict the constitution / D-ledger wins on law, Project wins on lifecycle. -->
+
+# Standing facts (every agent — lanes: these bind you, briefs restate only DELTAS)
+
+Promoted 2026-08-18, re-homed here 2026-08-24. Every one was paid for at least once. You get these
+without being told per-brief.
+
+## Load-scoped rules — read the one that matches what you are touching
+
+These load automatically when you read a matching file. If you are working in one of these areas and
+have not seen its rule yet, READ IT BY PATH before you edit:
+
+| You are touching | Read |
+| - | - |
+| `tooling/src/verify/gates/**` · `tests/tooling/**` · any gate or instrument | `.claude/rules/gates-and-tooling.md` |
+| `tests/**/*.ct.tsx` · `tests/e2e/**` · a rendered/browser probe | `.claude/rules/browser-and-instruments.md` |
+| `packages/db/src/migrations/**` · the drizzle schema | `.claude/rules/db-schema.md` — **it drops the dev db; read it BEFORE you edit** |
+
+## Staging and commits
+
+- **Stage by PATHSPEC on `main` or any SHARED tree; `git add -A` is FINE in your own isolated
+  worktree** (owner correction 2026-08-24 — do not read this as a blanket ban, the blanket version
+  pushes worktree lanes into the worse failure). The two failure modes are opposite:
+  - On a shared tree a broad `git add` sweeps whatever else is live into your commit. On 2026-08-24 it
+    swept a review lane's in-flight probe of `tooling/src/verify/gates/bus-definition-belts.ts` into a
+    commit and shipped a BLINDED gate — and a blinded gate reports green forever, so nothing
+    downstream catches it. Name your paths.
+  - In an isolated worktree the tree is yours, and `git commit -- <pathspec>` **silently skips
+    UNTRACKED files** — a cited-but-never-committed deliverable is destroyed at teardown (§L.2, and it
+    has happened). `git add -A` after sweeping your own scratch is the safer spelling there.
+  - Either way: `git status --short` EMPTY before you report, and `git show --stat <sha>` in the report.
+- **Read your own diff before you commit.** An Edit inserting a declaration directly above another
+  lands BETWEEN that declaration and its JSDoc, silently re-parenting the doc block — invisible to
+  biome, tsc, the gates and the suites. Anchor insertions on the opening `/**`, and read
+  `git show --stat` on your own commit (it is also what catches an unstaged deliverable and a
+  `Bin` byte-count on a `.ts`/`.tsx` = a NUL slipped into a template literal).
+- **Probes**: `cp f f.bak; …; mv f.bak f` or `git show HEAD:<path>` — NEVER `git stash`/`checkout`/
+  `restore`. Red-first receipts run new pins against the UNMODIFIED source before any fix. If the probe
+  edits a REAL file on a SHARED tree, SendMessage the orchestrator with the paths before you start and
+  again when you have restored them.
+- **Never run a whole-tree baseline/snapshot REGENERATOR on a shared or multi-lane tree** (the
+  fabrication baseline, suppressions, `drizzle generate`): it recomputes from the WHOLE working
+  tree and bakes a sibling's in-flight edits into your committed baseline. Hand-edit the single
+  row, or use the gate's own escape marker (line-adjacent, like `biome-ignore`).
+
+## Forks, rulings and premises
+
+- **Fork-with-stated-default is the lane contract for recorded-ruling collisions.** A lane that hits a
+  recorded ruling states the fork WITH receipts, prices the arms, names its default + deadline, and KEEPS
+  WORKING on its other items. Never silently reverse a recorded ruling; never stall on it. The house
+  resolution idiom when a ruling must evolve: **"the ruling survives — its INPUT changed"** (preserve the
+  mechanism/text, change the condition, record both). Paid ~8× on 2026-08-19 alone, zero stalls.
+- **Same-file parallel lanes are FINE when hunk regions are pre-declared through main.** Both lanes state
+  their regions, NEITHER relocates hunks to dodge the merge (relocation is what breaks 3-way), and the
+  orchestrator resolves by union. The failure mode is silent relocation, not the shared file.
+- **A DATA-BINDING claim is re-derived, never remembered** — a brief or issue body asserting one owes a
+  ledger grep first (the D58 lesson: "chats reference presets via turn settings" was written into an
+  issue as fact when the ledger had already ruled the binding impossible and a gate already enforced it).
+- **Seeded rows are never verification evidence, and a per-user-scoped empty read is evidence about
+  WHICH PRINCIPAL asked** — not about whether the data exists. Verify against model-populated /
+  real-principal state, and say which principal your receipt was taken as.
+
+## Verification floors
+
+- **Type floors run BOTH programs.** Per-package `types:packages` is structurally blind to `tests/`
+  and `scripts/`; `types:graph` (`node scripts/ts7.cjs --noEmit -p tsconfig.json`) is the program
+  that sees them. A lane changing a shared VALUE (enum member, wire field, user-facing label) also
+  owes the behavioral suites that assert the literal — `pnpm check` is static and runs no tests.
+- **The THREE-program typecheck truth table** (two briefs shipped wrong floors before this was pinned;
+  CORRECTED 2026-08-21 by planted control; RE-CORRECTED 2026-08-23 #571 by planted control): `types:graph`
+  (ts7 -p tsconfig.json) EXCLUDES packages/{ui,client}/src (bundler-mode) but sees tests/ + scripts/ —
+  and excludes `tests/{ui,client}/**/*.tsx` by directory **AND excludes `tests/e2e/` whole** (DOM-context
+  ruling 2026-07-24; `tests-dom` owns it — a lane touching tests/e2e MUST name `typecheck:tests-dom` in
+  its floor; types:graph is a false clean there); per-package `pnpm typecheck` sees ui/client src AND is the
+  ONLY program that owns `tests/**/*.ct.tsx` (a planted TS2322 in a .ct.tsx was caught by per-package
+  alone); `tests-dom` does NOT see CT tsx — its include is an explicit list of non-CT DOM-coupled
+  escapees. A floor claims coverage it verified — when uncertain, PLANT a control error; that is the
+  standard, not paranoia.
+- **A checker OOM / kill / timeout is exit-2 class — NEVER hand-wave it as load (owner ruling
+  2026-08-21; ts7/depcruise/lens OOMs were being shrugged off for weeks).** Exit 134/137, a heap
+  abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means THE RUN IS
+  NOT A VERDICT: no green may be claimed from it, and "probably contention" is a hypothesis you
+  prove by a quiet re-run, not a dismissal. The heap floor is WORKSPACE-WIDE: pnpm-workspace.yaml
+  `nodeOptions: --max-old-space-size=16384` reaches every pnpm-run script (node's default self-cap is
+  ~4GB even on the 128GB box); ts7.cjs carries the flag internally so bare `node scripts/ts7.cjs` gets
+  it too. Bare `npx depcruise`/`npx knip` spellings BYPASS the floor — invoke the pnpm rows — and so
+  does a bare `node tooling/src/<tool>/cli.ts …` (paid 2026-08-23: two exit-134 OOMs on a bare
+  structure run; the `pnpm check:structure` spelling picked up the floor and ran clean) — an OOM
+  under THAT ceiling is a real finding to report, never to rerun-until-green. Run-completeness
+  enforcement is #410.
+- **A search, gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
+  invocation**; a bare zero is "I couldn't measure", never "it isn't there".
+- **A point measurement never proves a range property.** Layout/balance fixes owe the width matrix
+  (both ends + any crossover) and the appearance arms BEFORE the arm is chosen; a single-width
+  receipt endorsing a "move X" fix is the shell-game setup the owner has explicitly banned.
+
+## Running suites without starving the box
+
+- **Scoped test invocations go through the NICED pnpm scripts, never raw npx (2026-08-21 — raw npx
+  bypasses the nice-19 priority that protects the co-hosted homelab):** node suites =
+  `pnpm test:scoped <paths> --maxWorkers=4` · CT = `pnpm ct:scoped <paths> --workers=2` (it carries
+  the cache-clear). Run from your worktree via `env -C` (never `cd`); your worktree's own
+  node_modules + package.json serve the scripts.
+- **The `--maxWorkers=4` / `--workers=2` cap applies whenever any sibling lane is live** (measured
+  2026-08-21: one lane's default 14 forks at ~90% CPU each drove a 24-core box to load-avg 103 and
+  STARVED THE CO-HOSTED HOMELAB — Authentik errored for the owner. The box is not ours alone;
+  vitest.config's maxWorkers:14 is the DEDICATED-box number, briefs restate the cap). At load-avg 170
+  the CT default worker count times out every test at `mount()` on pure contention — zero signal —
+  while `--workers=2` came back green in 53s.
+- **Long mutation/calibration runs are orchestrator-scheduled** — a lane never starts one without an
+  explicit green light naming the concurrency.
+- **Lanes NEVER busy-wait on a long run (usage ruling 2026-08-21, paid ~30% of a weekly cap in one
+  day):** every sleep-loop poll re-bills cache reads on the lane's ENTIRE context — a 328k-context
+  lane polling a 90-min calibration at 45s intervals burned millions of token-equivalents saying
+  "not done yet". A lane that launches a >10-min detached run REPORTS AND STOPS (its report names
+  the log/exit-file); the orchestrator picks up the completion and resumes the lane by SendMessage.
+- **The harness AUTO-WRITES its artifacts — read them, never pipe or re-run to find a failure:**
+  `pnpm check` → `reports/verify.json` + `reports/verify/<stage>.log`; `pnpm test` →
+  `reports/test-report.json`. A `| tail`/`| grep` on live output eats the failure list.
+
+## The dev stack
+
+- **The dev stack self-heals on source changes — do NOT flag routine "needs restart"** (law corrected
+  2026-08-21; the old "vite prebundles workspace packages" fact died with 086c4e047). Workspace packages
+  are SOURCE-consumed by vite (zero `@orb/*` in `.vite/deps`; probed live: a `packages/ui` edit HMR'd
+  onto `:5173` with no restart); exports-map moves auto-restart vite via the `orb:workspace-exports-restart`
+  plugin; the server auto-respawns via `node --watch` over server/contracts/db/kit src (warm engines
+  re-adopted, seconds). The ONLY manual-restart triggers: `.env` edits, `pnpm install`/dep changes,
+  supervisor-script (`stack.sh`/`dev.sh`) edits, engine-posture changes. When in doubt, prove the served
+  module (`curl :5173/@fs/<abs path> | grep <symbol>`) instead of bouncing the stack.
+- **A watched-src save (and therefore any merge) RESPAWNS the server and WIPES the in-memory wire/RPG
+  flight recorders** — so a merge never lands under a live drive that depends on them, and an instrument
+  change (design-audit/snap/gates) never lands while a drive is live without messaging the driving lane;
+  its before/after deltas silently span two instruments otherwise. (2026-08-21, db25e3d1d: "the ruling
+  survives — its INPUT changed"; the old manual restart-at-merge-window is gone, this consequence is not.)
+- **`:5173` serves MAIN, never your worktree** (§L.6). Rendered proof from a lane comes from
+  `snap --isolated --ref <your-sha>` or the CT browser.
+- **If the environment is lying — stale server, wrong build, thin stage db, a sibling holding the stage
+  port — SendMessage the orchestrator the moment you find out.** Every lane measuring after that point
+  is measuring a dead premise, not just you (paid 2026-08-24: a stale `:5173` build was discovered four
+  minutes into a 24-minute review and sat undelivered for the other twenty while merges continued).
+
+## Tool hazards
+
+- **rg flag discipline is a standing hazard**: `-r` + shorthand cluster (`-rln`) silently REPLACES match
+  text — four offenses in one era, three by the orchestrator. Spell `--files-with-matches`/`-n` out.
+- **Wrapper scripts are classified by BODY.** The Bash guard reads UNTRACKED script bodies
+  (2026-08-14), so a helper script must carry the sanctioned spellings inside it: the CT cache-clear
+  before playwright, and a redirect to a log read in a separate command rather than a pipe into tail.
+- **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides.** A negative claim
+  owes a non-zero scanned-file count plus a second method; `ts` and `tsx` are different languages, run
+  both.
