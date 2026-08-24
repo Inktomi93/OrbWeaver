@@ -15,12 +15,15 @@ export function createCreateRule(ctx: AutomationContext): AutomationService["cre
     await requireChatHost(ctx, params.principal, params.chatId);
     const cooldownSeconds = params.cooldownSeconds ?? 0;
     const maxFiresPerHour = params.maxFiresPerHour ?? RULE_MAX_FIRES_DEFAULT;
-    const { actions } = await validateRuleInput(ctx.db, params.chatId, {
+    const { actions } = await validateRuleInput(ctx, params.chatId, {
       trigger: params.trigger,
       predicateCel: params.predicateCel,
       actions: params.actions,
       cooldownSeconds,
       maxFiresPerHour,
+      // The creating host IS the rule's author, so they are also the identity a `run_tool` arm's tool must be
+      // drivable by — the same user stamped as `ownerId` on the row below.
+      authorUserId: params.principal.userId,
     });
     const now = ctx.now();
     const id = ctx.newRuleId();

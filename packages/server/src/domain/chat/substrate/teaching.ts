@@ -14,31 +14,51 @@
 // silently omits what the model was told it could do produces a wrong prompt that reads as a model failure,
 // which is exactly the class of bug this codebase refuses to make quiet.
 
-import type { ChatInjection } from "@orb/contracts/chat";
+import type { ChatInjection, ChatMetadata } from "@orb/contracts/chat";
+import { resolveOfferChoices } from "@orb/contracts/chat";
 import type { ChatTeachingRegistry, TeachingCollection, TeachingContext, TeachingKnobs } from "../contract/context.ts";
+import type { ChatBehaviorInputs } from "../contract/foreign.ts";
 
-/** The per-chat teaching knobs every turn resolves ({@link TeachingKnobs}).
+/** Resolves the per-chat teaching knobs every turn hands the collection ({@link TeachingKnobs}).
  *
- *  `offerChoices` is the B1 knob and B1 REPLACES this constant with the per-chat read: RULED F2 homes it on
- *  the chat (a per-chat field plus a `groupDefaults`-tier per-user default). No such field exists on today's
- *  tree — the only choices knob is the GAME's `features.cyoa` — so there is nothing to read yet and every
- *  chat resolves the shipped floor. The `tctx` FIELD is frozen now (A1's whole point) so B1's contribution
- *  consumes a contract that never changed shape; the `DEFAULT_CHAT_BEHAVIOR` precedent (`contract/foreign.ts`)
- *  is the same idea one seam over. */
-export const DEFAULT_TEACHING_KNOBS: TeachingKnobs = { offerChoices: false };
+ *  THE PRECEDENCE, and it is the only rule here: **the ROOM's explicit value wins; an absent room value
+ *  inherits the HOST's per-user default.** Room = `chatMetadata.offerChoices` (chat's own column, RULED F2
+ *  chat-homed); host default = `UserSettings.chat.offerChoices`, which reaches chat as a FOREIGN input under
+ *  the frozen `runAsUserId` (D19) — so a member can never widen what this room's model is told, and a room
+ *  created by a host who plays with choices on is born that way without a create-time copy into the blob.
+ *  The `??` itself lives in `contracts` ({@link resolveOfferChoices}) because the CLIENT resolves the same
+ *  pair to seat the host's toggle, and two spellings of one precedence is how a toggle starts lying about
+ *  what the model is being told.
+ *
+ *  Takes the two RESOLVED VALUES rather than the ctx: this is a pure function with pins on it, and every
+ *  collection site (the turn build, the host's preview) already holds both. */
+export function resolveTeachingKnobs(metadata: ChatMetadata, behavior: ChatBehaviorInputs): TeachingKnobs {
+  return { offerChoices: resolveOfferChoices(metadata.offerChoices, behavior.offerChoices) };
+}
 
 /** The dedup identity of an injection ACROSS CONTRIBUTIONS — the full placement + content tuple. */
 function injectionKey(injection: ChatInjection): string {
   return JSON.stringify([injection.position, injection.depth, injection.role, injection.content]);
 }
 
-/** THE DOUBLE-TEACH GUARD. Two contributions that emit the byte-identical injection (same position, depth,
- *  role and content) contribute it ONCE — first occurrence wins, order otherwise untouched.
+/** THE EXACT-DUPLICATE GUARD. Two contributions that emit the byte-identical injection (same position, depth,
+ *  role and content) contribute it ONCE — first occurrence wins, order otherwise untouched. The teach TEXT
+ *  has one home (`PROSE_SLOTS`), so two contributions teaching the same fence ARE the same bytes, and a
+ *  future contributor gets the collapse for free without having to know the others exist.
  *
- *  This is the mechanism, not a convention: the teach TEXT has one home (`PROSE_SLOTS`), so the game's CYOA
- *  teach and a chat-level offer-choices teach ARE the same bytes, and a chat that has both knobs on gets one
- *  line instead of the same instruction twice. A future contributor gets the guard for free — it does not
- *  have to know rpg exists.
+ *  WHAT THIS DOES **NOT** COVER — TRUTH-REPAIRED 2026-08-24 (B1), because the original text of this comment
+ *  claimed it did and was wrong. It said "the game's CYOA teach and a chat-level offer-choices teach ARE the
+ *  same bytes, and a chat that has both knobs on gets one line instead of the same instruction twice." A real
+ *  game turn does not emit its teach as its own injection: rpg pushes every teach into ONE `blocks` array
+ *  with the game-state block, the delta and the steering license (`domain/rpg/substrate/reminder.ts:459`),
+ *  joins it (`:571`), and ships exactly ONE injection (`domain/rpg/chat-ops/gather.ts:183,206`;
+ *  `buildLiteReminder` has no other caller). The teach is therefore a SUBSTRING of a larger blob and this
+ *  key — a whole-injection tuple — cannot see it. The claim read as proven only because A1's own fixture
+ *  faked the gather as two injections, a shape production never produces.
+ *
+ *  So the both-knobs-on case is handled where the two sides are actually comparable: chat's own
+ *  `teaching-contribution.ts` declines to teach a fence this turn's gather already carries. THIS guard's real
+ *  and still-valuable scope is contribution-vs-contribution EXACT duplicates — a second standalone teacher.
  *
  *  SCOPE, load-bearing: this collapses CONTRIBUTIONS only. The chat's own `chat_injections` rows never pass
  *  through here (they are merged at `assemble-gather`) — a host may legitimately author two identical rows,

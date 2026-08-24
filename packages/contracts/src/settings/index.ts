@@ -681,6 +681,13 @@ const chatSchema = z
     // (the measured 350–677px prose fling). Live-ghost only — a committed row already
     // mounts collapsed + host-expandable.
     reasoningAutoCollapse: z.boolean().catch(true).default(true),
+    // B1 / RULED F2 — the per-USER default for the room-level "offer choices" posture: a room that carries no
+    // explicit `chatMetadata.offerChoices` inherits this, so a NEW room is born playing the way its host
+    // plays (the cold-start half of the knob — the room value alone would leave every fresh chat off). The
+    // room value always wins; the precedence has ONE home (`resolveOfferChoices`, @orb/contracts/chat).
+    // SERVER-honored, on the same `UserSettings.chat` → `ChatBehaviorInputs` FOREIGN seam `autoContinue` and
+    // `customStoppingStrings` ride. Default OFF ⇒ byte-identical to a tree that never heard of the knob.
+    offerChoices: z.boolean().catch(false).default(false),
   })
   .prefault({});
 

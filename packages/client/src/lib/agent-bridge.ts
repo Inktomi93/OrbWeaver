@@ -231,10 +231,14 @@ export interface OrbNavHandle {
   readonly openModal: (slot: string) => NavResult;
   /** Open the settings modal at a category (validated against SETTINGS_CATEGORY_IDS). */
   readonly openSettings: (category: string) => NavResult;
-  /** Reveal the active content's context panel by stable id OR unique visible label. Refuses an empty name,
-   *  ambiguity, and — when a tabbed context surface is mounted — an unknown name. Otherwise it opens the
-   *  panel AND sets the stable id, so the switch is visible rather than a silently-ignored request. */
-  readonly contextTab: (name: string) => NavResult;
+  /** Reveal the active content's context panel by stable id OR unique visible label, and RESOLVE ONLY ONCE
+   *  THE PANEL HAS PUBLISHED ITS TABS (issue #656 — it used to report `ok:true` against the not-yet-mounted
+   *  panel's EMPTY vocabulary and leave a different tab showing, so every one-call probe chain censused the
+   *  wrong surface while claiming this one). Async because that mount signal is: it opens the panel, waits
+   *  for its own publish, resolves the name against the published set, then verifies the tab the panel
+   *  actually landed on. Refuses loudly — and distinguishably — on an empty name, an ambiguous label, an
+   *  unknown name, a panel that never published, and a landing that disagrees with the request. */
+  readonly contextTab: (name: string) => Promise<NavResult>;
   /** Switch to the Chats section + make an existing chat active by chat id OR exact display title, OR one of
    *  the sentinels reported by `capabilities().chatPositions`:
    *    · `"first"`/`"latest"` — the chat LIST's top row (`listChats` is newest-CONVERSATION-first, so both

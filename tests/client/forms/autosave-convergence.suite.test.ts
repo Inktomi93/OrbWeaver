@@ -61,6 +61,8 @@ describe("convergence: chat-behavior message handling", () => {
   const rows: readonly ChatSettings[] = [
     DEFAULT_CHAT_SETTINGS,
     {
+      // B1: NON-default, for the same reason the two below it are.
+      offerChoices: true,
       enterSends: false,
       continueOnSend: false,
       generateOnEmptySend: false,

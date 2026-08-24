@@ -100,6 +100,12 @@ describe("runOutcomeNotice", () => {
     expect(runOutcomeNotice("Nudge", "budget_refused").channel).toBe("warn");
     expect(runOutcomeNotice("Nudge", "depth_refused").channel).toBe("warn");
     expect(runOutcomeNotice("Nudge", "authority_refused").channel).toBe("warn");
+    // D146-d — a PAUSED rule is healthy: its plugin is switched off, nothing broke and nothing was spent. It
+    // belongs on the honest-degrade channel with the other refusals, never on `error`, and the line has to say
+    // what to DO — sending a host to a fire log that is deliberately empty would be the worse answer.
+    const paused = runOutcomeNotice("Nudge", "paused");
+    expect(paused.channel).toBe("warn");
+    expect(paused.line).toContain("plugin");
   });
 
   test("a broken arm or condition is an ERROR", () => {
@@ -162,5 +168,8 @@ describe("armLabel", () => {
   test("names what the arm does, never its wire discriminator", () => {
     expect(armLabel("trigger_turn")).toBe("ask for a reply");
     expect(armLabel("set_chat_background")).toBe("change the background");
+    // The open-world arm is labelled by its ACT, not its payload: WHICH tool lives in the arm's `name` field,
+    // and a label that leaked `run_tool` would put the wire discriminator on the one surface built to hide it.
+    expect(armLabel("run_tool")).toBe("run a tool");
   });
 });

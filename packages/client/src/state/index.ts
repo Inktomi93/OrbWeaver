@@ -330,11 +330,12 @@ export {
 export type { SettingsSectionRegistry } from "./settings-section-registry-context.ts";
 export { useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context.ts";
 export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider.tsx";
-export type { ModalSlotId } from "./shell-store.ts";
+export type { ModalSlotId, PublishedContextTab } from "./shell-store.ts";
 export {
   closeModal,
   getAvailableContextTabIds,
   getAvailableContextTabs,
+  getContextTab,
   MODAL_SLOT_IDS,
   openModal,
   openSettingsTo,
@@ -349,6 +350,7 @@ export {
   setNarrowViewport,
   setOpenOverlayPanel,
   setPanelMode,
+  subscribeShellState,
   useActiveSection,
   useContextTab,
   useFocusMode,

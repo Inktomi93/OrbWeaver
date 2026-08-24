@@ -357,6 +357,73 @@ test("member: the display-scripts switch is ABSENT (host-only omit — a member 
   await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).toHaveCount(0);
 });
 
+// B1 — the per-room "Offer choices" host switch (Host controls group). Two things are pinned that the
+// display-scripts precedent above does not have to care about: the room's value is TRI-STATE (a room that
+// has never been pinned inherits the host's per-user default, so the switch's seated state is a function of
+// TWO reads, not one), and the write is a host-only mutation like its neighbours.
+const UPDATE_OFFER_CHOICES = "chat.setOfferChoices";
+const OFFER_CHOICES_SWITCH = { name: "Offer choices" } as const;
+
+/** The tab's stubs with the two reads the offer-choices switch resolves from made explicit. */
+function stubOfferChoices(page: Page, room: boolean | null, userDefault: boolean): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { offerChoices: userDefault } } }),
+    "chat.getChat": () => ({ ...CHAT_DETAIL, offerChoices: room }),
+    [UPDATE_OFFER_CHOICES]: () => ({}),
+  });
+}
+
+// THE INHERIT ARM, and it is the one worth having: a room nobody has pinned (`offerChoices: null`) must show
+// the host's OWN default, because that is genuinely what its next turn will do. A switch that hard-coded
+// `false` here would look right in every other test and lie to exactly the user who set a default.
+for (const arm of [
+  { room: null, userDefault: true, checked: true, label: "never pinned + host default ON ⇒ on (inherit)" },
+  { room: null, userDefault: false, checked: false, label: "never pinned + host default OFF ⇒ off (inherit)" },
+  { room: false, userDefault: true, checked: false, label: "pinned OFF beats a host default of ON" },
+  { room: true, userDefault: false, checked: true, label: "pinned ON beats a host default of OFF" },
+] as const) {
+  test(`host: the offer-choices switch seats from room-over-default — ${arm.label}`, async ({ mount, page }) => {
+    await stubOfferChoices(page, arm.room, arm.userDefault);
+    const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+    const control = component.getByRole("switch", OFFER_CHOICES_SWITCH);
+    // Barrier on the SETTLED control before reading its state — a boundary still in its skeleton renders no
+    // switch at all, and an unbarriered state read would be vacuous. `aria-checked` rather than a branched
+    // `toBeChecked()`: ONE unconditional assertion, and it names the value the arm expects.
+    await expect(control).toBeVisible();
+    await expect(control).toHaveAttribute("aria-checked", String(arm.checked));
+  });
+}
+
+test("host: toggling the offer-choices switch fires chat.setOfferChoices with the new state", async ({ mount, page }) => {
+  const trpc = await stubOfferChoices(page, false, false);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await component.getByRole("switch", OFFER_CHOICES_SWITCH).click();
+  await expect.poll(() => (trpc.lastInput(UPDATE_OFFER_CHOICES) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
+});
+
+test("member: the offer-choices switch is ABSENT (host-only omit — this key steers the room's model)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  // Barrier on the member tree's last settled section before the absence read (the #629 lesson).
+  await expect(component.getByText("Ashfall Canon")).toBeVisible();
+  await expect(component.getByRole("switch", OFFER_CHOICES_SWITCH)).toHaveCount(0);
+});
+
 // The at-a-glance kicker-count chips (panel-redesign): a "N set" chip on Field overrides (count of set
 // override fields, from the roomOverrides prop) and a "N" chip on Injections (from listChatInjections).
 test("count chips: Field overrides shows 'N set' and Injections shows its count when non-empty", async ({ mount, page }) => {

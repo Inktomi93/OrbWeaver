@@ -8,6 +8,8 @@ import type { ToolUseContext } from "./context.ts";
 import type { ToolRegistry } from "./contract/results.ts";
 import type { ToolUseService } from "./contract/service.ts";
 import { createExecuteToolCalls } from "./verbs/execute-tool-calls.ts";
+import { createIsToolDrivableBy } from "./verbs/is-tool-drivable-by.ts";
+import { createListDrivableToolNames } from "./verbs/list-drivable-tool-names.ts";
 import { createProjectMcp } from "./verbs/project-mcp.ts";
 import { createRegister } from "./verbs/register.ts";
 import { createRegisterPluginTool } from "./verbs/register-plugin-tool.ts";
@@ -20,6 +22,8 @@ export function createToolUseService(ctx: ToolUseContext): ToolUseService {
   return {
     register: createRegister(registry),
     registerPluginTool: createRegisterPluginTool(registry),
+    isToolDrivableBy: createIsToolDrivableBy(registry),
+    listDrivableToolNames: createListDrivableToolNames(registry),
     resolveTools: createResolveTools(registry),
     executeToolCalls,
     toWireTools: createToWireTools(),

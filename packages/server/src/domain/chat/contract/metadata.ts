@@ -40,6 +40,10 @@ const chatMetadataSchema = z
     background: themeBackgroundSchema.optional().catch(undefined),
     rpg: chatRpgPointerSchema.optional().catch(undefined),
     hostDisplayScripts: z.boolean().optional().catch(undefined),
+    // B1 — the per-room offer-choices posture. `.optional()` is LOAD-BEARING here in a way it is not for its
+    // boolean neighbour above: absent means INHERIT the host's per-user default, not "off", so the heal arm
+    // (a corrupt value ⇒ absent) lands on inherit rather than on a silently-forced posture.
+    offerChoices: z.boolean().optional().catch(undefined),
   })
   .loose();
 

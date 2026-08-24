@@ -72,6 +72,10 @@ export function toChatDetail({ chat, participants, cast, viewerUserId, viewerHis
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     toolRecurseLimit: chat.metadata.toolRecurseLimit ?? null,
     hostDisplayScripts: chat.metadata.hostDisplayScripts === true,
+    // `?? null`, NOT `=== true`: absent is the INHERIT state here, and collapsing it to `false` would tell
+    // the host's toggle that a never-touched room is pinned off (the toolRecurseLimit shape, not the
+    // hostDisplayScripts one — that neighbour genuinely has no third state).
+    offerChoices: chat.metadata.offerChoices ?? null,
     background: chat.metadata.background ?? null,
     rpg: chat.metadata.rpg ?? null,
     opening: chat.metadata.opening ?? null,

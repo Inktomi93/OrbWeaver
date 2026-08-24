@@ -42,6 +42,7 @@ import {
   enterCreatedChat,
   getAvailableContextTabIds,
   getAvailableContextTabs,
+  getContextTab,
   goToCollection,
   goToLanding,
   isCommitted,
@@ -102,6 +103,7 @@ import {
   setTagSortMode,
   stampAppearanceBootHint,
   subscribeHuskAbandoned,
+  subscribeShellState,
   toggleCollectionGroup,
   toggleFavoritesOnly,
   toggleFiltersOpen,
@@ -287,12 +289,19 @@ function ShellStoreProbeBody(): ReactElement {
   // non-reactive getter right after a publish, so a CT proves the store held what was written. A `p`, not
   // the `<output>` line, so the exact-text layout assertions above are untouched.
   const [ctxTabIds, setCtxTabIds] = useState("unread");
+  // The DEV-BRIDGE WATCHER PAIR (#656): `subscribeShellState` is the store's own change signal and
+  // `getContextTab` its non-reactive read. Together they are how `agent-nav`'s contextTab arm waits for a
+  // CONTEXT panel to publish/land instead of sleeping — so this probe drives them the way that arm does:
+  // subscribe once, and on every store write read the stored tab back imperatively.
+  const [watchedTab, setWatchedTab] = useState("idle");
+  useEffect((): (() => void) => subscribeShellState((): void => setWatchedTab(`tab=${getContextTab() ?? "none"}`)), []);
   return (
     <div>
       <output>
         {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"} narrowViewport=${narrowViewport} focus=${focus}`}
       </output>
       <p>{`ctxTabIds=${ctxTabIds}`}</p>
+      <p>{`watchedTab=${watchedTab}`}</p>
       <button
         type="button"
         onClick={(): void => {

@@ -16,8 +16,10 @@ import {
   DOMAIN_TRIGGER_TYPES,
   GLOBAL_VARIABLE_KEY_MAX_CHARS,
   globalVariableKeySchema,
+  isConfirmFirstArm,
   LIVE_TRIGGERS,
   QUICK_REPLY_MODES,
+  SPEND_ARM_TYPES,
   triggerFactSchema,
 } from "@orb/contracts/automation";
 import { expect, test } from "../../support/fixtures.ts";
@@ -122,7 +124,7 @@ test("the trigger unions have no member beyond their tuples", () => {
 
 // ── the action union + liveness (A4 — 03 / 01 §1) ────────────────────────────────────────────────
 
-test("AUTOMATION_ACTION_TYPES is the pinned 8-member live arm set", () => {
+test("AUTOMATION_ACTION_TYPES is the pinned 9-member live arm set", () => {
   expect(AUTOMATION_ACTION_TYPES).toEqual([
     "set_variable",
     "transform_draft",
@@ -132,6 +134,10 @@ test("AUTOMATION_ACTION_TYPES is the pinned 8-member live arm set", () => {
     "trigger_turn",
     "generate_image",
     "set_chat_background",
+    // D146-a — the CONTRIBUTOR bridge. The tuple stays CLOSED and gains ONE first-party member; the
+    // open-world plugin tool name rides in its payload. This assertion is the guard on that clause: the day
+    // someone adds a `plugin_*`-shaped or otherwise open member here, it fails, and it should.
+    "run_tool",
   ]);
 });
 
@@ -177,6 +183,41 @@ test("surface_quick_reply choices carry a per-choice mode — explicit round-tri
   // The axis is CLOSED — an invented mode never reaches a member's surface.
   expect(automationActionSchema.safeParse({ type: "surface_quick_reply", choices: [{ label: "x", sendTemplate: "y", mode: "execute" }] }).success).toBe(false);
   expect(QUICK_REPLY_MODES).toEqual(["send", "compose"]);
+});
+
+// D146 (a) + the two axis decisions the arm makes, pinned so neither can drift silently.
+test("run_tool carries the open-world name in its PAYLOAD, defaults argsTemplate/resultScope, and caps the name", () => {
+  const bare = automationActionSchema.parse({ type: "run_tool", name: "plugin_mood_report" });
+  expect(bare).toEqual({ type: "run_tool", name: "plugin_mood_report", argsTemplate: "{}", resultScope: "chat" });
+
+  const full = automationActionSchema.parse({
+    type: "run_tool",
+    name: "plugin_mood_report",
+    argsTemplate: '{"since":"{{lastMessage}}"}',
+    resultVar: "mood",
+    resultScope: "global",
+  });
+  expect(full).toMatchObject({ argsTemplate: '{"since":"{{lastMessage}}"}', resultVar: "mood", resultScope: "global" });
+
+  // The NAME is capped but NOT charset-checked here on purpose — the registry is the authority and the mint
+  // gate resolves against it. A cap breach is still refused so an oversized string can never be stored.
+  expect(automationActionSchema.safeParse({ type: "run_tool", name: "" }).success).toBe(false);
+  expect(automationActionSchema.safeParse({ type: "run_tool", name: "x".repeat(65) }).success).toBe(false);
+  expect(automationActionSchema.safeParse({ type: "run_tool", name: "x".repeat(64) }).success).toBe(true);
+  // The result plane is the SAME closed axis `set_variable.scope` uses — one spelling, no third plane.
+  expect(automationActionSchema.safeParse({ type: "run_tool", name: "t", resultScope: "session" }).success).toBe(false);
+});
+
+test("run_tool is SPEND-classed and deliberately NOT suggestible", () => {
+  // Spend: the arm hands control to a contributor whose capabilities include a model call, so a rate refusal
+  // must offer the F4 "run it now?" invitation — the money at stake is the rule author's.
+  expect(SPEND_ARM_TYPES).toContain("run_tool");
+  // Consent: `confirmFirst` is UNSPELLABLE on this arm, which is what keeps `SuggestibleArmType` (derived from
+  // which arms carry the field) excluding it — a card that could only name the tool, not its effect, is a
+  // click-through rather than consent. `.parse` strips the unknown key rather than storing a dead flag.
+  const parsed = automationActionSchema.parse({ type: "run_tool", name: "plugin_x_y", confirmFirst: true });
+  expect(parsed).not.toHaveProperty("confirmFirst");
+  expect(isConfirmFirstArm(parsed)).toBe(false);
 });
 
 test("automationActionsSchema enforces the 1..8 arm cap", () => {

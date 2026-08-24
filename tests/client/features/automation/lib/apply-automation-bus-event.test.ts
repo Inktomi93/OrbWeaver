@@ -30,7 +30,13 @@ function fold(events: readonly AutomationBusEvent[]): readonly PendingAsk[] {
 
 test("suggestionRaised adds the ask, whole — the payload IS the card (there is no row to fetch)", () => {
   const [ask] = fold([raised(RULE_1, "Take a turn in the room?")]);
-  expect(ask).toMatchObject({ source: { kind: "rule", ruleId: RULE_1 }, chatId: CHAT, kind: "confirm", summary: "Take a turn in the room?", expiresAt: NOW + TTL });
+  expect(ask).toMatchObject({
+    source: { kind: "rule", ruleId: RULE_1 },
+    chatId: CHAT,
+    kind: "confirm",
+    summary: "Take a turn in the room?",
+    expiresAt: NOW + TTL,
+  });
 });
 
 test("a second ask from the SAME rule REPLACES the first (mirroring the server's replace-per-slot)", () => {

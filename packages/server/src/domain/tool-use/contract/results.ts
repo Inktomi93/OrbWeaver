@@ -3,6 +3,7 @@
 // erases each into a RegisteredTool whose run closes over the typed pair (schema + handler) — zero casts,
 // variance-sound by construction.
 
+import type { UserId } from "@orb/kit/ids";
 import type { ZodRawShape } from "zod";
 import type { ToolCapability, ToolExecutionContext, ToolSource } from "./params.ts";
 
@@ -22,6 +23,15 @@ export interface RegisteredTool {
   readonly description: string;
   readonly capability: ToolCapability | null;
   readonly source: ToolSource;
+  /** WHO this entry belongs to. `null` for a `builtin` — a first-party tool is a build artifact with no
+   *  owner; the INSTALLER's `UserId` for a `plugin` entry.
+   *
+   *  It is retained (rather than closed over in `run` like the rest of the PL-C ceiling) because reachability
+   *  is a question asked about an entry WITHOUT invoking it: "which contributor tools may THIS user point at
+   *  by name" — the automation `run_tool` mint gate, its per-fire pause check, and the per-turn attach
+   *  contribution all ask exactly that, and none of them is in a position to invoke first and see.
+   *  `substrate/reachability.ts::isDirectDrivableBy` is the ONE predicate over it; nothing else reads it. */
+  readonly owner: UserId | null;
   readonly parameters: Record<string, unknown>;
   /** The zod raw shape (the registered object schema's `.shape`) the MCP projection hands the agent-sdk
    *  factory — the SDK's `tool()` requires a shape, not the cached JSON-schema `parameters`. Computed once

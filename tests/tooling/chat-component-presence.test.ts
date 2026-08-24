@@ -117,6 +117,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "settings-context-tab",
     why: "the host-only 'share my display scripts' switch (D121-E) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setHostDisplayScripts fires; member sees no control), the tool-recurse-control precedent.",
   },
+  "offer-choices-control": {
+    coveredBy: "settings-context-tab",
+    why: "the host-only per-room 'Offer choices' switch (B1) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setOfferChoices fires; the never-pinned room seats from the host's per-user default; member sees no control), the host-display-scripts-control precedent.",
+  },
   "chat-list-header": { coveredBy: "chat-list-surface", why: "the list header renders inside the list surface; chat-list-surface.ct covers it." },
   "chat-list-character-filter": {
     coveredBy: "chat-list-surface",
