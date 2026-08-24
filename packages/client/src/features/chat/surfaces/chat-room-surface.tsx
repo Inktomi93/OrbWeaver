@@ -152,7 +152,14 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
               vertical stack, so it takes the same centred box — otherwise a contribution renders at its own
               content width against the left edge of the pane while the two things it sits between centre. */}
           {aboveComposerContributions.length === 0 ? null : (
-            <Stack gap="row" className={CHAT_TRACK} data-slot="chat-above-composer">
+            // `empty:hidden` is the SILENT-CONTRIBUTOR collapse (S1, interaction-direction-spec §3-S1): a
+            // contribution that is mounted but currently paints nothing (the control band with no live
+            // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
+            // empty flex child still costs the column one `gap="block"` step between the transcript and the
+            // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
+            // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
+            // non-empty.
+            <Stack gap="row" className={cn(CHAT_TRACK, "empty:hidden")} data-slot="chat-above-composer">
               {aboveComposerContributions.map((c) => (
                 <Fragment key={c.id}>{c.node}</Fragment>
               ))}

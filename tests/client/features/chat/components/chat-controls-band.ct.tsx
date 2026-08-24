@@ -75,14 +75,22 @@ test("ZERO sources: no control band, and no above-composer wrapper either (the r
   await expect(component.locator(ABOVE_COMPOSER)).toHaveCount(0);
 });
 
-test("a registered source publishing NOTHING mounts the band and paints no chrome", async ({ mount, page }) => {
+test("a registered source publishing NOTHING paints no band, and its empty wrapper is out of layout", async ({ mount, page }) => {
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="empty" />);
 
-  await expect(component.locator(BAND)).toHaveCount(1);
+  // The room is live (the barrier — without it every count-0 below passes on a blank mount).
+  await expect(component.getByText("The corridor forks.")).toBeVisible();
+  await expect(component.locator(BAND)).toHaveCount(0);
   await expect(component.locator(CARDS)).toHaveCount(0);
   await expect(component.locator(CHIPS)).toHaveCount(0);
+  // The mount IS registered, so the room's above-composer wrapper exists — but with no rendered child it is
+  // `empty:hidden`, i.e. display:none, so it costs neither a box nor one of the column's `gap` steps. A
+  // "mounted but silent" source must read exactly like an unmounted one (the M8 spirit).
+  const wrapper = component.locator(ABOVE_COMPOSER);
+  await expect(wrapper).toHaveCount(1);
+  await expect(wrapper).toHaveCSS("display", "none");
 });
 
 test("chips render their labels in one row", async ({ mount, page }) => {
@@ -140,13 +148,23 @@ test("BUSY IS PER MODE: a turn in flight disables the send chip with its reason;
   await expect(composeChip).toBeEnabled();
 });
 
-test("execute mode: NOT turn-gated — it runs its own verb while a turn streams", async ({ mount, page }) => {
+test("execute mode: NOT turn-gated — it runs its own verb while a turn is in flight", async ({ mount, page }) => {
   await routeRoom(page);
 
+  // This fixture publishes a SEND chip beside the execute one precisely so the turn's liveness is
+  // OBSERVED, not assumed: without that barrier the test passes even with the turn driver neutered (it
+  // would then only prove "an idle execute chip is clickable"), which is exactly how this row was vacuous
+  // when first written.
   const component = await mount(<ChatControlsStory fixture="execute" />);
+  const sendChip = component.getByRole("button", { name: "Draw your blade" });
   const roll = component.getByRole("button", { name: "Roll 1d20" });
+  await expect(sendChip).toBeEnabled();
+
   await component.getByTestId("drive-turn-begin").click();
 
+  // THE BARRIER: the turn really is in flight in this frame — the send-mode control is blocked by it.
+  await expect(sendChip).toBeDisabled();
+  // …and in the SAME state the execute control is live, because a verb call is not a turn.
   await expect(roll).toBeEnabled();
   await roll.click();
   // The SOURCE's own runner ran (the band never invents it).
@@ -161,6 +179,44 @@ test("execute mode: disabled ONLY while its own call pends, with the running rea
 
   await expect(roll).toBeDisabled();
   await expect(roll).toHaveAttribute("title", "Already running — wait for it to finish");
+});
+
+// ── THE PUBLISH GUARD (use-chat-controls.tsx `sameControls`) ───────────────────────────────────────
+// The `republish` fixture's source rebuilds its control OBJECTS on every render (fresh closures, fresh
+// array — the natural bus-driven shape) and publishes them from an effect with no equality of its own. The
+// band's CONTENT comparison is the only thing between that shape and a render loop, and these two rows pin
+// both halves of it: a same-content republish is IGNORED (the band keeps the previous objects, so the epoch-0
+// closure is what a click runs), and a changed-content one is ADOPTED. With the guard reduced to identity
+// comparison — or removed — the first row reads 10 instead of 1 and goes red.
+
+test("a same-content republish is a NO-OP: the band keeps the controls it already had", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="republish" />);
+  const roll = component.getByRole("button", { name: "Roll 1d20" });
+  await expect(roll).toBeVisible();
+
+  // Epoch 1: every rendered field identical (kind/id/label/mode/pending), the closure now adds 10.
+  await component.getByTestId("drive-source-republish").click();
+  await expect(roll).toBeVisible();
+  await roll.click();
+
+  // 1, not 10 — the ignored publish kept the epoch-0 object. (This is also the documented residual: a
+  // source that changes BEHAVIOUR without changing a rendered field must mint a new control id.)
+  await expect(component.getByTestId("ct-control-source-ran")).toHaveText("1");
+});
+
+test("a changed-content republish IS adopted — the guard never swallows a real update", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="republish" />);
+  await expect(component.getByRole("button", { name: "Roll 1d20" })).toBeVisible();
+
+  // Epoch 2 changes the label — a compared field, so the band takes the new control.
+  await component.getByTestId("drive-source-relabel").click();
+
+  await expect(component.getByRole("button", { name: "Roll 2d20" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Roll 1d20" })).toHaveCount(0);
 });
 
 test("the chips row caps its display and discloses the remainder", async ({ mount, page }) => {
