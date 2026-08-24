@@ -102,6 +102,12 @@ describe("escape — realm walks reach only the guest global, never a host refer
     }
   });
 
+  // WHAT THIS DIFF CAN AND CANNOT SEE — read before trusting it as an ambient-authority pin. It answers
+  // "what did installRealm ADD or REMOVE", which is a real claim, and it is BLIND BY CONSTRUCTION to anything
+  // the RUNTIME already ships: a name present in both contexts cancels out of the diff. That is exactly how a
+  // live `performance.now()` sat in the guest realm while this test was green. The pin that catches that class
+  // is the absolute ALLOW-LIST over `globalThis` in realm.test.ts — do not re-derive it here (one home); this
+  // test's job is the delta, that one's job is the census.
   test("the guest global set differs from a bare context by EXACTLY {orb} (a real set-diff, not a typeof spot-check)", async () => {
     const mod = await getPluginQuickJS();
     const bare = mod.newContext();
@@ -113,10 +119,14 @@ describe("escape — realm walks reach only the guest global, never a host refer
       const realmNames = namesOf(realm);
       const added = [...realmNames].filter((n) => !bareNames.has(n));
       const removed = [...bareNames].filter((n) => !realmNames.has(n));
-      // installRealm ADDS exactly `orb` and REMOVES nothing — Date/Math are overwritten in place (throwing stubs),
-      // not new globals. So the ONLY non-standard name a guest can enumerate is `orb`.
+      // installRealm ADDS exactly `orb` and REMOVES nothing — Date/Math/performance are overwritten IN PLACE
+      // (throwing stubs), not new globals, which is also why this diff cannot testify about them.
       expect(added).toEqual(["orb"]);
       expect(removed).toEqual([]);
+      // The diff's blind spot, made explicit: `performance` is in BOTH sets, so it cancels — and it is a live
+      // clock in the bare one. Its neutering is realm.test.ts's assertion, not this one's.
+      expect(bareNames.has("performance")).toBe(true);
+      expect(realmNames.has("performance")).toBe(true);
     } finally {
       bare.dispose();
       realm.dispose();

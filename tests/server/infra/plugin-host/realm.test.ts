@@ -1,8 +1,14 @@
 // infra/plugin-host/realm — the membrane floor (01 §1). Proves: ambient non-determinism is overwritten
-// with THROWING stubs (Date / Math.random — the guest's only banned entropy), no I/O globals are
-// reachable (setTimeout / fetch / process / require absent), the ONLY installed global is `orb`, the
+// with THROWING stubs (Date / Math.random / performance — the runtime's three ambient time/entropy sources),
+// no I/O globals are reachable (setTimeout / fetch / process / require absent), the guest global object is an
+// EXACT ALLOW-LIST whose only non-intrinsic entry is `orb`, the
 // version gate (`orb.host(1)` serves, `orb.host(2)` throws loudly — the D46 fail-on-V2 clause), the
 // injected seams are the guest's sole time/entropy/id sources, and the per-invocation log ring is bounded.
+//
+// THE ALLOW-LIST IS THE LESSON, not decoration: this file's ambient pins used to be a FIXED SIX-NAME probe
+// plus a test whose title claimed "the only non-standard global is orb" while its body asserted only
+// `typeof orb`. Both passed for months against a realm that handed every guest a live `performance.now()`.
+// A closed list is the only shape that fails on a name nobody thought to probe for.
 //
 // Guest probe strings reach the ambient stubs via SUBSCRIPT access (bracket notation) deliberately — the
 // test-determinism gate is a line-regex that flags an ambient `Date` / `Math` member call even inside a
@@ -16,6 +22,88 @@ import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
+
+/** EVERY name a guest can enumerate on `globalThis` after `installRealm`. Three classes, and the class is the
+ *  judgement — adding a name here is a security decision, not bookkeeping:
+ *   - ES INTRINSICS (Array/JSON/Promise/…): pure, no host authority, no ambient state.
+ *   - NEUTRALIZED ambient sources: `Date`, `Math` (its `random`) and `performance` are all THROWING STUBS —
+ *     present so a guest feature-detects, inert so it cannot read time or entropy without the injected seams.
+ *   - The ONE installed entry: `orb`.
+ *  Two deliberate admissions to record rather than hide: `WeakRef` + `FinalizationRegistry` are GC-observability
+ *  side channels (a guest can learn when the collector runs). They are ES intrinsics of the chosen runtime, and
+ *  removing them would break legitimate guest code; the exposure is memory-timing, never host authority.
+ *  `SharedArrayBuffer` carries no `Atomics` here (no `Atomics` global ⇒ no wait/notify timer) and there is no
+ *  worker to share it with. */
+const ALLOWED_GLOBALS: readonly string[] = [
+  // ── ES intrinsics ──
+  "AggregateError",
+  "Array",
+  "ArrayBuffer",
+  "BigInt",
+  "BigInt64Array",
+  "BigUint64Array",
+  "Boolean",
+  "DOMException",
+  "DataView",
+  "Error",
+  "EvalError",
+  "FinalizationRegistry",
+  "Float16Array",
+  "Float32Array",
+  "Float64Array",
+  "Function",
+  "Infinity",
+  "Int16Array",
+  "Int32Array",
+  "Int8Array",
+  "InternalError",
+  "Iterator",
+  "JSON",
+  "Map",
+  "NaN",
+  "Number",
+  "Object",
+  "Promise",
+  "Proxy",
+  "RangeError",
+  "ReferenceError",
+  "Reflect",
+  "RegExp",
+  "Set",
+  "SharedArrayBuffer",
+  "String",
+  "Symbol",
+  "SyntaxError",
+  "TypeError",
+  "URIError",
+  "Uint16Array",
+  "Uint32Array",
+  "Uint8Array",
+  "Uint8ClampedArray",
+  "WeakMap",
+  "WeakRef",
+  "WeakSet",
+  "decodeURI",
+  "decodeURIComponent",
+  "encodeURI",
+  "encodeURIComponent",
+  "escape",
+  "eval",
+  "globalThis",
+  "isFinite",
+  "isNaN",
+  "parseFloat",
+  "parseInt",
+  "queueMicrotask",
+  "undefined",
+  "unescape",
+  // ── neutralized ambient time/entropy (throwing stubs — see installRealm's AMBIENT_STUBS) ──
+  "Date",
+  "Math",
+  "performance",
+  // ── the one installed entry ──
+  "orb",
+];
 
 /** A deterministic seam bundle — no ambient anything (a fixed clock, a seeded LCG, a counter id). */
 function makeSeams(seed = 1): { seams: HostSeams; log: LogRing } {
@@ -75,6 +163,24 @@ describe("installRealm — ambient denial", () => {
     }
   });
 
+  test("the ambient `performance` clock is a throwing stub (no capability-free time source)", async () => {
+    const { ctx } = await realmContext();
+    try {
+      // A bare quickjs-ng context ships `performance.now()` — a real, monotonic, sub-microsecond clock a guest
+      // could read with NO capability, defeating the injected seams (D46: clock/PRNG/ids reach the guest ONLY
+      // via host functions) and handing a hostile guest a timer for the DoS deadline + timing side channels.
+      expect(evalString(ctx, "try { performance['now'](); 'NO-THROW' } catch (e) { e.message }")).toContain("disabled");
+      // `timeOrigin` goes with it — the stub is a fresh object, not a patched one.
+      expect(evalString(ctx, "typeof performance.timeOrigin")).toBe("undefined");
+      // POSITIVE CONTROL for the assertion itself: the name IS still there (the stub is an overwrite, so a
+      // silently-failed assignment would leave a WORKING clock here and this probe must be able to see it).
+      expect(evalString(ctx, "typeof performance")).toBe("object");
+      expect(evalString(ctx, "String(Object.getOwnPropertyNames(performance))")).toBe("now");
+    } finally {
+      ctx.dispose();
+    }
+  });
+
   test("no I/O / ambient-authority globals are reachable", async () => {
     const { ctx } = await realmContext();
     try {
@@ -85,10 +191,18 @@ describe("installRealm — ambient denial", () => {
     }
   });
 
-  test("the only non-standard global is orb", async () => {
+  // THE REALM ALLOW-LIST — the pin that has to exist because "absent from a bare context" is an assumption, not
+  // a fact: `performance` shipped live precisely because all three "no ambient" tests were structurally blind to
+  // it (a fixed six-NAME probe that never named it; a test titled "the only non-standard global is orb" whose
+  // body asserted only `typeof orb`; and an escape-suite set-diff taken against a BARE context, which carries
+  // the same ambient source and therefore cancels it out). A closed list over the whole global object is the
+  // only shape that goes RED on arrival when a quickjs-ng bump adds `crypto` / `Temporal` / `Atomics` / a timer.
+  test("the guest global object is an EXACT allow-list (a new runtime global goes red here)", async () => {
     const { ctx } = await realmContext();
     try {
-      // Names present on globalThis beyond the standard intrinsics + the Date/Math stubs.
+      const actual = evalString(ctx, "Object.getOwnPropertyNames(globalThis).sort().join(',')").split(",");
+      expect(actual).toEqual([...ALLOWED_GLOBALS].sort());
+      // The claim the mis-titled test never made: `orb` is the ONE non-intrinsic entry, and it is the surface.
       expect(evalString(ctx, "typeof orb")).toBe("object");
       expect(evalString(ctx, "typeof orb.host")).toBe("function");
     } finally {
