@@ -7,7 +7,7 @@ import type { AssetBlobRef, AssetKind, AssetListItem, GalleryItemView, StoredAss
 import type { Db } from "@orb/db";
 import { assets, galleryItems } from "@orb/db";
 import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
-import { isAnimated } from "@orb/kit/image-sniff";
+import { sniffImageBytes } from "@orb/kit/image-sniff";
 import { and, asc, desc, eq, inArray, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
 import { assertMagicMatches } from "../substrate/mime.ts";
@@ -64,7 +64,7 @@ export async function selectOwnedAssetRefs(db: Db, ownerId: UserId, assetIds: re
     return [];
   }
   const rows = await db
-    .select({ assetId: assets.id, hash: assets.hash, mime: assets.mime })
+    .select({ assetId: assets.id, hash: assets.hash, mime: assets.mime, width: assets.width, height: assets.height })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...assetIds])));
   return rows;
@@ -122,6 +122,9 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
   }
 
   const put = await cas.putBytes(input.ownerId, input.bytes, input.now);
+  // ONE header sniff for every stored byte-fact. `sniffImageBytes` is null for a non-image (a zip, a pdf)
+  // and its `animated` IS `isAnimated`'s own return value, so this stores exactly what the old call did.
+  const sniffed = sniffImageBytes(input.bytes);
   const inserted = await db
     .insert(assets)
     .values({
@@ -132,7 +135,11 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
       size: put.size,
       hash: put.hash,
       // Computed once here so the grid + variant pipeline never re-sniff.
-      animated: isAnimated(input.bytes),
+      animated: sniffed !== null && sniffed.animated,
+      // Header-parsed dimensions so the render side reserves the true box before the bytes arrive (#625).
+      // NULL for a non-image or an unparseable/truncated header — the renderer's `auto 16 / 9` fallback.
+      width: sniffed?.width ?? null,
+      height: sniffed?.height ?? null,
       uploadedAt: input.now,
     })
     .onConflictDoNothing({ target: [assets.ownerId, assets.hash] })

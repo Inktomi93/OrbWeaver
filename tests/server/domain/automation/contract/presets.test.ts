@@ -62,10 +62,11 @@ function presetOf(id: RulePresetId): ErasedRulePresetDef {
 }
 
 /** The knobs a preset CANNOT usefully default, supplied here so the invariants below run against a rule the
- *  host could actually mint. Today exactly one row needs it: #3 auto-add lore references a LOREBOOK, and no
- *  knob kind can express an entity reference yet — so its `bookId` defaults to `""`, which is a deliberate
- *  mint-time refusal ("pick a book"), not an oversight. Keeping the map explicit means a preset that grows a
- *  required knob has to say so HERE, rather than quietly weakening a shared invariant. */
+ *  host could actually mint. Today exactly one row needs it: #3 auto-add lore references a LOREBOOK through
+ *  the `entityRef` knob kind (#630), which carries NO default by construction — no book is "the" book, and a
+ *  reference with a default would ride `resolveKnob`'s unvalidated-default path into a mint. Keeping the map
+ *  explicit means a preset that grows a required knob has to say so HERE, rather than quietly weakening a
+ *  shared invariant. */
 const REQUIRED_KNOBS: Partial<Record<RulePresetId, Readonly<Record<string, string>>>> = {
   autoAddLore: { bookId: mintTypeId(ID_PREFIX.worldBook) },
 };
@@ -260,7 +261,8 @@ test("#3 auto-add lore is confirm-first BY DEFAULT, and the choice knob can turn
   const preset = presetOf("autoAddLore");
   expect(preset.confirmFirst).toBe(true);
   expect(buildWithDefaults("autoAddLore")[0]?.arms[0]).toMatchObject({ type: "insert_world_info_entry", confirmFirst: true });
-  const written = preset.rules(resolveRulePresetKnobs(preset.knobs, { confirmFirst: "write" }));
+  // The required lorebook reference rides along — it has no default to fall back to (#630).
+  const written = preset.rules(resolveRulePresetKnobs(preset.knobs, { ...REQUIRED_KNOBS.autoAddLore, confirmFirst: "write" }));
   expect(written[0]?.arms[0]).toMatchObject({ type: "insert_world_info_entry", confirmFirst: false });
 });
 

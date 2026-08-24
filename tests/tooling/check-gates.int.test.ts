@@ -766,6 +766,13 @@ function writeFixtures(): void {
   // no-raw-color-in-css: a raw hex color in a feature CSS file (outside the theme.css token home). Reads via
   // fs.globSync, so the real-tree __g_ fixture is picked up regardless of tsconfig excludes.
   fx("packages/client/src/features/__g_rawcsscolor/__g_rawcsscolor.css", ".g {\n  color: #abcdef;\n}\n");
+  // over-art-plate-arm: a translucent glass surface mixed over `transparent` with no [data-has-bg-image]
+  // light-dark() plate arm (D144(b)). Also fs.globSync-read. The subject is a __g_ slot name so the fixture
+  // can never collide with a real surface's ratchet row.
+  fx(
+    "packages/client/src/features/__g_plate/__g_plate.css",
+    'html[data-blur-panels] [data-slot="__g-plate-probe"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n',
+  );
   // no-context-provider: the React-19-deprecated <Context.Provider> form.
   fx("packages/client/src/features/__g_ctxprov/components/__g_c.tsx", "export const Host = () => <MyContext.Provider value={1} />;\n");
   // no-context-returntype: a ReturnType<> DI-bundle type in a context.ts.

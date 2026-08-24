@@ -57,6 +57,20 @@
           "autoincrement": false,
           "default": false
         },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "uploaded_at": {
           "name": "uploaded_at",
           "type": "integer",
@@ -4750,7 +4764,7 @@
         },
         "plugin_kv_value_check": {
           "name": "plugin_kv_value_check",
-          "value": "length(value) <= 65536"
+          "value": "length(cast(value as blob)) <= 65536"
         }
       }
     },

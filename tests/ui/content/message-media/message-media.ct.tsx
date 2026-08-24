@@ -89,6 +89,62 @@ test("the un-loadable placeholder still RESERVES the 16:9 box (the anti-CLS rese
   expect(box?.height ?? 0).toBeGreaterThanOrEqual((box?.width ?? 0) / PLACEHOLDER_RATIO - 1);
 });
 
+const PENDING_ASSET = "/blob/pending-portrait.png";
+const PORTRAIT = { w: 1024, h: 1536 } as const;
+const MOUNT_WIDTH = 320;
+const RESERVED_PRECISION = 1;
+
+test("declared dims RESERVE the true box BEFORE the bytes arrive (#625 — not just after decode)", async ({ mount, page }) => {
+  // The reservation half of #622: dims exist so the row holds the image's REAL box while the request is
+  // still in flight. An <img> with an aspect-ratio but no definite inline size lays out 0×0 until the
+  // bytes give it an intrinsic width — which is a ratio the eye never sees and a reflow on load.
+  // Held permanently pending so this measures the PRE-DECODE box, never the loaded one.
+  await page.route(`**${PENDING_ASSET}`, () => undefined);
+  const cmp = await mount(
+    <div style={{ width: `${MOUNT_WIDTH}px` }}>
+      <MessageMedia src={{ kind: "asset", url: PENDING_ASSET }} media="image" alt="portrait" dims={PORTRAIT} />
+    </div>,
+  );
+  const img = cmp.locator('[data-slot="message-media"]');
+  await expect(img).toBeVisible();
+  const box = await img.boundingBox();
+  expect(box?.width ?? 0).toBeCloseTo(MOUNT_WIDTH, RESERVED_PRECISION);
+  expect(box?.height ?? 0).toBeCloseTo((MOUNT_WIDTH * PORTRAIT.h) / PORTRAIT.w, RESERVED_PRECISION);
+});
+
+const GATED_ASSET = "/blob/gated-portrait.svg";
+const SVG_MIME = "image/svg+xml";
+const PORTRAIT_SVG_BODY = `<svg xmlns="http://www.w3.org/2000/svg" width="${PORTRAIT.w}" height="${PORTRAIT.h}"><rect width="100%" height="100%" fill="black"/></svg>`;
+const NO_SHIFT_PX = 0.5;
+
+test("declared dims mean ZERO layout shift across the load (#625 — the same box before and after decode)", async ({ mount, page }) => {
+  // The reservation's whole point, measured as the thing a reader actually experiences: the box the row
+  // holds while the bytes are in flight is the SAME box the decoded image occupies, so nothing below it
+  // moves. Before #625 the pre-load box was 0×0 and the entire thread jumped on decode.
+  let release: (() => Promise<void>) | undefined;
+  await page.route(`**${GATED_ASSET}`, (route) => {
+    release = (): Promise<void> => route.fulfill({ body: PORTRAIT_SVG_BODY, contentType: SVG_MIME });
+  });
+  const cmp = await mount(
+    <div style={{ width: `${MOUNT_WIDTH}px` }}>
+      <MessageMedia src={{ kind: "asset", url: GATED_ASSET }} media="image" alt="portrait" dims={PORTRAIT} />
+    </div>,
+  );
+  const img = cmp.locator('[data-slot="message-media"]');
+  await expect(img).toBeVisible();
+  const before = await img.boundingBox();
+
+  await expect.poll(() => release !== undefined).toBe(true);
+  await release?.();
+  // Barrier on the SETTLED (decoded) image — the assertion is about the box AFTER the bytes land.
+  await expect.poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(PORTRAIT.w);
+  const after = await img.boundingBox();
+
+  expect(after?.width ?? 0).toBeCloseTo(before?.width ?? -1, NO_SHIFT_PX);
+  expect(after?.height ?? 0).toBeCloseTo(before?.height ?? -1, NO_SHIFT_PX);
+  expect(after?.height ?? 0).toBeCloseTo((MOUNT_WIDTH * PORTRAIT.h) / PORTRAIT.w, RESERVED_PRECISION);
+});
+
 test("a data: URI is blocked for an external source (no click-to-load, no <img>)", async ({ mount }) => {
   const dataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC";
   const cmp = await mount(<MessageMedia src={{ kind: "external", url: dataUri }} media="image" alt="pic" />);
