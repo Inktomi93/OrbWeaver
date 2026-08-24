@@ -13,7 +13,9 @@
 //      every chat function validates its handle arg against that token, so a forged/stale handle fails
 //      resolution (no read) rather than reaching a different chat.
 //   3. self-bound — each host call races a real-time deadline (`boundHostFn`'s posture) and caps its
-//      serialized result; ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
+//      serialized result AND its guest-supplied ARGUMENTS (`HOST_FN_ARGS_MAX_BYTES` — the inbound mirror; the
+//      only prior bound on an argument was the 32 MiB instance heap, retained per call across the ≤32 ceiling);
+//      ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
 //      STARTED-AND-UNSETTLED host work, which is what makes the cap a bound on work rather than on promises.
 
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
@@ -32,7 +34,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import type { SafeFetchOptions } from "../network/egress.ts";
 import { safeFetch } from "../network/egress.ts";
-import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
+import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
 import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
@@ -625,6 +627,56 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return Object.values(value).every((v) => typeof v === "string");
 }
 
+/** True once the already-dumped guest arguments exceed `cap` serialized bytes. An ITERATIVE walk that
+ *  SHORT-CIRCUITS the moment the budget is blown — so a hostile payload costs ~`cap` of accounting, not a
+ *  second full `JSON.stringify` of the whole graph. Scalars are charged a flat 8 (their JSON text is short and
+ *  their real cost is the slot, not the digits); strings and keys are charged their UTF-8 bytes plus the
+ *  punctuation JSON would spend on them, so the number tracks the serialized size it is named for.
+ *
+ *  WHAT THIS BOUNDS, precisely: everything that crosses into a domain op, and everything RETAINED host-side for
+ *  the life of the async impl — which is the amplification (`HOST_CALLS_IN_FLIGHT_MAX` concurrent calls, each
+ *  previously free to hold the guest's whole 32 MiB heap, plus whatever the op then did with it: a
+ *  `storage.set` writes it, a `net.fetch` body sends it). What it does NOT bound is the TRANSIENT `ctx.dump`
+ *  materialization it must measure — one at a time per context, and already bounded by the instance memory cap.
+ *  Do not read this cap as a bound on peak host memory; it is a bound on retained and forwarded bytes. */
+function exceedsArgBudget(args: readonly unknown[], cap: number): boolean {
+  let bytes = 0;
+  const pending: unknown[] = [...args];
+  while (pending.length > 0 && bytes <= cap) {
+    bytes += chargeValue(pending.pop(), pending);
+  }
+  return bytes > cap;
+}
+
+/** The JSON punctuation charged per value and per key (quotes / comma / colon) — the framing a serializer
+ *  spends, so a payload of a million empty strings is not accounted as free. */
+const JSON_FRAMING_BYTES = 4;
+/** Flat charge for a scalar (number / boolean / null / undefined): its serialized text is short and bounded. */
+const SCALAR_ARG_BYTES = 8;
+
+/** Charge ONE already-dumped value, PUSHING its children onto `pending` (mutated by design — the walk is
+ *  iterative so a deeply-nested guest payload cannot recurse the host stack). */
+function chargeValue(value: unknown, pending: unknown[]): number {
+  if (typeof value === "string") {
+    return Buffer.byteLength(value, "utf8") + JSON_FRAMING_BYTES;
+  }
+  if (Array.isArray(value)) {
+    for (const child of value) {
+      pending.push(child);
+    }
+    return JSON_FRAMING_BYTES + value.length;
+  }
+  if (typeof value === "object" && value !== null) {
+    let keys = JSON_FRAMING_BYTES;
+    for (const [key, child] of Object.entries(value)) {
+      keys += Buffer.byteLength(key, "utf8") + JSON_FRAMING_BYTES;
+      pending.push(child);
+    }
+    return keys;
+  }
+  return SCALAR_ARG_BYTES;
+}
+
 /** Build + attach ONE async host function: guest args via `ctx.dump`, the impl races a real-time deadline, the
  *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped (bounded by
  *  the invocation deadline). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
@@ -649,6 +701,14 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     // promise and the Sandbox's `pending` drain owns teardown). Same for the positional `argHandles`,
     // which quickjs-emscripten disposes itself.
     const deferred = ctx.newPromise();
+
+    // THE INBOUND ARG CAP — the mirror of the result cap below, checked BEFORE the in-flight gate so a refused
+    // call never charges a slot. Both refusal arms settle synchronously, so neither registers in `pending`.
+    if (exceedsArgBudget(args, HOST_FN_ARGS_MAX_BYTES)) {
+      using err = ctx.newError(`plugin host: ${name} arguments exceed the ${HOST_FN_ARGS_MAX_BYTES}-byte inbound cap`);
+      deferred.reject(err);
+      return deferred.handle;
+    }
 
     if (inFlight.count >= HOST_CALLS_IN_FLIGHT_MAX) {
       using err = ctx.newError(`plugin host: too many concurrent host calls (>${HOST_CALLS_IN_FLIGHT_MAX})`);

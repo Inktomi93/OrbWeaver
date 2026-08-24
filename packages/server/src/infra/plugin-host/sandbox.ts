@@ -133,12 +133,16 @@ export class Sandbox implements Disposable {
   private readonly log: LogRing;
   private readonly limits: SandboxLimits;
   private readonly state: ResidentState;
+  /** The realm's PRISTINE `JSON.parse`, captured before any guest code ran — the inbound args channel
+   *  (`parseArgs`). Held for the instance lifetime, disposed with the context. */
+  private readonly jsonParse: QuickJSHandle;
 
-  private constructor(init: { ctx: QuickJSContext; log: LogRing; limits: SandboxLimits; state: ResidentState }) {
+  private constructor(init: { ctx: QuickJSContext; log: LogRing; limits: SandboxLimits; state: ResidentState; jsonParse: QuickJSHandle }) {
     this.ctx = init.ctx;
     this.log = init.log;
     this.limits = init.limits;
     this.state = init.state;
+    this.jsonParse = init.jsonParse;
   }
 
   /** Boot a fresh guest instance: load the process module, mint an isolated context, cap its memory + stack,
@@ -193,7 +197,12 @@ export class Sandbox implements Disposable {
             },
           };
     installRealm(ctx, seams, log, membrane);
-    return new Sandbox({ ctx, log, limits: resolved, state });
+    // Capture `JSON.parse` HERE — after the realm is installed and BEFORE any guest source runs. The inbound
+    // args channel calls this handle, so a guest that later reassigns `JSON.parse` (or deletes `JSON`) cannot
+    // interpose on the host's marshalling of the next invocation's arguments.
+    using jsonNamespace = ctx.getProp(ctx.global, "JSON");
+    const jsonParse = ctx.getProp(jsonNamespace, "parse");
+    return new Sandbox({ ctx, log, limits: resolved, state, jsonParse });
   }
 
   /** Handles minted-but-not-yet-disposed by this sandbox's invocations. MUST be 0 between invocations — the
@@ -390,21 +399,41 @@ export class Sandbox implements Disposable {
     if (Buffer.byteLength(argsJson, "utf8") > PLUGIN_INVOKE_ARGS_MAX_BYTES) {
       return { ok: false, error: { name: "Error", message: `plugin host: handler args exceed ${PLUGIN_INVOKE_ARGS_MAX_BYTES}-byte inbound cap` }, logs: [] };
     }
-    return await this.runToSettlement(() => {
-      using argHandle = this.parseJsonToHandle(argsJson);
-      return this.ctx.callFunction(handler, this.ctx.undefined, argHandle);
-    });
+    const parsed = this.parseArgs(argsJson);
+    if (typeof parsed === "string") {
+      // A CONTAINED refusal, before the guest is touched: the caller's payload is not a JSON document, so the
+      // JSON-only contract of this channel is broken and there is nothing safe to hand over.
+      return { ok: false, error: { name: "Error", message: parsed }, logs: [] };
+    }
+    using argHandle = parsed;
+    return await this.runToSettlement(() => this.ctx.callFunction(handler, this.ctx.undefined, argHandle));
   }
 
-  /** Parse a JSON string into a guest handle via the guest's own `JSON.parse` (kept inside the realm — no host
-   *  marshaller needed for the single args object; a malformed string yields `undefined`). */
-  private parseJsonToHandle(json: string): QuickJSHandle {
-    const parseResult = this.ctx.evalCode(`(${json})`, "plugin-args.js");
-    if (parseResult.error) {
-      parseResult.error.dispose();
-      return this.ctx.undefined;
+  /** Marshal the caller's `argsJson` into a guest handle by CALLING the realm's pristine `JSON.parse` on it —
+   *  the payload crosses as a string VALUE, never as source. Returns the handle, or a refusal message.
+   *
+   *  WHY NOT `evalCode("(" + json + ")")` (what this replaces). That spelling was safe only by the goodwill of
+   *  its three callers (all `JSON.stringify` output — swept 2026-08-24: the tool-args, transform-draft and
+   *  event-fact producers), and it was wrong in three ways the moment one of them drifted:
+   *   1. INJECTION SHAPE — a non-JSON payload EXECUTES in the guest realm with that plugin's grants. Measured:
+   *      `(globalThis.x = 1, {})` set the guest global and the handler ran on the object literal.
+   *   2. SILENT — malformed input yielded `ctx.undefined`, so the handler was invoked with NO arguments and
+   *      nothing anywhere said so. A caller bug read as an empty tool call.
+   *   3. NOT JSON SEMANTICS — an object LITERAL treats `__proto__` as the prototype setter, so a payload with
+   *      that key handed the guest an object whose PROTOTYPE carried the attacker's values instead of an own
+   *      property. `JSON.parse` defines it as an own key (the mirror of the guest→host rule the escape suite
+   *      already pins).
+   *  The parse runs inside the guest, so its cost is bounded by the instance's own memory + stack caps
+   *  (a pathological nesting depth is a contained guest `RangeError`, reported here as the refusal). */
+  private parseArgs(json: string): QuickJSHandle | string {
+    using arg = this.ctx.newString(json);
+    const result = this.ctx.callFunction(this.jsonParse, this.ctx.undefined, arg);
+    if (result.error) {
+      const detail = readError(this.ctx, result.error);
+      result.error.dispose();
+      return `plugin host: handler args must be a JSON document (${detail.message})`;
     }
-    return parseResult.value;
+    return result.value;
   }
 
   /** Tear down the instance — disposes every resident handler handle, then the context (and all realm handles).
@@ -421,6 +450,9 @@ export class Sandbox implements Disposable {
     }
     this.state.handlers.clear();
     if (this.ctx.alive) {
+      // BEFORE the context: a handle disposed after `ctx.dispose()` is a use-after-free, and gating both on
+      // `alive` is what keeps this method re-entrant (`[Symbol.dispose]` + an explicit `dispose()`).
+      this.jsonParse.dispose();
       this.ctx.dispose();
     }
   }

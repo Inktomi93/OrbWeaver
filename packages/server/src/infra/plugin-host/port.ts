@@ -1,7 +1,9 @@
 // infra/plugin-host/port — the sandbox-runtime seam impl (`PluginHostPort`). `createPluginHost` returns the
 // runtime the composition root injects UP into `domain/plugin`: boot a guest + install the membrane,
 // run `main.js` under the invocation budget, collect its tool registrations, keep the instance RESIDENT, invoke
-// a collected handler under the per-invocation budget, snapshot the log, tear it down. Infra imports ZERO domain
+// a collected handler under the per-invocation budget, RETAIN each run's drained log in the instance's bounded
+// runtime ring (`readLog` — an operator's recent-activity view, in-memory and reset by a restart or a
+// deactivate→activate cycle; NOT an audit log of record), tear it down. Infra imports ZERO domain
 // (plugin-no-ambient): the returned object is STRUCTURALLY the domain's `PluginHostPort` (compose does the typed
 // assignment) and names only `@orb/contracts` + the local skeleton.
 //
@@ -16,7 +18,7 @@
 // storage.kv are COMPOSED — the bridge closes the pluginId/installer over those ops domain-side.
 
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginLogLevel } from "@orb/contracts/plugin";
-import { EVENT_QUEUE_DEPTH, PLUGIN_MEMORY_LIMIT_BYTES, SNIPPET_WALL_MS } from "./budgets.ts";
+import { EVENT_QUEUE_DEPTH, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES, PLUGIN_MEMORY_LIMIT_BYTES, SNIPPET_WALL_MS } from "./budgets.ts";
 import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
@@ -103,7 +105,16 @@ function toLog(lines: readonly string[], at: number): PluginLogLineOut[] {
 // contained error the registrar's run() already catches as `threw` (errors-as-data to the model).
 interface Resident {
   readonly sandbox: Sandbox;
-  readonly log: readonly PluginLogLineOut[];
+  /** The RUNTIME log ring — the activation drain PLUS every later invocation's drain, oldest-first, bounded by
+   *  `PLUGIN_LOG_RING_LINES` / `PLUGIN_LOG_RING_CHARS` and evicted from the FRONT. It is what `readLog` (and so
+   *  `getPluginLog`) answers with, so a host can see what a plugin DID rather than only its activation banner.
+   *  Before this it was a snapshot taken once at activation and every per-invocation drain was discarded.
+   *  MUTABLE by construction; `readLog` hands back a COPY so a later invoke cannot mutate a prior read.
+   *  IN-MEMORY, per instance, `ASSUMES(single-replica)` — see `PLUGIN_LOG_RING_LINES` for the honest posture. */
+  readonly log: PluginLogLineOut[];
+  /** Retained UTF-16 code units across `log` — the volume half of the ring bound (a line bound alone lets
+   *  16 KiB single-liners sit forever; the per-invocation `LogRing` clamp is what keeps ONE line under it). */
+  chars: number;
   /** The per-instance invoke tail — the settle of the LAST-queued invoke's scope-set→run pair. The next invoke
    *  chains after it (serialized). Advances on fulfilment AND rejection (a rejected item never wedges the tail).
    *  MUTABLE: each `invoke` reassigns it to its own settle. */
@@ -111,6 +122,23 @@ interface Resident {
   /** Invokes currently pending (queued OR running) on this instance. The `EVENT_QUEUE_DEPTH` overflow gate reads
    *  it BEFORE chaining; each invoke decrements it in the same `.finally` that advances the tail. */
   queueDepth: number;
+}
+
+/** Append one invocation's drained log lines to a resident's runtime ring, then evict from the FRONT until both
+ *  bounds hold again. Oldest-first eviction is the honest choice for "what did it just do?": the newest line is
+ *  always present, and an activation banner is the first thing a busy plugin loses. Termination: every iteration
+ *  removes one element and the loop is guarded on non-emptiness, so a single line larger than the whole char
+ *  budget would empty the ring rather than spin (unreachable in practice — `LogRing` clamps one line to 16 KiB,
+ *  well under `PLUGIN_LOG_RING_CHARS`). */
+function retainLog(resident: Resident, lines: readonly string[], at: number): void {
+  for (const line of toLog(lines, at)) {
+    resident.log.push(line);
+    resident.chars += line.message.length;
+  }
+  while (resident.log.length > 0 && (resident.log.length > PLUGIN_LOG_RING_LINES || resident.chars > PLUGIN_LOG_RING_CHARS)) {
+    const evicted = resident.log.shift();
+    resident.chars -= evicted === undefined ? 0 : evicted.message.length;
+  }
 }
 
 /** The inline-snippet run's outcome — a transient one-shot, no residency: the drained `[level] msg` log
@@ -163,7 +191,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         transforms: [...sandbox.collectedTransforms],
         events: [...sandbox.collectedEvents],
       };
-      runtimes.set(instance, { sandbox, log: toLog(outcome.logs, at), tail: Promise.resolve(), queueDepth: 0 });
+      const resident: Resident = { sandbox, log: [], chars: 0, tail: Promise.resolve(), queueDepth: 0 };
+      retainLog(resident, outcome.logs, at);
+      runtimes.set(instance, resident);
       return { ok: true, instance };
     },
 
@@ -186,6 +216,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       const run = resident.tail.then(async (): Promise<string> => {
         resident.sandbox.setInvocationChat(chat ?? null);
         const outcome = await resident.sandbox.invokeHandler(handler, argsJson);
+        // RETAIN this invocation's drained lines (both arms — a crashing handler's last words are the ones an
+        // operator most wants). The stamp is the injected clock at drain time, the same seam activation uses.
+        retainLog(resident, outcome.logs, seams.nowEpochMs());
         if (!outcome.ok) {
           // A handler throw/deadline is contained data; the domain's crash policy classifies it. Re-throw
           // so the registrar's run() catches it as `threw` (errors-as-data to the model).
@@ -225,7 +258,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       return outcome.ok ? { logLines: outcome.logs } : { logLines: outcome.logs, error: outcome.error?.message ?? "snippet failed" };
     },
 
-    readLog: (instance): readonly PluginLogLineOut[] => runtimes.get(instance)?.log ?? [],
+    // A COPY, not the live ring: the ring is mutated by every later invoke, and a caller holding the array
+    // would silently watch its "snapshot" change under it (the domain's `getPluginLog` slices this result).
+    readLog: (instance): readonly PluginLogLineOut[] => [...(runtimes.get(instance)?.log ?? [])],
 
     dispose: (instance): void => {
       runtimes.get(instance)?.sandbox.dispose();

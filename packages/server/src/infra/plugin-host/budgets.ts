@@ -78,9 +78,37 @@ export const HOST_CALLS_IN_FLIGHT_MAX = 32;
  *  outbound result cap; it only ever fires on gross abuse, never a domain-capped fact. */
 export const PLUGIN_INVOKE_ARGS_MAX_BYTES = 1_048_576;
 
-/** `host.log` volume per invocation, ring-buffered per plugin (256 lines / 16 KiB). */
+/** Max serialized byte size of the ARGUMENTS one host-fn call may carry from the guest — the INBOUND mirror of
+ *  `HOST_FN_RESULT_CAP_BYTES`, enforced at the membrane's `attachAsync` seam. Without it the only bound on a
+ *  guest argument was the 32 MiB instance heap, and every dumped argument is RETAINED host-side for the whole
+ *  life of the async impl — so the real exposure was 32 MiB × `HOST_CALLS_IN_FLIGHT_MAX` of host memory per
+ *  instance, plus whatever a domain op did with the value (a `storage.set` writes it, a `net.fetch` body sends
+ *  it). What the cap DOES bound: everything that crosses into a domain op and everything retained across the
+ *  call. What it deliberately does NOT: the TRANSIENT `ctx.dump` materialization it has to measure, which stays
+ *  bounded by the guest heap cap — one dump at a time per context, which is the already-accepted 32 MiB. 1 MiB
+ *  = symmetric with the outbound result cap; a legitimate host call carries keys, ids and short strings. */
+export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
+
+/** `host.log` volume per invocation, ring-buffered per plugin (256 lines / 16 KiB). The byte budget is a HARD
+ *  bound on the drained volume, including for a single line: `LogRing.push` CLAMPS an oversized message to what
+ *  is left of the budget, because those drained lines are now RETAINED (see the runtime ring below) and a
+ *  32 MiB single line would be an unbounded per-instance allocation. Accounting is in UTF-16 code units (a JS
+ *  string's own unit, and ≥ 1 UTF-8 byte each) — the bound is on host memory, not on wire bytes. */
 export const LOG_LINES_PER_INVOCATION = 256;
 export const LOG_BYTES_PER_INVOCATION = 16_384;
+
+/** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is
+ *  PER-INVOCATION (it resets every run); this is the rolling record across invocations, so a host can answer
+ *  "what did this plugin just do?" instead of only "what did it print while starting up". Bounded on BOTH axes
+ *  and evicted OLDEST-FIRST: an invocation may drain up to 256 lines, so a line bound alone would let one
+ *  chatty run erase everything before it, and a char bound alone would let 16 KiB single-liners sit forever.
+ *
+ *  DURABILITY POSTURE, stated so it is not mistaken for more (the notifyFloor / resident-registry precedent):
+ *  the ring is IN-MEMORY and per resident instance, `ASSUMES(single-replica)`. A restart resets it, and so does
+ *  any deactivate→activate cycle (a new instance is a new ring). It is an operator's recent-activity view, NOT
+ *  an audit log of record — nothing security-load-bearing may be derived from its contents or its absence. */
+export const PLUGIN_LOG_RING_LINES = 1024;
+export const PLUGIN_LOG_RING_CHARS = 131_072;
 
 /** Per-resident-instance invoke FIFO depth. A resident sandbox is a SINGLE shared QuickJSContext, so
  *  every invoke (tool / D50 transform apply / event-subscriber delivery) SERIALIZES per instance — the queue is
