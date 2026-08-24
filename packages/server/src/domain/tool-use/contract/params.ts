@@ -88,8 +88,8 @@ export interface PluginToolSpec {
   readonly invoke: (argsJson: string, chat: InvocationChat | null) => Promise<string>;
   /** The INSTALLER's PRESENT participant role in an arbitrary chat — the PL-C ceiling's only honest input
    *  (`null` = not a present member of it). Injected per activation because the answer is a per-chat ROW READ
-   *  and only the composition root may reach chat's roster: `(chatId) => loadPresentRole(db, chatId,
-   *  installer.userId)`, the SAME op the transform registrar and the event fan-out already use.
+   *  and only the composition root may reach chat's roster — it binds chat's `loadPresentRole` over the db and
+   *  the installer's own userId, the SAME op the transform registrar and the event fan-out already use.
    *
    *  Why an op and not `can()`: `can(installer, action, {kind:"chat", roster})` is a pure verdict over the
    *  roster HANDED IN, and the only roster at invocation time is the TURN CALLER's
