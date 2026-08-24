@@ -20,6 +20,31 @@ test("a resolved asset ref renders the real image at its blob url (no placeholde
   await expect(component.getByText("[image]")).toHaveCount(0);
 });
 
+// #622 — the in-thread arm of the never-distort law. No producer of a chat media block fills `dims` (the
+// stored body is `![alt](asset:<id>)` and the projection is dimension-blind), so the primitive's no-dims
+// reservation is what every room image renders under: it must yield to the image's OWN ratio once known.
+const PORTRAIT_RATIO = 1024 / 1536;
+const RATIO_PRECISION = 2;
+const VIEWPORTS = [
+  { label: "desktop", width: 1280, height: 900 },
+  { label: "mobile", width: 390, height: 844 },
+] as const;
+
+for (const vp of VIEWPORTS) {
+  test(`#622 (${vp.label}): a 1024×1536 room image paints at its own 2:3 ratio, never a forced 16:9`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    const component = await mount(<AttachmentMediaStory portrait={true} />);
+    const img = component.locator(MEDIA_IMG);
+    // Barrier on the SETTLED (decoded) image — an <img> with no intrinsic size yet lays out at 0×0.
+    await expect
+      .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth / (el as HTMLImageElement).naturalHeight))
+      .toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+    const box = await img.boundingBox();
+    expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+    expect(box?.width ?? 0).toBeLessThanOrEqual(vp.width);
+  });
+}
+
 test("an unresolved asset ref degrades to the [image] placeholder, never a broken img", async ({ mount }) => {
   // Empty context map (the provider-less / still-loading state).
   const component = await mount(<AttachmentMediaStory empty={true} />);

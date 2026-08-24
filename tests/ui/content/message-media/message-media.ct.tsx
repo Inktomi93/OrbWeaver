@@ -39,6 +39,56 @@ test("aspect box is reserved before load (no layout shift)", async ({ mount }) =
   expect(ratio.replace(/\s/gu, "")).toBe("4/3");
 });
 
+// A 60×120 (1:2, portrait) own-origin image: an SVG data URI carries its own intrinsic size, so the
+// browser reports naturalWidth/naturalHeight with no network. `asset` sources are never data-URI-gated.
+const TALL_SVG = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="120"><circle cx="30" cy="30" r="30" fill="black"/></svg>',
+)}`;
+const RATIO_PRECISION = 2;
+const PLACEHOLDER_RATIO = 16 / 9;
+
+/** The loaded image's natural ratio + the ratio it is actually PAINTED at (`getBoundingClientRect`). */
+function imageRatios(img: { evaluate: <R>(fn: (el: HTMLImageElement) => R) => Promise<R> }): Promise<{ readonly natural: number; readonly rendered: number }> {
+  return img.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return { natural: el.naturalWidth / el.naturalHeight, rendered: rect.width / rect.height };
+  });
+}
+
+test("an image with no declared dims paints at its OWN ratio, never stretched into the placeholder box", async ({ mount }) => {
+  // The house law: never distort an image. A non-`auto` aspect-ratio on a replaced element OVERRIDES the
+  // intrinsic ratio, and the default `object-fit: fill` then stretches the pixels (a circle becomes an
+  // ellipse). No producer of a chat media block fills `dims`, so this is every image in the app.
+  const cmp = await mount(<MessageMedia src={{ kind: "asset", url: TALL_SVG }} media="image" alt="tall" />);
+  await expect(cmp).toHaveAttribute("data-slot", "message-media");
+  await expect.poll(async () => (await imageRatios(cmp)).natural).toBeCloseTo(1 / 2, RATIO_PRECISION);
+  const ratios = await imageRatios(cmp);
+  expect(ratios.rendered).toBeCloseTo(ratios.natural, RATIO_PRECISION);
+});
+
+test("a declared-dims box never stretches the pixels inside it (object-fit is not `fill`)", async ({ mount }) => {
+  // Belt to the braces above: when a producer DOES declare dims and they disagree with the bytes, the
+  // reserved box wins the layout but the image must letterbox inside it, never distort.
+  const cmp = await mount(<MessageMedia src={{ kind: "asset", url: TALL_SVG }} media="image" alt="tall" dims={{ w: 16, h: 9 }} />);
+  await expect.poll(() => cmp.evaluate((el) => getComputedStyle(el).objectFit)).toBe("contain");
+  // Barrier on the SETTLED (loaded) state: an <img> with no intrinsic size yet lays out at 0×0, so an
+  // in-flight read returns NaN.
+  await expect.poll(async () => (await imageRatios(cmp)).natural).toBeCloseTo(1 / 2, RATIO_PRECISION);
+  const ratios = await imageRatios(cmp);
+  expect(ratios.rendered).toBeCloseTo(PLACEHOLDER_RATIO, RATIO_PRECISION);
+});
+
+test("the un-loadable placeholder still RESERVES the 16:9 box (the anti-CLS reservation survives)", async ({ mount }) => {
+  // The placeholder aspect exists to reserve space before anything loads — un-distorting the image must not
+  // delete it. The click-to-load gate is the block-level surface where that reservation is observable.
+  const cmp = await mount(<MessageMedia src={{ kind: "external", url: EXTERNAL }} media="image" alt="pic" />);
+  await expect(cmp).toHaveAttribute("data-slot", "message-media-placeholder");
+  // The reservation is a FLOOR, not an identity: the gate's own label can push the box taller than 16:9.
+  // Without the reserved aspect the button collapses to one line of text (~40px), so `>=` still discriminates.
+  const box = await cmp.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual((box?.width ?? 0) / PLACEHOLDER_RATIO - 1);
+});
+
 test("a data: URI is blocked for an external source (no click-to-load, no <img>)", async ({ mount }) => {
   const dataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC";
   const cmp = await mount(<MessageMedia src={{ kind: "external", url: dataUri }} media="image" alt="pic" />);

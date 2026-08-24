@@ -18,8 +18,13 @@ export interface MessageMediaProps {
   readonly onActivate?: () => void;
 }
 
-// A fixed aspect for external media with no known dims — reserves space without a network probe.
-const PLACEHOLDER_ASPECT = "16 / 9";
+// The reserved aspect for media with no known dims — space without a network probe. The `auto` keyword is
+// load-bearing, not decoration: `aspect-ratio: auto <ratio>` on a REPLACED element (img/video) means "use the
+// ratio until the natural one is known, then defer to the natural one". A bare `16 / 9` overrides the
+// intrinsic ratio FOREVER, and the default `object-fit: fill` then stretches the pixels — a 1024×1536 portrait
+// painted at 16:9 is a 2.66× distortion (#622). Non-replaced elements (the gate/broken/blocked fallbacks
+// below) have no natural ratio, so `auto` is inert there and the reservation still holds.
+const PLACEHOLDER_ASPECT = "auto 16 / 9";
 
 // A data: URI carries NO network request to gate, so the click-to-load placeholder can't withhold
 // anything — reject it outright, before it ever reaches `<img src>`/`<source src>`.
@@ -87,7 +92,11 @@ export function MessageMedia({ src, media, alt, dims, allowExternal = false, cla
     );
   }
 
-  const mediaClass = cn("max-w-full rounded-base", className);
+  // `object-contain` is the braces to the `auto` belt above: when a producer DOES declare `dims` and they
+  // disagree with the bytes (a re-encoded/rotated asset), the declared box still wins the LAYOUT — but the
+  // image letterboxes inside it instead of distorting. Never `fill` (the UA default): we do not lie about
+  // what an image looks like. A consumer needing a crop passes `object-cover` via `className` (tw-merge wins).
+  const mediaClass = cn("max-w-full rounded-base object-contain", className);
 
   if (media === "image") {
     const img = (
