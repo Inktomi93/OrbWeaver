@@ -12,6 +12,7 @@
 // them about, and a silent clamp is the kind of quiet wrongness this codebase's gates exist to prevent.
 
 import type { RulePresetKnobDescriptor, RulePresetKnobValue, RulePresetKnobView, RulePresetView } from "@orb/contracts/automation";
+import { RULE_PRESET_ENTITY_NOUNS, RULE_PRESET_ENTITY_REF_SCHEMAS } from "@orb/contracts/automation";
 import { RuleValidationError } from "../contract/errors.ts";
 import type { ErasedRulePresetDef, RulePresetKnobOverrides, RulePresetKnobSchema } from "../contract/presets.ts";
 
@@ -82,6 +83,29 @@ function resolveChoice(key: string, descriptor: Extract<RulePresetKnobDescriptor
   return raw;
 }
 
+/** An ENTITY REFERENCE resolved against its axis. The one knob kind with NO descriptor default, and the
+ *  refusal path above is exactly why: `resolveKnob` hands a descriptor default back UNVALIDATED, so a
+ *  `default: ""` on a reference would ride straight into a mint and die deep inside the arm's own schema
+ *  with a developer-shaped message. Here an absent override refuses at the knob, in the host's own noun —
+ *  and a present one is PARSED through the axis's schema, which is what earns the branded id the preset
+ *  builder reads (no `castId`). Whether the referenced entity still QUALIFIES (a book attached to this
+ *  chat) stays `createRule`'s check: it is a live fact, not a shape, and it can change between the picker's
+ *  render and the mint. */
+function resolveEntityRef(key: string, descriptor: Extract<RulePresetKnobDescriptor, { kind: "entityRef" }>, raw: RulePresetKnobValue | undefined): string {
+  const noun = RULE_PRESET_ENTITY_NOUNS[descriptor.entity];
+  if (raw === undefined || raw === "") {
+    return refuse(key, `choose a ${noun}`);
+  }
+  if (typeof raw !== "string") {
+    return refuse(key, `expected a ${noun}`);
+  }
+  const parsed = RULE_PRESET_ENTITY_REF_SCHEMAS[descriptor.entity].safeParse(raw);
+  if (!parsed.success) {
+    return refuse(key, `that is not a ${noun} this app knows`);
+  }
+  return parsed.data;
+}
+
 /** One knob resolved against its descriptor. Exhaustive over `kind` (`default: never` is the pin — a new
  *  descriptor kind fails `tsc` here). */
 function resolveKnob(key: string, descriptor: RulePresetKnobDescriptor, raw: RulePresetKnobValue | undefined): RulePresetKnobValue {
@@ -94,6 +118,8 @@ function resolveKnob(key: string, descriptor: RulePresetKnobDescriptor, raw: Rul
       return resolveTextList(key, descriptor, raw);
     case "choice":
       return resolveChoice(key, descriptor, raw);
+    case "entityRef":
+      return resolveEntityRef(key, descriptor, raw);
     default: {
       const exhaustive: never = descriptor;
       throw new Error(`unhandled rule-preset knob kind: ${JSON.stringify(exhaustive)}`);

@@ -34,6 +34,7 @@ import type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.
 import { PANEL_MODES } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
 import { isSectionId, RETIRED_SECTION_HEAL } from "./section-ids.ts";
+import type { SettingsCategoryId } from "./settings-categories.ts";
 
 /** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door).
  *
@@ -66,23 +67,9 @@ export const MODAL_SLOT_IDS = [
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
-/** The settings vocabulary — the SettingsPaneDefinition registry is total over this tuple (assembled at
- *  the door). MOVED here from features/settings/lib/settings-nav-model.ts (M6.1 ruling, §5 rule 5):
- *  `settingsCategory`/`openSettingsTo` already navigated by category as a bare string, i.e. this was
- *  always shell vocabulary, just untyped.
- *
- *  `system` RETIRED with SET-SEAMS stage 4 (§10 Q2, owner-ruled): it and `admin` were both APP-group,
- *  both admin-gated, and after the decomposition both held admin-tier knob sections owned by the same
- *  feature — two panes meant hunting for which admin knob lived where. System's five sections are the
- *  admin pane's FIRST group now; a deep link to `system` no longer type-checks (`openSettingsTo("admin")`
- *  is the replacement) and `agent-nav` rejects it against this tuple.
- *
- *  `tags` + `regex` RETIRED with the config rail's R1 (config-rail-spec.md §2 C-11): both were
- *  workspace-grade CRUD libraries living as modal panes, and they are now `CollectionContribution`s in the
- *  `config` section's roster. The "Library" nav group disappeared with them; NOTHING tombstones — the union
- *  is closed, so tsc enumerated every `openSettingsTo` call site and each became `goToCollection(kind)`. */
-export const SETTINGS_CATEGORY_IDS = ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "admin"] as const;
-export type SettingsCategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
+// The settings CATEGORY vocabulary lives in its own module now (`settings-categories.ts`) — it had two
+// readers (this store's nav state and the pane registry's totality check) and belonged to neither's subject
+// matter; see that file's header for why the split happened when it did.
 
 // A settings-section contribution anchors at a `SettingsCategoryId` — EVERY pane is a host (SET-SEAMS
 // §5.1). The old `SETTINGS_SECTION_ANCHORS` subset tuple retired with stage 0: it existed only because

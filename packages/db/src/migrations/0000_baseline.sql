@@ -6,6 +6,8 @@ CREATE TABLE `assets` (
 	`size` integer NOT NULL,
 	`hash` text NOT NULL,
 	`animated` integer DEFAULT false NOT NULL,
+	`width` integer,
+	`height` integer,
 	`uploaded_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "assets_kind_check" CHECK(kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'background', 'plugin'))
@@ -733,7 +735,7 @@ CREATE TABLE `plugin_kv` (
 	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "plugin_kv_key_check" CHECK(length(key) <= 128),
-	CONSTRAINT "plugin_kv_value_check" CHECK(length(value) <= 65536)
+	CONSTRAINT "plugin_kv_value_check" CHECK(length(cast(value as blob)) <= 65536)
 );
 --> statement-breakpoint
 CREATE INDEX `plugin_kv_owner_idx` ON `plugin_kv` (`owner_id`);--> statement-breakpoint
