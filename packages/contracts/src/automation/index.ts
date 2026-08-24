@@ -187,6 +187,17 @@ const AUTOBG_INSTRUCTION_MAX = 512;
 export const AUTOMATION_ACTION_ARMS_MIN = 1;
 export const AUTOMATION_ACTION_ARMS_MAX = 8;
 
+/** How a surfaced chip's text is CONSUMED when the member clicks it (S1, the in-chat control seam):
+ *  `send` fires it as that member's next turn immediately; `compose` seeds their composer draft so they
+ *  own and edit it before sending. The pair is the wire half of the client's control-mode axis (the
+ *  client's `CHAT_CONTROL_MODES` derives from this tuple and adds `execute`, which no chip can carry — an
+ *  arm-surfaced control never runs a verb). WHY the field exists: the authoring law "chip text is diegetic
+ *  or compose-mode, never member-attributed director voice" has no lever without it; before it, send-vs-
+ *  compose was a per-chat GAME knob (`cyoaChoiceBehavior`) that the `:::choices` fence renderer reads and
+ *  a rule-surfaced chip has no access to. */
+export const QUICK_REPLY_MODES = ["send", "compose"] as const;
+export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
+
 export const automationActionSchema = z.discriminatedUnion("type", [
   // 1.1 set a chat/global variable (free — no model call).
   z.object({
@@ -211,11 +222,21 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     contentTemplate: z.string().max(WI_CONTENT_MAX),
     position: z.enum(ENTRY_POSITIONS).default("before"),
   }),
-  // 1.4 surface transient quick-reply chips (rendered at click time as the clicking member's message).
+  // 1.4 surface transient quick-reply chips. The template is rendered at FIRE time in the rule author's env
+  // (`arm-executors.ts` renderArmTemplate), never at click time; the rendered text then reaches the clicking
+  // member's own surface, where `mode` decides whether the click SENDS it as their turn or seeds their
+  // composer draft. `mode` defaults to `send`, which is the arm's built semantic (a chip has always fired as
+  // the clicking member's message) — an author who wants the member to own and edit the text says so.
   z.object({
     type: z.literal("surface_quick_reply"),
     choices: z
-      .array(z.object({ label: z.string().max(QUICK_REPLY_LABEL_MAX), sendTemplate: z.string().max(QUICK_REPLY_SEND_MAX) }))
+      .array(
+        z.object({
+          label: z.string().max(QUICK_REPLY_LABEL_MAX),
+          sendTemplate: z.string().max(QUICK_REPLY_SEND_MAX),
+          mode: z.enum(QUICK_REPLY_MODES).default("send"),
+        }),
+      )
       .min(QUICK_REPLY_MIN_CHOICES)
       .max(QUICK_REPLY_MAX_CHOICES),
   }),
@@ -339,7 +360,7 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
  *  chips can be surfaced by a rule OR a plugin, so `quickReplySurfaced` carries the `AutomationEmitSource`
  *  union (the rest are rule-lifecycle events — rule-only by construction). */
 export type AutomationBusEvent =
-  | { type: "quickReplySurfaced"; chatId: ChatId; source: AutomationEmitSource; choices: readonly { label: string; sendText: string }[] }
+  | { type: "quickReplySurfaced"; chatId: ChatId; source: AutomationEmitSource; choices: readonly { label: string; sendText: string; mode: QuickReplyMode }[] }
   | { type: "ruleFired"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }

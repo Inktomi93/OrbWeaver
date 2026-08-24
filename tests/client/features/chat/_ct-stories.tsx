@@ -25,11 +25,15 @@ import {
   JoinInviteDialog,
   MessageListSurface,
   MessageThreadAnchor,
+  makeChatControlsContribution,
   NewChatPicker,
 } from "@orb/client/features/chat";
 import { HomeSurface } from "@orb/client/features/home";
 import type {
   ChatContextState,
+  ChatControl,
+  ChatControlSource,
+  ChatControlSourceMountProps,
   ChatSurfaceAnchor,
   ChatSurfaceContribution,
   ContextTabDef,
@@ -66,6 +70,7 @@ import {
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
+import type { QuickReplyMode } from "@orb/contracts/automation";
 import type {
   CardTrust,
   CastEntry,
@@ -2880,4 +2885,159 @@ export function ChatsSelectionTitleStory(): ReactElement {
 function ChatsSelectionTitleProbe(): ReactElement {
   const title = useChatsSelectionTitle();
   return <p data-testid="selection-title">{title ?? "(null)"}</p>;
+}
+
+// ── S1: the in-chat CONTROL band (interaction-direction-spec.md §3-S1) ─────────────────────────────
+// The seam mounted EXACTLY as the door mounts it: a `chat-controls` source registry → the real
+// `makeChatControlsContribution` → the chat-surface registry → the real `ChatRoomSurface`'s
+// `above-composer` anchor. `source="none"` is the ACCEPTANCE arm (zero sources ⇒ the room renders with no
+// band at all); the fake source publishes from its OWN fiber the way a real one will.
+
+/** Which control set the fake source publishes — one per row of the CT mount matrix. */
+const CHAT_CONTROLS_FIXTURES = ["empty", "chips", "chips-over-cap", "card", "cards-stacked", "mixed", "execute", "execute-pending"] as const;
+export type ChatControlsFixture = (typeof CHAT_CONTROLS_FIXTURES)[number];
+
+export interface ChatControlsStoryProps {
+  /** `none` = an EMPTY source registry (the byte-identical arm). @defaultValue "fake" */
+  readonly source?: "none" | "fake";
+  /** @defaultValue "chips" */
+  readonly fixture?: ChatControlsFixture;
+}
+
+const CT_CONTROL_SOURCE_ID = "ct-fake-control-source";
+
+/** Builds the fixture's controls. `dismiss`/`run` are the source's OWN handlers — the band never invents
+ *  either, so clicking through them proves the wiring, not a story shortcut. */
+function buildCtControls(fixture: ChatControlsFixture, deps: { readonly dismiss: (id: string) => void; readonly run: () => void }): readonly ChatControl[] {
+  const chip = (id: string, label: string, mode: QuickReplyMode, text: string): ChatControl => ({
+    kind: "chip",
+    id,
+    action: { label, mode, text },
+  });
+  switch (fixture) {
+    case "empty": {
+      return [];
+    }
+    case "chips": {
+      return [chip("chip-send", "Draw your blade", "send", "I draw my blade."), chip("chip-compose", "Time skip", "compose", "Some hours later,")];
+    }
+    case "chips-over-cap": {
+      // SIX chips against the band's display cap of four (one rule's arm caps at 4; N rules do not).
+      return ["one", "two", "three", "four", "five", "six"].map((n, i) => chip(`chip-${n}`, `Chip ${n}`, "send", `I say ${i}`));
+    }
+    case "card": {
+      return [
+        {
+          kind: "card",
+          id: "card-recap",
+          title: "Recap where we left off?",
+          detail: <Text voice="gloss">A short catch-up on the last scene.</Text>,
+          actions: [{ label: "Do it", mode: "execute", run: deps.run, pending: false }],
+          dismiss: (): void => deps.dismiss("card-recap"),
+        },
+      ];
+    }
+    case "mixed": {
+      // The stacking law's specimen: a chip published BEFORE a card, so DOM order alone cannot produce
+      // "cards above chips" — only the band's kind-ordered stack can.
+      return [
+        chip("chip-mixed", "Draw your blade", "send", "I draw my blade."),
+        {
+          kind: "card",
+          id: "card-mixed",
+          title: "Recap where we left off?",
+          actions: [{ label: "Do it", mode: "execute", run: deps.run, pending: false }],
+          dismiss: (): void => deps.dismiss("card-mixed"),
+        },
+      ];
+    }
+    case "cards-stacked": {
+      // Arrival order, oldest first — the band shows the NEWEST and counts the rest.
+      return (["older", "newer"] as const).map((age) => ({
+        kind: "card" as const,
+        id: `card-${age}`,
+        title: `The ${age} ask`,
+        actions: [{ label: "Do it", mode: "execute" as const, run: deps.run, pending: false }],
+        dismiss: (): void => deps.dismiss(`card-${age}`),
+      }));
+    }
+    default: {
+      return [
+        {
+          kind: "chip",
+          id: "chip-execute",
+          action: { label: "Roll 1d20", mode: "execute", run: deps.run, pending: fixture === "execute-pending" },
+        },
+      ];
+    }
+  }
+}
+
+/** The fake CONTROL SOURCE: builds its controls once, derives the published list by dropping the dismissed
+ *  ones (so a dismiss really retires a card), and republishes on change. Renders an invisible receipt of how
+ *  many times an `execute` action ran. */
+function CtControlSource({ publish, fixture }: ChatControlSourceMountProps & { readonly fixture: ChatControlsFixture }): ReactElement {
+  const [ran, setRan] = useState(0);
+  const [dismissed, setDismissed] = useState<readonly string[]>([]);
+  // The controls are built ONCE (stable objects); dismissal is a DERIVED filter over them — deliberately
+  // the shape a real source has, so the band's element-wise publish guard is exercised rather than dodged.
+  const [built] = useState<readonly ChatControl[]>(() =>
+    buildCtControls(fixture, {
+      dismiss: (id) => setDismissed((prev) => (prev.includes(id) ? prev : [...prev, id])),
+      run: () => setRan((n) => n + 1),
+    }),
+  );
+  const controls = dismissed.length === 0 ? built : built.filter((control) => !dismissed.includes(control.id));
+  useEffect(() => {
+    publish(controls);
+  }, [publish, controls]);
+  return <div data-testid="ct-control-source-ran">{ran}</div>;
+}
+
+/** The room + the turn driver: `drive-turn-begin` opens a pending turn slot for this chat — the exact call
+ *  the chat-bus reducer makes on `turnStarted` — so the send-mode busy arm is driven, never simulated. */
+function ChatControlsRoom({ surfaceContributors }: { readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution> }): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const busDeps: ChatBusDeps = {
+    stream: chatStream,
+    invalidate: createInvalidation({ queryClient, trpc }).invalidate,
+  };
+  return (
+    <>
+      <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={NO_TOOL_RENDERERS} />
+      <button
+        type="button"
+        data-testid="drive-turn-begin"
+        onClick={(): void => chatStream.beginTurn(CHAT_ID, { intent: "send", speakerCharacterId: null, targetMessageId: null })}
+      >
+        begin turn
+      </button>
+    </>
+  );
+}
+
+/** The room with the S1 band wired the door's way. */
+export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatControlsStoryProps): ReactElement {
+  const sources = createContributorRegistry<ChatControlSource>(
+    "chat-controls",
+    source === "none"
+      ? []
+      : [
+          {
+            id: CT_CONTROL_SOURCE_ID,
+            mount: (props): ReactElement => <CtControlSource {...props} fixture={fixture} />,
+          },
+        ],
+  );
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ height: 480 }}>
+          <ChatControlsRoom surfaceContributors={surfaceContributors} />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
 }

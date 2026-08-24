@@ -36,7 +36,7 @@ const CHIPS: AutomationBusEvent = {
   type: "quickReplySurfaced",
   chatId: CHAT,
   source: { kind: "rule", ruleId: RULE },
-  choices: [{ label: "Flee", sendText: "I run" }],
+  choices: [{ label: "Flee", sendText: "I run", mode: "send" }],
 };
 const HOST_ONLY: AutomationBusEvent = { type: "ruleFired", chatId: CHAT, ruleId: RULE };
 

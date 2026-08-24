@@ -19,6 +19,12 @@ export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,
   CharacterDetailState,
+  ChatControl,
+  ChatControlAction,
+  ChatControlKind,
+  ChatControlMode,
+  ChatControlSource,
+  ChatControlSourceMountProps,
   ChatMessageSurfaceState,
   ChatRoomSurfaceState,
   ChatSurfaceAnchor,
@@ -31,7 +37,14 @@ export type {
   SlashCommandRunner,
   ToolRenderer,
 } from "./contribution-contracts.ts";
-export { CHARACTER_DETAIL_ANCHORS, CHAT_SURFACE_ANCHORS, SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS } from "./contribution-contracts.ts";
+export {
+  CHARACTER_DETAIL_ANCHORS,
+  CHAT_CONTROL_KINDS,
+  CHAT_CONTROL_MODES,
+  CHAT_SURFACE_ANCHORS,
+  SLASH_COMMAND_GROUP_LABELS,
+  SLASH_COMMAND_GROUPS,
+} from "./contribution-contracts.ts";
 export type { RegistryContext } from "./create-registry-context.tsx";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
@@ -42,6 +55,8 @@ export {
   ASSISTANT_PREFILL_WARNING,
   CHOICE_NEEDS_LIVE_CHAT,
   CHOICE_WAIT_FOR_TURN,
+  CONTROL_ACTION_RUNNING,
+  controlOverflowNotice,
   GENERATION_FAILED_DETAIL,
   IMAGE_GEN_NEEDS_TEXT,
   IMPERSONATE_FAILED_LEAD,
