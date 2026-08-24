@@ -14,7 +14,7 @@
 // the install/list pane, never as unreachable rows to prune. A sweep reader who finds them caller-less is
 // looking at the right thing and should leave them alone.
 
-import { PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT, NET_HOSTS_MAX, pluginNetHostSchema } from "@orb/contracts/plugin";
+import { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT, pluginNetHostSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
