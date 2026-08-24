@@ -122,7 +122,9 @@ describe("collectTeaching — the S2 fold", () => {
 
     await collectTeaching([spy("a", 0), spy("b", 1)], TCTX);
 
-    expect(seen).toEqual([TCTX, TCTX]);
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toBe(TCTX);
+    expect(seen[1]).toBe(TCTX);
   });
 });
 
