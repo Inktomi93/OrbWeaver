@@ -322,18 +322,17 @@ async function markContrastCandidates(page: Page, selector: string): Promise<num
 }
 
 async function clearContrastCandidates(page: Page): Promise<void> {
+  // RAW STRING, the same spelling as `buildContrastScript` above and for the same two reasons: the
+  // body executes in the BROWSER, where tooling's NODE lib makes every DOM name a TS2584 (a cast
+  // would only smuggle the name past tsc, not resolve it), and tsx's keepNames `__name` helper
+  // breaks serialized function references in the page context anyway. A string is never
+  // type-checked against the wrong lib and never re-serialized — honest on both axes.
   await page
-    .evaluate((mark) => {
-      // `globalThis.document`, not bare `document`: this callback executes in the BROWSER, but tsc
-      // type-checks its body against tooling's NODE lib (no `dom`), where the bare name does not
-      // resolve (TS2584). Reaching it through globalThis keeps the file compilable without adding
-      // the DOM lib to a node package — the same reason the marking pass above threads everything
-      // through the explicit evaluate arg instead of closing over module scope.
-      const doc = (globalThis as unknown as { document: { querySelectorAll: (s: string) => Iterable<{ removeAttribute: (n: string) => void }> } }).document;
-      for (const el of doc.querySelectorAll(`[${mark}]`)) {
-        el.removeAttribute(mark);
+    .evaluate(`(() => {
+      for (const el of document.querySelectorAll(${JSON.stringify(`[${CONTRAST_MARK}]`)})) {
+        el.removeAttribute(${JSON.stringify(CONTRAST_MARK)});
       }
-    }, CONTRAST_MARK)
+    })()`)
     .catch(() => undefined); // best-effort cleanup — a torn-down page must never fail the contrast verdict it already computed
 }
 
