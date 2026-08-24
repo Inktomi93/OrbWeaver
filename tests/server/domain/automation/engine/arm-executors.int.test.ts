@@ -185,7 +185,13 @@ async function setup(): Promise<{ db: Db; host: UserId; chatId: ChatId }> {
 test("set_variable chat scope 'set' renders the value + writes a VarOp through applyVariableOps", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
-  const action: Extract<AutomationActionInput, { type: "set_variable" }> = { type: "set_variable", scope: "chat", key: "mood", op: "set", value: "grim-{{roll:1}}" };
+  const action: Extract<AutomationActionInput, { type: "set_variable" }> = {
+    type: "set_variable",
+    scope: "chat",
+    key: "mood",
+    op: "set",
+    value: "grim-{{roll:1}}",
+  };
   const outcome = await dispatch(arm(action), makeFrame({ chatId, authorUserId: host }));
 
   expect(outcome).toEqual({ ok: true });
@@ -405,17 +411,11 @@ test("generate_image threads quiet through to the op (F1 — quiet:true generate
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
   // quiet:true — the op must see it (compose then SKIPS the in-chat post; the image is gallery-only).
-  await dispatch(
-    arm({ type: "generate_image", mode: "free", prompt: "x", quiet: true }),
-    makeFrame({ chatId, authorUserId: host }),
-  );
+  await dispatch(arm({ type: "generate_image", mode: "free", prompt: "x", quiet: true }), makeFrame({ chatId, authorUserId: host }));
   expect(captured.images[0]?.quiet).toBe(true);
 
   // default (quiet omitted) → quiet:false → compose posts the image into the chat.
-  await dispatch(
-    arm({ type: "generate_image", mode: "free", prompt: "y" }),
-    makeFrame({ chatId, authorUserId: host }),
-  );
+  await dispatch(arm({ type: "generate_image", mode: "free", prompt: "y" }), makeFrame({ chatId, authorUserId: host }));
   expect(captured.images[1]?.quiet).toBe(false);
 });
 

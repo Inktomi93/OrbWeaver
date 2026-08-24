@@ -91,6 +91,7 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
       title: ask.summary,
       actions: [
         {
+          id: ask.id,
           label: CONFIRM_LABEL[ask.kind],
           mode: "execute" as const,
           run: (): void => box.confirm.mutate({ suggestionId: ask.id }),

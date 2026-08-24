@@ -18,8 +18,8 @@ import type { AutomationService } from "../../../../../packages/server/src/domai
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
 import { listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
-import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
+import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedAsset, seedCharacter } from "../../chat/_support.ts";
@@ -324,7 +324,17 @@ describe("F2 shared-env write-through (order is semantics)", () => {
       imagery: { generatePicture: () => Promise.resolve({ costUsd: null, imageCount: 0 }) },
       summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
     };
-    return { runArm: createArmExecutors({ db, ops, prng: () => 0.42, notify: () => undefined, suggestions: createSuggestionStore(), newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion) }), ops };
+    return {
+      runArm: createArmExecutors({
+        db,
+        ops,
+        prng: () => 0.42,
+        notify: () => undefined,
+        suggestions: createSuggestionStore(),
+        newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
+      }),
+      ops,
+    };
   }
 
   test("in-rule: [set hp=5, inc hp] composes to 6 (the DB alone is stale — write-through is the mechanism)", async () => {
@@ -556,7 +566,18 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
       },
       summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
     };
-    return { runArm: createArmExecutors({ db, ops, prng: () => 0.42, notify: () => undefined, suggestions: createSuggestionStore(), newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion) }), ops, posts };
+    return {
+      runArm: createArmExecutors({
+        db,
+        ops,
+        prng: () => 0.42,
+        notify: () => undefined,
+        suggestions: createSuggestionStore(),
+        newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
+      }),
+      ops,
+      posts,
+    };
   }
 
   /** The re-fire event a posted image raises — the exact `messageCommitted` the narrator op emitted. */

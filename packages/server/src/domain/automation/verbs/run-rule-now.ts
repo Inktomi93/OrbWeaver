@@ -28,7 +28,10 @@ export function createRunRuleNow(ctx: AutomationContext): AutomationService["run
     if (outcome === null) {
       // The one reachable null for an enabled chat-scoped rule: a transform_draft rule, which rewrites a
       // draft INSIDE the turn pipeline and has no out-of-turn meaning at all.
-      throw new RuleValidationError("transform_not_runnable", "a transform_draft rule runs inside the turn pipeline — there is no draft to rewrite out of turn");
+      throw new RuleValidationError(
+        "transform_not_runnable",
+        "a transform_draft rule runs inside the turn pipeline — there is no draft to rewrite out of turn",
+      );
     }
     return { outcome };
   };

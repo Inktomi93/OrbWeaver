@@ -899,9 +899,7 @@
           ]
         }
       ],
-      "evidence": [
-        "full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"
-      ],
+      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
       "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
     },
     {
@@ -1215,9 +1213,7 @@
       "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
       "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
       "verifiedAt": "2026-08-21",
-      "evidence": [
-        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"
-      ],
+      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
       "claims": [
         {
@@ -1263,10 +1259,7 @@
       "verifiedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
       "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
       "verifiedAt": "2026-08-24",
-      "evidence": [
-        "docs/design/interaction-direction-spec.md:571-588 (\u00a710) cites the 2026-08-23 lineage",
-        "committed as provenance at dd1921de7"
-      ],
+      "evidence": ["docs/design/interaction-direction-spec.md:571-588 (\u00a710) cites the 2026-08-23 lineage", "committed as provenance at dd1921de7"],
       "summary": "Superseded lineage: the 2026-08-23 interaction systems audit; its findings were folded through the 2026-08-24 panel into the committed spec (spec \u00a710). Kept as the argument record."
     },
     {
@@ -1323,10 +1316,7 @@
       "verifiedSha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
       "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
       "verifiedAt": "2026-08-24",
-      "evidence": [
-        "docs/design/interaction-direction-spec.md:576-577 (\u00a710) names interaction-ia-placement.md",
-        "committed as provenance at dd1921de7"
-      ],
+      "evidence": ["docs/design/interaction-direction-spec.md:576-577 (\u00a710) names interaction-ia-placement.md", "committed as provenance at dd1921de7"],
       "summary": "Provenance: every HOME in the spec's \u00a77 path tables derives from this IA placement doc (one adversarial round, 7 findings folded \u2014 spec \u00a710)."
     },
     {
