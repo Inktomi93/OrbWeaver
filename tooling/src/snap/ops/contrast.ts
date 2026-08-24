@@ -26,9 +26,10 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // ── --contrast: WCAG AA text/background contrast of the first selector match ─
 
-// RAW STRING (JSON.stringify-interpolated selector), not a function reference — see
-// scanDeadCss's header note: tsx's keepNames __name helper breaks a serialized function in
-// the browser context. This IIFE gathers RAW facts only (colors as strings, size, weight) —
+// RAW STRING (JSON.stringify-interpolated selector), not a function reference. The surviving
+// reason (the original was tsx keepNames — tsx was SHED 2026-08-03, node runs the .ts source):
+// the body executes in the BROWSER, and tsc checks a function body against tooling's NODE lib,
+// where every DOM name is TS2584. This IIFE gathers RAW facts only (colors as strings, size, weight) —
 // ALL classification (large-text/ratio/pass-fail) happens back in Node, reusing
 // design-audit-checks.ts's WCAG math, same split as design-audit.ts's walker.
 function buildContrastScript(selector: string): string {
@@ -322,11 +323,11 @@ async function markContrastCandidates(page: Page, selector: string): Promise<num
 }
 
 async function clearContrastCandidates(page: Page): Promise<void> {
-  // RAW STRING, the same spelling as `buildContrastScript` above and for the same two reasons: the
-  // body executes in the BROWSER, where tooling's NODE lib makes every DOM name a TS2584 (a cast
-  // would only smuggle the name past tsc, not resolve it), and tsx's keepNames `__name` helper
-  // breaks serialized function references in the page context anyway. A string is never
-  // type-checked against the wrong lib and never re-serialized — honest on both axes.
+  // RAW STRING, the same spelling as `buildContrastScript` above and for the same reason: the
+  // body executes in the BROWSER, where tooling's NODE lib makes every DOM name a TS2584, and a
+  // cast would only smuggle the name past tsc, not resolve it. A string is never type-checked
+  // against the wrong world. (Historical note: these strings were originally also dodging tsx's
+  // keepNames function-serialization mangling — tsx was shed 2026-08-03; the lib reason stands alone.)
   await page
     .evaluate(`(() => {
       for (const el of document.querySelectorAll(${JSON.stringify(`[${CONTRAST_MARK}]`)})) {
