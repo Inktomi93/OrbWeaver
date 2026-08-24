@@ -19,7 +19,7 @@ import { checkBrokenImage, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
 import { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeatedText, checkTextOverflow } from "./checks-quality.ts";
 import { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./checks-structure.ts";
-import { checkFontCensus, checkTextStyle } from "./checks-typography.ts";
+import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
 
 /** Runs one nullable check over one sample array, pushing every non-null Finding. */
 function pushFindings<T>(findings: Finding[], items: readonly T[], check: (item: T) => Finding | null): void {
@@ -58,6 +58,8 @@ export function collectFindings(samples: RawSamples): Finding[] {
   pushFindings(findings, samples.gradientTexts, checkGradientText);
   pushFindings(findings, samples.animatedImgHovers, checkAnimatedImgHover);
   pushAllFindings(findings, samples.textStyles, checkTextStyle);
+  // A CROSS-sample fold: type-hierarchy inversion is a claim about a PAIR, so it takes the whole family.
+  findings.push(...checkCaveatHierarchy(samples.textStyles));
   pushAllFindings(findings, samples.accentBorders, checkAccentBorder);
   pushFindings(findings, samples.shadowGlows, checkGlowShadow);
   pushFindings(findings, samples.radialGlows, checkRadialGlow);

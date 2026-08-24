@@ -139,6 +139,11 @@ export interface TextStyleInput {
   readonly tag: string;
   /** Length of the element's OWN text nodes (trimmed, whitespace-collapsed). */
   readonly directTextLen: number;
+  /** That same text, capped at 120 chars. Carried for the caveat rule (#652), which needs SHAPE and not
+   *  just length: a bounding sentence and a qualifier fragment occupy the same length class, and the
+   *  terminal punctuation is the only DOM-visible tell. Optional: absent in older fixture sample sets,
+   *  where the rule declines rather than treating a fragment as a sentence. */
+  readonly directText?: string;
   /** Length of the whole subtree's text — the line-length estimator's basis. */
   readonly totalTextLen: number;
   readonly fontSizePx: number;
@@ -180,6 +185,21 @@ export interface TextStyleInput {
    *  live findings the day their host was correctly marked aria-hidden. Contrast with `srOnly`, which IS
    *  an exemption — clipped text paints no pixels at all. Optional: absent in older fixture sample sets. */
   readonly ariaHidden?: boolean;
+  /** The `data-voice` @orb/ui `<Text>`/`<Heading>` stamped on this element (or the nearest carrier), empty
+   *  when the call site set none. A VOICE IS AN AUTHORED CLAIM ABOUT INTENT — "what this text IS on the
+   *  surface", the closed axis that replaced picking size×weight×tone×transform by taste — which is why
+   *  the caveat rule (#652) anchors on it rather than trying to infer importance from pixels. Optional:
+   *  absent in the fixture sample sets that predate it, where it reads as un-voiced. */
+  readonly voice?: string;
+  /** Inside `role="alert" | "alertdialog" | "status"` — the platform's own "this bounds what you are about
+   *  to do". The second anchor the caveat rule accepts, so a warning written without a voice is still
+   *  judged. Optional: absent in older fixture sample sets. */
+  readonly alertContext?: boolean;
+  /** Per-walk ids of this element's nearest four ancestors, outward. Two samples are IN THE SAME BLOCK
+   *  when their paths intersect — the bound that keeps the caveat rule from comparing a caption against
+   *  every larger glyph on the page, which is the false-positive machine it must not become. Optional:
+   *  absent in older fixture sample sets, where the rule declines rather than comparing globally. */
+  readonly blockPath?: readonly number[];
 }
 
 // ── Accent borders (impeccable `side-tab` / `border-accent-on-rounded`) ──────
@@ -359,6 +379,36 @@ export interface ControlAspectInput {
   readonly animating: boolean;
 }
 
+// ── Census reach — the interactive census's own denominator (#653) ───────────────────────────────────
+// "nothing found" and "nothing looked at" must never render identically. The tap-target, action-door and
+// silhouette families are PAINT/OFFERED-class (`document.elementFromPoint` only answers inside the
+// viewport — see the class table in ops/walker/census-interactive.ts), and they used to drop every
+// control that was merely not scrolled to: on the chat "This chat" tab at 430x932, ~20 sized controls sat
+// at top 1073..2374 inside an inner scroller and the run still printed `findings=0`.
+//
+// The walker now SCROLLS each offered control into view, measures it under the real arm, and restores
+// every scroller. These counters are what makes the remainder legible — a reader of the RESULT line is
+// entitled to know how many controls the census could not reach, exactly as `census=` states how many
+// nodes it saw.
+export interface CensusReachInput {
+  /** Visible, non-plumbing, non-aria-hidden interactive controls the sweep considered. */
+  readonly offered: number;
+  /** Already painted when the walk reached them. */
+  readonly onScreen: number;
+  /** Brought into the viewport by the reveal sweep and measured there. */
+  readonly revealed: number;
+  /** How many `scrollIntoView` calls that took — bounded by `revealBudget`. */
+  readonly revealScrolls: number;
+  /** Still outside the viewport AFTER a reveal attempt: an off-canvas panel, a fixed layer parked past
+   *  the edge, or a control the budget ran out on. These are the ones no rule judged. */
+  readonly skippedOffViewport: number;
+  /** Scroll positions put back before the later segments read geometry. */
+  readonly scrollersRestored: number;
+  readonly revealBudget: number;
+  /** The budget ran out — the sweep is INCOMPLETE and `skippedOffViewport` is a floor, not a total. */
+  readonly budgetExhausted: boolean;
+}
+
 // ── Aggregation ──────────────────────────────────────────────────────────────
 export interface RawSamples {
   readonly texts: readonly ContrastInput[];
@@ -377,6 +427,10 @@ export interface RawSamples {
   /** Every explicitly-roled visible element's rendered box — the silhouette lens (#430). Optional: absent
    *  from the fixture sample sets that predate it, where it reads as "no roled controls censused". */
   readonly controlAspects?: readonly ControlAspectInput[];
+  /** How much of the OFFERED control population the viewport-bound censuses actually reached (#653).
+   *  Optional: absent from the fixture sample sets that predate it, where the runner prints the reach
+   *  line as `unreported` rather than fabricating a complete-looking zero. */
+  readonly censusReach?: CensusReachInput;
   /** Whether the page was measured under `(pointer: coarse)` — selects the tap-target floor. */
   readonly pointerCoarse: boolean;
   readonly textStyles: readonly TextStyleInput[];
