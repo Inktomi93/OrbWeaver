@@ -92,3 +92,19 @@ export function useDetailSubject(): ImageSubject | undefined {
 export function useEditSubject(): ImageSubject | undefined {
   return useImageryStore((s) => s.editSubject);
 }
+
+/** Non-reactive snapshot of all three intent slots — for the store's own tests + reads outside a render
+ *  (the `__readRecentSteersForTest` posture; the reactive readers above need a React render). */
+export function __readImageryIntentForTest(): {
+  readonly imagineSeed: ImagineSeed | undefined;
+  readonly detailSubject: ImageSubject | undefined;
+  readonly editSubject: ImageSubject | undefined;
+} {
+  const { imagineSeed, detailSubject, editSubject } = useImageryStore.getState();
+  return { imagineSeed, detailSubject, editSubject };
+}
+
+/** Clear every intent slot — test-only hygiene (a module singleton must not leak state across tests). */
+export function __resetImageryIntent(): void {
+  useImageryStore.setState({ imagineSeed: undefined, detailSubject: undefined, editSubject: undefined }, false, "imagery/reset");
+}
