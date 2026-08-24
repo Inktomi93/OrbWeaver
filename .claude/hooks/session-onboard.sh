@@ -40,5 +40,5 @@ WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resume live lanes via SendMessage to the dispatch map's agentIds, NEVER respawn; sweep only under containment proofs)"
 DIRTY=$(git status --short 2>/dev/null | head -5)
 if [ -n "$DIRTY" ]; then echo "--- UNCOMMITTED on main (investigate before merging anything):"; echo "$DIRTY"; else echo "--- main working tree: clean"; fi
-echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
+echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded, POLICY only). PROCEDURE lives in the orchestrator-runbook SKILL — load it (Skill tool) before your first work:item transition, claude-b/bridge action, or worktree sweep; it is not auto-loaded. claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
 echo "--- FIRST ACTIONS: (1) re-arm the bridge Monitor (inotifywait -m ~/.claude/bridge/to-primary/); (2) honor any MERGE HOLD / sequencing note above; (3) session scratchpad dispatch-map.md (if this session's scratchpad survived) carries the fuller history."

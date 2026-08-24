@@ -1,0 +1,183 @@
+---
+name: orchestrator-runbook
+description: "Orbweaver orchestrator PROCEDURE — the GitHub Project 1 work:item cookbook and lifecycle hygiene, the claude-b second-account mechanics (overflow trigger, the -p spelling, the ~/.claude/bridge inboxes, SESSIONS.md), the SessionStart auto-onboard ritual, shared agent-memory provisioning, and worktree create/teardown mechanics. Load when creating or transitioning a Project issue, onboarding after a compact or session start, operating or reading the cross-account bridge, or creating/sweeping worktrees. Policy for these areas stays in .claude/rules/orchestration.md; this file is the how."
+---
+
+# Orchestrator runbook (procedure)
+
+Split out of `.claude/rules/orchestration.md` on 2026-08-24 (lane `cb-runbook-split`). That file is
+ALWAYS-ON — it is injected into every subagent on every dispatch, so every line of it is paid by every
+lane forever. Policy (what shapes a decision in the moment) stayed there. This file holds the
+PROCEDURE — what you look up while doing the thing — and is loaded on invocation instead of carried.
+
+**Nothing here was rewritten to be shorter.** The text is the rule text; where a claim's premise had
+rotted it carries a dated truth-repair beside the original, never a silent edit.
+
+## §0 Where this file came from (the rules-file provenance)
+
+Moved from `~/.claude/CLAUDE.md` into the orbweaver project on 2026-08-13 (owner: "move our
+orchestration instructions to the orbweaver project"). SPLIT on 2026-08-24 (lane cb-agent-fleet): the
+rules file was 389 lines, opened by telling every subagent to ignore it, and was injected into every
+lane anyway — paying full context and then suppressing itself. Nothing was deleted; the lane-binding
+half moved to `.claude/rules/lane-standing-facts.md` and three path-scoped rules took the rest, leaving
+290 lines. SPLIT AGAIN on 2026-08-24 (lane cb-runbook-split) into policy + this procedure skill.
+
+`.claude/rules/*.md` without `paths:` frontmatter loads at launch with the same priority as
+`.claude/CLAUDE.md`, AND project rules are part of the hierarchy subagents receive — which is why the
+subagent opt-out has to be first in that file, and why it names WHICH sections it suppresses.
+
+**What a subagent actually starts with** (the paragraph the rules file now points at; the fuller
+inheritance table is `agent-authoring` §3): a non-fork subagent receives its own system prompt, the
+delegation message, the CLAUDE.md hierarchy (`orchestration.md`, `lane-standing-facts.md`, and any
+path-scoped rule its reads trigger), git status, and any preloaded `skills`. It does **NOT** receive:
+your conversation history, your output style, or anything you have already read. Its context window is
+sized by **its own** model, not yours. **One nuance since 2026-08-24:** every role carries
+`memory: project` pointed at the SHARED project memory store, so a lane DOES boot with the `MEMORY.md`
+INDEX in its system prompt and can Read any topic file by name. It does not get the bodies, and it does
+not get the reasoning you did around them — so a load-bearing lesson is still restated in the brief, or
+named by its exact filename. Assume the index, never the body.
+
+## §1 Work control quick path
+
+- **Existing mutable work?** Scan it with `pnpm work:item list --status <status>`, inspect it with
+  `pnpm work:item show <issue>`, and update that issue; do not
+  create a duplicate. **New work?** Create exactly one class: `work` for an executable build,
+  operations, or documentation outcome; `bug` for a reproducible contract violation; `decision` for an
+  owner fork; `program` for one committed future sprint; or `evidence` for a
+  re-derived finding routed to one of those classes. Use `pnpm work:item create <class> --title <title> --body-file <file>`; the matching `.github/ISSUE_TEMPLATE/*.yml` is the canonical issue body.
+- **Project is the only mutable lifecycle home.** Never mirror Triage, Ready, Running, Blocked, Verify,
+  or Done into docs. Decisions enter **Needs owner**. The lifecycle is `ready <issue>` → `claim <issue> --lane <lane>` → `review <issue>` → `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`; set Kind, Priority, Area, and Review before Ready. Use `needs-owner <issue>` for raw
+  decision ingress, `block`/`unblock`, and `park --wake` for exceptions. `pnpm work:item --help` prints
+  the complete cookbook. Lifecycle commands write Status last and accept an identical retry after an
+  interrupted or uncertain GitHub response; rerun the operator command instead of repairing fields with
+  raw `gh` calls.
+- **Lifecycle hygiene (Codex control-plane review, 2026-08-16 — the four measured misses):**
+  1. **Claim FIRST, always.** The issue exists and is claimed BEFORE the fixing work starts — an issue
+     created seconds after its fixing commit is retrospective paperwork, not tracking (#75 was minted
+     33s after its fix landed; the discovery→file→claim→fix ordering is the contract even mid-dogfood).
+  2. **A ruled decision moves the moment it is ruled.** Owner ruling + any landed arm ⇒ transition out
+     of Needs owner immediately (Running with a lane, or through Review/Verify) — a ruled-and-built
+     issue still showing Needs owner is a lifecycle lie (#76 sat there after b5e48a907 landed).
+  3. **Retire the design artifact when its program closes.** A Done program's design doc flips
+     `status: active` → archived in the SAME breath, and any deferred-work section gets its OWN
+     Project issue (parked with a wake condition if not actionable) — prose-only deferrals are the
+     parallel backlog the Project exists to kill (#74's doc sat active with §7 deferrals untracked).
+  4. **Receipts name LIVE issues.** A catalog receipt's typed claim pointing at a CLOSED issue is
+     semantically stale even when the hashes verify — re-receipt when the referenced issue closes.
+- **Only the orchestrator mutates Project.** Subagents return path/commit/test receipts; the
+  orchestrator updates the linked issue. Issues point to durable repo evidence, and durable repo evidence
+  never copies Project lifecycle fields.
+
+## §2 The second Claude account (claude-b): overflow, swap, and the bridge
+
+**Dated state, 2026-08-24 (owner) — read this BEFORE the recorded rule below.** The PRIMARY account ran
+out of usage and the operator SWAPPED the session to claude-b. claude-b is not receiving overflow
+delegations right now — **it IS the driving account**: every lane, every merge, every board transition
+in this session is claude-b as primary. Nothing crossed the bridge to get here; the operator switched
+accounts. So there are TWO distinct routes to claude-b running work, and only one of them is the
+overflow clause: an operator SWAP needs no sentinel, no delegation, and no bridge. Build-state claims
+carry a dated receipt or do not exist — that is why this paragraph is dated and why the rule below is
+preserved as the recorded condition rather than rewritten into a description of today.
+
+- **CLAUDE-B OVERFLOW (owner, 2026-08-22): if — and ONLY if — a WEEKLY-usage sentinel reports ≥85%,
+  lane-class work may delegate to the second Claude account.** The trigger is exclusively that explicit
+  harness sentinel in context — never a self-estimate, never the 5-hour window, never any other signal.
+  Spelling (the bashrc `claude-b` function is invisible to non-interactive shells):
+  `CLAUDE_CONFIG_DIR="$HOME/.claude-b" claude -p "<full cold brief>"` — verified alive 2026-08-22.
+  A claude-b invocation shares the project MEMORY and hooks (symlinked — verified 2026-08-22) but no
+  conversation context: every delegation is a complete cold brief to executor standard (goal,
+  constraints, paths, done-criteria, hazards, the WHY, §L discipline, scoped floors), and its output
+  returns on stdout — treat it like any lane report: verify receipts, never trust bare claims. Same
+  permission boundaries as any lane: nothing denied here may be routed there.
+- **The IDENTITY TEST is not here — it is inline in `.claude/rules/orchestration.md`,** because it must
+  be answered by a session that never invokes this skill. It is unchanged: `echo "${CLAUDE_CONFIG_DIR:-primary}"`;
+  if it names `.claude-b` you ARE claude-b — never delegate onward (that is recursion), identify as
+  claude-b in every board comment / commit trailer context / lane name (prefix `cb-`). What changed on
+  2026-08-24 is only the FREQUENCY: claude-b-as-driver is the normal case now, not the exception, so
+  the test matters more, not less.
+- **THE BRIDGE (cross-account messages — the session registries are per-config-dir, so SendMessage
+  cannot span accounts):** `~/.claude/bridge/` holds `to-b/` and `to-primary/` inboxes. A message is
+  one markdown file `NNN-<slug>.md` (frontmatter: from/at/re + body); the reader ACKS BY MOVE into
+  the inbox's `done/` subdir after acting. Check your inbox at session start and at every merge
+  window; never edit another message, only move it. REALTIME (primary side): keep a persistent
+  Monitor (`inotifywait -m` on `~/.claude/bridge/to-primary/`) so claude-b messages arrive as live
+  events instead of polls.
+  **LIVENESS CAVEAT (2026-08-24): the bridge is DORMANT while the primary account is out of usage.**
+  `to-primary/` messages have nobody reading them — the protocol is correct machinery and primary will
+  come back, but a session must never sit waiting on an ack that structurally cannot come. Write the
+  note if it is durable state worth handing over; do not treat it as a request/response channel while
+  the far side is dark.
+- **POST-COMPACT LIVENESS:** `~/.claude/bridge/SESSIONS.md` is the claude-b
+  session REGISTRY — read it before any claude-b spawn; the standing session there is RESUMED
+  (`--resume <id>`), never re-minted (endless fresh spawns lose its accumulated context); a live
+  process check is `ps ax | grep -F 'CLAUDE_CONFIG_DIR=/home/inktomi/.claude-b'`.
+- **Which account am I, when both accounts load the rules file?** The identity test above is the only
+  answer — `CLAUDE_CONFIG_DIR` naming `.claude-b` means this overflow clause does not apply to you, and
+  your session is driven by the primary via `-p`/`--resume` when it was delegated (report on stdout and
+  check the bridge) or by the operator directly when it was a swap.
+
+## §3 The SessionStart auto-onboard ritual
+
+- **POST-COMPACT / SESSION-START: the AUTO-ONBOARD hook does the ritual** (owner, 2026-08-22 —
+  `.claude/hooks/session-onboard.sh`, a SessionStart hook for startup/resume/compact/clear): it
+  injects the board overview, the bridge inbox, the claude-b registry pointer and the live worktree
+  list as session context automatically. Your half on seeing it: ACT on that context instead of
+  re-deriving it — re-arm the bridge Monitor, resume (never respawn) any live lanes/worktrees it
+  lists, and never track the board from memory:
+  `pnpm work:item overview` before EVERY refill decision — Triage, Verify, Parked and Needs-owner
+  are queues too (Triage needs triaging, Verify rows need verification lanes, Parked
+  wake-conditions get re-derived when their subject changes).
+- The hook's own header documents its size contract (most-load-bearing content FIRST, total well under
+  8KB so it lands inline rather than being spilled to an unreadable file) and why the dispatch map is
+  printed before anything else. Read `.claude/hooks/session-onboard.sh` before editing it.
+
+## §4 Provisioning the shared agent memory
+
+- **Provisioning the shared agent memory (2026-08-24).** Every role carries `memory: project`, which
+  resolves against the AGENT'S CWD — so the main checkout AND every worktree need
+  `.claude/agent-memory/<role>` symlinked at the shared store. `pnpm agent-memory:link` does it, and
+  both `.claude/hooks/worktree-setup.sh` and `pnpm worktree:bootstrap` call it. The links are
+  gitignored, so a fresh clone needs the command once. Roles are READ-ONLY on that store by
+  instruction; **every write to it is yours**, and a lane's proposed lesson arrives as report text.
+
+## §5 Worktree lifecycle mechanics
+
+The POLICY lines (never tear down a worktree you might resume; require `git show --stat` receipts and
+spot-check `git status --short` before teardown) stay in `.claude/rules/orchestration.md`. The
+mechanics are here.
+
+- **Worktree lifecycle rides the CUSTOM hook pair — know it, use it (owner reminder 2026-08-22):**
+  `WorktreeCreate` → `.claude/hooks/worktree-setup.sh` REPLACES built-in creation (it creates the
+  worktree, runs the per-worktree `pnpm install` — 2s/48MiB via CAS hardlinks — and links `.env`,
+  `settings.local.json` and the agent-memory dirs; its stdout IS the worktree path). `WorktreeRemove`
+  → `.claude/hooks/worktree-remove.sh` is the paired teardown. Consequences: `isolation: "worktree"`
+  dispatches get a WORKING tree for free — never add "run pnpm install" to those briefs; a MANUAL
+  `git worktree add` bypasses the hook and MUST run `pnpm worktree:bootstrap` (§L.5) or every gate
+  lies AND every lane there boots with an empty memory index; teardown of hook-created trees goes
+  through the harness's remove (or replicates the remove hook's steps) — a bare `rm -rf` strands
+  registered worktree metadata. Do NOT "solve" installs with enableGlobalVirtualStore (breaks tsc +
+  type-aware lint).
+- **Worktree teardown does NOT fire on agent completion** (probed live 2026-08-13). Worktrees accumulate;
+  sweep them by hand at end of session. A worktree dir with no `.git` resolves `git -C` **up to MAIN** —
+  hand-run commands there hit the main checkout. Sweep: `git worktree list` → `git worktree remove --force`
+  registered ones → `rm -rf` unregistered dirs → `git worktree prune` → `git branch -D wt/*` only after
+  `git rev-list --left-right --count main...<branch>` shows 0 on the branch side.
+- **Killing a task mid-git leaves staged-no-MERGE\_HEAD debris** — `git reset --hard HEAD` (the branch holds
+  everything) and redo, don't excavate.
+- **Warm leg to an ALREADY-MERGED isolated lane (2026-08-21)** — the mechanism the rules file points
+  at: the lane proves containment (`git rev-list --left-right --count main...HEAD` → its side 0),
+  fast-forwards its branch to main's tip, and lands the follow-up as new commits on top — a
+  re-delivery-free merge for the orchestrator. It structurally cannot create or operate a second
+  worktree, so never prescribe one.
+
+## §6 Integration procedures
+
+- **Docs-only integration under load:** run the required per-file formatter and scoped docs/catalog
+  checks, commit with hooks bypassed when the whole-tree hook would duplicate the draining-train gate,
+  then run one consolidated barrier on the integrated tree.
+- **WHEN READY RUNS DRY (owner, 2026-08-22)** — the scoring posture behind the rules file's one-liner:
+  side-eye every RAIL item and the home screen, one surface per lane-slot, full-battery lens. On the
+  aesthetic/Nielsen scoring: a default-tier score (a "30/40") is NOT acceptance — every IDENTIFIED
+  issue gets fixed or filed with a receipt; but do not score-chase perfection (no re-review loops
+  hunting points; the finding list, not the number, is the deliverable). Findings → file-claim-fix per
+  lifecycle; fixes verified by the side-eye lens before Done.
