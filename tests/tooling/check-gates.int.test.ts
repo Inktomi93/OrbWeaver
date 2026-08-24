@@ -1067,7 +1067,14 @@ function writeFixtures(): void {
 // synthetic installed package + manifest into a real temp dir (a new part, a new prop, an `unresolved`
 // disposition, a reason-less `sealed-away`, the package missing entirely, and the reader's own
 // learned-nothing tripwire), plus its live run on the real tree at the founding 1.7.0 surface.
+// biome-grant-liveness: its unit is a row inside the REPO-ROOT `biome.json`, so the only way to drive it is
+// to mutate the real lint config — which no `__g_` path can express, and which would perturb every
+// concurrent biome consumer for the fixture's lifetime. Its bite is proven instead by eight conformance
+// mustFlag/mustPass rows (dead row, classifier, absent config, unparseable config, zero-rows, both exemption
+// arms) and by its own permanent pin, tests/tooling/verify/gates/biome-grant-liveness.int.test.ts, which
+// runs the REAL descriptor against planted temp roots in both directions AND against the real biome.json.
 const UNFIXTURABLE_GATES = new Set([
+  "biome-grant-liveness",
   "baseui-surface-manifest",
   "warning-code-coverage",
   "verify-registry-parity",
