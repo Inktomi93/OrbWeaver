@@ -289,16 +289,86 @@ async function resolveContrastBackdrop(
   return { rgb: sampled.rgb, method: "pixel-sample" };
 }
 
-async function checkContrast(page: Page, selector: string, forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome> {
-  let facts: ContrastFacts;
+/** THE SELECTOR-DIALECT FIX (#651). `buildContrastScript` hands its selector straight to in-page
+ *  `document.querySelectorAll`, which only ever understood raw CSS — but the parse-time refusal
+ *  (`lib/selector-shape.ts`) already waves Playwright engine forms (`text=`, `role=`, `xpath=`, `>>`,
+ *  the SAME dialect `--wait-for` requires) through as "not ours to judge". The two disagreed: a probe
+ *  that waited on `text=Foo` then measured its contrast had to spell the SAME target two different ways
+ *  mid-chain, and the CSS-only spelling threw "not a valid selector" inside the page.
+ *
+ *  Resolve `selector` through PLAYWRIGHT's own engine (`page.locator`) instead, stamp every match with an
+ *  index-ordered marker attribute (a real, tiny arrow ref — the codebase's proven-safe evaluate() shape,
+ *  see drive.ts's jsclick), and hand the walk a plain-CSS marker selector it can always read. The walk's
+ *  own occlusion/viewport logic is untouched — only WHICH elements it sees changes. */
+const CONTRAST_MARK = "data-snap-contrast-idx";
+
+async function markContrastCandidates(page: Page, selector: string): Promise<number> {
+  const loc = page.locator(selector);
+  const count = await loc.count();
+  for (let i = 0; i < count; i += 1) {
+    // A real page-side function is serialized by `.toString()` and evaluated as raw text in the
+    // browser — it carries NO closure over module scope (measured live: a first draft that referenced
+    // CONTRAST_MARK by closure threw "CONTRAST_MARK is not defined" in-page). Both the mark and the
+    // index travel through the explicit `arg`, never the closure.
+    // biome-ignore lint/performance/noAwaitInLoops: sequential tagging over a bounded match set — same discipline as captureContrasts/driveActions.
+    await loc
+      .nth(i)
+      .evaluate((el, args) => (el as unknown as { setAttribute: (name: string, value: string) => void }).setAttribute(args.mark, String(args.idx)), {
+        idx: i,
+        mark: CONTRAST_MARK,
+      });
+  }
+  return count;
+}
+
+async function clearContrastCandidates(page: Page): Promise<void> {
+  await page
+    .evaluate((mark) => {
+      for (const el of (document as unknown as { querySelectorAll: (s: string) => Iterable<{ removeAttribute: (n: string) => void }> }).querySelectorAll(
+        `[${mark}]`,
+      )) {
+        el.removeAttribute(mark);
+      }
+    }, CONTRAST_MARK)
+    .catch(() => undefined); // best-effort cleanup — a torn-down page must never fail the contrast verdict it already computed
+}
+
+/** Either the resolved in-page facts, or the terminal outcome to return as-is — pulled out of
+ *  `checkContrast` purely to keep its own cognitive complexity under the gate's ceiling. `facts` is
+ *  narrowed NON-NULL here: a `null` result means the marker attribute vanished between marking and
+ *  evaluating (a re-render raced the walk) — treated as NOT FOUND rather than trusted silently. */
+type NonNullContrastFacts = Exclude<ContrastFacts, null>;
+type FactsResolution = { readonly ok: true; readonly facts: NonNullContrastFacts } | { readonly ok: false; readonly outcome: ContrastOutcome };
+
+async function resolveContrastFacts(page: Page, selector: string): Promise<FactsResolution> {
+  let matchCount: number;
   try {
-    facts = (await page.evaluate(buildContrastScript(selector))) as ContrastFacts;
+    matchCount = await markContrastCandidates(page, selector);
   } catch (e) {
-    return { line: `CONTRAST ${selector}: EVAL ERROR: ${errorMessage(e)}`, failed: true };
+    return { ok: false, outcome: { line: `CONTRAST ${selector}: EVAL ERROR: ${errorMessage(e)}`, failed: true } };
   }
-  if (facts === null) {
-    return { line: `CONTRAST ${selector}: NOT FOUND`, failed: true };
+  if (matchCount === 0) {
+    return { ok: false, outcome: { line: `CONTRAST ${selector}: NOT FOUND`, failed: true } };
   }
+  try {
+    const facts = (await page.evaluate(buildContrastScript(`[${CONTRAST_MARK}]`))) as ContrastFacts;
+    if (facts === null) {
+      return { ok: false, outcome: { line: `CONTRAST ${selector}: NOT FOUND`, failed: true } };
+    }
+    return { ok: true, facts };
+  } catch (e) {
+    return { ok: false, outcome: { line: `CONTRAST ${selector}: EVAL ERROR: ${errorMessage(e)}`, failed: true } };
+  } finally {
+    await clearContrastCandidates(page);
+  }
+}
+
+async function checkContrast(page: Page, selector: string, forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome> {
+  const resolved = await resolveContrastFacts(page, selector);
+  if (!resolved.ok) {
+    return resolved.outcome;
+  }
+  const facts = resolved.facts;
   if (!isContrastMeasured(facts)) {
     return refuseContrastVerdict(selector, facts);
   }
