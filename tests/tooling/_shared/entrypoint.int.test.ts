@@ -11,6 +11,15 @@ import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
+
+// LOAD-HONEST BUDGET (#606). The verify-census test below spawns one `node` per ops module (~12 boots,
+// ~1.7s solo) and lived on the parallel lane's DEFAULT 5000ms — which under multi-lane contention blew and
+// surfaced as an opaque timeout indistinguishable from a real refusal-regression red. Each spawn now runs
+// under a load-scaled child `timeout` that throws a SELF-IDENTIFYING ORB-LOAD-KILL when contention (not a
+// missing guard) is the cause, and the test carries a load-scaled wall-clock. Solo (factor 1) is unchanged.
+const CENSUS_TEST_BUDGET = scaledBudget(15_000, 4);
+const PER_CHILD_BUDGET = scaledBudget(5000, 4);
 
 const OPS_DIR = join("tooling", "src", "verify", "ops");
 const TOOLING_SRC = join("tooling", "src");
@@ -93,19 +102,24 @@ test("the guard is INERT on the normal path — the cli still runs", ({ repoRoot
   expect(run.stdout).toContain("usage: node tooling/src/verify/cli.ts");
 });
 
-test("EVERY verify ops module refuses when RUN — the next one cannot be born lying", ({ repoRoot }) => {
-  // Deliberately not a source grep. Writing this pin as `readFileSync(...).includes("refuseDirectInvocation")`
-  // was the FIRST attempt and it was itself a lying proof: the scaffold's guard landed inside `new-gate.ts`'s
-  // TEMPLATE STRING (so every future GATE would have carried it and new-gate.ts still exited 0), and the grep
-  // said armed. Only running the module answers the question the pin is asking.
-  const modules = opsModules(repoRoot);
-  const verdicts = modules.map((f) => {
-    const run = spawnSync("node", [join(OPS_DIR, f)], { cwd: repoRoot, encoding: "utf8" });
-    return `${f}: ${run.status}`;
-  });
+test(
+  "EVERY verify ops module refuses when RUN — the next one cannot be born lying",
+  ({ repoRoot }) => {
+    // Deliberately not a source grep. Writing this pin as `readFileSync(...).includes("refuseDirectInvocation")`
+    // was the FIRST attempt and it was itself a lying proof: the scaffold's guard landed inside `new-gate.ts`'s
+    // TEMPLATE STRING (so every future GATE would have carried it and new-gate.ts still exited 0), and the grep
+    // said armed. Only running the module answers the question the pin is asking. Each spawn is budget-guarded:
+    // a contention kill throws a legible ORB-LOAD-KILL (exit-2), never a `status:null` misread as a bad refusal.
+    const modules = opsModules(repoRoot);
+    const verdicts = modules.map((f) => {
+      const run = spawnNodeWithBudget([join(OPS_DIR, f)], repoRoot, PER_CHILD_BUDGET, `ops-refusal census (${f})`);
+      return `${f}: ${run.status}`;
+    });
 
-  expect(verdicts).toEqual(modules.map((f) => `${f}: ${EXIT_TOOL_ERROR}`));
-  // A zero from an empty directory would be a false clean (the walk-fence lesson): the census must have
-  // read something. Twelve modules at the pin's minting; the floor only proves the scan happened.
-  expect(modules.length).toBeGreaterThan(1);
-});
+    expect(verdicts).toEqual(modules.map((f) => `${f}: ${EXIT_TOOL_ERROR}`));
+    // A zero from an empty directory would be a false clean (the walk-fence lesson): the census must have
+    // read something. Twelve modules at the pin's minting; the floor only proves the scan happened.
+    expect(modules.length).toBeGreaterThan(1);
+  },
+  CENSUS_TEST_BUDGET,
+);
