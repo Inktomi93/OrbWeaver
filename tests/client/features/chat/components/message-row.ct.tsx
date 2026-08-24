@@ -1663,7 +1663,6 @@ test("#168 FENCE (green before the fix): nothing in the row's content out-paints
     await component.evaluate((el: HTMLElement, y: number) => {
       el.scrollTop = y;
     }, top);
-    // biome-ignore lint/performance/noAwaitInLoops: sequential by construction.
     const topmostIsBand = await nameRow.evaluate((band: HTMLElement) => {
       const r = band.getBoundingClientRect();
       return [0.05, 0.5, 0.95].every((fy) => {
