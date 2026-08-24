@@ -23,7 +23,9 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 //      compiling under v4 to `width: --foo` (bare ident, no var()). Mode 1
 //      can't see it because the SELECTOR exists.
 export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{ dead: Array<{ token: string; count: number }>; empty: string[] }> {
-  // NOTE: the body ships as a STRING — tsx (esbuild keepNames) decorates
+  // NOTE: the body ships as a STRING. Surviving reason: the body runs in the BROWSER while tsc
+  // would check a function form against the NODE lib (TS2584 on every DOM name). Original reason —
+  // now historical, tsx was shed 2026-08-03: tsx (esbuild keepNames) decorated
   // function expressions with a __name helper that doesn't exist inside the
   // browser context; a serialized IIFE evaluates untransformed. (Also the root
   // tsconfig that checks scripts/ is DOM-less — a function body wouldn't compile.)
