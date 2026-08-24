@@ -8,7 +8,15 @@
 // mirror's OLD tests keep passing untouched (learned: `revealContextPanel`/`selectPresetFromList`/
 // `__dismissPresetSectionForTest`/`selectWorldBookFromList` shipped referenced by ZERO test file). Every action
 // exported by a `state/*.ts` file that mints a store (`createGatedStore`/`createPersistedStore`/
-// `createEntityDraftStore`) must appear BY NAME in its mirror `tests/client/state/<store>.ct.tsx`.
+// `createEntityDraftStore`) must appear BY NAME in its mirror test, of EITHER kind.
+// CLAUSE C WAS SILENTLY INERT ON 15 OF 34 STORES UNTIL #619. It resolved the mirror as `.ct.tsx` ONLY and
+// `return []` when that path did not exist — so every store whose mirror is a `.test.ts` was never judged and
+// the gate reported CLEAN. The header asserted "every existing state store mirror is a .ct.tsx, never a
+// .test.ts"; that was FALSE by 15 files (chat-stream, message-selection-store, recent-models-store,
+// rpg-round-store, steer-recovery-store, surface-box-store, message-edit-draft, preset-section-drill-store,
+// refinery-view-store, regex-bulk-store and the five `create-*` doors). It now resolves over the SHARED
+// `TEST_KINDS` vocabulary (one home with clause A), and REFUSES LOUDLY when a mirror exists that it could not
+// read — a clause that cannot run must never report clean.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
@@ -36,7 +44,14 @@ const MSG_CLIENT =
   "client data/forms/state primitive has no test — add a .test.ts / .int.test.ts / .ct.tsx at its tests/client mirror. These seals are composed by every feature; an untested change breaks behavior downstream silently (Spine-Testing.md §5).";
 const MSG_UI = "non-primitive @orb/ui logic module has no test — add a .test.ts / .ct.tsx at its tests/ui mirror (Spine-Testing.md §5).";
 const MSG_STATE_ACTION = (action: string): string =>
-  `store action \`${action}\` is not referenced by name in its mirror tests/client/state/*.ct.tsx — a mirror EXISTING isn't presence for a NEW action (Spine-Testing.md §5). Drive it and assert the resulting store state.`;
+  `store action \`${action}\` is not referenced by name in its mirror test (tests/client/state/<store>.{ct.tsx,test.ts,...} + the shared _ct-stories.tsx) — a mirror EXISTING isn't presence for a NEW action (Spine-Testing.md §5). Drive it and assert the resulting store state.`;
+
+/** The §4.6 blindness tripwire for clause C, and the thing #619 was minted from: clause C used to resolve
+ *  the mirror as `.ct.tsx` ONLY and `return []` on a miss, so 15 `.test.ts`-mirrored stores were never
+ *  judged and the gate reported CLEAN. A clause that CANNOT run must never look like one that ran and found
+ *  nothing. Fires when clause A says a mirror exists but clause C read no corpus from it. */
+const MSG_STATE_UNREADABLE =
+  "clause C could not read ANY corpus from this store's mirror, even though a mirror test EXISTS — so its actions went UNJUDGED and a ✓ here would be a lie about coverage this gate does not have (issue #619; tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Either the mirror is empty, or it uses a test-kind suffix outside TEST_KINDS in tooling/src/verify/gates/test-presence-client.ts — widen that ONE vocabulary, never special-case it here.";
 
 function relAfter(path: string, marker: string): string | undefined {
   const idx = path.indexOf(marker);
@@ -122,8 +137,16 @@ function isStoreFile(sf: SourceFile): boolean {
 // Clause C — a store's mirror .ct.tsx (the only kind these hook-backed stores use — useSyncExternalStore
 // needs a browser) must reference every action BY NAME (boundary-anchored, not a substring of a longer
 // identifier).
+// A call may carry EXPLICIT TYPE ARGUMENTS between the name and the paren — `createGatedStore<CounterState>(`
+// — and a bare `NAME\(` matcher is blind to every one of them. That blindness was INVISIBLE until #619
+// widened clause C: four `create-*` mirrors that genuinely DO exercise their factory (generically) reported
+// as untested, which would have shipped four false REDs on a live gate. One nesting level of generics is
+// covered (`<Map<string, number>>`), and parens are excluded from the type-argument span so the pattern
+// cannot run away across a line into an unrelated call.
+const TYPE_ARGS = String.raw`(?:\s*<[^<>()]*(?:<[^<>()]*>)?[^<>()]*>)?`;
+
 function actionReferencedInMirror(mirrorText: string, action: string): boolean {
-  return new RegExp(`(?:[^\\w]|^)${action}\\(`, "u").test(mirrorText);
+  return new RegExp(`(?:[^\\w]|^)${action}${TYPE_ARGS}\\s*\\(`, "u").test(mirrorText);
 }
 
 // Clause B — dir-level presence: ANY test file in the module's mirror directory (a ui-logic group is
@@ -148,11 +171,14 @@ function clientTierRel(rel: string): string | undefined {
   return rel.slice(tier.length).includes("/") ? undefined : rel;
 }
 
-// Clause C — the store's ONE mirror kind is .ct.tsx (useSyncExternalStore needs a browser; every
-// existing state store mirror is a .ct.tsx, never a .test.ts). Missing mirror is already clause A's
-// violation; clause C only judges action-name coverage WITHIN an existing mirror. The action call sites
-// live in the shared `_ct-stories.tsx` story module (Spine-Testing §7 — "CT only mounts from a non-test
-// module"), so the corpus is BOTH the `.ct.tsx` and its sibling `_ct-stories.tsx`.
+// Clause C — the mirror is resolved over the SHARED `TEST_KINDS` vocabulary (the same list clause A uses:
+// one home, so the two clauses can never disagree about what a mirror IS — the #619 divergence). A store
+// backed by `useSyncExternalStore` usually mirrors as `.ct.tsx`, but a `.test.ts` that drives an action is
+// coverage too, and 15 stores are mirrored exactly that way. EVERY existing mirror is read, not just the
+// first: `active-chat-store` and `composer-draft-store` carry BOTH kinds, and an action driven in either one
+// is genuinely covered. Missing mirror ENTIRELY is clause A's violation, so clause C stays silent there
+// rather than double-reporting. The action call sites also live in the shared `_ct-stories.tsx` story module
+// (Spine-Testing §7 — "CT only mounts from a non-test module"), so that sibling joins the corpus.
 // The mirror corpus is read off the REAL FS (it is a test file, judged by existence), so its comments are
 // blanked from TEXT. This is the PERMISSIVE direction of the comment-blindness class and the one that
 // matters here: a COMMENTED-OUT `revealContextPanel(` call in the mirror would satisfy clause C — which is
@@ -166,19 +192,23 @@ function readIfExists(path: string): string {
 
 function scanStoreActionPresence(root: string, clientRel: string, sf: SourceFile): Violation[] {
   const mirrorDir = join(root, "tests", "client", "state");
-  const mirrorPath = join(root, "tests", "client", clientRel.replace(EXT_RE, ".ct.tsx"));
-  if (!existsSync(mirrorPath)) {
+  const base = join(root, "tests", "client", clientRel.replace(EXT_RE, ""));
+  const present = TEST_KINDS.map((kind) => `${base}${kind}`).filter((p) => existsSync(p));
+  if (present.length === 0) {
+    // No mirror at all — clause A's violation, already reported. Silent here on purpose (not a skip).
     return [];
   }
-  const corpus = readIfExists(mirrorPath) + readIfExists(join(mirrorDir, "_ct-stories.tsx"));
+  const file = `packages/client/src/${clientRel}`;
+  const mirrorText = present.map((p) => readIfExists(p)).join("");
+  // The blindness tripwire: a mirror EXISTS but yielded no readable corpus, so nothing below could judge.
+  if (mirrorText.trim() === "") {
+    return [{ file, line: 0, message: MSG_STATE_UNREADABLE }];
+  }
+  const corpus = mirrorText + readIfExists(join(mirrorDir, "_ct-stories.tsx"));
   const out: Violation[] = [];
   for (const action of storeActionNames(sf)) {
     if (!actionReferencedInMirror(corpus, action)) {
-      out.push({
-        file: `packages/client/src/${clientRel}`,
-        line: 0,
-        message: MSG_STATE_ACTION(action),
-      });
+      out.push({ file, line: 0, message: MSG_STATE_ACTION(action) });
     }
   }
   return out;
@@ -284,6 +314,33 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "gPresCommentAction" },
       why: "COMMENT POSTURE: a COMMENTED-OUT action call in the mirror satisfied clause C to a file-text scan — which is the `shipped referenced by ZERO test file` defect the clause exists for, wearing a `//`. The mirror corpus is comment-blanked, so it still REDs",
+    },
+    {
+      // #619 — THE FOUNDING SILENCE: a store mirrored as `.test.ts`. Clause C resolved `.ct.tsx` ONLY and
+      // returned [] on a miss, so this shape reported CLEAN over an action referenced by zero test. 15 of
+      // the tree's 34 stores were mirrored exactly this way.
+      files: {
+        "packages/client/src/state/__g_gpresdotts-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-presdotts", () => ({ n: 0 }));\n' +
+          'export function gPresDotTsAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n',
+        "tests/client/state/__g_gpresdotts-store.test.ts": 'import { useX } from "@orb/client/state";\nexport const t = useX;\n',
+      },
+      expect: { messageIncludes: "gPresDotTsAction" },
+      why: "#619: a `.test.ts`-mirrored store is JUDGED now — this exact shape was silently inert and reported clean on 15 stores",
+    },
+    {
+      // #619 blindness tripwire: a mirror EXISTS but yields no corpus, so nothing could be judged. That must
+      // REFUSE, never look like a clean pass.
+      files: {
+        "packages/client/src/state/__g_gpresempty-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-presempty", () => ({ n: 0 }));\n' +
+          'export function gPresEmptyAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n',
+        "tests/client/state/__g_gpresempty-store.test.ts": "\n",
+      },
+      expect: { messageIncludes: "could not read ANY corpus" },
+      why: "§4.6: a mirror that yields NO corpus leaves every action unjudged — the clause must say so, not report clean (the #619 class, generalized)",
     },
   ],
   mustPass: [
