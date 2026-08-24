@@ -11,7 +11,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { setNumber } from "../../../../support/ct/set-number.ts";
 import { CommittedSettingsTabStory } from "../_ct-stories.tsx";
 
@@ -23,6 +23,35 @@ const CHAT_DETAIL = { id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, ho
 // arm must stub it or the section's boundary would swallow the failure and the tab's composition contract
 // would silently stop covering it. Empty declarations = the section's teaching empty state.
 const EMPTY_PICKS = { macros: [], values: {} };
+
+// The Macro-picks section's SECOND suspense read (`chat.getVariablePicks`, macro-picks-section.tsx:289 —
+// the pane is one section over TWO knob families, read in parallel by `useSuspenseQueries`). #629: this
+// file stubbed only the first, so the section threw on `null` in EVERY test here and sat in its
+// QueryBoundary's error arm — invisible, because the "Macro picks" heading is the Section kicker OUTSIDE
+// the boundary and that is all the assertions read. NON-EMPTY on purpose: an empty declaration renders
+// the teaching gloss whether or not the reads landed, so only a declared knob's rendered CONTROL proves
+// the section's real body is alive in this composition.
+const POV_VARIABLE = {
+  name: "pov",
+  question: "Narration POV",
+  options: [
+    { label: "First", value: "first person" },
+    { label: "Third", value: "third person" },
+  ],
+  defaultValue: "third person",
+  multiSelect: false,
+  separator: ", ",
+  randomPick: false,
+};
+const VARIABLE_PICKS = { variables: [POV_VARIABLE], values: {} };
+
+// The Documents section's SECOND, non-suspending read (`useSlotState`, chat-documents-section.tsx:67 →
+// `settings.getUserSettings` for the host's active preset, to say whether that preset places `{{databank}}`).
+// Found by the #629 pin below, not by anyone reading the file: it was unstubbed in EVERY arm here, and the
+// stub's lenient `null` fulfil is NOT `undefined`, so the section skipped its own "resolving" arm and
+// resolved the built-in prompt config — the right answer, reached by accident. Declared now: this room's
+// host runs the built-in preset (`defaultPresetId: null`), which is the arm these tests were already in.
+const USER_SETTINGS = { config: { seeds: { defaultPresetId: null } } };
 
 // The Documents section's own suspense read (S2, D-4) — this tab is its production mount, so every
 // committed arm must stub it or the section's boundary would swallow the failure and the tab's composition
@@ -53,6 +82,8 @@ test("committed host + group: BOTH sections render as h3 headings", async ({ mou
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -61,42 +92,109 @@ test("committed host + group: BOTH sections render as h3 headings", async ({ mou
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
-  // Macro picks (#24) — member-reachable, so it renders for host and non-host alike.
+  // Macro picks (#24) — member-reachable, so it renders for host and non-host alike. The heading is the
+  // Section kicker, which renders OUTSIDE the boundary, so it is NOT evidence the section works (#629) —
+  // the declared variable's rendered control is.
   await expect(component.getByRole("heading", { name: "Macro picks", level: 3 })).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "Narration POV" })).toBeVisible();
 });
+
+// #629 — THE FILE'S OWN HONESTY PIN, and the one test here that would have caught the year's quietest
+// class: a section whose reads are unstubbed renders its heading and an error body, so a heading-only
+// assertion passes while the subject never mounts. Two claims, both about the WHOLE composition rather
+// than one section, so a section added to the tab tomorrow with an unfed read reds HERE:
+//   1. no boundary anywhere in the tab fell into `QueryErrorState` ("Couldn't load …" — the house's ONE
+//      read-error surface, query-error-state.tsx), and
+//   2. the mounted tree requested nothing this file failed to stub (`trpc.unstubbed()`, route-trpc.ts).
+// Both arms run for the HOST tree (every section) and the MEMBER tree (the permission-omitted subset —
+// a different read set, so a member-only gap could hide behind a host-only stub).
+for (const arm of [
+  { isHost: true, showGroup: true, label: "host + group (every section)" },
+  { isHost: false, showGroup: false, label: "member (the permission-omitted subset)" },
+] as const) {
+  test(`#629 ${arm.label}: every section renders its real body — no unfed read, no error arm`, async ({ mount, page }) => {
+    const trpc = await routeTrpc(page, {
+      "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+      "chat.setRoomOverrides": () => ({}),
+      "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+      "chat.listChatInjections": () => [],
+      "chat.getUserMacroPicks": () => EMPTY_PICKS,
+      "chat.getVariablePicks": () => VARIABLE_PICKS,
+      "settings.getUserSettings": () => USER_SETTINGS,
+      "chat.getChat": () => CHAT_DETAIL,
+    });
+
+    const component = await mount(<CommittedSettingsTabStory isHost={arm.isHost} showGroup={arm.showGroup} />);
+
+    // Barrier on a SETTLED body of the last-declared section in this arm, so the assertions below are not
+    // read while boundaries are still in their skeleton fallback (a pending boundary shows neither the
+    // error text nor the control, and would pass both arms vacuously).
+    const settled = arm.isHost ? component.getByRole("textbox", { name: "Tool rounds per turn" }) : component.getByText("The Crimson Court");
+    await expect(settled).toBeVisible();
+
+    // Cause first, symptom second: an unfed read names ITSELF here, instead of surfacing three sections
+    // later as "a control is missing".
+    expect(trpc.unstubbed()).toEqual([]);
+    await expect(component.getByText("Couldn't load", { exact: false })).toHaveCount(0);
+    await expect(component.getByRole("combobox", { name: "Narration POV" })).toBeVisible();
+  });
+}
 
 // The Group-behavior section's suspense read (chat.getGroupConfig) held pending: the QueryBoundary
 // fallback must be the shape-matched skeleton (house loading law, UIP-309 / UI-Arch §4.3 rule 7), never
-// the old spinner/text void. Hang the query with a route registered BEFORE routeTrpc so it wins the match.
+// the old spinner/text void.
+//
+// #629 — THIS TEST WAS ASSERTING THE OPPOSITE OF ITS CLAIM, AND PASSING. It hung the read with a bare
+// `page.route` registered BEFORE routeTrpc, "so it wins the match". Playwright matches routes in REVERSE
+// registration order, so routeTrpc — registered second — won every time: `chat.getGroupConfig` was never
+// in its route table, it got the lenient `null` fulfil, and the section sat in its ERROR arm. The
+// "a skeleton is visible" assertion then passed on a DIFFERENT section's boundary (`.first()` over the
+// whole tab), and "Loading group settings…" being absent was vacuously true of an error body. Found by
+// the reporter's unfed-read census, which recorded getGroupConfig reaching routeTrpc at all.
+//
+// `trpcHold()` is the supported valve (route-trpc.ts, written for exactly this): it holds the REQUEST, so
+// `hold.requested` is a deterministic barrier — the read is provably in flight and the boundary provably
+// in its fallback — and the pending arm is a stable state, never a flash to be caught. The hold suspends
+// the whole BATCH (one HTTP response per batch), so sibling sections skeleton too; every assertion below
+// is therefore scoped to the Group-behavior section itself rather than to the tab.
 test("committed host + group: the Group-behavior section shows a skeleton (never a spinner void) while loading", async ({ mount, page }) => {
-  await page.route("**/api/trpc/**", async (route) => {
-    const url = new URL(route.request().url());
-    const procs = decodeURIComponent(url.pathname.split("/api/trpc/")[1] ?? "");
-    // Hold the group-config read pending forever so the QueryBoundary stays in its fallback.
-    if (procs.includes("chat.getGroupConfig")) {
-      return; // never fulfilled — the request hangs
-    }
-    await route.fallback();
-  });
+  const hold = trpcHold();
   await routeTrpc(page, {
+    "chat.getGroupConfig": hold,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
 
-  // The section heading renders immediately; its body is the skeleton region while the read is pending. tRPC
-  // batches getGroupConfig with the tool-use getChat, so both boundaries skeleton together — `.first()` pins
-  // the group section's (declared first); the point is a SKELETON renders, never a spinner/text void.
-  await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
-  const busy = component.locator('[aria-busy="true"]').first();
+  // The barrier: the request has REACHED the stub and is being held, so what follows reads a settled
+  // pending state rather than racing a fallback that may already have resolved.
+  await hold.requested;
+
+  // The Group-behavior section itself — `.last()`, because the enclosing "Host controls" <section> also
+  // contains this text and comes first in document order. Scoping is the whole point: the old `.first()`
+  // over the tab could be satisfied by any other section's boundary.
+  const groupSection = component.locator("section").filter({ hasText: "Group behavior" }).last();
+  await expect(groupSection.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
+  const busy = groupSection.locator('[aria-busy="true"]').first();
   await expect(busy).toBeVisible();
   await expect(busy.locator('[data-slot="skeleton"]').first()).toBeVisible();
   // The old text-only fallback is gone.
   await expect(component.getByText("Loading group settings…")).toHaveCount(0);
+  // …and this is the LOADING arm, not the ERROR arm wearing its clothes — the exact substitution that hid
+  // here for weeks (#629). `renderError` for this boundary is QueryErrorState label="group settings".
+  await expect(component.getByText("Couldn't load group settings.")).toHaveCount(0);
+
+  // Release: the fallback must be TRANSIENT. A pending arm that never resolves would satisfy every
+  // assertion above and still be a broken section.
+  hold.release({ ...DEFAULT_GROUP_CONFIG });
+  await expect(groupSection.getByRole("switch", { name: "Label each speaker" })).toBeVisible();
+  await expect(busy).toHaveCount(0);
 });
 
 test("committed non-host: Group behavior is ABSENT, Field overrides persists (read-only)", async ({ mount, page }) => {
@@ -105,6 +203,8 @@ test("committed non-host: Group behavior is ABSENT, Field overrides persists (re
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
@@ -123,6 +223,8 @@ test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrid
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -148,6 +250,8 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
     [UPDATE_TOOL_LIMIT]: () => ({}),
   });
@@ -173,6 +277,8 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
@@ -192,6 +298,8 @@ function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
     [UPDATE_HOST_DISPLAY_SCRIPTS]: () => ({}),
   });
@@ -216,6 +324,8 @@ test("member: the display-scripts switch is ABSENT (host-only omit — a member 
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).toHaveCount(0);
@@ -231,6 +341,10 @@ test("count chips: Field overrides shows 'N set' and Injections shows its count 
       { id: "inj_1", position: "in_prompt", role: "system", depth: 0, content: "a" },
       { id: "inj_2", position: "in_chat", role: "system", depth: 3, content: "b" },
     ],
+    // #629: this arm stubbed NEITHER Macro-picks read, so the section error-armed here too.
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -247,6 +361,8 @@ test("count chips: no chip when nothing is set (a '0' chip would be noise)", asy
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -270,6 +386,8 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -317,6 +435,8 @@ test("D-1: the host-ops trio sits under a 'Host controls' group — and a member
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
@@ -352,6 +472,8 @@ test("BG-C: with no chat-set background, the Background row names the CARD-carri
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => ({ ...CHAT_DETAIL, participants: SOLO_ROSTER_WITH_CARD_BG }),
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -367,6 +489,8 @@ test("BG-C: a room with NO carried background gets no provenance gloss (never an
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -381,6 +505,8 @@ test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, ne
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Macro picks", exact: true, level: 3 })).toBeVisible();
@@ -398,6 +524,8 @@ test("D-4: the Documents section renders directly after Injections, for a host A
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -420,6 +548,8 @@ test("D-4: a MEMBER gets the Documents section too (member-readable), with no ad
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
 

@@ -19,6 +19,16 @@
 // fail) already fails the run, and `expected`/`skipped` are not retries. Retries burned = results.length-1
 // (fails attempt 0..n-1, passes attempt n).
 //
+// UNFED-READ CENSUS (added 2026-08-24, #629): the SAME failure shape one layer down. `routeTrpc`
+// deliberately answers an unlisted procedure `null` rather than 404ing an incidental read — but `null` is
+// not a view, so a section that SUSPENDS on an unstubbed read throws, its QueryBoundary swaps the body for
+// `QueryErrorState`, and every assertion outside that boundary (a Section heading, a tab strip) still
+// passes. A whole CT file scored green for weeks with its subject never rendering. `routeTrpc` now warns
+// `[routeTrpc] UNSTUBBED <proc>` on stderr for each such procedure; this reporter collects those per test
+// FILE and prints one end-of-run census. Diagnostics only — it never changes run status (a CT may
+// legitimately leave an incidental non-suspending read unfed; the per-test assertion is
+// `expect(trpc.unstubbed()).toEqual([])`, which the file itself opts into).
+//
 // FAILURE SURFACING (added 2026-07-20): a HARD failure under --retries=0 previously produced only
 // `[ELIFECYCLE] Command failed with exit code 1` with no test name — a truncated log lost the actual
 // failure and the diagnosis stalled. onEnd now ALWAYS prints a terminal summary block at the very end of
@@ -144,6 +154,27 @@ function announce(flaky: readonly FlakyTest[], strict: boolean): void {
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
+// The marker `routeTrpc` writes to stderr, once per (route registration, procedure). Matched on the whole
+// line so an assertion message quoting the phrase can never be mistaken for a sighting.
+const UNSTUBBED_LINE = /^\[routeTrpc\] UNSTUBBED (?<proc>\S+)/;
+
+/** Print the unfed-read census — one line per test FILE, listing the procedures its mounts asked for and
+ *  nobody stubbed. Printed BEFORE the terminal summary so the summary stays last (tail-surviving). */
+function announceUnstubbed(byFile: ReadonlyMap<string, ReadonlySet<string>>): void {
+  const lines = ["", RULE, `  UNFED tRPC READS — ${byFile.size} CT file(s) mounted a tree that asked for a procedure they never stubbed`, RULE];
+  for (const [file, procs] of byFile) {
+    lines.push(`  • ${file}  →  ${[...procs].sort().join(", ")}`);
+  }
+  lines.push(
+    RULE,
+    "  routeTrpc answered each `null`, which is NOT a view: a SUSPENDING reader throws on it and its",
+    "  QueryBoundary renders QueryErrorState while the heading outside the boundary still passes (#629).",
+    RULE,
+    "",
+  );
+  process.stdout.write(`${lines.join("\n")}\n`);
+}
+
 // The terminal summary — ALWAYS printed, LAST, so a hard failure survives a `tail`. `status` is the run's
 // overall result ("passed" = green even with retries; "failed" = at least one hard fail / interruption).
 function printSummary(t: Tally, failed: readonly FailedTest[], status: FullResult["status"]): void {
@@ -162,6 +193,8 @@ function printSummary(t: Tally, failed: readonly FailedTest[], status: FullResul
 class CtFlakyReporter implements Reporter {
   readonly #strict: boolean;
   #rootSuite: Suite | undefined;
+  /** Unfed reads (#629), keyed by the test FILE that mounted them — the census announceUnstubbed prints. */
+  readonly #unstubbed = new Map<string, Set<string>>();
 
   constructor(options: CtFlakyReporterOptions = {}) {
     this.#strict = options.strict === true;
@@ -171,6 +204,25 @@ class CtFlakyReporter implements Reporter {
     this.#rootSuite = suite;
   }
 
+  // routeTrpc's marker arrives on the WORKER's stderr, attributed to the running test (#629). A chunk can
+  // carry several lines and a Buffer, so normalise before matching.
+  onStdErr(chunk: string | Buffer, test: TestCase | undefined): void {
+    if (test === undefined) {
+      return;
+    }
+    const file = relative(process.cwd(), test.location.file);
+    for (const line of chunk.toString().split("\n")) {
+      // Bracketed: `groups` is an index signature, so `noPropertyAccessFromIndexSignature` refuses the dot.
+      const proc = UNSTUBBED_LINE.exec(line.trim())?.groups?.["proc"];
+      if (proc === undefined) {
+        continue;
+      }
+      const seen = this.#unstubbed.get(file) ?? new Set<string>();
+      seen.add(proc);
+      this.#unstubbed.set(file, seen);
+    }
+  }
+
   async onEnd(result: FullResult): Promise<{ status?: FullResult["status"] } | undefined> {
     await Promise.resolve();
     const suite = this.#rootSuite;
@@ -178,6 +230,9 @@ class CtFlakyReporter implements Reporter {
     writeArtifact(flaky, this.#strict);
     if (flaky.length > 0) {
       announce(flaky, this.#strict);
+    }
+    if (this.#unstubbed.size > 0) {
+      announceUnstubbed(this.#unstubbed);
     }
     // Terminal summary LAST — the un-buried, tail-surviving record of what happened this run. On a hard
     // fail it names every failing test (the exit-1-with-no-name gap this reporter closes).

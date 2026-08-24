@@ -4,13 +4,16 @@
 // a manual run lifts the two WHETHER-TO-FIRE-BY-ITSELF gates (the fire-rate cap, the CEL predicate) and
 // LIFTS NOTHING ELSE. So the rows here are, deliberately, one per side of it —
 //   lifted: a rate-capped rule really runs · a `false` predicate really runs (catalogue #10's shape)
-//   kept:   host-gated · the rule must be enabled · the fire row says a HUMAN forced it
+//   kept:   host-gated · the rule must be enabled · the fire row says a HUMAN forced it · THE AUTHOR'S
+//           STANDING HOST AUTHORITY, checked at DISPATCH and separated from the caller's verb gate by a
+//           host handoff (#612 — the one state where reordering `runGates` reds something)
 // plus the property that makes F4 non-circular: a manual run can never raise an invitation, because it
 // cannot reach `budget_refused` at all.
 
-import { automationBudgets } from "@orb/db";
+import { automationBudgets, chatParticipants } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import type { AutomationOps, AutomationTurnRequest } from "@orb/server/domain/automation";
+import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
 import type { AutomationContext } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
@@ -137,6 +140,46 @@ describe("what a manual run KEEPS", () => {
     expect(fires).toHaveLength(1);
     expect(fires[0]).toMatchObject({ outcome: "fired", automationDepth: 0 });
     expect(fires[0]?.detail).toEqual({ runNow: true, byUserId: fixture.host });
+  });
+
+  // #612 — THE DISPATCH-LEVEL AUTHORITY BELT, pinned at the ONE state where it is the thing being tested.
+  //
+  // `runGates` runs depth → `holdsAuthority(author)` → the manual short-circuit, in that order, and the
+  // order is load-bearing: it is what stops a manual run from reaching an arm when the rule's AUTHOR has
+  // lost host. Swapping those two lines reds nothing else in the tree — the manual path's authority check
+  // is otherwise pinned only INDIRECTLY (`requireRuleHost` at this verb, `assertStillLive` in the confirm
+  // verb, `trigger_turn`'s own D17 belt), and every one of those asks about a DIFFERENT user.
+  //
+  // So the state below is built specifically to separate them: a HOST HANDOFF. The author (A) wrote and
+  // enabled the rule while host, then was demoted; a successor host (B) presses Run now. B's verb gate
+  // PASSES — B really is host — so `requireRuleHost` cannot be what refuses. The only thing standing
+  // between a demoted ex-host's rule and a real turn is the dispatch gate.
+  //
+  // The handoff is written in the ORDER the schema forces: ONE present host per chat is PHYSICS
+  // (`chat_participants_chat_host_unique`, #390 — partial on `role='host' and left_seq is null`), so the
+  // seat must be VACATED before it is re-taken, exactly as `acceptHostHandoffSwapStatements` does it.
+  // A two-simultaneous-hosts setup is not merely unrealistic here; the db refuses to hold it.
+  test("author-lost-host: the successor host's Run now is REFUSED at DISPATCH and no arm runs", async () => {
+    const { fixture, turns } = await runNowFixture();
+    const ruleId = await enableRule(fixture, null);
+    const successor = await seedUser(fixture.db, "user_successor");
+    // Demote the AUTHOR, then seat the successor — the rule outlives the seat its author used to hold.
+    await fixture.db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(and(eq(chatParticipants.chatId, fixture.chatId), eq(chatParticipants.userId, fixture.host), isNull(chatParticipants.leftSeq)));
+    await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "successor", userId: successor, role: "host" });
+
+    const result = await fixture.svc.runRuleNow({ principal: principal(successor), ruleId });
+
+    expect(result).toEqual({ outcome: "authority_refused" });
+    expect(turns).toEqual([]); // the belt's whole claim: a demoted ex-host's rule reaches NO arm
+
+    // AND THE PREMISE, proven rather than assumed: `listFires` is host-gated through the SAME
+    // `requireRuleHost` guard, on the SAME rule, for the SAME principal — it would throw if B's caller-side
+    // gate were what refused above. It returns the row instead, so the refusal came from `runGates`.
+    const fires = await fixture.svc.listFires({ principal: principal(successor), ruleId });
+    expect(fires[0]).toMatchObject({ outcome: "authority_refused", detail: { code: "author-lost-authority" } });
   });
 
   test("testRule still executes NOTHING — the dry run and the real run stay separate verbs", async () => {
