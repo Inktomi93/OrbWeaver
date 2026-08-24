@@ -1,0 +1,174 @@
+// verb: runRuleNow — R7 (interaction-direction-spec §6 R7). The host runs ONE rule NOW.
+//
+// What this suite is really pinning is the GATE LINE, because that line is the whole argument of the verb:
+// a manual run lifts the two WHETHER-TO-FIRE-BY-ITSELF gates (the fire-rate cap, the CEL predicate) and
+// LIFTS NOTHING ELSE. So the rows here are, deliberately, one per side of it —
+//   lifted: a rate-capped rule really runs · a `false` predicate really runs (catalogue #10's shape)
+//   kept:   host-gated · the rule must be enabled · the fire row says a HUMAN forced it
+// plus the property that makes F4 non-circular: a manual run can never raise an invitation, because it
+// cannot reach `budget_refused` at all.
+
+import { automationBudgets } from "@orb/db";
+import type { AutomationRuleId } from "@orb/kit/ids";
+import type { AutomationOps, AutomationTurnRequest } from "@orb/server/domain/automation";
+import { describe } from "vitest";
+import type { AutomationContext } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
+import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
+import { createAutomationService } from "../../../../../packages/server/src/domain/automation/service.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedParticipant } from "../../chat/_support.ts";
+import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "../_support.ts";
+
+const DISABLED_REFUSAL = /this rule is disabled/u;
+
+/** A fixture whose dispatch runs the REAL arms, with `requestTurn` captured (the assertion is "it ran"). */
+async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof ruleFixture>>; turns: AutomationTurnRequest[] }> {
+  const base = await ruleFixture();
+  const turns: AutomationTurnRequest[] = [];
+  const ops: AutomationOps = {
+    ...base.ctx.ops,
+    chat: {
+      ...base.ctx.ops.chat,
+      requestTurn: (req): Promise<{ messageCount: number }> => {
+        turns.push(req);
+        return Promise.resolve({ messageCount: 1 });
+      },
+    },
+  };
+  const ctx: AutomationContext = {
+    ...base.ctx,
+    ops,
+    runArm: createArmExecutors({
+      db: base.db,
+      ops,
+      prng: () => 0.42,
+      notify: base.ctx.notify,
+      suggestions: base.ctx.suggestions,
+      newSuggestionId: base.ctx.newSuggestionId,
+    }),
+  };
+  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns };
+}
+
+/** Mint + enable a `trigger_turn` rule whose PREDICATE is the given source (`null` = always). */
+async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicateCel: string | null): Promise<AutomationRuleId> {
+  const rule = await fx.svc.createRule({
+    principal: principal(fx.host),
+    chatId: fx.chatId,
+    name: "vote",
+    trigger: { bus: "chat", type: "chatOpened" },
+    predicateCel,
+    actions: [{ type: "trigger_turn", guidedTemplate: "Do the thing." }],
+  });
+  await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
+  await fx.ctx.enabled.reload();
+  return rule.id;
+}
+
+describe("what a manual run LIFTS", () => {
+  test("a rule whose predicate is a constant `false` RUNS (catalogue #10's on-demand-only shape)", async () => {
+    const { fixture, turns } = await runNowFixture();
+    const ruleId = await enableRule(fixture, "false");
+
+    // Proof the predicate really is false: the same rule on the BUS path fires nothing.
+    await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
+    expect(turns).toEqual([]);
+
+    const result = await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+
+    expect(result).toEqual({ outcome: "fired" });
+    expect(turns).toEqual([{ authorUserId: fixture.host, chatId: fixture.chatId, automationDepth: 1, guided: "Do the thing." }]);
+  });
+
+  test("a rate-capped rule RUNS (without this, confirming an F4 invitation would refuse identically)", async () => {
+    const { fixture, turns } = await runNowFixture();
+    const ruleId = await enableRule(fixture, null);
+    await fixture.db.insert(automationBudgets).values({ chatId: fixture.chatId, maxFiresPerHour: 0, updatedAt: FIXED_NOW_MS });
+
+    // The bus path is refused by the ceiling…
+    await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
+    expect(turns).toEqual([]);
+    const refused = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    expect(refused[0]?.outcome).toBe("budget_refused");
+
+    // …and the host's own run is not.
+    expect(await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId })).toEqual({ outcome: "fired" });
+    expect(turns).toHaveLength(1);
+  });
+
+  test("a manual run can never raise an invitation — it cannot reach `budget_refused` at all (no F4 loop)", async () => {
+    const { fixture } = await runNowFixture();
+    const ruleId = await enableRule(fixture, null);
+    await fixture.db.insert(automationBudgets).values({ chatId: fixture.chatId, maxFiresPerHour: 0, updatedAt: FIXED_NOW_MS });
+
+    await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+
+    expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
+  });
+});
+
+describe("what a manual run KEEPS", () => {
+  test("host-gated: a member who is not host is refused and nothing runs", async () => {
+    const { fixture, turns } = await runNowFixture();
+    const ruleId = await enableRule(fixture, null);
+    const member = await seedUser(fixture.db, "user_member");
+    await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "member", userId: member, role: "member" });
+
+    await expect(fixture.svc.runRuleNow({ principal: principal(member), ruleId })).rejects.toThrow();
+    expect(turns).toEqual([]);
+  });
+
+  test("a DISABLED rule is refused — run-now is not a back door around withdrawn consent", async () => {
+    const { fixture, turns } = await runNowFixture();
+    const ruleId = await enableRule(fixture, null);
+    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId, enabled: false });
+
+    await expect(fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId })).rejects.toThrow(DISABLED_REFUSAL);
+    expect(turns).toEqual([]);
+  });
+
+  test("the fire row SAYS a human forced it (the log never reads as a condition-met fire)", async () => {
+    const { fixture } = await runNowFixture();
+    const ruleId = await enableRule(fixture, "false");
+
+    await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+
+    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    expect(fires).toHaveLength(1);
+    expect(fires[0]).toMatchObject({ outcome: "fired", automationDepth: 0 });
+    expect(fires[0]?.detail).toEqual({ runNow: true, byUserId: fixture.host });
+  });
+
+  test("testRule still executes NOTHING — the dry run and the real run stay separate verbs", async () => {
+    const { fixture, turns } = await runNowFixture();
+    const ruleId = await enableRule(fixture, null);
+
+    await fixture.svc.testRule({ principal: principal(fixture.host), ruleId });
+
+    expect(turns).toEqual([]);
+    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    expect(fires.map((f) => f.outcome)).toEqual(["test_run"]);
+  });
+});
+
+test("a manual run of a CONFIRM-FIRST rule still ASKS (the arm's authored posture is not overridden)", async () => {
+  const { fixture, turns } = await runNowFixture();
+  const rule = await fixture.svc.createRule({
+    principal: principal(fixture.host),
+    chatId: fixture.chatId,
+    name: "recap",
+    trigger: { bus: "chat", type: "chatOpened" },
+    actions: [{ type: "trigger_turn", guidedTemplate: "Recap.", confirmFirst: true }],
+  });
+  await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
+  await fixture.ctx.enabled.reload();
+
+  const result = await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId: rule.id });
+
+  // "Run this rule now" means run the RULE, and this rule's rule is to ask. The host gets a card, not a turn.
+  expect(result).toEqual({ outcome: "suggested" });
+  expect(turns).toEqual([]);
+  expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(1);
+  // …and no fire row: a suggestion is not a fire (§3-S4's fire-log honesty).
+  expect(await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: rule.id })).toEqual([]);
+});

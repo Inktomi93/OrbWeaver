@@ -4,7 +4,7 @@
 // union. The trigger id IS the source event discriminator — no third event vocabulary. Reserved members
 // are typed-but-refused at `createRule` until their domains land.
 
-import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
@@ -198,6 +198,31 @@ export const AUTOMATION_ACTION_ARMS_MAX = 8;
 export const QUICK_REPLY_MODES = ["send", "compose"] as const;
 export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
 
+/** S4 — the arms that COST something to run: a model call the rule author funds. The machine-readable spend
+ *  set the fire-rate REFUSAL path reads (interaction-direction-spec §3-S4 / RULED F4: a `budget_refused` on a
+ *  rule carrying one of these raises the "rate-capped — run it now?" invitation, ON by default). Until now the
+ *  class existed only as the words "SPEND-classed" in two arm comments. `run_analysis` (C1) and `run_tool`
+ *  (C4) join this tuple as part of their own landings — the tuple is exact-as-built, never forward-declared.
+ *
+ *  NOT the same axis as the CONFIRM-FIRST (suggestible) set below: SPEND is about who pays and therefore what
+ *  a rate refusal may offer to re-run; suggestible is about CONSENT — which arms a host may be asked to
+ *  approve before they act. `set_chat_background` is suggestible and not spend-classed for exactly that
+ *  reason (its quiet pick is cheap, but it changes what the room LOOKS like). */
+export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image"] as const satisfies readonly AutomationActionType[];
+export type SpendArmType = (typeof SPEND_ARM_TYPES)[number];
+
+/** S4 — the CONFIRM-FIRST flag, carried by the four SUGGESTIBLE arms and by nothing else (the shape IS the
+ *  vocabulary: `SuggestibleArmType` below is derived from which arms carry it, so the two can never drift).
+ *  `true` ⇒ at fire time the arm STASHES a pending suggestion instead of acting, and a HOST confirm executes
+ *  the stored arm (interaction-direction-spec §3-S4).
+ *
+ *  WHY IT LIVES ON THE ARM AND NOT ON THE RULE: the stored record's executable half is ONE arm
+ *  (`resolvedArm`), so the arm is the unit whose posture this describes; and `automation_rules` carries no
+ *  `confirm_first` column — RULED F1 puts the pending ask in RAM, and adding a rule COLUMN for the authoring
+ *  half would be a schema change this row does not own. A preset's own `confirmFirst` substitutes onto its
+ *  arms at mint. `.default(false)` keeps every stored rule byte-identical in behavior. */
+const confirmFirstSchema = z.boolean().default(false);
+
 export const automationActionSchema = z.discriminatedUnion("type", [
   // 1.1 set a chat/global variable (free — no model call).
   z.object({
@@ -221,6 +246,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     keys: z.array(z.string()).max(WI_KEYS_MAX),
     contentTemplate: z.string().max(WI_CONTENT_MAX),
     position: z.enum(ENTRY_POSITIONS).default("before"),
+    confirmFirst: confirmFirstSchema,
   }),
   // 1.4 surface transient quick-reply chips. The template is rendered at FIRE time in the rule author's env
   // (`arm-executors.ts` renderArmTemplate), never at click time; the rendered text then reaches the clicking
@@ -251,9 +277,10 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     type: z.literal("trigger_turn"),
     speakerCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
     guidedTemplate: z.string().max(GUIDED_TEMPLATE_MAX).optional(),
+    confirmFirst: confirmFirstSchema,
   }),
   // 1.7 generate an image (SPEND-classed). Args home in @orb/contracts/imagery (`no-inline-union-redecl`).
-  generateImageActionArgsSchema.extend({ type: z.literal("generate_image") }),
+  generateImageActionArgsSchema.extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
   // 1.8 auto-background (BG-F — ST `/autobg`): an LLM QUIET-pick over the author's owned background library,
   // writing the CHAT background (host-scoped; scope-safe precisely because BG-C's composition rule makes a
   // chat background INERT for every viewer outside a true-solo room). `instruction` optionally biases the
@@ -261,9 +288,43 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("set_chat_background"),
     instruction: z.string().max(AUTOBG_INSTRUCTION_MAX).optional(),
+    confirmFirst: confirmFirstSchema,
   }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
+
+/** The AUTHORING shape of an arm — the schema's INPUT, where every defaulted field (`mode`, `position`,
+ *  `confirmFirst`, the imagery args) is optional. `AutomationAction` is the STORED/DISPATCHED shape, where
+ *  the same fields are present because the parse filled them.
+ *
+ *  WHY BOTH EXIST, and which surfaces take which: anything that AUTHORS arms (a preset builder, a
+ *  `createRule` caller, a test fixture) hands over what a human wrote and the verb NORMALIZES it —
+ *  `validateRuleInput` parses, and `createRule` persists the PARSED result, never its own params. Typing
+ *  those surfaces as the output type instead is what makes every added default a repo-wide churn wave: it
+ *  demands `confirmFirst: false` on literals whose author never heard of confirm-first. (Measured, not
+ *  argued: `mode`'s own default shipped with a red on `contract/presets.ts`'s chip builder for exactly this
+ *  reason, and adding `confirmFirst` reproduced it 33× before the split.) Everything DOWNSTREAM of the
+ *  parse — the dispatcher, the arm executors, the stored row — keeps the output type, so a defaulted field
+ *  is never `undefined` where it is read. */
+export type AutomationActionInput = z.input<typeof automationActionSchema>;
+
+/** S4 — the SUGGESTIBLE arms, DERIVED from the shape (which arms carry `confirmFirst`) rather than listed:
+ *  the tuple-and-union pair cannot drift because there is no second list. The domain holds the exhaustive
+ *  `Record<SuggestibleArmType, summary>` the spec names as the enforcer — an arm that GAINS the field
+ *  without a summary line fails `tsc` there.
+ *
+ *  Consent, not cost: this is "which arms may be held for a host's yes", a DIFFERENT axis from
+ *  {@link SPEND_ARM_TYPES} ("which arms cost the author money"). They overlap on `trigger_turn` /
+ *  `generate_image` and diverge on `set_chat_background` (suggestible, not spend) — never collapse them. */
+export type SuggestibleArmType = Extract<AutomationAction, { readonly confirmFirst: boolean }>["type"];
+/** One suggestible arm, narrowed — the shape the pending store holds as its executable half. */
+export type SuggestibleAction = Extract<AutomationAction, { readonly confirmFirst: boolean }>;
+
+/** Whether an authored arm asked to be CONFIRMED rather than run. The runtime half of the type above (the
+ *  field is unspellable on the other four arms, so the `in` test IS the narrowing). */
+export function isConfirmFirstArm(action: AutomationAction): action is SuggestibleAction {
+  return "confirmFirst" in action && action.confirmFirst;
+}
 
 /** The stored ordered action list (1..8 arms) — the `automation_rules.actions` json column. */
 export const automationActionsSchema = z.array(automationActionSchema).min(AUTOMATION_ACTION_ARMS_MIN).max(AUTOMATION_ACTION_ARMS_MAX);
@@ -340,6 +401,32 @@ export interface AutomationCelEnv {
   readonly now: { readonly epochMs: number; readonly hour: number; readonly dayOfWeek: number };
 }
 
+// ── S4: the suggest/confirm vocabulary ────────────────────────────────────────────────────────────
+// The #14 three-posture law over rules: standing authority ⇒ act; no standing authority ⇒ ASK the host.
+// TWO classes, and the difference is what the pending record can hold (interaction-direction-spec §3-S4):
+//   • `confirm`    — a confirm-first ARM stashed its resolved self at fire time (after predicate + env), so
+//                    the confirm executes THAT arm, in the author's frame, exactly as it would have run.
+//   • `invitation` — a `budget_refused` fires BEFORE the predicate and before any env exists
+//                    (`engine/dispatch.ts` runGates), so NO arm can have rendered: the ask carries the RULE
+//                    REFERENCE only and its confirm is a FRESH host run (`runRuleNow`). No stored payload,
+//                    therefore no TOCTOU by construction.
+
+export const AUTOMATION_SUGGESTION_KINDS = ["confirm", "invitation"] as const;
+export type AutomationSuggestionKind = (typeof AUTOMATION_SUGGESTION_KINDS)[number];
+
+/** The rendered ask's cap. A card is one line of host-facing prose, not a preview pane. */
+export const AUTOMATION_SUGGESTION_SUMMARY_MAX = 200;
+
+/** What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`, `confirmSuggestion`): a fire
+ *  terminal, or `suggested` — the arms raised a pending ask instead of acting.
+ *
+ *  `suggested` is deliberately NOT a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the
+ *  fire log's honesty (§3-S4 + §6 R5): NO row is written when an ask is raised, because a suggestion is not
+ *  a fire — the CONFIRMED execution writes `fired`, stamped with the confirmer. Adding a suggestion terminal
+ *  to the outcome tuple is a CHECK edit on a generated baseline and is recorded-unbuilt as R5. This type
+ *  exists so a verb can still ANSWER "what happened?" without either lying (`fired`) or going silent. */
+export type AutomationRunOutcome = AutomationFireOutcome | "suggested";
+
 // ── the cascade origin + the automation bus ─────────────────────────────────────────────────────────
 /** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth.
  *  NEVER a bus-event field (the D19/D50 allowlist forbids attribution on the public bus). */
@@ -358,9 +445,28 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
  *  purged rpg/agents designs set this precedent). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
  *  ids — the chips are transient, there is no row to re-read); everything else is host-only + id-only. The
  *  chips can be surfaced by a rule OR a plugin, so `quickReplySurfaced` carries the `AutomationEmitSource`
- *  union (the rest are rule-lifecycle events — rule-only by construction). */
+ *  union (the rest are rule-lifecycle events — rule-only by construction).
+ *
+ *  `suggestionRaised` (S4) is HOST-ONLY like the rest, and needed NO transport edit to be so: the room
+ *  source's member filter is DEFAULT-DENY — it forwards exactly `quickReplySurfaced` to a member-tier
+ *  subscriber and drops everything else (`transport/trpc/stream/sources/automation.ts`). It carries display
+ *  strings for the same reason the chips do: the pending record is in RAM (RULED F1), so there is nothing to
+ *  re-read. */
 export type AutomationBusEvent =
   | { type: "quickReplySurfaced"; chatId: ChatId; source: AutomationEmitSource; choices: readonly { label: string; sendText: string; mode: QuickReplyMode }[] }
+  | {
+      type: "suggestionRaised";
+      chatId: ChatId;
+      ruleId: AutomationRuleId;
+      suggestionId: AutomationSuggestionId;
+      kind: AutomationSuggestionKind;
+      /** The rendered ASK the host reads on the card — display text, not an id to re-read (there is no row;
+       *  the pending record is in RAM). Capped at {@link AUTOMATION_SUGGESTION_SUMMARY_MAX}. */
+      summary: string;
+      /** The injected-clock deadline the pending record dies at — the client drops its card on the same
+       *  edge the server sweeps, so a stale card never sits offering an ask that would refuse. */
+      expiresAt: number;
+    }
   | { type: "ruleFired"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }
@@ -376,11 +482,18 @@ export type AutomationBusEventType = AutomationBusEvent["type"];
  *  and un-emitted for the life of the domain (event-bus coverage survey §2.3 — the newest bus already had
  *  dead wire, invisibly). The const is NOT inert data: minting it alone fires both arms of
  *  `bus-definition-belts`, which is why it lands WITH the gate work and not ahead of it.
- *  @public future: the automation client invalidation map — the G-B reach-lane row's own end
- *  condition (automation is a server-internal SSE plane today; the day a client consumer lands,
- *  its map imports this belt exactly as invalidation.ts imports USER_BUS_EVENT_TYPES). */
+ *  THE REACH-LANE ROW IS GONE (2026-08-24, A4): the client consumer landed. `AutomationBusEvent` now has a
+ *  real client total map — the S4 card source's `Record<AutomationBusEvent["type"], …>` reducer in
+ *  `packages/client/src/features/automation/` — so the `SERVER_INTERNAL_REACH.AutomationBusEvent` exemption
+ *  in `bus-definition-belts` went two-sided RED on its own stated end condition and was deleted with it.
+ *  @public future: the automation client INVALIDATION map. The card source's reducer is the consumer-
+ *  exhaustiveness belt, not an invalidation seam — the automation room is live-only with no durable half
+ *  (no cursor, no replay), so there is no gap-heal set for this const to derive the way
+ *  `invalidation.ts::allUserRootFilters` derives one from USER_BUS_EVENT_TYPES. It gains that consumer the
+ *  day a bus member invalidates a query (B2's fire log off `ruleFired` is the named candidate). */
 export const AUTOMATION_BUS_EVENT_TYPES = {
   quickReplySurfaced: true,
+  suggestionRaised: true,
   ruleFired: true,
   ruleErrored: true,
   ruleAutoDisabled: true,

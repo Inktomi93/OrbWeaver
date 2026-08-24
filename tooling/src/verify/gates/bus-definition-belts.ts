@@ -72,9 +72,6 @@ const SERVER_INTERNAL_REACH: ExemptionTable = {
   DomainEvent: {
     why: "the in-process domain-event bus never leaves the server (entry/compose/event-bus.ts) — its consumer belt is the `assertNeverEvent` exhaustive subscriber at entry/compose/search-discovery.ts. Ends if a domain event is ever forwarded to a browser, at which point it owes a real client total map.",
   },
-  AutomationBusEvent: {
-    why: "the automation room has a real SSE transport but ZERO client consumers today (`AutomationBusEvent`/`quickReplySurfaced` appear 0 times under packages/client/src; the settings pane is `{placeholder: true}`), so a client total map would be dead wire knip flags rather than enforcement. Ends the moment the quick-reply chips UI lands — the map becomes buildable, this row goes RED, and it gets deleted.",
-  },
 };
 
 const NO_BELT_PREFIX =

@@ -1,7 +1,7 @@
 // verb: createRule — host authority + the whole validation gauntlet (reserved trigger/arm · bad CEL · arm
 // cap · cooldown floor · unattached book), and the born-disabled/position-0 creation (04 §2).
 
-import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AutomationChatNotFoundError, AutomationReservedTriggerError, RuleValidationError } from "@orb/server/domain/automation";
@@ -72,7 +72,7 @@ describe("createRule — validation refusals", () => {
 
   test("refuses a post_notification arm below the 60s cooldown floor", async () => {
     const { host, chatId, svc } = await ruleFixture();
-    const arm: AutomationAction = { type: "post_notification", recipient: "host", messageTemplate: "hi" };
+    const arm: AutomationActionInput = { type: "post_notification", recipient: "host", messageTemplate: "hi" };
     await expect(
       svc.createRule({ principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, cooldownSeconds: 10, actions: [arm] }),
     ).rejects.toThrow(RuleValidationError);
@@ -80,14 +80,14 @@ describe("createRule — validation refusals", () => {
 
   test("refuses a transform_draft arm mixed with a non-transform arm (transform_mix)", async () => {
     const { host, chatId, svc } = await ruleFixture();
-    const arms: AutomationAction[] = [{ type: "transform_draft", target: "user_input", template: "{{draft}}" }, SET_VAR];
+    const arms: AutomationActionInput[] = [{ type: "transform_draft", target: "user_input", template: "{{draft}}" }, SET_VAR];
     const trigger: AutomationTrigger = { bus: "chat", type: "turnStarted" };
     await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger, actions: arms })).rejects.toThrow(RuleValidationError);
   });
 
   test("refuses a transform_draft rule on a non-turnStarted trigger (transform_trigger)", async () => {
     const { host, chatId, svc } = await ruleFixture();
-    const arm: AutomationAction = { type: "transform_draft", target: "user_input", template: "{{draft}}" };
+    const arm: AutomationActionInput = { type: "transform_draft", target: "user_input", template: "{{draft}}" };
     await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] })).rejects.toThrow(
       RuleValidationError,
     );
@@ -95,7 +95,7 @@ describe("createRule — validation refusals", () => {
 
   test("accepts a transform_draft rule on chat/turnStarted (all-transform)", async () => {
     const { host, chatId, svc } = await ruleFixture();
-    const arm: AutomationAction = { type: "transform_draft", target: "assembled_dynamic", template: "{{draft}}!" };
+    const arm: AutomationActionInput = { type: "transform_draft", target: "assembled_dynamic", template: "{{draft}}!" };
     const trigger: AutomationTrigger = { bus: "chat", type: "turnStarted" };
     const rule = await svc.createRule({ principal: principal(host), chatId, name: "xf", trigger, actions: [arm] });
     expect(rule.actions).toEqual([arm]);
@@ -103,7 +103,7 @@ describe("createRule — validation refusals", () => {
 
   test("refuses an insert_world_info_entry arm whose (valid) book is not attached to the chat", async () => {
     const { host, chatId, svc } = await ruleFixture();
-    const arm: AutomationAction = {
+    const arm: AutomationActionInput = {
       type: "insert_world_info_entry",
       bookId: mintTypeId(ID_PREFIX.worldBook),
       entryKey: "e",

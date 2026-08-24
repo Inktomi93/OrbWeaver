@@ -4,9 +4,9 @@
 // vocabulary (trigger/action shapes) lives in `@orb/contracts/automation`; these are server-internal call
 // shapes.
 
-import type { AutomationAction, AutomationTrigger, RulePresetId, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationActionInput, AutomationTrigger, RulePresetId, TriggerFact } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
-import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import type { RulePresetKnobOverrides } from "./presets.ts";
 
 /** Common to every global-variable verb: the acting principal whose `userId` scopes the plane. */
@@ -44,7 +44,9 @@ interface RuleEditableParams {
   readonly description?: string;
   readonly trigger: AutomationTrigger;
   readonly predicateCel?: string | null;
-  readonly actions: readonly AutomationAction[];
+  /** AUTHORED arms (the schema's INPUT — defaulted fields optional). The verb PARSES them and persists
+   *  the parsed result, so a caller never spells a default it did not choose. */
+  readonly actions: readonly AutomationActionInput[];
   readonly matchAutomationEvents?: boolean;
   readonly cooldownSeconds?: number;
   readonly maxFiresPerHour?: number;
@@ -107,6 +109,23 @@ export interface SetBudgetsParams extends AutomationActorParams {
 export interface TestRuleParams extends AutomationActorParams {
   readonly ruleId: AutomationRuleId;
   readonly sampleEvent?: TriggerFact;
+}
+
+/** R7 — the host's "run this rule now" (§6 R7): ONE fresh dispatch of `ruleId` at cascade depth 0. The
+ *  `chatId` is NOT taken from the caller — the rule's own chat is authoritative and the guard gates it. */
+export interface RunRuleNowParams extends AutomationActorParams {
+  readonly ruleId: AutomationRuleId;
+}
+
+/** S4 — confirm a pending ask by id (host-only). The id is the CLAIM handle: a second confirm of the same id
+ *  finds nothing (take-once) and refuses leak-free. */
+export interface ConfirmSuggestionParams extends AutomationActorParams {
+  readonly suggestionId: AutomationSuggestionId;
+}
+
+/** S4 — dismiss a pending ask by id (host-only). */
+export interface DismissSuggestionParams extends AutomationActorParams {
+  readonly suggestionId: AutomationSuggestionId;
 }
 
 /** The `automation.stream` subscribe-time authority resolve: the caller's tier over the chat, or a

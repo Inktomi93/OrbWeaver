@@ -10,10 +10,11 @@
 //
 // The dialect facts themselves are pinned separately in `tests/kit/cel/cel-goldens.json`.
 
-import type { AutomationAction, RulePresetId } from "@orb/contracts/automation";
+import type { AutomationActionInput, RulePresetId } from "@orb/contracts/automation";
 import { automationActionsSchema, LIVE_TRIGGERS, RULE_PRESET_IDS } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
 import { evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ErasedRulePresetDef, RulePresetRuleDef } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
 import { RULE_PRESETS } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
@@ -37,9 +38,13 @@ const EMPTY_ENV: CelBindings = {
   event: { type: "messageCommitted", bus: "chat", chatId: "chat_x" },
 };
 
+/** The populated `vars` bag, NAMED so a test can extend it: `CelBindings` is index-signature typed, so
+ *  `{...POPULATED_ENV.vars}` is not a spreadable object type. */
+const POPULATED_VARS: Record<string, string> = { clock: "9", debt: "3", debtBeat: "1" };
+
 /** The same roots with the counter keys set and the fact's message projection present. */
 const POPULATED_ENV: CelBindings = {
-  vars: { clock: "9", debt: "3", debtBeat: "1" },
+  vars: POPULATED_VARS,
   choice: {},
   global: {},
   chat: { id: "chat_x", messageCount: 24 },
@@ -56,10 +61,19 @@ function presetOf(id: RulePresetId): ErasedRulePresetDef {
   return RULE_PRESETS[id];
 }
 
+/** The knobs a preset CANNOT usefully default, supplied here so the invariants below run against a rule the
+ *  host could actually mint. Today exactly one row needs it: #3 auto-add lore references a LOREBOOK, and no
+ *  knob kind can express an entity reference yet — so its `bookId` defaults to `""`, which is a deliberate
+ *  mint-time refusal ("pick a book"), not an oversight. Keeping the map explicit means a preset that grows a
+ *  required knob has to say so HERE, rather than quietly weakening a shared invariant. */
+const REQUIRED_KNOBS: Partial<Record<RulePresetId, Readonly<Record<string, string>>>> = {
+  autoAddLore: { bookId: mintTypeId(ID_PREFIX.worldBook) },
+};
+
 /** Build a preset with its declared defaults (through the real resolver — the mint's own path). */
 function buildWithDefaults(id: RulePresetId): readonly RulePresetRuleDef[] {
   const preset = presetOf(id);
-  return preset.rules(resolveRulePresetKnobs(preset.knobs, {}));
+  return preset.rules(resolveRulePresetKnobs(preset.knobs, REQUIRED_KNOBS[id] ?? {}));
 }
 
 /** Evaluate a predicate through the real seam; returns the boolean, or a `{ error }` marker (so the failing
@@ -80,7 +94,7 @@ function evaluate(predicate: string, env: CelBindings): boolean | { readonly err
 /** Whether a rule fires on EVERY event of its trigger — a null predicate, or a counter arm (`inc`/`dec`).
  *  These are law 4's subjects. */
 function isCounterRule(rule: RulePresetRuleDef): boolean {
-  return rule.predicate === null || rule.arms.some((arm: AutomationAction) => arm.type === "set_variable" && (arm.op === "inc" || arm.op === "dec"));
+  return rule.predicate === null || rule.arms.some((arm: AutomationActionInput) => arm.type === "set_variable" && (arm.op === "inc" || arm.op === "dec"));
 }
 
 test("the registry is exhaustive over RULE_PRESET_IDS, in catalogue order", () => {
@@ -88,10 +102,24 @@ test("the registry is exhaustive over RULE_PRESET_IDS, in catalogue order", () =
   expect(RULE_PRESET_IDS.map((id) => presetOf(id).id)).toEqual([...RULE_PRESET_IDS]);
 });
 
-test("the A3-committed catalogue is exactly the seven §4 rows that ride A3", () => {
-  // #1/#3/#10 are A4's (confirm-first / suggestion riders), #8 rides A2's per-choice mode field, and
-  // #2/#11/#14-#16/#20 ride later phases — none of them may creep in here.
-  expect([...RULE_PRESET_IDS]).toEqual(["pacingNudge", "illustrateScenes", "diceChips", "clockFires", "sceneVeil", "callback", "cutaways"]);
+test("the committed catalogue is exactly the A3 rows plus A4's four, in §4 order", () => {
+  // A3 landed the seven that ride the preset substrate alone; A4 adds #1 (welcome-back recap — the
+  // confirm-first card), #3 (auto-add lore, confirm-first by default), #8 (the compose-mode opener deck,
+  // riding A2's per-choice mode field) and #10 (call a vote — send-mode chips, R7-invoked).
+  // #2/#11/#14-#16/#20 ride later phases and may not creep in.
+  expect([...RULE_PRESET_IDS]).toEqual([
+    "welcomeBackRecap",
+    "autoAddLore",
+    "pacingNudge",
+    "illustrateScenes",
+    "diceChips",
+    "clockFires",
+    "openerChips",
+    "sceneVeil",
+    "callAVote",
+    "callback",
+    "cutaways",
+  ]);
 });
 
 describe.each([...RULE_PRESET_IDS])("preset %s", (id) => {
@@ -203,6 +231,60 @@ test("the two-rule presets order the COUNTER above the THRESHOLD (position order
 test("the callback anchors the beat through {{expr::…}} with law-2 coercion", () => {
   const [r1] = buildWithDefaults("callback");
   expect(r1?.arms[1]).toMatchObject({ type: "set_variable", key: "debtBeat", op: "set", value: "{{expr::int(chat.messageCount)}}" });
+});
+
+// ── A4's four rows (interaction-direction-spec §4 #1/#3/#8/#10) ────────────────────────────────────────
+
+test("#1 welcome-back recap: the stamp rule is capped (law 4) and the recap arm is CONFIRM-FIRST", () => {
+  const [stamp, recap] = buildWithDefaults("welcomeBackRecap");
+  expect(stamp?.arms[0]).toMatchObject({ type: "set_variable", key: "lastBeatMs", op: "set", value: "{{expr::now.epochMs}}" });
+  expect(stamp?.predicate).toBeNull();
+  expect(recap?.triggerType).toBe("chatOpened");
+  // The card, not a chip: a confirm-first arm STASHES at fire time and a HOST answers it.
+  expect(recap?.arms[0]).toMatchObject({ type: "trigger_turn", confirmFirst: true });
+});
+
+test("#1's idle predicate is law-1 guarded — an absent stamp OFFERS the recap instead of throwing", () => {
+  const preset = presetOf("welcomeBackRecap");
+  const rules = preset.rules(resolveRulePresetKnobs(preset.knobs, { idleHours: 2 }));
+  // 2h substituted as epoch-ms, and the `!has(...)` arm is what keeps a never-played room from THROWING
+  // ("No such key") the first time it is opened.
+  expect(rules[1]?.predicate).toBe("!has(vars.lastBeatMs) || int(now.epochMs) - int(vars.lastBeatMs) > 7200000");
+  expect(evaluate(rules[1]?.predicate as string, EMPTY_ENV)).toBe(true);
+  // POPULATED has no lastBeatMs either, so pin the negative arm explicitly: a FRESH stamp refuses.
+  const fresh: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, lastBeatMs: "1699999999000" } };
+  expect(evaluate(rules[1]?.predicate as string, fresh)).toBe(false);
+});
+
+test("#3 auto-add lore is confirm-first BY DEFAULT, and the choice knob can turn the ask off", () => {
+  const preset = presetOf("autoAddLore");
+  expect(preset.confirmFirst).toBe(true);
+  expect(buildWithDefaults("autoAddLore")[0]?.arms[0]).toMatchObject({ type: "insert_world_info_entry", confirmFirst: true });
+  const written = preset.rules(resolveRulePresetKnobs(preset.knobs, { confirmFirst: "write" }));
+  expect(written[0]?.arms[0]).toMatchObject({ type: "insert_world_info_entry", confirmFirst: false });
+});
+
+test("#8 opener chips are COMPOSE mode; #10's vote picks are SEND mode (authoring law 3's two halves)", () => {
+  const opener = buildWithDefaults("openerChips")[0]?.arms[0];
+  const vote = buildWithDefaults("callAVote")[0]?.arms[0];
+  // The AUTHORED arm is the schema INPUT, where `mode` is optional until the parse fills it — so an
+  // omitted mode reads as `undefined` here, which is exactly what these two decks must NOT do.
+  const modesOf = (arm: AutomationActionInput | undefined): (string | undefined)[] =>
+    arm?.type === "surface_quick_reply" ? arm.choices.map((c) => c.mode) : [];
+  // A compose chip SEEDS the member's draft, so director shorthand ("Time skip") is legitimate there…
+  expect(modesOf(opener)).toEqual(["compose", "compose", "compose"]);
+  // …while a send chip becomes that member's LINE, so #10's picks are first-person and send-mode.
+  expect(modesOf(vote)).toEqual(["send", "send", "send"]);
+  const voteChoices = vote?.type === "surface_quick_reply" ? vote.choices : [];
+  expect(voteChoices.every((c) => c.sendTemplate.startsWith("I "))).toBe(true);
+});
+
+test("#10 never fires on its own — its predicate is a constant false (the on-demand-only spelling)", () => {
+  const [rule] = buildWithDefaults("callAVote");
+  expect(rule?.predicate).toBe("false");
+  // Both envs, because "never" is the claim: no bus event of its trigger can reach the arms.
+  expect(evaluate(rule?.predicate as string, EMPTY_ENV)).toBe(false);
+  expect(evaluate(rule?.predicate as string, POPULATED_ENV)).toBe(false);
 });
 
 test("law 3: every default chip is a line the CLICKING member would say, and is its own send text", () => {

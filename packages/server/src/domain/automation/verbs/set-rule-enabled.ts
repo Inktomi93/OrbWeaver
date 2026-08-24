@@ -11,6 +11,11 @@ export function createSetRuleEnabled(ctx: AutomationContext): AutomationService[
   return async ({ principal, ruleId, enabled }: SetRuleEnabledParams): Promise<void> => {
     const rule = await requireRuleHost(ctx, principal, ruleId);
     await setRuleEnabledRow(ctx.db, ruleId, enabled, ctx.now());
+    if (!enabled) {
+      // S4 — withdrawing consent VOIDS this rule's pending asks. Leaving them would offer a host a card
+      // whose confirm the re-check now refuses; the honest surface is no card at all.
+      ctx.suggestions.voidRule(ruleId);
+    }
     await ctx.enabled.reload();
     // A transform_draft rule's registration into the turn pipeline follows enablement — reconcile it.
     await ctx.transforms.reload();

@@ -11,6 +11,9 @@ export function createDeleteRule(ctx: AutomationContext): AutomationService["del
   return async ({ principal, ruleId }: DeleteRuleParams): Promise<void> => {
     const rule = await requireRuleHost(ctx, principal, ruleId);
     await deleteRuleRow(ctx.db, ruleId);
+    // S4 — the rule is gone, so its pending asks are unanswerable (the confirm's own re-check would refuse
+    // them); drop them with it. The in-RAM store has no FK to cascade for it.
+    ctx.suggestions.voidRule(ruleId);
     // Deleting an enabled rule can empty a chat's rule set (or the last domain rule) — refresh the pre-check.
     await ctx.enabled.reload();
     // Deleting an enabled transform_draft rule must deregister its pipeline transform.

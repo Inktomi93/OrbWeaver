@@ -2,7 +2,8 @@
 // test file (no `.test` suffix). Builds a real-db `AutomationContext` with an injected fixed clock + prng
 // (determinism), the real `can()` seam, and id minters; plus thin principal/user/chat seed delegates.
 
-import type { AutomationAction, AutomationBusEvent, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import { automationActionSchema } from "@orb/contracts/automation";
 import type { PromptTransform } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -12,7 +13,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
-import type { ArmDispatch, AutomationOps, TurnOriginRead } from "../../../../packages/server/src/domain/automation/contract/ops.ts";
+import type { ArmDispatch, AutomationOps, SuggestionStore, TurnOriginRead } from "../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { PluginSubscriberRegistry } from "../../../../packages/server/src/domain/automation/contract/plugin-subscribers.ts";
 import type { AutomationContext, AutomationService } from "../../../../packages/server/src/domain/automation/contract/service.ts";
 import {
@@ -20,14 +21,23 @@ import {
   createEnabledRuleIndex,
   createPluginSubscriberRegistry,
   createPromptTransformIndex,
+  createSuggestionStore,
 } from "../../../../packages/server/src/domain/automation/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { seedChat, seedParticipant } from "../chat/_support.ts";
 
+/** PARSE an AUTHORED arm into the stored/dispatched shape — exactly what `createRule` does before anything
+ *  runs, so a test that hands an arm straight to the dispatcher exercises the same value production does.
+ *  Without it every fixture would have to spell each defaulted field (`mode`, `position`, `confirmFirst`,
+ *  the imagery args) by hand, which is how a new default turns into a repo-wide churn wave. */
+export function arm(input: AutomationActionInput): AutomationAction {
+  return automationActionSchema.parse(input);
+}
+
 /** A canonical valid arm + trigger for rule tests. */
-export const SET_VAR: AutomationAction = { type: "set_variable", scope: "chat", key: "mood", op: "set", value: "grim" };
+export const SET_VAR: AutomationAction = arm({ type: "set_variable", scope: "chat", key: "mood", op: "set", value: "grim" });
 export const MSG_COMMITTED: AutomationTrigger = { bus: "chat", type: "messageCommitted" };
 
 /** A fixed injected clock — every `updated_at`/`fired_at` write is deterministic (no `Date.now`). */
@@ -64,6 +74,8 @@ export interface HarnessOverrides {
   /** The plugin `events.on` subscriber registry (default: a fresh empty one). The fan-out tests inject one they
    *  register test subscribers on, then drive `handleEvent` and assert deliveries. */
   readonly pluginSubscribers?: PluginSubscriberRegistry;
+  /** S4 — the pending-ask store (default: a fresh empty one). Pass one in to inspect what a fire stashed. */
+  readonly suggestions?: SuggestionStore;
 }
 
 /** The default injected dispatcher — every arm is not-yet-wired (records `action_error`), the A5 posture a
@@ -144,10 +156,14 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
     prng: () => FIXED_PRNG,
     newRuleId: () => mintTypeId(ID_PREFIX.automationRule),
     newFireId: () => mintTypeId(ID_PREFIX.automationFire),
+    newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
     can,
     ops,
     runArm: overrides.runArm ?? NOT_WIRED_DISPATCH,
     enabled: createEnabledRuleIndex(db),
+    // S4 — ONE store per harness (the compose posture): a test that raises through the dispatch and confirms
+    // through the verbs must be looking at the same map, or every confirm would refuse as not-found.
+    suggestions: overrides.suggestions ?? createSuggestionStore(),
     pluginSubscribers: overrides.pluginSubscribers ?? createPluginSubscriberRegistry(),
     transforms: createPromptTransformIndex({
       db,
@@ -194,18 +210,20 @@ export interface RuleFixture {
    *  seam. The rule-lifecycle suites assert `rulesChanged` here (event-bus coverage survey H2/F5); before the
    *  fix wave the member was declared and emitted nowhere, so this ledger was empty for every rule verb. */
   readonly events: AutomationBusEvent[];
+  /** The context the service was built over — S4 tests read `ctx.suggestions` to see what a fire stashed,
+   *  and the end-to-end confirm tests need the SAME instance the verbs take from. */
+  readonly ctx: AutomationContext;
 }
 
 /** A fresh db + a host + their chat + the built service — the shared rule-lifecycle test setup. */
-export async function ruleFixture(): Promise<RuleFixture> {
+export async function ruleFixture(overrides: HarnessOverrides = {}): Promise<RuleFixture> {
   const db = await freshDb();
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host);
   const events: AutomationBusEvent[] = [];
-  const svc = createAutomationService(
-    makeAutomationHarness(db, {
-      notify: (event): void => void events.push(event),
-    }),
-  );
-  return { db, host, chatId, svc, events };
+  // The collector is applied LAST on purpose: `events` is the fixture's contract, so an override may widen
+  // the harness (a real arm dispatcher, a shared store) without silently blinding every bus assertion.
+  const ctx = makeAutomationHarness(db, { ...overrides, notify: (event): void => void events.push(event) });
+  const svc = createAutomationService(ctx);
+  return { db, host, chatId, svc, events, ctx };
 }

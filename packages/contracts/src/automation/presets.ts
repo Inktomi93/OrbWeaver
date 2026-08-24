@@ -21,6 +21,10 @@ import { z } from "zod";
  *  exhaustive `Record<RulePresetId, …>` over this tuple, so a new id without a definition fails `tsc`.
  *  Ids are camelCase (they are Record PROPERTY keys, not data literals — `useNamingConvention`). */
 export const RULE_PRESET_IDS = [
+  /** §4 #1 — the welcome-back recap: a confirm-first CARD after an idle gap (two rules). */
+  "welcomeBackRecap",
+  /** §4 #3 — auto-add lore entries, confirm-first by default. */
+  "autoAddLore",
   /** §4 #4 — a guided pacing turn every N beats. */
   "pacingNudge",
   /** §4 #5 — a scene illustration on a cadence. */
@@ -29,8 +33,12 @@ export const RULE_PRESET_IDS = [
   "diceChips",
   /** §4 #7 — the two-rule clock: a counter that fills, then fires and resets. */
   "clockFires",
+  /** §4 #8 — the opener deck: compose-mode staples the member owns and edits. */
+  "openerChips",
   /** §4 #9 — a diegetic veil word redirects the scene. */
   "sceneVeil",
+  /** §4 #10 — call a vote: send-mode chips, raised on demand (R7), never on its own. */
+  "callAVote",
   /** §4 #12 — the two-rule callback: an unresolved promise resurfaces D beats later. */
   "callback",
   /** §4 #13 — a short cutaway every N beats. */

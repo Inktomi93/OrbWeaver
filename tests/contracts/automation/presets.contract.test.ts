@@ -7,10 +7,25 @@ import type { RulePresetId, RulePresetKnobDescriptor, RulePresetKnobKind, RulePr
 import { RULE_PRESET_IDS, RULE_PRESET_KNOB_KINDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from "@orb/contracts/automation";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("RULE_PRESET_IDS is the pinned 7-member A3 catalogue, in §4 build order", () => {
-  expect(RULE_PRESET_IDS).toEqual(["pacingNudge", "illustrateScenes", "diceChips", "clockFires", "sceneVeil", "callback", "cutaways"]);
+test("RULE_PRESET_IDS is the pinned 11-member catalogue (A3's seven + A4's four), in §4 build order", () => {
+  expect(RULE_PRESET_IDS).toEqual([
+    "welcomeBackRecap",
+    "autoAddLore",
+    "pacingNudge",
+    "illustrateScenes",
+    "diceChips",
+    "clockFires",
+    "openerChips",
+    "sceneVeil",
+    "callAVote",
+    "callback",
+    "cutaways",
+  ]);
   expect(rulePresetIdSchema.options).toEqual(RULE_PRESET_IDS);
-  expect(rulePresetIdSchema.safeParse("welcomeBackRecap").success).toBe(false); // #1 — A4's, not A3's
+  // The rows riding LATER phases stay unspellable: #2 (C6's actor-excluding notification recipient) and
+  // #11/#14-#16 (C1's analysis arm).
+  expect(rulePresetIdSchema.safeParse("asyncTableNudge").success).toBe(false);
+  expect(rulePresetIdSchema.safeParse("rumorMill").success).toBe(false);
 });
 
 test("RULE_PRESET_KNOB_KINDS is the pinned editor axis", () => {
@@ -28,11 +43,15 @@ test("rulePresetKnobValuesSchema accepts each knob-value shape and refuses the r
 // Compile-time exhaustiveness backstops (the workloads KIND_SEEN pattern) — a tuple edit that the runtime
 // `toEqual` above missed fails tsc here instead of drifting.
 const PRESET_SEEN: Record<RulePresetId, true> = {
+  welcomeBackRecap: true,
+  autoAddLore: true,
   pacingNudge: true,
   illustrateScenes: true,
   diceChips: true,
   clockFires: true,
+  openerChips: true,
   sceneVeil: true,
+  callAVote: true,
   callback: true,
   cutaways: true,
 };

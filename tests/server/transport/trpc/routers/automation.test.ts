@@ -7,7 +7,7 @@
 // job (proven in the cross-tenant sweep + the automation domain tests), not re-tested here.
 
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService, RuleView } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
@@ -111,5 +111,34 @@ describe("automation.getBudgets — chat wire-through", () => {
     }));
     await caller(ctxWith({ getBudgets })).automation.getBudgets({ chatId: CHAT });
     expect(getBudgets).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), chatId: CHAT });
+  });
+});
+
+// R7 + S4 (interaction-direction-spec §6 R7 / §3-S4) — the three verbs the card and the Rules panel drive.
+// Same thin-driver contract as the rest: the wire shape is validated, the PRINCIPAL comes from `ctx.auth`
+// (never from input — a caller-supplied confirmer would hand the whole authority story to the caller), and
+// the verb decides everything else.
+
+describe("automation.runRuleNow — R7 wire-through", () => {
+  test("passes the validated ruleId + the caller's principal (the chat is the RULE's, never a caller claim)", async () => {
+    const runRuleNow = vi.fn<AutomationService["runRuleNow"]>(async () => ({ outcome: "fired" }));
+    await caller(ctxWith({ runRuleNow })).automation.runRuleNow({ ruleId: RULE.id });
+    expect(runRuleNow).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), ruleId: RULE.id });
+  });
+});
+
+describe("automation.confirmSuggestion / dismissSuggestion — the S4 pair", () => {
+  test("confirm threads the claim handle + the caller as the AUTHORIZER", async () => {
+    const suggestionId = mintTypeId(ID_PREFIX.automationSuggestion);
+    const confirmSuggestion = vi.fn<AutomationService["confirmSuggestion"]>(async () => ({ ran: "stashed-arm", outcome: "fired" }));
+    await caller(ctxWith({ confirmSuggestion })).automation.confirmSuggestion({ suggestionId });
+    expect(confirmSuggestion).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), suggestionId });
+  });
+
+  test("dismiss threads the same handle", async () => {
+    const suggestionId = mintTypeId(ID_PREFIX.automationSuggestion);
+    const dismissSuggestion = vi.fn<AutomationService["dismissSuggestion"]>(async () => undefined);
+    await caller(ctxWith({ dismissSuggestion })).automation.dismissSuggestion({ suggestionId });
+    expect(dismissSuggestion).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), suggestionId });
   });
 });

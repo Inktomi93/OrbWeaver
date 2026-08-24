@@ -4,7 +4,7 @@
 // (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never stored. The db
 // CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal first.
 
-import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
@@ -20,6 +20,8 @@ const POST_NOTIFICATION_COOLDOWN_FLOOR = 60;
 const RULE_MAX_FIRES_CAP = 240;
 export const RULE_MAX_FIRES_DEFAULT = 30;
 
+/** The PARSED arms — the stored/dispatched shape, with every default filled. This is what the caller
+ *  persists; a verb never writes its own params (see `AutomationActionInput`'s header). */
 interface ValidatedRule {
   readonly actions: readonly AutomationAction[];
 }
@@ -27,7 +29,8 @@ interface ValidatedRule {
 interface ValidateInput {
   readonly trigger: AutomationTrigger;
   readonly predicateCel?: string | null | undefined;
-  readonly actions: readonly AutomationAction[];
+  /** AUTHORED arms — the schema's INPUT. Parsing them IS this function's job. */
+  readonly actions: readonly AutomationActionInput[];
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
 }

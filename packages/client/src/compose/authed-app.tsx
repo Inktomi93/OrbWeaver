@@ -28,6 +28,7 @@ import {
   youModal,
 } from "#features/app-shell";
 import { accountModal, reauthModal } from "#features/auth";
+import { automationPane, automationSuggestionSource } from "#features/automation";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
   appearanceAvatarsSection,
@@ -62,7 +63,7 @@ import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "#features/rpg";
-import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
+import { appearancePane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { tagCollection } from "#features/tag";
 import {
@@ -140,11 +141,15 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // imports the other. Its SECOND is the S1 control mount below.
 //
 // The S1 CONTROL-SOURCE seam (interaction-direction-spec.md §3-S1) — the TWELFTH contributor family:
-// transient interactive controls near the transcript (rule chips, confirm cards, a dice ask). EMPTY but
-// typed, and the emptiness is the acceptance property: with zero sources the mount below `when`-filters
-// itself out, so the room renders exactly as it does with no control seam at all. A feature appends a
-// source here without importing chat, and chat renders it blind through the one band.
-const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", []);
+// transient interactive controls near the transcript (rule chips, confirm cards, a dice ask). A feature
+// appends a source here without importing chat, and chat renders it blind through the one band.
+//
+// ITS FIRST TENANT (A4): automation's S4 suggest/confirm CARDS. The zero-source acceptance property the
+// seam shipped with still holds and is still what the CTs pin — with an empty array the mount below
+// `when`-filters itself out and the room is byte-identical to a build with no control seam — but the array
+// is no longer empty, so the honest statement of the property is now "a room with no live control renders
+// no band chrome", which the source itself delivers by publishing nothing until an ask arrives.
+const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource]);
 
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
   rpgTurnToolCallsSurface,

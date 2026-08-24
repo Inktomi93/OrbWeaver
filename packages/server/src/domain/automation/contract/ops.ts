@@ -6,16 +6,25 @@
 // no reserved slots here. Principal minting stays at the entry seam (`resolveAuthor`) — the domain never
 // constructs a Principal (the tier-collapse the constitution forbids).
 
-import type { AutomationAction, AutomationBusEvent, AutomationCelEnv, AutomationOrigin, TriggerFact } from "@orb/contracts/automation";
+import type {
+  AutomationAction,
+  AutomationBusEvent,
+  AutomationCelEnv,
+  AutomationOrigin,
+  AutomationRunOutcome,
+  AutomationSuggestionKind,
+  SuggestibleAction,
+  TriggerFact,
+} from "@orb/contracts/automation";
 import type { PromptTransform, TurnInitiator } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { Can, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
-import type { CharacterId, ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { ResolveViewerVisibility } from "#domain/chat";
 
@@ -254,7 +263,15 @@ export interface DispatchFrame {
 /** One arm's execution outcome. `ok` on success; else a typed `arm_error` refusal → the `action_error` fire
  *  terminal (increments `consecutive_errors`, aborts the rule's remaining arms). The first non-`ok` outcome
  *  aborts the rule's remaining arms. */
-export type ArmOutcome = { readonly ok: true } | { readonly ok: false; readonly kind: "arm_error"; readonly detail: string };
+export type ArmOutcome =
+  | {
+      readonly ok: true;
+      /** S4 — the arm ASKED instead of acting (a confirm-first arm stashed itself). The rule's terminal
+       *  then records NO fire row: a suggestion is not a fire, and the CONFIRM writes the `fired` row when
+       *  the host says yes (§3-S4's fire-log honesty). Absent/false = the arm really ran. */
+      readonly suggested?: boolean;
+    }
+  | { readonly ok: false; readonly kind: "arm_error"; readonly detail: string };
 
 /** The arm dispatcher. ONE function that runs any arm — dispatch is a `switch(action.type)` (the
  *  RUNNERS discipline realized as a switch, NOT an object map: no snake_case property keys, a `default: never`
@@ -264,6 +281,95 @@ export type ArmOutcome = { readonly ok: true } | { readonly ok: false; readonly 
  *  success. */
 export type ArmDispatch = (action: AutomationAction, frame: DispatchFrame) => Promise<ArmOutcome>;
 
+// ── S4: the pending-ask store (interaction-direction-spec §3-S4) ─────────────────────────────────────
+// Homed BESIDE `DispatchFrame` rather than in its own contract file for one hard reason: the stashed record
+// CONTAINS a frame, and a separate module would make `ops → suggestions → ops` a cycle the import gate reds.
+// It belongs here on the merits too — it is a per-process INJECTED SEAM, exactly like `EnabledRuleIndex` and
+// `PromptTransformIndex` above it.
+//
+// RULED F1: the map is IN-RAM with a TTL, per process, never a table. What that buys and costs, stated once:
+//   • buys — no schema, no migration, no orphan rows to reap, and a respawn CANNOT leave a stale ask
+//     standing against state that moved under it (an accepted cost: a wiped ask is one re-fire away).
+//   • costs — an ask raised while the host is away expires unseen. That is the RECORDED FLIP CRITERION for
+//     durable rows (§8 F1), the same column class as R5's suggestion fire-terminal. Neither is built.
+// `ASSUMES(single-replica)` — the enabled-rule index / chat replay-ring annotation.
+
+/** The CONFIRM class's executable half — the arm as it resolved at fire time, WITH the frame it resolved in.
+ *  Both halves are stored because "executes the STORED arm" means exactly that: the same author, the same
+ *  cascade origin, the same `env` snapshot its templates would have rendered against. Re-deriving a frame at
+ *  confirm would silently make a confirmed ask a DIFFERENT act from the one the host was shown. */
+export interface StashedArm {
+  readonly action: SuggestibleAction;
+  readonly frame: DispatchFrame;
+}
+
+/** One pending ask. `stashed` is the class's payload half: a `confirm` carries one, an `invitation` carries
+ *  `null` BY CONSTRUCTION — `budget_refused` is decided before predicate and env, so no rendered arm exists
+ *  to stash, which is also why the invitation path has no TOCTOU. */
+export interface PendingSuggestion {
+  readonly id: AutomationSuggestionId;
+  readonly kind: AutomationSuggestionKind;
+  readonly chatId: ChatId;
+  readonly ruleId: AutomationRuleId;
+  /** The RULE AUTHOR — the identity a confirmed execution runs as. The confirmer is the AUTHORIZER only
+   *  (§3-S4: ownership, funding and the variable namespace all key off the author, never off who clicked). */
+  readonly authorUserId: UserId;
+  readonly summary: string;
+  readonly expiresAt: number;
+  readonly stashed: StashedArm | null;
+}
+
+/** The per-process pending map (`substrate/suggestions.ts` implements it). Every method that can observe an
+ *  expired entry takes the INJECTED clock's `nowMs` and sweeps first — the TTL is carried EXPLICITLY
+ *  (§3-S4) rather than by a timer: a timer reads the wall clock in a domain whose every other time read is
+ *  injected (test-determinism) and holds a process handle open for a map allowed to be empty. */
+export interface SuggestionStore {
+  /** Stash an ask, REPLACING any pending one for the same `(chatId, ruleId)` (RULED F1's replace-per-kind):
+   *  a rule that keeps firing keeps ONE live ask, so a cadence rule can never wallpaper the band. */
+  readonly raise: (entry: PendingSuggestion) => void;
+  /** Read without taking — the authority gate needs the ask's CHAT before it can gate the caller on it. */
+  readonly peek: (id: AutomationSuggestionId, nowMs: number) => PendingSuggestion | null;
+  /** TAKE-ONCE: id-match, delete-on-take, atomic against a double-click (the second claim finds nothing).
+   *  The delete happens whether or not the post-claim re-checks pass — a claimed ask is spent either way. */
+  readonly claim: (id: AutomationSuggestionId, nowMs: number) => PendingSuggestion | null;
+  /** The explicit dismiss — the same take, without the execution. */
+  readonly drop: (id: AutomationSuggestionId, nowMs: number) => PendingSuggestion | null;
+  /** VOID every ask of one rule (disabled/deleted — its consent question can no longer be answered). */
+  readonly voidRule: (ruleId: AutomationRuleId) => number;
+  /** VOID every ask in one chat (the RULED host-handoff sweep: authority died, its pending asks die). */
+  readonly voidChat: (chatId: ChatId) => number;
+  /** A chat's live asks, oldest first (the handoff sweep's input). */
+  readonly listForChat: (chatId: ChatId, nowMs: number) => readonly PendingSuggestion[];
+  /** How many asks the store holds for a chat, WITHOUT sweeping — the zero-cost pre-check on the hot bus
+   *  path (a chat with no pending ask must cost nothing per event). */
+  readonly countForChat: (chatId: ChatId) => number;
+}
+
+/** What the "does this user still hold host here" predicate needs — a SUBSET of the `AutomationContext`,
+ *  so the dispatch passes its own ctx and a verb passes its own. The predicate itself is ONE home
+ *  (`substrate/authority.ts`): the dispatch gate, the S4 confirm re-check and the host-handoff VOID sweep
+ *  must never answer it differently. */
+export interface AuthorityDeps {
+  readonly db: Db;
+  readonly can: Can;
+  readonly resolveAuthor: ResolveAuthorPrincipal;
+}
+
+/** What ONE dispatch batch did: whether any rule disabled itself (the caller reloads the enabled index)
+ *  and each rule's terminal in dispatch order (`null` = it reached none — cascade-suppressed, or a
+ *  transform-only rule, which registers into the turn pipeline instead of dispatching). */
+export interface DispatchSummary {
+  readonly anyDisabled: boolean;
+  readonly outcomes: readonly (AutomationRunOutcome | null)[];
+}
+
+/** How a batch was started. A bus fire uses the default; R7's `runRuleNow` passes the HOST who asked, which
+ *  lifts the two whether-to-fire-BY-ITSELF gates (the fire-rate cap and the predicate) and stamps the fire
+ *  row — `engine/dispatch.ts::runGates` states the line and why each lift is load-bearing. */
+export interface DispatchOptions {
+  readonly manualBy?: UserId;
+}
+
 /** The arm dispatcher's shared deps (a subset of the AutomationContext) — the db, the injected action ops, the
  *  injected PRNG (deterministic template render), and the automation-bus sink (`surface_quick_reply`). Built
  *  at compose and passed to `createArmExecutors`. */
@@ -272,4 +378,8 @@ export interface ArmExecutorDeps {
   readonly ops: AutomationOps;
   readonly prng: () => number;
   readonly notify: EmitAutomationEvent;
+  /** S4 — the in-RAM pending-ask map a confirm-first arm STASHES into instead of executing (RULED F1). */
+  readonly suggestions: SuggestionStore;
+  /** S4 — the pending ask's claim handle. */
+  readonly newSuggestionId: () => AutomationSuggestionId;
 }
