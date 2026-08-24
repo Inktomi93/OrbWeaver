@@ -24,11 +24,37 @@
 // a consent bug wearing a race's clothes. So the resident is always torn down, and re-activated on the new
 // grant only if the row was `enabled` (the `upgrade` posture, verbatim).
 
+import type { PluginCapability } from "@orb/contracts/plugin";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { SetPluginGrantParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
 import { applyGrant, getById, toPluginView } from "../persistence/plugins.ts";
 import { normalizeGrant, ungrantableCapabilities, widenedNetHosts } from "../substrate/grants.ts";
+
+/** The refusal the row carries OUT of the consent act — whether one still stands, and which hosts it is
+ *  about. The mirror of `refusalAfterUpgrade` (`verbs/upgrade.ts`), and one function for the same reason:
+ *  the flag and the delta are ONE decision written to two columns, and a verb that moves one without the
+ *  other produces a settled row still carrying a "New" mark.
+ *
+ *  CLEAR iff the owner has now consented to the WHOLE ask. A PARTIAL re-grant leaves both standing, and that
+ *  is the point: the plugin is still asking for something they have not allowed, and a surface that stopped
+ *  saying so would be the same lie the flag exists to fix, pointing the other way. The `net.fetch` half is
+ *  already satisfied by the acknowledgement gate the caller ran before this — reaching here with `net.fetch`
+ *  granted means every declared host was echoed.
+ *
+ *  The delta is carried VERBATIM rather than recomputed, because it is not recomputable: it was judged
+ *  against a manifest this row overwrote at the upgrade. And it is deliberately not cleared by the echo
+ *  alone — a partial grant that confirmed `net.fetch` but left another capability unallowed leaves the SAME
+ *  notice standing about the SAME update, so dropping the marks would quietly remove information from a
+ *  live consent surface. */
+function refusalAfterGrant(
+  declared: readonly PluginCapability[],
+  granted: readonly PluginCapability[],
+  prior: { readonly widenedNetHosts: readonly string[] },
+): { readonly pending: boolean; readonly hosts: readonly string[] } {
+  const pending = ungrantableCapabilities(granted, declared).length > 0;
+  return { pending, hosts: pending ? prior.widenedNetHosts : [] };
+}
 
 export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): PluginService["setGrant"] {
   return async ({ caller, pluginId, grant, acknowledgedNetHosts }: SetPluginGrantParams) => {
@@ -62,17 +88,20 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
 
     const granted = normalizeGrant(declared, grant);
     const wasEnabled = existing.status === "enabled";
-    // CLEAR the system's recorded refusal iff the owner has now consented to the WHOLE ask. A PARTIAL re-grant
-    // leaves it standing, and that is the point: the plugin is still asking for something they have not
-    // allowed, and a surface that stopped saying so would be the same lie the flag exists to fix, pointing the
-    // other way. The `net.fetch` half is already satisfied by the acknowledgement gate above — reaching this
-    // line with `net.fetch` granted means every declared host was echoed.
-    const stillPending = ungrantableCapabilities(granted, declared).length > 0;
+    // Both halves of the recorded refusal, in one call — see `refusalAfterGrant` for why a PARTIAL re-grant
+    // leaves both standing and why the host delta is carried verbatim rather than recomputed.
+    const refusal = refusalAfterGrant(declared, granted, existing);
 
     // Tear the resident down BEFORE the write (idempotent on a non-resident) — see the header: a running guest
     // holds the grants it was activated with, so the write must never leave one enforcing a superseded subset.
     deps.deactivate(pluginId);
-    await applyGrant(ctx.db, pluginId, { grantedCapabilities: granted, status: "disabled", pendingReconsent: stillPending, updatedAt: ctx.now() });
+    await applyGrant(ctx.db, pluginId, {
+      grantedCapabilities: granted,
+      status: "disabled",
+      pendingReconsent: refusal.pending,
+      widenedNetHosts: refusal.hosts,
+      updatedAt: ctx.now(),
+    });
     if (wasEnabled) {
       // Re-activation is a RESTORE of the state the owner already chose, not an implicit enable: only a row
       // that was `enabled` comes back up, and it comes back up under the grant just written. A contained
