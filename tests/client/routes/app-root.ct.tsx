@@ -19,8 +19,9 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
-import { chatListResponder } from "../features/chat/fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, chatListResponder } from "../features/chat/fixtures.ts";
 import { HomePageStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
@@ -48,6 +49,26 @@ const PERSONAS = [{ id: "persona_home", name: "Alex", description: "", avatarHas
  *  EMPTY bank here, matching the empty `databank.list` above it, so the front door renders that tile's
  *  teaching state. Both routes or neither: an unstubbed suspending read blanks the tile into its boundary. */
 const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
+
+/**
+ * The route's own AMBIENT reads (#649) — every `HomePageStory` mount is the composition root, so it always
+ * carries the composer's send-gate + display-script tier ({@link CHAT_AMBIENT_ROUTES}), the room bus's
+ * attach/detach mutations ({@link STREAM_MUTATION_ROUTES}), and the viewer identity read the settings-pane
+ * nav resolves off (`sessions.me`). None of these are any ONE test's subject, but leaving them unfed ran
+ * every one of those pipelines INERT across this whole file. Spread FIRST in each `routeTrpc` call so a
+ * test's own per-fixture value (a specific `settings.getUserSettings` via {@link IDENTITY_STUB}, say) wins.
+ */
+const HOME_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  ...CHAT_AMBIENT_ROUTES,
+  ...STREAM_MUTATION_ROUTES,
+  "sessions.me": { userId: castId<UserId>("user_ct"), globalRole: "user", handle: "app_root" },
+  // The temp-chat tile's fire-and-forget janitor mutation fires once per HOME mount, on an idle deadline
+  // (home-temp-chat-tile-body.tsx REAP_IDLE_TIMEOUT_MS) — every test in this file mounts Home. Its own
+  // `onSuccess` reads `data.reaped` (`data !== undefined && data.reaped === 0`), so an unfed `null` throws
+  // reading `.reaped` off it — a real defect this feed retires rather than papers over: `{reaped: 0}` is the
+  // honest "nothing expired" default the temp-tile test already asserted explicitly.
+  "chat.reapTemporaryChats": { reaped: 0 },
+};
 
 const IDENTITY_STUB = {
   "persona.listConnectedToCharacter": (): readonly never[] => [],
@@ -104,6 +125,7 @@ function createdRoomRoutes(temporary: boolean, canon: readonly unknown[] = []): 
 
 test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 via owner decision H1 = D-1)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,
@@ -132,6 +154,7 @@ test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 vi
 
 test("the chats section's own no-selection state is the SLIM one — the launcher lives in exactly one place", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,
@@ -150,6 +173,7 @@ test("the chats section's own no-selection state is the SLIM one — the launche
 
 test("picking a character in the library CREATES the chat and lands in it (the library→chat seam)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,
@@ -244,6 +268,7 @@ test("picking a character in the library CREATES the chat and lands in it (the l
 
 test("the temp tile starts its room through the SHARED picker, and the unsent line survives a rail round-trip", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,
@@ -292,6 +317,7 @@ test("the temp tile starts its room through the SHARED picker, and the unsent li
 
 test("zero personas: the first-run persona ask is FORCED open — no dismiss, one way out", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,
@@ -318,6 +344,7 @@ test("zero personas: the first-run persona ask is FORCED open — no dismiss, on
 
 test("a user who owns a persona never sees the gate (the automation-seeded + returning-user arm)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,

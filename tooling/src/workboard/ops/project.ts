@@ -80,7 +80,10 @@ export function fetchIssueContext(number: number): IssueContext {
     url: issue.url,
     state: issue.state,
     comments: issue.comments.nodes,
-    blockers: issue.blockedBy.nodes.map((blocked) => blocked.number),
+    // GitHub does NOT remove a blockedBy edge when the blocking issue closes — the edge is a durable
+    // relation, not a live-blocker signal — so a closed blocker must be filtered here or every reader
+    // of `blockers` (the lifecycle guard, reports) inherits the lie that the row is still blocked.
+    blockers: issue.blockedBy.nodes.filter((blocked) => blocked.state !== "CLOSED").map((blocked) => blocked.number),
   };
   const node = issue.projectItems.nodes.find((candidate) => candidate.project.number === PROJECT_NUMBER);
   if (node === undefined) {
@@ -146,9 +149,12 @@ export function ensureItem(target: Issue, existing: ItemState | undefined): Item
 
 export function fetchBlockers(number: number): readonly number[] {
   const data = graphql<{
-    readonly repository?: { readonly issue?: { readonly blockedBy: { readonly nodes: readonly { readonly number: number }[] } } | null } | null;
+    readonly repository?: {
+      readonly issue?: { readonly blockedBy: { readonly nodes: readonly { readonly number: number; readonly state: "OPEN" | "CLOSED" }[] } } | null;
+    } | null;
   }>(BLOCKERS_QUERY, { owner: PROJECT_OWNER, repo: REPO_NAME, number });
-  return (data.repository?.issue?.blockedBy.nodes ?? []).map((node) => node.number);
+  // Same closed-edge filter as fetchIssueContext — GitHub keeps a blockedBy edge after the blocker closes.
+  return (data.repository?.issue?.blockedBy.nodes ?? []).filter((node) => node.state !== "CLOSED").map((node) => node.number);
 }
 
 export function blockerIssueId(number: number): string {

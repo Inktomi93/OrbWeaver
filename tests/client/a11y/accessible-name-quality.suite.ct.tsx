@@ -33,10 +33,28 @@ import { AppShellStory, RailStory } from "../features/app-shell/_ct-stories.tsx"
 import { CharacterLibrarySurfaceStory } from "../features/character/_ct-stories.tsx";
 import { makeCharacterSummary, makeTagFixture } from "../features/character/fixtures.ts";
 import { ComposerStory, MembersPanelStory, NewChatPickerStory } from "../features/chat/_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../features/chat/fixtures.ts";
 import { SettingsShellStory } from "../features/settings/_ct-stories.tsx";
 import { CharacterCreateBandStory, PresetRenameDialogStory } from "../forms/_form-identity-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_namecraft", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+
+/**
+ * The viewer-identity reads the composer's own subtree pulls in beyond {@link CHAT_AMBIENT_ROUTES} /
+ * {@link CHAT_ROOM_ROUTES} — `Composer` mounts `ActiveChatOptionsMenu` (`chat.getChat`, covered by
+ * `CHAT_ROOM_ROUTES`) alongside the persona/session identity every composer-adjacent surface resolves
+ * for the speaker chip. Feeding these turns `Composer`'s real selection/gate logic on instead of it
+ * resolving through routeTrpc's unstubbed-null branch (#629/#649).
+ */
+const VIEWER_IDENTITY_ROUTES: Readonly<Record<string, unknown>> = {
+  "sessions.me": { userId: "user_ct_namecraft", globalRole: "user", handle: "namecraft" },
+  "persona.list": [],
+};
+
+/** The empty `chat.listChats` page (`ChatListPage` wire shape) — the honest "no chats yet" default the
+ *  home masthead / library resume-strip readers compose over (character-library-surface.tsx:175,
+ *  home-masthead-body.tsx:58). */
+const EMPTY_CHAT_LIST = { items: [], nextCursor: null, totalCount: 0 };
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria Nightshade", createdAt: 3000, tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" })] });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt", createdAt: 2000, tags: [] });
@@ -116,35 +134,39 @@ test("the rail is navigable by name", async ({ mount, page }) => {
 });
 
 test("the app shell is navigable by name", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW, ...VIEWER_IDENTITY_ROUTES });
   const shell = await mount(<AppShellStory />);
   await expect(shell.getByRole("main")).toBeVisible();
   await expectEveryNameNavigable(page, "app shell");
 });
 
 test("the chat composer is navigable by name", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, ...VIEWER_IDENTITY_ROUTES });
   const composer = await mount(<ComposerStory />);
   await expect(composer.getByRole("button", { name: "Send message" })).toBeVisible();
   await expectEveryNameNavigable(page, "chat composer");
 });
 
 test("the members panel is navigable by name", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, ...VIEWER_IDENTITY_ROUTES });
   const members = await mount(<MembersPanelStory />);
   await expect(members.getByRole("button", { name: "Mute Aria" })).toBeVisible();
   await expectEveryNameNavigable(page, "members panel");
 });
 
 test("the character library is navigable by name", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }) });
+  await routeTrpc(page, {
+    "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }),
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "chat.listChats": () => EMPTY_CHAT_LIST,
+  });
   const library = await mount(<CharacterLibrarySurfaceStory />);
   await expect(library.getByRole("button", { name: "Chat with Aria Nightshade" })).toBeVisible();
   await expectEveryNameNavigable(page, "character library");
 });
 
 test("the settings shell is navigable by name", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW, ...VIEWER_IDENTITY_ROUTES });
   const settings = await mount(<SettingsShellStory />);
   await expect(settings.getByRole("switch", { name: "Show avatars in chat" })).toBeVisible();
   await expectEveryNameNavigable(page, "settings shell");

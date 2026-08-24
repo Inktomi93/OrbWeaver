@@ -64,7 +64,9 @@ const netHostSchema = z.hostname();
 const NAME_MAX = 80;
 const DESCRIPTION_MAX = 500;
 const AUTHOR_MAX = 120;
-const NET_HOSTS_MAX = 8;
+/** Exported so the client can say the ceiling out loud next to a host list (the P3 side-eye finding: the
+ *  consent screen asserts the list is exhaustive but gave no way to verify it against the declared cap). */
+export const NET_HOSTS_MAX = 8;
 const ENGINE_VERSION_MAX = 40;
 const ENGINE_COMMIT_MAX = 64;
 
