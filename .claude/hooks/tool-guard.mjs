@@ -95,6 +95,21 @@
 //     continuations and put `rm -rf playwright/.cache` on its own line, so per-line judgement would deny
 //     the sanctioned CT recipe. Bounded by construction — one level deep (a script invoked from a script
 //     body is `ask`, never a recursive walk) and a 64KB read cap.
+//   · THE CHANNEL IS NOT THE OPERAND (#634, 2026-08-24) — an interpreter takes its program from an
+//     operand, from STDIN (`bash < f`, `cat f | bash`), from a HEREDOC, or from the current shell
+//     (`. f` / `source f`), and only the first was ever resolved. Each is now judged where the program
+//     actually comes from: a stdin/dot-source FILE resolves and is read like any operand; a heredoc fed to
+//     a shell is classified as the text it is; a pipe sink whose producer is not a readable `cat` is an
+//     `ask` (it is a program the guard genuinely cannot see). Corpus frequency, 135,505 calls: stdin-file
+//     0, heredoc-to-shell 0, pipe-to-shell 0, dot-source 325 (a raw-regex count said 2,367 — the rest were
+//     a bare `.` PATH ARGUMENT: `find . -path`, `biome check . --write`).
+//   · WRITE-THEN-RUN IS JUDGED ON WHAT WILL LAND (#634) — `printf '…' > x.sh; bash x.sh` passed because
+//     the file did not exist yet when the guard looked, and the re-run case is worse (it reads the
+//     PREVIOUS body while the command overwrites it). For a path this same command writes, the guard
+//     classifies the CONTENT the command shows — a heredoc body, a `printf`/`echo` literal — and asks only
+//     when the writer's output is invisible (a generator, a fetch). Not a refusal of the SHAPE: 258 corpus
+//     commands write-and-run in one call and 246 are the house's own `cat > x.sh <<'EOF' … EOF; bash x.sh`
+//     wrapper idiom, so refusing it would be a wall on the sanctioned way of doing the job.
 //   · QUOTED COMMANDS ARE CLASSIFIED — the same defect one layer further down (2026-08-14). A `bash -c
 //     '<string>'` operand and a `$( … )` substitution are COMMANDS, and quote-blanking erased both before
 //     any rule could see them: `bash -c "git stash"` and `echo "$(git stash)"` were clean passes. Both are
@@ -230,12 +245,14 @@ export function blankHeredocs(raw, blank) {
   return out;
 }
 
-/** The `[start, stop)` spans blankHeredocs blanks — the operator + delimiter, and the body + terminator
- *  line. Split out for the same reason as commentSpans: a caller that needs to know whether a position is
- *  TEXT rather than command cannot tell from the blanked string (a blanked heredoc body and a blanked
- *  quoted span both read as spaces). */
-export function heredocSpans(raw, blank) {
-  const spans = [];
+/** Every heredoc in the command, as index ranges: `opStart`/`opEnd` bound the operator + delimiter,
+ *  `bodyStart`/`bodyEnd` bound the BODY ALONE (terminator line excluded), `spanEnd` is where the
+ *  terminator line ends. ONE scanner, because two consumers need different slices of the same shape and
+ *  a second scanner would eventually disagree with this one: `heredocSpans` blanks operator + body +
+ *  terminator (a heredoc body is TEXT to every rule), while the script pass needs the body TEXT — a
+ *  `<<EOF` fed to a SHELL, or written into a file the same command then runs, is a PROGRAM (#634). */
+export function heredocUnits(raw, blank) {
+  const units = [];
   HEREDOC_OPERATOR.lastIndex = 0;
   for (let m = HEREDOC_OPERATOR.exec(raw); m !== null; m = HEREDOC_OPERATOR.exec(raw)) {
     if (blank[m.index] !== "<") {
@@ -248,11 +265,13 @@ export function heredocSpans(raw, blank) {
     }
     // find the terminator line (allowing leading tabs for <<-)
     let end = raw.length;
+    let bodyEnd = raw.length;
     for (let lineStart = bodyStart + 1; lineStart < raw.length; ) {
       const lineEnd = raw.indexOf("\n", lineStart);
       const stop = lineEnd === -1 ? raw.length : lineEnd;
       if (raw.slice(lineStart, stop).replace(/^\t+/, "") === delim) {
         end = stop;
+        bodyEnd = lineStart;
         break;
       }
       if (lineEnd === -1) {
@@ -260,11 +279,21 @@ export function heredocSpans(raw, blank) {
       }
       lineStart = lineEnd + 1;
     }
-    spans.push([m.index, m.index + m[0].length]); // the operator + delimiter
-    spans.push([bodyStart, end]); // the body + terminator line
+    units.push({ opStart: m.index, opEnd: m.index + m[0].length, bodyStart, bodyEnd, spanEnd: end });
     HEREDOC_OPERATOR.lastIndex = end;
   }
-  return spans;
+  return units;
+}
+
+/** The `[start, stop)` spans blankHeredocs blanks — the operator + delimiter, and the body + terminator
+ *  line. Split out for the same reason as commentSpans: a caller that needs to know whether a position is
+ *  TEXT rather than command cannot tell from the blanked string (a blanked heredoc body and a blanked
+ *  quoted span both read as spaces). */
+export function heredocSpans(raw, blank) {
+  return heredocUnits(raw, blank).flatMap((u) => [
+    [u.opStart, u.opEnd],
+    [u.bodyStart, u.spanEnd],
+  ]);
 }
 
 // ── structure scan: clauses (split on && / || / ; / newline) and pipe stages within each clause.
@@ -488,15 +517,44 @@ const UNSAFE_READER = /[<()`&]/;
 const ENV_KILL = /^(?:off|0|false)$/i;
 
 // ── script-body inspection (the wrapper hole) ──
-// Cheap per-stage pre-filter: a shell name at a word boundary, or a `.sh` operand. Everything below only
-// runs for a stage that passes this.
-const SCRIPT_STAGE_HINT = /(?:^|[\s/])(?:sh|bash|zsh|ksh|dash)\s|\.sh(?:\s|$)/;
+// Cheap per-stage pre-filter: a shell name at a word boundary, a `.sh` operand, or a `.`/`source` head
+// (#634 — sourcing runs the file in the CURRENT shell, which is the same power as `bash <file>`).
+// Everything below only runs for a stage that passes this.
+// The shell arm ends at `(?:\s|$)`, not `\s`: a PIPE SINK is a stage whose whole text is the shell name
+// (`cat f | bash`), so a required trailing space skipped the exact shape #634 is about.
+const SCRIPT_STAGE_HINT = /(?:^|[\s/])(?:sh|bash|zsh|ksh|dash)(?:\s|$)|\.sh(?:\s|$)|^\s*(?:\.|source)\s/;
+// `.`/`source` as a stage's COMMAND WORD. Never a path argument: the head is found at the exec-head
+// position, so `find . -name x`, `biome check . --write` and `grep . --exclude-dir=y` are not this
+// (measured: a raw-regex count of "dot-source" said 2,367 on the 135,505-command corpus and the
+// exec-head count says 325 — the rest were a bare `.` PATH followed by a flag).
+const SOURCE_EXEC = /^(?:\.|source)$/;
+// A process substitution `<( … )` hands the interpreter a program built by ANOTHER command's stdout —
+// unknowable by construction, so it is an `ask` rather than a resolvable path.
+const PROCESS_SUBSTITUTION = /^<\(/;
+// A stdin redirect naming a FILE (`bash < run.sh`, `sh 0< run.sh`) — the operand channel the resolver
+// cannot see, because a redirect word is deliberately skipped when hunting the file operand.
+const STDIN_FILE_REDIRECT = /(?:^|\s)0?<\s*([^\s<>&|;()]+)/;
+// A write redirect and its target: `> f`, `>> f`, `2> f` (attached or separate word). `>&1`-style fd
+// merges are excluded — they name a descriptor, not a file.
+const WRITE_REDIRECT_ATTACHED = /^&?\d*(?:>>|>)(?!&)(.+)$/;
+const WRITE_REDIRECT_OPERATOR = /^&?\d*(?:>>|>)$/;
+const TEE_HEAD = /^(?:\S*\/)?tee$/;
+const CAT_HEAD = /^(?:\S*\/)?cat$/;
+// Writers whose OUTPUT is visible in the command text itself, so what lands in the file can be classified
+// instead of refused. Everything else that writes a file the same command then runs is unknowable ⇒ ask.
+const LITERAL_WRITER_HEAD = /^(?:\S*\/)?(?:printf|echo)$/;
 const SCRIPT_SHELL_EXEC = /^(?:\S*\/)?(?:sh|bash|zsh|ksh|dash)$/;
-// `-c` / `-s` (alone or combined, e.g. `-xc`) mean the operand is an inline command STRING, not a file —
-// there is no body to READ, so the stage is not a script invocation. `--norc`-style long flags are not
-// this (single dash only). The string itself is classified by the nested-command pass below, which is the
-// same defect class one layer down: visibility, not rule weakness.
-const SCRIPT_INLINE_FLAG = /^-[a-zA-Z]*[cs][a-zA-Z]*$/;
+// `-c` (alone or combined, e.g. `-xc`) means the operand is an inline command STRING, not a file — there
+// is no body to READ, so the stage is not a script invocation. `--norc`-style long flags are not this
+// (single dash only). The string itself is classified by the nested-command pass below, which is the same
+// defect class one layer down: visibility, not rule weakness.
+const SCRIPT_INLINE_C_FLAG_ARG = /^-[a-zA-Z]*c[a-zA-Z]*$/;
+// `-s` is NOT the same thing and was treated as if it were (#634): it means READ THE PROGRAM FROM STDIN,
+// so `sh -s < f` and `cat f | bash -s` are channels, not inline strings — and the nested pass never
+// extracted them either (it only reads `-c` operands), so the stage was silently dropped by both. It also
+// means any following non-flag word is the script's $0/argv, never the program, which is why hitting `-s`
+// stops the operand hunt rather than continuing it.
+const SCRIPT_STDIN_FLAG = /^-[a-zA-Z]*s[a-zA-Z]*$/;
 // The operand must resolve LITERALLY. Quoting is stripped and `$VAR`/`${VAR}` are expanded from the
 // command's OWN assignments first (shellWords + assignedVars); what survives that may still be unknowable —
 // an unassigned variable, a substitution, a glob. Those NO LONGER skip silently: an unresolvable operand is
@@ -509,13 +567,26 @@ const REDIRECT_WORD = /^&?\d*(?:>>|>|<<|<)/;
 const REDIRECT_OPERATOR_ONLY = /^&?\d*(?:>>|>|<<|<)&?\d*$/;
 // `~/x.sh` is the same file as `$HOME/x.sh`; expanding it keeps a routine spelling out of the ask above.
 const HOME_PREFIX = /^~(?=\/)/;
+// …and `$HOME`/`${HOME}` is the same variable spelled the long way (see resolveScriptOperand).
+const HOME_VAR = /^\$\{?HOME\}?(?=\/)/;
 const HOME_DIR = process.env.HOME ?? null;
 const SCRIPT_WRAPPER_TOKEN = /^(?:timeout|nice|setsid|nohup|env|exec)$/;
 const SCRIPT_WRAPPER_ARG = /^(?:-n\s*)?\d+[a-z]?$/;
 const SCRIPT_MAX_BYTES = 64 * 1024;
-// Depth of the OUTER command is 1; a script body classified from it runs at 2 == the cap, where a further
-// script invocation is `ask` instead of another read. So: exactly one level of body is ever read.
-const SCRIPT_DEPTH_CAP = 2;
+// Depth of the OUTER command is 1; a body classified from it runs at 2, a body reached from THAT at 3 ==
+// the cap, where a further script invocation is `ask` instead of another read. So: two levels of body are
+// ever read, and the fence still exists — it is one level further out.
+//
+// MOVED FROM 2 TO 3 (2026-08-24, with the #634 channel work, and for the reason NESTED_DEPTH_CAP moved
+// from 2 to 6): the corpus decides where a runaway fence sits, and at 2 it had become a cry-wolf. Once
+// `. <file>` counts as an interpreter target — it must, or a hostile body just spells its second level
+// with a dot — the single most common wrapper idiom on this box (`source …/orbweaver/.env` inside a
+// scratchpad launcher) sat exactly AT the cap: 21 of 135,586 corpus commands flipped to
+// `ask/script-depth-cap` purely for sourcing the repo's own env file, which for a LANE is a deny. The
+// guard could READ that file; it was refusing by budget, not by inability, and a refusal on the
+// sanctioned way of doing a job is what teaches agents to route around the hook. Cost of the extra level
+// is one stat + one `git ls-files` + one bounded read per nested target.
+const SCRIPT_DEPTH_CAP = 3;
 const SCRIPT_LINE_MAX = 160;
 
 // ── nested commands: a command inside a QUOTED string is still a command ──
@@ -586,6 +657,12 @@ const REASONS = {
     "`rg -r`/`--replace` glued directly to another flag letter (e.g. `-rln`) is parsed by ripgrep as `-r` TAKING the glued letters as its REPLACEMENT VALUE — so the intended listing/count flag silently vanishes and the command REPLACES matched text instead of listing matches, with no error (four paid offenses this era). Spell it out: `-n`/`--files-with-matches`/`--count` for listing, or `-r 'text'`/`--replace='text'` (a SEPARATE token) when you actually mean a replacement.",
   scriptBody: (script, line, inner) =>
     `This runs the untracked script ${script}, and tool-guard read its CONTENTS — a wrapper file is not a shield, the rules judge what actually executes.${line === null ? "" : `\nThe line that decided it:\n    ${line}`}\n\n${inner}`,
+  scriptProgram: (what, line, inner) =>
+    `${what}, and tool-guard classified that program — the channel a program arrives through is not a shield, the rules judge what actually executes.${line === null ? "" : `\nThe line that decided it:\n    ${line}`}\n\n${inner}`,
+  scriptOpaqueWriter: (target, writer) =>
+    `This command WRITES ${target} and then RUNS it, and tool-guard cannot see what ${writer} will put there — so the body that executes is unreadable by construction, and reading the file from disk would judge bytes that are about to be overwritten. A PreToolUse \`allow\` bypasses the permission flow entirely, so "I did not look" must never read as "I have no objection". Write the file in one Bash call and run it in the NEXT one (the body is on disk by then and IS read), or inline the commands. A heredoc (\`cat > ${target} <<'EOF' … EOF\`) and a \`printf\`/\`echo\` literal are both read as written and need no split.`,
+  scriptOpaqueStdin: (spelling) =>
+    `This runs an interpreter whose PROGRAM arrives on stdin from \`${spelling.length > SCRIPT_LINE_MAX ? `${spelling.slice(0, SCRIPT_LINE_MAX)}…` : spelling}\` — it is not an operand, so there is no path for tool-guard to resolve and nothing it can read. Feed the interpreter a FILE it can name (\`bash <path>\`, or \`. <path>\`), or inline the commands: a program the guard cannot see must not be waved through, because \`allow\` is the end of the line (no permission prompt follows it).`,
   scriptTooLarge: (script, bytes) =>
     `${script} is ${bytes} bytes, past the ${SCRIPT_MAX_BYTES}-byte body-inspection cap, so tool-guard cannot see what it runs and will not wave it through blind. Split the wrapper, or run the commands directly.`,
   scriptUnresolvedOperand: (spelling) =>
@@ -1112,8 +1189,11 @@ function shellFileOperand(words) {
       continue; // `>log`, `2>&1`, `<<EOF`
     }
     if (w.value.startsWith("-") && w.value !== "-" && w.value !== "--") {
-      if (SCRIPT_INLINE_FLAG.test(w.value)) {
-        return null;
+      if (SCRIPT_INLINE_C_FLAG_ARG.test(w.value)) {
+        return null; // `-c`: the operand is a command string, and the nested pass owns it
+      }
+      if (SCRIPT_STDIN_FLAG.test(w.value)) {
+        return undefined; // `-s`: the program is on stdin — the caller's channel logic owns it
       }
       continue;
     }
@@ -1133,20 +1213,114 @@ function resolveScriptOperand(word, vars) {
     return { path: null, spelling: word.raw };
   }
   const expanded = expandAssigned(word.value, vars);
-  const home = HOME_DIR === null ? expanded : expanded.replace(HOME_PREFIX, HOME_DIR);
+  // `$HOME`/`${HOME}` resolve exactly like the `~/` this already expanded — same variable, same value, and
+  // the comment beside HOME_PREFIX has always SAID they are the same file. They were not: `. "$HOME/.cargo/
+  // env"` was an `ask` for spelling a routine path the long way (1 corpus sighting, and the ask is a DENY
+  // for a lane). `expandAssigned` runs first, so a command that assigns HOME itself still wins.
+  const home = HOME_DIR === null ? expanded : expanded.replace(HOME_PREFIX, HOME_DIR).replace(HOME_VAR, HOME_DIR);
   return { path: home.length === 0 || SCRIPT_UNRESOLVED.test(home) ? null : home, spelling: word.raw };
 }
 
-/** The script targets a command would EXECUTE, one per pipeline stage: `bash <path>`, `sh <path>` (leading
- *  env assignments and timeout/nice/setsid/nohup/env/exec wrappers allowed, bash's own flags skipped, the
- *  script's trailing args NOT mistaken for it), or a bare `<path>.sh` head. Each entry is either a resolved
- *  `path` or `{path: null}` — "there is a script here and the guard cannot tell WHICH", which the caller
- *  turns into an ask rather than silence. The executable is read off the BLANKED text; the operand off the
- *  RAW words of the same stage. */
-export function scriptTargets(command, blank, clauses) {
-  const found = [];
+/** The heredoc a stage owns, or null. The OPERATOR position decides (the body lives past the newline the
+ *  clause split on, so it is not inside the stage's own range). */
+function stageHeredoc(command, units, stage) {
+  const unit = units.find((u) => u.opStart >= stage.start && u.opStart < stage.end);
+  return unit === undefined ? null : command.slice(unit.bodyStart + 1, unit.bodyEnd);
+}
+
+/** Every FILE this command writes, as `resolved path → what will land there`. The value is the text when
+ *  the command itself shows it (a heredoc body, a `printf`/`echo` literal) and null when it does not (a
+ *  generator, a fetch, a copy). Only consulted for a path the SAME command also executes (#634): there the
+ *  bytes on disk are stale or absent by construction, so they are the wrong thing to judge — 258 corpus
+ *  commands write-and-run in one call, 246 of them the house's own `cat > x.sh <<'EOF' … EOF; bash x.sh`
+ *  wrapper idiom, so refusing the SHAPE would wall the idiom while reading the DISK judges bytes that are
+ *  about to be replaced. Order is deliberately not checked: a write anywhere in the command makes the
+ *  file's disk content untrustworthy for this call. */
+function commandWrites(command, blank, clauses, ctx) {
+  const units = heredocUnits(command, blankComments(command, blankQuoted(command)));
+  const writes = new Map();
+  const base = ctx?.cwd ?? ctx?.projectDir ?? process.cwd();
   for (const clause of clauses) {
     for (const stage of clause.stages) {
+      const words = shellWords(command.slice(stage.start, stage.end));
+      const { exec } = execHead(blank.slice(stage.start, stage.end));
+      const head = exec?.[0] ?? "";
+      const heredoc = stageHeredoc(command, units, stage);
+      const vars = assignedVars(command, blank, clauses, stage.start);
+      const content = heredoc !== null ? heredoc : LITERAL_WRITER_HEAD.test(head) ? literalWriterText(words, vars) : null;
+      const writer = heredoc !== null ? "a heredoc" : head.length === 0 ? "that stage" : `\`${head}\``;
+      const record = (word) => {
+        const resolved = resolveScriptOperand(word, vars);
+        if (resolved.path !== null) {
+          writes.set(path.resolve(base, resolved.path), { content, writer });
+        }
+      };
+      for (let i = 0; i < words.length; i += 1) {
+        const w = words[i];
+        const attached = w.raw.match(WRITE_REDIRECT_ATTACHED);
+        if (attached) {
+          record({ ...w, value: attached[1], raw: attached[1] });
+        } else if (WRITE_REDIRECT_OPERATOR.test(w.raw) && words[i + 1] !== undefined) {
+          record(words[i + 1]);
+          i += 1;
+        }
+      }
+      if (TEE_HEAD.test(head)) {
+        for (const w of words.slice(1)) {
+          if (!w.value.startsWith("-") && !REDIRECT_WORD.test(w.raw)) {
+            record(w);
+          }
+        }
+      }
+    }
+  }
+  return writes;
+}
+
+/** What a `printf`/`echo` stage puts on its stdout, as far as the command text shows it.
+ *
+ *  Two fidelity steps, both because the guard's rules are STRUCTURAL: `\n` is turned into a real newline
+ *  (printf interprets it, and a literal backslash-n leaves the whole program as one line, where every
+ *  head-anchored rule — the harness heads, `rm`, the CT recipe — silently stops matching), and `%s`
+ *  directives are filled from the following operands, each resolved against the command's OWN assignments
+ *  first (so `S=/tmp/x; printf '%s/run.sh' "$S" > f` names the real path, and an unknown name stays as
+ *  written). Anything else is left as written: the aim is to hand `classify` the text that will land in
+ *  the file, not to reimplement printf. */
+function literalWriterText(words, vars) {
+  const operands = words
+    .slice(1)
+    .filter((w) => !w.value.startsWith("-") && !REDIRECT_WORD.test(w.raw) && !WRITE_REDIRECT_ATTACHED.test(w.raw))
+    .map((w) => expandAssigned(w.value, vars));
+  const [format, ...args] = operands;
+  if (format === undefined) {
+    return "";
+  }
+  let i = 0;
+  const filled = format.replace(/%s/g, () => args[i++] ?? "");
+  const rest = args.slice(i);
+  return [filled, ...rest].join(" ").replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\\\/g, "\\");
+}
+
+/** The programs a command would EXECUTE through an interpreter, one entry per pipeline stage. Three shapes:
+ *    · `{path}`      — a file to read: `bash <path>` / `sh <path>` (leading env assignments and
+ *                      timeout/nice/setsid/nohup/env/exec wrappers allowed, bash's own flags skipped, the
+ *                      script's trailing args NOT mistaken for it), a bare `<path>.sh` head, `. <path>` /
+ *                      `source <path>`, or `bash < <path>` (the stdin channel).
+ *    · `{text}`      — a program that is IN the command: a heredoc fed to a shell.
+ *    · `{path: null}`— "there is a program here and the guard cannot tell WHICH", which the caller turns
+ *                      into an ask rather than silence.
+ *  The executable is read off the BLANKED text; operands off the RAW words of the same stage.
+ *
+ *  THE CHANNEL IS NOT THE OPERAND (#634): an interpreter takes its program from an operand, from stdin
+ *  (`bash < f`, `cat f | bash`), from a heredoc, or from the current shell (`. f`) — and the operand
+ *  resolver saw only the first, so the rest reached execution unread. Corpus frequency of each closed
+ *  here, over 135,505 calls: stdin-file 0, heredoc-to-shell 0, pipe-to-shell 0, dot-source 325. */
+export function scriptTargets(command, blank, clauses) {
+  const found = [];
+  const units = heredocUnits(command, blankComments(command, blankQuoted(command)));
+  for (const clause of clauses) {
+    for (let si = 0; si < clause.stages.length; si += 1) {
+      const stage = clause.stages[si];
       const text = blank.slice(stage.start, stage.end);
       if (!SCRIPT_STAGE_HINT.test(text)) {
         continue;
@@ -1156,10 +1330,12 @@ export function scriptTargets(command, blank, clauses) {
         continue;
       }
       const isShell = SCRIPT_SHELL_EXEC.test(exec[0]);
-      if (!isShell && !exec[0].endsWith(".sh")) {
+      const isSource = SOURCE_EXEC.test(exec[0]);
+      if (!isShell && !isSource && !exec[0].endsWith(".sh")) {
         continue;
       }
-      const words = shellWords(command.slice(stage.start, stage.end));
+      const raw = command.slice(stage.start, stage.end);
+      const words = shellWords(raw);
       const head = words.findIndex((w) => w.start <= exec.index && exec.index < w.start + w.raw.length);
       if (head === -1) {
         // Structurally unreachable (a token found in the blanked text has non-space raw at that index, so
@@ -1167,11 +1343,66 @@ export function scriptTargets(command, blank, clauses) {
         found.push({ path: null, spelling: text.trim() });
         continue;
       }
-      const word = isShell ? shellFileOperand(words.slice(head + 1)) : words[head];
-      if (word === undefined || word === null) {
-        continue; // `bash` on stdin, or a `-c`/`-s` inline string the nested pass owns
+      const vars = assignedVars(command, blank, clauses, stage.start);
+      // `.`/`source` runs the file in the CURRENT shell — same power as `bash <file>`, and its operand is
+      // the first non-flag word. A process substitution there is a program built by another command's
+      // stdout: unknowable, so it asks.
+      if (isSource) {
+        // The FIRST non-flag word, read directly rather than through shellFileOperand: that helper skips
+        // any word beginning with `<` as a redirect, which is exactly how `source <(grep … .env)` used to
+        // slide past — the psub was skipped and grep's PATTERN was returned as the "path".
+        const first = words.slice(head + 1).find((w) => !(w.value.startsWith("-") && w.value !== "-" && w.value !== "--"));
+        if (first === undefined) {
+          continue; // `source` with no operand: the shell errors out, nothing to judge
+        }
+        found.push(PROCESS_SUBSTITUTION.test(first.raw) ? { path: null, stdin: true, spelling: first.raw } : resolveScriptOperand(first, vars));
+        continue;
       }
-      found.push(resolveScriptOperand(word, assignedVars(command, blank, clauses, stage.start)));
+      const word = isShell ? shellFileOperand(words.slice(head + 1)) : words[head];
+      // A process substitution IS the program when nothing else is (`bash <(gen)`): the interpreter reads a
+      // pipe another command fills, so there is no path to resolve and no bytes to read.
+      if (word === undefined && words.slice(head + 1).some((w) => PROCESS_SUBSTITUTION.test(w.raw))) {
+        found.push({ path: null, stdin: true, spelling: text.trim() });
+        continue;
+      }
+      if (word === null) {
+        continue; // a `-c`/`-s` inline string the nested pass owns
+      }
+      if (word !== undefined) {
+        found.push(resolveScriptOperand(word, vars));
+        continue;
+      }
+      // No file operand: the interpreter's program arrives through a CHANNEL. Judge the channel, or say
+      // the guard cannot see it — silence here is an `allow`, and nothing looks after that.
+      const heredoc = stageHeredoc(command, units, stage);
+      if (heredoc !== null) {
+        found.push({ text: heredoc, label: "a heredoc" });
+        continue;
+      }
+      const stdin = raw.match(STDIN_FILE_REDIRECT);
+      if (stdin) {
+        const target = words.find((w) => w.value === stdin[1] || w.raw === stdin[1]);
+        found.push(target === undefined ? { path: null, spelling: stdin[1] } : resolveScriptOperand(target, vars));
+        continue;
+      }
+      if (si > 0) {
+        // A pipe SINK: the previous stage's stdout is the program. `cat <files>` names files that can be
+        // read; anything else is a program the guard cannot see. (`curl … | sh` never reaches here — the
+        // hard floor denies it first.)
+        const prev = clause.stages[si - 1];
+        const prevWords = shellWords(command.slice(prev.start, prev.end));
+        const prevHead = execHead(blank.slice(prev.start, prev.end)).exec?.[0] ?? "";
+        const files = CAT_HEAD.test(prevHead)
+          ? prevWords.slice(1).filter((w) => !w.value.startsWith("-") && !REDIRECT_WORD.test(w.raw))
+          : [];
+        if (files.length > 0) {
+          for (const f of files) {
+            found.push(resolveScriptOperand(f, assignedVars(command, blank, clauses, prev.start)));
+          }
+        } else {
+          found.push({ path: null, stdin: true, spelling: blank.slice(prev.start, prev.end).trim() });
+        }
+      }
     }
   }
   return found;
@@ -1282,12 +1513,13 @@ function offendingLine(body, rule, ctx, depth) {
  *  (rule prefixed `script:` so triage can tell body-sourced verdicts from typed ones); a rewrite becomes
  *  a teaching context, because the guard can rewrite a command and not a file; advisories carry through
  *  attributed. */
-function liftScriptVerdict(script, body, inner, ctx, depth) {
+function liftScriptVerdict(script, body, inner, ctx, depth, describe) {
   if (inner.decision === "deny" || inner.decision === "ask") {
+    const line = offendingLine(body, inner.rule, ctx, depth);
     return {
       decision: inner.decision,
       rule: `script:${inner.rule}`,
-      reason: REASONS.scriptBody(script, offendingLine(body, inner.rule, ctx, depth), inner.reason ?? ""),
+      reason: describe === undefined ? REASONS.scriptBody(script, line, inner.reason ?? "") : REASONS.scriptProgram(describe, line, inner.reason ?? ""),
       contexts: [],
     };
   }
@@ -1301,10 +1533,36 @@ function liftScriptVerdict(script, body, inner, ctx, depth) {
   return { decision: "pass", rule: null, contexts: notes };
 }
 
+/** A program the command text itself carries — a heredoc fed to a shell, or the content a `printf`/heredoc
+ *  writes into a file this same command runs. There is no disk read and no tracked-ness question: what
+ *  executes is right here, so it is classified directly (bounded by the same depth and size fences). */
+function textProgramVerdict(describe, text, ctx, depth) {
+  if (depth >= SCRIPT_DEPTH_CAP) {
+    return { decision: "ask", rule: "script-depth-cap", reason: REASONS.scriptDepthCap(describe), contexts: [] };
+  }
+  if (text.length > SCRIPT_MAX_BYTES) {
+    return { decision: "ask", rule: "script-too-large", reason: REASONS.scriptTooLarge(describe, text.length), contexts: [] };
+  }
+  if (text.trim().length === 0) {
+    return null; // an empty program does nothing
+  }
+  return liftScriptVerdict(describe, text, classify(text, { ...ctx, scriptDepth: depth + 1 }), ctx, depth, describe);
+}
+
 /** @returns {{decision: string, rule: string|null, reason?: string, contexts: string[]}|null} */
-function oneScriptVerdict(operand, ctx, depth) {
+function oneScriptVerdict(operand, ctx, depth, writes) {
   const base = path.isAbsolute(operand) ? "/" : (ctx.cwd ?? ctx.projectDir ?? process.cwd());
   const file = path.resolve(base, operand);
+  // WRITTEN BY THIS COMMAND (#634) — judge what will LAND there, never what is on disk. `printf '…' > x.sh;
+  // bash x.sh` passed clean because the file did not exist yet at classify time, and the re-run case is
+  // worse: the guard reads the PREVIOUS body and the command then overwrites it. When the writer's output
+  // is not visible in the command text there is nothing to read at all, so it asks.
+  const written = writes?.get(file);
+  if (written !== undefined) {
+    return written.content === null
+      ? { decision: "ask", rule: "script-written-opaque", reason: REASONS.scriptOpaqueWriter(file, written.writer), contexts: [] }
+      : textProgramVerdict(`This command WRITES ${file} and then RUNS it`, written.content, ctx, depth);
+  }
   let body;
   try {
     const stat = statSync(file);
@@ -1340,6 +1598,21 @@ function oneScriptVerdict(operand, ctx, depth) {
   return liftScriptVerdict(file, body, classify(body, { ...ctx, scriptDepth: depth + 1 }), ctx, depth);
 }
 
+/** One `scriptTargets` entry → its verdict. Three shapes, and the two that mean "the guard could not see
+ *  the program" are `ask`, never silence: an `allow` is the end of the line (no permission prompt follows
+ *  a PreToolUse allow), so "I did not look" must never read as "I have no objection". */
+function oneTargetVerdict(target, ctx, depth, writes) {
+  if (target.text !== undefined) {
+    return textProgramVerdict(`This interpreter reads its program from ${target.label}`, target.text, ctx, depth);
+  }
+  if (target.path !== null) {
+    return oneScriptVerdict(target.path, ctx, depth, writes);
+  }
+  return target.stdin === true
+    ? { decision: "ask", rule: "script-opaque-stdin", reason: REASONS.scriptOpaqueStdin(target.spelling), contexts: [] }
+    : { decision: "ask", rule: "script-unresolved-operand", reason: REASONS.scriptUnresolvedOperand(target.spelling), contexts: [] };
+}
+
 /** The pre-pass. Any UNEXPECTED throw becomes `defer` per the header's fail-open law — but `defer` ranks
  *  below every real judgement in mergeVerdicts, so it can only ever surface on a command nothing else
  *  objected to. */
@@ -1347,16 +1620,16 @@ function scriptBodyVerdict(command, blank, clauses, ctx) {
   try {
     const depth = ctx.scriptDepth ?? 1;
     // `bash x.sh && bash x.sh` reads once; two DIFFERENT unresolvable spellings still ask separately.
-    const targets = [...new Map(scriptTargets(command, blank, clauses).map((t) => [t.path ?? ` ${t.spelling}`, t])).values()];
+    const targets = [
+      ...new Map(scriptTargets(command, blank, clauses).map((t) => [t.text === undefined ? (t.path ?? ` ${t.spelling}`) : ` text:${t.text}`, t])).values(),
+    ];
     if (targets.length === 0) {
       return null;
     }
+    const writes = commandWrites(command, blank, clauses, ctx);
     let worst = null;
     for (const target of targets) {
-      const verdict =
-        target.path === null
-          ? { decision: "ask", rule: "script-unresolved-operand", reason: REASONS.scriptUnresolvedOperand(target.spelling), contexts: [] }
-          : oneScriptVerdict(target.path, ctx, depth);
+      const verdict = oneTargetVerdict(target, ctx, depth, writes);
       if (verdict === null) {
         continue;
       }
