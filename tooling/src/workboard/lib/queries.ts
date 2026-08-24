@@ -11,7 +11,7 @@ export const CONTEXT_QUERY = `query WorkItemContext($owner: String!, $repo: Stri
     issue(number: $number) {
       id number title url state
       comments(last: 100) { nodes { body } }
-      blockedBy(first: 100) { nodes { number } }
+      blockedBy(first: 100) { nodes { number state } }
       projectItems(first: 10) {
         nodes {
           id
@@ -59,7 +59,7 @@ export const ADD_QUERY = `mutation WorkItemAdd($project: ID!, $content: ID!) {
 }`;
 
 export const BLOCKERS_QUERY = `query WorkItemBlockers($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) { issue(number: $number) { blockedBy(first: 100) { nodes { number } } } }
+  repository(owner: $owner, name: $repo) { issue(number: $number) { blockedBy(first: 100) { nodes { number state } } } }
 }`;
 
 export const ISSUE_ID_QUERY = `query WorkItemIssueId($owner: String!, $repo: String!, $number: Int!) {
