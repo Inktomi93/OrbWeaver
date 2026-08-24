@@ -165,6 +165,8 @@ export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./hom
 export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
 export type { ImageSubject, ImagineSeed } from "./imagery-store.ts";
 export {
+  __readImageryIntentForTest,
+  __resetImageryIntent,
   clearDetailSubject,
   clearEditSubject,
   clearImagineSeed,
