@@ -387,6 +387,24 @@ export const AUTOMATION_BUS_EVENT_TYPES = {
   rulesChanged: true,
 } satisfies Record<AutomationBusEvent["type"], true>;
 
+// S3 — the rule-PRESET wire slice: the committed id tuple + the picker's read model (knob descriptors).
+// A preset is data OVER this action vocabulary — it mints ordinary rules, it adds no arm. The CEL sources
+// and the mint handlers stay domain-side (`domain/automation/contract/presets.ts`).
+export type {
+  RulePresetChoiceKnobDescriptor,
+  RulePresetId,
+  RulePresetKnobDescriptor,
+  RulePresetKnobKind,
+  RulePresetKnobValue,
+  RulePresetKnobValueOf,
+  RulePresetKnobView,
+  RulePresetNumberKnobDescriptor,
+  RulePresetTextKnobDescriptor,
+  RulePresetTextListKnobDescriptor,
+  RulePresetView,
+} from "./presets.ts";
+export { RULE_PRESET_IDS, RULE_PRESET_KNOB_KINDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from "./presets.ts";
+
 // The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.
 // `#prose` imports this to compose `PROSE_SLOTS`; it lives beside the action vocabulary it teaches.
 export { AUTOMATION_PROSE_SLOTS } from "./prose.ts";

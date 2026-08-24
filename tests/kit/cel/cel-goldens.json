@@ -24,5 +24,130 @@
   { "name": "map result", "expr": "{\"k\": vars.mood}", "env": { "vars": { "mood": "grim" } }, "expected": { "k": "grim" } },
   { "name": "missing field no has → skip", "expr": "vars.mood == \"x\"", "env": { "vars": {} }, "error": "eval" },
   { "name": "cross-type cmp → error", "expr": "chat.messageCount > \"5\"", "env": { "chat": { "messageCount": 3 } }, "error": "eval" },
-  { "name": "syntax error → parse error", "expr": "vars.", "env": {}, "error": "parse" }
+  { "name": "syntax error → parse error", "expr": "vars.", "env": {}, "error": "parse" },
+
+  {
+    "name": "law 2: bare modulo over chat.messageCount THROWS (no such overload: dyn<double> % int)",
+    "expr": "chat.messageCount % 4 == 0",
+    "env": { "chat": { "messageCount": 8 } },
+    "error": "eval"
+  },
+  {
+    "name": "law 2: int()-coerced cadence predicate, on the beat",
+    "expr": "int(chat.messageCount) % 4 == 0",
+    "env": { "chat": { "messageCount": 8 } },
+    "expected": true
+  },
+  {
+    "name": "law 2: int()-coerced cadence predicate, off the beat",
+    "expr": "int(chat.messageCount) % 4 == 0",
+    "env": { "chat": { "messageCount": 7 } },
+    "expected": false
+  },
+  {
+    "name": "law 2: bare epoch subtraction THROWS (no such overload: dyn<double> - int)",
+    "expr": "now.epochMs - int(vars.lastBeatMs) > 100",
+    "env": { "now": { "epochMs": 1000 }, "vars": { "lastBeatMs": "500" } },
+    "error": "eval"
+  },
+  {
+    "name": "law 2: int()-coerced epoch subtraction evaluates",
+    "expr": "int(now.epochMs) - int(vars.lastBeatMs) > 100",
+    "env": { "now": { "epochMs": 1000 }, "vars": { "lastBeatMs": "500" } },
+    "expected": true
+  },
+  {
+    "name": "law 2: int()-coerced beat distance evaluates",
+    "expr": "int(chat.messageCount) - int(vars.debtBeat) >= 6",
+    "env": { "chat": { "messageCount": 12 }, "vars": { "debtBeat": "5" } },
+    "expected": true
+  },
+
+  { "name": "law 1: an UNGUARDED int(vars.absent) THROWS (No such key)", "expr": "int(vars.absent) > 0", "env": { "vars": {} }, "error": "eval" },
+  {
+    "name": "law 1: the `!has(x) || …` guard spelling short-circuits to true",
+    "expr": "!has(vars.lastBeatMs) || int(vars.lastBeatMs) > 0",
+    "env": { "vars": {} },
+    "expected": true
+  },
+  {
+    "name": "law 1: the `has(x) && …` guard spelling short-circuits to false",
+    "expr": "has(vars.clock) && int(vars.clock) >= 3",
+    "env": { "vars": {} },
+    "expected": false
+  },
+  {
+    "name": "law 1: the `has(x) && …` guard reads the value when present",
+    "expr": "has(vars.clock) && int(vars.clock) >= 3",
+    "env": { "vars": { "clock": "3" } },
+    "expected": true
+  },
+  {
+    "name": "law 1: has() on an unpopulated fact projection is FALSE, never a throw",
+    "expr": "has(event.message)",
+    "env": { "event": { "type": "chatOpened" } },
+    "expected": false
+  },
+
+  {
+    "name": "content match: an INLINE-FLAG regex is not available in this dialect",
+    "expr": "event.message.content.matches(\"(?i)veil\")",
+    "env": { "event": { "message": { "content": "VEIL" } } },
+    "error": "eval"
+  },
+  {
+    "name": "content match: .contains is sanctioned (the veil marker)",
+    "expr": "event.message.content.contains(\"((veil))\")",
+    "env": { "event": { "message": { "content": "she nods ((veil)) and the hour turns" } } },
+    "expected": true
+  },
+  {
+    "name": "content match: .contains is a literal substring, no regex escaping",
+    "expr": "event.message.content.contains(\"((veil))\")",
+    "env": { "event": { "message": { "content": "she nods and the hour turns" } } },
+    "expected": false
+  },
+  {
+    "name": "content match: .lowerAscii().contains is the case-insensitive form (needle must be lowercase)",
+    "expr": "event.message.content.lowerAscii().contains(\"i promise\")",
+    "env": { "event": { "message": { "content": "I PROMISE I will return" } } },
+    "expected": true
+  },
+  {
+    "name": "content match: startsWith is sanctioned",
+    "expr": "event.message.content.startsWith(\"/\")",
+    "env": { "event": { "message": { "content": "/roll 2d6" } } },
+    "expected": true
+  },
+  {
+    "name": "content match: size() is sanctioned",
+    "expr": "event.message.content.size() > 3",
+    "env": { "event": { "message": { "content": "hello" } } },
+    "expected": true
+  },
+
+  {
+    "name": "preset shape: the clock threshold predicate (§4 #7 R2) fires when full",
+    "expr": "has(vars.clock) && int(vars.clock) >= 4",
+    "env": { "vars": { "clock": "4" } },
+    "expected": true
+  },
+  {
+    "name": "preset shape: the clock threshold predicate is SAFE on the first-ever batch (R1 refused, key absent)",
+    "expr": "has(vars.clock) && int(vars.clock) >= 4",
+    "env": { "vars": {} },
+    "expected": false
+  },
+  {
+    "name": "preset shape: the callback distance predicate (§4 #12 R2) fires D beats later",
+    "expr": "has(vars.debt) && int(vars.debt) > 0 && has(vars.debtBeat) && int(chat.messageCount) - int(vars.debtBeat) >= 8",
+    "env": { "vars": { "debt": "1", "debtBeat": "4" }, "chat": { "messageCount": 12 } },
+    "expected": true
+  },
+  {
+    "name": "preset shape: the callback distance predicate is SAFE with no debt recorded",
+    "expr": "has(vars.debt) && int(vars.debt) > 0 && has(vars.debtBeat) && int(chat.messageCount) - int(vars.debtBeat) >= 8",
+    "env": { "vars": {}, "chat": { "messageCount": 12 } },
+    "expected": false
+  }
 ]
