@@ -72,7 +72,9 @@ export interface AutomationPluginComposeDeps {
   readonly chatCompose: ChatComposeResult;
   /** chat's `resolveViewerVisibility` (membership AND the D16 canon floor) — automation/plugin never re-derive. */
   readonly resolveViewerVisibility: PluginHostOps["chat"]["resolveViewerVisibility"];
-  readonly worldInfo: Pick<WorldInfoService, "upsertEntries">;
+  /** The shared machine writer + the two reads the plugin `worldinfo.write` gates gate on (attachment =
+   *  the room's consent; the entry index = the per-plugin cap's counter). */
+  readonly worldInfo: Pick<WorldInfoService, "upsertEntries" | "listForChat" | "listEntryIndex">;
   readonly notifications: Pick<NotificationsService, "record">;
   readonly imagery: Pick<ImageryService, "generatePicture">;
   readonly settings: Pick<SettingsService, "getUserSettings">;
@@ -265,7 +267,27 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         });
       },
     },
-    worldInfo: automationOps.worldInfo,
+    // The `worldinfo.write` trio: the SHARED writer (automation's op verbatim — one write path) plus the two
+    // gates 02 §2 pairs with it, both read through WORLD-INFO's own front door rather than a second query home.
+    worldInfo: {
+      upsertEntries: automationOps.worldInfo.upsertEntries,
+      // `listForChat` is the room-public attachment list, MEMBER-gated by chat's own guard — so this is also a
+      // live re-check that the installer is still in the room, one belt beyond the invocation-time admission.
+      // A refusal (kicked between admission and write) resolves fail-CLOSED to "not attached".
+      isBookAttachedToChat: async (ownerId, chatId, bookId) => {
+        try {
+          const attached = await worldInfo.listForChat({ principal: await resolveOwnerPrincipal(ownerId), chatId });
+          return attached.some((book) => book.id === bookId);
+        } catch {
+          return false;
+        }
+      },
+      // The lean (title, keys) index — owner-gated on the book by world-info itself.
+      listEntryTitles: async (ownerId, bookId) => {
+        const rows = await worldInfo.listEntryIndex({ principal: await resolveOwnerPrincipal(ownerId), bookId });
+        return rows.map((row) => row.title);
+      },
+    },
     // storage.kv — the plugin-PRIVATE KV.
     storage: buildPluginStorage(db, now),
     // The durable inbox seam.

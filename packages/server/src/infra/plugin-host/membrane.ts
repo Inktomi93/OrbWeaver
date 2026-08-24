@@ -310,7 +310,11 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
       if (!scope.canWrite) {
         throw new Error("plugin host: worldInfo.upsertEntry requires host authority on this chat");
       }
-      await runtime.bridge.worldInfo.upsertEntry(args[1] as PluginWorldEntryUpsert);
+      // The ADMITTED chatId travels with the entry: the guest names the book, the DOMAIN decides whether that
+      // book is attached to THIS room (the room's consent) and applies the per-plugin entry cap. Infra can
+      // enforce neither — it holds no db — so its job is to hand the domain the scope it admitted, never to let
+      // a guest-supplied bookId travel alone.
+      await runtime.bridge.worldInfo.upsertEntry(scope.chatId, args[1] as PluginWorldEntryUpsert);
       return null;
     },
   });

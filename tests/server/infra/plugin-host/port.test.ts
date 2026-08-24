@@ -147,7 +147,7 @@ function fakeBridge(): {
   notices: { recipient: NotificationRecipient; message: string }[];
   chips: { label: string; sendText: string }[][];
   writes: { count: number };
-  lore: { count: number };
+  lore: { count: number; chatIds: ChatId[] };
   pics: { count: number };
   turns: { count: number; lastDepth: number; args: readonly unknown[] };
 } {
@@ -158,7 +158,7 @@ function fakeBridge(): {
   const notices: { recipient: NotificationRecipient; message: string }[] = [];
   const chips: { label: string; sendText: string }[][] = [];
   const writes = { count: 0 };
-  const lore = { count: 0 };
+  const lore = { count: 0, chatIds: [] as ChatId[] };
   const pics = { count: 0 };
   // requestTurn records the args the membrane forwarded — the fake bridge receives ONLY (chatId, depth, p); the
   // FUNDER is closed over domain-side, so its absence here IS the "infra stays authority-blind" proof.
@@ -179,8 +179,9 @@ function fakeBridge(): {
       },
     },
     worldInfo: {
-      upsertEntry: () => {
+      upsertEntry: (chatId) => {
         lore.count += 1;
+        lore.chatIds.push(chatId);
         return Promise.resolve();
       },
     },
@@ -927,6 +928,10 @@ describe("membrane — worldInfo + imagery (host-gated writers)", () => {
     }
     expect(fake.lore.count).toBe(1);
     expect(fake.pics.count).toBe(1);
+    // The ADMITTED chatId crosses WITH the entry (the domain's attachment gate + entry cap need it, and the
+    // guest-supplied bookId must never travel alone — a plugin invoked in chat X could otherwise write a book
+    // attached only to chat Y). It is the resolved handle's chat, never a guest-supplied one.
+    expect(fake.lore.chatIds).toEqual([CHAT]);
     expect(host.readLog(outcome.instance).some((l) => l.message === "pic:asset_generated0000000000000")).toBe(true);
     host.dispose(outcome.instance);
   });

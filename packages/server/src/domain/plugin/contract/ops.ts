@@ -21,7 +21,7 @@ import type {
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
-import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
+import type { ChatId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { AutomationOps } from "#domain/automation";
 import type { ResolveViewerVisibility } from "#domain/chat";
 
@@ -103,8 +103,23 @@ export interface PluginHostOps {
       readonly guided?: string;
     }) => Promise<void>;
   };
-  /** The SHARED, hand-edit-safe world-info writer (the ONE write path). `capability: worldinfo.write`. */
-  readonly worldInfo: AutomationOps["worldInfo"];
+  /** The `worldinfo.write` capability's THREE ops — the writer plus the two gates 02 §2 specifies alongside it
+   *  ("grant + host + book-attached-to-chat + the 64-entry cap"). The grant + host authority are the membrane's;
+   *  these two are the domain's, and they are what keep a `worldinfo.write` grant from reaching rooms the plugin
+   *  was never admitted to. The automation arm gates both (`arm-executors.ts` — `isBookAttachedToChat` +
+   *  `RULE_MAX_ENTRIES_PER_BOOK`); the plugin path gated neither. */
+  readonly worldInfo: {
+    /** The SHARED, hand-edit-safe world-info writer (the ONE write path) — automation's injected type verbatim. */
+    readonly upsertEntries: AutomationOps["worldInfo"]["upsertEntries"];
+    /** Is the guest-named book attached to the ADMITTED chat? The attachment IS the room's consent to that
+     *  book's prompt content, so a plugin invoked in chat X may not write a book attached only to chat Y (both
+     *  can be owned by the same installer, which is all the shared writer's ownership gate can see). Wired at
+     *  compose to world-info's own member-gated `listForChat` front door. */
+    readonly isBookAttachedToChat: (ownerId: UserId, chatId: ChatId, bookId: WorldBookId) => Promise<boolean>;
+    /** The book's existing entry TITLES, for the per-plugin entry ceiling (a looping guest fills a book
+     *  otherwise). Wired at compose to world-info's owner-gated `listEntryIndex`. */
+    readonly listEntryTitles: (ownerId: UserId, bookId: WorldBookId) => Promise<readonly string[]>;
+  };
   /** The plugin-PRIVATE KV plane (`storage.*`; the `plugin_kv` table) — per plugin × installing
    *  owner. DIVERGES from automation (no automation analog): every op is keyed by BOTH `pluginId` AND `ownerId`
    *  (the denormalized guard column), so plugin A can never read plugin B's keys and no cross-owner read is
