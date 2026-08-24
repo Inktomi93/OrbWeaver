@@ -6,26 +6,73 @@
 // This is the `useSlashCommands` shape with ONE difference, and the difference is the reason it is a
 // separate mechanism: a slash runner is imperative and lives in a ref (read at EVENT time, never in
 // render), while a control IS render data — a chip that arrives has to paint. So published lists live in
-// state, keyed by source id, and a publish that is ELEMENT-WISE identical to the last one is a no-op (see
-// `sameControls` — a source re-rendering for its own reasons must not re-render the band, and a DERIVING
-// source must not be able to spin one).
+// state, keyed by source id, and a publish whose controls are CONTENT-equal to the last one is a no-op (see
+// `sameControls` — a source re-rendering for its own reasons must not re-render the band, and a source that
+// REBUILDS its list every render must not be able to spin one).
 
 import type { ReactNode } from "react";
 import { useState } from "react";
-import type { ChatControl, ChatControlSource, ChatRoomSurfaceState, ContributorRegistry } from "#lib";
+import type { ChatControl, ChatControlAction, ChatControlSource, ChatRoomSurfaceState, ContributorRegistry } from "#lib";
 
 /** Empty at module scope: the initial state is one shared frozen map, never a fresh allocation per mount. */
 const NO_CONTROLS: ReadonlyMap<string, readonly ChatControl[]> = new Map();
 
-/** ELEMENT-WISE identity, not array identity — the publish guard's real predicate.
+/** CONTENT equality over the RENDERED fields — the publish guard's predicate, and the reason a source may
+ *  rebuild its list freely.
  *
- *  WHY it is not a `===` on the array: a source that DERIVES its published list (the common shape — a
- *  stable set of controls minus the ones the member dismissed) hands over a fresh array on every render
- *  while every control in it is the same object. Comparing arrays would accept that as "changed", set
- *  state, re-render the band, re-render the source, and publish again — a render loop whose only tell is a
- *  pegged CPU. A source must be able to derive; the guard is where that is made safe. */
+ *  WHY NOT `===` ON THE ARRAY: a source that DERIVES its published list (a stable set minus what the member
+ *  dismissed) hands over a fresh array every render while the controls in it are the same objects.
+ *
+ *  WHY NOT `===` PER ELEMENT EITHER (hardened after review, 2026-08-24): the natural bus-driven source
+ *  rebuilds the control OBJECTS every render too — fresh `run`/`dismiss` closures over the latest state —
+ *  so identity comparison would call every publish a change, re-render the band, re-render the source, and
+ *  publish again: a render loop whose only tell is a pegged CPU. Comparing what the band actually RENDERS
+ *  makes that shape safe, and no visible update can be swallowed because every visible field is compared.
+ *
+ *  WHAT IS DELIBERATELY NOT COMPARED: the closures and a card's `detail` node (a ReactNode is rebuilt per
+ *  render by construction, so comparing it would re-open the loop). An ignored publish therefore KEEPS the
+ *  previous objects — which is why `ChatControlSourceMountProps` states the source's half of the deal: a
+ *  control whose behaviour changes gets a new `id`. */
+function sameAction(a: ChatControlAction, b: ChatControlAction): boolean {
+  if (a.id !== b.id || a.label !== b.label || a.mode !== b.mode) {
+    return false;
+  }
+  if (a.mode === "execute" || b.mode === "execute") {
+    // Both are the execute arm (the modes are equal above), so both carry `pending`; the runner is not
+    // compared (see the header).
+    return a.mode === "execute" && b.mode === "execute" && a.pending === b.pending;
+  }
+  return a.text === b.text;
+}
+
+function sameActions(a: readonly ChatControlAction[], b: readonly ChatControlAction[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((action, i) => {
+      const other = b[i];
+      return other !== undefined && sameAction(action, other);
+    })
+  );
+}
+
+function sameControl(a: ChatControl, b: ChatControl): boolean {
+  if (a.kind !== b.kind || a.id !== b.id) {
+    return false;
+  }
+  if (a.kind === "chip") {
+    return b.kind === "chip" && sameAction(a.action, b.action);
+  }
+  return b.kind === "card" && a.title === b.title && sameActions(a.actions, b.actions);
+}
+
 function sameControls(a: readonly ChatControl[], b: readonly ChatControl[]): boolean {
-  return a.length === b.length && a.every((control, i) => control === b[i]);
+  return (
+    a.length === b.length &&
+    a.every((control, i) => {
+      const other = b[i];
+      return other !== undefined && sameControl(control, other);
+    })
+  );
 }
 
 export interface ChatControlsView {

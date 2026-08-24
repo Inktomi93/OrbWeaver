@@ -136,8 +136,11 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
           </Row>
           {newest.detail}
           <Row gap="field">
+            {/* Keyed by the action's OWN id, never its label: a card may legitimately carry two
+                same-labelled actions (two "Apply" rows over different targets), and a label key collides
+                them into one — which is why the id is a required field on the descriptor. */}
             {newest.actions.map((action) => (
-              <ControlActionButton action={action} as="card" consumer={consumer} key={action.label} />
+              <ControlActionButton action={action} as="card" consumer={consumer} key={action.id} />
             ))}
           </Row>
         </Stack>
@@ -169,8 +172,10 @@ const KIND_STACK: Record<ChatControlKind, (controls: readonly ChatControl[], con
   chip: (controls, consumer) => <ControlChips consumer={consumer} controls={controls} />,
 };
 
-/** The band. Zero live controls ⇒ the source mounts alone (they render nothing) and the band paints NO
- *  chrome — the room reads exactly as it does with the seam absent. */
+/** The band. Zero live controls ⇒ NO `chat-controls` element at all: the source mounts render null, so the
+ *  room's above-composer wrapper is left EMPTY, and that wrapper's `empty:hidden` collapses it out of the
+ *  room's flex column (`chat-room-surface.tsx`) — a registered-but-silent source costs no box and no gap,
+ *  which is the same property zero sources gets from the mount's `when`. */
 export function ChatControlsBand({ chatId, sources }: ChatControlsBandProps): ReactElement {
   const phase = useTurnPhase(chatId);
   // Its OWN send instance (the `ChoiceSendProvider` rule): a control click must never clear or race the
@@ -183,11 +188,17 @@ export function ChatControlsBand({ chatId, sources }: ChatControlsBandProps): Re
     turn: { turnBusy: phase === "pending" || phase === "streaming" || phase === "stopping" || sender.isPending },
   };
   return (
-    <Stack data-slot="chat-controls" gap="row">
+    <>
+      {/* The source fibers sit OUTSIDE the painted box and render null — so "nothing published" leaves an
+          empty wrapper rather than a box with an invisible child, and the collapse above can fire. */}
       {mounts}
-      {CHAT_CONTROL_KINDS.map((kind) => (
-        <Fragment key={kind}>{KIND_STACK[kind](controls, consumer)}</Fragment>
-      ))}
-    </Stack>
+      {controls.length === 0 ? null : (
+        <Stack data-slot="chat-controls" gap="row">
+          {CHAT_CONTROL_KINDS.map((kind) => (
+            <Fragment key={kind}>{KIND_STACK[kind](controls, consumer)}</Fragment>
+          ))}
+        </Stack>
+      )}
+    </>
   );
 }

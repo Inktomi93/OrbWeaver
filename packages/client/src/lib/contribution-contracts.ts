@@ -65,10 +65,17 @@ export type ChatSurfaceContribution =
 // generalization of the click/consume contract `choice-send-provider.tsx` already spells for the `:::choices`
 // fence (own `useSendMessage`, busy from the shared turn phase, a compose default the reader can edit).
 //
-// WHY THE DESCRIPTORS LIVE HERE and not in `features/chat/lib/`: a control SOURCE is a foreign feature
-// (automation chips, a suggestion card, a dice ask) grafting onto chat's above-composer band, so both sides
-// must spell the shape without importing each other — the §6c residency rule, and `client-features-no-cross`
-// makes the alternative RED. Chat owns the MOUNT and the stacking law; a source owns only its descriptors.
+// WHY THE DESCRIPTORS LIVE HERE and not in `features/chat/lib/`, stated precisely (an earlier revision of
+// this header claimed `client-features-no-cross` would make the feature-tier home RED — it would NOT: that
+// rule carries `dependencyTypesNot: ["type-only"]` and its own comment says cross-feature TYPE imports are
+// allowed, `.dependency-cruiser.cjs:134-146`). The two real reasons:
+//   1. ONE HOME, the §6c residency rule — every other contributor family's contract (surface anchors,
+//      context tabs, tool renderers, slash commands, character detail) is declared in this tier-4 file, and
+//      a twelfth family homed somewhere else is the parallel-map shape the lockdown exists to kill.
+//   2. The VALUE half really would be RED. `CHAT_CONTROL_KINDS`/`CHAT_CONTROL_MODES` are runtime consts a
+//      source imports to spell a descriptor; a `features/chat/lib/` home makes that a runtime cross-feature
+//      import (`client-features-no-cross`, error). Type-only would have squeaked through — the values do not.
+// Chat owns the MOUNT and the stacking law; a source owns only its descriptors.
 //
 // The seam is a TWO-LEVEL contribution: the door assembles a STATIC list of sources, and each source
 // publishes a LIVE, changing list of controls from its own fiber (the `SlashCommandContribution` mount
@@ -92,10 +99,18 @@ export type ChatControlMode = (typeof CHAT_CONTROL_MODES)[number];
 
 /** ONE clickable affordance on a control. The text arms carry the string the click sends or composes; the
  *  `execute` arm carries its own runner AND its own pending flag — the source owns the mutation, so only the
- *  source can say whether it is in flight (the host never invents a pending state it cannot observe). */
+ *  source can say whether it is in flight (the host never invents a pending state it cannot observe).
+ *  `id` is the render key and must be unique WITHIN its control: a card may legitimately carry two
+ *  same-labelled actions over different targets, and keying those by label collides them into one. */
 export type ChatControlAction =
-  | { readonly label: string; readonly mode: QuickReplyMode; readonly text: string }
-  | { readonly label: string; readonly mode: Extract<ChatControlMode, "execute">; readonly run: () => void; readonly pending: boolean };
+  | { readonly id: string; readonly label: string; readonly mode: QuickReplyMode; readonly text: string }
+  | {
+      readonly id: string;
+      readonly label: string;
+      readonly mode: Extract<ChatControlMode, "execute">;
+      readonly run: () => void;
+      readonly pending: boolean;
+    };
 
 /** A TRANSIENT control the band renders. `chip` is one affordance in the capped single row; `card` is the
  *  host-tier ask — a title, optional detail, its own actions, and an ALWAYS-PRESENT dismiss (a card that
@@ -116,7 +131,17 @@ export type ChatControl =
  *  `publish` is called from the source's OWN effect with its CURRENT control list (an empty array retires
  *  everything it had raised — that is how a consumed chip disappears), in ARRIVAL order, oldest first: the
  *  band shows the NEWEST card and discloses the rest as a count, so a source that publishes newest-first
- *  would hide the card the member is waiting for. */
+ *  would hide the card the member is waiting for.
+ *
+ *  THE PUBLISH GUARD, and the ONE constraint it puts on you (read this before writing a source). The band
+ *  IGNORES a publish whose controls are CONTENT-equal to the last one — same kind/id/title, same per-action
+ *  id/label/mode/text/pending — because a source that rebuilds its list every render (the natural bus-driven
+ *  shape) would otherwise re-render the band, which re-renders the source, forever. Two things are NOT
+ *  compared, and are therefore yours to keep honest:
+ *   - the ACTION CLOSURES (`run`, `dismiss`) and a card's `detail` node. An ignored publish keeps the
+ *     PREVIOUS objects, so a source must never change what a control DOES (or what its detail shows)
+ *     without also changing a compared field — give the control a new `id` when its behaviour changes.
+ *   - Nothing else: any visible difference is a compared field, so a real update always lands. */
 export interface ChatControlSourceMountProps {
   readonly state: ChatRoomSurfaceState;
   readonly publish: (controls: readonly ChatControl[]) => void;
@@ -124,8 +149,13 @@ export interface ChatControlSourceMountProps {
 
 /** A CONTROL SOURCE (§6c) — a feature raising transient controls into chat's one above-composer band without
  *  importing chat. `mount` is rendered as a COMPONENT (capitalized at the render site) so its hooks — a bus
- *  subscription, a store read, a mutation — live in their own fiber; it renders nothing itself and must be
- *  render-idempotent (a host may mount the set in more than one subtree). */
+ *  subscription, a store read, a mutation — live in their own fiber, and it must be render-idempotent (a
+ *  host may mount the set in more than one subtree).
+ *
+ *  A MOUNT RENDERS `null`. It is a publish-only fiber: the band renders the mounts OUTSIDE its painted box
+ *  precisely so a registered-but-silent source leaves the room's above-composer wrapper EMPTY and the
+ *  wrapper collapses (`empty:hidden`). A mount that paints its own DOM defeats that collapse and puts
+ *  chrome outside the stacking law — raise a control instead. */
 export interface ChatControlSource {
   /** Names this source (the registry key), and namespaces its controls' ids in the band. */
   readonly id: string;

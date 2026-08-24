@@ -2894,8 +2894,10 @@ function ChatsSelectionTitleProbe(): ReactElement {
 // band at all); the fake source publishes from its OWN fiber the way a real one will.
 
 /** Which control set the fake source publishes — one per row of the CT mount matrix. */
-const CHAT_CONTROLS_FIXTURES = ["empty", "chips", "chips-over-cap", "card", "cards-stacked", "mixed", "execute", "execute-pending"] as const;
-export type ChatControlsFixture = (typeof CHAT_CONTROLS_FIXTURES)[number];
+const CHAT_CONTROLS_FIXTURES = ["empty", "chips", "chips-over-cap", "card", "cards-stacked", "mixed", "execute", "execute-pending", "republish"] as const;
+// NOT exported: the CT names its fixture with a string literal, so an exported alias is dead wire
+// (`deps:knip` reds it). The tuple + the derived type stay — the axis is still declared once.
+type ChatControlsFixture = (typeof CHAT_CONTROLS_FIXTURES)[number];
 
 export interface ChatControlsStoryProps {
   /** `none` = an EMPTY source registry (the byte-identical arm). @defaultValue "fake" */
@@ -2906,14 +2908,25 @@ export interface ChatControlsStoryProps {
 
 const CT_CONTROL_SOURCE_ID = "ct-fake-control-source";
 
+/** What the fake source's controls call back into. `run` carries an AMOUNT so the `republish` fixture can
+ *  change a control's BEHAVIOUR while leaving every rendered field identical — the exact case the band's
+ *  publish guard decides (an ignored publish keeps the OLD closure, so the old amount lands). */
+interface CtControlDeps {
+  readonly dismiss: (id: string) => void;
+  readonly run: (amount: number) => void;
+  /** Bumped by the story's drivers; `1` = same rendered fields as `0`, `2` = a changed label. */
+  readonly epoch: number;
+}
+
 /** Builds the fixture's controls. `dismiss`/`run` are the source's OWN handlers — the band never invents
  *  either, so clicking through them proves the wiring, not a story shortcut. */
-function buildCtControls(fixture: ChatControlsFixture, deps: { readonly dismiss: (id: string) => void; readonly run: () => void }): readonly ChatControl[] {
+function buildCtControls(fixture: ChatControlsFixture, deps: CtControlDeps): readonly ChatControl[] {
   const chip = (id: string, label: string, mode: QuickReplyMode, text: string): ChatControl => ({
     kind: "chip",
     id,
-    action: { label, mode, text },
+    action: { id: `${id}-action`, label, mode, text },
   });
+  const runOnce = (): void => deps.run(1);
   switch (fixture) {
     case "empty": {
       return [];
@@ -2932,7 +2945,7 @@ function buildCtControls(fixture: ChatControlsFixture, deps: { readonly dismiss:
           id: "card-recap",
           title: "Recap where we left off?",
           detail: <Text voice="gloss">A short catch-up on the last scene.</Text>,
-          actions: [{ label: "Do it", mode: "execute", run: deps.run, pending: false }],
+          actions: [{ id: "card-recap-do", label: "Do it", mode: "execute", run: runOnce, pending: false }],
           dismiss: (): void => deps.dismiss("card-recap"),
         },
       ];
@@ -2946,7 +2959,7 @@ function buildCtControls(fixture: ChatControlsFixture, deps: { readonly dismiss:
           kind: "card",
           id: "card-mixed",
           title: "Recap where we left off?",
-          actions: [{ label: "Do it", mode: "execute", run: deps.run, pending: false }],
+          actions: [{ id: "card-mixed-do", label: "Do it", mode: "execute", run: runOnce, pending: false }],
           dismiss: (): void => deps.dismiss("card-mixed"),
         },
       ];
@@ -2957,41 +2970,68 @@ function buildCtControls(fixture: ChatControlsFixture, deps: { readonly dismiss:
         kind: "card" as const,
         id: `card-${age}`,
         title: `The ${age} ask`,
-        actions: [{ label: "Do it", mode: "execute" as const, run: deps.run, pending: false }],
+        actions: [{ id: `card-${age}-do`, label: "Do it", mode: "execute" as const, run: runOnce, pending: false }],
         dismiss: (): void => deps.dismiss(`card-${age}`),
       }));
     }
-    default: {
+    case "republish": {
+      // THE PUBLISH-GUARD SPECIMEN. Epoch 0 and 1 render IDENTICALLY (same kind/id/label/mode/pending) and
+      // differ only in the closure's amount; epoch 2 changes the label. So: after a same-content republish
+      // the band must still be holding the epoch-0 control (a click adds 1), and after a changed-content
+      // one it must have adopted the new control (the label changes).
       return [
         {
           kind: "chip",
+          id: "chip-republish",
+          action: {
+            id: "chip-republish-action",
+            label: deps.epoch >= 2 ? "Roll 2d20" : "Roll 1d20",
+            mode: "execute",
+            run: (): void => deps.run(deps.epoch === 0 ? 1 : 10),
+            pending: false,
+          },
+        },
+      ];
+    }
+    default: {
+      // execute / execute-pending. The SEND chip rides along so a test can barrier on the turn actually
+      // being in flight (the send control visibly blocked) before asserting the execute control is not.
+      return [
+        chip("chip-send", "Draw your blade", "send", "I draw my blade."),
+        {
+          kind: "chip",
           id: "chip-execute",
-          action: { label: "Roll 1d20", mode: "execute", run: deps.run, pending: fixture === "execute-pending" },
+          action: { id: "chip-execute-action", label: "Roll 1d20", mode: "execute", run: runOnce, pending: fixture === "execute-pending" },
         },
       ];
     }
   }
 }
 
-/** The fake CONTROL SOURCE: builds its controls once, derives the published list by dropping the dismissed
- *  ones (so a dismiss really retires a card), and republishes on change. Renders an invisible receipt of how
- *  many times an `execute` action ran. */
-function CtControlSource({ publish, fixture }: ChatControlSourceMountProps & { readonly fixture: ChatControlsFixture }): ReactElement {
-  const [ran, setRan] = useState(0);
-  const [dismissed, setDismissed] = useState<readonly string[]>([]);
-  // The controls are built ONCE (stable objects); dismissal is a DERIVED filter over them — deliberately
-  // the shape a real source has, so the band's element-wise publish guard is exercised rather than dodged.
-  const [built] = useState<readonly ChatControl[]>(() =>
-    buildCtControls(fixture, {
-      dismiss: (id) => setDismissed((prev) => (prev.includes(id) ? prev : [...prev, id])),
-      run: () => setRan((n) => n + 1),
-    }),
-  );
-  const controls = dismissed.length === 0 ? built : built.filter((control) => !dismissed.includes(control.id));
+/** The fake CONTROL SOURCE. It REBUILDS its control objects on every render — fresh closures, fresh array,
+ *  the natural bus-driven shape — and publishes them from an effect with no equality of its own. That is
+ *  deliberate: the band's publish guard is the only thing standing between this shape and a render loop, so
+ *  the guard is exercised here rather than dodged. Renders `null`: a source is a publish-only fiber (its
+ *  receipts live in the story, outside the room). */
+function CtControlSource({
+  publish,
+  fixture,
+  epoch,
+  onRan,
+  onDismissed,
+  dismissed,
+}: ChatControlSourceMountProps & {
+  readonly fixture: ChatControlsFixture;
+  readonly epoch: number;
+  readonly onRan: (amount: number) => void;
+  readonly onDismissed: (id: string) => void;
+  readonly dismissed: readonly string[];
+}): null {
+  const controls = buildCtControls(fixture, { dismiss: onDismissed, run: onRan, epoch }).filter((control) => !dismissed.includes(control.id));
   useEffect(() => {
     publish(controls);
   }, [publish, controls]);
-  return <div data-testid="ct-control-source-ran">{ran}</div>;
+  return null;
 }
 
 /** The room + the turn driver: `drive-turn-begin` opens a pending turn slot for this chat — the exact call
@@ -3003,22 +3043,14 @@ function ChatControlsRoom({ surfaceContributors }: { readonly surfaceContributor
     stream: chatStream,
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
   };
-  return (
-    <>
-      <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={NO_TOOL_RENDERERS} />
-      <button
-        type="button"
-        data-testid="drive-turn-begin"
-        onClick={(): void => chatStream.beginTurn(CHAT_ID, { intent: "send", speakerCharacterId: null, targetMessageId: null })}
-      >
-        begin turn
-      </button>
-    </>
-  );
+  return <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={NO_TOOL_RENDERERS} />;
 }
 
-/** The room with the S1 band wired the door's way. */
+/** The room with the S1 band wired the door's way, plus the drivers and receipts the matrix reads. */
 export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatControlsStoryProps): ReactElement {
+  const [ran, setRan] = useState(0);
+  const [epoch, setEpoch] = useState(0);
+  const [dismissed, setDismissed] = useState<readonly string[]>([]);
   const sources = createContributorRegistry<ChatControlSource>(
     "chat-controls",
     source === "none"
@@ -3026,7 +3058,17 @@ export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatCo
       : [
           {
             id: CT_CONTROL_SOURCE_ID,
-            mount: (props): ReactElement => <CtControlSource {...props} fixture={fixture} />,
+            // The MOUNT ELEMENT is a component element; the COMPONENT renders null (the contract).
+            mount: (props): ReactElement => (
+              <CtControlSource
+                {...props}
+                dismissed={dismissed}
+                epoch={epoch}
+                fixture={fixture}
+                onDismissed={(id): void => setDismissed((prev) => (prev.includes(id) ? prev : [...prev, id]))}
+                onRan={(amount): void => setRan((n) => n + amount)}
+              />
+            ),
           },
         ],
   );
@@ -3037,6 +3079,21 @@ export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatCo
         <div style={{ height: 480 }}>
           <ChatControlsRoom surfaceContributors={surfaceContributors} />
         </div>
+        {/* Receipts + drivers, OUTSIDE the room (a source mount renders null by contract). */}
+        <div data-testid="ct-control-source-ran">{ran}</div>
+        <button
+          type="button"
+          data-testid="drive-turn-begin"
+          onClick={(): void => chatStream.beginTurn(CHAT_ID, { intent: "send", speakerCharacterId: null, targetMessageId: null })}
+        >
+          begin turn
+        </button>
+        <button type="button" data-testid="drive-source-republish" onClick={(): void => setEpoch(1)}>
+          republish, same content
+        </button>
+        <button type="button" data-testid="drive-source-relabel" onClick={(): void => setEpoch(2)}>
+          republish, changed content
+        </button>
       </SocketHost>
     </CtDataProviders>
   );
