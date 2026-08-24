@@ -1,9 +1,11 @@
 // Realm setup — the membrane's floor. A fresh QuickJSContext starts with the standard globals;
 // this module turns it into a guest realm: ambient non-determinism is OVERWRITTEN with throwing stubs
-// (Date / Math.random — the only time/entropy sources), and the ONLY thing installed is `orb`, whose
-// single method `host(1)` returns the versioned surface. setTimeout / fetch / process / require are
-// already absent from a bare QuickJS-ng context (spike-verified — no timers, no I/O, no ambient
-// authority); the escape suite pins that they stay absent.
+// (Date / Math.random / performance — the runtime's three ambient time/entropy sources), and the ONLY thing
+// installed is `orb`, whose single method `host(1)` returns the versioned surface. setTimeout / fetch /
+// process / require are already absent from a bare QuickJS-ng context (spike-verified — no timers, no I/O, no
+// ambient authority); the escape suite pins that they stay absent. What a guest CAN still enumerate is pinned
+// as an explicit ALLOW-LIST in realm.test.ts — "absent from a bare context" is not a property this file can
+// assume, it is one a test must assert by name (that assumption is exactly how `performance` shipped live).
 //
 // SCOPE: the surface `orb.host(1)` returns is the DETERMINISM FLOOR only — clock/random/ids/log +
 // version negotiation. The full `PluginHostV1` (chat/worldInfo/tools/net/…) is the membrane's contract
@@ -59,6 +61,17 @@ export class LogRing {
   }
 }
 
+// THE AMBIENT TIME/ENTROPY DENIAL. Every name here is one a bare quickjs-ng context ships with and a guest
+// could otherwise read WITHOUT a capability. `performance` is the one that shipped live for a while: the file
+// header claimed Date/Math.random were "the only time/entropy sources" while `performance.now()` returned a
+// real, monotonic, sub-microsecond clock (measured: 13.469463999999789, and a 2 M-iteration loop moved it).
+// That is a D46 determinism-law violation (clock/PRNG/ids reach the guest ONLY via injected host functions —
+// two runs under identical injected seams were not byte-identical), an entropy source that defeats the
+// injected PRNG, and a precise timer for measuring the DoS deadline and for timing side-channels inside a
+// WASM module whose linear memory every plugin context shares. The stub keeps the NAME (feature-detectable)
+// and kills the reading; `timeOrigin` is dropped with it. The realm allow-list pin in
+// tests/server/infra/plugin-host/realm.test.ts is what makes a FUTURE quickjs-ng bump that adds `crypto` /
+// `Temporal` / `Atomics` go red on arrival instead of shipping the same way.
 const AMBIENT_STUBS = `
   (() => {
     const die = (name) => () => {
@@ -67,6 +80,7 @@ const AMBIENT_STUBS = `
     const D = die("Date"); D.now = die("Date.now"); D.parse = die("Date.parse"); D.UTC = die("Date.UTC");
     globalThis.Date = D;
     Math.random = die("Math.random");
+    globalThis.performance = { now: die("performance.now") };
   })();
 `;
 
