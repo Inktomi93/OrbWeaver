@@ -351,10 +351,10 @@ export class Sandbox implements Disposable {
       this.drop(wrapped);
       return { ok: true, value, logs: this.log.drain() };
     } finally {
-      // `alive`-guarded: the ENDED arm disposes the context inside the try, and touching a dead runtime throws.
-      if (this.ctx.alive) {
-        this.ctx.runtime.removeInterruptHandler();
-      }
+      // Unguarded on purpose: the ENDED arm leaves the context ALIVE (it frees the guest promise handle + the
+      // invocation's deferreds, it does not tear the realm down — see `endInvocation`), so no path inside this
+      // method can reach here with a dead runtime.
+      this.ctx.runtime.removeInterruptHandler();
     }
   }
 
