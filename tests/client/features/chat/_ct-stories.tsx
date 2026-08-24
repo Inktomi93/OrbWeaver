@@ -2510,6 +2510,12 @@ const CT_ATTACH_ASSET_ID = castId<AssetId>("asset_ct_attach");
 /** A valid 1×1 transparent PNG data URL — an ASSET src (own origin) renders it directly (no network, no
  *  `onError` broken-fallback), so the CT can assert the real `<img>` src deterministically. */
 const CT_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+/** A 1024×1536 PORTRAIT image (the `portrait` size preset's exact dimensions) as an SVG data URL: it carries
+ *  its own intrinsic size, so the browser reports naturalWidth/naturalHeight with no network. The circle makes
+ *  a stretch visible as an ellipse (#622 — every image rendered at a forced 16:9 until the fit fix). */
+const CT_PORTRAIT_SVG_DATA_URL = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536"><rect width="1024" height="1536" fill="#222"/><circle cx="512" cy="512" r="400" fill="#eee"/></svg>',
+)}`;
 // A tiny VALID mp4 (ffmpeg lavfi black 16x16, ~1.6 KB) — the #317 video arm needs a source Chromium can
 // actually open: an undecodable stub data URI flips MessageMedia into its broken fallback and the <video>
 // element vanishes before the assertion.
@@ -2542,20 +2548,24 @@ export interface AttachmentMediaStoryProps {
   /** `true` resolves the asset as a VIDEO (#317 — the context carries a `video/mp4` mime, so the block must
    *  pick the native `<video>` arm off the resolved mime; the span/block projection is mime-blind). */
   readonly video?: boolean;
+  /** `true` resolves the asset as a 1024×1536 PORTRAIT image — the geometry arm (#622): the rendered box must
+   *  keep the image's own 2:3 ratio, never the primitive's 16:9 no-dims reservation. */
+  readonly portrait?: boolean;
 }
 
 /** `MessageMediaBlock`'s ASSET arm (#67/#317) over the `AttachmentUrlContext`: the resolved case provides a
  *  `{url, mime}` (renders the gated `<MessageMedia>` image, or the `<video>` arm for a video mime); `empty`
  *  provides an empty map (the `[image]` placeholder degrade). A pure-render story (no data layer — the
  *  context IS the seam). */
-export function AttachmentMediaStory({ empty = false, video = false }: AttachmentMediaStoryProps): ReactElement {
+export function AttachmentMediaStory({ empty = false, video = false, portrait = false }: AttachmentMediaStoryProps): ReactElement {
   const block = {
     kind: "media",
     media: "image",
     src: { kind: "asset", assetId: CT_ATTACH_ASSET_ID },
     alt: "an attached image",
   } as const;
-  const resolved: ResolvedAttachment = video ? { url: CT_MP4_DATA_URL, mime: "video/mp4" } : { url: CT_PNG_DATA_URL, mime: "image/png" };
+  const stillImage: ResolvedAttachment = portrait ? { url: CT_PORTRAIT_SVG_DATA_URL, mime: "image/svg+xml" } : { url: CT_PNG_DATA_URL, mime: "image/png" };
+  const resolved: ResolvedAttachment = video ? { url: CT_MP4_DATA_URL, mime: "video/mp4" } : stillImage;
   const map = new Map<AssetId, ResolvedAttachment>(empty ? [] : [[CT_ATTACH_ASSET_ID, resolved]]);
   return (
     <AttachmentUrlContext value={map}>

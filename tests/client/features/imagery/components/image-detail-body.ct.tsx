@@ -11,6 +11,36 @@ import { DetailFlowStory } from "../_ct-stories.tsx";
 // A 1×1 transparent PNG — an own-origin asset src the media primitive renders without a network fetch.
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
+// #622 — a 1024×1536 PORTRAIT source (the `portrait` size preset) as an SVG data URL: it carries its own
+// intrinsic size, so the browser reports naturalWidth/naturalHeight with no network. The detail lightbox
+// passes NO `dims`, so this is the primitive's no-dims path — it must yield to the image's own ratio.
+const PORTRAIT_SVG = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536"><rect width="1024" height="1536" fill="#222"/><circle cx="512" cy="512" r="400" fill="#eee"/></svg>',
+)}`;
+const PORTRAIT_RATIO = 1024 / 1536;
+const RATIO_PRECISION = 2;
+const VIEWPORTS = [
+  { label: "desktop", width: 1280, height: 900 },
+  { label: "mobile", width: 390, height: 844 },
+] as const;
+
+for (const vp of VIEWPORTS) {
+  test(`#622 (${vp.label}): the detail lightbox paints a 1024×1536 image at its own 2:3 ratio`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    const assetId = mintTypeId(ID_PREFIX.asset);
+    await routeTrpc(page, { "imagery.readProvenance": null });
+    const cmp = await mount(<DetailFlowStory assetId={assetId} chatId={chatId} url={PORTRAIT_SVG} />);
+    const img = cmp.locator('[data-slot="message-media"]');
+    // Barrier on the SETTLED (decoded) image — an <img> with no intrinsic size yet lays out at 0×0.
+    await expect
+      .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth / (el as HTMLImageElement).naturalHeight))
+      .toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+    const box = await img.boundingBox();
+    expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+  });
+}
+
 test("image detail: the provenance strip shows readProvenance data", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
   const assetId = mintTypeId(ID_PREFIX.asset);
