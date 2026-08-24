@@ -60,6 +60,7 @@ import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJu
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
+import { pluginSnippetConsoleSection, pluginsPane } from "#features/plugin";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
@@ -136,7 +137,10 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
 // injected read channel — the body reads through `useTRPC` at render). `CommittedSettingsTab` renders each
 // contribution in its own `<Section kicker>` at the end of the host-ops band, importing nothing from
 // automation; zero contributors leaves the tab byte-identical to a build without the seam.
-const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", [automationRulesSection]);
+const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", [
+  automationRulesSection,
+  pluginSnippetConsoleSection,
+]);
 
 // The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
 // engaged game chat — same door, same injected read channel, same one-directional flow as the tabs above.
@@ -362,6 +366,7 @@ const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   "chat-behavior": chatBehaviorPane,
   connections: connectionsPane,
   automation: automationPane,
+  plugins: pluginsPane,
   admin: adminPane,
 });
 
