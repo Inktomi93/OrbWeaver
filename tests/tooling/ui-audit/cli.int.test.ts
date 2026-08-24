@@ -12,6 +12,8 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 const CLI_TIMEOUT_MS = 90_000;
 /** The RESULT line's node-census total — the denominator every "clean" verdict here rests on (#409). */
 const CENSUS_RE = /census=(\d+)/u;
+/** The REACH denominator (#653) — how many OFFERED controls the viewport-bound families measured. */
+const REACHED_RE = /reached=[1-9]/u;
 
 function page(bodyStyle: string): string {
   return `<!doctype html>
@@ -264,6 +266,148 @@ test("--upload populates the surface design-audit censuses — clean unuploaded,
   const uploaded = await runCli("ui-audit", ["/upload.html", "--base", `file://${scratch}`, "--upload", `#wrap=${fixture}`], { timeoutMs: CLI_TIMEOUT_MS });
   expect(uploaded.stdout).toContain("contrast");
   await expect(uploaded).toExitWith(1);
+});
+
+// ── CENSUS REACH (#653): below the fold is not unreachable, and unreachable is not silence ──────────
+// @instrument-proof + @instrument-absence-proof. The interactive census required viewport intersection,
+// so every control merely scrolled out of sight fell out of tapTargets, actionDoors AND controlAspects
+// at once — and the run printed the same thing a clean surface prints. Measured on the surface that
+// named the row (the chat "This chat" tab at 430x932): NO document scroll at all, an inner scroller of
+// clientHeight 515 over scrollHeight 2261, ~20 sized controls at top 1073..2374, none censused.
+//
+// Three arms, because the fix has to survive all three: the defect below the fold must FIRE, a control
+// nothing can reach must be COUNTED rather than dropped, and a page where NOTHING is reachable must
+// refuse out loud instead of printing "no findings — clean" over three empty lists.
+// The bands above and below are SIBLINGS, and a second control shares the wrapper — both deliberate.
+// `ownsPoint` credits a control with any point whose owner CONTAINS it, and `sharedCompositeOwns` credits
+// a LONE control with its wrapper's whole extent (the walker's own declared limit), so a bare button
+// floating in a padded wrapper measures 44 no matter how short it is: a fixture without these would be a
+// fence that cannot fail. The live defect has the same shape — the bands around the rule row's disclosure
+// are not owned by it, and the row carries other controls.
+const REACH_CONTROLS =
+  '<div style="height:40px;width:413px">Nudge the pacing</div>' +
+  '<button style="display:block;height:16px;width:413px;padding:0;font-size:16px">Recent activity</button>' +
+  '<div style="height:40px;width:413px">Runs on every message</div>' +
+  '<button style="display:block;height:48px;width:120px;font-size:16px">Run now</button>';
+
+/** A page whose controls live ~900px down an INNER scroller — no document scroll exists, exactly like
+ *  the live surface. `after` rides outside the scroller for the unreachable arm. */
+function innerScrollerPage(after: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>
+<div style="height:400px;width:460px;overflow:auto"><div style="height:1600px"><div style="padding-top:900px">${REACH_CONTROLS}</div></div></div>
+${after}
+</main></body></html>`;
+}
+
+/** Fixed past the right edge: no ancestor scroll can bring it in — unreachable, not un-scrolled-to.
+ *  This is the 2026-08-16 phantom class (an off-canvas detail panel at x=431 on a 430px viewport). */
+const OFF_CANVAS_CONTROL = '<button style="position:fixed;inset-inline-start:300vw;top:0;width:20px;height:20px;font-size:16px">p</button>';
+
+test("a 413x16 control below the fold of an INNER scroller REDs — three rule families were blind to it", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "below-fold.html"), innerScrollerPage(""));
+  const res = await runCli("ui-audit", ["/below-fold.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "16px is under the 24px fine-pointer floor — and it is 900px down an inner scroller").toContain("tap-target");
+  // The denominator is not optional: a reader of a reach-bearing run is entitled to both numbers.
+  expect(res.stdout).toContain("skipped-offviewport=0");
+  expect(res.stdout).toMatch(REACHED_RE);
+  // The healthy 48x48 twin sits in the SAME below-fold wrapper and must stay silent — the reveal widened
+  // the census, it did not lower the floor. `tap-target` appears exactly once, for the 16px control.
+  expect(res.stdout.split("tap-target").length - 1, `only the 16px control may fire:\n${res.stdout}`).toBe(1);
+  await expect(res).toExitWith(1);
+});
+
+test("an unreachable control is COUNTED and NAMED on the run — never silently dropped", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "off-canvas.html"), innerScrollerPage(OFF_CANVAS_CONTROL));
+  const res = await runCli("ui-audit", ["/off-canvas.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "the human line must say what was skipped and why").toContain("SKIPPED");
+  expect(res.stdout).toContain("skipped-offviewport=1");
+  // The reachable defect in the same page still fires: counting the phantom did not mute the census.
+  expect(res.stdout).toContain("tap-target");
+});
+
+// @instrument-absence-proof: a page whose ONLY offered control is unreachable has three verdict families
+// resting on empty lists while the text census stays fat — so `census=` looks healthy and the run reads
+// clean. That is #653 one step past where a reveal sweep can rescue it, and it must refuse.
+test("a page where NO offered control can be reached is an INSTRUMENT ERROR, never a clean audit", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "all-off-canvas.html"),
+    `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><p style="font-size:16px;margin:24px">a surface with plenty of text and one unreachable control</p>
+${OFF_CANVAS_CONTROL}
+</main></body></html>`,
+  );
+  const res = await runCli("ui-audit", ["/all-off-canvas.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout, "the gap must name the reach, not the node census — they are different absences").toContain("viewport reach");
+  await expect(res).toExitWith(2);
+});
+
+// ── TYPE-HIERARCHY INVERSION: an alert outweighed by what it bounds (#652) ──────────────────────────
+// @instrument-proof. The fixtures below are the plugin consent screen's OWN markup at two commits, with
+// the computed steps it really rendered — not a synthetic shape. BEFORE 68c5d57d2 the unrecognised-
+// permissions sentence was `<Text role="alert" voice="gloss">` at 10.5px sitting in the same block as raw
+// egress hostnames set in the un-voiced 15px default: the most safety-relevant sentence on the screen,
+// rendered smaller than the machine strings it qualifies. AFTER, `prose` lifts the alert to 13px and the
+// hostnames dropped to the 12px `datumMono` register — the guarantee now outweighs the endpoints.
+//
+// The rule anchors on the ALERT ROLE and nothing else, and that was a MEASURED choice: anchored instead on
+// `data-voice="gloss"` (the issue's other candidate) it fired 21 times across 18 live surfaces, because a
+// gloss caption under a heading or a stat figure is the ratified pattern, not an inversion. Re-measured
+// with the alert anchor: ZERO findings across the same 18 surfaces. The pair below is what keeps that zero
+// honest — a zero from a rule that cannot fire is not a result.
+function consentBlock(alertFontPx: string, hostFontPx: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><div style="padding:24px">
+  <div><span data-voice="label" style="font-size:13px">Reach the network</span></div>
+  <p role="alert" data-voice="gloss" style="font-size:${alertFontPx};margin:8px 0">This plugin asks for 2 permissions this version of Orbweaver doesn't recognise. Update Orbweaver before installing it.</p>
+  <div>
+    <span data-voice="label" style="font-size:13px">Hosts it can reach (2/4)</span>
+    <div><div><span data-voice="${hostFontPx === "15px" ? "" : "datumMono"}" style="font-size:${hostFontPx}">api.example.com</span></div><div><span style="font-size:${hostFontPx}">cdn.example.com</span></div></div>
+  </div>
+</div></main></body></html>`;
+}
+
+test("an alert sentence set smaller than the endpoints it bounds is a caveat-outweighed finding", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "consent-pre.html"), consentBlock("10.5px", "15px"));
+  const res = await runCli("ui-audit", ["/consent-pre.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "a 10.5px alert beside 15px hostnames inverts the reading order of a security argument").toContain("caveat-outweighed");
+  expect(res.stdout, "the finding must name the measured pair, or a reader cannot act on it").toContain("10.5px alert under a 15px sibling");
+  await expect(res).toExitWith(1);
+});
+
+test("the shipped twin is silent — `prose` lifted the alert above the register it bounds", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "consent-post.html"), consentBlock("13px", "12px"));
+  const res = await runCli("ui-audit", ["/consent-post.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "the alert now outweighs the endpoints — flagging it would indict the fix").not.toContain("caveat-outweighed");
+  // The absence is only a verdict when the walk censused nodes at all.
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
+// The false-positive fence, and the reason the gloss anchor was refused: the SAME size relationship in the
+// ratified caption pattern — a quiet explanatory line under the heading or figure it explains — must stay
+// silent. Without an alert role there is no authored claim that the small text bounds the large one.
+test("a quiet caption under the figure it explains is NOT an inversion — the rule is not a caption detector", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "caption.html"),
+    `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><div style="padding:24px">
+  <span data-voice="label" style="font-size:13px">Tokens this week</span>
+  <span data-slot="stat-figure-value" data-voice="datum" style="font-size:24px">128,400</span>
+  <p data-voice="gloss" style="font-size:10.5px">Counted from the last completed turn of every room you host.</p>
+</div></main></body></html>`,
+  );
+  const res = await runCli("ui-audit", ["/caption.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "a caption under a stat figure is what a caption is for — this shape fired 21x app-wide under the gloss anchor").not.toContain(
+    "caveat-outweighed",
+  );
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
 });
 
 test("--upload refuses a path OUTSIDE the repo/scratchpad boundary — loudly, never a silent no-op", async ({ runCli, scratch }) => {

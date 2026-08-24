@@ -86,7 +86,15 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
 
   return (
     <Stack gap="block" padding="block">
-      <MessageMedia src={{ kind: "asset", url: subject.url }} media="image" alt={subject.alt} className="mx-auto" />
+      {/* #654: the subject's stored dims reserve the true box, so the modal opens at the image's size
+          instead of collapsing to 0×0 and reflowing when the bytes land. Absent dims still render. */}
+      <MessageMedia
+        src={{ kind: "asset", url: subject.url }}
+        media="image"
+        alt={subject.alt}
+        {...(subject.dims === undefined ? {} : { dims: subject.dims })}
+        className="mx-auto"
+      />
       <Section kicker="Details">
         <ProvenanceStrip assetId={subject.assetId} />
       </Section>

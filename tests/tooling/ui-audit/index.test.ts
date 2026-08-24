@@ -14,6 +14,7 @@ import {
   checkAnimatedImgHover,
   checkBgPattern,
   checkBrokenImage,
+  checkCaveatHierarchy,
   checkClippedOverflow,
   checkContrast,
   checkControlAspect,
@@ -995,6 +996,73 @@ test("a rendered face outside the token stacks fires off-theme-font; the token f
   expect(findings[0]?.rule).toBe("off-theme-font");
   expect(findings[0]?.value).toBe("inter");
   expect(checkFontCensus({ families: ["geist", "geist mono"], sizes: [] })).toEqual([]);
+});
+
+// ── the caveat/type-hierarchy-inversion lens (#652) ──────────────────────────
+// The rendered halves live in cli.int.test.ts (the consent screen's own markup at two commits). These pin
+// the FRAMING — the four narrowings that keep the rule from being the wall its first version was. Each
+// exclusion here removed a measured false-positive class from a live sweep, so a green that stops
+// enforcing one is a rule quietly widening back into noise.
+const ALERT_CAVEAT: TextStyleInput = {
+  ...TEXT_STYLE_BASE,
+  selector: "p[role=alert]:nth-of-type(1)",
+  alertContext: true,
+  blockPath: [7, 3, 1],
+  directText: "This plugin asks for 2 permissions this version of Orbweaver doesn't recognise.",
+  directTextLen: 78,
+  fontSizePx: 10.5,
+  voice: "gloss",
+};
+const LOUD_HOSTNAME: TextStyleInput = {
+  ...TEXT_STYLE_BASE,
+  selector: "span[data-voice=datumMono]:nth-of-type(1)",
+  blockPath: [9, 8, 3],
+  directText: "api.example.com",
+  directTextLen: 15,
+  fontSizePx: 15,
+  voice: "",
+};
+
+test("an alert sentence outweighed by a same-block sibling fires caveat-outweighed at P2", () => {
+  const findings = checkCaveatHierarchy([ALERT_CAVEAT, LOUD_HOSTNAME]);
+  expect(findings.map((f) => f.rule)).toEqual(["caveat-outweighed"]);
+  expect(findings[0]?.severity).toBe("P2");
+  expect(findings[0]?.selector, "the finding is filed against the whispering alert, not its partner").toBe("p[role=alert]:nth-of-type(1)");
+  expect(findings[0]?.message, "and it must NAME the partner, or nobody can decide which side to change").toContain(
+    "span[data-voice=datumMono]:nth-of-type(1)",
+  );
+});
+
+test("the anchor is the ALERT ROLE, not the gloss voice — the voice arm measured 21 findings on 18 surfaces", () => {
+  expect(checkCaveatHierarchy([{ ...ALERT_CAVEAT, alertContext: false }, LOUD_HOSTNAME])).toEqual([]);
+});
+
+test("a fragment is a qualifier, not a bounding claim — shape is length AND terminal punctuation", () => {
+  const fragment = { ...ALERT_CAVEAT, directText: "since Tuesday", directTextLen: 13 };
+  expect(checkCaveatHierarchy([fragment, LOUD_HOSTNAME])).toEqual([]);
+  const unpunctuated = { ...ALERT_CAVEAT, directText: "This plugin asks for two permissions nobody here recognises" };
+  expect(checkCaveatHierarchy([unpunctuated, LOUD_HOSTNAME])).toEqual([]);
+});
+
+test("the comparison is bounded to ONE BLOCK — a louder node elsewhere on the page is not a partner", () => {
+  expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, blockPath: [40, 41, 42] }])).toEqual([]);
+  // Absent paths DECLINE rather than falling back to a page-wide comparison, which is the wall. The key
+  // is OMITTED, not set to undefined — `exactOptionalPropertyTypes` treats those as different shapes, and
+  // the absent one is what a pre-#652 sample set actually looks like.
+  const { blockPath: _omitted, ...pathless } = ALERT_CAVEAT;
+  expect(checkCaveatHierarchy([pathless, LOUD_HOSTNAME])).toEqual([]);
+});
+
+test("a heading or a chrome-label voice is never the louder partner — naming a thing larger than its prose is ratified", () => {
+  expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, isHeading: true }])).toEqual([]);
+  for (const voice of ["label", "kicker", "interactiveKicker", "credit"]) {
+    expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, voice }]), `${voice} exists to name the thing beside it`).toEqual([]);
+  }
+});
+
+test("a partner inside one ramp step is not an inversion — the floor is a real step, not a rounding difference", () => {
+  expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, fontSizePx: 11.5 }])).toEqual([]);
+  expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, fontSizePx: 13 }]).map((f) => f.rule)).toEqual(["caveat-outweighed"]);
 });
 
 test("a compressed size spread fires flat-type-hierarchy; the real ramp spread passes", () => {

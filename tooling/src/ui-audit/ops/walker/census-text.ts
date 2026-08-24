@@ -36,6 +36,45 @@ export const WALKER_CENSUS_TEXT = `
     chWidthCache[fontShorthand] = width;
     return width;
   };
+  // ── BLOCK IDENTITY + INTENT, for the type-hierarchy-inversion rule (#652) ────────────────────────
+  // "Semantic importance" is not computable from the DOM, so the rule does not guess it: it reads the
+  // app's OWN vocabulary. \`data-voice\` is emitted by every @orb/ui <Text>/<Heading> (voice is an INTENT —
+  // "what this text IS on the surface" — and the closed axis that replaced choosing size/weight/tone by
+  // taste), and role=alert/alertdialog/status is the platform's own "this bounds what you are about to
+  // do". Both are AUTHORED claims about meaning, not inferences from pixels.
+  //
+  // The comparison also needs to know which two nodes are IN THE SAME BLOCK, and a text sample carries no
+  // tree. So each element gets a stable per-walk id and each sample carries the ids of its nearest few
+  // ancestors; two samples are siblings-in-a-block when those lists intersect. Cheap, DOM-free on the Node
+  // side, and bounded — a global "is there anything bigger on the page" test would flag every caption in
+  // the product, which is the false-positive machine the rule must not be.
+  var BLOCK_ANCESTOR_LEVELS = 4;
+  var CAVEAT_ROLE_CTX = "[role='alert'],[role='alertdialog'],[role='status']";
+  var blockIdSeq = 0;
+  var blockIds = new WeakMap();
+  var blockIdOf = function (element) {
+    var known = blockIds.get(element);
+    if (known !== undefined) return known;
+    blockIdSeq += 1;
+    blockIds.set(element, blockIdSeq);
+    return blockIdSeq;
+  };
+  var blockPathOf = function (element) {
+    var path = [];
+    var anc = element.parentElement;
+    for (var bl = 0; bl < BLOCK_ANCESTOR_LEVELS && anc !== null; bl += 1) {
+      path.push(blockIdOf(anc));
+      anc = anc.parentElement;
+    }
+    return path;
+  };
+  var voiceOf = function (element) {
+    var own = element.getAttribute("data-voice");
+    if (own) return own;
+    var carrier = element.closest("[data-voice]");
+    return carrier ? carrier.getAttribute("data-voice") || "" : "";
+  };
+
   var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   var node;
   while ((node = walker.nextNode())) {
@@ -108,6 +147,10 @@ export const WALKER_CENSUS_TEXT = `
       selector: describe(el),
       tag: tag,
       directTextLen: direct.length,
+      // The element's OWN text, capped. Carried for #652: a bounding SENTENCE and a qualifier FRAGMENT
+      // are the same length-class, and only the terminal punctuation tells them apart — a fact the walker
+      // gathers and the Node side judges, rather than a shape verdict taken in the page.
+      directText: direct.slice(0, 120),
       totalTextLen: (el.textContent || "").trim().length,
       fontSizePx: fontSizePx,
       lineHeightPx: Number.isNaN(lineH) ? null : lineH,
@@ -131,6 +174,10 @@ export const WALKER_CENSUS_TEXT = `
       // \`sr-only\` posture, which keeps a full-size box) or a sub-2px plumbing box.
       srOnly: textHidden || (rect.width <= 2 && rect.height <= 2),
       ariaHidden: ariaHidden,
+      // #652 — the app's own authored INTENT plus enough tree to compare two nodes in one block.
+      voice: voiceOf(el),
+      alertContext: !!el.closest(CAVEAT_ROLE_CTX),
+      blockPath: blockPathOf(el),
     });
 
     // page censuses (impeccable overused-font/flat-type-hierarchy recipe, family list rebound
