@@ -272,7 +272,7 @@
           ]
         }
       ],
-      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation \u2014 R1-R5 costed options for the owner pick.",
       "evidence": [
         "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
         "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
@@ -288,7 +288,7 @@
       "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
       "verifiedAt": "2026-08-18",
       "evidence": [
-        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 \u2014 the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
         "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
       ],
       "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
@@ -314,7 +314,7 @@
       "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
       "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session \u2014 lane lens-triage #210; 70 hits classified with path:line receipts)",
         "pnpm check:docs (2026-08-19: green)"
       ],
       "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
@@ -638,9 +638,9 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "full read 1-189 by the orchestrator (2026-08-22) before attestation",
-        "9 evidence pairs under reports/snaps/ce-* (gitignored); decode scripts reports/tmp-color-evidence/; no verdict offered by design — the owner rules"
+        "9 evidence pairs under reports/snaps/ce-* (gitignored); decode scripts reports/tmp-color-evidence/; no verdict offered by design \u2014 the owner rules"
       ],
-      "summary": "Colorization-axis evidence for #431: the axis = two border tokens (alpha ×3.5, neutral→amber); chrome-only on every surface except the histogram/heatmap family (grid contrast +43% dark/+19% light; heatmap low-end IS the border token so ON collapses its hue ramp); no text contrast moves; design-audit blind to the axis; one independent defect found (charts don't repaint on toggle — #503).",
+      "summary": "Colorization-axis evidence for #431: the axis = two border tokens (alpha \u00d73.5, neutral\u2192amber); chrome-only on every surface except the histogram/heatmap family (grid contrast +43% dark/+19% light; heatmap low-end IS the border token so ON collapses its hue ramp); no text contrast moves; design-audit blind to the axis; one independent defect found (charts don't repaint on toggle \u2014 #503).",
       "claims": [
         {
           "claim": "The evidence is attached to the live decision row and the independent defect is tracked.",
@@ -671,7 +671,7 @@
         "reports/ receipts gitignored, referenced by path; retractions published in-report",
         "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved"
       ],
-      "summary": "Rail sweep 4/10 — Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
+      "summary": "Rail sweep 4/10 \u2014 Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
       "claims": [
         {
           "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
@@ -714,7 +714,7 @@
         "reports/ receipts gitignored, referenced by path; retractions published in-report",
         "retraction block re-read 2026-08-22: the P1 arm table re-derived as a p50-glyph instrument artifact (#508, fixed in pixel-backdrop.ts); the BACKGROUND_DIM_MIN contract finding preserved as real (#487)"
       ],
-      "summary": "Rail sweep 3/10 — Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
+      "summary": "Rail sweep 3/10 \u2014 Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
       "claims": [
         {
           "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
@@ -754,9 +754,9 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "full read 1-477 by the orchestrator (2026-08-22) before attestation",
-        "receipts under reports/ (snaps, perf-meter, recordings, lighthouse — gitignored artifacts, referenced by path); 9 retractions published in-report"
+        "receipts under reports/ (snaps, perf-meter, recordings, lighthouse \u2014 gitignored artifacts, referenced by path); 9 retractions published in-report"
       ],
-      "summary": "Rail sweep 1/10 — home: SHIP WITH FIXES (32/40); a11y/contrast layers held (Lighthouse a11y 100 both devices, 13 contrast handles 0 FAIL); findings filed as #453 #454 #457 #458 with #455/#456 owner forks; empty/error states unreached read-only (seeded first-run pass recommended).",
+      "summary": "Rail sweep 1/10 \u2014 home: SHIP WITH FIXES (32/40); a11y/contrast layers held (Lighthouse a11y 100 both devices, 13 contrast handles 0 FAIL); findings filed as #453 #454 #457 #458 with #455/#456 owner forks; empty/error states unreached read-only (seeded first-run pass recommended).",
       "claims": [
         {
           "claim": "Every finding the review identifies is tracked as a live board row or an owner decision, and the two coverage gaps (empty/first-run, error state) are stated in-report rather than papered over.",
@@ -802,10 +802,10 @@
         "full read 1-748 by the orchestrator (2026-08-22) before attestation",
         "wedge-window receipts discarded and re-taken per the report's own timing section; 6 retractions published incl. the reviewer's own Light-theme misread"
       ],
-      "summary": "Rail sweep 2/10 — Presets: SHIP WITH FIXES (29/40); P1 keyboard-activation hazard + 9 P2s incl. a re-opened header-width ruling; findings filed as #481-#484 with #485 the ListRow-accent owner fork; contrast/overflow/motion/perf layers all held under an 8-variant matrix.",
+      "summary": "Rail sweep 2/10 \u2014 Presets: SHIP WITH FIXES (29/40); P1 keyboard-activation hazard + 9 P2s incl. a re-opened header-width ruling; findings filed as #481-#484 with #485 the ListRow-accent owner fork; contrast/overflow/motion/perf layers all held under an 8-variant matrix.",
       "claims": [
         {
-          "claim": "Every finding is tracked as a live board row or an owner decision; the two axe/design-audit systemic questions are dispositioned (accent → #485; label-content-name FP → sweep-brief boilerplate).",
+          "claim": "Every finding is tracked as a live board row or an owner decision; the two axe/design-audit systemic questions are dispositioned (accent \u2192 #485; label-content-name FP \u2192 sweep-brief boilerplate).",
           "evidence": [
             {
               "kind": "issue",
@@ -868,7 +868,9 @@
           ]
         }
       ],
-      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
+      "evidence": [
+        "full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"
+      ],
       "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
     },
     {
@@ -923,6 +925,118 @@
       ]
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md",
+      "assignedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
+      "verifiedCommit": "4c345cef36c68d294066292f5ca5266eea0cd0ac",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md:1-191 full read at 4c345cef3 (authoring 367a6a6df + frontmatter vocab fix) (orchestrator transcribed the se-verify-1 lane's inline report verbatim; per-item receipts are the lane's live-driven measurements)",
+        "verdict SHIP: 7/7 chat items + #491/#493 CONFIRMED live; #492 half-refuted by documented design; 11 findings filed as GitHub issues #517-#525 (+#524 tooling)",
+        "GitHub issues #487 #490 #491 #492 #493 closed on this report's verdicts; residual rows #517-#525 carry the findings"
+      ],
+      "claims": [
+        {
+          "claim": "The wave-1 rail-sweep fixes (#487 #490 #491 #492 #493) render as claimed on live main post-merge; the residual defects are enumerated as filed issues, not left implicit.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:81"
+            },
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/settings/appearance.ts:59"
+            }
+          ]
+        }
+      ],
+      "summary": "se-verify-1 live verification of the wave-1 rail-sweep fix set (#487 #490 #491 #492 #493): SHIP \u2014 7/7 chat items confirmed, #491/#493 confirmed with wording corrections, #492 half-refuted by documented design; 11 residual findings filed (#517-#525); also records the silent vite-watcher wedge (#524) cleared mid-pass."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md",
+      "assignedSha256": "33f4d3ed1eec0a939a3f390b6a3dc5349e8c538763c2491a6fb82b151139278c",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "33f4d3ed1eec0a939a3f390b6a3dc5349e8c538763c2491a6fb82b151139278c",
+      "verifiedCommit": "9e3f81cf0e4dcc4c7b3220f8600f1083f1bd1d52",
+      "verifiedAt": "2026-08-23",
+      "summary": "rail-corpus populated-arm companion (the gated sweep's real premise): re-derives the empty-arm findings (2 of 3 P1s die with population), triages #544 (walker FP confirmed both ways), and files the populated-only set (#552-#558 lineage: model economics, 56k-px similarity, stale-failure rail, denominators).",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md full read at the landing commit (orchestrator transcription of the rail-corpus-2 lane's report; per-finding receipts are the lane's live-driven measurements)",
+        "GitHub issues #535-#537 re-derived + #552-#558 filed from this report; #544 closed on its \u00a72-3"
+      ],
+      "claims": [
+        {
+          "claim": "The populated corpus findings and re-derivations are receipted as written; filed issues carry the lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/discovery/lib/corpus-charts.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-23-rail-corpus.md",
+      "assignedSha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
+      "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
+      "verifiedAt": "2026-08-23",
+      "summary": "RAIL sweep 5/10 (Corpus): SHIP WITH FIXES 23/40 \u2014 reviewed the FIRST-RUN state because the dev db was auto-reset 5 min before the sweep (the gated populated-corpus premise destroyed; #533); P1 trio converges on the CONTEXT panel; 5 retractions + the nested-card walker FP row.",
+      "evidence": [
+        "URGENT half: identified the 01:27 db reset + the pruning risk on the pre-reset backup (rescued out-of-band, #533)",
+        "P1 x3 -> #535 \u00b7 P2 x7 -> #536 \u00b7 P3+ARIA -> #537 \u00b7 nested-card avatar-stack FP (11/12 false) -> #538",
+        "5 retractions recorded incl. two instrument-limit kills; populated-arm re-sweep owed after #533 resolves"
+      ],
+      "claims": [
+        {
+          "claim": "The report's verdicts and findings are receipted as written; its filed issues carry the mutable lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-23-verify-wave3.md",
+      "assignedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
+      "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
+      "verifiedAt": "2026-08-23",
+      "summary": "se-verify-2 live verification of the wave-3 fix set: SHIP WITH FIXES \u2014 11/12 confirmed, workloads item refuted by the 01:27 db reset; the load-bearing axe receipt reframes #512 as a list-row accname-contract decision; findings N1-N6 filed (#541 #542 + #512 riders).",
+      "evidence": [
+        "11/12 CONFIRMED with computed/pixel receipts (framebuffer decided #522 after a UA-shadow pseudo computed-style retraction)",
+        "Lighthouse 13.4.1 axe receipt: label-content-name-mismatch fires on ALL rows (subtitle-in-button, aria-describedby) \u2014 pre-existing list-row condition, #517 strict improvement",
+        "fixture caveat recorded: driven on the post-reset seed db (~100x smaller than lane measurements); Emily collision seeded to test #517",
+        "GitHub issues #501 #502 #511 #513 #517-#523 #525 closed on these verdicts; #512 reframed; #541 #542 filed"
+      ],
+      "claims": [
+        {
+          "claim": "The report's verdicts and findings are receipted as written; its filed issues carry the mutable lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md",
       "assignedSha256": "449c44910c887265f569af68ed2504b73a527cc7e35916dee6c4b4c668b4720b",
       "disposition": "needs-owner",
@@ -965,10 +1079,10 @@
         "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
         "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
       ],
-      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 — awaiting detailed-mockup sign-off (#159), nothing builds before it.",
+      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 \u2014 awaiting detailed-mockup sign-off (#159), nothing builds before it.",
       "claims": [
         {
-          "claim": "Owner picked Observatory V1; detailed mockups gate any build — mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
+          "claim": "Owner picked Observatory V1; detailed mockups gate any build \u2014 mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
           "evidence": [
             {
               "kind": "issue",
@@ -995,7 +1109,7 @@
         "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
         "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
       ],
-      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
+      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) \u2014 all resolved at merge.",
       "claims": [
         {
           "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
@@ -1070,7 +1184,9 @@
       "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
       "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
       "verifiedAt": "2026-08-21",
-      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
+      "evidence": [
+        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"
+      ],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
       "claims": [
         {
@@ -1093,6 +1209,112 @@
       ]
     },
     {
+      "path": "docs/reviews/stickler/2026-08-23-interaction-redesign-plan.md",
+      "assignedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:571-588 (\u00a710 PROVENANCE) cites the 2026-08-23 plan/audit lineage as superseded provenance",
+        "landed uncommitted from the 2026-08-23 stickler lanes; committed as provenance at dd1921de7"
+      ],
+      "summary": "Superseded lineage: the 2026-08-23 interaction redesign plan draft; consolidated into docs/design/interaction-direction-spec.md (spec \u00a710 names it as provenance). Reading-material status: superseded by the spec; kept as the argument record."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-23-interaction-systems-audit.md",
+      "assignedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:571-588 (\u00a710) cites the 2026-08-23 lineage",
+        "committed as provenance at dd1921de7"
+      ],
+      "summary": "Superseded lineage: the 2026-08-23 interaction systems audit; its findings were folded through the 2026-08-24 panel into the committed spec (spec \u00a710). Kept as the argument record."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-automation-platform-axes.md",
+      "assignedSha256": "75a62e9914be411a9665510dcf51367fbe652f2f6ae62c51fcc9e50d8f4b03ee",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "75a62e9914be411a9665510dcf51367fbe652f2f6ae62c51fcc9e50d8f4b03ee",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:576-579 (\u00a710) names this doc and its adjudication counts",
+        "committed as provenance at dd1921de7"
+      ],
+      "summary": "Provenance for the committed interaction spec: the platform-axes born-whole audit + the stale-claim lens (41 claims checked, 6 stale). Conclusions live in the spec (\u00a73-S3 scope axis, \u00a78 platform re-scope); this doc carries the arguments and the proposed Documentation-Law rule (\u00a77)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification-RULED.md",
+      "assignedSha256": "2521c4a2e6282fcf7b4580769be8a7c1b34b6c35e33b87c3cb4e5ec01f1bbd0c",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "2521c4a2e6282fcf7b4580769be8a7c1b34b6c35e33b87c3cb4e5ec01f1bbd0c",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:9-14 (header: the four review documents are PROVENANCE, never required reading)",
+        "committed as provenance at dd1921de7"
+      ],
+      "summary": "Provenance: the five-lens panel output with owner rulings folded (39 findings adjudicated, 6 structural refolds). Superseded as reading material by docs/design/interaction-direction-spec.md, which consolidates it (spec header + \u00a710)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification.md",
+      "assignedSha256": "052aaa3ff2008f977110d1955b211b8d379d2c1710f375efb58d8fbf39029563",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "052aaa3ff2008f977110d1955b211b8d379d2c1710f375efb58d8fbf39029563",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:571-575 (\u00a710) names final-interaction-specification[-RULED] as consolidated provenance",
+        "committed as provenance at dd1921de7"
+      ],
+      "summary": "Provenance: the pre-RULED five-lens panel draft; superseded by the -RULED revision and then by the committed spec (spec \u00a710)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-interaction-ia-placement.md",
+      "assignedSha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:576-577 (\u00a710) names interaction-ia-placement.md",
+        "committed as provenance at dd1921de7"
+      ],
+      "summary": "Provenance: every HOME in the spec's \u00a77 path tables derives from this IA placement doc (one adversarial round, 7 findings folded \u2014 spec \u00a710)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-plugin-automation-juice.md",
+      "assignedSha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:579-581 (\u00a710) names plugin-automation-juice.md and its round counts",
+        "docs/design/interaction-direction-spec.md:439-444 (the graveyard) points at this doc for full arguments",
+        "committed as provenance at dd1921de7"
+      ],
+      "summary": "Provenance: the preset-catalogue ideation corpus (three fable generations, two fun-honesty passes, a completed two-lens law/cost round \u2014 16 findings, twelve survivors changed) behind the spec \u00a74 catalogue and its graveyard."
+    },
+    {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
       "assignedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
       "disposition": "current",
@@ -1106,7 +1328,7 @@
         "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
         "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
         "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
-        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97"
+        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) \u2014 re-attested post-merge 0cecddf97"
       ],
       "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
       "claims": [
@@ -1140,16 +1362,16 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
-        "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
+        "the two ZEROES are graded in the document itself \u2014 a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
         "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
         "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
-        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)",
-        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section — 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
+        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING \u00a74.5)",
+        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section \u2014 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
       ],
       "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
       "claims": [
         {
-          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row — a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
+          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row \u2014 a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
           "evidence": [
             {
               "kind": "issue",
@@ -1166,7 +1388,7 @@
           ]
         },
         {
-          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row — the §3 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
+          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row \u2014 the \u00a73 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
           "evidence": [
             {
               "kind": "gate",
@@ -1225,7 +1447,7 @@
       "verifiedAt": "2026-08-22",
       "claims": [
         {
-          "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 — SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
+          "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 \u2014 SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
           "evidence": [
             {
               "kind": "issue",
@@ -1242,118 +1464,6 @@
         "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search"
       ],
       "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md",
-      "assignedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
-      "verifiedCommit": "4c345cef36c68d294066292f5ca5266eea0cd0ac",
-      "verifiedAt": "2026-08-22",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md:1-191 full read at 4c345cef3 (authoring 367a6a6df + frontmatter vocab fix) (orchestrator transcribed the se-verify-1 lane's inline report verbatim; per-item receipts are the lane's live-driven measurements)",
-        "verdict SHIP: 7/7 chat items + #491/#493 CONFIRMED live; #492 half-refuted by documented design; 11 findings filed as GitHub issues #517-#525 (+#524 tooling)",
-        "GitHub issues #487 #490 #491 #492 #493 closed on this report's verdicts; residual rows #517-#525 carry the findings"
-      ],
-      "claims": [
-        {
-          "claim": "The wave-1 rail-sweep fixes (#487 #490 #491 #492 #493) render as claimed on live main post-merge; the residual defects are enumerated as filed issues, not left implicit.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:81"
-            },
-            {
-              "kind": "code",
-              "target": "packages/contracts/src/settings/appearance.ts:59"
-            }
-          ]
-        }
-      ],
-      "summary": "se-verify-1 live verification of the wave-1 rail-sweep fix set (#487 #490 #491 #492 #493): SHIP — 7/7 chat items confirmed, #491/#493 confirmed with wording corrections, #492 half-refuted by documented design; 11 residual findings filed (#517-#525); also records the silent vite-watcher wedge (#524) cleared mid-pass."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-23-verify-wave3.md",
-      "assignedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
-      "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
-      "verifiedAt": "2026-08-23",
-      "summary": "se-verify-2 live verification of the wave-3 fix set: SHIP WITH FIXES — 11/12 confirmed, workloads item refuted by the 01:27 db reset; the load-bearing axe receipt reframes #512 as a list-row accname-contract decision; findings N1-N6 filed (#541 #542 + #512 riders).",
-      "evidence": [
-        "11/12 CONFIRMED with computed/pixel receipts (framebuffer decided #522 after a UA-shadow pseudo computed-style retraction)",
-        "Lighthouse 13.4.1 axe receipt: label-content-name-mismatch fires on ALL rows (subtitle-in-button, aria-describedby) — pre-existing list-row condition, #517 strict improvement",
-        "fixture caveat recorded: driven on the post-reset seed db (~100x smaller than lane measurements); Emily collision seeded to test #517",
-        "GitHub issues #501 #502 #511 #513 #517-#523 #525 closed on these verdicts; #512 reframed; #541 #542 filed"
-      ],
-      "claims": [
-        {
-          "claim": "The report's verdicts and findings are receipted as written; its filed issues carry the mutable lifecycle.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-23-rail-corpus.md",
-      "assignedSha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
-      "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
-      "verifiedAt": "2026-08-23",
-      "summary": "RAIL sweep 5/10 (Corpus): SHIP WITH FIXES 23/40 — reviewed the FIRST-RUN state because the dev db was auto-reset 5 min before the sweep (the gated populated-corpus premise destroyed; #533); P1 trio converges on the CONTEXT panel; 5 retractions + the nested-card walker FP row.",
-      "evidence": [
-        "URGENT half: identified the 01:27 db reset + the pruning risk on the pre-reset backup (rescued out-of-band, #533)",
-        "P1 x3 -> #535 · P2 x7 -> #536 · P3+ARIA -> #537 · nested-card avatar-stack FP (11/12 false) -> #538",
-        "5 retractions recorded incl. two instrument-limit kills; populated-arm re-sweep owed after #533 resolves"
-      ],
-      "claims": [
-        {
-          "claim": "The report's verdicts and findings are receipted as written; its filed issues carry the mutable lifecycle.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md",
-      "assignedSha256": "33f4d3ed1eec0a939a3f390b6a3dc5349e8c538763c2491a6fb82b151139278c",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "33f4d3ed1eec0a939a3f390b6a3dc5349e8c538763c2491a6fb82b151139278c",
-      "verifiedCommit": "9e3f81cf0e4dcc4c7b3220f8600f1083f1bd1d52",
-      "verifiedAt": "2026-08-23",
-      "summary": "rail-corpus populated-arm companion (the gated sweep's real premise): re-derives the empty-arm findings (2 of 3 P1s die with population), triages #544 (walker FP confirmed both ways), and files the populated-only set (#552-#558 lineage: model economics, 56k-px similarity, stale-failure rail, denominators).",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md full read at the landing commit (orchestrator transcription of the rail-corpus-2 lane's report; per-finding receipts are the lane's live-driven measurements)",
-        "GitHub issues #535-#537 re-derived + #552-#558 filed from this report; #544 closed on its §2-3"
-      ],
-      "claims": [
-        {
-          "claim": "The populated corpus findings and re-derivations are receipted as written; filed issues carry the lifecycle.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/discovery/lib/corpus-charts.ts:1"
-            }
-          ]
-        }
-      ]
     }
   ]
 }

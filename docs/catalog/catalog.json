@@ -24687,6 +24687,239 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-23-interaction-redesign-plan.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 365,
+      "bytes": 33921,
+      "sha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-23"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-23-interaction-redesign-plan.md",
+        "assignedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
+        "disposition": "superseded",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
+        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+        "verifiedAt": "2026-08-24",
+        "evidence": [
+          "docs/design/interaction-direction-spec.md:571-588 (§10 PROVENANCE) cites the 2026-08-23 plan/audit lineage as superseded provenance",
+          "landed uncommitted from the 2026-08-23 stickler lanes; committed as provenance at dd1921de7"
+        ],
+        "summary": "Superseded lineage: the 2026-08-23 interaction redesign plan draft; consolidated into docs/design/interaction-direction-spec.md (spec §10 names it as provenance). Reading-material status: superseded by the spec; kept as the argument record."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-23-interaction-systems-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 293,
+      "bytes": 24575,
+      "sha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-23"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-23-interaction-systems-audit.md",
+        "assignedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
+        "disposition": "superseded",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
+        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+        "verifiedAt": "2026-08-24",
+        "evidence": ["docs/design/interaction-direction-spec.md:571-588 (§10) cites the 2026-08-23 lineage", "committed as provenance at dd1921de7"],
+        "summary": "Superseded lineage: the 2026-08-23 interaction systems audit; its findings were folded through the 2026-08-24 panel into the committed spec (spec §10). Kept as the argument record."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-automation-platform-axes.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 249,
+      "bytes": 20941,
+      "sha256": "75a62e9914be411a9665510dcf51367fbe652f2f6ae62c51fcc9e50d8f4b03ee",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-24"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-24-automation-platform-axes.md",
+        "assignedSha256": "75a62e9914be411a9665510dcf51367fbe652f2f6ae62c51fcc9e50d8f4b03ee",
+        "disposition": "superseded",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "75a62e9914be411a9665510dcf51367fbe652f2f6ae62c51fcc9e50d8f4b03ee",
+        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+        "verifiedAt": "2026-08-24",
+        "evidence": [
+          "docs/design/interaction-direction-spec.md:576-579 (§10) names this doc and its adjudication counts",
+          "committed as provenance at dd1921de7"
+        ],
+        "summary": "Provenance for the committed interaction spec: the platform-axes born-whole audit + the stale-claim lens (41 claims checked, 6 stale). Conclusions live in the spec (§3-S3 scope axis, §8 platform re-scope); this doc carries the arguments and the proposed Documentation-Law rule (§7)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification-RULED.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 665,
+      "bytes": 70504,
+      "sha256": "2521c4a2e6282fcf7b4580769be8a7c1b34b6c35e33b87c3cb4e5ec01f1bbd0c",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-08-24"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification-RULED.md",
+        "assignedSha256": "2521c4a2e6282fcf7b4580769be8a7c1b34b6c35e33b87c3cb4e5ec01f1bbd0c",
+        "disposition": "superseded",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "2521c4a2e6282fcf7b4580769be8a7c1b34b6c35e33b87c3cb4e5ec01f1bbd0c",
+        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+        "verifiedAt": "2026-08-24",
+        "evidence": [
+          "docs/design/interaction-direction-spec.md:9-14 (header: the four review documents are PROVENANCE, never required reading)",
+          "committed as provenance at dd1921de7"
+        ],
+        "summary": "Provenance: the five-lens panel output with owner rulings folded (39 findings adjudicated, 6 structural refolds). Superseded as reading material by docs/design/interaction-direction-spec.md, which consolidates it (spec header + §10)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 481,
+      "bytes": 45378,
+      "sha256": "052aaa3ff2008f977110d1955b211b8d379d2c1710f375efb58d8fbf39029563",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-08-24"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification.md",
+        "assignedSha256": "052aaa3ff2008f977110d1955b211b8d379d2c1710f375efb58d8fbf39029563",
+        "disposition": "superseded",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "052aaa3ff2008f977110d1955b211b8d379d2c1710f375efb58d8fbf39029563",
+        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+        "verifiedAt": "2026-08-24",
+        "evidence": [
+          "docs/design/interaction-direction-spec.md:571-575 (§10) names final-interaction-specification[-RULED] as consolidated provenance",
+          "committed as provenance at dd1921de7"
+        ],
+        "summary": "Provenance: the pre-RULED five-lens panel draft; superseded by the -RULED revision and then by the committed spec (spec §10)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-interaction-ia-placement.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 208,
+      "bytes": 19254,
+      "sha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-24"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-24-interaction-ia-placement.md",
+        "assignedSha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
+        "disposition": "superseded",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
+        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+        "verifiedAt": "2026-08-24",
+        "evidence": ["docs/design/interaction-direction-spec.md:576-577 (§10) names interaction-ia-placement.md", "committed as provenance at dd1921de7"],
+        "summary": "Provenance: every HOME in the spec's §7 path tables derives from this IA placement doc (one adversarial round, 7 findings folded — spec §10)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-24-plugin-automation-juice.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 273,
+      "bytes": 21578,
+      "sha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-24"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-24-plugin-automation-juice.md",
+        "assignedSha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
+        "disposition": "superseded",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
+        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+        "verifiedAt": "2026-08-24",
+        "evidence": [
+          "docs/design/interaction-direction-spec.md:579-581 (§10) names plugin-automation-juice.md and its round counts",
+          "docs/design/interaction-direction-spec.md:439-444 (the graveyard) points at this doc for full arguments",
+          "committed as provenance at dd1921de7"
+        ],
+        "summary": "Provenance: the preset-catalogue ideation corpus (three fable generations, two fun-honesty passes, a completed two-lens law/cost round — 16 findings, twelve survivors changed) behind the spec §4 catalogue and its graveyard."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
       "lane": "reviews",
       "issue": 7,
