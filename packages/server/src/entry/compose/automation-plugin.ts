@@ -47,7 +47,7 @@ import { loadPresentRole } from "#domain/chat";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import type { PluginHostOps, PluginHostPort, PluginService } from "#domain/plugin";
-import { buildPluginPromptTransform, buildPluginStorage, capFactContent, createNotifyFloor, createPluginService } from "#domain/plugin";
+import { buildPluginPromptTransform, buildPluginStorage, capFactContent, createNotifyFloor, createPluginService, createSnippetGate } from "#domain/plugin";
 import type { SettingsService } from "#domain/settings";
 import type { ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
@@ -441,7 +441,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // The `notify` 60 s floor — process-wide state, minted ONCE here and shared by every activation (the
     // resident-registry precedent); the domain's bridge claims it per `notifications.post`.
     notifyFloor: createNotifyFloor(now),
-    // The snippet gate: the caller's leak-free read/host authority for a chat.
+    // The per-user concurrent-snippet ceiling — same posture as the notify floor: process-wide state minted ONCE
+    // here. `runSnippet` is the one plugin verb a plain member reaches and each call pins a QuickJSContext.
+    snippetGate: createSnippetGate(),
+    // The snippet AUTHORITY seam: the caller's leak-free read/host authority for a chat.
     resolveChatAuthority: async (caller, chatId) => {
       const role = await loadPresentRole(db, chatId, caller.userId);
       return { canRead: role !== null, canWrite: role === "host" };

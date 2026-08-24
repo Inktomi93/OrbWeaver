@@ -10,8 +10,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { NotifyFloor } from "./ops.ts";
-import type { PluginHostOps, PluginRegistrationHandle } from "./ops.ts";
+import type { NotifyFloor, PluginHostOps, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
 import type {
   GetPluginLogParams,
   InstallPluginParams,
@@ -164,6 +163,11 @@ export interface PluginContext {
    *  ONCE at compose (`createNotifyFloor`) and shared by every activation, exactly like the resident registry.
    *  The bridge claims it before each `notifications.post`. */
   readonly notifyFloor: NotifyFloor;
+  /** The per-user concurrent-snippet ceiling — process-wide state, minted ONCE at compose
+   *  (`createSnippetGate`) exactly like the notify floor. `runSnippet` claims a slot for the duration of the run.
+   *  It is the ONLY belt on the member-reachable path that speaks in CONCURRENCY; the transport bucket speaks in
+   *  requests-per-minute and cannot bound how many contexts one member pins at once. */
+  readonly snippetGate: SnippetGate;
 }
 
 /** The plugin lifecycle surface, incl. `runSnippet` (the inline mode). */

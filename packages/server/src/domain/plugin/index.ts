@@ -42,8 +42,9 @@ export {
   PluginCrashedError,
   PluginDowngradeRefusedError,
   PluginNotFoundError,
+  PluginSnippetBusyError,
 } from "./contract/errors.ts";
-export type { PluginActivationScope, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle } from "./contract/ops.ts";
+export type { NotifyFloor, PluginActivationScope, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./contract/ops.ts";
 export type {
   GetPluginLogParams,
   InstallPluginParams,
@@ -57,6 +58,6 @@ export type { PluginLogView, PluginView, SnippetResult } from "./contract/result
 export type { CreateInstanceInput, CreateInstanceOutcome, PluginBudgets, PluginHostPort, PluginService } from "./contract/service.ts";
 export { createPluginService } from "./service.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
-export type { NotifyFloor } from "./contract/ops.ts";
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
+export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
