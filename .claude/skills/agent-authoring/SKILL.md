@@ -72,8 +72,14 @@ sized by **its own model**, not yours.
 > shadows the built-in name — it is unverified whether the skip keys on the name or on built-in identity.
 > If it keys on name, our custom Explore receives no CLAUDE.md at all. Renaming it sidesteps the question.
 
-**Consequence for briefs:** any memory lesson a lane needs must be restated in the brief. The agent
-cannot read your memory.
+> **Amended 2026-08-24 — the auto-memory line above is now only half true here.** Every Orbweaver role
+> sets `memory: project` and its directory is SYMLINKED at the same store the main session writes to,
+> so a role DOES boot with that store's `MEMORY.md` index (first 200 lines / 25KB) in its system prompt
+> and can `Read` any topic file by name. What it still never gets is the topic-file BODIES at launch and
+> the reasoning the orchestrator did around them. See §5.
+
+**Consequence for briefs:** a lane boots with the memory INDEX, never the bodies — so a load-bearing
+lesson is still restated in the brief, or named by its exact topic filename so the lane can read it.
 
 ## §4 Limits and the env vars that move them
 
@@ -99,14 +105,40 @@ Standing conventions:
   five-lane fan-out is the single largest avoidable cost in this project.
 - **Always set `effort`.** It also inherits, so an expensive session silently makes every lane expensive.
 - **Never grant `Agent`.** Roles are leaves by construction, not by instruction.
-- **Grant `SendMessage` only to roles that report mid-run** and are worth resuming as warm legs — it is
-  also what unlocks the sibling roster.
+- **EVERY role gets `SendMessage` (amended 2026-08-24 — supersedes "only to roles that report
+  mid-run").** The old rule looked like cost discipline and was actually a muzzle: it left `side-eye`,
+  `stickler` and `verifier` unable to say anything until their final report. Both halves of the cost
+  case were wrong — a role that never sends pays nothing for holding the tool, and the review roles
+  turn out to be exactly the ones whose mid-run silence is expensive. On 2026-08-24 a verify lane was
+  probing REAL gate files on the shared main tree with no way to announce it; the orchestrator's next
+  broad `git add` swept the probe into a commit and shipped a BLINDED gate (which then reports green
+  forever). The same day a side-eye found `:5173` serving a stale pre-merge build four minutes into a
+  24-minute run and the finding sat undelivered for twenty more while merges landed against it.
+  What the grant is FOR is written into each role body as three cases and nothing else — "I am
+  mutating the shared tree", "the environment is lying", "my premise is refuted" — with the
+  report-at-the-end discipline unchanged. `SendMessage` is also what unlocks the sibling roster and
+  what makes a role resumable as a warm leg.
 - **Security-dominant work never runs on a Fable-tier agent**, and never in the main session.
 
 Adopted 2026-08-14 (the agents-revamp lane): `permissionMode` on the build roles (a lane cannot answer
-a permission prompt — the targeted fix for stalls), `memory: project` on stickler/verifier,
-`mcpServers: ["authentik"]` scoped to security-executor. Still unevaluated: `disallowedTools`,
-in-file `isolation: worktree`.
+a permission prompt — the targeted fix for stalls), `mcpServers: ["authentik"]` scoped to
+security-executor. Still unevaluated: `disallowedTools`, in-file `isolation: worktree`.
+
+**`memory: project` on ALL SEVEN roles (2026-08-24; was stickler/verifier only).** Each role's
+directory is SYMLINKED at the shared project auto-memory store, so a cold lane's system prompt carries
+the real ~290-lesson `MEMORY.md` index instead of an empty file. Two consequences an author must not
+break:
+
+- The scope resolves against the AGENT'S CWD, not the git common dir — verified in the shipped CLI
+  bundle 2.1.241, where the `project` arm returns `join(cwd, ".claude", "agent-memory", <role>)`. So
+  **every worktree needs its own links**; `pnpm agent-memory:link` provisions them and both
+  `.claude/hooks/worktree-setup.sh` and `pnpm worktree:bootstrap` call it. `.claude/agent-memory/` is
+  gitignored, which is why this is a script and not a checked-in symlink.
+- Turning memory on AUTO-ENABLES Read/Write/Edit regardless of the `tools:` list, and the harness
+  injects stock instructions telling the agent to CURATE `MEMORY.md`. Against a shared store that is a
+  destructive default, so **every role body carries an explicit READ-ONLY memory clause that
+  overrides it** plus a consult-your-memory-first line. If you add a role, copy that clause; if you
+  remove it, the role can silently rewrite the whole fleet's index.
 
 **`maxTurns` is BANNED on every agent in this fleet (owner ruling, 2026-08-14, verbatim "hell no").**
 The dispatch model is bigger chunks per agent — area-lanes, 4-8 items, warm continuation legs — chosen

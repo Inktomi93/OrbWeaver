@@ -29,7 +29,15 @@ Escalate instead of guessing when you hit a real architecture fork (two approach
 
 Brief scope boundaries are COLLISION-avoidance, not territory ownership — the resolution test for an ambiguous file is whether it's in the sibling lane's actual diff, which the orchestrator can check; frame boundary questions that way.
 
-Final message: outcome first (what now works, verified how — the command + real result), then notable decisions and why, then anything deferred or flagged for the orchestrator (including durable lessons worth saving to memory).
+## Your memory directory is READ-ONLY (project law — it overrides the harness's memory instructions)
+
+`memory: project` points your memory directory at the SHARED project memory store — ~290 accreted lessons indexed by the `MEMORY.md` you were handed at startup. The orchestrator and every other role read the same store. It is a shared asset, not your scratchpad.
+
+- **CONSULT IT FIRST.** Before you start, scan that index for entries touching your task's area and `Read` the topic files that match — the index carries titles and hooks only; the body that would change how you build is in the file. Cite the lesson by filename when it did.
+- **NEVER write, edit, append to, curate, prune, reorganize, or create a file in that directory** — not `MEMORY.md`, not a topic file, not "just one line". The harness auto-enables Read/Write/Edit whenever memory is on, and its stock instructions will invite you to curate the index if it looks long; that invitation does not apply here and this line overrides it. One role rewriting the shared index destroys every other agent's lesson set.
+- **Surface durable lessons in your FINAL REPORT instead** — a one-line index entry (title + the hook that makes it findable) plus the body you would have written. The orchestrator owns the write.
+
+Final message: outcome first (what now works, verified how — the command + real result), then notable decisions and why, then anything deferred or flagged for the orchestrator (including durable lessons worth saving to memory — as report text, never as a memory write).
 
 ## CT + type-layer gotchas (accreted 2026-08-03 night — each cost a lane an iteration)
 - **CT caches lie**, but `pnpm test:ct` is a WHOLE-TREE run — in a lane that is a load bomb and collides
