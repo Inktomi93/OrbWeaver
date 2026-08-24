@@ -3,6 +3,7 @@
 // on ChatContext, never a sideways import.
 
 import type { Can } from "@orb/contracts/identity";
+import type { UserId } from "@orb/kit/ids";
 import type { AgentToolServer, WireTool } from "#infra/providers";
 import type { CreateAgentToolServer, PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
 import type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./results.ts";
@@ -20,6 +21,16 @@ export interface ToolUseService {
    *  arrive as raw JSON Schema (lifted to zod host-side — PL-B) and the ceiling runs as the INSTALLING
    *  principal (PL-C). A collision is activation-fatal (`ToolNameCollisionError`), never boot-fatal. */
   readonly registerPluginTool: (spec: PluginToolSpec) => PluginToolHandle;
+  /** DIRECT-DRIVE reachability, the TEST half (`substrate/reachability.ts` is the predicate): may `userId`
+   *  point at `name` themselves — in an automation `run_tool` arm, or by attaching it to a turn they host?
+   *  A DIFFERENT question from "may this call run" (that is the `can()` ceiling + the PL-C installer gate at
+   *  invocation): this one asks WHOSE contributor the tool is, and answers `true` only for a plugin the user
+   *  installed themselves. Consumed by automation's mint gate and its per-fire D146-d pause check. */
+  readonly isToolDrivableBy: (name: string, userId: UserId) => boolean;
+  /** DIRECT-DRIVE reachability, the ENUMERATION half: every contributor tool `userId` may drive right now.
+   *  Read-through — a deactivated plugin's tools have already left the registry, so a name that stops being
+   *  drivable stops appearing, and the per-turn attach seam can never hand `resolveTools` a ghost. */
+  readonly listDrivableToolNames: (userId: UserId) => readonly string[];
   /** Resolve caller-supplied names against the registry. Unknown name throws (our wiring bug). */
   readonly resolveTools: (names: readonly string[]) => ResolvedToolSet;
   /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. */

@@ -14,9 +14,23 @@
 // PIPELINE, it never dispatches here) and the three reserved arms — both return a TYPED REFUSAL, never a
 // fabricated success. A refusal is an `arm_error`. The first non-ok outcome aborts the rule's remaining arms
 // (dispatch step 5).
+//
+// `run_tool` (D146) IS DELIBERATELY NARROWER THAN ITS DESIGN, and this note is the correction of record —
+// the automation-platform-axes design §3 says "every builtin AND plugin tool becomes an automation action";
+// as built, the arm admits PLUGIN-sourced tools owned by the RULE AUTHOR and nothing else. Two receipts, so
+// the next reader of that design line finds the reason at the code rather than re-widening it:
+//   • the rpg builtins are TURN-SCOPED registrants and already refuse off a turn
+//     (`domain/rpg/tools/index.ts` returns early when `exec.turnId === null`), so admitting them would buy an
+//     act that can only ever fail — a guaranteed `arm_error` generator, i.e. the exact rot D146-d exists to
+//     prevent, arriving through the front door.
+//   • the only other builtin is imagery's, and generating an image IS the `generate_image` arm below;
+//     admitting it would be two homes for one act, which the constitution merges rather than duplicates.
+// THE SANCTIONED WIDENING DOOR is the reachability predicate in `domain/tool-use/substrate/reachability.ts` —
+// one predicate, plus the capability ceiling a builtin already declares. Not a new arm, not a second registry,
+// and not a special case here.
 
 import type { AutomationAction, QuickReplyMode } from "@orb/contracts/automation";
-import { isConfirmFirstArm } from "@orb/contracts/automation";
+import { AUTOMATION_VARIABLE_VALUE_MAX, isConfirmFirstArm } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -39,6 +53,11 @@ const OK: ArmOutcome = { ok: true };
 function armError(detail: string): ArmOutcome {
   return { ok: false, kind: "arm_error", detail };
 }
+/** D146-d — the arm's CONTRIBUTOR is not available to this rule's author right now. Distinct from
+ *  {@link armError} in exactly one way that matters: it spends no error budget, so a plugin the owner turned
+ *  off cannot rot the rules that name its tools. Only `run_tool` can produce it, and it carries no detail
+ *  because a pause writes no fire row — there is nowhere for one to go. */
+const PAUSED_ARM: ArmOutcome = { ok: false, kind: "paused" };
 
 /** The title a rule's `insert_world_info_entry` arm writes under (ruleId-namespaced idempotency handle). */
 function ruleEntryTitle(frame: DispatchFrame, entryKey: string): string {
@@ -56,14 +75,37 @@ function resolveNumericValue(op: "inc" | "dec", current: string, operandText: st
   return String(op === "inc" ? base + operand : base - operand);
 }
 
+/** THE ONE variable-WRITE seam an arm uses (`set_variable` writes here; `run_tool` captures its result here).
+ *
+ *  WRITE-THROUGH is the load-bearing half and it is why this is a shared helper rather than two similar
+ *  blocks: arms mutate the SHARED env and ORDER IS SEMANTICS. The CEL env is built once per chat per dispatch
+ *  BATCH and cached, so a DB-only write is invisible to later arms in this rule AND to later rules on the same
+ *  chat in this batch — predicates, `inc`/`dec` and every template read `env.vars`. Mirroring the value onto
+ *  the cached map is what makes "order is semantics" true instead of aspirational (it was false once, and a
+ *  later `inc` read the stale pre-write value). The GLOBAL plane needs no mirror: globals are not env-cached,
+ *  so they already compose across arms by being re-read. */
+async function writeArmVariable(
+  deps: ArmExecutorDeps,
+  frame: DispatchFrame,
+  args: { readonly scope: "chat" | "global"; readonly key: string; readonly value: string },
+): Promise<void> {
+  const { scope, key, value } = args;
+  if (scope === "chat") {
+    const ops: readonly VarOp[] = [{ op: "set", key, value }];
+    await deps.ops.chat.applyVariableOps(frame.chatId, ops);
+    frame.env.vars[key] = value;
+    return;
+  }
+  await upsertGlobalVariable(deps.db, { ownerId: frame.authorUserId, key, value, updatedAt: frame.now });
+}
+
 async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "set_variable" }>, frame: DispatchFrame): Promise<ArmOutcome> {
   const { scope, key, op } = action;
   if (op === "delete") {
     if (scope === "chat") {
       await deps.ops.chat.applyVariableOps(frame.chatId, [{ op: "delete", key }]);
-      // WRITE-THROUGH (arms mutate the SHARED env; order IS semantics): the CEL env is built
-      // once per chat per batch and cached. The DB delta alone is invisible to later arms + later rules on the
-      // same chat this batch, so mirror the delete onto the shared in-memory `vars` (a delete is `has()`-false).
+      // WRITE-THROUGH, the delete half (`writeArmVariable` states the rule for the set half): mirror the
+      // delete onto the shared in-memory `vars` too, so a later `has()` in this batch is false.
       delete frame.env.vars[key];
     } else {
       await deleteGlobalVariable(deps.db, frame.authorUserId, key);
@@ -87,17 +129,7 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
     value = resolveNumericValue(op, current, rendered.text);
   }
 
-  if (scope === "chat") {
-    const ops: readonly VarOp[] = [{ op: "set", key, value }];
-    await deps.ops.chat.applyVariableOps(frame.chatId, ops);
-    // WRITE-THROUGH: mirror the resolved value onto the SHARED cached env so both subsequent arms in THIS rule
-    // and later rules on the same chat in THIS batch observe the write (predicates + inc/dec + templates read
-    // `env.vars`). Without this the DB write is invisible until the NEXT batch rebuilds the env (the "order is
-    // semantics" promise was false — a later inc read the stale pre-write value).
-    frame.env.vars[key] = value;
-  } else {
-    await upsertGlobalVariable(deps.db, { ownerId: frame.authorUserId, key, value, updatedAt: frame.now });
-  }
+  await writeArmVariable(deps, frame, { scope, key, value });
   return OK;
 }
 
@@ -303,6 +335,59 @@ async function runSetChatBackground(
   return OK;
 }
 
+// ── 1.9 run_tool (D146 — the CONTRIBUTOR bridge arm) ────────────────────────────────────────────────────
+/** Run a registered tool by name as the rule's AUTHOR, optionally capturing its result into a variable.
+ *
+ *  D146 clause (a): this arm IS the closed/open boundary. The union member is first-party and `tsc`-forced;
+ *  `action.name` is the open-world contributor name. Nothing downstream of here dispatches on that string —
+ *  it is data handed to the registry, which is what keeps every exhaustive switch in this file finite.
+ *
+ *  D146 clause (d): an `unavailable` outcome PAUSES the rule instead of erroring it. The rule passed the mint
+ *  gate, so the name WAS drivable once; `unavailable` therefore means the contributor went away — a disabled,
+ *  upgraded or uninstalled plugin, which is ordinary user action and not a fault. Note that `runGates` already
+ *  pauses the rule BEFORE any arm runs, so reaching this branch means the plugin was deactivated inside the
+ *  window between that gate and this call; it pauses identically rather than charging the race to the rule.
+ *
+ *  WHAT THIS ARM MAY NOT DO, stated so it stays true: the result is DATA returned to the arm. It may land in a
+ *  variable and it may reach the model through a LATER turn's ordinary assembly of that variable — it may
+ *  never be inserted as a message. There is no message-write op on `AutomationOps.tools` and adding one would
+ *  cross the class-1 wall, not extend this arm.
+ *
+ *  THE AUTHORITY MODEL, in one place. Nothing here decides authority; it names WHO acts and lets each existing
+ *  gate answer for itself: the rule's author (already re-checked as the chat's HOST by `runGates`) is the
+ *  invoking principal, the registry re-checks that the tool is one THEY installed
+ *  (`tool-use/substrate/reachability.ts` — a room-mate's plugin is not drivable by naming it), and a plugin
+ *  tool's own PL-C ceiling then re-reads the INSTALLER's present role in this chat before the guest runs.
+ *  Three belts, three owners, none of them this file's to re-implement. */
+async function runRunTool(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "run_tool" }>, frame: DispatchFrame): Promise<ArmOutcome> {
+  // The args are a TEMPLATE like every arm field — rendered in the author's env, at fire time, once.
+  const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.argsTemplate });
+  if (rendered.error !== undefined) {
+    return armError(rendered.error);
+  }
+  const outcome = await deps.ops.tools.runTool({
+    authorUserId: frame.authorUserId,
+    chatId: frame.chatId,
+    name: action.name,
+    argsJson: rendered.text,
+  });
+  if (!outcome.ok) {
+    return outcome.reason === "unavailable" ? PAUSED_ARM : armError(`run_tool '${action.name}' failed: ${outcome.error}`);
+  }
+  if (action.resultVar !== undefined) {
+    // TRUNCATED at the variable plane's own bound: the result is a CONTRIBUTOR's bytes, and this value rides
+    // the cached CEL env into every later predicate and template render on this chat. A tool returning more
+    // than the plane holds is misusing the channel — capture what fits and keep the rule healthy rather than
+    // failing an invocation that actually succeeded.
+    await writeArmVariable(deps, frame, {
+      scope: action.resultScope,
+      key: action.resultVar,
+      value: outcome.result.slice(0, AUTOMATION_VARIABLE_VALUE_MAX),
+    });
+  }
+  return OK;
+}
+
 const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transform pipeline, not the dispatch engine";
 
 // ── S4 — the confirm-first STASH (interaction-direction-spec §3-S4) ───────────────────────────────────
@@ -381,6 +466,8 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
       return runSetChatBackground(deps, action as Extract<AutomationAction, { type: "set_chat_background" }>, frame);
     case "trigger_turn":
       return runTriggerTurn(deps, action as Extract<AutomationAction, { type: "trigger_turn" }>, frame);
+    case "run_tool":
+      return runRunTool(deps, action as Extract<AutomationAction, { type: "run_tool" }>, frame);
     // v1-unwired (typed refusal, NOT a stub — the honest not-yet-wired state):
     case "transform_draft":
       return Promise.resolve(armError(TRANSFORM_DRAFT_REFUSAL));

@@ -89,7 +89,20 @@ export interface HarnessOverrides {
    *  `resolveViewerVisibility` and `isBookAttachedToChat` already use in the plugin harness). */
   readonly executePluginSuggestion?: ExecutePluginSuggestion;
   readonly isPluginLive?: IsPluginLive;
+  /** D146 — the `run_tool` arm's tool seam. Default {@link NO_TOOLS}: nothing is drivable, so a rule naming a
+   *  tool PAUSES. A test that exercises the arm passes a stub naming exactly the tools it pretends are
+   *  installed, for exactly the author it pretends installed them. */
+  readonly tools?: AutomationOps["tools"];
 }
+
+/** The FAIL-CLOSED tool seam, and the honest default for every harness that registers no plugin: no name is
+ *  drivable by anyone, and an invocation that somehow reaches it answers `unavailable` rather than pretending
+ *  to have run something. Exported because the inline `AutomationOps` literals in the dispatch/fan-out suites
+ *  need the same default without rebuilding the bundle. */
+export const NO_TOOLS: AutomationOps["tools"] = {
+  isToolDrivableBy: (): boolean => false,
+  runTool: () => Promise.resolve({ ok: false, reason: "unavailable" }),
+};
 
 /** The default injected dispatcher — every arm is not-yet-wired (records `action_error`), the A5 posture a
  *  test overrides with a real/fake arm. */
@@ -97,8 +110,9 @@ const NOT_WIRED_DISPATCH: ArmDispatch = () => Promise.resolve({ ok: false, kind:
 
 /** The chat READ ops the fact resolver + CEL env consume — direct db reads over the seeded chat (compose wires
  *  the equivalent from the chat domain's exports). */
-function testChatOps(db: Db): AutomationOps {
+function testChatOps(db: Db, tools: AutomationOps["tools"] = NO_TOOLS): AutomationOps {
   return {
+    tools,
     chat: {
       getMessageFact: async (_chatId, messageId): Promise<NonNullable<TriggerFact["message"]> | null> => {
         const rows = await db
@@ -161,7 +175,7 @@ function testChatOps(db: Db): AutomationOps {
  *  A5 watcher/dispatch seams (real enabled index, the author-principal resolver, injectable arm executors +
  *  notify). Call `ctx.enabled.reload()` after seeding enabled rules if the watcher pre-check is under test. */
 export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}): AutomationContext {
-  const ops = overrides.ops ?? testChatOps(db);
+  const ops = overrides.ops ?? testChatOps(db, overrides.tools);
   const promptRegistry: TestPromptRegistry = overrides.promptRegistry ?? makeTestPromptRegistry();
   return {
     db,
