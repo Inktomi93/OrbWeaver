@@ -176,6 +176,23 @@ export interface PluginHostOps {
       // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     }) => Promise<{ readonly assetId: string }>;
   };
+  /** The QUIET (non-canon) generation seam. `capability: llm.quiet` — SPEND. Wired at compose to the
+   *  INSTALLER's resolved `summarize`-role connection through `bindRoleClients` (the D79 quiet-turn seam and
+   *  the exact path `/autobg`'s `summarizeQuiet` already takes — that op's own header calls itself the
+   *  extensible shape for future quiet-LLM arms, and this is one; it is not re-spelled here because the
+   *  automation op is chat-and-author scoped while this one takes an installer and no chat).
+   *
+   *  IT WRITES NOTHING, by construction and on purpose: no message, no bus event, no canon, no turn slot. That
+   *  is what keeps `llm.quiet` on the class-1 side of the membrane wall — the guest receives text and must do
+   *  something else with it through a capability it was separately granted.
+   *
+   *  The `systemPrompt` is HOST-authored (compose): a guest supplies only `prompt`, so it cannot install a
+   *  persona, a tool posture, or a claim of authority into the system slot. `text` is `""` on an empty/failed
+   *  generation (the `summarizeQuiet` convention — the caller treats "" as "no answer"). Cost never crosses
+   *  the realm boundary; cost VISIBILITY rides the stats domain off the generation itself. */
+  readonly llm: {
+    readonly quiet: (req: { readonly installerUserId: UserId; readonly prompt: string }) => Promise<{ readonly text: string }>;
+  };
   /** The installing user's per-user global KV — fetchOwned under the installer, so cross-user reads are
    *  structurally impossible. `capability: global_vars`. */
   readonly variables: {
@@ -202,6 +219,30 @@ export interface PluginHostOps {
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
   };
+}
+
+/** The per-plugin HOURLY call floor for the two capabilities whose per-call bounds do not add up to a rate
+ *  (`net.fetch` egress, `llm.quiet` spend) — `substrate/rate-floor.ts` implements it, one instance per
+ *  capability, minted at compose beside the notify floor. `admit` THROWS when the plugin is over its ceiling. */
+export interface PluginRateFloor {
+  /** CHECK-AND-CLAIM one call for `pluginId` in the current hour. Deliberately ONE synchronous step, for the
+   *  same reason {@link NotifyFloor.admit} is: the membrane admits up to 32 concurrent host calls per
+   *  instance, so a check that awaited before recording would let a burst observe the pre-burst count. */
+  readonly admit: (pluginId: PluginId) => void;
+}
+
+/** The process-wide BELTS every plugin bridge closes over — bundled rather than passed as four positional
+ *  params (the `AsyncFnSpec` precedent: a seam that keeps gaining belts should not keep gaining arity, and a
+ *  named bag makes "which belt did this bridge get" answerable at a glance). All three are minted ONCE at
+ *  compose (the resident-registry posture) and shared by every activation. */
+export interface PluginBelts {
+  /** The `notify` capability's 60 s per-(plugin, chat) cooldown (02 §2). */
+  readonly notify: NotifyFloor;
+  /** The `net.fetch` hourly egress ceiling — the only bound on egress RATE (the D46 review's tracked finding). */
+  readonly egress: PluginRateFloor;
+  /** The `llm.quiet` hourly generation ceiling — the only bound on how much of the installer's credential a
+   *  granted plugin may spend over time. */
+  readonly quietLlm: PluginRateFloor;
 }
 
 export interface NotifyFloor {

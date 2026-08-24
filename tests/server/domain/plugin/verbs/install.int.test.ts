@@ -21,8 +21,29 @@ test("installs a valid bundle: disabled row, granted subset, origin upload, byte
   expect(view.status).toBe("disabled");
   expect(view.origin).toBe("upload");
   expect(view.grantedCapabilities).toEqual(["chat.read"]); // the paranoid subset, not the full declared set
+  expect(view.declaredCapabilities).toEqual(["chat.read", "storage.kv"]); // …and the ASK beside it
+  expect(view.netHosts).toBeNull(); // no net.fetch declared ⇒ no allowlist (the manifest biconditional)
   expect(view.builtAgainst).toEqual({ engineVersion: "0.32.0" });
   expect(h.storedBytes.size).toBe(1); // the whole bundle rode the CAS
+});
+
+test("the view is ASKED-VS-ALLOWED renderable: declared ⊋ granted, and net.fetch's reach travels with it", async () => {
+  // The projection gap this closed: a grant surface carrying only `grantedCapabilities` cannot say the one
+  // sentence that makes consent meaningful, and cannot show WHERE a granted `net.fetch` points. Pinned on the
+  // INSTALL path; the row path (`toPluginView`) is pinned in list-plugins.int.test.ts — they are one projection
+  // now, and this pair is what proves it.
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const view = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "reach", capabilities: ["chat.read", "net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["chat.read"],
+  });
+
+  expect(view.declaredCapabilities).toEqual(["chat.read", "net.fetch"]);
+  expect(view.grantedCapabilities).toEqual(["chat.read"]); // asked for two, allowed one
+  expect(view.netHosts).toEqual(["api.vendor.example"]);
 });
 
 test("a non-admin caller is refused (owner ∪ admin only, v1)", async () => {

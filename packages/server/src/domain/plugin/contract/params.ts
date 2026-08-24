@@ -27,6 +27,26 @@ export interface UpgradePluginParams {
   readonly bundle: Uint8Array;
 }
 
+/** `setPluginGrant` — the RE-CONSENT act, and the half the upgrade path was missing. `upgrade` intersects the
+ *  prior grant with the newly-declared set, so a newly-declared capability lands NOT granted, and `setEnabled`
+ *  activates with the STORED grant and never recomputes one — so before this verb the only way to allow a
+ *  newly-declared capability was uninstall + reinstall (which also drops the plugin's `storage.kv` rows).
+ *
+ *  IT IS AN EXPLICIT ACT AND IT IS NOT ENABLING. Re-grant must never be a side effect of turning a plugin on
+ *  (that is the same defect in the opposite direction — an enable would silently widen authority), so
+ *  `setEnabled` still reads the stored grant, and this verb never enables a disabled plugin. `grant` is the
+ *  WHOLE new subset, not a delta: a consent surface shows the complete asked-vs-allowed picture and the caller
+ *  sends back exactly what it displayed. `acknowledgedNetHosts` is the anti-TOCTOU echo — see
+ *  {@link PluginNetHostsUnacknowledgedError} for why `net.fetch` alone needs one. */
+export interface SetPluginGrantParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly grant: readonly PluginCapability[];
+  /** The exact `netHosts` list the caller displayed to the owner (echo `PluginView.netHosts ?? []`). Only
+   *  consulted when `grant` includes `net.fetch`; a manifest host absent from it is a typed refusal. */
+  readonly acknowledgedNetHosts: readonly string[];
+}
+
 /** `setPluginEnabled` — activate (enabled ⇒ run `main.js` in the host, collect registrations) or deactivate
  *  (disable ⇒ dispose the instance + deregister tools/transforms/subs). Idempotent per target state. */
 export interface SetPluginEnabledParams {

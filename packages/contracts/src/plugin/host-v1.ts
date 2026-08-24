@@ -133,6 +133,27 @@ export interface PluginHostV1 {
     generatePicture: (chat: ChatHandle, p: GenerateImageActionArgs) => Promise<{ assetId: string }>;
   };
 
+  readonly llm: {
+    /** ONE bounded, non-canon generation on the INSTALLING PRINCIPAL's own resolved `summarize`-role
+     *  connection — the guest's prompt in, raw text out. capability: llm.quiet — SPEND class.
+     *
+     *  IT IS CLASS 1 (outside the room) BY CONSTRUCTION, and that is what makes it addable at all: it commits
+     *  no message, emits no bus event, touches no canon and takes no turn slot. The class-1 membrane wall
+     *  ("read/variables/quick-reply/requestTurn/worldInfo/storage, no message write") is untouched — this
+     *  namespace cannot express a write, and the guest gets a string it must do something else with.
+     *
+     *  WHAT BOUNDS IT, precisely, because a spend surface that lists no bounds has none: (1) the grant;
+     *  (2) an hourly per-plugin call floor claimed host-side BEFORE the generation (the domain's rate floor —
+     *  the ≤32-in-flight cap bounds CONCURRENCY, never a rate, so it is not a spend bound and must not be read
+     *  as one); (3) a prompt-length cap at the membrane; (4) the side-gen sampling ladder's `quiet_generate`
+     *  floor for the output budget. It is deliberately NOT host-authority gated — it writes no room state, and
+     *  gating it on host would be a ceiling that does not describe what the call does.
+     *
+     *  The FUNDER is the installer and is closed over host-side; a guest cannot name a different one, exactly
+     *  as with `chat.requestTurn`. No chat scope is required (the call carries no room context at all). */
+    quiet: (prompt: string) => Promise<string>;
+  };
+
   readonly events: {
     /** Subscribe to the Tier-1 trigger taxonomy — the SAME closed union; plugins
      *  get no private event vocabulary. Handlers receive the resolved TriggerFact, never raw bus
@@ -212,6 +233,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   "storage.list": "storage.kv",
   "notifications.post": "notify",
   "imagery.generatePicture": "imagery.generate",
+  "llm.quiet": "llm.quiet",
   "events.on": "events.subscribe",
   "tools.register": "tools.register",
   "transforms.register": "chat.transform",

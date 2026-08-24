@@ -11,9 +11,14 @@ import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { describe } from "vitest";
-import type { NotifyFloor, PluginHostOps } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
+import type { PluginBelts, PluginHostOps } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
 import { buildPluginBridge } from "../../../../../packages/server/src/domain/plugin/substrate/bridge.ts";
 import { createNotifyFloor } from "../../../../../packages/server/src/domain/plugin/substrate/notify-floor.ts";
+import {
+  createPluginRateFloor,
+  PLUGIN_EGRESS_PER_HOUR,
+  PLUGIN_QUIET_LLM_PER_HOUR,
+} from "../../../../../packages/server/src/domain/plugin/substrate/rate-floor.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeInertOps } from "../_support.ts";
@@ -29,14 +34,28 @@ const LIVE_MACRO = "tension is {{setvar::tension::99}} now";
 const NOT_ATTACHED_RE = /attached to this chat/u;
 const AT_CAP_RE = /already owns 64 entries/u;
 const NOTICE_FLOOR_RE = /one notice per 60s per chat/u;
+const QUIET_FLOOR_RE = /llm\.quiet is limited to 2 calls per hour/u;
+const EGRESS_FLOOR_RE = /net\.fetch is limited to \d+ calls per hour/u;
+/** A transient snippet has no plugin row — the belted capabilities are unreachable for want of an identity. */
+const NEEDS_PLUGIN_RE = /requires an installed plugin/u;
+const ONE_HOUR_MS = 3_600_000;
 /** A minimal valid `GenerateImageActionArgs` (the `generateImageActionArgsSchema` required fields). */
 const IMAGE_ARGS = { mode: "free", n: 1, useAvatarReference: false, reuse: "never", quiet: true } as const;
 
-/** A REAL notice floor whose clock never advances — inert for every non-notify test (one post per (plugin,
- *  chat) is always admitted), and NOT a permissive fake: the `notify` tests below drive the same factory with a
- *  moving clock, so the floor under test is the one production runs. */
-function freeFloor(): NotifyFloor {
-  return createNotifyFloor(() => FROZEN_AT_MS);
+/** The REAL belts on a clock that never advances — inert for every test that is not ABOUT a belt (one notice
+ *  per (plugin, chat) and the first few hourly calls are always admitted), and NOT permissive fakes: the belt
+ *  tests below drive the SAME factories with a moving clock, so what a non-belt test runs against is what
+ *  production runs. `beltsWith` swaps in a specific floor for the belt under test. */
+function freeBelts(): PluginBelts {
+  return beltsWith({});
+}
+
+function beltsWith(over: Partial<PluginBelts>): PluginBelts {
+  return {
+    notify: over.notify ?? createNotifyFloor(() => FROZEN_AT_MS),
+    egress: over.egress ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
+    quietLlm: over.quietLlm ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
+  };
 }
 
 /** An inert ops bundle whose chat.requestTurn + variables.get RECORD their args (the seam the bridge drives). */
@@ -73,7 +92,7 @@ function recordingOps(): {
 describe("buildPluginBridge — turn.trigger funder is the installer (can't fund a foreign turn)", () => {
   test("requestTurn closes the funder over the installer + threads the child depth + maps speaker/guided", async () => {
     const rec = recordingOps();
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.chat.requestTurn(CHAT, 2, { speakerCharacterId: "char_x00000000000000000000000", guided: "steer" });
 
@@ -89,7 +108,7 @@ describe("buildPluginBridge — turn.trigger funder is the installer (can't fund
 
   test("omitted speaker/guided stay ABSENT (exactOptionalPropertyTypes — no undefined keys forwarded)", async () => {
     const rec = recordingOps();
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.chat.requestTurn(CHAT, 0, {});
 
@@ -101,7 +120,7 @@ describe("buildPluginBridge — turn.trigger funder is the installer (can't fund
 
   test("a bridge for one installer NEVER funds another installer's turn (funder is structural)", async () => {
     const rec = recordingOps();
-    const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN, freeFloor());
+    const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN, freeBelts());
 
     await otherBridge.chat.requestTurn(CHAT, 1, {});
 
@@ -143,7 +162,7 @@ function readingOps(visibility: Awaited<ReturnType<PluginHostOps["chat"]["resolv
 describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own viewer visibility", () => {
   test("a clamped installer's read carries their D16 floor, resolved for the installer (not a guest-supplied id)", async () => {
     const rec = readingOps({ role: "member", historyFloorSeq: historyFloor(7), readsHidden: false });
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.chat.listMessages(CHAT, 20);
 
@@ -154,7 +173,7 @@ describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own v
 
   test("an unrestricted host installer reads at floor 0 verbatim — the common case is unchanged", async () => {
     const rec = readingOps({ role: "host", historyFloorSeq: historyFloor(0), readsHidden: true });
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.chat.listMessages(CHAT, undefined);
 
@@ -164,7 +183,7 @@ describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own v
 
   test("a NON-member installer reads NOTHING — the canon read is never even issued", async () => {
     const rec = readingOps(null);
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     // `null` = not a present member (an admission that raced a kick/leave). Fail-closed: `[]`, no partial read.
     await expect(bridge.chat.listMessages(CHAT, 20)).resolves.toEqual([]);
@@ -175,7 +194,7 @@ describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own v
 describe("buildPluginBridge — global-vars close over the installer", () => {
   test("variables.get fetches under the installer's owner id (cross-user read structurally impossible)", async () => {
     const rec = recordingOps();
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.variables.get("some-key");
 
@@ -221,7 +240,7 @@ describe("buildPluginBridge — the lore write is gated, capped, namespaced and 
     // could set chat variables in every chat the book is attached to, on the next turn, with no
     // `chat.variables.write` grant and no host authority in those rooms.
     const rec = loreOps();
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: ["mood"], contentTemplate: LIVE_MACRO, position: "after" });
 
@@ -237,7 +256,7 @@ describe("buildPluginBridge — the lore write is gated, capped, namespaced and 
     // The bookId is GUEST-SUPPLIED and the shared writer only checks OWNERSHIP, so without this gate a plugin
     // invoked in chat X writes into any book its installer owns — including books attached only to chat Y.
     const rec = loreOps({ attached: false });
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await expect(bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: [], contentTemplate: "inert", position: "after" })).rejects.toThrow(
       NOT_ATTACHED_RE,
@@ -249,7 +268,7 @@ describe("buildPluginBridge — the lore write is gated, capped, namespaced and 
 
   test("entries are TITLE-NAMESPACED per plugin (idempotent re-upsert; a human's entry is never clobbered)", async () => {
     const rec = loreOps();
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: ["k"], contentTemplate: "x", position: "after" });
 
@@ -262,7 +281,7 @@ describe("buildPluginBridge — the lore write is gated, capped, namespaced and 
     const own = (n: number): string => `plugin/${PLUGIN}:e${n}`;
     const full = Array.from({ length: 64 }, (_, i) => own(i));
     const atCap = loreOps({ titles: [...full, "a human-authored entry", `plugin/${OTHER_PLUGIN}:theirs`] });
-    const bridge = buildPluginBridge(atCap.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(atCap.ops, INSTALLER, PLUGIN, freeBelts());
 
     // A 65th NEW entry is refused (a looping guest would otherwise fill the installer's book).
     await expect(bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "new", keys: [], contentTemplate: "x", position: "after" })).rejects.toThrow(
@@ -278,7 +297,7 @@ describe("buildPluginBridge — the lore write is gated, capped, namespaced and 
   test("the cap counts only THIS plugin's namespace — a full book of other people's entries is not its budget", async () => {
     const foreign = Array.from({ length: 200 }, (_, i) => (i % 2 === 0 ? `plugin/${OTHER_PLUGIN}:e${i}` : `human entry ${i}`));
     const rec = loreOps({ titles: foreign });
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
 
     await bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mine", keys: [], contentTemplate: "x", position: "after" });
 
@@ -310,12 +329,7 @@ describe("buildPluginBridge — notifications.post carries the 60 s floor", () =
   test("a second notice inside the floor is REFUSED; the durable write never happens", async () => {
     const rec = noticeOps();
     const clock = createFrozenClock(FROZEN_AT_MS);
-    const bridge = buildPluginBridge(
-      rec.ops,
-      INSTALLER,
-      PLUGIN,
-      createNotifyFloor(() => clock.now()),
-    );
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, beltsWith({ notify: createNotifyFloor(() => clock.now()) }));
 
     await bridge.notifications.post(CHAT, "all_members", "first");
     await expect(bridge.notifications.post(CHAT, "all_members", "second")).rejects.toThrow(NOTICE_FLOOR_RE);
@@ -328,12 +342,7 @@ describe("buildPluginBridge — notifications.post carries the 60 s floor", () =
   test("the floor RELEASES at 60 s", async () => {
     const rec = noticeOps();
     const clock = createFrozenClock(FROZEN_AT_MS);
-    const bridge = buildPluginBridge(
-      rec.ops,
-      INSTALLER,
-      PLUGIN,
-      createNotifyFloor(() => clock.now()),
-    );
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, beltsWith({ notify: createNotifyFloor(() => clock.now()) }));
 
     await bridge.notifications.post(CHAT, "host", "first");
     clock.advance(60_000);
@@ -345,9 +354,9 @@ describe("buildPluginBridge — notifications.post carries the 60 s floor", () =
   test("the floor is PER (plugin, chat) — a notice in one room does not mute another", async () => {
     const rec = noticeOps();
     const clock = createFrozenClock(FROZEN_AT_MS);
-    const floor = createNotifyFloor(() => clock.now());
-    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, floor);
-    const otherPlugin = buildPluginBridge(rec.ops, INSTALLER, OTHER_PLUGIN, floor);
+    const belts = beltsWith({ notify: createNotifyFloor(() => clock.now()) });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, belts);
+    const otherPlugin = buildPluginBridge(rec.ops, INSTALLER, OTHER_PLUGIN, belts);
     const otherChat = castId<ChatId>("chat_second0000000000000000");
 
     await bridge.notifications.post(CHAT, "host", "a");
@@ -363,17 +372,126 @@ describe("buildPluginBridge — notifications.post carries the 60 s floor", () =
     // floor would let a burst through the gap. `admit` checks AND records in one step before the op is awaited.
     const rec = noticeOps();
     const clock = createFrozenClock(FROZEN_AT_MS);
-    const bridge = buildPluginBridge(
-      rec.ops,
-      INSTALLER,
-      PLUGIN,
-      createNotifyFloor(() => clock.now()),
-    );
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, beltsWith({ notify: createNotifyFloor(() => clock.now()) }));
 
     const burst = await Promise.allSettled(Array.from({ length: 8 }, (_, i) => bridge.notifications.post(CHAT, "all_members", `n${i}`)));
 
     expect(burst.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(rec.posts).toHaveLength(1);
+  });
+});
+
+/** An ops bundle recording every `llm.quiet` call — the seam the SPEND belt guards. */
+function quietOps(): { readonly ops: PluginHostOps; readonly calls: Parameters<PluginHostOps["llm"]["quiet"]>[0][] } {
+  const calls: Parameters<PluginHostOps["llm"]["quiet"]>[0][] = [];
+  const base = makeInertOps();
+  const ops: PluginHostOps = {
+    ...base,
+    llm: {
+      quiet: (req) => {
+        calls.push(req);
+        return Promise.resolve({ text: "ok" });
+      },
+    },
+  };
+  return { ops, calls };
+}
+
+// `llm.quiet` is the SPEND capability with the weakest per-call posture in the membrane: no room state, so no
+// host-authority gate, and no chat scope. What keeps it from being an unbounded draw on the installer's
+// credential is the HOURLY floor claimed here — before the op, not after it.
+describe("buildPluginBridge — llm.quiet closes the installer over the call and claims the hourly floor", () => {
+  test("the guest supplies ONLY the prompt; the installer is structural (a plugin cannot spend a foreign budget)", async () => {
+    const rec = quietOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeBelts());
+
+    const out = await bridge.llm.quiet("summarise the scene");
+
+    expect(out).toEqual({ text: "ok" });
+    // The whole request the op receives — no connection, no model, no chat, and a funder the guest never named.
+    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, prompt: "summarise the scene" }]);
+  });
+
+  test("a bridge built for one installer never spends another's credential", async () => {
+    const rec = quietOps();
+    const bridge = buildPluginBridge(rec.ops, OTHER, PLUGIN, freeBelts());
+    await bridge.llm.quiet("x");
+    expect(rec.calls[0]?.installerUserId).toBe(OTHER);
+  });
+
+  test("over the hourly ceiling the PAID CALL NEVER HAPPENS (the claim precedes the op)", async () => {
+    // The order is the whole point: a floor claimed after the generation would bill the installer for exactly
+    // the calls it was meant to refuse.
+    const clock = createFrozenClock(FROZEN_AT_MS);
+    const rec = quietOps();
+    const bridge = buildPluginBridge(
+      rec.ops,
+      INSTALLER,
+      PLUGIN,
+      beltsWith({ quietLlm: createPluginRateFloor(() => clock.now(), { capability: "llm.quiet", limit: 2 }) }),
+    );
+
+    await bridge.llm.quiet("a");
+    await bridge.llm.quiet("b");
+    await expect(bridge.llm.quiet("c")).rejects.toThrow(QUIET_FLOOR_RE);
+
+    expect(rec.calls.map((c) => c.prompt)).toEqual(["a", "b"]);
+    clock.advance(ONE_HOUR_MS);
+    await bridge.llm.quiet("d");
+    expect(rec.calls.map((c) => c.prompt)).toEqual(["a", "b", "d"]);
+  });
+
+  test("the claim is SYNCHRONOUS — a concurrent burst cannot all slip through", async () => {
+    // The membrane admits up to 32 concurrent host calls per instance; a check-then-await-then-record floor
+    // would let the whole burst observe the pre-burst count. The refusal is a REJECTED promise (not a sync
+    // throw) so a caller awaiting the op does not need a try/catch instead of `.catch`.
+    const rec = quietOps();
+    const bridge = buildPluginBridge(
+      rec.ops,
+      INSTALLER,
+      PLUGIN,
+      beltsWith({ quietLlm: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: 3 }) }),
+    );
+
+    const burst = await Promise.allSettled(Array.from({ length: 12 }, (_, i) => bridge.llm.quiet(`p${i}`)));
+
+    expect(burst.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+    expect(rec.calls).toHaveLength(3);
+  });
+});
+
+describe("buildPluginBridge — admitEgress is the net.fetch hourly claim, keyed to THIS plugin", () => {
+  test("it claims per call and refuses at the ceiling", () => {
+    const clock = createFrozenClock(FROZEN_AT_MS);
+    const belts = beltsWith({ egress: createPluginRateFloor(() => clock.now(), { capability: "net.fetch", limit: 2 }) });
+    const bridge = buildPluginBridge(makeInertOps(), INSTALLER, PLUGIN, belts);
+
+    bridge.admitEgress();
+    bridge.admitEgress();
+    expect(() => bridge.admitEgress()).toThrow(EGRESS_FLOOR_RE);
+
+    clock.advance(ONE_HOUR_MS);
+    expect(() => bridge.admitEgress()).not.toThrow();
+  });
+
+  test("two plugins sharing the process floor do not share a budget", () => {
+    const belts = beltsWith({ egress: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetch", limit: 1 }) });
+    const bridge = buildPluginBridge(makeInertOps(), INSTALLER, PLUGIN, belts);
+    const other = buildPluginBridge(makeInertOps(), INSTALLER, OTHER_PLUGIN, belts);
+
+    bridge.admitEgress();
+    expect(() => bridge.admitEgress()).toThrow(EGRESS_FLOOR_RE);
+    // A different plugin row, same process floor — its own window.
+    expect(() => other.admitEgress()).not.toThrow();
+  });
+
+  test("a TRANSIENT SNIPPET (pluginId null) cannot egress or spend — there is no identity to bound", () => {
+    // Not merely plumbing: an hourly ceiling has to be keyed to something durable, and an anonymous one-shot
+    // has none. The snippet grant profile already omits both capabilities, so the membrane refuses first;
+    // this is the belt-and-braces layer under that.
+    const snippet = buildPluginBridge(makeInertOps(), INSTALLER, null, freeBelts());
+    expect(() => snippet.admitEgress()).toThrow(NEEDS_PLUGIN_RE);
+    return expect(snippet.llm.quiet("x")).rejects.toThrow(NEEDS_PLUGIN_RE);
   });
 });
 
@@ -390,7 +508,7 @@ describe("buildPluginBridge — imagery hands the guest ONLY the assetId (cost n
         },
       },
     };
-    const bridge = buildPluginBridge(ops, INSTALLER, PLUGIN, freeFloor());
+    const bridge = buildPluginBridge(ops, INSTALLER, PLUGIN, freeBelts());
 
     const result = await bridge.imagery.generatePicture(CHAT, IMAGE_ARGS);
 

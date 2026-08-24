@@ -14,6 +14,7 @@ import { createInstall } from "./verbs/install.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
+import { createSetGrant } from "./verbs/set-grant.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
 
@@ -29,6 +30,7 @@ export function createPluginService(ctx: PluginContext): PluginService {
   return {
     install: createInstall(ctx),
     upgrade: createUpgrade(ctx, { activate, deactivate }),
+    setGrant: createSetGrant(ctx, { activate, deactivate }),
     setEnabled: createSetEnabled(ctx, { activate, deactivate }),
     uninstall: createUninstall(ctx, { deactivate }),
     list: createListPlugins(ctx),

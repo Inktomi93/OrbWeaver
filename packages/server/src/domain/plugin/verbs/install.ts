@@ -8,7 +8,7 @@
 import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contract/errors.ts";
 import type { InstallPluginParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
-import { getByOwnerSlug, insertPlugin } from "../persistence/plugins.ts";
+import { getByOwnerSlug, insertPlugin, toPluginView } from "../persistence/plugins.ts";
 import { normalizeGrant, ungrantableCapabilities } from "../substrate/grants.ts";
 import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
@@ -31,9 +31,12 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
     const granted = normalizeGrant(manifest.capabilities, grant);
     const stored = await ctx.assets.store(caller, bundle, PLUGIN_BUNDLE_MIME);
     const now = ctx.now();
-    const id = ctx.newPluginId();
-    await insertPlugin(ctx.db, {
-      id,
+    // ONE row object, inserted AND projected. It used to be two hand-written literals — the insert shape and a
+    // parallel `PluginView` return — which is two homes for one projection: a field added to `toPluginView` was
+    // silently absent from a freshly-installed plugin's view. The schema defaults it re-states here
+    // (`consecutiveCrashes: 0`, `lastError: null`) are the values `insertPlugin` writes.
+    const row = {
+      id: ctx.newPluginId(),
       ownerId: caller.userId,
       slug: manifest.id,
       name: manifest.name,
@@ -41,25 +44,14 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       manifest,
       bundleAssetId: stored.assetId,
       grantedCapabilities: granted,
-      status: "disabled",
-      origin: "upload",
-      installedAt: now,
-      updatedAt: now,
-    });
-
-    return {
-      id,
-      slug: manifest.id,
-      name: manifest.name,
-      version: manifest.version,
-      status: "disabled",
-      origin: "upload",
-      grantedCapabilities: granted,
-      builtAgainst: manifest.builtAgainst ?? null,
+      status: "disabled" as const,
+      origin: "upload" as const,
       consecutiveCrashes: 0,
       lastError: null,
       installedAt: now,
       updatedAt: now,
     };
+    await insertPlugin(ctx.db, row);
+    return toPluginView(row);
   };
 }

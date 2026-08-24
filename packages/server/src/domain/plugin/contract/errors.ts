@@ -43,6 +43,28 @@ export class CapabilityNotGrantedError extends DomainOperationError {
   }
 }
 
+/** A `setGrant` that would arm `net.fetch` against a host the caller never acknowledged — the anti-TOCTOU pin
+ *  on the re-consent act.
+ *
+ *  WHY IT EXISTS, precisely. A grant is a list of capability NAMES the owner types, so a manifest that changes
+ *  under a rendered consent screen cannot make the owner grant a name they did not choose. `net.fetch` is the
+ *  one capability that breaks that property: its REACH is the manifest's `netHosts`, which the owner never
+ *  names. Without this pin, an `upgrade` landing between "the screen rendered `api.vendor.example`" and "the
+ *  owner clicked allow" would arm the egress wall at whatever the NEW manifest declares — the P3-H hole,
+ *  re-opened at the consent act rather than at the upgrade. So the caller echoes the exact host list it
+ *  displayed, and a manifest host missing from that echo is a typed refusal. Fail-closed: an empty echo with
+ *  `net.fetch` in the grant refuses every declared host. */
+// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
+// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
+export class PluginNetHostsUnacknowledgedError extends DomainOperationError {
+  constructor(unacknowledged: readonly string[]) {
+    super(
+      "plugin_net_hosts_unacknowledged",
+      `this plugin's manifest declares net.fetch hosts you have not confirmed: ${unacknowledged.join(", ")} — re-read the permissions and grant again`,
+    );
+  }
+}
+
 /** An install/upgrade whose bundle version is LOWER than the currently-installed version for the same plugin
  *  id (owner-ruled). Refused so a re-uploaded old bundle can never silently
  *  roll a plugin back. */

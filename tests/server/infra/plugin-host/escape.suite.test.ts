@@ -185,6 +185,10 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
       storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
+      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
+      llm: { quiet: () => Promise.resolve({ text: "" }) },
+      admitEgress: (): void => undefined,
     };
     return { bridge, captured };
   }
@@ -264,6 +268,10 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
       storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
+      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
+      llm: { quiet: () => Promise.resolve({ text: "" }) },
+      admitEgress: (): void => undefined,
     };
     // First call stashes the token into the resident guest global; second call replays the STALE token.
     const main = `
@@ -339,6 +347,10 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
+      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
+      llm: { quiet: () => Promise.resolve({ text: "" }) },
+      admitEgress: (): void => undefined,
     };
     // Fire 40 gated host calls in ONE invocation; the gate never settles during it. 32 are admitted (stay pending),
     // calls 33–40 reject synchronously with the back-pressure error → exactly 8 rejections.
@@ -398,6 +410,10 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
+      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
+      llm: { quiet: () => Promise.resolve({ text: "" }) },
+      admitEgress: (): void => undefined,
     };
     const main = `
       const h = orb.host(1);
@@ -464,6 +480,10 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
+      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
+      llm: { quiet: () => Promise.resolve({ text: "" }) },
+      admitEgress: (): void => undefined,
     };
     const main = `
       const h = orb.host(1);
@@ -511,6 +531,10 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
+      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
+      llm: { quiet: () => Promise.resolve({ text: "" }) },
+      admitEgress: (): void => undefined,
     };
     // The guest passes a MALICIOUS 3rd+ arg (a forged funder) + a spoofed depth field on the hints — all ignored.
     const main =

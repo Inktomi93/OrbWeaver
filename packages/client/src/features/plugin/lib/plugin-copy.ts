@@ -18,9 +18,17 @@
 // The copy is deliberately NOT derived from the manifest's own comments: those are developer notes about
 // which host function is gated. These are the reach a room owner is consenting to.
 //
-// `spends` marks the two SPEND-class capabilities (`turn.trigger`, `imagery.generate`) — the ones that draw
-// on the installer's model budget every time the plugin uses them. Money is the one consequence a checkbox
-// label must never bury, and the automation surface already names its spend arms the same way.
+// `spends` marks the three SPEND-class capabilities (`turn.trigger`, `imagery.generate`, `llm.quiet`) — the
+// ones that draw on the installer's model budget every time the plugin uses them. Money is the one consequence
+// a checkbox label must never bury, and the automation surface already names its spend arms the same way. The
+// three sit ADJACENT in `PLUGIN_CAPABILITIES` (positions 9-11) so the badge and the reading order reinforce
+// each other on a screen whose scan question is "what can this cost me".
+//
+// A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s 256 keys,
+// `worldinfo.write`'s 64 entries, and now the two HOURLY floors on `net.fetch` and `llm.quiet`). The numbers
+// are prose copies of server constants (`domain/plugin/substrate/rate-floor.ts`) and drift is a copy bug, not
+// a security one — the belt is enforced server-side either way — but a bound a person cannot see is a bound
+// they cannot weigh.
 
 import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
 
@@ -90,6 +98,13 @@ export const CAPABILITY_COPY_ROWS = [
     spends: true,
   },
   {
+    id: "llm.quiet",
+    label: "Ask a model on its own",
+    consequence:
+      "Sends its own prompts to your model and reads the answer, on your model budget, at most 30 times an hour. It cannot post the result anywhere by itself.",
+    spends: true,
+  },
+  {
     id: "events.subscribe",
     label: "Watch for things happening",
     consequence: "Runs its code when messages are committed, lore activates, and so on — only in rooms you are in.",
@@ -102,7 +117,7 @@ export const CAPABILITY_COPY_ROWS = [
   {
     id: "net.fetch",
     label: "Reach the internet",
-    consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else.",
+    consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else — at most 120 an hour.",
   },
 ] as const satisfies readonly CapabilityCopy[];
 

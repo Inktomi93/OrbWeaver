@@ -10,13 +10,14 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { NotifyFloor, PluginHostOps, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
+import type { PluginBelts, PluginHostOps, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
 import type {
   GetPluginLogParams,
   InstallPluginParams,
   ListPluginsParams,
   RunSnippetParams,
   SetPluginEnabledParams,
+  SetPluginGrantParams,
   UninstallPluginParams,
   UpgradePluginParams,
 } from "./params.ts";
@@ -163,10 +164,12 @@ export interface PluginContext {
    *  (the injected-op-caller-gate rule); a foreign/unknown chat yields `{false,false}` — no existence oracle.
    *  Injected at compose (the domain never imports chat) — `loadPresentRole` under the caller. */
   readonly resolveChatAuthority: (caller: Principal, chatId: ChatId) => Promise<ChatAuthority>;
-  /** The `notify` capability's 60 s per-(plugin, chat) cooldown (02 §2) — process-wide state, so it is minted
-   *  ONCE at compose (`createNotifyFloor`) and shared by every activation, exactly like the resident registry.
-   *  The bridge claims it before each `notifications.post`. */
-  readonly notifyFloor: NotifyFloor;
+  /** The process-wide capability BELTS every bridge closes over — the `notify` 60 s per-(plugin, chat)
+   *  cooldown (02 §2), the `net.fetch` hourly egress ceiling, and the `llm.quiet` hourly generation ceiling.
+   *  All are process-wide state, so all are minted ONCE at compose and shared by every activation, exactly
+   *  like the resident registry; the bridge claims the relevant one before each guarded op. Bundled because
+   *  three positional floors is where a seam stops being readable. */
+  readonly belts: PluginBelts;
   /** The per-user concurrent-snippet ceiling — process-wide state, minted ONCE at compose
    *  (`createSnippetGate`) exactly like the notify floor. `runSnippet` claims a slot for the duration of the run.
    *  It is the ONLY belt on the member-reachable path that speaks in CONCURRENCY; the transport bucket speaks in
@@ -180,6 +183,10 @@ export interface PluginService {
   readonly install: (params: InstallPluginParams) => Promise<PluginView>;
   /** Replace the bundle for an installed plugin (slug must match; downgrade refused; new caps ⇒ disabled). */
   readonly upgrade: (params: UpgradePluginParams) => Promise<PluginView>;
+  /** RE-CONSENT: replace the confirmed capability subset (⊆ the PERSISTED manifest's declared set). The
+   *  explicit act that lets an owner allow a newly-declared capability after an upgrade WITHOUT uninstalling.
+   *  Never enables a disabled plugin; a resident instance is restarted so the running grants match the row. */
+  readonly setGrant: (params: SetPluginGrantParams) => Promise<PluginView>;
   /** Activate (run `main.js`, register) or deactivate (dispose + deregister) — idempotent per target state. */
   readonly setEnabled: (params: SetPluginEnabledParams) => Promise<void>;
   /** Deactivate → delete the row (KV cascades) → reap the bundle asset. */

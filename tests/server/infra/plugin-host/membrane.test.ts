@@ -19,10 +19,32 @@ import { expect, test } from "../../../support/fixtures.ts";
 const CHAT = "chat_test0000000000000000000" as ChatId;
 const TOKEN = "opaque-token-abc";
 
-/** A minimal fake bridge — the chat var fold is fixed; a write counter proves the gate is reached (or not). */
-function fakeBridge(): { bridge: PluginBridge; writes: { count: number } } {
+/** A minimal fake bridge — the chat var fold is fixed; a write counter proves the gate is reached (or not).
+ *  `llm.prompts` and `egress.count` are the same instrument for the two BELTED capabilities: they record what
+ *  actually crossed the seam, so a test can tell "the membrane refused" from "the bridge was reached".
+ *  `egressRefusal` scripts the domain floor throwing (the belt is domain state; infra only calls the closure). */
+function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
+  bridge: PluginBridge;
+  writes: { count: number };
+  llm: { prompts: string[] };
+  egress: { count: number };
+} {
   const writes = { count: 0 };
+  const llm: { prompts: string[] } = { prompts: [] };
+  const egress = { count: 0 };
   const bridge: PluginBridge = {
+    llm: {
+      quiet: (prompt) => {
+        llm.prompts.push(prompt);
+        return Promise.resolve({ text: `answered:${prompt.length}` });
+      },
+    },
+    admitEgress: (): void => {
+      egress.count += 1;
+      if (opts.egressRefusal !== undefined) {
+        throw new Error(opts.egressRefusal);
+      }
+    },
     chat: {
       listMessages: () => Promise.resolve([]),
       getVariables: () => Promise.resolve({ tension: "4" }),
@@ -39,7 +61,7 @@ function fakeBridge(): { bridge: PluginBridge; writes: { count: number } } {
     notifications: { post: () => Promise.resolve() },
     surfaceQuickReply: () => Promise.resolve(),
   };
-  return { bridge, writes };
+  return { bridge, writes, llm, egress };
 }
 
 /** Optional membrane wiring the net.fetch / transforms / events seams need (default: no hosts, noop collect). */
@@ -359,6 +381,90 @@ describe("attachMembrane — net.fetch is gated + walled to the manifest netHost
       );
       expect(out).not.toContain("REACHED");
       expect(out).toContain("https");
+    });
+  });
+});
+
+describe("attachMembrane — the hourly EGRESS floor is claimed before the fetch", () => {
+  // WHAT THIS CLOSES (D46 review §8, tracked): `safeFetch` bounds each REQUEST and the manifest bounds the
+  // DESTINATIONS, but nothing bounded the RATE — a plugin subscribed to `messageCommitted` egressed once per
+  // committed message, forever. `HOST_CALLS_IN_FLIGHT_MAX` is a CONCURRENCY bound and is not a rate: 32 at a
+  // time, as fast as they settle, is legal under every other cap in the sandbox.
+  test("the floor is claimed and its refusal reaches the guest — with NO network attempt", async () => {
+    // The ORDER is the assertion. `netHosts` names the host being fetched, so an allowlist refusal is not
+    // available as an excuse: if the message is the rate refusal, the claim ran BEFORE `safeFetch`. If the
+    // claim ran after, this guest would see the network/allowlist path instead.
+    const { bridge, egress } = fakeBridge({ egressRefusal: "plugin host: net.fetch is limited to 120 calls per hour for this plugin" });
+    const runtime = makeRuntime(["net.fetch"], false, bridge, { netHosts: ["api.example.com"] });
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.net.fetch('https://api.example.com/x'); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).not.toContain("REACHED");
+      expect(out).toContain("limited to 120 calls per hour");
+      expect(out).not.toContain("allowlist");
+      expect(egress.count).toBe(1);
+    });
+  });
+
+  test("a call WITHOUT the net.fetch grant never reaches the floor (the capability gate is first)", async () => {
+    // Ordering the other way round matters too: an ungranted call must not consume a budget slot, or a
+    // capability-less plugin could exhaust a granted sibling's… and more importantly, could probe the belt.
+    const { bridge, egress } = fakeBridge();
+    const runtime = makeRuntime([], false, bridge, { netHosts: ["api.example.com"] });
+    await withRuntime(runtime, async (ctx) => {
+      await runAsync(ctx, "(async () => { try { await host.net.fetch('https://api.example.com/x'); return 'x' } catch (e) { return 'caught' } })()");
+      expect(egress.count).toBe(0);
+    });
+  });
+});
+
+describe("attachMembrane — llm.quiet (SPEND, class 1: writes nothing)", () => {
+  test("WITHOUT the grant it rejects uniformly and the bridge is never reached", async () => {
+    const { bridge, llm } = fakeBridge();
+    await withHost([], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { try { await host.llm.quiet('hi'); return 'REACHED' } catch (e) { return 'caught:' + e.name } })()");
+      expect(out).toBe("caught:PluginCapabilityError");
+      expect(llm.prompts).toEqual([]);
+    });
+  });
+
+  test("WITH the grant it returns raw text — and needs NO chat scope and NO host authority", async () => {
+    // Both absences are deliberate and are the reason this capability is addable at all: the call carries no
+    // room context (so an admitted handle would describe nothing) and writes no room state (so `canWrite`,
+    // which is the ROOM-STATE write ceiling, would be a claim of a protection this call does not need).
+    // `canWrite:false` here IS the assertion — a non-host installer can still make this call.
+    const { bridge, llm } = fakeBridge();
+    const runtime: MembraneRuntime = { ...makeRuntime(["llm.quiet"], false, bridge), currentChat: () => null, currentToken: () => null };
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { return await host.llm.quiet('summarise this') })()");
+      expect(out).toBe("answered:14"); // the fake echoes the prompt LENGTH — proof the exact string crossed
+      expect(llm.prompts).toEqual(["summarise this"]);
+    });
+  });
+
+  test("an over-cap prompt is REFUSED, not truncated, and never reaches the paid call", async () => {
+    // Refusing rather than slicing is the money-shaped choice: a silently shortened prompt returns a wrong
+    // answer the guest cannot detect, and it costs the installer real tokens to produce it.
+    const { bridge, llm } = fakeBridge();
+    await withHost(["llm.quiet"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.llm.quiet('x'.repeat(8193)); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).not.toContain("REACHED");
+      expect(out).toContain("8192-character cap");
+      expect(llm.prompts).toEqual([]);
+    });
+  });
+
+  test("a non-string prompt is refused before the bridge", async () => {
+    const { bridge, llm } = fakeBridge();
+    await withHost(["llm.quiet"], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { try { await host.llm.quiet({}); return 'REACHED' } catch (e) { return 'caught' } })()");
+      expect(out).toBe("caught");
+      expect(llm.prompts).toEqual([]);
     });
   });
 });

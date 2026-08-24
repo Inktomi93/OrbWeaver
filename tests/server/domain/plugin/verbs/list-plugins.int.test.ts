@@ -22,6 +22,25 @@ test("lists only the caller's plugins, newest-installed first", async () => {
   expect(mine.map((p) => p.id)).toEqual([second.id, first.id]);
 });
 
+test("the listed row projects the manifest's ASK and its net.fetch reach (the row-path projection)", async () => {
+  // The `toPluginView` half of the asked-vs-allowed pair — read back off the stored row rather than built in
+  // the install verb, so a manifest field that stops being lifted here is caught even though install's own
+  // return still looks right.
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "reach", capabilities: ["chat.read", "net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["chat.read"],
+  });
+
+  const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  expect(row?.declaredCapabilities).toEqual(["chat.read", "net.fetch"]);
+  expect(row?.grantedCapabilities).toEqual(["chat.read"]);
+  expect(row?.netHosts).toEqual(["api.vendor.example"]);
+});
+
 test("an owner with no plugins gets an empty list", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);

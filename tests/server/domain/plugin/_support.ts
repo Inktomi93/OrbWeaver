@@ -25,7 +25,14 @@ import type {
   PluginHostPort,
   PluginService,
 } from "../../../../packages/server/src/domain/plugin/contract/service.ts";
-import { createNotifyFloor, createPluginService, createSnippetGate } from "../../../../packages/server/src/domain/plugin/index.ts";
+import {
+  createNotifyFloor,
+  createPluginRateFloor,
+  createPluginService,
+  createSnippetGate,
+  PLUGIN_EGRESS_PER_HOUR,
+  PLUGIN_QUIET_LLM_PER_HOUR,
+} from "../../../../packages/server/src/domain/plugin/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
@@ -141,6 +148,9 @@ export function makePluginHarness(
     readonly resolveChatAuthority?: PluginContext["resolveChatAuthority"];
     /** Narrow the per-user concurrent-snippet ceiling (default: the production constant). */
     readonly snippetConcurrency?: number;
+    /** Narrow the two HOURLY per-plugin ceilings (default: the production constants) so a suite can reach one
+     *  in a couple of calls. The floors themselves stay REAL — only the limit moves. */
+    readonly rateLimits?: { readonly egress?: number; readonly quietLlm?: number };
   } = {},
 ): PluginHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
@@ -188,9 +198,18 @@ export function makePluginHarness(
     // The snippet AUTHORITY seam — full authority by default (the harness caller is the owner); a test needing a
     // read-only or no-access chat overrides it. The composed-real int test drives the REAL loadPresentRole gate.
     resolveChatAuthority: overrides.resolveChatAuthority ?? (() => Promise.resolve({ canRead: true, canWrite: true })),
-    // The REAL notice floor over the harness's frozen clock (so `advance()` drives it) — never a permissive
-    // fake: a lifecycle test must not be able to flood notices in a way production would refuse.
-    notifyFloor: createNotifyFloor(() => clock.now()),
+    // The REAL belts over the harness's frozen clock (so `advance()` drives them) — never permissive fakes: a
+    // lifecycle test must not be able to flood notices, egress or paid generations in a way production would
+    // refuse, and a belt only a test can dodge is a belt nobody proved. `rateLimits` narrows the two hourly
+    // ceilings so a suite can reach one in a couple of calls instead of thirty.
+    belts: {
+      notify: createNotifyFloor(() => clock.now()),
+      egress: createPluginRateFloor(() => clock.now(), { capability: "net.fetch", limit: overrides.rateLimits?.egress ?? PLUGIN_EGRESS_PER_HOUR }),
+      quietLlm: createPluginRateFloor(() => clock.now(), {
+        capability: "llm.quiet",
+        limit: overrides.rateLimits?.quietLlm ?? PLUGIN_QUIET_LLM_PER_HOUR,
+      }),
+    },
     // The REAL snippet concurrency gate, same reason: a permissive fake would let a test prove a bound
     // production does not have. `snippetConcurrency` narrows the ceiling so a test can reach it in two calls
     // instead of five.
@@ -228,6 +247,7 @@ export function makeInertOps(): PluginHostOps {
       list: () => Promise.resolve([]),
     },
     notifications: { emit: () => Promise.resolve(), post: () => Promise.resolve() },
+    llm: { quiet: () => Promise.resolve({ text: "" }) },
     quickReply: { surface: () => Promise.resolve() },
     imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },

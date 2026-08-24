@@ -11,7 +11,14 @@ import type { PluginId } from "@orb/kit/ids";
  *  and the full manifest json. `builtAgainst` is lifted from the persisted manifest (display/warn provenance);
  *  `null` when the manifest declared none. `grantedCapabilities` is the confirmed subset the
  *  guest feature-detects via `host.grants`. (The per-plugin spend envelope was stripped for
- *  enterprise spend enforcement.) */
+ *  enterprise spend enforcement.)
+ *
+ *  THE ASKED-VS-ALLOWED PAIR (`declaredCapabilities` + `netHosts`, both lifted from the persisted manifest).
+ *  A grant surface that can show only the ALLOWED half cannot say the one sentence that makes consent
+ *  meaningful — "this plugin asked for X and you allowed Y" — and cannot compute the netHosts half of an
+ *  upgrade's widening delta at all (the server compares against the PRIOR manifest's `netHosts`,
+ *  `verbs/upgrade.ts`, and no read surface projected it). Both are also the input the `setGrant`
+ *  acknowledgement echo is built from, so the consent act pins the exact list the owner was shown. */
 export interface PluginView {
   readonly id: PluginId;
   readonly slug: string;
@@ -20,6 +27,13 @@ export interface PluginView {
   readonly status: PluginStatus;
   readonly origin: PluginOrigin;
   readonly grantedCapabilities: readonly PluginCapability[];
+  /** What the persisted manifest DECLARES (the ask). Always present — `capabilities` is a required manifest
+   *  array — and possibly empty; `grantedCapabilities ⊆ this` is the standing invariant every grant write holds. */
+  readonly declaredCapabilities: readonly PluginCapability[];
+  /** The manifest's exact-host `net.fetch` allowlist — the REACH half of what `net.fetch` means (a capability
+   *  name alone does not say where it points). `null` when the manifest declares none, which by the
+   *  `netHosts ⟺ net.fetch` biconditional is exactly when `net.fetch` is not declared. */
+  readonly netHosts: readonly string[] | null;
   readonly builtAgainst: PluginBuiltAgainst | null;
   readonly consecutiveCrashes: number;
   readonly lastError: string | null;

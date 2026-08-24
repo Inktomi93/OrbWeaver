@@ -9,7 +9,10 @@
 // anonymous snippet has no persistent plugin identity to source it (the bridge is built `pluginId:null`), so the
 // capability is withheld rather than invent a synthetic source (a guest feature-detects). storage.kv / notify are
 // likewise absent (no plugin row to key). tools/events/transforms are absent from the profile entirely — a
-// transient anonymous snippet can register no auditable/disableable residency.
+// transient anonymous snippet can register no auditable/disableable residency. `net.fetch` and `llm.quiet` are
+// absent for a reason that is not merely "no row to key": both are bounded by an HOURLY PER-PLUGIN ceiling, and
+// an anonymous one-shot has no durable identity to bill or to bound — a snippet that could egress or spend
+// would be the one unbelted path in the sandbox, reachable by any plain member.
 //
 // THE RESOURCE BELT (`snippetGate`): this is the one plugin verb a plain MEMBER reaches, and every call mints a
 // fresh 32 MiB-ceiling QuickJSContext held for the length of the run. The transport's request bucket bounds
@@ -39,7 +42,7 @@ export function createRunSnippet(ctx: PluginContext): (params: RunSnippetParams)
       // `pluginId: null` — a transient snippet has no persistent plugin row; its fixed grant profile omits
       // storage.kv / notify / chat.quick_reply, so the bridge's plugin-scoped closures are unreachable (the
       // membrane's capability gate refuses them first).
-      const bridge = buildPluginBridge(ctx.ops, caller.userId, null, ctx.notifyFloor);
+      const bridge = buildPluginBridge(ctx.ops, caller.userId, null, ctx.belts);
       // A snippet is a human-initiated one-shot — the cascade ROOT (automationDepth 0); a turn it triggers stamps 1.
       return await ctx.host.runSnippet({ code, grants, bridge, chat: { chatId, canWrite: authority.canWrite, automationDepth: 0 } });
     } finally {
