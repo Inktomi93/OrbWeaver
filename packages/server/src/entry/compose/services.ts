@@ -68,6 +68,7 @@ import { createSettingsContext, createSettingsService } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
+import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
 import type { EnginesPosture } from "#foundation/env";
@@ -710,6 +711,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     gatherDatabank: databank.gatherRetrieval,
     rpg: rpgOpsDelegate,
     resolveRegexSources: regexCompose.resolveRegexSources,
+    // The FOREIGN S2 teaching contributions (D145's registry). tool-use's contribution attaches the turn
+    // HOST's own plugin tools — the second door D146 governs, the first being automation's `run_tool` arm.
+    // Assembled HERE, at the composition root, because that is the only place a contribution may be
+    // registered: the `domain-teaching-contribution-compose-only` cruiser stanza makes the owning domain's
+    // front door the sole legal importer, so no verb can reach the factory and call it inline.
+    teaching: createToolUseTeachingContributions({ listDrivableToolNames: (userId) => toolUse.listDrivableToolNames(userId) }),
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 

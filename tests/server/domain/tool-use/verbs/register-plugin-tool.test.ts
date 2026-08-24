@@ -170,6 +170,46 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
     expect(scopes).toEqual([{ chatId: "chat_x", canWrite: true, automationDepth: 0 }]);
   });
 
+  // D146 / #648 — THE CEILING RE-PROVEN THROUGH THE NEW PATH. The membrane review's whole argument for why the
+  // wrong-principal bug was survivable was that NOTHING attaches or invokes a plugin tool outside a turn; the
+  // `run_tool` automation arm removes that shield, and it invokes with a DIFFERENT exec shape from every
+  // pre-existing caller: `turnId: null` (a rule dispatch is not a turn) and `roster: null` (fail-closed — the
+  // arm deliberately does not hand over anyone's membership). A ceiling that quietly depended on either field
+  // being populated would go silent on exactly this path, which is why these two pins exist rather than an
+  // assumption that the turn-shaped pins above still cover it.
+  const automationExec = execOf({ chatId: castId("chat_x"), roster: null, turnId: null });
+
+  test("the ceiling still DENIES on the automation exec shape — a null roster does not soften it", async () => {
+    const service = serviceWith(realCan);
+    let invoked = false;
+    const invoke = (): Promise<string> => {
+      invoked = true;
+      return Promise.resolve("x");
+    };
+    // The installer is not a present member of the chat the rule fires in. Nothing about `roster: null` may be
+    // read as "no membership to check" — the ceiling's input is the INSTALLER's row read, and it says no.
+    service.registerPluginTool(specOf({ name: "plugin_auto_denied", invoke, resolveInstallerRole: () => Promise.resolve(null) }));
+    const rec = await runOne(service, "plugin_auto_denied", { tag: "calm" }, automationExec);
+    expect(rec?.isError).toBe(true);
+    expect(rec?.result).toContain("not permitted");
+    expect(invoked).toBe(false);
+  });
+
+  test("on the automation exec shape a MEMBER installer still gets a read-only scope (canWrite is not inherited from nothing)", async () => {
+    const service = serviceWith(realCan);
+    let seen: InvocationChat | null | undefined;
+    const invoke = (_argsJson: string, chat: InvocationChat | null): Promise<string> => {
+      seen = chat;
+      return Promise.resolve("ok");
+    };
+    service.registerPluginTool(specOf({ name: "plugin_auto_member", invoke, resolveInstallerRole: () => Promise.resolve("member") }));
+    const rec = await runOne(service, "plugin_auto_member", { tag: "calm" }, automationExec);
+    expect(rec?.isError).toBe(false);
+    // The write half stays LOCKED. With no roster in scope at all, a ceiling that had been reading the caller's
+    // role would have had to either crash or default — it does neither, because it never reads it.
+    expect(seen).toEqual({ chatId: "chat_x", canWrite: false, automationDepth: 0 });
+  });
+
   test("a non-chat consumer still gets a null scope (no chat, no ceiling to run)", async () => {
     const service = serviceWith(realCan);
     let seen: InvocationChat | null | undefined = { chatId: castId("chat_unset"), canWrite: true, automationDepth: 0 };

@@ -15,12 +15,16 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     const rule = await requireRuleHost(ctx, params.principal, params.ruleId);
     const cooldownSeconds = params.cooldownSeconds ?? 0;
     const maxFiresPerHour = params.maxFiresPerHour ?? RULE_MAX_FIRES_DEFAULT;
-    const { actions } = await validateRuleInput(ctx.db, rule.chatId, {
+    const { actions } = await validateRuleInput(ctx, rule.chatId, {
       trigger: params.trigger,
       predicateCel: params.predicateCel,
       actions: params.actions,
       cooldownSeconds,
       maxFiresPerHour,
+      // THE RULE'S OWNER, not the editing caller. `requireRuleHost` admits any host of the rule's chat, and an
+      // edited rule still dispatches as its original author — so a co-host must not be able to point it at a
+      // tool that author cannot drive. Reachability is a question about who ACTS, never about who typed.
+      authorUserId: rule.ownerId,
     });
     await applyRuleUpdate(ctx.db, params.ruleId, {
       name: params.name,
