@@ -6,7 +6,9 @@
 // The model's soft `image_edit_dropped` warning (its connection can't img2img, so it re-generated instead) is
 // surfaced, never swallowed; a hard capability refusal throws and rides the mutation's errorToast.
 
+import type { AssetBlobRef } from "@orb/contracts/assets";
 import { blobUrl } from "@orb/contracts/assets";
+import type { AssetId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ArrowLeft, Icon, WandSparkles } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -24,6 +26,20 @@ import { useEditImage } from "../hooks/use-imagery-mutations.ts";
 
 const INSTRUCTION_ROWS = 2;
 const INSTRUCTION_MAX_ROWS = 6;
+
+/**
+ * The detail subject for the freshly-edited asset — the hand-off mints a BRAND-NEW subject (a different
+ * asset than the one being edited), so every field comes off the resolver row we already fetched for its
+ * url; nothing else on this surface knows the edited image's shape.
+ *
+ * #654: `dims` is what makes the landing modal RESERVE the image's true box instead of collapsing to 0×0
+ * and reflowing when the bytes land. Both dimensions or neither — a half-known header reserves nothing, so
+ * it takes the primitive's placeholder aspect, and so does an asset with no stored size at all.
+ */
+function editedSubject(ref: AssetBlobRef, assetId: AssetId, chatId: ChatId): ImageSubject {
+  const dims = ref.width === null || ref.height === null ? undefined : { w: ref.width, h: ref.height };
+  return { assetId, chatId, url: blobUrl(ref.hash), alt: "Edited image", ...(dims === undefined ? {} : { dims }) };
+}
 
 export function ImageEditBody(): ReactElement {
   const subject = useEditSubject();
@@ -70,7 +86,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
           toast.add({ title: "Edited image saved", description: "It's in your gallery." });
           return;
         }
-        openImageDetail({ assetId: first.assetId, chatId: subject.chatId, url: blobUrl(ref.hash), alt: "Edited image" });
+        openImageDetail(editedSubject(ref, first.assetId, subject.chatId));
       })
       .catch(() => undefined);
   };
@@ -78,7 +94,15 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
   return (
     <Stack gap="block" padding="block">
       <Section kicker="Source">
-        <MessageMedia src={{ kind: "asset", url: subject.url }} media="image" alt={subject.alt} className="mx-auto" />
+        {/* #654: the subject's stored dims reserve the true box, so the source image is already the right
+            shape when the modal opens rather than snapping into place as it decodes. */}
+        <MessageMedia
+          src={{ kind: "asset", url: subject.url }}
+          media="image"
+          alt={subject.alt}
+          {...(subject.dims === undefined ? {} : { dims: subject.dims })}
+          className="mx-auto"
+        />
       </Section>
       <Stack gap="field">
         <Text as="span" voice="label">
