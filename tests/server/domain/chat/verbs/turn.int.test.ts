@@ -8,7 +8,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { Principal } from "@orb/contracts/identity";
+import type { Can, Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -45,6 +45,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
+import { createToolUseService, createToolUseTeachingContributions } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -3054,6 +3055,46 @@ test("R2 end-to-end: NO contribution declares a name — the request carries no 
   await h.turn.send({ principal: principal(host), chatId, content: "hello" });
 
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
+});
+
+// D146 / #648 — THE SAME HOP WITH NOTHING FAKED. The three rows above drive a hand-written teacher and a fake
+// `ChatToolSet`, which is right for pinning the pipeline's own behaviour; this one closes the last link the
+// row's outcome sentence is actually about: a tool a PLUGIN registered at activation, attached by tool-use's
+// REAL teaching contribution, resolved by the REAL registry, arriving in the wire's `tools` array of a real
+// send. Unit pins cover the matrix (`tests/server/domain/tool-use/teaching-contribution.test.ts`); this proves
+// the hop between them, which no other test can see.
+test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactivated one silently does not", async () => {
+  const { host, chatId, names } = await seedRoom("attach_plugin", ["aria"]);
+  const requests: unknown[] = [];
+  const toolUse = createToolUseService({ can: (() => undefined) as Can, clock: () => 0 });
+  const handle = toolUse.registerPluginTool({
+    name: "plugin_mood_report",
+    description: "report the mood",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    installer: principal(host),
+    invoke: () => Promise.resolve("ok"),
+    resolveInstallerRole: () => Promise.resolve("host"),
+  });
+  // The tool ops wired the way `entry/compose/chat.ts::buildChatToolOps` wires them: chat's opaque
+  // `ChatToolSet` IS the registry's `ResolvedToolSet`, round-tripped through this seam.
+  const toolOps: NonNullable<ChatContext["tools"]> = {
+    resolveTools: (toolNames) => toolUse.resolveTools(toolNames),
+    toWireTools: (set) => toolUse.toWireTools(set as ReturnType<typeof toolUse.resolveTools>),
+    toAgentToolServer: () => Promise.resolve({}),
+    executeToolCalls: () => Promise.resolve([]),
+  };
+  const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
+  const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
+
+  await h.turn.send({ principal: principal(host), chatId, content: "how do we feel?" });
+  expect((requests[0] as { tools?: { name: string }[] }).tools?.map((t) => t.name)).toEqual(["plugin_mood_report"]);
+
+  // The owner switches the plugin off between turns. `resolveTools` THROWS on an unknown name at attach, so a
+  // contribution that had cached its list would fail this send outright; the read-through contribution simply
+  // stops naming it, and the turn ships tool-less exactly as it would for a host with no plugins at all.
+  handle.unregister();
+  await h.turn.send({ principal: principal(host), chatId, content: "and now?" });
+  expect((requests[1] as { tools?: unknown }).tools).toBeUndefined();
 });
 
 // ── M2 keep-last-X: ABSENT ≠ ZERO, proved at the TURN seam ───────────────────────────────────────
