@@ -324,9 +324,13 @@ async function markContrastCandidates(page: Page, selector: string): Promise<num
 async function clearContrastCandidates(page: Page): Promise<void> {
   await page
     .evaluate((mark) => {
-      for (const el of (document as unknown as { querySelectorAll: (s: string) => Iterable<{ removeAttribute: (n: string) => void }> }).querySelectorAll(
-        `[${mark}]`,
-      )) {
+      // `globalThis.document`, not bare `document`: this callback executes in the BROWSER, but tsc
+      // type-checks its body against tooling's NODE lib (no `dom`), where the bare name does not
+      // resolve (TS2584). Reaching it through globalThis keeps the file compilable without adding
+      // the DOM lib to a node package — the same reason the marking pass above threads everything
+      // through the explicit evaluate arg instead of closing over module scope.
+      const doc = (globalThis as unknown as { document: { querySelectorAll: (s: string) => Iterable<{ removeAttribute: (n: string) => void }> } }).document;
+      for (const el of doc.querySelectorAll(`[${mark}]`)) {
         el.removeAttribute(mark);
       }
     }, CONTRAST_MARK)
