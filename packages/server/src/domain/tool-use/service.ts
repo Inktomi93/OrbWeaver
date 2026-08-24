@@ -19,7 +19,7 @@ export function createToolUseService(ctx: ToolUseContext): ToolUseService {
   const executeToolCalls = createExecuteToolCalls(ctx);
   return {
     register: createRegister(registry),
-    registerPluginTool: createRegisterPluginTool(registry, ctx.can),
+    registerPluginTool: createRegisterPluginTool(registry),
     resolveTools: createResolveTools(registry),
     executeToolCalls,
     toWireTools: createToWireTools(),

@@ -3,7 +3,7 @@
 // over its owning domain's service — tool-use never imports a registrant. `ToolDefinition` stays
 // domain-internal (no client surface enumerates tools).
 
-import type { ChatAction, ChatRoster, GlobalAction, Principal } from "@orb/contracts/identity";
+import type { ChatAction, ChatRoster, GlobalAction, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import type { z } from "zod";
@@ -86,4 +86,15 @@ export interface PluginToolSpec {
   readonly parameters: Record<string, unknown>;
   readonly installer: Principal;
   readonly invoke: (argsJson: string, chat: InvocationChat | null) => Promise<string>;
+  /** The INSTALLER's PRESENT participant role in an arbitrary chat — the PL-C ceiling's only honest input
+   *  (`null` = not a present member of it). Injected per activation because the answer is a per-chat ROW READ
+   *  and only the composition root may reach chat's roster: `(chatId) => loadPresentRole(db, chatId,
+   *  installer.userId)`, the SAME op the transform registrar and the event fan-out already use.
+   *
+   *  Why an op and not `can()`: `can(installer, action, {kind:"chat", roster})` is a pure verdict over the
+   *  roster HANDED IN, and the only roster at invocation time is the TURN CALLER's
+   *  (`ToolExecutionContext.roster`) — so the read arm could never deny (`decideChat("read")` returns
+   *  unconditionally) and the host arm answered "is the CALLER host", handing an installer `canWrite:true`
+   *  inside a room they are not in. A ceiling over the wrong principal is not a ceiling. */
+  readonly resolveInstallerRole: (chatId: ChatId) => Promise<ParticipantRole | null>;
 }

@@ -2,12 +2,15 @@
 // in the ONE registry + resolves + executes through the SAME pipeline; the guest's raw JSON Schema is lifted
 // and ENFORCED (bad args → errors-as-data); an unsupported schema construct is an activation-fatal refusal
 // (PL-B); a collision is activation-fatal (`ToolNameCollisionError`, not boot-fatal); the ceiling runs as the
-// INSTALLING principal (PL-C — a chat the installer can't read → denied); and unregister leaves no ghost tool.
+// INSTALLING principal (PL-C — the installer's role in THIS chat, not the turn caller's roster); and
+// unregister leaves no ghost tool.
 
-import type { Can, ChatRoster, Principal } from "@orb/contracts/identity";
-import { DomainForbiddenError } from "@orb/kit/errors";
+import type { Can, ParticipantRole } from "@orb/contracts/identity";
+import type { InvocationChat } from "@orb/contracts/plugin";
 import { castId } from "@orb/kit/ids";
 import { JsonSchemaLiftError } from "@orb/kit/json-schema";
+import { can as realCan } from "@orb/server/domain/admin";
+import { describe } from "vitest";
 import type { PluginToolSpec, ToolCallRecord } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
@@ -18,8 +21,7 @@ import { execOf } from "../_support.ts";
 type Service = ReturnType<typeof createToolUseService>;
 
 const INSTALLER = makePrincipal(castId("user_installer"), { handle: castId("installer") });
-const ROSTER: ChatRoster = { role: "host" };
-const CHAT_EXEC = execOf({ chatId: castId("chat_x"), roster: ROSTER });
+const STRANGER = makePrincipal(castId("user_stranger"), { handle: castId("stranger") });
 
 const allowAll: Can = (() => undefined) as Can;
 
@@ -28,7 +30,9 @@ function serviceWith(can: Can = allowAll): Service {
   return createToolUseService({ can, clock: (): number => FROZEN_AT_MS });
 }
 
-/** A minimal valid plugin tool spec; `invoke` echoes the args JSON it received (the round-trip probe). */
+/** A minimal valid plugin tool spec; `invoke` echoes the args JSON it received (the round-trip probe). The
+ *  default `resolveInstallerRole` reports the installer as the chat's HOST (the permissive case — every PL-C
+ *  test below overrides it, since that op IS the ceiling). */
 function specOf(over: Partial<PluginToolSpec> = {}): PluginToolSpec {
   return {
     name: "plugin_mood_report",
@@ -36,6 +40,7 @@ function specOf(over: Partial<PluginToolSpec> = {}): PluginToolSpec {
     parameters: { type: "object", properties: { tag: { type: "string", minLength: 1 } }, required: ["tag"], additionalProperties: false },
     installer: INSTALLER,
     invoke: (argsJson: string): Promise<string> => Promise.resolve(`echo:${argsJson}`),
+    resolveInstallerRole: (): Promise<ParticipantRole | null> => Promise.resolve("host"),
     ...over,
   };
 }
@@ -82,33 +87,101 @@ test("a name collision is activation-fatal (ToolNameCollisionError), never last-
   expect(() => service.registerPluginTool(specOf())).toThrow(ToolNameCollisionError);
 });
 
-test("PL-C: the ceiling runs as the INSTALLING principal — a chat the installer can't read is denied", async () => {
-  // A `can` that allows read ONLY for the installer's own id — proves the gate uses the installer, not the
-  // turn caller (execOf's default principal is `user_host`, a different id).
-  const can: Can = ((principal: Principal, action: string): void => {
-    if (action === "read" && principal.userId !== INSTALLER.userId) {
-      throw new DomainForbiddenError("not a participant");
-    }
-  }) as Can;
-  const service = serviceWith(can);
+// PL-C is a ceiling over the INSTALLER, and the ONLY honest source for that is the installer's present role in
+// the invocation chat. It used to be `can(installer, …, exec.roster)` — a pure verdict over the TURN CALLER's
+// roster — which meant (a) the read admission could never deny (`decideChat("read")` returns unconditionally)
+// and (b) `canWrite` was taken from whoever was host of the room the tool ran in. These pins are written
+// against the REAL `can` seam so no stubbed `can` can make them pass vacuously.
+describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", () => {
+  const hostCallerExec = execOf({ chatId: castId("chat_x"), roster: { role: "host" } });
 
-  // Installer CAN read → the tool runs.
-  service.registerPluginTool(specOf({ name: "plugin_ok", installer: INSTALLER }));
-  const okRec = await runOne(service, "plugin_ok", { tag: "calm" }, CHAT_EXEC);
-  expect(okRec?.isError).toBe(false);
+  test("a chat the installer is not a present member of is DENIED — even when the CALLER is its host", async () => {
+    const service = serviceWith(realCan);
+    let invoked = false;
+    const invoke = (): Promise<string> => {
+      invoked = true;
+      return Promise.resolve("x");
+    };
+    // The installer is a stranger to chat_x (no participant row); the turn caller is its host.
+    service.registerPluginTool(specOf({ name: "plugin_denied", installer: STRANGER, invoke, resolveInstallerRole: () => Promise.resolve(null) }));
+    const rec = await runOne(service, "plugin_denied", { tag: "calm" }, hostCallerExec);
+    expect(rec?.isError).toBe(true);
+    expect(rec?.result).toContain("not permitted");
+    expect(invoked).toBe(false);
+  });
 
-  // A DIFFERENT installer the `can` denies read → the same call is denied (errors-as-data), guest not run.
-  const stranger = makePrincipal(castId("user_stranger"), { handle: castId("stranger") });
-  let strangerInvoked = false;
-  const invoke = (): Promise<string> => {
-    strangerInvoked = true;
-    return Promise.resolve("x");
-  };
-  service.registerPluginTool(specOf({ name: "plugin_denied", installer: stranger, invoke }));
-  const deniedRec = await runOne(service, "plugin_denied", { tag: "calm" }, CHAT_EXEC);
-  expect(deniedRec?.isError).toBe(true);
-  expect(deniedRec?.result).toContain("not permitted");
-  expect(strangerInvoked).toBe(false);
+  test("a MEMBER installer gets a READ-ONLY scope while the CALLER is host (canWrite is never the caller's)", async () => {
+    // THE EXPLOIT PIN. Pre-fix `canWrite` was `can(installer,"host",{roster: exec.roster})` = "is the CALLER
+    // host", so a plugin installed by user A ran with host write authority inside user B's room the moment B's
+    // own turn called it — unlocking applyVariableOps / worldInfo.upsertEntry / requestTurn / imagery there.
+    const service = serviceWith(realCan);
+    let seen: InvocationChat | null | undefined;
+    const invoke = (_argsJson: string, chat: InvocationChat | null): Promise<string> => {
+      seen = chat;
+      return Promise.resolve("ok");
+    };
+    service.registerPluginTool(specOf({ name: "plugin_member", installer: INSTALLER, invoke, resolveInstallerRole: () => Promise.resolve("member") }));
+    const rec = await runOne(service, "plugin_member", { tag: "calm" }, hostCallerExec);
+    expect(rec?.isError).toBe(false);
+    expect(seen?.chatId).toBe("chat_x");
+    expect(seen?.canWrite).toBe(false);
+  });
+
+  test("a HOST installer gets the write scope even when the CALLER is only a member", async () => {
+    // The mirror: the caller's role is irrelevant in BOTH directions — the plugin's effects are the
+    // installer's authority, which is what makes the membrane's host-authority gates meaningful.
+    const service = serviceWith(realCan);
+    let seen: InvocationChat | null | undefined;
+    const invoke = (_argsJson: string, chat: InvocationChat | null): Promise<string> => {
+      seen = chat;
+      return Promise.resolve("ok");
+    };
+    service.registerPluginTool(specOf({ name: "plugin_host", installer: INSTALLER, invoke, resolveInstallerRole: () => Promise.resolve("host") }));
+    const rec = await runOne(service, "plugin_host", { tag: "calm" }, execOf({ chatId: castId("chat_x"), roster: { role: "member" } }));
+    expect(rec?.isError).toBe(false);
+    expect(seen?.canWrite).toBe(true);
+  });
+
+  test("the installer's role is resolved for THE INVOCATION CHAT, per call", async () => {
+    // The op takes the chatId precisely so one registration cannot carry a role resolved elsewhere: the same
+    // tool is host in chat_x and a non-member in chat_y.
+    const service = serviceWith(realCan);
+    const scopes: (InvocationChat | null)[] = [];
+    const invoke = (_argsJson: string, chat: InvocationChat | null): Promise<string> => {
+      scopes.push(chat);
+      return Promise.resolve("ok");
+    };
+    const asked: string[] = [];
+    service.registerPluginTool(
+      specOf({
+        name: "plugin_per_chat",
+        invoke,
+        resolveInstallerRole: (chatId): Promise<ParticipantRole | null> => {
+          asked.push(chatId);
+          return Promise.resolve(chatId === "chat_x" ? "host" : null);
+        },
+      }),
+    );
+    const okRec = await runOne(service, "plugin_per_chat", { tag: "a" }, execOf({ chatId: castId("chat_x"), roster: { role: "member" } }));
+    const deniedRec = await runOne(service, "plugin_per_chat", { tag: "b" }, execOf({ chatId: castId("chat_y"), roster: { role: "host" } }));
+    expect(okRec?.isError).toBe(false);
+    expect(deniedRec?.isError).toBe(true);
+    expect(asked).toEqual(["chat_x", "chat_y"]);
+    expect(scopes).toEqual([{ chatId: "chat_x", canWrite: true, automationDepth: 0 }]);
+  });
+
+  test("a non-chat consumer still gets a null scope (no chat, no ceiling to run)", async () => {
+    const service = serviceWith(realCan);
+    let seen: InvocationChat | null | undefined = { chatId: castId("chat_unset"), canWrite: true, automationDepth: 0 };
+    const invoke = (_argsJson: string, chat: InvocationChat | null): Promise<string> => {
+      seen = chat;
+      return Promise.resolve("ok");
+    };
+    service.registerPluginTool(specOf({ name: "plugin_nochat", invoke }));
+    const rec = await runOne(service, "plugin_nochat", { tag: "calm" });
+    expect(rec?.isError).toBe(false);
+    expect(seen).toBeNull();
+  });
 });
 
 test("unregister removes the tool — no ghost after deactivation", () => {
