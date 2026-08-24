@@ -8,7 +8,7 @@ import type { Viewport } from "../../_shared/argv.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { ringBackdrop } from "../../_shared/pixel-backdrop.ts";
 import type { Rgb } from "../../_shared/wcag.ts";
-import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
+import { contrastRatio, INACTIVE_KIND_EXPR, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
 import type { ContrastBox, ContrastFacts, ContrastMeasured } from "../contract/contrast.ts";
 import type { ContrastOutcome } from "../contract/types.ts";
 import {
@@ -200,7 +200,12 @@ function buildContrastScript(selector: string): string {
       } else if (tag === "PROGRESS") role = "progressbar";
     }
     var hasText = (el.textContent || "").replace(/\\s+/g, " ").trim().length > 0;
-    var inactive = el.matches(":disabled,[aria-disabled='true']") || el.closest("[inert]") !== null;
+    // ONE classifier, shared with design-audit via _shared/wcag.ts (#624 — two homes for this rule is
+    // exactly how the two instruments came to disagree about the SAME element). \`inactiveKind\` carries the
+    // spelling (native/aria/inert) so the SKIPPED line can name it; \`inactive\` stays a boolean for the
+    // verdict, which exempts all three kinds exactly as it always has.
+    var inactiveKind = ${INACTIVE_KIND_EXPR};
+    var inactive = inactiveKind !== "none";
     // ANCESTOR opacity dims the FOREGROUND (blind-spot round 2): a message-actions row at opacity-40
     // paints the whole subtree — the icon's glyph included — at 0.4 over its backdrop, but style.color
     // still reads the UN-dimmed rgb (a ~11:1 false PASS where the eye sees ~2.6:1). CSS opacity groups

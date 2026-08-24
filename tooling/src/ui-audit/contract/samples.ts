@@ -1,7 +1,7 @@
 // The raw-sample shapes the in-page walker (ops/walker.ts) gathers and the lib/checks-* families
 // judge — plain data mirroring getComputedStyle/getBoundingClientRect output. RawSamples at the
 // bottom is the walker's return object, field-for-field.
-import type { Rgb } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 
 /** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
  *  ratio over OPAQUE stops; translucent stops refuse as indeterminate),
@@ -48,6 +48,14 @@ export interface ContrastInput {
    *  a11y-flavoured rule added here later excludes it EXPLICITLY rather than by an omission nobody can
    *  see. Optional: absent in the fixture sample sets that predate it. */
   readonly ariaHidden?: boolean;
+  /** How this text's control is INACTIVE, if it is (#624). WCAG 1.4.3 exempts inactive user interface
+   *  components from the contrast minimum, and `snap --contrast` has always honoured that — design-audit
+   *  did not, so it filed a P1 at 2.64:1 on the very element snap reported as `SKIPPED inactive control`.
+   *  Every disabled control in the app was a standing false positive, which teaches a reader to discount
+   *  the instrument's P1s. Classified by the ONE shared classifier (`_shared/wcag.ts` `INACTIVE_KIND_EXPR`)
+   *  so the two instruments cannot drift again. Optional: absent in the fixture sample sets that predate
+   *  it, and absent reads as `"none"`. */
+  readonly inactive?: InactiveKind;
   /** Product of `opacity` over the text element AND its ancestors. Below 1 the glyphs are painted as a
    *  BLEND of `color` and the backdrop (CSS opacity groups the subtree and composites it), while
    *  `color` still reports the undimmed value — so the ratio must be measured on the composite, exactly

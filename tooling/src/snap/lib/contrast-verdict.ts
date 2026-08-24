@@ -3,16 +3,16 @@
 // #466 exemption pushed that file past the tooling size cap; the browser half (the in-page fact script,
 // pixel sampling) stays in ops/. The WCAG math is the fleet-shared kernel (_shared/wcag.ts).
 import type { Rgb } from "../../_shared/wcag.ts";
-import { MEASURABLE_OPACITY_MIN } from "../../_shared/wcag.ts";
+import { MEASURABLE_OPACITY_MIN, UI_COMPONENT_MIN_RATIO as SHARED_UI_COMPONENT_MIN_RATIO } from "../../_shared/wcag.ts";
 import type { ContrastFacts, ContrastMeasured, ContrastOccluded, ContrastOffscreen } from "../contract/contrast.ts";
 import type { ContrastOutcome } from "../contract/types.ts";
 
 export const BOLD_WEIGHT = 700;
 
-/** WCAG 1.4.11's non-text boundary, applied to a control that renders NO text (an icon button, a
- *  graphical control), so a 4.5:1 text ratio isn't FALSE-flagged against it. Numerically 3:1 like
- *  large-text, but a distinct concept, hence its own name. */
-export const UI_COMPONENT_MIN_RATIO = 3;
+/** WCAG 1.4.11's non-text boundary — RE-EXPORTED from the fleet kernel (`_shared/wcag.ts`), which owns it
+ *  since #624 gave design-audit the same inactive-control vocabulary. Kept as a named export here so snap's
+ *  own consumers keep their import path; the VALUE has exactly one home. */
+export const UI_COMPONENT_MIN_RATIO = SHARED_UI_COMPONENT_MIN_RATIO;
 
 /** Roles whose contrast is a two-STATE signal (the track's on/off colors), NOT track-vs-page — measuring
  *  the latter is meaningless and produced the 1.71:1 Switch false-FAIL. */

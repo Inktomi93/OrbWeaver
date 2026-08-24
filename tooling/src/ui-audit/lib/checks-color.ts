@@ -1,8 +1,19 @@
 // Contrast + text-over-art + gray-on-color — WCAG 2.x math over resolved backdrops. Pure; every
 // threshold cited. Provenance/attribution: lib/collect.ts header.
 
-import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { contrastRatio, isLargeText, LARGE_MIN_RATIO, MEASURABLE_OPACITY_MIN, NORMAL_MIN_RATIO, relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+import {
+  contrastRatio,
+  INACTIVE_ADVISORY_MAX_RATIO,
+  isContrastExempt,
+  isLargeText,
+  LARGE_MIN_RATIO,
+  MEASURABLE_OPACITY_MIN,
+  NORMAL_MIN_RATIO,
+  relativeLuminance,
+  remainsOperable,
+  rgbChroma,
+} from "@orb/tooling/_shared/wcag";
 import type { Finding } from "../contract/findings.ts";
 import type { ContrastInput } from "../contract/samples.ts";
 import { OPAQUE_STOP_MIN_ALPHA } from "./ramp.ts";
@@ -18,6 +29,9 @@ function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
   const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
   return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
 }
+
+/** Why `aria-disabled` earns a sharper note than `:disabled`: it stays focusable and announced. */
+const ARIA_OPERABLE_NOTE = " — and `aria-disabled` stays FOCUSABLE and announced, so a keyboard user can land on a control they cannot see";
 
 function indeterminateFinding(selector: string, value: string, message: string): Finding {
   return { rule: "text-over-art", severity: "P1", selector, value, message, origin: "orbweaver" };
@@ -89,18 +103,72 @@ export function checkContrast(input: ContrastInput): Finding | null {
     return null;
   }
 
-  const ratio = contrastRatio(seenColor(input.backdrop.color), input.backdrop.color);
-  if (ratio < minRatio) {
-    return {
-      rule: "contrast",
-      severity: "P1",
-      selector: input.selector,
-      value: `${ratio.toFixed(2)}:1 (need ${minRatio}:1)${dimNote}`,
-      message: `text/background contrast is ${ratio.toFixed(2)}:1, below WCAG AA's ${minRatio}:1 floor for ${large ? "large" : "normal"} text${dimmedMessage}`,
-      origin: "orbweaver",
-    };
+  return flatBackdropFinding({
+    input,
+    ratio: contrastRatio(seenColor(input.backdrop.color), input.backdrop.color),
+    minRatio,
+    large,
+    dimNote,
+    dimmedMessage,
+  });
+}
+
+interface FlatVerdict {
+  readonly input: ContrastInput;
+  readonly ratio: number;
+  readonly minRatio: number;
+  readonly large: boolean;
+  readonly dimNote: string;
+  readonly dimmedMessage: string;
+}
+
+/** The flat-background verdict, with the #624 inactive-control exemption applied BEFORE the P1 claim. */
+function flatBackdropFinding(v: FlatVerdict): Finding | null {
+  if (v.ratio >= v.minRatio) {
+    return null;
   }
-  return null;
+  // #624 — WCAG 1.4.3 EXEMPTS inactive user interface components, and `snap --contrast` has always honoured
+  // that. This checker did not, so on the SAME element snap said `SKIPPED inactive control (WCAG contrast
+  // exemption)` while design-audit filed a P1 at 2.64:1 — making every disabled control in the app a
+  // standing false positive, which is how a reader learns to discount the tool's P1s wholesale.
+  const inactive = v.input.inactive ?? "none";
+  if (isContrastExempt(inactive)) {
+    return inactiveAdvisory(v.input.selector, v.ratio, inactive, v.dimNote);
+  }
+  return {
+    rule: "contrast",
+    severity: "P1",
+    selector: v.input.selector,
+    value: `${v.ratio.toFixed(2)}:1 (need ${v.minRatio}:1)${v.dimNote}`,
+    message: `text/background contrast is ${v.ratio.toFixed(2)}:1, below WCAG AA's ${v.minRatio}:1 floor for ${v.large ? "large" : "normal"} text${v.dimmedMessage}`,
+    origin: "orbweaver",
+  };
+}
+
+/** The nuance the exemption must NOT swallow: a dim disabled control is no longer a WCAG VIOLATION, but it
+ *  is still a usability problem when the dimming is the only signal that the control exists at all. So the
+ *  P1 contrast CLAIM is dropped and an advisory takes its place — but only below WCAG 1.4.11's own
+ *  UI-component boundary (a CITED floor, not an invented one), so ordinary disabled styling stays silent
+ *  instead of trading one wall of false P1s for a wall of false P3s.
+ *
+ *  `aria-disabled` is deliberately called out separately: unlike `:disabled` and `[inert]` it remains
+ *  FOCUSABLE and ANNOUNCED, so a keyboard user can land on a control they cannot see. */
+function inactiveAdvisory(selector: string, ratio: number, kind: InactiveKind, dimNote: string): Finding | null {
+  if (ratio >= INACTIVE_ADVISORY_MAX_RATIO) {
+    return null;
+  }
+  const operableNote = remainsOperable(kind) ? ARIA_OPERABLE_NOTE : "";
+  return {
+    rule: "inactive-control-legibility",
+    severity: "P3",
+    selector,
+    value: `${ratio.toFixed(2)}:1 (${kind}-disabled; WCAG contrast exempt)${dimNote}`,
+    message:
+      `an INACTIVE control's text is ${ratio.toFixed(2)}:1 — NOT a WCAG AA violation (1.4.3 exempts inactive ` +
+      "components, which is why snap --contrast skips it), but it is below the 1.4.11 UI-component boundary " +
+      `of ${INACTIVE_ADVISORY_MAX_RATIO}:1, so the control may not read as present at all${operableNote}`,
+    origin: "orbweaver",
+  };
 }
 
 // ── Gray text on a colored background (impeccable `gray-on-color`) ───────────
