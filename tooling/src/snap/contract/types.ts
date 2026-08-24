@@ -20,7 +20,12 @@ type StepAction =
   // so N of them land N times on the same neighbour instead of walking (2026-08-16: the settings
   // dialog's tab order was unmeasurable, and the audit concluded "Tab never advances focus").
   | { kind: "keyboard"; key: string }
-  | { kind: "waitfor"; selector: string };
+  | { kind: "waitfor"; selector: string }
+  // --upload <selector>=<path[,path...]> (#651): attach local files to a file input. `selector` is
+  // whatever the caller wrote (often the DECORATIVE dropzone wrapper, not the input itself) — ops/upload.ts
+  // drills to the real `<input type="file">` at drive time. `paths` are boundary-checked (repo/scratchpad
+  // only) and existence-checked there too, so a bad path is a LOUD step failure, never a silent no-op.
+  | { kind: "upload"; selector: string; paths: readonly string[] };
 export type Step = StepAction & { page: number };
 
 // --goto / --open-chat / --open-character / --context-tab: SPA navigation via the app's dev nav bridge

@@ -218,3 +218,59 @@ test("a page the walk censused NOTHING on is an INSTRUMENT ERROR, never a clean 
   expect(res.stdout).toContain("census");
   await expect(res).toExitWith(2);
 });
+
+// ── --upload (#651) ──────────────────────────────────────────────────────────
+// design-audit's census over the plugin install/consent screen was a FALSE CLEAN — taken against an
+// EMPTY dropzone, so the surface a bundle actually populates was never rendered, let alone scanned.
+// Pinned with the same shape: a fixture whose file-input `change` handler reveals a real contrast
+// defect. UNUPLOADED, the route is clean (the false-clean shape). Through `--upload`, the SAME route
+// REDs with a `contrast` finding — proof the walk now censuses the file-populated surface, not the pick
+// screen. A boundary-refusal control (never a silent no-op) closes the loop.
+
+// A hidden real <input type="file"> under a decorative wrapper — the same shape every FileDropzone in
+// this app uses (packages/ui/src/primitives/file-dropzone/file-dropzone.tsx). `change` reveals a
+// black-on-black paragraph: a defect that exists ONLY once a file has been attached.
+const UPLOAD_PAGE = `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000">
+<main>
+  <p style="color:#fff;font-size:16px;margin:24px">Drop a plugin bundle</p>
+  <div id="wrap"><input type="file" id="f" hidden /></div>
+</main>
+<script>
+document.getElementById('f').addEventListener('change', () => {
+  var p = document.createElement('p');
+  p.style.cssText = 'background:#000;color:#000;font-size:16px;margin:24px';
+  p.textContent = 'revealed only by an upload';
+  document.body.appendChild(p);
+});
+</script>
+</body></html>`;
+
+test("--upload populates the surface design-audit censuses — clean unuploaded, REDs through the step", async ({ runCli, scratch }) => {
+  const file = join(scratch, "upload.html");
+  await writeFile(file, UPLOAD_PAGE);
+
+  // Unuploaded: the exact false-clean shape #651 named — a real defect sits behind a file pick, and a
+  // census that never populates the surface reports nothing wrong.
+  const clean = await runCli("ui-audit", ["/upload.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(clean.stdout).not.toContain("contrast");
+  await expect(clean).toExitWith(0);
+
+  // Through --upload: the SAME route now REDs on the SAME rule, because the walk censused the
+  // file-populated DOM instead of the empty dropzone.
+  const fixture = join(scratch, "fixture.txt");
+  await writeFile(fixture, "hello upload");
+  const uploaded = await runCli("ui-audit", ["/upload.html", "--base", `file://${scratch}`, "--upload", `#wrap=${fixture}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(uploaded.stdout).toContain("contrast");
+  await expect(uploaded).toExitWith(1);
+});
+
+test("--upload refuses a path OUTSIDE the repo/scratchpad boundary — loudly, never a silent no-op", async ({ runCli, scratch }) => {
+  const file = join(scratch, "upload.html");
+  await writeFile(file, UPLOAD_PAGE);
+  const res = await runCli("ui-audit", ["/upload.html", "--base", `file://${scratch}`, "--upload", "#wrap=/etc/hostname"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("ACTION FAILED");
+  expect(res.stdout).toContain("boundary");
+  await expect(res).toExitWith(1);
+});

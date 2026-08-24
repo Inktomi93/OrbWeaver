@@ -6,6 +6,7 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import type { launchProbeSession } from "@orb/tooling/_shared/browser";
 import { settle } from "@orb/tooling/_shared/browser";
 import { runNav } from "@orb/tooling/_shared/nav";
+import { resolveFileInputLocator, resolveUploadPaths } from "@orb/tooling/_shared/upload";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { Args, AuditAction, CaptureOutcome } from "../contract/types.ts";
@@ -17,6 +18,32 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 type AuditPage = Awaited<ReturnType<typeof launchProbeSession>>["page"];
 
+/** `--upload`'s own body (#651): boundary-check the paths (no browser needed for that half), wait for the
+ *  selector ATTACHED (every real upload input in this app sits under decorative chrome on purpose — see
+ *  `_shared/upload.ts`), drill to the real `<input type="file">`, attach. Split out of `driveAction` so
+ *  its cognitive complexity stays in budget. */
+async function driveUpload(page: AuditPage, action: Extract<AuditAction, { kind: "upload" }>): Promise<void> {
+  const resolved = resolveUploadPaths(action.paths);
+  if (!resolved.ok) {
+    throw new Error(resolved.reason);
+  }
+  const loc = page.locator(action.selector).first();
+  await loc.waitFor({ state: "attached", timeout: CLICK_TIMEOUT_MS });
+  const target = await resolveFileInputLocator(loc);
+  await target.setInputFiles([...resolved.paths]);
+}
+
+/** What a failed action names, for the printed line. */
+function actionLabel(action: AuditAction): string {
+  if (action.kind === "click") {
+    return `click ${action.selector}`;
+  }
+  if (action.kind === "upload") {
+    return `upload ${action.selector}`;
+  }
+  return `${action.method} ${action.target}`;
+}
+
 /** One action + its settle. Returns 1 on failure (printed, and the audit's verdict reddens) — a scan of
  *  the WRONG surface is worse than no scan, so an action that didn't land is never silent. The nav arm is
  *  the shared bridge vocabulary (_shared/nav.ts), identical to snap's and the two motion probes'. */
@@ -26,6 +53,8 @@ async function driveAction(page: AuditPage, action: AuditAction, waitMs: number)
       const loc = page.locator(action.selector).first();
       await loc.waitFor({ state: "visible", timeout: CLICK_TIMEOUT_MS });
       await loc.click({ timeout: CLICK_TIMEOUT_MS });
+    } else if (action.kind === "upload") {
+      await driveUpload(page, action);
     } else {
       const result = await runNav(page, action.method, action.target);
       if (!result.ok) {
@@ -34,7 +63,7 @@ async function driveAction(page: AuditPage, action: AuditAction, waitMs: number)
       }
     }
   } catch (e) {
-    print(`ACTION FAILED ${action.kind === "click" ? `click ${action.selector}` : `${action.method} ${action.target}`}: ${errorMessage(e)}`);
+    print(`ACTION FAILED ${actionLabel(action)}: ${errorMessage(e)}`);
     return 1;
   }
   await settle(page, waitMs);

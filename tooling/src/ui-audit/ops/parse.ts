@@ -10,7 +10,7 @@ import {
   parseAppearancePatch,
 } from "@orb/tooling/_shared/appearance";
 import type { Viewport } from "@orb/tooling/_shared/argv";
-import { parseViewport } from "@orb/tooling/_shared/argv";
+import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
@@ -38,6 +38,17 @@ function pushNav(args: Args, method: NavMethod, rest: string[]): void {
 const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--click": (a, rest) => {
     a.actions.push({ kind: "click", selector: rest.shift() ?? "" });
+  },
+  // --upload <selector>=<path[,path...]> (#651): the SAME shape and boundary snap's --upload uses
+  // (_shared/upload.ts) — a census over an empty dropzone was the false clean this whole row exists to
+  // fix, so the walk needs to be able to POPULATE the surface it scans, not just navigate to it.
+  "--upload": (a, rest) => {
+    const s = splitLastEq(rest.shift() ?? "");
+    const paths = s.tail
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p !== "");
+    a.actions.push({ kind: "upload", selector: s.head, paths });
   },
   "--goto": (a, rest) => {
     pushNav(a, "goto", rest);
@@ -101,6 +112,7 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
 
 const REQUIRED_VALUE_FLAGS = new Set([
   "--click",
+  "--upload",
   "--goto",
   "--open-chat",
   "--open-character",
@@ -122,6 +134,10 @@ Usage:
 Surface (ONE argv-ordered queue — write the chain the way it should happen):
   --click <selector>        --goto <section|settings:cat|modal:slot>
   --open-chat <id|title|latest|current>   --open-character <id|name>
+  --upload <selector>=<path[,path...]>    attach local file(s) to a file input — drills a wrapper
+                            selector down to the real <input type="file"> automatically. PATH BOUNDARY:
+                            every path must resolve inside this repo or the OS tmp dir; anything else is
+                            refused loudly. Same shape and boundary as snap's --upload (_shared/upload.ts).
   --context-tab <tab>       --wait <ms>   settle after the last action (default ${DEFAULT_WAIT_MS})
 
 Environment:
