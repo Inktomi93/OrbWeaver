@@ -112,6 +112,24 @@ test("#618: clicking a room image with an ACTIVE chat opens the detail modal BOU
     .toMatchObject({ chatId: ACTIVE_CHAT, background: { kind: "asset", assetId: "asset_ct_attach" } });
 });
 
+// #625 — the RESERVATION arm: the row's resolved asset now carries the STORED dims, so the box is the
+// image's true box while the bytes are still in flight (before #625 the <img> sat at 0×0 and the thread
+// reflowed the moment it decoded). The url is held permanently pending so this measures the pre-decode box.
+const PENDING_SRC = "/blob/ct-625-pending-portrait.png";
+const MIN_RESERVED_PX = 1;
+
+test("#625: a resolved asset's stored dims reserve its TRUE box before the bytes arrive", async ({ mount, page }) => {
+  await page.route(`**${PENDING_SRC}`, () => undefined);
+  await page.setViewportSize({ width: VIEWPORTS[1].width, height: VIEWPORTS[1].height });
+  const component = await mount(<AttachmentMediaStory reservedSrc={PENDING_SRC} />);
+  const img = component.locator(MEDIA_IMG);
+  // Visible at all is the assertion that bites: a dims-less <img> with nothing decoded lays out 0×0.
+  await expect(img).toBeVisible();
+  const box = await img.boundingBox();
+  expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+  expect(box?.height ?? 0).toBeGreaterThan(MIN_RESERVED_PX);
+});
+
 test("an unresolved asset ref degrades to the [image] placeholder, never a broken img", async ({ mount }) => {
   // Empty context map (the provider-less / still-loading state).
   const component = await mount(<AttachmentMediaStory empty={true} />);

@@ -6,6 +6,8 @@ CREATE TABLE `assets` (
 	`size` integer NOT NULL,
 	`hash` text NOT NULL,
 	`animated` integer DEFAULT false NOT NULL,
+	`width` integer,
+	`height` integer,
 	`uploaded_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "assets_kind_check" CHECK(kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'background', 'plugin'))

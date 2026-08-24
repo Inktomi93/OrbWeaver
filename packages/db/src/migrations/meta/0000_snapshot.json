@@ -57,6 +57,20 @@
           "autoincrement": false,
           "default": false
         },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "uploaded_at": {
           "name": "uploaded_at",
           "type": "integer",

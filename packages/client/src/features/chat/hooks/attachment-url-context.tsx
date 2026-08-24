@@ -11,10 +11,14 @@ import { castId } from "@orb/kit/ids";
 import { createContext, use } from "react";
 
 /** One resolved inline attachment: the `blobUrl` + the stored mime (#317 — the media block picks the
- *  element off it: `video/*` renders a native `<video>`, everything else the `<img>` path). */
+ *  element off it: `video/*` renders a native `<video>`, everything else the `<img>` path) + the stored
+ *  intrinsic size (#625 — the media block reserves the true box with it before the bytes arrive). */
 export interface ResolvedAttachment {
   readonly url: string;
   readonly mime: string;
+  /** The asset's stored pixel dimensions, or `undefined` when it has none (a non-image, an unparseable
+   *  header, a row written before #625) — the media block then falls back to its placeholder aspect. */
+  readonly dims?: { readonly w: number; readonly h: number };
 }
 
 const EMPTY: ReadonlyMap<AssetId, ResolvedAttachment> = new Map<AssetId, ResolvedAttachment>();
