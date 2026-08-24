@@ -7,7 +7,7 @@
 // `beginTurn`, and a fresh id never collides with a prior test's lingering slot).
 
 import type { TurnSlot } from "@orb/client/state";
-import { __setFrameSchedulerForTest, chatStream, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
+import { __setFrameSchedulerForTest, chatStream, isLiveTurnPhase, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
 import type { ChatDeltaEvent, TurnIntent } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -292,4 +292,28 @@ describe("chatStream rAF-batched token accumulation (task #20 — frame-cadence 
       restore();
     }
   });
+});
+
+// `isLiveTurnPhase` is the render side's half of the slot machine, and it shipped referenced by ZERO test in
+// this mirror until #619 repaired clause C of `test-presence-client` (the clause resolved `.ct.tsx` only, so
+// this `.test.ts`-mirrored store was never judged). The partition is written as a TOTAL Record rather than a
+// list of cases on purpose: a new `TurnSlot` phase then fails tsc here until someone decides which side of
+// the live/not-live line it falls on — which is the decision the ghost row depends on.
+const LIVE_BY_PHASE: Record<TurnSlot["phase"], boolean> = {
+  idle: false,
+  pending: true,
+  streaming: true,
+  // THE BUG THIS PINS (the source comment names it): the render side must agree `stopping` is still LIVE,
+  // or the ghost row unmounts the instant Stop is clicked and the reply flashes away.
+  stopping: true,
+  completed: false,
+  aborted: false,
+};
+
+test("isLiveTurnPhase partitions every turn phase, and `stopping` stays LIVE", () => {
+  for (const [phase, expected] of Object.entries(LIVE_BY_PHASE) as [TurnSlot["phase"], boolean][]) {
+    expect(isLiveTurnPhase(phase), `phase ${phase}`).toBe(expected);
+  }
+  // The named regression, asserted directly so it can never be lost in a loop refactor.
+  expect(isLiveTurnPhase("stopping")).toBe(true);
 });
