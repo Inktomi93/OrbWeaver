@@ -40,6 +40,7 @@ import type { ChatContext } from "../../../../packages/server/src/domain/chat/co
 import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryRecallResult } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
+import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
 import { pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -474,6 +475,10 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // test overrides with a recorder to assert the fire-and-forget after commit.
     expressions: null,
     rpg: null,
+    // The S2 teaching registry, wired EXACTLY as the composition root wires it: chat's own contributor #0
+    // (the rpg-gather projection). A suite that registers a foreign contribution overrides this with
+    // `[...createChatTeachingContributions(), <its own>]`.
+    teaching: createChatTeachingContributions(),
     // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op — automation-design/04 §6). A
     // transform test overrides with a `createPromptTransformRegistry(...).apply`.
     promptTransforms: null,

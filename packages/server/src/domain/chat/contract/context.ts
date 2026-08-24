@@ -1007,6 +1007,56 @@ type GetGroupConfigOp = (rawMetadata: unknown) => GroupConfig;
 /** Parses a chat's raw metadata blob → its effective {@link RoomOverrides} (default-applied). */
 type GetRoomOverridesOp = (rawMetadata: unknown) => RoomOverrides;
 
+/** The per-chat knob reads a teaching contribution may branch on ({@link TeachingContext.knobs}). Grows
+ *  ADDITIVELY — one NAMED field per contribution that needs one, never a bag: a contribution reads the knob
+ *  it was built for and a new knob is a tsc-visible field, not a lookup that silently resolves undefined.
+ *  ONE field today (`offerChoices`, the B1 knob — RULED F2 chat-homed). The resolver is
+ *  `substrate/teaching.ts`'s `DEFAULT_TEACHING_KNOBS`. */
+export interface TeachingKnobs {
+  /** Whether this chat asks the model to offer choices (the standing `:::choices` fence). */
+  readonly offerChoices: boolean;
+}
+
+/** The ONE input a teaching contribution reasons from — assembled ONCE per turn in `buildTurnContext`, after
+ *  the rpg gather, and handed to every contribution. Deliberately NOT the `ChatContext`: a contribution is a
+ *  foreign domain's op, so it receives RESOLVED VALUES (the [foreign-inputs-seam] shape) and reads no chat
+ *  table. `runAsUserId` is the turn's frozen host (D19), already resolved at the collection site. */
+export interface TeachingContext {
+  readonly chatId: ChatId;
+  readonly runAsUserId: UserId;
+  readonly knobs: TeachingKnobs;
+  /** THIS turn's rpg gather, or `null` for a non-game chat / unwired rpg. Present so a contribution can see
+   *  what the GAME already teaches before teaching it a second time (the double-teach case). It is the SAME
+   *  object chat's own contribution projects — never a re-run of the gather. */
+  readonly rpgGather: ChatRpgGatherResult | null;
+}
+
+/** What ONE contribution contributes to a turn. Teach and attach travel TOGETHER by construction: a
+ *  contribution that tells the model about a tool and a contribution that attaches it are the same
+ *  contribution, so the two can never drift apart across a registry. */
+export interface TeachingCollection {
+  readonly injections: readonly ChatInjection[];
+  /** Registry tool names to attach to THIS turn. Resolved at the tool-use registry when the turn attaches
+   *  (an unknown name THROWS — `resolveTools`); capability-gated per turn downstream (`tools_unsupported`).
+   *  Empty ⇒ the turn is byte-identical to a tool-less one. */
+  readonly toolNames: readonly string[];
+}
+
+/** The S2 MODEL-TEACHING seam: ONE per-chat assembly of "what this chat's model is told it can do".
+ *  A contribution is registered at `entry/compose` (never imported by a verb — the injected-op law) and
+ *  collected in `order` (ascending, ties by registration). Chat's OWN contribution is the rpg-gather
+ *  projection at order 0 (`domain/chat/teaching-contribution.ts`), which is why a game turn's reminder is
+ *  byte-unchanged by this seam. `id` is a stable diagnostic name, unique within a registry. */
+export interface TeachingContribution {
+  readonly id: string;
+  readonly order: number;
+  readonly collect: (tctx: TeachingContext) => Promise<TeachingCollection>;
+}
+
+/** The composed teaching registry (`ChatContext.teaching`) — every domain's contributions in ONE array,
+ *  assembled at `entry/compose`. Empty is legal and means "nothing teaches this turn" (byte-identical). */
+export type ChatTeachingRegistry = readonly TeachingContribution[];
+
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +
  *  the id-minters are the determinism seams (no ambient Date.now()/mintTypeId() in a verb). */
 export interface ChatContext {
@@ -1108,6 +1158,13 @@ export interface ChatContext {
   readonly expressions: ChatExpressionsOps | null;
   /** The injected rpg turn ops (rpg-design/05 §0). Null when rpg isn't wired — byte-identical no-op. */
   readonly rpg: ChatRpgOps | null;
+  /** The S2 teaching registry ({@link ChatTeachingRegistry}), assembled at `entry/compose`. REQUIRED and
+   *  non-nullable on purpose, unlike the `rpg`/`expressions`/`tools` null-op ops beside it: the null-op
+   *  default belongs on the compose INPUT (`[...createChatTeachingContributions(), ...(input.teaching ?? [])]`),
+   *  because chat's OWN contribution is the rpg-gather projection — a ctx that could silently omit the
+   *  registry would silently drop a game turn's state block. An EMPTY array is the honest "nothing teaches"
+   *  value, and tsc forces every ctx builder to state it. */
+  readonly teaching: ChatTeachingRegistry;
   /** The D50 PromptTransform apply op (automation-design/04 §6). Null when no registrar is wired —
    *  byte-identical no-op (a chat with zero transforms assembles + streams identically). */
   readonly promptTransforms: ApplyPromptTransformsOp | null;

@@ -483,6 +483,14 @@ module.exports = {
       },
     },
     {
+      name: "domain-teaching-contribution-compose-only",
+      comment:
+        "The ratified `teaching-contribution.ts` root slot (the S2 model-teaching seam) is a COMPOSITION SURFACE: a domain's teaching contributions reach the turn ONLY by being registered onto `ChatContext.teaching` at entry/compose, never by a verb (or anything else) importing the factory and calling it inline. So the ONLY legal importer is the owning domain's own front door (index.ts), which is what entry/compose imports through — every other reader, in this domain or any other, would be bypassing the injected registry and re-creating the hard-wired call site the seam exists to delete. Not type-only-exempt: the factory is a VALUE and its shapes live in chat's contract/, so nobody needs a type from this file. (interaction-direction-spec §3-S2; the workload-contributions.ts precedent, D117.)",
+      severity: "error",
+      from: { pathNot: `${SRV}domain/[^/]+/index\\.ts$` },
+      to: { path: `${SRV}domain/[^/]+/teaching-contribution\\.ts$` },
+    },
+    {
       name: "domain-no-cross-subsystem",
       comment:
         "A feature's named subsystems stay independent: a file in subsystem A can't import subsystem B (same feature, different non-fixed-slot subdir). Cross-subsystem coordination goes through substrate/ (the DI seam) — exempt both sides, along with the fixed slots (substrate split across files, not subsystems). (structure.md §4.)",

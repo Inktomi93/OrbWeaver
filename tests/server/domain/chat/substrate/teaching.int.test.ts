@@ -1,0 +1,188 @@
+// THE S2 BYTE PINS, at the instrument the spec names: the MERGED `ChatInjection[]` the build hands to
+// assembly (`AssembleContext.chatInjections`), driven through the real gather over a real libSQL db.
+//
+// What these pin, in order: (1) a zero-contribution chat's array is exactly its own host-authored rows — the
+// value every chat had before this seam existed; (2) a game chat's state block arrives with the same content,
+// order and `game-state` stamp the merge site used to apply, across the cyoa-off/cyoa-on arms; (3) the
+// DOUBLE-TEACH GUARD collapses two contributions teaching the same fence to ONE; (4) the guard's SCOPE — two
+// identical HOST-AUTHORED rows both survive, because this seam does not edit a human's canon.
+
+import type { ChatInjection } from "@orb/contracts/chat";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { PROSE_SLOTS } from "@orb/contracts/prose";
+import type { Db } from "@orb/db";
+import { chatInjections } from "@orb/db";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { beforeEach, describe } from "vitest";
+import type {
+  ChatContext,
+  ChatRpgGatherResult,
+  ChatTeachingRegistry,
+  TeachingContribution,
+} from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather.ts";
+import { collectTeaching, DEFAULT_TEACHING_KNOBS } from "../../../../../packages/server/src/domain/chat/substrate/teaching.ts";
+import { createChatTeachingContributions } from "../../../../../packages/server/src/domain/chat/teaching-contribution.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+
+/** The CYOA teach's ONE home — the same bytes the rpg reminder composes and a chat-level offer-choices
+ *  contribution would emit. The double-teach case is only real because these are the same string. */
+const CYOA_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
+
+const STATE_BLOCK = "[Scene] a tavern at dusk";
+
+let db: Db;
+beforeEach(async () => {
+  db = await freshDb();
+});
+
+function foreignOf(): ForeignInputs {
+  return {
+    promptConfig: DEFAULT_PROMPT_CONFIG,
+    personas: { anchor: null, active: null },
+    scanDepth: 6,
+    injectionTokenBudget: 0,
+  };
+}
+
+async function seedRoom(key: string): Promise<{ host: UserId; chatId: ChatId; aria: CharacterId }> {
+  const host = await seedUser(db, castId<Handle>(`${key}_host`));
+  const chatId = await seedChat(db, key);
+  const aria = await seedCharacter(db, host, `${key}_aria`);
+  await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: `${key}_c`, characterId: aria });
+  return { host, chatId, aria };
+}
+
+/** A host-authored `chat_injections` row (the plane this seam must never touch). */
+async function seedInjectionRow(chatId: ChatId, id: string, content: string): Promise<void> {
+  await db.insert(chatInjections).values({
+    id: castId(id),
+    chatId: castId(chatId),
+    position: "in_chat",
+    depth: 0,
+    role: "system",
+    content,
+    createdAt: FROZEN_AT,
+  });
+}
+
+/** A game gather: the depth-0 state block, plus the cyoa teach when the game's knob is on. */
+function gatherOf(cyoa: boolean): ChatRpgGatherResult {
+  const injections: ChatInjection[] = [{ position: "in_chat", depth: 0, role: "system", content: STATE_BLOCK }];
+  if (cyoa) {
+    injections.push({ position: "in_chat", depth: 0, role: "system", content: CYOA_TEACH });
+  }
+  return { macros: {}, injections, tools: [], cardKeepLastX: 0 };
+}
+
+/** Runs the REAL seam end to end: collect over the ctx's registry, then merge through the real gather. */
+async function mergedInjections(args: {
+  readonly ctx: ChatContext;
+  readonly chatId: ChatId;
+  readonly host: UserId;
+  readonly aria: CharacterId;
+  readonly rpgGather: ChatRpgGatherResult | null;
+}): Promise<readonly ChatInjection[]> {
+  const teaching = await collectTeaching(args.ctx.teaching, {
+    chatId: args.chatId,
+    runAsUserId: args.host,
+    knobs: DEFAULT_TEACHING_KNOBS,
+    rpgGather: args.rpgGather,
+  });
+  const out = await gatherAssembleContext(
+    args.ctx,
+    {
+      chatId: args.chatId,
+      runAsUserId: args.host,
+      model: "m",
+      castCharacterIds: [args.aria],
+      personaIds: [],
+      teachingInjections: teaching.injections,
+    },
+    foreignOf(),
+  );
+  return out.chatInjections ?? [];
+}
+
+function ctxOf(extra: ChatTeachingRegistry = []): ChatContext {
+  return makeChatContext(db, { teaching: [...createChatTeachingContributions(), ...extra] });
+}
+
+/** A foreign contribution that teaches the choices fence — B1's shape, stood in for at A1. */
+function choicesTeacher(order: number): TeachingContribution {
+  return {
+    id: "test.offer-choices",
+    order,
+    collect: () => Promise.resolve({ injections: [{ position: "in_chat", depth: 0, role: "system", content: CYOA_TEACH }], toolNames: [] }),
+  };
+}
+
+describe("the merged injection array — the S2 byte pins", () => {
+  test("a ZERO-CONTRIBUTION chat: the merged array is exactly its own host rows, `user`-stamped", async () => {
+    const { host, chatId, aria } = await seedRoom("plain");
+    await seedInjectionRow(chatId, "chat_injection_p1", "OPERATOR ONE");
+    await seedInjectionRow(chatId, "chat_injection_p2", "OPERATOR TWO");
+
+    const merged = await mergedInjections({ ctx: ctxOf(), chatId, host, aria, rpgGather: null });
+
+    expect(merged).toEqual([
+      { position: "in_chat", depth: 0, role: "system", content: "OPERATOR ONE", origin: "user" },
+      { position: "in_chat", depth: 0, role: "system", content: "OPERATOR TWO", origin: "user" },
+    ]);
+  });
+
+  test("a GAME chat, cyoa OFF: host rows first, then the state block stamped `game-state`", async () => {
+    const { host, chatId, aria } = await seedRoom("game_off");
+    await seedInjectionRow(chatId, "chat_injection_g1", "OPERATOR");
+
+    const merged = await mergedInjections({ ctx: ctxOf(), chatId, host, aria, rpgGather: gatherOf(false) });
+
+    expect(merged).toEqual([
+      { position: "in_chat", depth: 0, role: "system", content: "OPERATOR", origin: "user" },
+      { position: "in_chat", depth: 0, role: "system", content: STATE_BLOCK, origin: "game-state" },
+    ]);
+  });
+
+  test("a GAME chat, cyoa ON: the teach rides the same stamp, in the gather's own order", async () => {
+    const { host, chatId, aria } = await seedRoom("game_on");
+
+    const merged = await mergedInjections({ ctx: ctxOf(), chatId, host, aria, rpgGather: gatherOf(true) });
+
+    expect(merged).toEqual([
+      { position: "in_chat", depth: 0, role: "system", content: STATE_BLOCK, origin: "game-state" },
+      { position: "in_chat", depth: 0, role: "system", content: CYOA_TEACH, origin: "game-state" },
+    ]);
+  });
+
+  test("THE DOUBLE-TEACH GUARD: game cyoa ON + a chat-level choices contribution ⇒ EXACTLY ONE teach", async () => {
+    const { host, chatId, aria } = await seedRoom("double");
+
+    const merged = await mergedInjections({ ctx: ctxOf([choicesTeacher(1)]), chatId, host, aria, rpgGather: gatherOf(true) });
+
+    expect(merged.filter((i) => i.content === CYOA_TEACH)).toHaveLength(1);
+    expect(merged.map((i) => i.content)).toEqual([STATE_BLOCK, CYOA_TEACH]);
+  });
+
+  test("with the game's cyoa OFF the chat-level contribution still teaches — the guard collapses, never suppresses", async () => {
+    const { host, chatId, aria } = await seedRoom("single");
+
+    const merged = await mergedInjections({ ctx: ctxOf([choicesTeacher(1)]), chatId, host, aria, rpgGather: gatherOf(false) });
+
+    expect(merged.map((i) => i.content)).toEqual([STATE_BLOCK, CYOA_TEACH]);
+  });
+
+  test("THE GUARD'S SCOPE: two IDENTICAL host-authored rows both survive — this seam never edits a human's canon", async () => {
+    const { host, chatId, aria } = await seedRoom("hostdupe");
+    await seedInjectionRow(chatId, "chat_injection_d1", "SAY IT TWICE");
+    await seedInjectionRow(chatId, "chat_injection_d2", "SAY IT TWICE");
+
+    const merged = await mergedInjections({ ctx: ctxOf(), chatId, host, aria, rpgGather: null });
+
+    expect(merged.filter((i) => i.content === "SAY IT TWICE")).toHaveLength(2);
+  });
+});

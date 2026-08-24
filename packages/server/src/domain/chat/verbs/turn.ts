@@ -8,16 +8,7 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type {
-  AssembleContext,
-  ChatInjection,
-  DurableChatBusEvent,
-  GroupConfig,
-  MacroFreezeRecord,
-  MessageView,
-  SpeakerRef,
-  UserMacroDraws,
-} from "@orb/contracts/chat";
+import type { AssembleContext, DurableChatBusEvent, GroupConfig, MacroFreezeRecord, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType, GuidedImpersonatePerson, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
@@ -94,6 +85,7 @@ import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden }
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
+import { collectTeaching, DEFAULT_TEACHING_KNOBS } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
 
 /** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
@@ -460,12 +452,15 @@ function prepMacroFields(
   };
 }
 
-/** The rpg gather-args spread — the macro/injection feed + the game turn's `{{expr::…}}` CEL activation
- *  (parity-plus §12), each omitted when absent so a non-game turn's args stay byte-identical. A top-level
- *  helper so these branches stay OUT of `buildTurnContext`'s cognitive-complexity budget. */
+/** The rpg gather-args spread — the macro feed + the game turn's `{{expr::…}}` CEL activation (parity-plus
+ *  §12), each omitted when absent so a non-game turn's args stay byte-identical. A top-level helper so these
+ *  branches stay OUT of `buildTurnContext`'s cognitive-complexity budget.
+ *
+ *  The gather's INJECTIONS are deliberately NOT here: they ride the S2 teaching collection (chat's own
+ *  contributor #0 projects them, `teaching-contribution.ts`), so every prose steering contributor reaches
+ *  assembly through ONE channel. */
 function rpgAssembleFields(rpg: ChatRpgGatherResult | null): {
   rpgMacros?: Readonly<Record<string, string>>;
-  rpgInjections?: readonly ChatInjection[];
   rpgCelBindings?: Readonly<Record<string, unknown>>;
 } {
   if (rpg === null) {
@@ -473,7 +468,6 @@ function rpgAssembleFields(rpg: ChatRpgGatherResult | null): {
   }
   return {
     rpgMacros: rpg.macros,
-    rpgInjections: rpg.injections,
     ...(rpg.celBindings !== undefined ? { rpgCelBindings: rpg.celBindings } : {}),
   };
 }
@@ -575,6 +569,16 @@ async function buildTurnContext(
           prose: composeProse({ preset: foreign.promptConfig.prose }),
         })
       : null;
+  // THE S2 TEACHING COLLECTION — the ONE assembly of "what this chat's model is told it can do", collected
+  // right after the gather so contributor #0 (chat's own rpg projection) sees THIS turn's gather. Its
+  // `injections` ride the one prose-steering channel to assembly; its `toolNames` are the turn's wire attach
+  // set. An empty registry ⇒ both empty ⇒ byte-identical to a turn built before this seam existed.
+  const teaching = await collectTeaching(ctx.teaching, {
+    chatId: args.chatId,
+    runAsUserId: args.runAsUserId,
+    knobs: DEFAULT_TEACHING_KNOBS,
+    rpgGather: rpg,
+  });
   // The per-turn user-macro registries (WAVE MU delivery) — resolved ONCE via the top-level helper (kept out
   // of this function's cognitive-complexity budget). `null` when no user macros are authored ⇒ every render
   // seam falls back to the process singletons (byte-identical); the registries ride `TurnPrep` (closures),
@@ -609,10 +613,13 @@ async function buildTurnContext(
       prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
-      // The rpg gather-args: macro/injection feed + the game turn's `{{expr::…}}` CEL activation (parity-plus
-      // §12), each omitted when absent so a non-game turn / a lite gather that stages none stays byte-identical
-      // (⇒ `{{expr::rpg.…}}` errors-to-""). Extracted to keep this fn under the cognitive-complexity budget.
+      // The rpg gather-args: macro feed + the game turn's `{{expr::…}}` CEL activation (parity-plus §12), each
+      // omitted when absent so a non-game turn / a lite gather that stages none stays byte-identical (⇒
+      // `{{expr::rpg.…}}` errors-to-""). Extracted to keep this fn under the cognitive-complexity budget.
       ...rpgAssembleFields(rpg),
+      // The S2 collection's injections — ALREADY origin-stamped by their producers (chat's rpg projection
+      // stamps `game-state`), merged with the chat's own `chat_injections` rows at the ONE merge site.
+      teachingInjections: teaching.injections,
       // The per-turn user-macro RENDER + FREEZE registries (WAVE MU) — absent ⇒ the pure build's singleton fallback.
       ...gatherMacroRegistries(userMacros),
     },
@@ -624,7 +631,10 @@ async function buildTurnContext(
     memoryConfig: foreign.memoryConfig,
     memoryRecall: sink.memoryRecall ?? null,
     chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
-    attachedToolNames: rpg?.tools ?? [],
+    // R2 — the wire attach set is the UNION over the teaching contributions' `toolNames` (teach and attach
+    // travel together). Today every contributor pins `[]`, so this is byte-identical to the old
+    // `rpg?.tools ?? []`; the first non-empty contributor attaches through this one seam.
+    attachedToolNames: teaching.toolNames,
     terminalTools: rpg?.terminalTools,
     respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
     // NO `?? 0` — absence is the signal (see `BuiltTurnContext.cardKeepLastX`): only a game's gather contributes
