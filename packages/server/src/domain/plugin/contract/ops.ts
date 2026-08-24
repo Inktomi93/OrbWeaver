@@ -208,6 +208,18 @@ export interface NotifyFloor {
   /** CHECK-AND-CLAIM for one (plugin, chat): throws when the previous notice is younger than the floor,
    *  otherwise records this post and returns. Deliberately ONE synchronous step — a check that returned a
    *  verdict and let the caller await the write before recording would let two concurrent invocations both
-   *  pass (the membrane admits up to 32 concurrent host calls per invocation). */
+   *  pass (the membrane admits up to 32 concurrent host calls per instance). */
   readonly admit: (pluginId: PluginId, chatId: ChatId) => void;
+}
+
+/** The per-USER ceiling on concurrently-running inline snippets. `runSnippet` is the one plugin path a plain
+ *  chat MEMBER reaches, and each call mints a whole fresh `QuickJSContext` (32 MiB ceiling) held for up to the
+ *  snippet's settlement wall — so the bound that matters is how many a single user may hold AT ONCE, which no
+ *  request-rate bucket can express. */
+export interface SnippetGate {
+  /** CHECK-AND-CLAIM one slot for `userId`, returning its RELEASE (the caller must call it in a `finally`).
+   *  Throws `PluginSnippetBusyError` when the user is already at the ceiling. ONE synchronous step for the same
+   *  reason `NotifyFloor.admit` is: a claim that awaited anything between the check and the record would let a
+   *  burst of concurrent calls all observe the pre-burst count. */
+  readonly admit: (userId: UserId) => () => void;
 }

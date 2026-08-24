@@ -10,6 +10,11 @@
 // capability is withheld rather than invent a synthetic source (a guest feature-detects). storage.kv / notify are
 // likewise absent (no plugin row to key). tools/events/transforms are absent from the profile entirely — a
 // transient anonymous snippet can register no auditable/disableable residency.
+//
+// THE RESOURCE BELT (`snippetGate`): this is the one plugin verb a plain MEMBER reaches, and every call mints a
+// fresh 32 MiB-ceiling QuickJSContext held for the length of the run. The transport's request bucket bounds
+// calls per minute, which cannot say how many contexts one member pins AT ONCE — so the slot is claimed here,
+// per user, for the duration, and released in a `finally`.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -25,12 +30,20 @@ export function createRunSnippet(ctx: PluginContext): (params: RunSnippetParams)
       throw new DomainNotFoundError("chat", chatId);
     }
     const grants: PluginCapability[] = ["chat.read", "global_vars", ...(authority.canWrite ? (["chat.variables.write"] as const) : [])];
-    // The bridge is built per-caller (the snippet runs as its author; global-vars closes over the caller).
-    // `pluginId: null` — a transient snippet has no persistent plugin row; its fixed grant profile omits
-    // storage.kv / notify / chat.quick_reply, so the bridge's plugin-scoped closures are unreachable (the
-    // membrane's capability gate refuses them first).
-    const bridge = buildPluginBridge(ctx.ops, caller.userId, null, ctx.notifyFloor);
-    // A snippet is a human-initiated one-shot — the cascade ROOT (automationDepth 0); a turn it triggers stamps 1.
-    return await ctx.host.runSnippet({ code, grants, bridge, chat: { chatId, canWrite: authority.canWrite, automationDepth: 0 } });
+    // CLAIM A CONCURRENCY SLOT — after the authority gate (a caller who may not read the chat must be refused as
+    // NOT_FOUND, and must not be able to consume slots probing rooms) and BEFORE the context is minted. The
+    // release is in a `finally`, so a thrown/deadlined/refused run always returns its slot.
+    const release = ctx.snippetGate.admit(caller.userId);
+    try {
+      // The bridge is built per-caller (the snippet runs as its author; global-vars closes over the caller).
+      // `pluginId: null` — a transient snippet has no persistent plugin row; its fixed grant profile omits
+      // storage.kv / notify / chat.quick_reply, so the bridge's plugin-scoped closures are unreachable (the
+      // membrane's capability gate refuses them first).
+      const bridge = buildPluginBridge(ctx.ops, caller.userId, null, ctx.notifyFloor);
+      // A snippet is a human-initiated one-shot — the cascade ROOT (automationDepth 0); a turn it triggers stamps 1.
+      return await ctx.host.runSnippet({ code, grants, bridge, chat: { chatId, canWrite: authority.canWrite, automationDepth: 0 } });
+    } finally {
+      release();
+    }
   };
 }

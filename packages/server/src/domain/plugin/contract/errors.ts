@@ -71,6 +71,18 @@ export class PluginNotFoundError extends DomainNotFoundError {
   }
 }
 
+/** `runSnippet` while the caller already holds the maximum number of concurrently-running snippets. A snippet is
+ *  a personal REPL — one at a time is the real usage shape — and each concurrent run pins a whole
+ *  `QuickJSContext` (32 MiB ceiling) for up to its settlement wall. Maps to CONFLICT: retryable the moment the
+ *  caller's own run finishes, and it says so. */
+// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
+// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
+export class PluginSnippetBusyError extends DomainConflictError {
+  constructor(max: number) {
+    super(`you already have ${max} snippet${max === 1 ? "" : "s"} running — wait for one to finish before running another`);
+  }
+}
+
 /** `installPlugin` for a slug the caller already has installed — install is create-only; changing the bundle is
  *  `upgradePlugin` (the `(owner, slug)` UNIQUE, checked before the write for a clean message). Maps to CONFLICT. */
 // @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
