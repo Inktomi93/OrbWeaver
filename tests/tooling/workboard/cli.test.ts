@@ -122,7 +122,7 @@ if (args[0] === "api" && args[1] === "rate_limit") {
       number: target.number,
       url: target.url,
       state: target.state,
-      blockedBy: { nodes: target.blockers.map((number) => ({ number })) },
+      blockedBy: { nodes: target.blockers.map((number) => ({ number, state: (state.issues[String(number)] || {}).state || "OPEN" })) },
       comments: { nodes: target.comments.map((body) => ({ body })) },
       projectItems: { nodes: state.items.filter((item) => item.content.number === target.number).map(itemNode) },
     } } } });
@@ -724,6 +724,50 @@ defineTest("block and unblock retries reconcile without repeating relations", ()
   expect(drive(unblocked, "unblock", "11", "--by", String(FIRST_BLOCKER)).status).toBe(0);
   expect(targetIssue(unblocked).blockers).toEqual([]);
   expect(fieldValue(unblocked, STATUS_FIELD)).toBe("Ready");
+});
+
+defineTest("a CLOSED blocker is dropped from the live block list — GitHub keeps the edge after close", () => {
+  // #632's real-world manifestation: Blocked on #627, and #627 closed without the edge disappearing.
+  // requireUnblocked (lifecycle.ts) trusts `target.blockers` verbatim, so the filter has to happen at
+  // the derivation (fetchIssueContext/fetchBlockers) or every reader inherits the stale edge.
+  const state = createState("Blocked", [FIRST_BLOCKER]);
+  const blocker = state.issues[String(FIRST_BLOCKER)];
+  if (blocker !== undefined) {
+    blocker.state = "CLOSED";
+  }
+  expect(drive(state, "ready", "11").status).toBe(0);
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Ready");
+});
+
+defineTest("one OPEN blocker still refuses ready/claim", () => {
+  const state = createState("Blocked", [FIRST_BLOCKER]);
+  const ready = drive(state, "ready", "11");
+  expect(ready.status).toBe(TOOL_ERROR_EXIT);
+  expect(ready.stderr).toContain("cannot become Ready while blocked");
+});
+
+defineTest("one open blocker plus one closed blocker still refuses — only ALL-closed clears it", () => {
+  const state = createState("Blocked", [FIRST_BLOCKER, SECOND_BLOCKER]);
+  const blocker = state.issues[String(SECOND_BLOCKER)];
+  if (blocker !== undefined) {
+    blocker.state = "CLOSED";
+  }
+  const ready = drive(state, "ready", "11");
+  expect(ready.status).toBe(TOOL_ERROR_EXIT);
+  expect(ready.stderr).toContain("cannot become Ready while blocked");
+});
+
+defineTest("unblock --by a number that was never a current blocker is a documented no-op, not state corruption", () => {
+  // Reproduces the live #632 confusion (`unblock 632 --by 24` printed success when the only real
+  // blocker was #627): the row stays exactly as blocked as it truly is — Status unchanged, the real
+  // blocker list unchanged — it never fabricates an unblock that didn't happen. This mirrors block()'s
+  // own idempotent-when-already-present symmetry (lifecycle.ts) and is WAI per the file's rerunnable
+  // doctrine, not the same defect class as the closed-blocker read bug above.
+  const state = createState("Blocked", [FIRST_BLOCKER]);
+  const result = drive(state, "unblock", "11", "--by", String(SECOND_BLOCKER));
+  expect(result.status).toBe(0);
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Blocked");
+  expect(targetIssue(state).blockers).toEqual([FIRST_BLOCKER]);
 });
 
 defineTest("block sends the blocker-query issue number as a typed GraphQL input", () => {
