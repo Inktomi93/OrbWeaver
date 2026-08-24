@@ -14,7 +14,15 @@
 // (`RULE_PRESET_KNOB_KINDS` + a mapped-type Record — the §5.5 discipline) and the DOMAIN side derives each
 // knob's resolved VALUE type from its descriptor (`RulePresetKnobValueOf`), which is what makes a preset
 // builder's `knobs.everyN` a compile-checked `number` rather than a stringly bag.
+//
+// FOUR SCALAR KINDS + ONE REFERENCE KIND. `entityRef` is the odd one and is the whole reason a host no
+// longer types a TypeID from memory: it names an ENTITY AXIS (`RULE_PRESET_ENTITY_KINDS`) rather than a
+// value, the picker renders it as a chooser over what THIS CHAT actually has, and its resolved value is a
+// BRANDED id parsed through the axis's own schema. One entity member ships (`worldInfoBook`) — the kind is
+// proven end to end for one consumer before it generalizes.
 
+import type { WorldBookId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** The committed preset catalogue's ids — the A3-riding v1 rows of the §4 catalogue. The domain holds an
@@ -48,8 +56,29 @@ export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);
 
 /** The knob editor kinds. A new kind fails every exhaustive descriptor dispatch (`tsc`). */
-export const RULE_PRESET_KNOB_KINDS = ["number", "text", "textList", "choice"] as const;
+export const RULE_PRESET_KNOB_KINDS = ["number", "text", "textList", "choice", "entityRef"] as const;
 export type RulePresetKnobKind = (typeof RULE_PRESET_KNOB_KINDS)[number];
+
+/** The ENTITIES an `entityRef` knob may point at. ONE member, deliberately: the kind exists because the
+ *  auto-add-lore rule preset needs a BOOK and no knob could reference one (a host was asked to type a
+ *  TypeID from memory). It generalizes when a SECOND consumer exists — the axis is already the §5.5 shape
+ *  (a tuple + mapped-type Records below), so widening it is adding a member and letting `tsc` name every
+ *  site, not a redesign. */
+export const RULE_PRESET_ENTITY_KINDS = ["worldInfoBook"] as const;
+export type RulePresetEntityKind = (typeof RULE_PRESET_ENTITY_KINDS)[number];
+
+/** The id VALIDATOR per entity kind — a mapped-type Record, so a new entity kind without a schema fails
+ *  `tsc`. This is what makes an `entityRef` knob's resolved value a BRANDED id rather than a hopeful cast:
+ *  the mint substrate parses the caller's raw string through this before a preset builder ever reads it. */
+export const RULE_PRESET_ENTITY_REF_SCHEMAS = {
+  worldInfoBook: typeIdSchema(ID_PREFIX.worldBook),
+} as const satisfies { readonly [TEntity in RulePresetEntityKind]: z.ZodType<string> };
+
+/** The NOUN a refusal names an entity by — host vocabulary, never the wire key ("lorebook", not
+ *  "worldInfoBook"). Mapped over the axis for the same `tsc` reason as the schemas. */
+export const RULE_PRESET_ENTITY_NOUNS = {
+  worldInfoBook: "lorebook",
+} as const satisfies { readonly [TEntity in RulePresetEntityKind]: string };
 
 /** Shared by every descriptor: what the picker labels the field, and the optional one-line help under it. */
 interface RulePresetKnobBase {
@@ -94,12 +123,33 @@ export interface RulePresetChoiceKnobDescriptor<TOption extends string = string>
   readonly default: TOption;
 }
 
+/** A reference to an ENTITY the rule will act on — the lorebook the auto-add-lore preset writes into. The
+ *  picker renders it as a chooser over what the CHAT actually has, so minting needs no typed id.
+ *
+ *  IT CARRIES NO `default`, and that absence is load-bearing rather than an omission: no entity is "the"
+ *  entity, and `resolveKnob` returns a descriptor default UNVALIDATED (an absent override never reaches a
+ *  bounds check — A3-verify). A `default: ""` would therefore ride straight through resolution into a mint
+ *  and only die deep inside the arm's own schema. With no default there is nothing to bypass: an absent
+ *  entityRef override is a typed refusal at the knob, in the host's own vocabulary.
+ *
+ *  Generic in its entity so a preset builder's read is the BRANDED id (the `RulePresetChoiceKnobDescriptor`
+ *  shape — the default parameter keeps the erased union one type). */
+export interface RulePresetEntityRefKnobDescriptor<TEntity extends RulePresetEntityKind = RulePresetEntityKind> extends RulePresetKnobBase {
+  readonly kind: "entityRef";
+  readonly entity: TEntity;
+}
+
+/** The branded id an entity kind resolves to. One arm today; a second entity kind adds an arm here and
+ *  `tsc` names every builder that reads one. */
+export type RulePresetEntityRefValueOf<TEntity extends RulePresetEntityKind> = TEntity extends "worldInfoBook" ? WorldBookId : never;
+
 /** One knob's editor descriptor — the picker's exhaustive dispatch axis. */
 export type RulePresetKnobDescriptor =
   | RulePresetNumberKnobDescriptor
   | RulePresetTextKnobDescriptor
   | RulePresetTextListKnobDescriptor
-  | RulePresetChoiceKnobDescriptor;
+  | RulePresetChoiceKnobDescriptor
+  | RulePresetEntityRefKnobDescriptor;
 
 /** The VALUE type a descriptor resolves to. The domain's `ResolvedRulePresetKnobs` maps a preset's knob schema
  *  through this, which is what makes every preset builder's knob reads compile-checked. */
@@ -111,7 +161,9 @@ export type RulePresetKnobValueOf<TKnob extends RulePresetKnobDescriptor> = TKno
       ? readonly string[]
       : TKnob extends RulePresetChoiceKnobDescriptor<infer TOption>
         ? TOption
-        : never;
+        : TKnob extends RulePresetEntityRefKnobDescriptor<infer TEntity>
+          ? RulePresetEntityRefValueOf<TEntity>
+          : never;
 
 /** A knob value on the wire — the union every descriptor kind resolves into. */
 export type RulePresetKnobValue = number | string | readonly string[];
@@ -119,6 +171,14 @@ export type RulePresetKnobValue = number | string | readonly string[];
 /** The wire validator for a caller's knob OVERRIDES (the mint's optional partial bag). Shape-only: the
  *  per-knob kind/bound check is the domain's, against the named preset's own descriptors. */
 export const rulePresetKnobValuesSchema = z.record(z.string(), z.union([z.number(), z.string(), z.array(z.string())]));
+
+/** The override bag AS A CALLER SPELLS IT — DERIVED from the wire validator above, never re-spelled. It is
+ *  the mutable-array sibling of `RulePresetKnobValue`: the wire takes `string[]` and a `readonly string[]`
+ *  will not assign into it, so a picker form holding its own editable list needs this shape rather than the
+ *  resolved one. */
+export type RulePresetKnobValueInputs = z.input<typeof rulePresetKnobValuesSchema>;
+/** ONE knob's value in that bag. */
+export type RulePresetKnobValueInput = RulePresetKnobValueInputs[string];
 
 /** One knob descriptor as the picker reads it — the descriptor plus the key it is addressed by (the domain
  *  holds knobs as a keyed schema; the projection flattens it). */
