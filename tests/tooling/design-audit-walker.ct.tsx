@@ -17,6 +17,7 @@ import { COLLECT_SAMPLES_JS, collectFindings } from "../../tooling/src/ui-audit/
 import {
   WalkerAccentBorderStory,
   WalkerAriaHiddenVisualStory,
+  WalkerBelowTheFoldStory,
   WalkerCapsTrackingStory,
   WalkerClippedInflowControlStory,
   WalkerDimmedContrastStory,
@@ -527,6 +528,94 @@ test("a line at the ratified 75ch measure is clean while a genuinely over-long o
   const long = findings.find((f) => f.selector.includes("measure-110ch"));
   expect(long, `the rule must stay alive: got ${JSON.stringify(findings)}`).toBeDefined();
   expect(long?.value, "and it reports REAL characters now").toBe("110 chars/line");
+});
+
+// ── BELOW THE FOLD IS NOT UNREACHABLE (issue #653) ────────────────────────────────────────────────
+// The interactive census required viewport intersection for tapTargets, actionDoors AND controlAspects,
+// so every control merely scrolled out of sight fell out of three verdict families at once — and the run
+// printed `findings=0`, which is what a clean surface prints. Measured on the surface that named the row
+// (the chat "This chat" tab at 430x932): NO document scroll at all, an inner scroller of clientHeight 515
+// over scrollHeight 2261, ~20 sized controls at top 1073..2374, zero of them censused.
+//
+// The fix is to SCROLL, not to relax: the tap-target extent is a `document.elementFromPoint` probe, which
+// is a viewport-coordinate API, so measuring an off-screen control's box instead would trade a false clean
+// for a false measurement. These five tests pin both halves of that — the defect fires, the healthy twins
+// stay silent WHILE PRESENT in the census, the pseudo-element extent still measures correctly (only
+// possible if the reveal really put the control on screen), the genuinely unreachable control is COUNTED
+// rather than dropped, and the sweep leaves every scroll position where it found it.
+test.describe("below-the-fold census reach", () => {
+  // Short enough that a control 900px down an inner scroller is genuinely outside the viewport — on a
+  // default-tall CT page it would already intersect and the stage would prove nothing.
+  test.use({ viewport: { width: 520, height: 420 } });
+
+  test("a 413x16 control below the fold is a tap-target finding — it was invisible to three rule families before", async ({ mount, page }) => {
+    await mount(<WalkerBelowTheFoldStory />);
+    const samples = await samplesOf(page);
+    const findings = collectFindings(samples);
+    const seen = JSON.stringify(samples.tapTargets);
+
+    expect(
+      samples.tapTargets.map((t) => t.selector).join(" | "),
+      `the below-fold control must be CENSUSED at all — that is the whole defect. got ${seen}`,
+    ).toContain("below-fold-subtarget");
+    expect(selectorsFor(findings, "tap-target"), `16px is under the 24px fine-pointer floor. census: ${seen}`).toContain("[data-testid=below-fold-subtarget]");
+  });
+
+  test("a healthy below-fold control is censused and stays silent — the reveal did not become a finding factory", async ({ mount, page }) => {
+    await mount(<WalkerBelowTheFoldStory />);
+    const samples = await samplesOf(page);
+    const findings = collectFindings(samples);
+
+    expect(
+      samples.tapTargets.map((t) => t.selector).join(" | "),
+      "silence is only evidence when the control was looked at — a 48x48 control must be IN the census",
+    ).toContain("below-fold-healthy");
+    expect(selectorsFor(findings, "tap-target"), "48x48 clears every floor; flagging it would make the widened census useless").not.toContain(
+      "[data-testid=below-fold-healthy]",
+    );
+  });
+
+  test("a revealed control's hit extent is still measured by the compositor, not read off its box", async ({ mount, page }) => {
+    await mount(<WalkerBelowTheFoldStory />);
+    const samples = await samplesOf(page);
+
+    // A 20x20 box wearing a 52px `::after`. Reading the BOX would report 20 and mint a false sub-target;
+    // only a probe taken while the control is genuinely in the viewport reports the real extent. This is
+    // the fence against "fixing" the blindness by dropping the viewport requirement instead of scrolling.
+    expect(smallestSide(samples.tapTargets, "below-fold-extent"), `census: ${JSON.stringify(samples.tapTargets)}`).toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
+  });
+
+  test("an unreachable control is COUNTED, not dropped — the census publishes its own denominator", async ({ mount, page }) => {
+    await mount(<WalkerBelowTheFoldStory />);
+    const samples = await samplesOf(page);
+    const reach = samples.censusReach;
+
+    expect(reach, "a census with no reach counters states no denominator, which is the defect one level up").toBeDefined();
+    // ONE reveal, not three: the sweep scrolls to the first control it cannot see and the rest of the
+    // cluster comes into view with it, which is exactly why the sweep costs screens rather than elements.
+    expect(reach?.revealed ?? 0, "the below-fold cluster sits ~900px down an inner scroller and must have been scrolled to").toBeGreaterThanOrEqual(1);
+    expect((reach?.onScreen ?? 0) + (reach?.revealed ?? 0), "all four in-document controls must end up measured").toBe(4);
+    expect(reach?.skippedOffViewport ?? 0, "a fixed control at 300vw scrolls nowhere — it must be counted, not silently dropped").toBeGreaterThanOrEqual(1);
+    expect(reach?.budgetExhausted, "this stage is nowhere near the reveal budget").toBe(false);
+    expect(samples.tapTargets.map((t) => t.selector).join(" | "), "an off-canvas phantom is offered to nobody and must not mint a finding").not.toContain(
+      "off-canvas-phantom",
+    );
+  });
+
+  test("the sweep puts every scroller back — the text samples' viewport boxes must survive it", async ({ mount, page }) => {
+    await mount(<WalkerBelowTheFoldStory />);
+    const host = page.locator("[data-testid=fold-scroll-host]");
+    await host.evaluate((el) => {
+      el.scrollTop = 120;
+    });
+
+    await samplesOf(page);
+
+    // ops/pixels.ts screenshots the page AFTER the walk to settle unresolved backdrops against the boxes
+    // the text census recorded. A sweep that left the surface scrolled would re-point every one of those
+    // samples at the wrong pixels — a contrast verdict measured against someone else's background.
+    expect(await host.evaluate((el) => el.scrollTop), "the reveal sweep must restore the scroll position it borrowed").toBe(120);
+  });
 });
 
 test("the healthy twin produces no clipped-overflow finding — scroll panes, sr-only stubs and padded badges are not cuts", async ({ mount, page }) => {
