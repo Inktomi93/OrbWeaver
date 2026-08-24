@@ -2,6 +2,7 @@
 import { print } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Finding, Severity } from "../contract/findings.ts";
+import type { CensusReachInput } from "../contract/samples.ts";
 import type { BackdropRefusal } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
@@ -51,6 +52,36 @@ export function printBackdropRefusals(refusals: readonly BackdropRefusal[]): voi
   }
   if (refusals.length > REFUSAL_PRINT_CAP) {
     print(`             … ${refusals.length - REFUSAL_PRINT_CAP} more (full list in the report json)`);
+  }
+  print("");
+}
+
+/** The interactive census's DENOMINATOR (#653), printed above the findings table.
+ *
+ *  Silence is only evidence when the reader knows what was looked at. `census=` on the RESULT line
+ *  states how many nodes the walk SAW; this states how much of the offered control population the
+ *  viewport-bound families could actually MEASURE. Three arms, all loud:
+ *   • the walker predates the counters (a pinned fixture sample set) — say `unreported`, never zero;
+ *   • the reveal budget ran out — the sweep is incomplete and the skip count is a floor;
+ *   • controls remain unreachable — name how many and why.
+ *  A fully-reached census prints one quiet line rather than nothing, so its absence is itself a tell. */
+export function printCensusReach(reach: CensusReachInput | undefined): void {
+  if (reach === undefined) {
+    print("REACH        unreported — this sample set predates the reach counters (#653); the tap-target / door / silhouette families state no denominator");
+    print("");
+    return;
+  }
+  const measured = reach.onScreen + reach.revealed;
+  const base = `REACH        ${measured}/${reach.offered} offered control(s) measured (${reach.onScreen} on screen + ${reach.revealed} revealed by ${reach.revealScrolls} scroll(s))`;
+  if (reach.budgetExhausted) {
+    print(`${base} — BUDGET EXHAUSTED at ${reach.revealBudget} scrolls: the sweep is INCOMPLETE and the skip count below is a floor, not a total`);
+  } else {
+    print(base);
+  }
+  if (reach.skippedOffViewport > 0) {
+    print(
+      `SKIPPED      ${reach.skippedOffViewport} offered control(s) still outside the viewport after a reveal attempt (off-canvas / fixed past the edge) — no tap-target, action-door or silhouette rule judged them`,
+    );
   }
   print("");
 }
