@@ -28,6 +28,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn } from "#lib";
+import { PAGER_CHIP, PAGER_CHIP_COMPACT, PAGER_COUNTER, PAGER_TRACK } from "../lib/pager-chrome.ts";
 
 interface SetSeededGreetingVars {
   readonly chatId: ChatId;
@@ -83,17 +84,24 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
     // drift this pair's threading exists to prevent.
     //
     // TRAILING-EDGE ALIGNED (#312), for the same reason and by the same lever as `SwipeStrip`: the two
-    // strips share one slot, so they cannot differ on which edge the chevrons pack to. `self-end` places
-    // the chip under the row actions at the content column's right edge instead of at its left-by-omission.
+    // strips share one slot, so they cannot differ on which edge the chevrons pack to. The chip rides the
+    // content column's right edge instead of its left-by-omission — via `PAGER_CHIP`'s auto margin since
+    // #608 (same edge, defined overflow direction; `self-end` put an overflowing chip off the pane).
     // AND IT MAY NOT SIZE THE BUBBLE'S COLUMN EITHER (#598, same slot ⇒ same track). The content column
     // resolves to the max-content of its widest child, so a `w-fit` chip under a SHORT greeting became that
     // child and hung past the bubble it pages. `container-type: inline-size` (Tailwind's `@container`)
     // resolves this track's width without regard to its contents: it contributes nothing to the column and
-    // still stretches to whatever the bubble set. This chip carries no kicker (it never took #490's word), so
-    // its 119.14px is under any bubble the row can produce and it needs no stand-down rule — the track is here
-    // because the two strips share one slot and must not differ on whether the pager can widen a message.
-    <Stack data-slot="greeting-swipe-strip-track" className="@container/pager">
-      <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn("w-fit self-end", backingClass)}>
+    // still stretches to whatever the bubble set. The track is here because the two strips share one slot and
+    // must not differ on whether a pager can widen the message it pages.
+    //
+    // AND IT MAY NOT BE CRUSHED EITHER (#608, `PAGER_CHIP`/`PAGER_CHIP_COMPACT` — one chrome, both strips):
+    // `w-fit` resolved this chip against the BUBBLE once the track contained the column, so under a short
+    // greeting at a coarse pointer its chevrons squeezed under the 48px box and the counter wrapped. `w-max`
+    // plus the compact arms is the same answer its twin takes, for the same reason. This chip carries no
+    // kicker (it never took #490's word), so it needs no LABEL stand-down — it takes the other two, which are
+    // the ones that keep a 48px touch box under a narrow greeting.
+    <Stack data-slot="greeting-swipe-strip-track" className={PAGER_TRACK}>
+      <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, backingClass)}>
         <Button
           intent="ghost"
           size="icon"
@@ -104,8 +112,9 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
         >
           <Icon icon={ChevronLeft} size="sm" />
         </Button>
-        {/* Same counter, same `datum` voice as the settled row's swipe strip — one grammar for both. */}
-        <Text as="span" voice="datum">
+        {/* Same counter, same `datum` voice, same compaction as the settled row's swipe strip — one grammar
+            for both, down to when the spaces around the slash stand down (#608). */}
+        <Text as="span" voice="datum" data-slot="greeting-swipe-strip-counter" className={PAGER_COUNTER}>
           {atCustom ? "—" : currentIdx + 1} / {total}
         </Text>
         <Button

@@ -2052,11 +2052,78 @@ test("#220 at a FINE pointer the inline Edit/Fork pair is untouched", async ({ m
 // containment can shrink a 177.5px chip under a 132px bubble). The label assertions run in BOTH directions
 // in the same matrix, so a rule that hid the word everywhere would fail as loudly as one that never hid it.
 const PAGER_LABEL = "Variant";
+/** The counter is reached by its TEXT, never by the `swipe-strip-counter` slot the fix added: a red-first
+ *  receipt has to compile AND run against the source that still has the defect, so every locator here is one
+ *  the pre-fix DOM also answers. The text survives the compaction (`word-spacing` moves no characters). */
+const PAGER_COUNTER_TEXT = "2 / 3";
 /** Every cell keeps a USABLE pager: both chevrons and the counter, whatever the label does. */
 async function expectPagerUsable(component: Locator): Promise<void> {
   await expect(component.getByRole("button", { name: "Previous variant" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Next variant" })).toBeVisible();
-  await expect(component.getByText("2 / 3")).toBeVisible();
+  await expect(component.getByText(PAGER_COUNTER_TEXT)).toBeVisible();
+}
+
+/** One read of everything the two pager laws are about.
+ *
+ *  `labelInFlow` is a WIDTH question, not a visibility one (#608): the kicker stands down to `sr-only`,
+ *  which Playwright still calls visible — it is absolutely positioned at 1×1 — so what the assertions want
+ *  to know is whether it occupies layout.
+ *
+ *  `counterLines` is HEIGHT ÷ line-height, and the two probes it replaces are both UN-FAILABLE here —
+ *  each was written, run against the pre-fix source, and caught lying (2026-08-24):
+ *    · `el.getClientRects().length` counts LINE BOXES only for an inline element. The counter is a flex
+ *      ITEM, which CSS blockifies, so a block box is one rect no matter how many lines it holds — it read
+ *      1 on the wrapped pre-fix counter.
+ *    · a Range over the element's contents returns a rect per TEXT RUN, and `{current} / {total}` is three
+ *      of them — it read 3 in every cell, wrapped or not.
+ *    · box-width vs `scrollWidth` cannot see it either: the text RE-LAYS OUT into the narrower box, so
+ *      scrollWidth follows the box down (30.08 vs 30) instead of reporting the overflow.
+ *  Height is what actually moves: the pre-fix coarse cells measured 32.50px against a 16.25px
+ *  line-height — the "2 /" over "3" side-eye photographed — and every healthy cell measures 16.25px. */
+async function readPagerGeometry(component: Locator): Promise<{
+  readonly bubble: number;
+  readonly chip: number;
+  readonly column: number;
+  readonly chevron: { readonly w: number; readonly h: number };
+  readonly counterLines: number;
+  readonly labelInFlow: boolean;
+  readonly rightDelta: number;
+  readonly leftDelta: number;
+}> {
+  const bubbleBox = await component.locator(BUBBLE).boundingBox();
+  const chipBox = await component.locator(SWIPE_STRIP).boundingBox();
+  const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
+  const chevronBox = await component.getByRole("button", { name: "Previous variant" }).boundingBox();
+  const labelBox = await component.getByText(PAGER_LABEL, { exact: true }).boundingBox();
+  const counter = await component
+    .getByText(PAGER_COUNTER_TEXT)
+    .evaluate((el) => ({ height: el.getBoundingClientRect().height, lineHeight: Number.parseFloat(getComputedStyle(el).lineHeight) }));
+  return {
+    bubble: bubbleBox?.width ?? 0,
+    chip: chipBox?.width ?? 0,
+    column: columnBox?.width ?? 0,
+    chevron: { w: chevronBox?.width ?? 0, h: chevronBox?.height ?? 0 },
+    counterLines: Math.round(counter.height / counter.lineHeight),
+    labelInFlow: (labelBox?.width ?? 0) > 1,
+    rightDelta: (chipBox?.x ?? 0) + (chipBox?.width ?? 0) - ((bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0)),
+    leftDelta: (chipBox?.x ?? 0) - (bubbleBox?.x ?? 0),
+  };
+}
+
+/** The chip's placement, in the two arms it actually has (#312 + #608's rendered receipt).
+ *
+ *  FITS ⇒ the trailing edges meet: the pager sits under the row's action cluster, which is #312's whole
+ *  ruling. OVERFLOWS (a bubble narrower than the touch-floored chip) ⇒ the LEADING edges meet instead, and
+ *  that arm is not cosmetic: `align-self: flex-end` overflows towards the START, which put the ‹ chevron at
+ *  x = −47px — off the pane, unclickable — while the auto margin in `PAGER_CHIP` sends the same overflow
+ *  into the column's own empty room. A pin that only asserted the trailing edge would pass on the version
+ *  that loses a control off-screen; it was the SHOT, not the numbers, that caught it. */
+function expectPagerAlignment(g: { readonly rightDelta: number; readonly leftDelta: number }): void {
+  // ONE of the two edges is flush with the bubble's — trailing while the chip fits, leading once it cannot.
+  expect(Math.min(Math.abs(g.rightDelta), Math.abs(g.leftDelta))).toBeLessThanOrEqual(1);
+  // …and the overflow, when there is one, is never towards the pane's edge. THIS is the line that reds on
+  // the `self-end` spelling (measured −47px there).
+  expect(g.leftDelta).toBeGreaterThanOrEqual(-1);
 }
 
 const PAGER_MATRIX = [
@@ -2080,36 +2147,121 @@ for (const width of [360, 900] as const) {
       await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
       await expectPagerUsable(component);
 
-      const bubbleBox = await component.locator(BUBBLE).boundingBox();
-      const stripBox = await component.locator(SWIPE_STRIP).boundingBox();
-      const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
-      const bubbleRight = (bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0);
-      const stripRight = (stripBox?.x ?? 0) + (stripBox?.width ?? 0);
-
-      // (1) THE COLUMN IS THE BUBBLE'S. A chip that still sized the column reads column === strip here.
-      expect(bubbleBox?.width ?? 0).toBeGreaterThan(0);
-      expect(columnBox?.width ?? 0).toBeCloseTo(bubbleBox?.width ?? 0, 1);
-      // (2) NOTHING HANGS OUT. Trailing edges meet (#312) and the chip never reaches past them.
-      expect(stripBox?.width ?? 0).toBeLessThanOrEqual((bubbleBox?.width ?? 0) + 1);
-      expect(stripRight).toBeLessThanOrEqual(bubbleRight + 1);
-      // …and the word is present exactly where the bubble can hold it — both arms, same matrix.
-      await expect(component.getByText(PAGER_LABEL, { exact: true })).toBeVisible({ visible: cell.labelShown });
+      const g = await readPagerGeometry(component);
+      // (1) THE COLUMN IS THE BUBBLE'S. A chip that still sized the column reads column === chip here.
+      expect(g.bubble).toBeGreaterThan(0);
+      expect(g.column).toBeCloseTo(g.bubble, 1);
+      // (2) NOTHING HANGS OUT. At a fine pointer every cell of this matrix FITS, so the chip is inside the
+      // bubble and the trailing edges meet (#312) — `expectPagerAlignment` states both arms in general.
+      expect(g.chip).toBeLessThanOrEqual(g.bubble + 1);
+      expectPagerAlignment(g);
+      // …and the word occupies LAYOUT exactly where the bubble can hold it — both arms, same matrix.
+      expect(g.labelInFlow).toBe(cell.labelShown);
+      // …and the counter is one line at every width (the coarse arm below is where this one bites).
+      expect(g.counterLines).toBe(1);
     });
   }
 }
 
 // THE FLOOR CASE — a two-letter body, so the bubble is as narrow as the row can make it: its width is the
 // name row's action cluster inside `px-block` and nothing else (166.59px here; 149.67px measured with a
-// two-letter speaker name). The label-less chip is 119.14px, so the stand-down leaves real headroom rather
-// than a coincidence; if a future action cluster shrinks past the chip, THIS is the pin that goes red.
+// two-letter speaker name). The compact label-less chip is 99.48px, so the stand-downs leave real headroom
+// rather than a coincidence; if a future action cluster shrinks past the chip, THIS is the pin that goes red.
 test("#598 even the narrowest bubble the row can produce still contains its pager", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listMessageVariants": () => [] });
   const component = await mount(
     <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} characterId={ALICE_ID} participants={[alice()]} />,
   );
   await expectPagerUsable(component);
-  const bubbleBox = await component.locator(BUBBLE).boundingBox();
-  const stripBox = await component.locator(SWIPE_STRIP).boundingBox();
-  expect(stripBox?.width ?? 0).toBeLessThan(bubbleBox?.width ?? 0);
-  expect((stripBox?.x ?? 0) + (stripBox?.width ?? 0)).toBeLessThanOrEqual((bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0) + 1);
+  const g = await readPagerGeometry(component);
+  expect(g.chip).toBeLessThan(g.bubble);
+  expectPagerAlignment(g);
+});
+
+// ── #608: THE SAME PAGER, AT A COARSE POINTER — the chip may not be CRUSHED either ────────────────
+//
+// #598 contained the chip's track, which made the BUBBLE the chip's available width. At a fine pointer that
+// is all upside. At a coarse one it moved the failure rather than removing it, and side-eye measured the
+// result in the room: a `w-fit` chip resolved against a short bubble and its flex children absorbed the
+// deficit — chevrons at 41.41×48 (under the app's own 48px coarse box AND WCAG 2.5.5's 44px floor) with the
+// counter wrapped to "2 /" over "3". Same reading at `--font-scale 1.5`, so not a type-scale accident.
+//
+// The fix is `w-max` (the chip is its content, the CONTAINED track absorbs the overflow — the column is
+// untouched either way, which is what #598's containment bought) plus two width-keyed stand-downs, so the
+// chip is as small as it can HONESTLY be before it is asked to be smaller than its own controls.
+//
+// THE HONEST FLOOR, and why these pins do not assert "chip ≤ bubble" at a coarse pointer (measured, this
+// file's own story): the narrowest bubble the row can produce is NOT the 128.58px the room happened to show
+// — that reading carried a timestamp. With `showTimestamps` off (the default) the bubble's width is the name
+// row's ⋯ cluster inside `px-block`: 89.67px with a two-letter speaker, 72.00px with none. Two 48px targets
+// alone are 96px. NO arrangement of a two-button pager fits that bubble, so the chip stops shrinking at its
+// compact floor (127.48px measured) and hangs past the bubble instead — WCAG 2.5.5 outranks flushness, and a
+// crushed 41px target is the defect this issue was filed for. The assertion is therefore `chip ≤ max(bubble,
+// floor)`: flush wherever flushness is reachable, and the touch floor exactly where it is not.
+const COARSE_TOUCH_BOX = 48;
+/** The compact chip's own width at a coarse pointer: 2 × 48px chevron + 23.48px compact counter + 3 × 4px
+ *  `gap-tight` (measured 127.48). Below a bubble this wide, flushness is unreachable — see the note above. */
+const COARSE_CHIP_FLOOR = 127.48;
+
+test.describe("#608 coarse pager", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of [360, 900] as const) {
+    for (const cell of PAGER_MATRIX) {
+      test(`#608 the pager keeps its touch box and one-line counter (${cell.label} body, ${width}px)`, async ({ mount, page }) => {
+        // The emulation PROVES itself before any geometry is trusted (the #220 precedent) — `hasTouch` is
+        // what flips `(pointer: coarse)` in chromium; `page.emulateMedia` has no pointer feature.
+        await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+        await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+        const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
+        await expectPagerUsable(component);
+
+        const g = await readPagerGeometry(component);
+        // THE DEFECT, both halves: a squeezed target and a wrapped counter.
+        expect(g.chevron.w).toBeCloseTo(COARSE_TOUCH_BOX, 0);
+        expect(g.chevron.h).toBeCloseTo(COARSE_TOUCH_BOX, 0);
+        expect(g.counterLines).toBe(1);
+        // #598's first law still holds at this pointer: the column is the bubble's.
+        expect(g.column).toBeCloseTo(g.bubble, 1);
+        // …and the chip is flush where flushness is reachable, at the touch floor where it is not.
+        expect(g.chip).toBeLessThanOrEqual(Math.max(g.bubble, COARSE_CHIP_FLOOR) + 1);
+        expectPagerAlignment(g);
+      });
+    }
+  }
+
+  // The floor arm, asserted DIRECTLY rather than implied by the inequality above: under a bubble narrower
+  // than the compact chip, the chip stops at its floor with legal targets instead of crushing to fit.
+  test("#608 under a bubble narrower than the chip, the chip holds its touch floor rather than crushing", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} />);
+    await expectPagerUsable(component);
+    const g = await readPagerGeometry(component);
+    expect(g.bubble).toBeLessThan(COARSE_CHIP_FLOOR);
+    expect(g.chip).toBeCloseTo(COARSE_CHIP_FLOOR, 0);
+    expect(g.chevron.w).toBeCloseTo(COARSE_TOUCH_BOX, 0);
+    expect(g.counterLines).toBe(1);
+    // The column is STILL the bubble's — the chip overflows the track it cannot fit, and the track is
+    // contained, so nothing about the message's own box moves.
+    expect(g.column).toBeCloseTo(g.bubble, 1);
+  });
+});
+
+// THE KICKER'S STAND-DOWN IS VISUAL ONLY (#608). #490 ruled that the sighted reader must be told what this
+// control is; #598 answered a geometry problem by removing the word from a narrow chip, which quietly took
+// the SCREEN-READER half of that ruling with it (`hidden` is out of the a11y tree). `sr-only` is the repair:
+// the word leaves the FLOW — zero width contribution, and an absolutely-positioned child is not a flex item
+// at all, so its gap goes too — while the accessible name of the band still reads "Variant 2 / 3".
+test("#598/#608 the narrow chip keeps the word in the a11y tree even though it leaves the layout", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Hi there" width={360} />);
+  await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
+  const g = await readPagerGeometry(component);
+  expect(g.labelInFlow).toBe(false);
+  await expect(component.locator(SWIPE_STRIP)).toMatchAriaSnapshot(`
+    - button "Previous variant"
+    - text: Variant 2 / 3
+    - button "Next variant"
+  `);
 });
