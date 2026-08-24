@@ -21,6 +21,7 @@ import type { SubscriptionErrorPayload } from "../../../support/ct/route-orb-soc
 import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../support/ct/route-trpc.ts";
 import { RpgBusStory, SocketFaultToastStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
+import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 
 const GAME_CHAT = castId<ChatId>("chat_ct_game_01");
 const PLAIN_CHAT = castId<ChatId>("chat_ct_plain_01");
@@ -46,7 +47,7 @@ const RPG_FRAME: StreamFrame = { channel: "rpg", chatId: GAME_CHAT, event: { typ
 const USER_FRAME: StreamFrame = { channel: "user", event: { type: "tagsChanged" } };
 
 test("the LANDING state (no chat) attaches NO room but still holds exactly one socket", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page);
 
   await mount(<RpgBusStory chatId={null} />);
@@ -57,7 +58,7 @@ test("the LANDING state (no chat) attaches NO room but still holds exactly one s
 });
 
 test("a NON-GAME chat attaches NO rpg room — the gate the old hook only claimed to hold", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.getChat": getChat });
+  const trpc = await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page);
 
   await mount(<RpgBusStory chatId={PLAIN_CHAT} />);
@@ -70,7 +71,7 @@ test("a NON-GAME chat attaches NO rpg room — the gate the old hook only claime
 });
 
 test("a DISENGAGED game (pointer present, `engaged:false`) attaches NO rpg room", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.getChat": getChat });
+  const trpc = await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page);
 
   await mount(<RpgBusStory chatId={DISENGAGED_CHAT} />);
@@ -84,7 +85,7 @@ test("a DISENGAGED game (pointer present, `engaged:false`) attaches NO rpg room"
 });
 
 test("a GAME chat attaches exactly ONE rpg room, and its frames drive the invalidation seam", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page, { frames: [RPG_FRAME], awaitAttaches: 1 });
 
   await mount(<RpgBusStory chatId={GAME_CHAT} />);
@@ -98,7 +99,7 @@ test("a GAME chat attaches exactly ONE rpg room, and its frames drive the invali
 });
 
 test("the always-on user room attaches unconditionally and receives its own frames", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page, { frames: [USER_FRAME], awaitAttaches: 1 });
 
   await mount(<UserBusStory />);
@@ -108,7 +109,7 @@ test("the always-on user room attaches unconditionally and receives its own fram
 });
 
 test("TWO rooms cost ONE connect, and each room's frames reach only its own consumer", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page, { frames: [USER_FRAME, RPG_FRAME], awaitAttaches: 2 });
 
   await mount(<TwoRoomStory chatId={GAME_CHAT} />);
@@ -147,7 +148,7 @@ const errorFrame = (code: string): SubscriptionErrorPayload => ({ __subscription
 
 test("an UNAUTHORIZED socket fault ENTERS the recovery ladder (it used to stop at a toast)", async ({ mount, page }) => {
   const authMe = await routeAuthMe(page, true);
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   // The user frame rides AFTER the error frame, so seeing it rendered proves the error frame was already
   // routed — the strict barrier an "and then this happened" assertion needs.
   await routeOrbSocket(page, { frames: [errorFrame("UNAUTHORIZED"), USER_FRAME], awaitAttaches: 1 });
@@ -160,7 +161,7 @@ test("an UNAUTHORIZED socket fault ENTERS the recovery ladder (it used to stop a
 
 test("a NON-auth socket fault still only degrades the room — no session probe", async ({ mount, page }) => {
   const authMe = await routeAuthMe(page, true);
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   await routeOrbSocket(page, { frames: [errorFrame("INTERNAL_SERVER_ERROR"), USER_FRAME], awaitAttaches: 1 });
 
   await mount(<UserBusStory />);
@@ -190,7 +191,7 @@ test("a NON-auth socket fault still only degrades the room — no session probe"
 // and stays what a per-ROOM `roomFailed` reaches.
 
 test("ONE socket fault raises ONE alert, and it is the socket's own copy — not N rooms repeating the server (#222)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   // The fault rides FIRST and the two room frames after it, so both rooms rendering their event is the
   // barrier: the error frame was already routed when those arrived (the W1 tests' idiom above).
   await routeOrbSocket(page, { frames: [errorFrame("INTERNAL_SERVER_ERROR"), USER_FRAME, RPG_FRAME], awaitAttaches: 2 });
@@ -211,7 +212,7 @@ test("ONE socket fault raises ONE alert, and it is the socket's own copy — not
 });
 
 test("a frame for a room nobody joined is dropped, not fanned out", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   // The socket serves an rpg frame while only the USER room is joined — the real server never would, and the
   // registry must not route it into a consumer that never asked for that room.
   const socket = await routeOrbSocket(page, { frames: [RPG_FRAME, USER_FRAME], awaitAttaches: 1 });

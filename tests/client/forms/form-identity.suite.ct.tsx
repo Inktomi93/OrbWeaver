@@ -32,6 +32,7 @@ import type { Locator, Page } from "@playwright/test";
 import { routeTrpc } from "../../support/ct/route-trpc.ts";
 import { AppearanceEffectsSectionStory } from "../features/app-shell/_ct-stories.tsx";
 import { ComposerStory } from "../features/chat/_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../features/chat/fixtures.ts";
 import { CharacterCreateBandStory, PresetRenameDialogStory } from "./_form-identity-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_form_identity", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
@@ -122,7 +123,7 @@ test("the character create dialog renders no unidentified control", async ({ mou
 });
 
 test("the chat composer renders no unidentified control", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const composer = await mount(<ComposerStory />);
   await expect(composer.getByLabel("Message", { exact: true })).toBeVisible();
   await expectEveryControlIdentified(page, "chat composer");

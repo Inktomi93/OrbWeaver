@@ -18,9 +18,12 @@ const SETTINGS_VIEW = {
   updatedAt: 0,
 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
+/** The viewer identity every settings-shell mount resolves for pane nav (`sessions.me`, e.g.
+ *  `use-settings-viewer-view.ts`) — feeding it runs that resolution for real instead of the no-data branch. */
+const VIEWER = { userId: "user_ct_save_seam", globalRole: "user", handle: "save_seam" };
 
 test("HOSTED: reporting sections stay quiet and the host shows ONE aggregate", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
+  await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}), "sessions.me": () => VIEWER });
   await mount(<SettingsShellStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();
   await page.getByRole("heading", { name: "World info" }).waitFor();
