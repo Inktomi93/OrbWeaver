@@ -23,11 +23,17 @@
 // deliberately answers an unlisted procedure `null` rather than 404ing an incidental read — but `null` is
 // not a view, so a section that SUSPENDS on an unstubbed read throws, its QueryBoundary swaps the body for
 // `QueryErrorState`, and every assertion outside that boundary (a Section heading, a tab strip) still
-// passes. A whole CT file scored green for weeks with its subject never rendering. `routeTrpc` now warns
+// passes. A whole CT file scored green for weeks with its subject never rendering. `routeTrpc` warns
 // `[routeTrpc] UNSTUBBED <proc>` on stderr for each such procedure; this reporter collects those per test
-// FILE and prints one end-of-run census. Diagnostics only — it never changes run status (a CT may
-// legitimately leave an incidental non-suspending read unfed; the per-test assertion is
-// `expect(trpc.unstubbed()).toEqual([])`, which the file itself opts into).
+// FILE and prints one end-of-run census.
+//
+// …AND IT IS A RATCHET NOW (#637). Diagnostics-only was the right posture for one night: the census found 14
+// chat CT files running their display-script and send-availability pipelines INERT, and a census that only
+// PRINTS is a census the next sweep has to re-pay from zero. The judging lives in `ct-unfed-ratchet.ts` (pure,
+// pinned by tests/tooling/verify/ops/ct-unfed-ratchet.test.ts); this reporter is its EYES — it supplies the
+// three run facts nothing else can see (which files executed, which announced `[routeTrpc] ACTIVE`, and what
+// each left unfed) and turns the verdict into run status. A refusal is TOOL-ERROR class and fails the run
+// exactly like a violation: a census that could not observe must never read as "zero unfed reads".
 //
 // FAILURE SURFACING (added 2026-07-20): a HARD failure under --retries=0 previously produced only
 // `[ELIFECYCLE] Command failed with exit code 1` with no test name — a truncated log lost the actual
@@ -35,12 +41,15 @@
 // the run (pass/fail/flaky/skip counts), and on any hard failure lists each failing test's file:line +
 // title. Printed LAST so it survives a `tail`. This is diagnostics only — it never changes run status on a
 // hard fail (Playwright already fails); STRICT flake-fail behavior is unchanged.
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, relative } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import process from "node:process";
 import { reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { readBudgetRows } from "@orb/tooling/_shared/ratchet-rows";
 import type { FullResult, Reporter, Suite, TestCase } from "@playwright/test/reporter";
+import type { UnfedRatchetVerdict } from "./ct-unfed-ratchet.ts";
+import { ACTIVE_MARKER, BASELINE_REL, judgeUnfedReads, owesActiveMarker } from "./ct-unfed-ratchet.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:ct (playwright loads this module as a reporter)");
 
@@ -158,6 +167,23 @@ function announce(flaky: readonly FlakyTest[], strict: boolean): void {
 // line so an assertion message quoting the phrase can never be mistaken for a sighting.
 const UNSTUBBED_LINE = /^\[routeTrpc\] UNSTUBBED (?<proc>\S+)/;
 
+/** Print the RATCHET's verdict — violations first, then refusals under their own heading, because they are
+ *  different claims: a violation says "the tree is wrong", a refusal says "this run is not a verdict". */
+function announceRatchet(verdict: UnfedRatchetVerdict): void {
+  const lines = ["", RULE, `  UNFED-READ RATCHET — ${String(verdict.violations.length)} violation(s) · ${String(verdict.refusals.length)} refusal(s)`, RULE];
+  for (const v of verdict.violations) {
+    lines.push(`  ✗ ${v}`);
+  }
+  if (verdict.refusals.length > 0) {
+    lines.push(RULE, "  COULD NOT OBSERVE — the run is NOT a verdict (tool-error class), not a clean census:");
+    for (const r of verdict.refusals) {
+      lines.push(`  ! ${r}`);
+    }
+  }
+  lines.push(RULE, `  the committed ledger: ${BASELINE_REL}`, RULE, "");
+  process.stdout.write(`${lines.join("\n")}\n`);
+}
+
 /** Print the unfed-read census — one line per test FILE, listing the procedures its mounts asked for and
  *  nobody stubbed. Printed BEFORE the terminal summary so the summary stays last (tail-surviving). */
 function announceUnstubbed(byFile: ReadonlyMap<string, ReadonlySet<string>>): void {
@@ -195,6 +221,8 @@ class CtFlakyReporter implements Reporter {
   #rootSuite: Suite | undefined;
   /** Unfed reads (#629), keyed by the test FILE that mounted them — the census announceUnstubbed prints. */
   readonly #unstubbed = new Map<string, Set<string>>();
+  /** Files that announced `[routeTrpc] ACTIVE` (#637) — the proof the census could observe them at all. */
+  readonly #instrumented = new Set<string>();
 
   constructor(options: CtFlakyReporterOptions = {}) {
     this.#strict = options.strict === true;
@@ -211,9 +239,16 @@ class CtFlakyReporter implements Reporter {
       return;
     }
     const file = relative(process.cwd(), test.location.file);
-    for (const line of chunk.toString().split("\n")) {
+    for (const raw of chunk.toString().split("\n")) {
+      const line = raw.trim();
+      // The liveness half (#637): every `routeTrpc` registration announces itself, so a file that calls the
+      // stub and produces NO marker is a file the census could not observe — a refusal, not a clean zero.
+      if (line.startsWith(ACTIVE_MARKER)) {
+        this.#instrumented.add(file);
+        continue;
+      }
       // Bracketed: `groups` is an index signature, so `noPropertyAccessFromIndexSignature` refuses the dot.
-      const proc = UNSTUBBED_LINE.exec(line.trim())?.groups?.["proc"];
+      const proc = UNSTUBBED_LINE.exec(line)?.groups?.["proc"];
       if (proc === undefined) {
         continue;
       }
@@ -221,6 +256,32 @@ class CtFlakyReporter implements Reporter {
       seen.add(proc);
       this.#unstubbed.set(file, seen);
     }
+  }
+
+  /** The files this run actually EXECUTED (a skipped test observed nothing). Repo-relative, deduped. */
+  #executedFiles(suite: Suite): string[] {
+    const files = new Set<string>();
+    for (const testCase of suite.allTests()) {
+      if (testCase.outcome() !== "skipped") {
+        files.add(relative(process.cwd(), testCase.location.file));
+      }
+    }
+    return [...files];
+  }
+
+  /** Judge this run against the committed ledger (#637). Returns the verdict so `onEnd` can both print it
+   *  and fail the run — a ratchet that only prints is the diagnostics posture this replaced. */
+  #judge(suite: Suite): UnfedRatchetVerdict {
+    const root = process.cwd();
+    return judgeUnfedReads(
+      {
+        executedFiles: this.#executedFiles(suite),
+        instrumentedFiles: this.#instrumented,
+        unfedByFile: new Map([...this.#unstubbed].map(([file, procs]) => [file, [...procs].sort()])),
+      },
+      readBudgetRows(root, BASELINE_REL),
+      { owesMarker: (file): boolean => owesActiveMarker(root, file), fileExists: (file): boolean => existsSync(join(root, file)) },
+    );
   }
 
   async onEnd(result: FullResult): Promise<{ status?: FullResult["status"] } | undefined> {
@@ -234,12 +295,23 @@ class CtFlakyReporter implements Reporter {
     if (this.#unstubbed.size > 0) {
       announceUnstubbed(this.#unstubbed);
     }
-    // Terminal summary LAST — the un-buried, tail-surviving record of what happened this run. On a hard
-    // fail it names every failing test (the exit-1-with-no-name gap this reporter closes).
-    if (suite !== undefined) {
-      printSummary(tally(suite), collectFailed(suite), result.status);
+    // The RATCHET (#637). Judged whenever there is a suite to judge, and printed only when it has something
+    // to say — a silent ratchet on a clean run is the point.
+    const verdict = suite === undefined ? { refusals: [], violations: [] } : this.#judge(suite);
+    const ratchetFailed = verdict.violations.length > 0 || verdict.refusals.length > 0;
+    if (ratchetFailed) {
+      announceRatchet(verdict);
     }
-    return this.#strict && flaky.length > 0 ? { status: "failed" } : undefined;
+    // Terminal summary LAST — the un-buried, tail-surviving record of what happened this run. On a hard
+    // fail it names every failing test (the exit-1-with-no-name gap this reporter closes). It reports the
+    // EFFECTIVE status, not playwright's: a run whose every test passed but whose ratchet fired exits 1, and
+    // a tail-surviving summary that said PASS beside that exit would be the last line lying about the run.
+    if (suite !== undefined) {
+      printSummary(tally(suite), collectFailed(suite), ratchetFailed ? "failed" : result.status);
+    }
+    // A refusal fails the run exactly like a violation: "the census could not observe" must never be
+    // indistinguishable from "the census found nothing".
+    return ratchetFailed || (this.#strict && flaky.length > 0) ? { status: "failed" } : undefined;
   }
 }
 

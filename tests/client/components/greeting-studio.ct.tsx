@@ -15,7 +15,10 @@ import { routeTrpc } from "../../support/ct/route-trpc.ts";
 import { GreetingStudioStory } from "./greeting-studio.fixtures.tsx";
 
 test("chips render BLIND from the GREETING_TRANSFORMS catalog (one toggle per contract entry)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  // Every mount of GreetingStudio reads `settings.getUserSettings` (its preview colors quoted speech via
+  // `useColorQuotedSpeech`, #data) — feeding the plain default runs that read for real instead of degrading
+  // through the unstubbed-null branch this test has nothing to do with.
+  await routeTrpc(page, { "settings.getUserSettings": () => settingsStub(false) });
   await mount(<GreetingStudioStory />);
 
   // Every catalog transform's label appears as a toggle — the client never hardcodes the list.
@@ -26,8 +29,13 @@ test("chips render BLIND from the GREETING_TRANSFORMS catalog (one toggle per co
 
 test("Rewrite generates, then Accept fires the character-update mutation exactly once", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    // The studio's rewrite generation returns text; character.update is the accept-persist target.
+    "settings.getUserSettings": () => settingsStub(false),
+    // The studio's rewrite generation returns text; character.update is the accept-persist target. Its
+    // result is never read (`StudioHarness`'s mutation has no `optimistic`/`echo` config — `busDriven`
+    // invalidation is what refreshes the cache), so `{}` is the honest fixture: it stops the mutation
+    // riding routeTrpc's unstubbed-null fulfil without inventing a consumed return shape.
     "character.rewriteGreeting": { text: "A revised, formal greeting.", costUsd: null },
+    "character.update": {},
   });
   await mount(<GreetingStudioStory />);
 
@@ -47,6 +55,7 @@ test("Rewrite generates, then Accept fires the character-update mutation exactly
 // catalog order) + the host's own free text, never composed template text.
 test("the transform picks ride the rewrite input as KINDS — no fragment bytes leave the browser", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsStub(false),
     "character.rewriteGreeting": { text: "done", costUsd: null },
   });
   await mount(<GreetingStudioStory />);

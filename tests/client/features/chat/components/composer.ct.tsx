@@ -23,7 +23,7 @@ import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/ct/route-impersonate-stream.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
-import { COMPOSER_CHAT_ID } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 
 // A getUserSettings view with a chat-pref override — drives the composer's enterSends/continueOnSend read.
 function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): unknown {
@@ -46,7 +46,7 @@ const ATTACH_NAME = /^Attach images & video, up to [\d.]+ MB per file$/u;
 // owns the menu's contents): present in both phases, and geometrically LEFT of the guided cluster — a
 // mount that landed it on the right would satisfy a presence-only assertion.
 test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guided cluster (committed)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": () => ({ title: "Council", participants: [], viewerIsHost: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => ({ title: "Council", participants: [], viewerIsHost: true }) });
   const component = await mount(<ComposerStory />);
   const options = component.getByRole("button", { name: "Chat options" });
   await expect(options).toBeVisible();
@@ -68,7 +68,7 @@ const ENGINE_DOWN_REASON = "Local engine is down — start it to send.";
 const NO_CONNECTION_REASON = "This chat has no working connection — configure one to send.";
 
 test("#54: engine-off — Send is aria-disabled with the engine-off reason (native disabled absent, title hoverable)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
   const component = await mount(<ComposerStory />); // committed; text present so it's not draft-empty-disabled
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
@@ -79,7 +79,7 @@ test("#54: engine-off — Send is aria-disabled with the engine-off reason (nati
 });
 
 test("#54: engine-down — Send carries the engine-down reason (a DEAD registered engine under adopt-only)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "engine-down" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-down" }) });
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
@@ -88,7 +88,7 @@ test("#54: engine-down — Send carries the engine-down reason (a DEAD registere
 });
 
 test("#54: no-connection — Send carries the no-connection reason (the cause drives the copy)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
@@ -98,6 +98,8 @@ test("#54: no-connection — Send carries the no-connection reason (the cause dr
 
 test("#54: an unserveable connection refuses the SEND click — no chat.send fires", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
     "chat.send": () => ({ ok: true }),
   });
@@ -112,7 +114,7 @@ test("#54: an unserveable connection refuses the SEND click — no chat.send fir
 });
 
 test("#54: engine-off idles the guided fire actions with the engine-off reason (Response, Draft your line)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
   const component = await mount(<ComposerStory />);
   // Response is otherwise NEVER disabled — an off engine is its only disabled state; the reason surfaces.
   const response = component.getByRole("button", { name: "Generate reply" });
@@ -128,6 +130,8 @@ test("#54: engine-off idles the guided fire actions with the engine-off reason (
 
 test("#54: an AVAILABLE verdict leaves Send serveable (a typed committed composer sends)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.checkSendAvailability": () => ({ available: true }),
     "chat.send": () => ({ ok: true }),
   });
@@ -353,6 +357,8 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
 
 test("#206: every icon control exposes plain-language names and tooltips on hover and focus", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.getChat": groupedComposerChat,
     "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
   });
@@ -391,7 +397,7 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
 });
 
 test("#206: each control has one truthful nearest owner, one Send, and desktop order/spacing", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
   const component = await mount(<ComposerStory />);
 
   await Promise.all(
@@ -426,7 +432,7 @@ test("#206: each control has one truthful nearest owner, one Send, and desktop o
 });
 
 test("#206: a disabled reply action remains focusable and exposes its reason", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
   const component = await mount(<ComposerStory />);
   const action = component.getByRole("button", { name: "Try another reply", exact: true });
   await expect(action).toHaveAttribute("aria-disabled", "true");
@@ -447,7 +453,7 @@ test.describe("#206 coarse touch layout", () => {
     test(`${String(viewport.width)}px contains static actions and the live drafting Stop`, async ({ mount, page }) => {
       await page.setViewportSize(viewport);
       await page.emulateMedia({ reducedMotion: "reduce" });
-      await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
       const component = await mount(<ComposerStory />);
       const stop = component.getByRole("button", { name: IMPERSONATE_STOP_LABEL, exact: true });
       const textbox = component.getByRole("textbox", { name: "Message", exact: true });
@@ -484,7 +490,7 @@ const PAINT_TRANSITIONS = new Set(["all", "color", "background-color", "border-c
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
   test(`#366 keyboard focus is immediate and paint-transition-free with ${reducedMotion} motion`, async ({ mount, page }) => {
     await page.emulateMedia({ reducedMotion });
-    await routeTrpc(page, { "chat.getChat": groupedComposerChat });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
     const component = await mount(<ComposerStory />);
     const textarea = component.getByRole("textbox", { name: "Message", exact: true });
     await component.getByRole("button", { name: "Send message", exact: true }).focus();
@@ -526,7 +532,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
 
 test("generate-image is gated on typed text, then fires chat.generateImage (mode free, the text as prompt)", async ({ mount, page }) => {
   let genBody: string | null = null;
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const isGen = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.generateImage");
@@ -564,7 +570,7 @@ test("a generate-image that FAILS keeps the typed prompt for retry (never cleare
   // The regression this pins: the old fire-and-forget path called onChange("") unconditionally right after
   // firing, so a failed generate destroyed the user's typed prompt. Now the clear rides the mutation's
   // green settle (onSuccess) only.
-  await routeTrpc(page, { "chat.generateImage": () => trpcError({ message: "gen boom" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generateImage": () => trpcError({ message: "gen boom" }) });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -577,7 +583,7 @@ test("a generate-image that FAILS keeps the typed prompt for retry (never cleare
 });
 
 test("a generate-image that SUCCEEDS clears the typed prompt (clear-on-success)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.generateImage": () => ({ ok: true }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generateImage": () => ({ ok: true }) });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -681,7 +687,7 @@ test("committed handle: Send fires chat.send; the draft is NOT cleared until the
   // runs FIRST (Playwright routes are LIFO); it captures the send body then holds (never falls through
   // to routeTrpc, so we read the captured body directly rather than routeTrpc's counter).
   let sendBody: string | null = null;
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
@@ -717,7 +723,7 @@ test("Stop shows 'stopping' immediately on click and fires chat.abort; the butto
   mount,
   page,
 }) => {
-  const trpc = await routeTrpc(page, { "chat.abort": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.abort": () => ({ ok: true }) });
   const component = await mount(<ComposerStory />);
 
   await component.getByTestId("drive-begin").click();
@@ -740,7 +746,7 @@ test("Stop shows 'stopping' immediately on click and fires chat.abort; the butto
 });
 
 test("a second Stop click while already stopping does not fire a second chat.abort", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.abort": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.abort": () => ({ ok: true }) });
   const component = await mount(<ComposerStory />);
 
   await component.getByTestId("drive-begin").click();
@@ -759,7 +765,7 @@ test("a send that FAILS keeps the draft for retry (never cleared — no commit s
   // `chat.send` rejects and NO commit signal is ever driven → clear-on-commit never fires → the draft
   // survives. This is the race-free replacement for the old phase-gated restore: nothing was cleared, so
   // nothing needs restoring.
-  await routeTrpc(page, { "chat.send": () => trpcError({ message: "boom" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => trpcError({ message: "boom" }) });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
 
@@ -779,7 +785,7 @@ test("the draft stays cleared after a POST-commit send failure (commit signal fi
   const sendHeld = new Promise<void>((resolve) => {
     releaseSend = resolve;
   });
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
@@ -832,7 +838,7 @@ test("sending with an attachment uploads it to CAS and includes the asset id on 
   });
   // Hold chat.send so we can read its captured body (registered BEFORE routeTrpc — LIFO).
   let sendBody: string | null = null;
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
@@ -868,7 +874,7 @@ test("attaching a video shows the video preview arm and rides the send as an att
     });
   });
   let sendBody: string | null = null;
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
@@ -900,7 +906,7 @@ test("the wand is disabled while a Send is in flight (clear-on-commit reopened t
   // gate the wand could fire a guided action against it (its own user-role messageCommitted could even
   // satisfy the send's clear correlation → a double-action). `busy={sendMessage.isPending}` closes it.
   // Hold chat.send so isPending stays true for the assertion.
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
@@ -929,6 +935,8 @@ test("the wand is disabled while a Send is in flight (clear-on-commit reopened t
 // ── PD-146: enterSends ─────────────────────────────────────────────────────────────────────────────────
 test("enterSends OFF: Enter inserts a newline (no send); ⌘/Ctrl+Enter sends", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ enterSends: false }),
     "chat.send": () => ({ ok: true }),
   });
@@ -951,6 +959,8 @@ test("enterSends OFF: Enter inserts a newline (no send); ⌘/Ctrl+Enter sends", 
 // ── PD-146: continue-on-empty (continueOnSend) ───────────────────────────────────────────────────────────
 test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn on that message", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ continueOnSend: true }),
     "chat.continueTurn": () => ({ ok: true }),
   });
@@ -967,6 +977,8 @@ test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn
 // ── W-E: generate-on-empty-send (generateOnEmptySend) ──────────────────────────────────────────────────
 test("generateOnEmptySend: an empty Send on a USER tail fires chat.generate (the fork-at-user-tail arm)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ generateOnEmptySend: true }),
     "chat.generate": () => ({ ok: true }),
   });
@@ -983,6 +995,8 @@ test("generateOnEmptySend: an empty Send on a USER tail fires chat.generate (the
 
 test("generateOnEmptySend OFF: an empty Send on a USER tail is a no-op (Send disabled, no generate)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "settings.getUserSettings": () => settingsWith({ generateOnEmptySend: false, continueOnSend: false }),
     "chat.generate": () => ({ ok: true }),
   });
@@ -1045,7 +1059,7 @@ async function dragFiles(component: Locator, specs: readonly DropSpec[], stages:
 }
 
 test("#376 drag: a FILE drag over the composer arms the surface and names what it will take", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   await expect(component.locator(DROP_AFFORDANCE)).toHaveCount(0);
@@ -1068,7 +1082,7 @@ test("#376 drag: a FILE drag over the composer arms the surface and names what i
 });
 
 test("#376 drag: a TEXT drag never claims the composer (native text-drop into the textarea survives)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   await component.locator(COMPOSER_SURFACE).evaluate((el) => {
@@ -1088,7 +1102,7 @@ test("#376 drop: dropping an image attaches it and it rides the send as an attac
     await route.fulfill({ json: { assetId: STUB_ASSET_ID, hash: "cthash", size: PNG_1PX.length, created: true } });
   });
   let sendBody: string | null = null;
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     if (!(req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send"))) {
@@ -1114,7 +1128,7 @@ test("#376 drop: dropping an image attaches it and it rides the send as an attac
 });
 
 test("#376 drop: dropping an mp4 attaches it with the VIDEO preview arm (never a broken <img>)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   await dragFiles(component, [{ name: "clip.mp4", type: "video/mp4", bytes: 8 }], ["dragenter", "dragover", "drop"]);
@@ -1125,7 +1139,7 @@ test("#376 drop: dropping an mp4 attaches it with the VIDEO preview arm (never a
 });
 
 test("#376 drop: an unsupported type is refused BY NAME and nothing of it attaches (no silent drop)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   await dragFiles(
@@ -1149,7 +1163,7 @@ test("#376 drop: an unsupported type is refused BY NAME and nothing of it attach
 // SAME line the drop/paste gestures do — its inline error renders `hidden` inside the ✨ menu, so a rejection
 // the adapter doesn't toast is a silent vanish.
 test("#423 picker: an off-vocabulary pick is refused in the same voice as a drop (never silently)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", UTILITY_TRIGGER).click();
@@ -1161,7 +1175,7 @@ test("#423 picker: an off-vocabulary pick is refused in the same voice as a drop
 });
 
 test("#376 paste: pasting a screenshot attaches it", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   await component.getByLabel("Message", { exact: true }).evaluate((el) => {
@@ -1174,7 +1188,7 @@ test("#376 paste: pasting a screenshot attaches it", async ({ mount, page }) => 
 });
 
 test("#376 paste: a clipboard carrying BOTH text and an image attaches the image without eating the text paste", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   // The handler must not preventDefault, or the browser never inserts the text half. A synthetic paste has
@@ -1210,6 +1224,8 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
 // `field` INSIDE themselves, so `field` is the bar's own floor for what "fits" means, and packing against it
 // is what makes this red on the old source at 430 (372px of homes in a 392px card, rendered as two rows).
 const PHONE_ROOM_STUB = {
+  ...CHAT_AMBIENT_ROUTES,
+  ...CHAT_ROOM_ROUTES,
   "chat.getChat": (): unknown => ({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, cast: [] }),
 };
 
@@ -1325,6 +1341,8 @@ test.describe("#531 the desktop composer keeps its four-track row", () => {
 // homes to 348px + gaps — under the bar, one row. So this asserts BOTH halves: exactly one door in the home,
 // and the row count the removal bought.
 const GROUP_PHONE_STUB = {
+  ...CHAT_AMBIENT_ROUTES,
+  ...CHAT_ROOM_ROUTES,
   "chat.getChat": (): unknown => ({
     title: "Council",
     viewerIsHost: true,

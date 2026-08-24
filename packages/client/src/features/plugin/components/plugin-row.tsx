@@ -30,13 +30,13 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { RowActionsMenu } from "#components";
+import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, reConsentLine, statusCopy } from "../lib/plugin-copy.ts";
+import { builtAgainstLine, REMOVE_PLUGIN_DESCRIPTION, reConsentLine, statusCopy } from "../lib/plugin-copy.ts";
 import { useSetPluginEnabled, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";
@@ -108,12 +108,12 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
               {status.label}
             </Badge>
           </Row>
-          <Text voice="gloss">
+          <Text prose={true} voice="gloss">
             Version {plugin.version}
             {provenance === null ? "" : ` · ${provenance}`}
           </Text>
           {plugin.lastError === null ? null : (
-            <Text className="text-destructive" voice="gloss">
+            <Text className="text-destructive" prose={true} voice="gloss">
               {plugin.lastError}
             </Text>
           )}
@@ -144,11 +144,14 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
           </FileTrigger>
           <RowActionsMenu
             destructive={{
-              title: `Remove "${plugin.name}"?`,
-              description:
-                "This deletes the plugin, its private storage and anything it registered. It can't be undone — you'd install it again from its bundle.",
+              // Every OTHER string on this feature says "Remove" (the row's own confirm button, the
+              // re-consent notice's escape action below); this menu item defaulted to "Delete" and was the
+              // one place a person read a different verb for the same act (side-eye P2-7).
               confirmLabel: "Remove plugin",
+              description: REMOVE_PLUGIN_DESCRIPTION,
+              label: "Remove",
               onConfirm: (): void => uninstall.mutate({ pluginId: plugin.id }),
+              title: `Remove "${plugin.name}"?`,
             }}
             label={`More actions for ${plugin.name}`}
           />
@@ -156,22 +159,43 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
       </Row>
 
       {uploadError === null ? null : (
-        <Text className="text-destructive" role="alert">
+        <Text className="text-destructive" prose={true} role="alert">
           {uploadError}
         </Text>
       )}
 
-      {widened === null ? null : <ReConsentNotice notice={widened} pluginName={plugin.name} />}
+      {widened === null ? null : (
+        <ReConsentNotice
+          notice={widened}
+          onRemove={(): void => uninstall.mutate({ pluginId: plugin.id })}
+          pluginName={plugin.name}
+          removing={uninstall.isPending}
+        />
+      )}
 
       <Collapsible>
         <CollapsibleTrigger aria-label={`What ${plugin.name} is allowed to do`}>
           <Text voice="label">What it's allowed to do</Text>
         </CollapsibleTrigger>
-        <CollapsiblePanel>
+        {/* `pe-3` clears the checkbox's own touch-target pseudo (P2-11): the panel's `overflow-hidden` is
+            load-bearing for the collapse-height animation (`packages/ui/src/primitives/collapsible/
+            variants.ts`), and a right-docked control's ≥44px coarse-pointer hit area (13px of the pseudo
+            past the visible 18px box on each side, `--spacing-touch-target` vs `--spacing-checkbox`) bled
+            past that boundary and got clipped on the side facing it — the panel's own edge, not the
+            checkbox's. Scoped here rather than widened in `@orb/ui`: only a right-docked control inside a
+            height-animated panel hits this, and this is the one place plugin-grant-list.tsx pairs the two. */}
+        <CollapsiblePanel className="pe-3">
           {plugin.grantedCapabilities.length === 0 ? (
-            <Text voice="gloss">Nothing. It can run its own code and reach nothing else.</Text>
+            <Text prose={true} voice="gloss">
+              Nothing. It can run its own code and reach nothing else.
+            </Text>
           ) : (
-            <PluginGrantList declared={plugin.grantedCapabilities} granted={plugin.grantedCapabilities} netHosts={[]} />
+            <PluginGrantList
+              capabilitiesLabel={`What ${plugin.name} is allowed to do`}
+              declared={plugin.grantedCapabilities}
+              granted={plugin.grantedCapabilities}
+              netHosts={[]}
+            />
           )}
         </CollapsiblePanel>
       </Collapsible>
@@ -193,14 +217,30 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
   );
 }
 
+interface ReConsentNoticeProps {
+  readonly notice: WidenNotice;
+  readonly pluginName: string;
+  /** Fires the SAME uninstall the row's overflow menu triggers — the notice's own escape action (P1-3). */
+  readonly onRemove: () => void;
+  readonly removing: boolean;
+}
+
 /** The widened-reach notice — what the update asked for beyond the confirmed grant, and the TRUE path to
  *  allowing it. `role="alert"`: it appears asynchronously after a file pick and is the whole reason the
- *  plugin stopped. */
-function ReConsentNotice({ notice, pluginName }: { readonly notice: WidenNotice; readonly pluginName: string }): ReactElement {
+ *  plugin stopped.
+ *
+ * THE ESCAPE ACTION LIVES INSIDE THE NOTICE (side-eye #650 P1-3), not just described in its prose and left
+ * for a person to hunt down behind the row's unrelated `⋯` menu. The prior shape had every ungranted
+ * capability rendered as a DISABLED CHECKBOX, which looked exactly like a control that would grant the
+ * missing permission if ticked — clicking it did nothing, silently, and the actual next step ("remove it
+ * and install the new bundle") was three UI regions away. `PluginGrantList` now renders those rows as a
+ * "Not granted" statement instead of an inert control (see its own header); this button is the other half
+ * — the action the statement's sentence points at, reachable without leaving the alert region. */
+function ReConsentNotice({ notice, onRemove, pluginName, removing }: ReConsentNoticeProps): ReactElement {
   return (
     <Stack aria-label={`What the update to ${pluginName} asked for`} gap="block" role="alert">
       <Text voice="promoted">{reConsentLine(notice.capabilities)}</Text>
-      <Text voice="gloss">
+      <Text prose={true} voice="gloss">
         Orbweaver did not grant the extra permissions. Turning {pluginName} back on runs it with only what you had already allowed — to allow more, remove it
         and install the new bundle.
       </Text>
@@ -209,11 +249,25 @@ function ReConsentNotice({ notice, pluginName }: { readonly notice: WidenNotice;
           grant). A person can see that the thing being asked for is the thing they do not have. */}
       <PluginGrantList
         addedCapabilities={notice.capabilities}
+        capabilitiesLabel={`What the update to ${pluginName} asked for`}
         declared={notice.declared}
         granted={notice.declared.filter((capability) => !notice.capabilities.includes(capability))}
         netHosts={notice.netHosts}
         netHostsHeading="Hosts this version can reach"
       />
+      <Row gap="field" justify="start">
+        <ConfirmDialog
+          confirmLabel="Remove plugin"
+          description={REMOVE_PLUGIN_DESCRIPTION}
+          onConfirm={onRemove}
+          title={`Remove "${pluginName}"?`}
+          trigger={
+            <Button intent="destructive" loading={removing} size="sm">
+              Remove {pluginName}
+            </Button>
+          }
+        />
+      </Row>
     </Stack>
   );
 }

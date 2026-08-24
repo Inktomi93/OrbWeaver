@@ -19,8 +19,10 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../support/ct/route-trpc.ts";
 import { UserBusGapHealStory, UserBusRemountStory } from "./_ct-stories.tsx";
+import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 
 const ROUTES = {
+  ...STREAM_MUTATION_ROUTES,
   "persona.list": (): readonly { id: string }[] => [{ id: "persona_ctuserbus" }],
   "tag.listTags": (): readonly { id: string }[] => [{ id: "tag_ctuserbus" }],
 };

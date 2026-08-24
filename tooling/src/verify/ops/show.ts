@@ -21,6 +21,7 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { nearCapAdvisories } from "../lib/near-cap.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:show");
 
@@ -228,6 +229,41 @@ function printVerdictAndToolErrors(report: StructureReport): void {
   }
 }
 
+/** #644 — the near-cap ADVISORY, never a violation: a file a few lines under its component-size /
+ *  component-size-ui / tooling-size cap is a fact a lane needs BEFORE it edits (a one-member tuple
+ *  addition + biome's re-wrap turns "a few lines under" into a surprise RED naming a file the edit never
+ *  meant to restructure). Computed fresh off disk every call — cheap, no ts-morph — so it can never go
+ *  stale relative to the last `check:structure` run the way a report-embedded count would. */
+function printNearCapAdvisories(root: string): void {
+  const rows = nearCapAdvisories(root);
+  if (rows.length === 0) {
+    return;
+  }
+  print(ANSI.dim(`ℹ ${rows.length} file(s) inside their line-cap band — plan a split before your next edit there (tooling/src/verify/lib/near-cap.ts, #644):`));
+  for (const r of rows) {
+    print(ANSI.dim(`  ${r.file} — ${r.lines}/${r.cap} (headroom ${r.headroom}, ${r.gate})`));
+  }
+  print("");
+}
+
+/** The failing-report gate list — one row per gate that matches the filter and (unless the caller asked
+ *  for this exact gate by name) carries a violation. Split out of `runShow` to keep it under the
+ *  cognitive-complexity cap. */
+function printGateList(report: StructureReport, filter: Filter): void {
+  printVerdictAndToolErrors(report);
+  for (const g of report.gates) {
+    if (!matchesGate(g, filter)) {
+      continue;
+    }
+    const violations = filteredViolations(g, filter);
+    // A clean gate is noise unless the caller explicitly asked to inspect this exact gate.
+    if (violations.length === 0 && filter.gate === null) {
+      continue;
+    }
+    printGate(g, violations, filter);
+  }
+}
+
 /** The `show` verb — the read-don't-rerun view of reports/check-structure.json. Returns the report's own
  *  verdict (0 clean / 1 dirty), or 0 when a filter makes this an inspection view. */
 export function runShow(root: string, argv: readonly string[]): number {
@@ -250,21 +286,13 @@ export function runShow(root: string, argv: readonly string[]): number {
     const ratified = report.gates.reduce((n, g) => n + (g.scan?.admittedRatified ?? 0), 0);
     const debt = admitted > 0 ? ANSI.dim(` · ${admitted} finding(s) admitted by ratchet baselines ${formatSplit(admitted - ratified, ratified)}`) : "";
     print(`${ANSI.green(`✓ check:structure passed — ${report.gates.length} gates, 0 violations`)}${debt}`);
+    printNearCapAdvisories(root);
     return EXIT.clean;
   }
 
-  printVerdictAndToolErrors(report);
-
-  for (const g of report.gates) {
-    if (!matchesGate(g, filter)) {
-      continue;
-    }
-    const violations = filteredViolations(g, filter);
-    // A clean gate is noise unless the caller explicitly asked to inspect this exact gate.
-    if (violations.length === 0 && filter.gate === null) {
-      continue;
-    }
-    printGate(g, violations, filter);
+  printGateList(report, filter);
+  if (!filtersActive) {
+    printNearCapAdvisories(root);
   }
 
   return filtersActive || report.ok ? EXIT.clean : EXIT.violations;

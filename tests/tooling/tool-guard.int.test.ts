@@ -633,23 +633,31 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   const ct = writeScript(dir, "lane-ct.sh", REAL_CT_WRAPPER);
   const clean = writeScript(dir, "lane-clean.sh", "#!/usr/bin/env bash\necho hello\nls packages\n");
   const nested = writeScript(dir, "lane-nested.sh", `#!/usr/bin/env bash\nbash ${evil}\n`);
+  const deep = writeScript(dir, "lane-deep.sh", `#!/usr/bin/env bash\nbash ${nested}\n`);
+  // #634: a path this command WRITES. Deliberately never created on disk — the point is that the bytes
+  // that will land there are judged, not the (absent, or stale) bytes a read would find.
+  const written = join(dir, "lane-written.sh");
   // the depth cap is about UNREVIEWED bodies: a wrapper that ends in `exec bash tooling/src/stack/stack.sh`
   // reaches a TRACKED script, and asking about that is pure wolf-crying (25 corpus false positives)
   const nestedTracked = writeScript(dir, "lane-stage.sh", `#!/usr/bin/env bash\nexec bash ${REPO}/tooling/src/stack/stack.sh start\n`);
   const big = writeScript(dir, "lane-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
-  // tracked-ness is the ONLY variable here: a throwaway repo holding the SAME bytes as `evil`. (`git add`
-  // is enough — ls-files reads the index.) No script tracked in THIS repo classifies dirty, so an in-repo
-  // fixture could not prove the branch; this isolates it.
-  const repo = mkdtempSync(join(tmpdir(), "tg-repo-"));
-  const tracked = writeScript(repo, "tracked-run.sh", EVIL_BODY);
-  // #617: the SAME reviewed-ness, but past the body-inspection cap. The two checks used to run in the
-  // other order, so a TRACKED file big enough to clear the cap was refused for its SIZE — a limit reading
-  // as a policy refusal on reviewed code. Live instance: `tests/tooling/check-gates.int.test.ts` (99,797
-  // bytes, tracked) could not be named in the sanctioned `pnpm test:scoped` spelling, which teaches a lane
+  // #633: THE FORGED EXEMPTION. A throwaway repo holding the SAME bytes as `evil`. Until 2026-08-24 the
+  // tracked-ness predicate asked `git ls-files` in the FILE'S OWN directory, so ANY repository answered and
+  // these rows were `pass/null` — two commands (`git init`, `git add`) in a scratch dir turned the guard
+  // off for the file inside it, and `pass` is emitted as `allow`, which bypasses the permission flow too.
+  // Reviewed-ness is now pinned to THIS project's repository (by `--git-common-dir`, so its worktrees still
+  // count), and a foreign repo's index proves nothing.
+  const forgedRepo = mkdtempSync(join(tmpdir(), "tg-repo-"));
+  const forged = writeScript(forgedRepo, "tracked-run.sh", EVIL_BODY);
+  const forgedBig = writeScript(forgedRepo, "tracked-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
+  spawnSync("git", ["-C", forgedRepo, "init", "-q"], { encoding: "utf8" });
+  spawnSync("git", ["-C", forgedRepo, "add", "tracked-run.sh", "tracked-big.sh"], { encoding: "utf8" });
+  // #617: reviewed-ness decided BEFORE the size cap. The fixture is the LIVE instance the row was filed
+  // for — `tests/tooling/check-gates.int.test.ts` is ~100KB and tracked in THIS repo, and used to be
+  // refused for its SIZE when named in the sanctioned `pnpm test:scoped` spelling, which teaches a lane
   // that the niced door is refused and pushes it onto an ad-hoc unniced one.
-  const trackedBig = writeScript(repo, "tracked-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
-  spawnSync("git", ["-C", repo, "init", "-q"], { encoding: "utf8" });
-  spawnSync("git", ["-C", repo, "add", "tracked-run.sh", "tracked-big.sh"], { encoding: "utf8" });
+  const trackedBig = `${REPO}/tests/tooling/check-gates.int.test.ts`;
+  const trackedReal = `${REPO}/tooling/src/stack/stack.sh`;
 
   const rows: [string, BatchResult["decision"], string | null, Partial<Omit<BatchCase, "command">>?][] = [
     // MUST BITE — the body is what runs
@@ -660,8 +668,14 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     ["./lane-run.sh", "deny", "script:git-destructive", { cwd: dir }], // resolved against the Bash cwd
     // compound: the script's verdict merges with the other stages under strictest-wins
     [`echo hi && bash ${evil} && echo done`, "deny", "script:git-destructive"],
-    // bounded by construction
-    [`bash ${nested}`, "ask", "script:script-depth-cap"],
+    // bounded by construction — the fence moved one level out (SCRIPT_DEPTH_CAP 2 → 3, 2026-08-24) once
+    // `. <file>` became an interpreter target: the commonest wrapper idiom on this box (`source …/.env`
+    // inside a scratchpad launcher) sat exactly AT the old cap, and 21 of 135,586 corpus commands flipped
+    // to a depth-cap ask purely for sourcing the repo's env file. So TWO levels are read and the third is
+    // refused — a wrapper that runs a wrapper is now READ (and this one denies on the innermost body),
+    // while a wrapper that runs a wrapper that runs a wrapper still says "I did not look".
+    [`bash ${nested}`, "deny", "script:script:git-destructive"],
+    [`bash ${deep}`, "ask", "script:script:script-depth-cap"],
     [`bash ${nestedTracked}`, "pass", null],
     [`bash ${big}`, "ask", "script-too-large"],
     // #631 — THE OPERAND RESOLVER. The operand used to be read off the BLANKED text, where a quoted path
@@ -688,26 +702,35 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     ['bash "$NOT_ASSIGNED_HERE/run.sh"', "ask", "script-unresolved-operand"],
     [`bash ${dir}/*.sh`, "ask", "script-unresolved-operand"],
     ['bash "$(mktemp -d)/run.sh"', "ask", "script-unresolved-operand"],
+    // #633 MUST BITE — a foreign repo's index is not this project's review. Every row here was `pass/null`
+    // before the predicate was pinned, and each is one spelling of the same two-command forgery.
+    [`bash ${forged}`, "deny", "script:git-destructive"],
+    [`bash "${forged}"`, "deny", "script:git-destructive"],
+    [`bash "${forged}" --some-arg`, "deny", "script:git-destructive"],
+    [`REPO=${forgedRepo}; bash "$REPO/tracked-run.sh"`, "deny", "script:git-destructive"],
+    [`${forged}`, "deny", "script:git-destructive"], // the bare `.sh` head resolves the same way
+    // …and a forged-tracked file PAST the cap is judged by the cap, not waved through as reviewed
+    [`bash ${forgedBig}`, "ask", "script-too-large"],
     // MUST PASS — the sanctioned forms and the fail-open paths
     [`bash ${ct} 2>&1 | tail -40`, "pass", null],
-    // #631's other direction: the fix must not become a deny-everything-quoted wall. A TRACKED script is
-    // reviewed code however its path is spelled, and a trailing argument is an argument.
-    [`bash "${tracked}"`, "pass", null],
-    [`bash "${tracked}" --some-arg`, "pass", null],
-    [`REPO=${repo}; bash "$REPO/tracked-run.sh"`, "pass", null],
+    // #631's other direction: the fix must not become a deny-everything-quoted wall. A script tracked in
+    // THIS repo is reviewed code however its path is spelled, and a trailing argument is an argument.
+    [`bash "${trackedReal}"`, "pass", null],
+    [`bash "${trackedReal}" --some-arg`, "pass", null],
+    [`R=${REPO}; bash "$R/tooling/src/stack/stack.sh"`, "pass", null],
     [`bash "${clean}" one two`, "pass", null],
     [`bash "${ct}" 2>&1 | tail -40`, "pass", null],
     [`bash ${clean} arg1 arg2`, "pass", null],
     [`bash ${join(dir, "does-not-exist.sh")}`, "pass", null], // the command would fail anyway
     [`bash ${dir}`, "pass", null], // a directory is not a script
-    [`bash ${tracked}`, "pass", null], // TRACKED: reviewed code, body not read — same bytes as `evil`
-    // #617: TRACKED and PAST THE CAP. Reviewed-ness is decided BEFORE size, so a big tracked file is
-    // skipped exactly like a small one — the cap is there to stop the guard waving through an UNREVIEWED
-    // body it could not read, and a tracked file is reviewed whatever its byte count. Pairs with the
-    // `bash ${big}` row above (UNTRACKED + big → still asks): together they prove the reorder narrowed the
-    // cap to its real subject rather than defeating it.
+    // #617: TRACKED IN THIS REPO and PAST THE CAP. Reviewed-ness is decided BEFORE size, so a big tracked
+    // file is skipped exactly like a small one — the cap is there to stop the guard waving through an
+    // UNREVIEWED body it could not read, and a tracked file is reviewed whatever its byte count. Pairs with
+    // the `bash ${big}` row above (UNTRACKED + big → still asks) and the `${forgedBig}` row (FOREIGN-tracked
+    // + big → asks): together they prove the reorder narrowed the cap to its real subject rather than
+    // defeating it, and that "reviewed" now means reviewed HERE.
     [`bash ${trackedBig}`, "pass", null],
-    [`bash ${REPO}/tooling/src/stack/stack.sh restart`, "pass", null], // the real-world tracked case
+    [`bash ${trackedReal} restart`, "pass", null], // the real-world tracked case
     // `bash -c '<string>'` is the SIBLING visibility gap, closed 2026-08-14 by the nested-command pass:
     // the operand is a command, not a file, so there is no body to read — it is extracted and classified
     // instead. Kept here beside the script rows because the two are one family.
@@ -716,6 +739,73 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`bash ${writeScript(dir, "lane-inline.sh", "#!/usr/bin/env bash\nbash -c 'git stash'\n")}`, "deny", "script:inline:git-destructive"],
     // …and the inverse nests the other way: a `-c` string that runs an untracked wrapper still reads it
     [`bash -c "bash ${evil}"`, "deny", "inline:script:git-destructive"],
+    // ---- #634 (a) WRITE-THEN-RUN. `printf '…' > x.sh; bash x.sh` returned pass/null because the file did
+    // not EXIST when the guard looked, and the re-run case is worse: the guard reads the PREVIOUS body
+    // while the command overwrites it. The fix judges what will LAND, from the command's own text — not a
+    // refusal of the shape, because 258 of 135,586 corpus commands write-and-run in one call and 246 are
+    // the house's own `cat > x.sh <<'EOF' … EOF; bash x.sh` wrapper idiom (must-pass rows below). ----
+    [`printf 'git stash\\n' > ${written}; bash ${written}`, "deny", "script:git-destructive"],
+    [`echo "git stash" > ${written} && bash ${written}`, "deny", "script:git-destructive"],
+    [`cat > ${written} <<'EOF'\n#!/usr/bin/env bash\ngit stash\nEOF\nbash ${written}`, "deny", "script:git-destructive"],
+    // THE DECISIVE ROW: the file on disk is CLEAN and stays readable, and the command overwrites it with a
+    // hostile body. Judging the disk here is judging bytes that are about to be replaced.
+    [`printf 'git stash\\n' > ${clean}; bash ${clean}`, "deny", "script:git-destructive"],
+    // a writer whose output the command does NOT show: unreadable by construction ⇒ ask, never silence
+    [`node gen.js > ${written}; bash ${written}`, "ask", "script-written-opaque"],
+    [`echo "git stash" | tee ${written}; bash ${written}`, "ask", "script-written-opaque"],
+    // MUST PASS — the sanctioned wrapper idiom, written and run in one call, is READ and found clean
+    [
+      `cat > ${written} <<'EOF'\n#!/usr/bin/env bash\nrm -rf playwright/.cache\nnpx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx\nEOF\nbash ${written}`,
+      "pass",
+      null,
+    ],
+    [`printf 'echo hi\\n' > ${written}; bash ${written}`, "pass", null],
+    [`bash ${clean} > ${join(dir, "run.log")} 2>&1`, "pass", null], // writing a LOG is not writing the script
+    // ---- #634 (b) THE CHANNELS. An interpreter takes its program from an operand, from stdin, from a
+    // heredoc, or from the current shell — and only the operand was ever resolved. Corpus frequency of the
+    // first three: 0, 0, 0 (so these close at zero collateral); dot-source is 325, which is why it is
+    // CLASSIFIED where it resolves rather than refused. Every bite row below was pass/null. ----
+    [`bash < ${evil}`, "deny", "script:git-destructive"],
+    [`bash <<'EOF'\ngit stash\nEOF`, "deny", "script:git-destructive"],
+    [`cat ${evil} | bash`, "deny", "script:git-destructive"],
+    [`. ${evil}`, "deny", "script:git-destructive"],
+    [`source ${evil}`, "deny", "script:git-destructive"],
+    [`SP=${dir}; . "$SP/lane-run.sh"`, "deny", "script:git-destructive"],
+    // `-s` means READ THE PROGRAM FROM STDIN and was treated as if it were `-c` (an inline string) — so
+    // the stage was dropped by the operand hunt AND never extracted by the nested pass, which only reads
+    // `-c`. The last row is the trap: with `-s`, a trailing word is the script's $0/argv, NOT the program,
+    // so judging it would have named the wrong file.
+    [`sh -s < ${evil}`, "deny", "script:git-destructive"],
+    [`cat ${evil} | bash -s`, "deny", "script:git-destructive"],
+    [`bash -s -- arg < ${evil}`, "deny", "script:git-destructive"],
+    [`bash -s ignored.sh < ${evil}`, "deny", "script:git-destructive"],
+    [`sh -s < ${clean}`, "pass", null],
+    // a pipe SINK whose producer is not a readable `cat`: the program is genuinely unseeable ⇒ ask
+    ["gen-program | bash", "ask", "script-opaque-stdin"],
+    ["gen-program | bash -s", "ask", "script-opaque-stdin"],
+    // …and so is a process substitution, which used to slide past because the resolver skipped the `<(`
+    // word as a redirect and returned grep's PATTERN as the "path" (3 corpus sightings, all one command)
+    [`source <(grep -E "^(DEBUG_TOKEN|ADMIN)" .env 2>/dev/null)`, "ask", "script-opaque-stdin"],
+    // MUST PASS — the benign traffic these arms sit in the middle of
+    [`bash < ${clean}`, "pass", null],
+    [`bash < ${trackedReal}`, "pass", null],
+    [`bash <<'EOF'\necho hi\nEOF`, "pass", null],
+    [`cat ${clean} | sh`, "pass", null],
+    [`. ${clean}`, "pass", null],
+    [`. ${trackedReal}`, "pass", null],
+    [`. ${join(dir, "no-such-file.sh")}`, "pass", null], // the shell errors out; nothing to judge
+    [`echo x | bash -c 'echo hi'`, "pass", null], // a `-c` operand is the program; not a sink
+    [`echo x | bash ${clean}`, "pass", null], // an operand is the program; not a sink
+    // a heredoc fed to something that is NOT a shell stays TEXT, guard-wide
+    ["python3 - <<'PY'\nprint(\"git stash\")\nPY", "pass", null],
+    ["git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF", "pass", null],
+    // MUST PASS — a bare `.` is a PATH ARGUMENT, not a dot-source. Counting it as one is how a raw regex
+    // reported 2,367 "dot-source" sightings where the exec-head count is 325; a fix built on that number
+    // would have walled `find`, `biome` and `grep` invocations the whole repo runs daily.
+    ["find . -path ./node_modules -prune -o -name '*.ts' -print", "pass", null],
+    ["/usr/bin/grep -rn --exclude-dir=node_modules useMemo .", "pass", null],
+    ["ls . 2>/dev/null", "pass", null],
+    [`setsid nohup bash ${clean} </dev/null > /dev/null 2>&1 & disown`, "pass", null], // `< /dev/null` is a detach, not a program
   ];
   const results = runBatch(rows.map(([command, , , ctx]) => ({ command, ...ctx })));
   const failures: string[] = [];
@@ -737,6 +827,79 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   const unresolved = at(runBatch([{ command: 'bash "$NOT_ASSIGNED_HERE/run.sh"' }]), 0);
   expect(unresolved.reason).toContain("$NOT_ASSIGNED_HERE/run.sh");
   expect(unresolved.reason).toContain("Write the path literally");
+});
+
+// `~/x.sh` and `$HOME/x.sh` are the same file, and the guard expanded only the first — so spelling a
+// routine path the long way earned an `ask` (which for a lane is a deny; 1 corpus sighting,
+// `. "$HOME/.cargo/env" && cargo install …`). Its own home-expansion comment had claimed the two were
+// equivalent since the day it was written. HOME is passed explicitly because the suite spawns the hook
+// with a minimal env — which is also why this cannot ride the batch table above.
+test("home expansion: `~/` and `$HOME/` resolve to the same file, and both get read", () => {
+  const home = mkdtempSync(join(tmpdir(), "tg-home-"));
+  writeScript(home, "evil.sh", EVIL_BODY);
+  writeScript(home, "ok.sh", "#!/usr/bin/env bash\necho hello\n");
+  const cases = ['. "$HOME/evil.sh"', ". ~/evil.sh", 'bash "${HOME}/evil.sh"', ". ~/ok.sh", '. "$HOME/ok.sh"'];
+  const r = spawnSync(process.execPath, [HOOK, "--classify-batch"], {
+    input: JSON.stringify(cases.map((command) => ({ command, procRoot: EMPTY_PROC }))),
+    encoding: "utf8",
+    env: env([["HOME", home]]),
+  });
+  expect(r.status).toBe(0);
+  const got = (JSON.parse(r.stdout) as BatchResult[]).map((d) => `${d.decision}/${d.rule ?? "null"}`);
+  expect(got).toEqual(["deny/script:git-destructive", "deny/script:git-destructive", "deny/script:git-destructive", "pass/null", "pass/null"]);
+});
+
+// ── #633: WHOSE repository counts ─────────────────────────────────────────────────────────────────────
+// The rows above prove a FOREIGN repo no longer launders a body. This proves the other half — the one a
+// wrong fix breaks silently: a lane WORKTREE has a toplevel of its own while sharing main's
+// `--git-common-dir`, so pinning the predicate to `--show-toplevel` would refuse every worktree-local
+// helper script and wall the whole fleet (this hook gates every Bash call there is).
+//
+// The fixture makes all three arms hermetic: a throwaway repo carries its OWN copy of the hook at the real
+// `<checkout>/.claude/hooks/tool-guard.mjs` shape, so THAT copy's project identity is the fixture repo —
+// exactly how the live hook derives its own. Nothing here touches this repository's worktree registry.
+test("tracked-ness is scoped to THIS project's repo, and a linked WORKTREE of it still counts", () => {
+  const gitq = (args: string[]): void => {
+    const r = spawnSync("git", args, { encoding: "utf8" });
+    expect([args.join(" "), r.status]).toEqual([args.join(" "), 0]);
+  };
+  const home = mkdtempSync(join(tmpdir(), "tg-home-repo-"));
+  mkdirSync(join(home, ".claude", "hooks"), { recursive: true });
+  const fixtureHook = join(home, ".claude", "hooks", "tool-guard.mjs");
+  copyFileSync(HOOK, fixtureHook);
+  const reviewed = writeScript(home, "reviewed.sh", EVIL_BODY);
+  gitq(["-C", home, "init", "-q"]);
+  gitq(["-C", home, "add", "reviewed.sh", ".claude/hooks/tool-guard.mjs"]);
+  gitq(["-C", home, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "fixture"]);
+  const wt = join(mkdtempSync(join(tmpdir(), "tg-home-wt-")), "lane");
+  gitq(["-C", home, "worktree", "add", "-q", "--detach", wt, "HEAD"]);
+  // a SECOND repo — same bytes, its own index: the forgery the pin exists to refuse
+  const other = mkdtempSync(join(tmpdir(), "tg-other-repo-"));
+  const otherScript = writeScript(other, "reviewed.sh", EVIL_BODY);
+  gitq(["-C", other, "init", "-q"]);
+  gitq(["-C", other, "add", "reviewed.sh"]);
+
+  // the fixture repo's own hook copy is the classifier here — its project identity is `home`
+  const r = spawnSync(process.execPath, [fixtureHook, "--classify-batch"], {
+    input: JSON.stringify(
+      [`bash ${reviewed}`, `bash ${join(wt, "reviewed.sh")}`, `bash ${otherScript}`, `bash ${join(home, "untracked.sh")}`].map((command) => ({
+        command,
+        procRoot: EMPTY_PROC,
+      })),
+    ),
+    encoding: "utf8",
+    env: env(),
+  });
+  expect(r.status).toBe(0);
+  const [inRepo, inWorktree, inOther] = JSON.parse(r.stdout) as BatchResult[];
+  // the worktree's toplevel is NOT the repo's — the distinction the fix turns on
+  const top = (dir: string): string => spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).stdout.trim();
+  expect(top(wt)).not.toBe(top(home));
+  expect([inRepo?.decision, inRepo?.rule]).toEqual(["pass", null]); // reviewed here
+  expect([inWorktree?.decision, inWorktree?.rule]).toEqual(["pass", null]); // …and through its worktree
+  expect([inOther?.decision, inOther?.rule]).toEqual(["deny", "script:git-destructive"]); // somebody else's index
+
+  gitq(["-C", home, "worktree", "remove", "--force", wt]);
 });
 
 test("nested commands: the depth fence says so rather than waving an unread command through", () => {

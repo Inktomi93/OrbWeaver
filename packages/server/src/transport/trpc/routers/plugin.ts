@@ -14,7 +14,7 @@
 // the install/list pane, never as unreachable rows to prune. A sweep reader who finds them caller-less is
 // looking at the right thing and should leave them alone.
 
-import { PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT, PLUGIN_NET_HOSTS_MAX, pluginNetHostSchema } from "@orb/contracts/plugin";
+import { PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT, NET_HOSTS_MAX, pluginNetHostSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -48,7 +48,7 @@ export const pluginRouter = t.router({
   // rather than a second hand-rolled host rule; NO default, because a silently-defaulted `[]` would make
   // "the client forgot to send the echo" indistinguishable from "the owner saw an empty list".
   setGrant: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, grant: grantSchema, acknowledgedNetHosts: z.array(pluginNetHostSchema).max(PLUGIN_NET_HOSTS_MAX) }))
+    .input(z.object({ pluginId: pluginIdSchema, grant: grantSchema, acknowledgedNetHosts: z.array(pluginNetHostSchema).max(NET_HOSTS_MAX) }))
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.setGrant({
         caller: ctx.auth,

@@ -24,8 +24,9 @@ test("binds the durable-local namespace to the viewer id off `sessions.me` (F1)"
 });
 
 test("mounts without suspending or navigating when the identity read is still in flight", async ({ mount, page }) => {
-  // No `sessions.me` handler at all: the hook must tolerate `undefined` (it is a non-suspense read on
-  // purpose — the shell must never block on identity) and simply stay unbound.
+  // DELIBERATELY unfed (ct-unfed-reads.baseline.json, ratified): no `sessions.me` handler at all is the
+  // subject under test — the hook must tolerate `undefined` (a non-suspense read on purpose, the shell must
+  // never block on identity) and simply stay unbound. Feeding a real viewer would test the OTHER test's arm.
   await routeTrpc(page, {});
 
   await mount(<SessionRecoveryStory />);

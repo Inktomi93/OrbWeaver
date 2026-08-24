@@ -11,7 +11,7 @@ import type { RpgCyoaChoiceBehavior } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChoiceProviderStory } from "../_ct-stories.tsx";
-import { COMPOSER_CHAT_ID } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 
 // `rpg.getGame` shaped as the publicConfig slice the provider reads; `chatId` echoes the room. `behavior`
 // is the knob under test; the other play-style fields are the defaults (irrelevant to the branch).
@@ -38,6 +38,8 @@ const engagedRpgPointer = { rpg: { gameId: "rpg_game_ct", engaged: true } };
 
 test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option text; the composer stays empty", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => engagedRpgPointer,
     "rpg.getGame": () => gameView("send"),
     "chat.send": () => ({ ok: true }),
@@ -55,6 +57,8 @@ test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option
 
 test("cyoaChoiceBehavior:compose — a choice click seeds the composer draft with the option text and fires NO send", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => engagedRpgPointer,
     "rpg.getGame": () => gameView("compose"),
     "chat.send": () => ({ ok: true }),

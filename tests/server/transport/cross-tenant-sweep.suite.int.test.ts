@@ -944,6 +944,23 @@ const PROBES: readonly Probe[] = [
   { path: "automation.runRuleNow", call: (c, i) => c.automation.runRuleNow({ ruleId: i.automationRuleId }) },
   { path: "automation.confirmSuggestion", call: (c) => c.automation.confirmSuggestion({ suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) }) },
   { path: "automation.dismissSuggestion", call: (c) => c.automation.dismissSuggestion({ suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) }) },
+  // S3 (interaction-direction-spec §3-S3). `createRuleFromPreset` is chat-scoped and id-taking, so it is
+  // probed like any other chat-scoped mutation. It mints through the EXISTING host-gated `createRule` per
+  // rule, so a stranger collapses on that gate before any row is written — but "it routes through a gated
+  // verb" is exactly the claim this sweep exists to stop anyone from making without a probe.
+  //
+  // THE `knobs` BAG IS LOAD-BEARING, and omitting it made this probe VACUOUS on first write (measured):
+  // `autoAddLore.bookId` is an `entityRef` knob, and entityRef is the ONE kind with no default — it refuses
+  // `choose a lorebook` when absent (`substrate/presets.ts:96-97`). That refusal is raised in
+  // `createRuleFromPreset` BEFORE it calls `createRule`, so a knob-less probe got BAD_REQUEST from knob
+  // resolution and never reached `requireChatHost` at all. It is NOT a leak — the refusal is chat-independent,
+  // identical for the owner and for a stranger, so it is no existence oracle — but a probe that dies before
+  // the gate it exists to test proves nothing. Passing A's real `bookId` carries it through knob resolution
+  // and into the host gate, which is the arm under test.
+  {
+    path: "automation.createRuleFromPreset",
+    call: (c, i) => c.automation.createRuleFromPreset({ chatId: i.chatId, presetId: "autoAddLore", knobs: { bookId: i.bookId } }),
+  },
   { path: "automation.listFires", call: (c, i) => c.automation.listFires({ ruleId: i.automationRuleId }) },
   { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: 5 }) },
   { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },
@@ -1144,6 +1161,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   clientError: "public: fire-and-forget log sink, no id",
   // Self-scoped by the resolved Principal — no cross-tenant id input (returns only the caller's own world).
   "chat.reapTemporaryChats": "self-scoped maintenance: no input at all — sweeps only the CALLER's own expired temp chats (matrix: non-chat-scoped)",
+  "automation.listRulePresets":
+    "static catalogue: takes NO input and reads no db and no Principal — it projects the compile-time RulePresetDef table (contracts/automation/presets.ts), which is identical for every caller. Nothing owned is reachable through it. (Its id-taking sibling `createRuleFromPreset` IS probed above.)",
   "character.create": "self-scoped: creates the caller's own row",
   "character.list": "self-scoped: lists the caller's own rows",
   "refinery.listSessions":

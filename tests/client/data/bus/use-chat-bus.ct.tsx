@@ -18,6 +18,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../support/ct/route-trpc.ts";
 import { ChatBusAttachFloorStory } from "./_ct-stories.tsx";
+import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_ctattachfloor");
 
@@ -26,7 +27,7 @@ const HIGH_WATER = 7;
 const CHAT_OPENED: StreamFrame = { channel: "chat", chatId: CHAT, seq: HIGH_WATER, event: { type: "chatOpened", chatId: CHAT } };
 
 test("a room dark since it opened re-announces with the SERVER-STAMPED floor, not with nothing", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES });
   // `awaitAttaches: 1` holds connection #1 open until the chat room has actually joined — otherwise the
   // drop can beat the attach and the frame lands for a room nobody is in (the registry drops it, correctly,
   // and the floor would never be adopted for reasons that have nothing to do with the code under test).

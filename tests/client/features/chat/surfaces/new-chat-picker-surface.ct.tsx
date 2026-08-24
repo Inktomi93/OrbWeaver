@@ -14,7 +14,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CreateOnStartClickStory, NarrowNewChatPickerStory, NewChatPickerStory, TemporaryNewChatPickerStory } from "../_ct-stories.tsx";
-import { makeMessagesPage } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, makeMessagesPage } from "../fixtures.ts";
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
@@ -27,7 +27,7 @@ const charPage = { items: [ARIA, BOLT], nextCursor: null, totalCount: 2 };
 const threeCharPage = { items: [ARIA, BOLT, CASS], nextCursor: null, totalCount: 3 };
 
 test("renders the character rows + the Blank chat escape hatch", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": charPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
 
   const component = await mount(<NewChatPickerStory />);
 
@@ -37,7 +37,7 @@ test("renders the character rows + the Blank chat escape hatch", async ({ mount,
 });
 
 test("the confirm item's label reflects the multi-select count", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": charPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
 
   const component = await mount(<NewChatPickerStory />);
   // Nothing picked yet — the confirm item teaches.
@@ -57,7 +57,7 @@ test("the confirm item's label reflects the multi-select count", async ({ mount,
 // cmdk's `option` — so this is a defect proof against the old shape, not a build error: on the old source
 // the Start control is `role="option"` and these `getByRole("button", …)` queries find nothing.
 test("the Start affordance is a persistent, role=button control — disabled at 0, enabled once a character is picked (#334)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": charPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
 
   const component = await mount(<NewChatPickerStory />);
   // Discoverable before it is usable: the button is rendered and teaching, but disabled, at zero selection.
@@ -84,7 +84,7 @@ test("the Start affordance is a persistent, role=button control — disabled at 
 // Asserted through the rendered affordance (the combobox's value), never the prop — so it compiles against
 // the old source and goes RED there.
 test("typing on arrival reaches the search box — the caret starts in the combobox (#440)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": charPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
 
   const component = await mount(<NewChatPickerStory />);
   await expect(component.getByText("Aria")).toBeVisible();
@@ -95,7 +95,7 @@ test("typing on arrival reaches the search box — the caret starts in the combo
 });
 
 test("the Tab chain still walks Search → Blank chat (#440)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": charPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
 
   const component = await mount(<NewChatPickerStory />);
   await expect(component.getByText("Aria")).toBeVisible();
@@ -108,7 +108,7 @@ test("the Tab chain still walks Search → Blank chat (#440)", async ({ mount, p
 // The selection COUNT is announced (side-eye 2026-08-22 ARIA rec #2): a user whose focus is in the search
 // box never hears the Start button's accessible name change, so toggling a character was silent.
 test("toggling a character announces the selection count (#440)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": charPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
 
   const component = await mount(<NewChatPickerStory />);
   await component.getByText("Aria").click();
@@ -146,7 +146,7 @@ async function footerOverhang(page: Page): Promise<readonly { readonly label: st
 }
 
 test("at the mobile mount no action button paints outside the dialog — 1 selection (#439)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": threeCharPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": threeCharPage });
 
   const component = await mount(<NarrowNewChatPickerStory />);
   await component.getByText("Aria").click();
@@ -162,7 +162,7 @@ test("at the mobile mount no action button paints outside the dialog — 1 selec
 });
 
 test("at the mobile mount no action button paints outside the dialog — 3 selections (#439)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": threeCharPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": threeCharPage });
 
   const component = await mount(<NarrowNewChatPickerStory />);
   await component.getByText("Aria").click();
@@ -185,7 +185,7 @@ test("at the mobile mount no action button paints outside the dialog — 3 selec
 // a false 7.56:1 PASS because css-resolve ignores the element's own opacity). `data-cta` is the attribute
 // the primary CTA's accent ring keys off — it is the rendered tell of "this is THE call to action".
 test("the Start button is the primary CTA only once it can act, and its teaching copy is undimmed (#441)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": charPage });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
 
   const component = await mount(<NewChatPickerStory />);
   const start = component.getByRole("button", { name: "Pick a character to start" });
@@ -199,7 +199,7 @@ test("the Start button is the primary CTA only once it can act, and its teaching
 });
 
 test("the search input filters the character rows", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": characterListResponder([ARIA, BOLT]) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": characterListResponder([ARIA, BOLT]) });
 
   const component = await mount(<NewChatPickerStory />);
   await expect(component.getByText("Aria")).toBeVisible();
@@ -220,7 +220,7 @@ const DEEP_LIBRARY = [
 ];
 
 test("typing reaches the WHOLE library — a character past the first page is findable", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "character.list": characterListResponder(DEEP_LIBRARY) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": characterListResponder(DEEP_LIBRARY) });
 
   const component = await mount(<NewChatPickerStory />);
   await expect(component.getByText("Bulk 0")).toBeVisible();
@@ -277,6 +277,7 @@ const PREVIEW_FIT_STUB = {
 /** Everything a created room needs to paint: the row itself (as `startChat`'s response AND as the read),
  *  its empty canon, and the fit preview. */
 const CREATED_ROOM_ROUTES = {
+  ...CHAT_AMBIENT_ROUTES,
   "character.list": { items: [ARIA, BOLT], nextCursor: null, totalCount: 2 },
   "chat.startChat": { chat: CREATED_CHAT_DETAIL, opening: null },
   "chat.getChat": CREATED_CHAT_DETAIL,
