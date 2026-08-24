@@ -79,7 +79,11 @@
 //     path: a REPO-TRACKED script passes through to the normal rules (it is reviewed code — re-linting
 //     the repo on every call is not this hook's job), an UNTRACKED one (scratchpad, worktree-local, /tmp)
 //     has its CONTENTS classified through this same `classify` and the strictest verdict merges with the
-//     rest of the command. THE OPERAND IS RESOLVED OFF THE RAW WORDS (#631, 2026-08-24): quotes stripped,
+//     rest of the command. TRACKED MEANS TRACKED IN *THIS* PROJECT'S REPOSITORY (#633, 2026-08-24): the
+//     predicate used to run `git ls-files` in the FILE'S OWN directory, so any repository answered and
+//     "reviewed" was forgeable in two commands (`git init /tmp/w; git -C /tmp/w add evil.sh` flipped the
+//     identical body from deny to pass). Identity is the project's `--git-common-dir`, which every
+//     registered lane WORKTREE shares — see isTrackedScript. THE OPERAND IS RESOLVED OFF THE RAW WORDS (#631, 2026-08-24): quotes stripped,
 //     `$VAR` expanded from the command's own assignments, `bash`'s flags skipped and the script's trailing
 //     ARGS not mistaken for it — reading it off the BLANKED text made `bash "$SP/run.sh"` resolve to
 //     nothing and `bash "/abs/run.sh" arg` resolve to the ARGUMENT, so the guard returned a content
@@ -342,14 +346,25 @@ function canonicalPath(file) {
   }
 }
 
+/** The checkout this hook lives in (`<checkout>/.claude/hooks/tool-guard.mjs` → `<checkout>`), or null when
+ *  the module's own location is unknowable. Pure path math — no spawn, no fs beyond the realpath above. */
+const SELF_CHECKOUT = (() => {
+  try {
+    return path.resolve(path.dirname(canonicalPath(fileURLToPath(import.meta.url))), "..", "..");
+  } catch {
+    return null;
+  }
+})();
+
 /** The canonical paths that exempt, computed ONCE from this module's own location. */
 const SELF_TOOL_PATHS = (() => {
-  try {
-    const self = canonicalPath(fileURLToPath(import.meta.url));
-    const checkout = path.resolve(path.dirname(self), "..", ".."); // <checkout>/.claude/hooks/ → <checkout>
-    return new Set([self, ...SELF_TOOL_RELPATHS.map((rel) => canonicalPath(path.join(checkout, rel)))]);
-  } catch {
+  if (SELF_CHECKOUT === null) {
     return new Set(); // identity unknowable ⇒ nothing exempts (the strict direction)
+  }
+  try {
+    return new Set([canonicalPath(fileURLToPath(import.meta.url)), ...SELF_TOOL_RELPATHS.map((rel) => canonicalPath(path.join(SELF_CHECKOUT, rel)))]);
+  } catch {
+    return new Set();
   }
 })();
 const SELF_ENV_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=\S*$/;
@@ -1162,16 +1177,75 @@ export function scriptTargets(command, blank, clauses) {
   return found;
 }
 
-/** Is this path a file git TRACKS? Tracked scripts are reviewed code and pass through to the normal rules
- *  — classifying their bodies would re-lint the repository on every call. Fails toward UNTRACKED (read
- *  it) on any git error: the strict direction, and reading a body blocks nothing by itself.
+/** A directory's repository IDENTITY: the canonical path of its `--git-common-dir`, or null when the
+ *  directory is in no repository (or git failed). The COMMON dir — not `--show-toplevel` — because a lane
+ *  WORKTREE has a toplevel of its own while sharing main's common dir, and a worktree's tracked scripts
+ *  must keep reading as reviewed or every lane's helper wrappers start getting refused. Git prints this
+ *  relative to the cwd inside an ordinary tree (`.git`, `../.git`) and absolute from a linked worktree
+ *  (probed both ways, 2026-08-24), so it is resolved against `dir` before canonicalizing. Memoized: one
+ *  hook process classifies at most a handful of paths, and `oneScriptVerdict` asks per target. */
+const gitCommonDirCache = new Map();
+function gitCommonDir(dir) {
+  const cached = gitCommonDirCache.get(dir);
+  if (cached !== undefined) {
+    return cached;
+  }
+  let value = null;
+  try {
+    const r = spawnSync("git", ["-C", dir, "rev-parse", "--git-common-dir"], {
+      encoding: "utf8",
+      timeout: GIT_LS_TIMEOUT_MS,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const out = r.status === 0 && typeof r.stdout === "string" ? r.stdout.trim() : "";
+    value = out.length === 0 ? null : canonicalPath(path.resolve(dir, out));
+  } catch {
+    value = null;
+  }
+  gitCommonDirCache.set(dir, value);
+  return value;
+}
+
+/** THIS PROJECT's repository identity, resolved lazily from the checkout the hook itself lives in (so it
+ *  cannot be spoofed by the command's cwd, and so a command with no script target never pays the spawn).
+ *  `undefined` = not computed yet; `null` = unknowable, which makes NOTHING reviewed. */
+let projectRepoIdentityCache;
+function projectRepoIdentity() {
+  if (projectRepoIdentityCache === undefined) {
+    projectRepoIdentityCache = SELF_CHECKOUT === null ? null : gitCommonDir(SELF_CHECKOUT);
+  }
+  return projectRepoIdentityCache;
+}
+
+/** Is this path a file THIS PROJECT's git tracks? Tracked scripts are reviewed code and pass through to the
+ *  normal rules — classifying their bodies would re-lint the repository on every call.
+ *
+ *  THE REPOSITORY IS PINNED (#633, 2026-08-24). This used to ask `git ls-files` in the FILE'S OWN
+ *  directory, so ANY repository answered — and "reviewed" was therefore forgeable in two commands:
+ *  `git init /tmp/w; git -C /tmp/w add evil.sh` flipped the identical body from `deny/script:git-destructive`
+ *  to `pass/null`, i.e. an attacker- or agent-created directory turned the guard off for the file inside it
+ *  (the same class as AGENT-TOOLING-01, and it fails OPEN: a PreToolUse `allow` bypasses the permission
+ *  flow, so nothing else looks either). Tracked-ness now means tracked in the repository THIS HOOK belongs
+ *  to, compared by `--git-common-dir` so every registered worktree of it still counts (a lane's
+ *  `.claude/worktrees/<lane>/…` tracked wrapper is reviewed code exactly like main's).
+ *
+ *  Fails toward UNTRACKED (read the body) on any git error, a foreign repository, or an unknowable project
+ *  identity: the strict direction, and reading a body blocks nothing by itself — a clean body still passes.
  *  ASSUMPTION, stated so it can be challenged: tracked ⇒ reviewed. A tracked script with UNCOMMITTED local
  *  edits is still passed through — index membership is a read-only one-call test (`ls-files`), while
  *  dirty-detection needs `git status`, which refreshes (writes) the index and would contend for the lock
  *  on every Bash call across a multi-lane box. The edit itself is visible in `git status` at merge. */
 function isTrackedScript(file) {
+  const project = projectRepoIdentity();
+  if (project === null) {
+    return false;
+  }
+  const dir = path.dirname(file);
+  if (gitCommonDir(dir) !== project) {
+    return false; // no repository, or somebody else's — never this project's reviewed code
+  }
   try {
-    const r = spawnSync("git", ["-C", path.dirname(file), "ls-files", "--error-unmatch", "--", file], {
+    const r = spawnSync("git", ["-C", dir, "ls-files", "--error-unmatch", "--", file], {
       encoding: "utf8",
       timeout: GIT_LS_TIMEOUT_MS,
       stdio: ["ignore", "pipe", "ignore"],
