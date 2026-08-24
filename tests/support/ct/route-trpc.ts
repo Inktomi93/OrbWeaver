@@ -221,12 +221,18 @@ export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRec
     const arr = calls.get(proc) ?? [];
     arr.push(input);
     calls.set(proc, arr);
-    if (!(proc in routes || unstubbed.has(proc))) {
-      unstubbed.add(proc);
-      // stderr, never a throw: the lenient fulfil is deliberate (header), so this reports rather than
-      // decides. `trpc.unstubbed()` is the arm a test asserts on.
-      console.warn(`[routeTrpc] UNSTUBBED ${proc} — answered null, which is not a view (#629)`);
+  };
+  /** Note a requested procedure that has no route entry (#629). NOT called for the EventSource path: a
+   *  subscription is scoped OUT of this stub by design (header) and always answers 204, so counting one as
+   *  "unfed" would be the instrument reporting its own documented posture as a finding. */
+  const noteUnstubbed = (proc: string): void => {
+    if (proc in routes || unstubbed.has(proc)) {
+      return;
     }
+    unstubbed.add(proc);
+    // stderr, never a throw: the lenient fulfil is deliberate (header), so this reports rather than
+    // decides. `trpc.unstubbed()` is the arm a test asserts on.
+    console.warn(`[routeTrpc] UNSTUBBED ${proc} — answered null, which is not a view (#629)`);
   };
 
   await page.route("**/api/trpc/**", async (route) => {
@@ -255,6 +261,7 @@ export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRec
       procs.map(async (proc, i) => {
         const input = byIndex[String(i)];
         record(proc, input);
+        noteUnstubbed(proc);
         const responder = routes[proc];
         const produced = typeof responder === "function" ? (responder as (x: unknown) => unknown)(input) : responder;
         let data = produced;
