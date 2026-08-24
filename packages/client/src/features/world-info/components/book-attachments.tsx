@@ -1,8 +1,18 @@
 // The book activation panel — where the open book is switched ON. Drives three of the four attach
-// scopes (global/character/persona) from the book's side; chat scope is deferred at transport. Global is
+// scopes (global/character/persona) from the book's side. Global is
 // a clean book-centric toggle; character/persona attachment is target-scoped in the API, so those rows
 // own their own membership query — the character list reveals on demand so a large cast doesn't fan out
 // a query per row until asked.
+//
+// THE FOURTH SCOPE IS NOT MISSING, IT LIVES IN THE ROOM (#640). `worldInfo.attachToChat` is host-gated on a
+// MEMBERSHIP-scoped chat, so its affordance is the "This chat" tab's Lorebooks section
+// (`features/chat/chat-books-section.tsx`), not a fourth row here. `databank-active-in.tsx`'s header records
+// the ruling for the identical shape: a junction row OUTLIVES the attacher's seat (chats carry no `ownerId`,
+// D18), so naming rooms from the OWNER's library would tell an ex-host about a room they can no longer open
+// — and world-info has no per-book reverse index of chats anyway, so a switch here could not render the
+// state it would be toggling. This panel's earlier "chat scope is deferred at transport" note was stale in
+// both halves: transport has exposed the verb since the router shipped, and the deferral was never a
+// transport fact.
 //
 // THE CHARACTER PICKER SEARCHES THE WHOLE LIBRARY, ON THE SERVER (2026-08-14 — the owner's paged-list-lens
 // ruling applied to a picker, the same treatment `add-chat-document-dialog` and `character-picker` took).

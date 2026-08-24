@@ -108,6 +108,7 @@ import { AppearanceMessageStyleSection } from "../../../../packages/client/src/f
 import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/chat/components/assembly-preview-panel.tsx";
 import { ChatMessageHandlingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-message-handling-section.tsx";
 import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section.tsx";
+import { ChatBooksSection } from "../../../../packages/client/src/features/chat/components/chat-books-section.tsx";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar.tsx";
 import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section.tsx";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
@@ -2784,6 +2785,26 @@ export function ChatDocumentsSectionStory({ isHost = true }: { readonly isHost?:
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
         >
           <ChatDocumentsSection chatId={CHAT_ID} isHost={isHost} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The per-chat LOREBOOKS rack (chat-books-section.tsx, #640) at the REAL context-panel width — 320px is the
+ *  pane floor the row grammar is stated at, and the width a `shrink-0` trailing cluster is proven at. Same
+ *  `QueryBoundary` its production mount ("This chat" → Lorebooks) gives it. The tab's own `.ct.tsx` owns the
+ *  behavior pins (order, the write-reach copy, attach/detach payloads); this story exists for the geometry
+ *  the 380px tab story cannot see. */
+export function ChatBooksSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 320 }}>
+        <QueryBoundary
+          fallback={<Text tone="muted">Loading lorebooks…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
+        >
+          <ChatBooksSection chatId={CHAT_ID} isHost={isHost} />
         </QueryBoundary>
       </div>
     </CtDataProviders>

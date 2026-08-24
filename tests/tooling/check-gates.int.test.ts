@@ -173,6 +173,19 @@ function writeFixtures(): void {
   );
   // db-structure: a schema file NOT re-exported from the barrel schema/index.ts.
   fx("packages/db/src/schema/__g_orphan.ts", "export const gOrphan = 1;\n");
+  // byte-check-cast: a CHECK's length() cap over a bare column against a *_MAX_BYTES constant with no
+  // `cast(... as blob)` — SQLite length() on TEXT counts characters, so this admits up to 4x its stated
+  // byte limit (#642). Deliberately no PK/index on this fixture — the schema-structure gates it would
+  // also trip (table-explicit-primary-key, fk-*) are covered by their OWN fixtures above.
+  fx(
+    "packages/db/src/schema/__g_bytecap.ts",
+    'import { sql } from "drizzle-orm";\n' +
+      'import { check, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+      "const G_BYTECAP_MAX_BYTES = 65536;\n" +
+      'export const gBytecap = sqliteTable("g_bytecap", { value: text("value") }, () => [\n' +
+      '  check("g_bytecap_value_check", sql.raw(`length(value) <= ${G_BYTECAP_MAX_BYTES}`)),\n' +
+      "]);\n",
+  );
   // fk-columns-indexed: an FK column that leads NO index. Isolated on purpose — it states its onDelete and
   // declares its PK, so only this gate's arm is the deliberate fire.
   fx(
@@ -971,6 +984,13 @@ function writeFixtures(): void {
   fx(
     "tests/ui/primitives/__g_ctdupe/__g_ctdupe.ct.tsx",
     'import { StoryA } from "./_ct-stories.tsx";\nimport { StoryA as StoryA } from "./_ct-stories.tsx";\nStoryA;\n',
+  );
+  // route-trpc-lifo-order: page.route("**/api/trpc/**", ...) registered BEFORE routeTrpc(page, ...) in
+  // the same test body — the LIFO inversion (#643/#629). routeTrpc is a bare imported identifier here
+  // (no real support/ct/route-trpc.ts import needed — the gate matches on callee NAME, AST-only).
+  fx(
+    "tests/ui/primitives/__g_lifo/__g_lifo.ct.tsx",
+    'import { test } from "@playwright/experimental-ct-react";\ndeclare function routeTrpc(page: unknown, routes: unknown): Promise<unknown>;\ntest("g", async ({ page }) => {\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n  await routeTrpc(page, {});\n});\n',
   );
   // two-class-role-authority: an inline `role === "host"` in an ENFORCEMENT position (the comparison gates a
   // `throw`) in a domain file that is neither a SANCTIONED_HOMES chokepoint nor ALLOWLISTed — the founding

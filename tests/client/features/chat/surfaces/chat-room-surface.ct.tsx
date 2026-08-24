@@ -22,7 +22,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
-import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -103,6 +103,7 @@ async function expectFormattedBody(bubble: Locator): Promise<void> {
 
 test("the COMMITTED arm tints that same quoted body identically (one renderer, both arms)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_quoted"), role: "assistant", content: QUOTED_GREETING })]),
     ...ROSTER_STUB,
@@ -115,6 +116,7 @@ test("the COMMITTED arm tints that same quoted body identically (one renderer, b
 
 test("the COMMITTED arm renders that same body identically — the draft is not a second rendering home", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_greeting"), role: "assistant", content: FORMATTED_BODY })]),
     // The committed arm's `{{user}}` subject: the chat's ANCHOR persona + the cast entry that carries it
@@ -140,11 +142,7 @@ test("the COMMITTED arm renders that same body identically — the draft is not 
 });
 
 test("a committed chat reads canon and renders the rows beside the composer", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage(CANON),
-    ...ROSTER_STUB,
-  });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage(CANON), ...ROSTER_STUB });
 
   const component = await mount(<ChatRoomSurfaceStory />);
 
@@ -171,6 +169,7 @@ test("a committed chat reads canon and renders the rows beside the composer", as
 // `busDriven`) makes this count 2 and the test goes red — the "one send fired the list 4-5×" storm.
 test("a committed send adds NO invalidation of its own — the list refetch is bus-only (busDriven)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     // The committed room reads its transcript ONCE (the list + the composer's tail-gate share the key).
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_user"), role: "user", content: "Ping?" })]),
@@ -232,7 +231,7 @@ test("#13: typing while listMessages is in flight survives the room settle — n
   // Hold listMessages via a route that BLOCKS on the release gate before falling through to routeTrpc
   // (registered AFTER routeTrpc ⇒ runs FIRST, LIFO; delegates the actual envelope + batch framing to
   // routeTrpc's fallback so the wire shape stays correct) — the room settle is under test control.
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
   await page.route("**/api/trpc/**", async (route) => {
     if (route.request().url().includes("chat.listMessages")) {
       await listHeld;
@@ -270,7 +269,7 @@ test("a fake thread-flank contribution appears beside the thread (the flank colu
   // Wide content width — comfortably above the @max-lg (32rem/512px) stack threshold, so the flank
   // row's container query resolves to the beside (row) layout.
   await page.setViewportSize({ width: 1024, height: 600 });
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} />);
 
@@ -281,7 +280,7 @@ test("a fake thread-flank contribution appears beside the thread (the flank colu
 });
 
 test("a fake thread-flank contribution with `when:false` renders NO flank column (today's layout, unchanged)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={false} />);
 
@@ -298,7 +297,7 @@ test("a fake thread-flank contribution STACKS below the thread at narrow content
   // Below the @max-lg (32rem/512px) container-query threshold — the flank row must switch to
   // column, keeping the thread at full (readable) width instead of splitting it with the flank.
   await page.setViewportSize({ width: 400, height: 600 });
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} />);
 
@@ -309,7 +308,7 @@ test("a fake thread-flank contribution STACKS below the thread at narrow content
 });
 
 test("a fake above-composer contribution appears between the selection bar slot and the composer", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="above-composer" visible={true} />);
 
@@ -317,7 +316,7 @@ test("a fake above-composer contribution appears between the selection bar slot 
 });
 
 test("a fake above-composer contribution's `when:false` hides it", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="above-composer" visible={false} />);
 
@@ -325,7 +324,7 @@ test("a fake above-composer contribution's `when:false` hides it", async ({ moun
 });
 
 test("a fake message-footer contribution renders under a COMMITTED message row", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="message-footer" visible={true} />);
 
@@ -336,7 +335,7 @@ test("a fake message-footer contribution renders under a COMMITTED message row",
 });
 
 test("a fake message-footer contribution's `when:false` hides it on the row", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="message-footer" visible={false} />);
 
@@ -384,7 +383,7 @@ test("the chat room declares the INSTRUMENT tier — the transcript's island res
   mount,
   page,
 }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
   const component = await mount(<ChatRoomSurfaceStory />);
 
   const island = component.locator(CHOICES_ISLAND).first();
@@ -405,7 +404,7 @@ test("the chat room declares the INSTRUMENT tier — the transcript's island res
 });
 
 test("LIVE: stripping data-surface-tier off the room moves the transcript island back to the tier-less step", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
   const component = await mount(<ChatRoomSurfaceStory />);
 
   const island = component.locator(CHOICES_ISLAND).first();
@@ -443,6 +442,7 @@ function renderedAccent(root: Locator): Promise<string> {
 
 test("COMMITTED: the SAME card resolves the SAME room accent through the roster (one rule, both phases)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage(CANON),
     "chat.getChat": () => ({
@@ -504,6 +504,7 @@ const GREETING_ID = castId<MessageId>("msg_room_seeded_greeting");
  *  just-created room is in. `alternateIdx` moves the served canon, standing in for the write the verb makes. */
 function greetingWindowRoutes(alternateIdx: number): Record<string, unknown> {
   return {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": (): unknown =>
       makeMessagesPage([
@@ -572,6 +573,7 @@ test("the row re-renders the SERVER's bytes when the edit lands on the bus (neve
   // is what this drives. Serving alternate 1 from the start of the refetch is the stand-in for the write.
   let served = 0;
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...greetingWindowRoutes(0),
     "chat.listMessages": (): unknown =>
       makeMessagesPage([
@@ -611,6 +613,7 @@ test("a room PAST its first user turn offers no greeting step — the window is 
   // affordance must not be on screen at all once `freezeGreetingVolatiles` has baked the row, or every click
   // is a doomed round-trip that reads to the user as a broken control.
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...greetingWindowRoutes(0),
     "chat.listMessages": (): unknown =>
       makeMessagesPage([
@@ -644,6 +647,7 @@ test("a room PAST its first user turn offers no greeting step — the window is 
 /** The settings read with ONE appearance knob overridden — everything else stays at its shipped default. */
 function routeWithAppearance(page: Page, appearance: Record<string, unknown>, content: string): Promise<unknown> {
   return routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     ...ROSTER_STUB,
     "settings.getUserSettings": (): unknown => ({

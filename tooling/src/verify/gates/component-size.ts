@@ -55,7 +55,7 @@ function scanComponentSize(root: string): Violation[] {
       out.push({
         file: rel,
         line: cap + 1,
-        message: `${lines} lines (cap ${cap}) — split into sub-files under a bucket or extract pure logic to a hook/lib. A god-component is a UI-Architecture-and-Layout.md §2.1 smell.`,
+        message: `${lines} lines (cap ${cap}) — split into sub-files under a bucket or extract pure logic to a hook/lib (see this gate's \`fix\` for the VOCABULARY-extraction shape). A god-component is a UI-Architecture-and-Layout.md §2.1 smell.`,
       });
     }
   }
@@ -70,7 +70,7 @@ export const gate: GateDescriptor = {
   fsBacked: true,
   message:
     "a client source file exceeds the hard line cap (default 450, routes 500) — split it into sub-files under a bucket or extract pure logic to a hook/lib; a god-component is a UI-Architecture-and-Layout.md §2.1 smell.",
-  fix: "split the file into sub-files under a bucket, or extract pure logic to a hook/lib — the cap is a structural guard, not a style preference.",
+  fix: "split the file into sub-files under a bucket, or extract pure logic to a hook/lib — the cap is a structural guard, not a style preference. If the excess is a self-contained VOCABULARY/CONFIG (an id tuple, a category map, a knob model) rather than component logic, pull it into its own `state/<name>.ts`/`lib/<name>.ts` module — the house precedent, both minted for exactly this: `state/section-ids.ts` (extracted out of `shell-store.ts` the first time this cap bit that file) and `state/settings-categories.ts` (the same move, #24). Re-export from the original so every existing import path keeps resolving. (#644: a lane can see this coming BEFORE it edits — `pnpm check:show` prints a near-cap advisory for files a few lines under this cap.)",
   run: (ctx) => {
     for (const v of scanComponentSize(ctx.root)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });

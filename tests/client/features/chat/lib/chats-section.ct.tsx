@@ -20,6 +20,7 @@ import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory } from "../_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 
 // #629 — the "This chat" tab's OWN section reads, which this file never stubbed. An unlisted proc answers
 // `null`, which is NOT a view: MacroPicksSection (two suspending reads, `useSuspenseQueries`) and the
@@ -32,6 +33,11 @@ const THIS_CHAT_TAB_READS = {
   "chat.getUserMacroPicks": (): unknown => ({ macros: [], values: {} }),
   "chat.getVariablePicks": (): unknown => ({ variables: [], values: {} }),
   "databank.listActiveForChat": (): unknown => [],
+  // #637 — the Books section (chat-books-section.tsx, landed in #630) joined this tab with a SUSPENDING
+  // `worldInfo.listForChat`, so an unfed read threw into its QueryBoundary and the "no read-error surface"
+  // assertion below reddened. Exactly the "including one added tomorrow" case that assertion was written
+  // for, and the unfed-read ratchet named the procedure in the same run. Empty = the section's empty state.
+  "worldInfo.listForChat": (): unknown => [],
 };
 
 const NATE_HOST_RE = /Nate — host/u;
@@ -182,6 +188,7 @@ function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, u
 
 test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host", { mainPrompt: "Be terse." }),
     "chat.listChatInjections": () => [],
@@ -220,6 +227,7 @@ test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, p
 // old rule lived only in this title and a one-line roster.ts comment.)
 test("host in a SOLO (1-character) chat GETS the Members tab — its cast is its roster (#162)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host", {}, [character("aria")]),
     "chat.listChatInjections": () => [],
@@ -238,6 +246,7 @@ test("host in a SOLO (1-character) chat GETS the Members tab — its cast is its
 // every state, so a cast-less room gets the tab with a load-bearing empty state instead of a hidden tab.
 test("a HOST with NO cast still gets the Members tab — the empty state IS the add door", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host", {}, []),
     "chat.listChatInjections": () => [],
@@ -255,6 +264,7 @@ test("a HOST with NO cast still gets the Members tab — the empty state IS the 
 
 test("a MEMBER with no cast and no People arm still has no Members tab (nothing to show, nothing to do)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("member", {}, []),
     "chat.listChatInjections": () => [],
@@ -268,6 +278,7 @@ test("a MEMBER with no cast and no People arm still has no Members tab (nothing 
 
 test("host in a GROUP (2-character) chat sees the Members tab AND it is the default tab (§7)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host", {}, [character("aria"), character("bryn")]),
     "chat.listChatInjections": () => [],
@@ -291,6 +302,7 @@ test("host in a GROUP (2-character) chat sees the Members tab AND it is the defa
 
 test("CP-1: HOST of a group chat sees the Group behavior section inside Settings", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host", {}, [character("aria"), character("bryn")]),
     "chat.listChatInjections": () => [],
@@ -309,6 +321,7 @@ test("CP-1: HOST of a group chat sees the Group behavior section inside Settings
 
 test("CP-1: MEMBER of a group chat sees Settings but NOT the Group behavior section (§8.1 host-only omit)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("member", {}, [character("aria"), character("bryn")]),
     "chat.listChatInjections": () => [],
@@ -324,6 +337,7 @@ test("CP-1: MEMBER of a group chat sees Settings but NOT the Group behavior sect
 
 test("NOT multi-human capable → no People section anywhere (single-user renders no invite surface)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => multiHumanChat(true, [humanSeat("nate", "Nate", "host")]),
     "chat.listChatInjections": () => [],
@@ -345,6 +359,7 @@ test("NOT multi-human capable → no People section anywhere (single-user render
 
 test("capable HOST: Members lists the humans (host chip) and the invite dialog mints by handle", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => multiHumanChat(true, [humanSeat("nate", "Nate", "host"), humanSeat("buddy", "Buddy", "member")]),
     "chat.listChatInjections": () => [],
@@ -385,6 +400,7 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
 
 test("capable MEMBER: Members shows who's here but NO invite/kick controls (host-only mirror)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => multiHumanChat(false, [humanSeat("nate", "Nate", "host"), humanSeat("buddy", "Buddy", "member")]),
     "chat.listChatInjections": () => [],
@@ -404,6 +420,7 @@ test("capable MEMBER: Members shows who's here but NO invite/kick controls (host
 
 test("member loses the Preview tab and the overrides are read-only", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("member", { mainPrompt: "Be terse." }),
     "chat.listChatInjections": () => [],
@@ -429,6 +446,7 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
 
 test("migrated tabs obey the server host field, NOT the first-seat proxy (member behind a host seat sees no host UI)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     // The FIRST human seat is a host, so the old `resolveViewerIsHost` first-seat proxy would return
     // TRUE and mis-grant host UI. The server-resolved `viewerIsHost:false` says THIS viewer is a
@@ -458,6 +476,7 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
 
 test("the Preview tab renders the assembled prompt + trace", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -484,6 +503,7 @@ test("the Preview tab renders the assembled prompt + trace", async ({ mount, pag
 
 test("host adds an injection (setChatInjection fires with no id ⇒ create)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -512,6 +532,7 @@ test("host adds an injection (setChatInjection fires with no id ⇒ create)", as
 
 test("host removes an injection (deleteChatInjection fires with the row id)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [
@@ -540,6 +561,7 @@ test("host removes an injection (deleteChatInjection fires with the row id)", as
 
 test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omitted)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -568,6 +590,7 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
 // Field-overrides section; a per-chat note is authored as an injection (system @ depth 4).
 test("the Field-overrides section has NO author's-note field — only the three text overrides", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -596,6 +619,7 @@ test("the Field-overrides section has NO author's-note field — only the three 
 
 test("a fake context-tab contributor renders as a tab, in the real tab strip", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -611,6 +635,7 @@ test("a fake context-tab contributor renders as a tab, in the real tab strip", a
 
 test("a fake context-tab contributor's `when:false` hides it from the real tab strip", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -637,6 +662,7 @@ test("a fake context-tab contributor's `when:false` hides it from the real tab s
 // to the bus.
 test("a chatDeleted for the OPEN room takes the reader to landing, not a room whose row is gone", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
     "chat.getChat": { title: "The Ashfall Road", participants: [], cast: [], group: DEFAULT_GROUP_CONFIG },
     "chat.listMessages": { messages: [], cast: [] },

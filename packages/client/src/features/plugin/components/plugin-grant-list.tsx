@@ -27,8 +27,19 @@
 // A11Y: each row is a real `Field` label wrapping its `Checkbox`, so the control has an accessible name and
 // the whole row is the hit target (the side-eye 2026-08-09 P1-9 ruling — twelve bare checkboxes beside
 // sibling `<Text>` had no name and an 18px target). "New" is a WORD in the accessible name, never a colour.
+//
+// A READ-ONLY row that is NOT granted renders a "Not granted" word-mark instead of a disabled checkbox
+// (side-eye #650 P1-3). A `disabled` Checkbox still computes `cursor:pointer` (the shared selection-control
+// skin's base class — `SELECTION_CONTROL`, `packages/ui/src/lib/selection-control.ts` — never overrides it
+// for the disabled state) and `pointer-events:none` gives zero feedback on click, so an unchecked disabled
+// box in the re-consent notice read as a live control that silently did nothing: the obvious next action on
+// "asks for a permission you hadn't allowed" was to tick the empty box beside it. A checked read-only row
+// keeps the checkbox — showing what you already have is a true state, not a false affordance — only an
+// UNCHECKED read-only row swaps to a statement, because that is specifically the shape that looks tickable
+// and isn't.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
+import { NET_HOSTS_MAX } from "@orb/contracts/plugin";
 import { Badge } from "@orb/ui/badge";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Field } from "@orb/ui/field";
@@ -54,6 +65,11 @@ export interface PluginGrantListProps {
   /** The heading over the host list. Defaults to the install-time phrasing; the re-consent case says
    *  "this version" instead, because it is showing a list that may have changed in ways it cannot name. */
   readonly netHostsHeading?: string;
+  /** The accessible name for the capability list's `role="group"` — announces the permission set's own
+   *  boundary (side-eye #650 P3: "What it's asking for" was a bare paragraph with no relation to the rows
+   *  under it). Every call site already has this phrase sitting right above the list; pass it through
+   *  rather than inventing a second copy of it here. */
+  readonly capabilitiesLabel: string;
   /** Omit to render read-only (the row's checkbox becomes a non-interactive state mark). */
   readonly onToggle?: (capability: PluginCapability, next: boolean) => void;
 }
@@ -86,6 +102,7 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
   // The NEW mark rides the accessible NAME, not just the badge — a re-consent screen read aloud has to
   // distinguish the rows that changed from the ones carried forward, and a colour cannot say that.
   const name = isNew ? `${copy.label} (new in this update)` : copy.label;
+  const interactive = onToggle !== undefined;
   return (
     // `label` + `description` + a bare control child is the shape `orientation="horizontal"` is BUILT for:
     // the name and its consequence take the row's slack on the left and the checkbox docks right in the
@@ -97,8 +114,10 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
       label={
         <Row align="center" gap="field">
           <Text voice="label">{name}</Text>
+          {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
+              caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
           {isNew ? (
-            <Badge intent="warning" size="sm" tone="soft">
+            <Badge intent="info" size="sm" tone="soft">
               New
             </Badge>
           ) : null}
@@ -107,11 +126,30 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
               Costs money
             </Badge>
           ) : null}
+          {/* The elevated-risk mark (side-eye P2-9): a capability that mutates YOUR outgoing content, room
+              state or global state, registers code the app will run for you, or leaves the sandbox entirely.
+              `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is more urgent
+              than "this one reaches further than most"), while still breaking the otherwise-uniform weight
+              every row shared regardless of what it actually does. */}
+          {copy.risk === true ? (
+            <Badge intent="danger" size="sm" tone="ghost">
+              Reaches further
+            </Badge>
+          ) : null}
         </Row>
       }
       orientation="horizontal"
     >
-      <Checkbox checked={checked} disabled={onToggle === undefined} onCheckedChange={(next): void => onToggle?.(capability, next)} />
+      {/* A CHECKED read-only row keeps the checkbox: "you already have this" is a true state, not a false
+          affordance. An UNCHECKED read-only row is the one shape that looked tickable and did nothing on
+          click (P1-3, see the file header) — it becomes a plain word-mark instead of an inert control. */}
+      {interactive || checked ? (
+        <Checkbox checked={checked} disabled={!interactive} onCheckedChange={(next): void => onToggle?.(capability, next)} />
+      ) : (
+        <Text className="text-muted-foreground" voice="label">
+          Not granted
+        </Text>
+      )}
     </Field>
   );
 }
@@ -124,6 +162,7 @@ export function PluginGrantList({
   granted,
   addedCapabilities,
   netHostsHeading = "Hosts it can reach",
+  capabilitiesLabel,
   onToggle,
 }: PluginGrantListProps): ReactElement {
   const grantedSet = new Set<PluginCapability>(granted);
@@ -134,9 +173,14 @@ export function PluginGrantList({
   return (
     <Stack gap="block">
       {rows.length === 0 ? (
-        <Text voice="gloss">This plugin asks for no permissions at all — it can run its own code and nothing else.</Text>
+        <Text prose={true} voice="gloss">
+          This plugin asks for no permissions at all — it can run its own code and nothing else.
+        </Text>
       ) : (
-        <Stack gap="block">
+        // `role="group"` + `aria-label` gives the permission set an announced boundary (side-eye P3): the
+        // caller's own heading text ("What it's asking for" / "What Weather Teller is allowed to do") is
+        // threaded through rather than re-spelled, so the two can never drift apart.
+        <Stack aria-label={capabilitiesLabel} gap="block" role="group">
           {rows.map((capability) => (
             <GrantRow key={capability} capability={capability} checked={grantedSet.has(capability)} isNew={addedSet.has(capability)} onToggle={onToggle} />
           ))}
@@ -144,24 +188,41 @@ export function PluginGrantList({
       )}
 
       {unexplained > 0 ? (
-        <Text role="alert" voice="gloss">
+        <Text prose={true} role="alert" voice="gloss">
           {unexplained === 1 ? "This plugin asks for 1 permission" : `This plugin asks for ${unexplained} permissions`} this version of Orbweaver doesn't
           recognise. Update Orbweaver before installing it.
         </Text>
       ) : null}
 
       {netHosts.length === 0 ? null : (
-        <Stack gap="tight">
-          <Text voice="label">{netHostsHeading}</Text>
-          <Text voice="gloss">These exact hostnames, and nothing else.</Text>
-          {/* No per-host "New" mark: which hosts changed is not derivable client-side (header). The whole
-              list, plainly, is the true statement — and for an exact-host allowlist it is also the useful
-              one, since consent is to the SET. */}
+        <Stack gap="field">
           <Stack gap="tight">
-            {netHosts.map((host) => (
-              <Text key={host}>{host}</Text>
-            ))}
+            <Text voice="label">
+              {netHostsHeading} ({netHosts.length}/{NET_HOSTS_MAX})
+            </Text>
+            {/* The sentence that declares the list EXHAUSTIVE was the smallest, quietest text on the whole
+                screen (10.5px, side-eye P2-5) — the endpoints below it shouted at 15px/regular-foreground
+                while the guarantee whispered. `prose` lifts it to the 13px step (still `gloss`'s muted ink,
+                still visually a caption, just no longer beneath its own claim's weight). */}
+            <Text prose={true} voice="gloss">
+              These exact hostnames, and nothing else.
+            </Text>
           </Stack>
+          {/* Real list semantics (side-eye P3 — eight loose paragraphs had no `role="list"`), and the hosts
+              themselves render muted/mono (`datumMono`) rather than the un-voiced Text default (15px,
+              full-foreground) they used to carry: a raw hostname is a machine readout to verify, not the
+              thing on the screen that should read loudest — the CAPABILITY rows and the completeness
+              guarantee above it are what a person actually decides on. No per-host "New" mark: which hosts
+              changed is not derivable client-side (see the file header). The whole list, plainly, is the
+              true statement — and for an exact-host allowlist it is also the useful one, since consent is
+              to the SET. */}
+          <ul className="m-0 flex list-none flex-col gap-tight p-0">
+            {netHosts.map((host) => (
+              <li key={host}>
+                <Text voice="datumMono">{host}</Text>
+              </li>
+            ))}
+          </ul>
         </Stack>
       )}
     </Stack>
