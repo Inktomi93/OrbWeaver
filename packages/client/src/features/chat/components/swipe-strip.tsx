@@ -1,5 +1,7 @@
 // The swipe strip: flanking chevrons + the n / m variant counter, shown on the last assistant message
-// only. Right chevron: at the tip fires swipe (a fresh generation); stepped back, it fires
+// only. It renders as a TRACK (an inline-size container, full column width, no paint) wrapping the CHIP
+// (`data-slot="swipe-strip"`, the w-fit plate everything else measures) — #598's geometry seal: the chip may
+// not size the column its bubble lives in, and the track's own width is what the kicker's stand-down reads. Right chevron: at the tip fires swipe (a fresh generation); stepped back, it fires
 // selectVariant (a pointer move, no new generation), same as the left chevron. Both resolve their
 // target variant id through useVariantHistory, since MessageView carries only the selected variant per
 // slot.
@@ -18,7 +20,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
@@ -51,6 +53,16 @@ const useSelectVariantMutation = createEntityMutation<SelectVariantVars, unknown
   busDriven: true,
   errorToast: "Couldn't switch to that variant.",
 });
+
+/** #598 — the width below which the chip drops its "Variant" kicker, as a container query against the
+ *  pager TRACK (whose inline size is the bubble's). DERIVED, not chosen: the full chip measures 177.5px
+ *  (2 × 34px chevron + the kicker + the `n / m` datum + 3 × `gap-field`), so the word may only stand while
+ *  the bubble can hold that — `12rem` (192px) is the next clean step up, and the ~8% margin absorbs the
+ *  kicker's font-metric variance across themes. A container query condition cannot read a custom property
+ *  (`var()` is invalid in `@container`/`@media` conditions), which is why the length is literal here rather
+ *  than a token. Not the `no-arbitrary-tw-values` shape: that gate judges the TERMINAL segment of a class
+ *  (`hidden`), and this is a variant. */
+const PAGER_LABEL_HIDE_WHEN_TIGHT = "@max-[12rem]/pager:hidden";
 
 export interface SwipeStripProps {
   readonly message: MessageView;
@@ -118,46 +130,72 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   const nextChevronLabel = showPager ? "Next variant" : "Generate a variant";
 
   return (
-    // THE PLATE SIZES TO ITS CONTENT (#228). #221 gave this band the row's wallpaper backing and fixed its
-    // contrast (1.60:1 → 8.78:1), but the band is a block-level flex row, so the plate spanned the full
-    // message width: a measured 686x50 chip holding one 34x34 button — **3.4% ink coverage**, in the same
-    // fill and the same radius as a message bubble. It read as a bubble that failed to load. The mechanism
-    // is unchanged (same `backingClass`, same contrast); `w-fit` is the geometry half — a compact chip
-    // around the chevron cluster, which is what the plate was always backing.
+    // THE PAGER MAY NOT SIZE THE BUBBLE'S COLUMN (#598). The content column is a flex child of a row body
+    // that SHRINK-WRAPS (the bubble family's outer carries `items-start`), so the column resolves to the
+    // max-content of its widest child — and since #490 grew this chip from ~123px to 177.5px, the widest
+    // child of a SHORT reply's column was the PAGER, not the bubble. Measured on the row story before this
+    // change: bubble 132.00 · strip 177.55 · column 177.55, i.e. a chip hanging 45px past the right edge of
+    // the box it pages (the #312 pin's own header recorded the same collapse at the two-word default body
+    // and worked around it by lengthening its fixture; this is that finding's fix).
     //
-    // TRAILING-EDGE ALIGNED (#312). This chip is a direct child of the content column (a `flex-col`
-    // `Stack`), so by omission it sat at the cross-START — the left edge — while every other row action
-    // (edit/fork/kebab in the name row) packs to the TRAILING edge. `self-end` places the chevron cluster
-    // under the actions it belongs with, at the column's right edge, in every skin (the swipe strip is an
-    // assistant-only affordance and the name row's actions are `justify-between`/trailing for the assistant
-    // side, so the two clusters share one right edge). `w-fit` keeps the plate hugging the chevrons.
-    <Row gap="field" align="center" data-slot="swipe-strip" className={cn("w-fit self-end", backingClass)}>
-      {showPager ? (
-        <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
-          <Icon icon={ChevronLeft} size="sm" />
+    // `container-type: inline-size` (Tailwind's `@container`) is the mechanism, and it does BOTH halves at
+    // once: an inline-size container's width is resolved WITHOUT regard to its contents, so this track
+    // contributes nothing to the column's max-content (the column now sizes to the bubble) while the track
+    // itself still stretches to whatever the column resolved to. The chip inside keeps its own geometry
+    // (#228 `w-fit`, #312 `self-end`) — it is now measured against the BUBBLE's width instead of dictating it.
+    <Stack data-slot="swipe-strip-track" className="@container/pager">
+      {/* THE PLATE SIZES TO ITS CONTENT (#228). #221 gave this band the row's wallpaper backing and fixed its
+          contrast (1.60:1 → 8.78:1), but the band is a block-level flex row, so the plate spanned the full
+          message width: a measured 686x50 chip holding one 34x34 button — **3.4% ink coverage**, in the same
+          fill and the same radius as a message bubble. It read as a bubble that failed to load. The mechanism
+          is unchanged (same `backingClass`, same contrast); `w-fit` is the geometry half — a compact chip
+          around the chevron cluster, which is what the plate was always backing.
+
+          TRAILING-EDGE ALIGNED (#312). This chip is a direct child of the content column (a `flex-col`
+          `Stack`), so by omission it sat at the cross-START — the left edge — while every other row action
+          (edit/fork/kebab in the name row) packs to the TRAILING edge. `self-end` places the chevron cluster
+          under the actions it belongs with, at the column's right edge, in every skin (the swipe strip is an
+          assistant-only affordance and the name row's actions are `justify-between`/trailing for the assistant
+          side, so the two clusters share one right edge). `w-fit` keeps the plate hugging the chevrons. Both
+          survive #598 unchanged — the chip's own geometry was never the defect; what it was measured AGAINST
+          was. */}
+      <Row gap="field" align="center" data-slot="swipe-strip" className={cn("w-fit self-end", backingClass)}>
+        {showPager ? (
+          <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
+            <Icon icon={ChevronLeft} size="sm" />
+          </Button>
+        ) : null}
+        {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
+            from nudging the chevrons sideways as it ticks (density-pass-spec.md §2.3).
+            IT IS NAMED FOR THE EYE NOW (#490). `‹ 8 / 8 ›` under a transcript is the universal pagination
+            shape, and it was read as one BY THE REVIEWER, with the source open — "8 / 8" says there are seven
+            earlier pages of conversation. The a11y tree was already correct ("Previous variant" / "Next
+            variant"), which made this the sharper kind of defect: the screen-reader user was told what the
+            control is and the sighted user was not. The fix is the VISIBLE word, in the existing micro voice,
+            never a mechanism change — the counter itself keeps its `datum` tabular figures beside it.
+
+            #490's RULING SURVIVES; ITS INPUT CHANGED (#598). The word is what makes the full chip 177.5px —
+            wider than the bubble under a short reply, which is the defect above. Track containment stops the
+            chip from WIDENING that bubble, but nothing can stop a 177.5px chip from OVERHANGING a 132px one,
+            so the word stands down exactly where it cannot fit: the container query reads the track, whose
+            width IS the bubble's, and below `PAGER_LABEL_HIDE_WHEN_TIGHT`'s threshold the chip falls back to
+            its pre-#490 `‹ n / m ›` — 119.14px measured, under the 149.67px floor a bubble reaches with a
+            two-letter body (that floor is the name row's action cluster inside `px-block`). #490's subject — the sighted reader is told what the control is — holds
+            wherever the surface can hold it; the a11y name on both chevrons never depended on the word at all. */}
+        {showPager ? (
+          <>
+            <Text as="span" voice="kicker" className={PAGER_LABEL_HIDE_WHEN_TIGHT}>
+              Variant
+            </Text>
+            <Text as="span" voice="datum">
+              {current} / {total}
+            </Text>
+          </>
+        ) : null}
+        <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
+          <Icon icon={ChevronRight} size="sm" />
         </Button>
-      ) : null}
-      {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
-          from nudging the chevrons sideways as it ticks (density-pass-spec.md §2.3).
-          IT IS NAMED FOR THE EYE NOW (#490). `‹ 8 / 8 ›` under a transcript is the universal pagination
-          shape, and it was read as one BY THE REVIEWER, with the source open — "8 / 8" says there are seven
-          earlier pages of conversation. The a11y tree was already correct ("Previous variant" / "Next
-          variant"), which made this the sharper kind of defect: the screen-reader user was told what the
-          control is and the sighted user was not. The fix is the VISIBLE word, in the existing micro voice,
-          never a mechanism change — the counter itself keeps its `datum` tabular figures beside it. */}
-      {showPager ? (
-        <>
-          <Text as="span" voice="kicker">
-            Variant
-          </Text>
-          <Text as="span" voice="datum">
-            {current} / {total}
-          </Text>
-        </>
-      ) : null}
-      <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
-        <Icon icon={ChevronRight} size="sm" />
-      </Button>
-    </Row>
+      </Row>
+    </Stack>
   );
 }
