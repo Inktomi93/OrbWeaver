@@ -65,7 +65,7 @@ export interface RulePresetRuleDef {
 export type RulePresetKnobSchema = Readonly<Record<string, RulePresetKnobDescriptor>>;
 
 /** The typed knob bag a preset's builder receives — each key's value type DERIVED from its own descriptor. */
-export type ResolvedRulePresetKnobs<TKnobs extends RulePresetKnobSchema> = {
+type ResolvedRulePresetKnobs<TKnobs extends RulePresetKnobSchema> = {
   readonly [TKey in keyof TKnobs]: RulePresetKnobValueOf<TKnobs[TKey]>;
 };
 
@@ -254,7 +254,14 @@ const DICE_CHIPS = defineRulePreset({
     {
       triggerType: "turnCompleted",
       predicate: everyNBeats(knobs.everyN),
-      arms: [{ type: "surface_quick_reply", choices: knobs.labels.map((label) => ({ label, sendTemplate: label })) }],
+      arms: [
+        {
+          type: "surface_quick_reply",
+          // Explicit "send" (the zod default): dice picks are the member's own diegetic words — §2 law 3's
+          // send-legal chip class, same as call-a-vote. S1 (e0a910d9c) made the field required at the type.
+          choices: knobs.labels.map((label) => ({ label, sendTemplate: label, mode: "send" as const })),
+        },
+      ],
     },
   ],
 });
