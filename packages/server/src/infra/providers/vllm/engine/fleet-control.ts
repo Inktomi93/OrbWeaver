@@ -95,7 +95,7 @@ export async function postSleep(engine: VllmEngine): Promise<boolean> {
 /** One engine's idle-relevant metrics snapshot (from /metrics): in-flight running + waiting counts, and the
  *  cumulative Σ request_success_total (across every finished_reason). Idle := running==0 && waiting==0 &&
  *  successTotal unchanged since the last tick — this catches probes / E2E stacks / hand curls (anything that
- *  reaches the loopback port), needs zero app coupling, and survives a tsx-watch reload (the counters live in
+ *  reaches the loopback port), needs zero app coupling, and survives a node --watch reload (the counters live in
  *  the engine, B.5). */
 export interface EngineMetrics {
   readonly running: number;
