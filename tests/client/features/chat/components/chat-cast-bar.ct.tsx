@@ -15,7 +15,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatCastBarStory, ChatRoomPhoneStory } from "../_ct-stories.tsx";
-import { makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 /** A character seat — only the fields the cast bar reads; the rest is filler the bar ignores. */
 function character(key: string, name: string, over: Record<string, unknown> = {}): unknown {
@@ -35,6 +35,22 @@ function character(key: string, name: string, over: Record<string, unknown> = {}
 function roster(...members: unknown[]): unknown {
   return { participants: members };
 }
+
+/**
+ * #637 — the per-seat card read the bar's tiles make, which this file never stubbed. Answered `null` it was a
+ * silently inert pipeline: the tile's portrait/description resolve path never ran in any case here. Echoing
+ * the REQUESTED id keeps one responder honest for every roster below (each seat asks for its own character),
+ * rather than a single hard-coded card that would be right for one test and a lie for the rest.
+ */
+const CAST_CHARACTER_ROUTE: Record<string, unknown> = {
+  "character.get": (input: unknown): unknown => ({
+    id: (input as { characterId?: string } | undefined)?.characterId ?? "character_unknown",
+    name: "Cast member",
+    avatarHash: null,
+    description: "",
+    greetings: [],
+  }),
+};
 
 /** A human seat — `role` seats a host/member; the bar's add-member gate is the separate server-resolved
  *  `viewerIsHost` field, NOT this seat's role (a member behind a host seat must not see the "+"). */
@@ -58,7 +74,7 @@ function castWithHost(viewerIsHost: boolean): unknown {
 }
 
 test("a solo roster (1 character) renders NO cast bar (the D16 size-gate)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": () => roster(character("aria", "Aria")) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => roster(character("aria", "Aria")) });
   const component = await mount(<ChatCastBarStory />);
   // Give the query a beat to settle, then assert the bar never appears.
   await expect(component.getByText("Aria")).toHaveCount(0);
@@ -67,6 +83,8 @@ test("a solo roster (1 character) renders NO cast bar (the D16 size-gate)", asyn
 
 test("a 2+ roster renders a chip per character", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CAST_CHARACTER_ROUTE,
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
   });
   const component = await mount(<ChatCastBarStory />);
@@ -79,6 +97,8 @@ test("a 2+ roster renders a chip per character", async ({ mount, page }) => {
 
 test("a muted member's chip is marked (dimmed)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CAST_CHARACTER_ROUTE,
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn", { disabled: true })),
   });
   const component = await mount(<ChatCastBarStory />);
@@ -97,14 +117,14 @@ test("a muted member's chip is marked (dimmed)", async ({ mount, page }) => {
 // `committed-members-tab.tsx`, where `members-panel.ct.tsx` pins exactly this host/member pair. Half a
 // migration is the rot, so the old pins are re-aimed rather than left asserting a door that is gone.
 test("#490 neither a host nor a member gets an add-member door on the strip (its ONE home is CONTEXT)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": () => castWithHost(false) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => castWithHost(false) });
   const asMember = await mount(<ChatCastBarStory />);
   await expect(asMember.getByTestId("chat-cast-bar")).toBeVisible();
   await expect(asMember.getByRole("button", { name: "Add a character" })).toHaveCount(0);
   await asMember.unmount();
 
   // The arm that would silently come back if someone re-mounted the popover behind the host gate.
-  await routeTrpc(page, { "chat.getChat": () => castWithHost(true) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => castWithHost(true) });
   const asHost = await mount(<ChatCastBarStory />);
   await expect(asHost.getByTestId("chat-cast-bar")).toBeVisible();
   await expect(asHost.getByRole("button", { name: "Add a character" })).toHaveCount(0);
@@ -118,7 +138,7 @@ test("#490 neither a host nor a member gets an add-member door on the strip (its
 // for the message row's own bands, and the one rule #237 extends across the shell's chrome. The backing
 // is self-gated on the shell's `data-has-bg-image`, so the plain-background arm must not move a pixel.
 test("#229: over a wallpaper the strip takes the derived plate + blur; without one it is byte-identical", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": () => roster(character("a", "Birdie"), character("b", "Hikari")) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => roster(character("a", "Birdie"), character("b", "Hikari")) });
   const plain = await mount(<ChatCastBarStory />);
   const plainStrip = plain.getByTestId("chat-cast-bar");
   await expect(plainStrip).toBeVisible();
@@ -202,6 +222,8 @@ const CROWDED_ROSTER = [
 ];
 
 const PHONE_ROOM_STUB = {
+  ...CHAT_AMBIENT_ROUTES,
+  ...CAST_CHARACTER_ROUTE,
   "chat.previewContextFit": (): unknown => ({
     boundaryMessageId: null,
     usedTokens: 120,
@@ -292,7 +314,7 @@ test.describe("#511 the desktop strip keeps its names", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("at a fine pointer the names are painted, not merely announced", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.getChat": () => ({ participants: CROWDED_ROSTER }) });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => ({ participants: CROWDED_ROSTER }) });
     const component = await mount(<ChatCastBarStory />);
     await expect(component.getByTestId("chat-cast-bar")).toBeVisible();
     // ONESHOT-OK: the same context-fixed media match as the coarse arm — no `hasTouch`, decided before

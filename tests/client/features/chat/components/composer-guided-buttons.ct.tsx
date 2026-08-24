@@ -24,6 +24,7 @@ import { RESPONSE_CAST_CUE, STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/c
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 const RESPONSE = "Generate reply";
 const RESPONSE_GUIDED = "Guided generate reply";
@@ -63,7 +64,7 @@ const GROUP_ROSTER = { participants: [HOST, character("Aria"), character("Bolt")
 // ── 1. Response's cast fork ───────────────────────────────────────────────────────────────────────────────
 
 test("a MULTI-character room turns Response into a speaker menu: picking a name rides speakerCharacterId", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
@@ -78,7 +79,7 @@ test("a MULTI-character room turns Response into a speaker menu: picking a name 
 });
 
 test("Auto (arbitrate) is a real row: it fires the generate with NO speaker (the server arbitrates)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
@@ -98,7 +99,7 @@ test("Auto (arbitrate) is a real row: it fires the generate with NO speaker (the
 // affordance discoverable now that the visibly-named control is gone — a solo room has no choice to announce,
 // so it keeps the bare label (the arm the test below owns).
 test("a MULTI-character room's idle Response tooltip announces the speaker choice", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": () => GROUP_ROSTER });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE, exact: true }).hover();
@@ -106,7 +107,12 @@ test("a MULTI-character room's idle Response tooltip announces the speaker choic
 });
 
 test("a SOLO-cast room keeps the DIRECT Response button — one click fires, no speaker menu exists", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.getChat": () => ({ participants: [HOST, character("Aria")] }), "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": () => ({ participants: [HOST, character("Aria")] }),
+    "chat.generate": () => ({}),
+  });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
@@ -124,7 +130,7 @@ test("a SOLO-cast room keeps the DIRECT Response button — one click fires, no 
 const CHARGE = "data-cta";
 
 test("typing charges only what it can actually steer: Response + Draft charge, the tail-gated icons do not", async ({ mount, page }) => {
-  await routeTrpc(page, {}); // no assistant tail ⇒ Swipe/Continue are phase-disabled
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no assistant tail ⇒ Swipe/Continue are phase-disabled
   const component = await mount(<ComposerStory />);
 
   // Empty composer: nothing is charged.
@@ -145,7 +151,7 @@ test("typing charges only what it can actually steer: Response + Draft charge, t
 // ── 3. The tooltip is the ONLY carrier ────────────────────────────────────────────────────────────────────
 
 test("no guided control carries a native `title` — the tooltip popup is the sole explanation carrier", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   // Both states matter: an ENABLED trigger (Response/Draft) and a DISABLED one (Swipe/Continue, no tail) — the
@@ -158,7 +164,7 @@ test("no guided control carries a native `title` — the tooltip popup is the so
 });
 
 test("a DISABLED guided icon still explains itself on hover (the reason the native title stood in for)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   const swipe = component.getByRole("button", { name: SWIPE, exact: true });
@@ -170,7 +176,7 @@ test("a DISABLED guided icon still explains itself on hover (the reason the nati
 });
 
 test("an ENABLED guided icon's tooltip teaches the dual mode: the plain label, then the steer cue", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE, exact: true }).hover();

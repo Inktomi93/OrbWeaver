@@ -10,7 +10,17 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatOptionsMenuStory } from "../_ct-stories.tsx";
-import { CHAT_ID } from "../fixtures.ts";
+import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
+
+// #637 — THE SINGLETON THIS FILE WAS FLAGGED FOR, and the verdict: `chat.getChat` was unfed in every case
+// here, and it is NOT an error-arm defect (GameMenuSection's read is a non-suspending `useGatedQuery` and the
+// component optional-chains it throughout — a comment at chat-options-menu.tsx:83 says why, in those words).
+// It is worse in a quieter way: with the read unfed, `detail` is `null`, so `detail?.viewerIsHost === false`
+// is false and `detail?.rpg ?? null` is null — the menu renders its host arm and its FIRST-EVER-ENABLE arm by
+// ACCIDENT, and the #40 test below has been asserting the arm the missing data produced rather than the arm a
+// room without a game produces. The two arms GameMenuSection actually forks on — the non-host PERMISSION-omit
+// and the overlay on/off toggle — were unreachable from this file. `CHAT_ROOM_ROUTES` now supplies a real
+// detail (`viewerIsHost: true`, `rpg: null`), which is the same arm, honestly reached.
 
 // ── #8 grey-out (owner ruling 2026-07-24: "i fucking hate things hiding and when it's disabled on hover
 // tell why") — the DRAFT arm renders the IDENTICAL item set to a committed chat: nothing HIDDEN, the
@@ -32,7 +42,7 @@ const ANY_TRANSCRIPT = /transcript/u;
 const ANY_EXPORT = /export/iu;
 
 test("#8: a COMMITTED chat's row actions are ENABLED (there IS a server row) — the committed baseline", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
   const component = await mount(<ChatOptionsMenuStory withCast={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
@@ -42,7 +52,7 @@ test("#8: a COMMITTED chat's row actions are ENABLED (there IS a server row) —
 // The lifecycle one-home ruling: import/export live on the LIST side (band ghost + row kebab). The ROOM
 // carries no import/export chrome — this pins the ABSENCE, so a re-scattered download can't land quietly.
 test("lifecycle placement: the room ⋯ menu offers NO transcript download (its one home is the list row kebab)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
   const component = await mount(<ChatOptionsMenuStory withCast={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
@@ -54,7 +64,7 @@ test("lifecycle placement: the room ⋯ menu offers NO transcript download (its 
 // ── #40: the Game front-door section — start a game from the ⋯ menu. ──────────────────────────────────
 
 test("#40: committed 'Turn on RPG' → 'Freeform story' fires rpg.createGame (mode lite, no profile)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "rpg.createGame": () => ({ gameId: "rpg_game_ct", trackersReadOnly: false }) });
+  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "rpg.createGame": () => ({ gameId: "rpg_game_ct", trackersReadOnly: false }) });
   const component = await mount(<ChatOptionsMenuStory withCast={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 

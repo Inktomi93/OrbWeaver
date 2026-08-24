@@ -30,7 +30,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../support/ct/route-trpc.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
-import { makeMessagesPage, makeMessageView } from "./fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "./fixtures.ts";
 
 const CONTENT_COLUMN = '[data-slot="message-content-column"]';
 const MESSAGE_ROW = '[data-slot="message-row"]';
@@ -110,6 +110,7 @@ function seat(): ParticipantView {
 
 function routeRoom(page: Page, chatStyle: string, content: string = LONG_PROSE): Promise<unknown> {
   return routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "settings.getUserSettings": (): unknown => ({
       userId: castId<UserId>("user_ct"),
@@ -134,6 +135,17 @@ function routeRoom(page: Page, chatStyle: string, content: string = LONG_PROSE):
           selectedVariantIdx: 1,
         }),
       ]),
+    // #637 — the two reads the mounted room made that this suite never stubbed. The tail message declares
+    // `variantCount: 3`, so the swipe strip really does read the variant list; and the cast entry above
+    // carries an avatarHash, so the row's portrait really does resolve a character. Both were answered `null`
+    // and ran inert. Fed at the shapes the fixture already claims — three variants at the declared index, and
+    // the same character the cast names — so the strip's counter and the row's face are computed, not skipped.
+    "chat.listMessageVariants": (): unknown => [
+      { variantId: "msgvar_track_0", idx: 0 },
+      { variantId: "msgvar_track_1", idx: 1 },
+      { variantId: "msgvar_track_2", idx: 2 },
+    ],
+    "character.get": (): unknown => ({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
   });
 }
 

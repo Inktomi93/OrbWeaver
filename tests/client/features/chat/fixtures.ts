@@ -3,8 +3,10 @@
 // (lint useComponentExportOnlyModules). Imported by the stories + the .ct.tsx assertions.
 
 import type { CastEntry, MessageView } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { CharacterId, ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 /** The `chat.listMessages` wire shape (MessagesPage — packages/server/src/domain/chat/contract/
@@ -84,6 +86,72 @@ export const COMPOSER_CHAT_ID = castId<ChatId>("chat_ct_composer");
  *  from a story module (Playwright's CT transform double-declares a mixed value+component import). */
 export const SLASH_LOCKED_REASON = "Locked in this room — join it first.";
 const FROZEN_AT = 1_750_000_000_000;
+
+/**
+ * THE AMBIENT READS OF A MOUNTED CHAT TREE (#637) — spread into every `routeTrpc` call in this feature so
+ * the pipelines behind them actually RUN.
+ *
+ * WHY THIS EXISTS. These four are nobody's SUBJECT: a composer CT is about the composer, not about the
+ * display-script tier or the pre-send gate. But `routeTrpc` answers an unlisted procedure `null` by design,
+ * and `null` is not a view — `useDisplayScripts` falls to its `?? NO_SCRIPTS` arm and `useSendAvailability`
+ * to its `!verdict` arm, so BOTH pipelines ran INERT in 13 chat CT files and a regression inside either was
+ * invisible to every one of them (the #629 census found them; #637 fed them). Feeding them with honest
+ * DEFAULTS is the point: the hooks now execute their real select/dedup/resolve paths against real wire
+ * shapes instead of short-circuiting on a null.
+ *
+ * THEY ARE DEFAULTS, NOT A CEILING. A file whose subject IS one of these overrides it by listing the same
+ * key AFTER the spread (`{ ...CHAT_AMBIENT_ROUTES, "chat.checkSendAvailability": … }`) — composer.ct.tsx's
+ * engine-off/engine-down/no-connection arms are exactly that, and they still win.
+ */
+export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // The viewer's settings row, at the production defaults (`userSettingsSchema.parse({})`) — the same shape
+  // the workloads/admin CTs feed. Real config, so a reader that keys off a tier gets a tier.
+  "settings.getUserSettings": { userId: castId<UserId>("user_ct_viewer"), schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: FROZEN_AT },
+  // The two display-tier reads `useDisplayScripts` composes. EMPTY is the honest default (the host broadcast
+  // toggle is off by default and a fresh viewer owns no scripts) — but empty ARRAYS run `displaySlice` and the
+  // dedup path for real, where `null` skipped them.
+  "regex.listScripts": [],
+  "regex.listRoomDisplayScripts": [],
+  // The pre-send serveability verdict. `available: true` is the un-refused arm every non-availability CT
+  // assumes; a null previously reached the same rendering through `!verdict`, which is why the gate's own
+  // resolve path never ran.
+  "chat.checkSendAvailability": { available: true },
+  // The room bus's attach MUTATION. NOTE THE CORRECTION (#637): `stream.attach` is NOT a subscription and was
+  // never on the EventSource path the #629 instrument fix excluded — `use-orb-socket.ts` states plainly that
+  // attach/detach "ride the BATCHED HTTP" link and only `stream.connect` is the SSE leg. So it is a genuine
+  // unstubbed mutation, not the instrument reporting its own posture. Its result is never read
+  // (`await client.stream.attach.mutate(…)` discards it), so feeding `{}` changes nothing observable — it
+  // simply stops a real mutation riding the lenient null fulfil.
+  "stream.attach": {},
+};
+
+/**
+ * THE ROOM'S CANON READS at their EMPTY-but-real defaults (#637) — the second half of the feed, for the
+ * composer-family CTs that mount a room tree without being about the room.
+ *
+ * Kept apart from {@link CHAT_AMBIENT_ROUTES} because these two ARE the subject in plenty of files: the
+ * separation keeps "I am feeding a pipeline that is not my subject" legible against "I am supplying my
+ * subject's data". Same override rule — list the key after the spread and it wins.
+ *
+ * The `chat.getChat` literal is a PARTIAL `ChatDetail`, the posture every roster stub in this feature already
+ * takes (message-list-surface.ct's ROSTER_STUB, chats-section.ct's `chatDetail`): only the fields a reader
+ * actually reaches for, every one of them at the honest empty/default value — a solo-less roster, no anchor
+ * persona, no room overrides, the default group config, no RPG pointer, and a viewer who IS the host (the
+ * un-gated arm every non-permission CT assumes).
+ */
+export const CHAT_ROOM_ROUTES: Readonly<Record<string, unknown>> = {
+  "chat.getChat": {
+    title: null,
+    participants: [],
+    cast: [],
+    anchorPersonaId: null,
+    roomOverrides: {},
+    group: DEFAULT_GROUP_CONFIG,
+    rpg: null,
+    viewerIsHost: true,
+  },
+  "chat.listMessages": { messages: [], cast: [] },
+};
 
 /** A fully-valid `MessageView` literal (the client read model — slot ⋈ selected variant). */
 export function makeMessageView(overrides: Partial<MessageView> = {}): MessageView {
