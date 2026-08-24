@@ -41,7 +41,17 @@ function MediaWithZoom({
         {...(zoomMedia === null ? {} : { onActivate: () => setZoomOpen(true) })}
       />
       {zoomMedia === null ? null : (
-        <Lightbox open={zoomOpen} onOpenChange={setZoomOpen} src={src} media={zoomMedia} alt={block.alt} allowExternal={allowExternal} />
+        // #654: the ZOOM copy gets the same dims as the inline one — they are the same picture, and the
+        // modal is where an unreserved pop-in is most visible.
+        <Lightbox
+          open={zoomOpen}
+          onOpenChange={setZoomOpen}
+          src={src}
+          media={zoomMedia}
+          alt={block.alt}
+          {...(block.dims === undefined ? {} : { dims: block.dims })}
+          allowExternal={allowExternal}
+        />
       )}
     </>
   );
@@ -79,7 +89,9 @@ function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; reado
         alt={block.alt}
         {...(dims === undefined ? {} : { dims })}
         allowExternal={true}
-        onActivate={(): void => openImageDetail({ assetId, chatId, url: resolved.url, alt: block.alt })}
+        // #654: the same dims ride into the DETAIL modal, so the enlarged copy reserves its box too — the
+        // image reserved correctly inline and then popped in from 0×0 the moment you clicked it.
+        onActivate={(): void => openImageDetail({ assetId, chatId, url: resolved.url, alt: block.alt, ...(dims === undefined ? {} : { dims }) })}
       />
     );
   }

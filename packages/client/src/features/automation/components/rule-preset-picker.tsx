@@ -20,6 +20,14 @@
 // appear per field on first edit, the Add button is REAL (pressing it reveals every issue rather than
 // swallowing the press), and the blocking field is named in a line above it.
 //
+// THE ROW NAMES ITS PRICE (#655). Seven of the eleven committed rule presets commit the host to a RECURRING
+// model charge the moment they enable one, and this catalogue said nothing: the word "spend" first appeared
+// in a minted row's overflow menu, two clicks past the decision. The signal is a SERVER-DERIVED field
+// (`RulePresetView.spends` — `substrate/presets.ts` runs each preset's own builder and tests its arms
+// against `SPEND_ARM_TYPES`), because the client has no arms to inspect and a hand-kept list on either side
+// would be a lie waiting to happen on a money surface. It rides the same trailing-sentence grammar as
+// "Asks before acting.", in both steps.
+//
 // A typed mint refusal the form CANNOT pre-empt — a lorebook that stopped being attached to this chat
 // between the render and the press — rides `mintFailureToast` (`lib/rule-mutations.ts`), so a host reads
 // the reason instead of watching a card quietly do nothing.
@@ -36,8 +44,22 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useCreateRuleFromPreset } from "../lib/rule-mutations.ts";
-import { defaultKnobValues, knobBlockingLine, knobIssue, mintKnobOverrides } from "../lib/rule-preset-knob-model.ts";
-import { KnobField } from "./rule-preset-knob-field.tsx";
+import { defaultKnobValues, knobIssue, mintKnobOverrides } from "../lib/rule-preset-knob-model.ts";
+import { KnobBlockingLine, KnobField } from "./rule-preset-knob-field.tsx";
+
+/** THE SPEND SENTENCE — the signal this whole surface was missing (#655). Seven of the eleven committed
+ *  rule presets commit the host to a RECURRING model charge the moment they enable one ("Periodic pacing
+ *  nudge" fires a full turn every 8 beats, forever), and the word "spend" appeared nowhere until the row's
+ *  overflow menu, two clicks deep, AFTER the rule was minted. It rides the same trailing-sentence grammar as
+ *  "Asks before acting." because a host reads the row as one sentence about what this does to their room —
+ *  and it comes FIRST of the two, because a charge is the larger commitment and "asks before acting" is what
+ *  qualifies it.
+ *
+ *  `view.spends` is the server's DERIVED answer (`substrate/presets.ts` runs the preset's own builder and
+ *  tests its arms against `SPEND_ARM_TYPES`), never a client guess — the client has no arms to inspect. */
+function spendLine(view: RulePresetView): string {
+  return view.spends ? " Costs a model call each time it fires." : "";
+}
 
 interface RulePresetConfigureProps {
   readonly chatId: ChatId;
@@ -68,13 +90,19 @@ function RulePresetConfigure({ chatId, preset, onBack, onDone }: RulePresetConfi
 
   return (
     <Stack gap="block">
-      <Row gap="block" align="center" justify="between">
+      {/* JUST "Back" — the step's own title moved UP into the popover's one heading (#655). This row used
+          to carry a second title beside it, so step 2 opened with the preset name on the RIGHT under a
+          heading still reading "Add a rule": two titles, in reversed reading order, neither of them the
+          one a screen reader announces for the dialog. */}
+      <Row gap="block" align="center">
         <Button intent="ghost" size="sm" onClick={onBack}>
           Back
         </Button>
-        <Text voice="label">{preset.title}</Text>
       </Row>
-      <Text voice="gloss">{preset.summary}</Text>
+      <Text voice="gloss" prose={true}>
+        {preset.summary}
+        {spendLine(preset)}
+      </Text>
       {preset.knobs.map((knob) => (
         <KnobField
           key={knob.key}
@@ -91,7 +119,7 @@ function RulePresetConfigure({ chatId, preset, onBack, onDone }: RulePresetConfi
       {/* The blocking reason is SAID, not merely enforced: an amber-filled button that does nothing on
           click is the same dead end whether or not it is `disabled` (side-eye #621 P1-4). Pressing it
           reveals every field's issue instead. */}
-      {blocked === undefined ? null : <Text voice="gloss">{knobBlockingLine(blocked)}</Text>}
+      {blocked === undefined ? null : <KnobBlockingLine knob={blocked} chatId={chatId} />}
       <Button intent="primary" size="sm" loading={mint.isPending} onClick={add}>
         {preset.ruleCount > 1 ? `Add ${preset.ruleCount} rules` : "Add rule"}
       </Button>
@@ -122,9 +150,18 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
           onClick={(): void => onPick(preset)}
         >
           <Stack gap="tight">
-            <Text voice="label">{preset.title}</Text>
-            <Text voice="gloss">
+            {/* `promoted`, not `label` (#655): this IS the shipped voice for "the name of one item in a
+                shelf of items", and with the summary lifted off the 10.5px floor below (see it) a `label`
+                title would render name and caption at the SAME 13px step — the exact flattening `promoted`
+                was minted to fix. */}
+            <Text voice="promoted">{preset.title}</Text>
+            {/* `prose` — the LENGTH modifier, not a taste knob. This sentence is the one thing answering
+                "what will this do to my room", and it rendered at 10.5px (design-audit `undersized-ui-text`,
+                below the 11px functional floor) inside an interactive button. `prose` lifts the gloss voice
+                to the label step and relaxes its leading while keeping it unmistakably the same voice. */}
+            <Text voice="gloss" prose={true}>
               {preset.summary}
+              {spendLine(preset)}
               {preset.confirmFirst ? " Asks before acting." : ""}
             </Text>
           </Stack>
@@ -136,19 +173,24 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
 
 interface RulePresetPickerBodyProps {
   readonly chatId: ChatId;
+  readonly selected: RulePresetView | null;
+  readonly onSelect: (preset: RulePresetView | null) => void;
   readonly onDone: () => void;
 }
 
-/** The popover body: the catalogue, then the chosen preset's knob form. Suspends on `listRulePresets`. */
-function RulePresetPickerBody({ chatId, onDone }: RulePresetPickerBodyProps): ReactElement {
+/** The popover body: the catalogue, then the chosen preset's knob form. Suspends on `listRulePresets`.
+ *
+ *  The STEP lives one level up (`RulePresetPicker`) rather than here, because the popover's single heading
+ *  has to name it and that heading sits OUTSIDE the `QueryBoundary` — the alternative was moving the title
+ *  inside the boundary, where a slow catalogue read would paint a titleless dialog. */
+function RulePresetPickerBody({ chatId, selected, onSelect, onDone }: RulePresetPickerBodyProps): ReactElement {
   const trpc = useTRPC();
   const { data: presets } = useSuspenseQuery(trpc.automation.listRulePresets.queryOptions());
-  const [selected, setSelected] = useState<RulePresetView | null>(null);
 
   if (selected === null) {
-    return <RulePresetList presets={presets} onPick={setSelected} />;
+    return <RulePresetList presets={presets} onPick={onSelect} />;
   }
-  return <RulePresetConfigure chatId={chatId} preset={selected} onBack={(): void => setSelected(null)} onDone={onDone} />;
+  return <RulePresetConfigure chatId={chatId} preset={selected} onBack={(): void => onSelect(null)} onDone={onDone} />;
 }
 
 export interface RulePresetPickerProps {
@@ -158,8 +200,19 @@ export interface RulePresetPickerProps {
 /** The "Add rule…" inline popover — the picker entry point for the Rules section. */
 export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElement {
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<RulePresetView | null>(null);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next): void => {
+        setOpen(next);
+        // Close returns the popover to its catalogue: re-opening onto the knob form of whatever was picked
+        // last time is a surface remembering a decision the host already walked away from.
+        if (!next) {
+          setSelected(null);
+        }
+      }}
+    >
       <PopoverTrigger
         render={
           <Button intent="secondary" size="sm">
@@ -170,14 +223,26 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
       />
       {/* No call-site width: the popup slot already seals its own box (`max-w-cq-sm` + the
           `max-h-(--available-height)` cap, capped-and-scrollable) — a `w-80` here would fight that seal
-          rather than express anything the primitive does not already own (`ui-size-via-variant`). */}
+          rather than express anything the primitive does not already own (`ui-size-via-variant`).
+          THE RULING SURVIVED A CHALLENGE (#655): the picker was reported to TELEPORT between its two steps
+          ({x:513 y:36 w:384} → {x:929 y:476 w:319}), and both call-site levers were tried and MEASURED
+          WRONG. `min-w-cq-sm` forces 24rem even where the positioner has less room — the 384px docked pane
+          rendered a 384px popup inside 376.09px of available width. `side="top" align="end"` did not pin
+          the anchor either (bottom/right went 311/1019 → 428/1024 at a 1024px mount): the positioner is
+          re-solving a genuinely different box, not mis-aligning the same one. The honest lever is a WIDTH
+          VARIANT on `PopoverPopup` resolving `min(cq-sm, --available-width)`, which is `@orb/ui`'s to add
+          and needs a real-host receipt, not this CT's short page. The TITLE half of that report IS fixed
+          below, and it is the half a screen reader could hear. */}
       <PopoverPopup>
-        <PopoverTitle>Add a rule</PopoverTitle>
+        {/* ONE heading, and it names the STEP. Step 2 used to render a second title inside the body while
+            this one still said "Add a rule" — so the dialog's accessible name never changed and a sighted
+            host read two titles in reversed order. */}
+        <PopoverTitle>{selected === null ? "Add a rule" : selected.title}</PopoverTitle>
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the rules you can add" onRetry={retry} />}
         >
-          <RulePresetPickerBody chatId={chatId} onDone={(): void => setOpen(false)} />
+          <RulePresetPickerBody chatId={chatId} selected={selected} onSelect={setSelected} onDone={(): void => setOpen(false)} />
         </QueryBoundary>
       </PopoverPopup>
     </Popover>
