@@ -46,11 +46,17 @@ import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gat
 // REDs the stale entry). Founding set triaged against the live tree 2026-07-31, consumer by consumer.
 const STATIC: ExemptionTable = {
   // ── identity / content-addressed / self-keyed reads: the datum cannot go stale for its key ──────────────
+  "assets.resolveBlobRefs": {
+    why: "the OWNER-scoped twin of `assets.resolveChatBlobRefs` below, same content-addressed argument: keyed by the requested asset ids over CONTENT-ADDRESSED blobs (features/imagery/components/image-detail-body.tsx resolves hash+mime to build the set-as-background source). An asset's hash never changes — `packages/server/src/domain/assets/` carries ZERO `update(assets)` sites, and a re-upload mints a NEW id (D21), so a change produces a new key rather than a stale answer. A DELETED asset drops out of the owner join and the frozen entry can only hand back a hash the server's own ownership gate then refuses — a refused write, never a wrong one.",
+  },
   "assets.resolveChatBlobRefs": {
     why: "keyed by (chatId, the row's asset ids) over CONTENT-ADDRESSED blobs (features/chat/hooks/attachment-url-provider.tsx): the hash behind an assetId never changes, so the resolved map is immutable for its key.",
   },
   "chat.getVariantWire": {
     why: "keyed by (chatId, variantId) over a COMMITTED variant's stamped generation record (features/chat/components/variant-wire-viewer.tsx). A variant's prompt/params/draws are written once at commit and never updated: an edit mints a new variant and a swipe APPENDS one, so a new key is what a change produces — the old key's answer stays true forever. Deleting the message makes the key resolve NOT_FOUND, which the viewer renders as its typed gone-arm.",
+  },
+  "imagery.readProvenance": {
+    why: "keyed by assetId over a WRITE-ONCE generation record (features/imagery/components/provenance-strip.tsx — the lightbox's prompt/model/mode/cost strip). The `imagery_generations` row is stamped at generation and never updated: `packages/server/src/` carries ZERO `update(imageryGenerations)` sites, and an EDIT mints a new asset with its own new row (`edited:true`), so a change produces a NEW key — the old key's answer stays true forever (the `chat.getVariantWire` argument, same shape). A non-generated or foreign asset resolves `null` through the owner join, which the strip renders as its typed no-details arm.",
   },
   "search.search": {
     why: "input-keyed live search (features/discovery/components/corpus-search-results.tsx) — the query text + `over` target are part of the key, so every new search is a cold fetch of a NEW cache entry.",
