@@ -17,7 +17,11 @@ export type { ToolCallInput } from "#infra/providers";
  *  accepts optional name/version) is assignable to this narrower shape. */
 export type CreateAgentToolServer = (opts: { readonly tools: readonly AgentToolSpec[] }) => AgentToolServer;
 
-/** Where a tool came from. `plugin` is reserved — nothing plugin-shaped is built now. */
+/** Where a tool came from. `plugin` is LIVE: `registerPluginTool` (`contract/service.ts`) is wired at
+ *  `entry/compose/automation-plugin.ts`, namespacing guest tools `plugin_<slug>_<name>`. Its ceiling
+ *  resolves the INSTALLER's present role in the invocation chat (never the caller's), and automation
+ *  reaches these tools through the `run_tool` arm — so a plugin extends what automation can DO without
+ *  growing the closed arm union. Per-TURN attach is a separate, still-unbuilt seam (#24). */
 export const TOOL_SOURCES = ["builtin", "plugin"] as const;
 export type ToolSource = (typeof TOOL_SOURCES)[number];
 
