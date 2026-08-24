@@ -6,6 +6,8 @@
 // CONTROLLED inputs (a form-control tag with both a value binding and an onChange-family handler) while
 // importing neither editor factory (which bake seed/key-remount/reset/reseed-guard/draft-mirror
 // semantics a hand-roll re-invents, subtly wrong). Scope: packages/client/src/features/**/*.tsx; counted per enclosing component.
+// The count is CONCURRENT fields, not written ones (#620): mutually-exclusive branches collapse to their
+// MAX — see `countConcurrentFields` for which node kinds are exclusive and, more importantly, which are NOT.
 import type { JsxAttribute, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
@@ -91,18 +93,109 @@ function isControlledFormInput(el: Node): boolean {
   return hasValue && hasChange;
 }
 
+function isFunctionLike(node: Node): boolean {
+  return node.isKind(SyntaxKind.FunctionDeclaration) || node.isKind(SyntaxKind.FunctionExpression) || node.isKind(SyntaxKind.ArrowFunction);
+}
+
 /** The nearest enclosing function-like node (a component), keyed by its start position + a display name. */
-function enclosingComponent(el: Node): { key: number; name: string } | undefined {
-  let found: { key: number; name: string } | undefined;
+function enclosingComponent(el: Node): { key: number; name: string; fn: Node } | undefined {
+  let found: { key: number; name: string; fn: Node } | undefined;
   let node: Node | undefined = el.getParent();
   while (node !== undefined && found === undefined) {
-    if (node.isKind(SyntaxKind.FunctionDeclaration) || node.isKind(SyntaxKind.FunctionExpression) || node.isKind(SyntaxKind.ArrowFunction)) {
-      found = { key: node.getStart(), name: componentName(node) };
+    if (isFunctionLike(node)) {
+      found = { key: node.getStart(), name: componentName(node), fn: node };
     } else {
       node = node.getParent();
     }
   }
   return found;
+}
+
+/** #620 — THE COUNT IS WHAT RENDERS AT ONCE, NOT WHAT IS WRITTEN. A component that dispatches ONE control
+ *  out of an exhaustive `switch` is a one-field component, not an N-field hand-rolled form: only one arm
+ *  ever renders. Counting the SUM made B2's `KnobField` — one control from a 4-arm switch — report
+ *  "KnobField (4 fields)", and since this gate has no allowlist its only exits were "import a form factory"
+ *  or "drop below 3 controls", pressuring a dynamic server-descriptor-driven knob set toward an
+ *  entity-form factory that wants a FIXED defaultValues shape. So: MAX over mutually-exclusive branches,
+ *  SUM over everything else.
+ *
+ *  Exclusive (max): `switch` arms of one switch · an `if`/`else` pair · the two arms of ONE conditional
+ *  expression. Each is a runtime either/or.
+ *  NOT exclusive (sum): `&&` guards, and SIBLING conditionals — `{a && <Input/>}{b && <Input/>}` renders
+ *  BOTH when both hold, so collapsing those would gut the true-positive arm this gate exists for.
+ *  Recursion stops at a nested function-like node: that is its own component, attributed separately by
+ *  `enclosingComponent` (a `.map(item => <Input/>)` callback has always counted as its own scope here). */
+/** Does this statement definitely leave the enclosing function? (a `return`/`throw`, or a block ending in
+ *  one). Used to recognise the GUARD-CLAUSE shape, where exclusivity is expressed by control flow rather
+ *  than by an `else`. */
+function alwaysExits(stmt: Node): boolean {
+  if (stmt.isKind(SyntaxKind.ReturnStatement) || stmt.isKind(SyntaxKind.ThrowStatement)) {
+    return true;
+  }
+  if (stmt.isKind(SyntaxKind.Block)) {
+    const last = stmt.getStatements().at(-1);
+    return last !== undefined && alwaysExits(last);
+  }
+  return false;
+}
+
+/** Count a statement LIST with early-return flow. `if (x) { return <A/>; } return <B/>;` has no `else`, but
+ *  the trailing statements only run when the guard did NOT fire — so the guard's body and the remainder are
+ *  mutually exclusive. This is the dominant React dispatch idiom (a guard clause per variant), and treating
+ *  it as a sum was the same #620 false positive the `switch` case makes obvious. */
+function countStatementList(statements: readonly Node[]): number {
+  let total = 0;
+  for (let i = 0; i < statements.length; i += 1) {
+    const stmt = statements[i];
+    if (stmt === undefined) {
+      continue;
+    }
+    if (stmt.isKind(SyntaxKind.IfStatement) && stmt.getElseStatement() === undefined && alwaysExits(stmt.getThenStatement())) {
+      const guard = countConcurrentFields(stmt.getThenStatement());
+      const rest = countStatementList(statements.slice(i + 1));
+      return total + countConcurrentFields(stmt.getExpression()) + Math.max(guard, rest);
+    }
+    total += countConcurrentFields(stmt);
+  }
+  return total;
+}
+
+function countConcurrentFields(node: Node): number {
+  if (node.isKind(SyntaxKind.Block)) {
+    return countStatementList(node.getStatements());
+  }
+  if (node.isKind(SyntaxKind.CaseClause)) {
+    return countConcurrentFields(node.getExpression()) + countStatementList(node.getStatements());
+  }
+  if (node.isKind(SyntaxKind.DefaultClause)) {
+    return countStatementList(node.getStatements());
+  }
+  if (node.isKind(SyntaxKind.SwitchStatement)) {
+    const arms = node.getClauses().map((clause) => countConcurrentFields(clause));
+    return countConcurrentFields(node.getExpression()) + Math.max(0, ...arms);
+  }
+  if (node.isKind(SyntaxKind.IfStatement)) {
+    const elseStatement = node.getElseStatement();
+    const otherwise = elseStatement === undefined ? 0 : countConcurrentFields(elseStatement);
+    return countConcurrentFields(node.getExpression()) + Math.max(countConcurrentFields(node.getThenStatement()), otherwise);
+  }
+  if (node.isKind(SyntaxKind.ConditionalExpression)) {
+    return countConcurrentFields(node.getCondition()) + Math.max(countConcurrentFields(node.getWhenTrue()), countConcurrentFields(node.getWhenFalse()));
+  }
+  let total = isControlledFormInput(node) ? 1 : 0;
+  for (const child of node.getChildren()) {
+    if (!isFunctionLike(child)) {
+      total += countConcurrentFields(child);
+    }
+  }
+  return total;
+}
+
+/** The concurrently-rendered field count for one component — its body, with nested components excluded. */
+function componentFieldCount(fn: Node): number {
+  const body =
+    fn.isKind(SyntaxKind.FunctionDeclaration) || fn.isKind(SyntaxKind.FunctionExpression) || fn.isKind(SyntaxKind.ArrowFunction) ? fn.getBody() : undefined;
+  return body === undefined ? 0 : countConcurrentFields(body);
 }
 
 /** A readable name for the component a controlled input lives in (declaration name, assigned var, else <anon>). */
@@ -118,24 +211,25 @@ function componentName(fn: Node): string {
  *  component name + count travel in `token`, since the node overload carries no per-finding message
  *  (GATE-AUTHORING.md §1). */
 function reportFileViolations(sf: SourceFile, ctx: GateRunCtx): void {
-  const perComponent = new Map<number, { name: string; count: number; firstEl: Node }>();
-  const elements = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
+  const perComponent = new Map<number, { name: string; fn: Node; firstEl: Node }>();
+  // Sorted into document order: the two descendant sweeps concatenate opening-then-self-closing, so the
+  // report would otherwise anchor on whichever KIND came first rather than the first field on the page.
+  const elements = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)].sort(
+    (a, b) => a.getStart() - b.getStart(),
+  );
   for (const el of elements) {
     if (!isControlledFormInput(el)) {
       continue;
     }
     const comp = enclosingComponent(el);
-    if (comp === undefined) {
+    if (comp === undefined || perComponent.has(comp.key)) {
       continue;
     }
-    const entry = perComponent.get(comp.key);
-    if (entry === undefined) {
-      perComponent.set(comp.key, { name: comp.name, count: 1, firstEl: el });
-    } else {
-      entry.count += 1;
-    }
+    perComponent.set(comp.key, { name: comp.name, fn: comp.fn, firstEl: el });
   }
-  for (const { name, count, firstEl } of perComponent.values()) {
+  for (const { name, fn, firstEl } of perComponent.values()) {
+    // The count is CONCURRENT fields (#620), not written ones — exclusive branches collapse to their max.
+    const count = componentFieldCount(fn);
     if (count >= THRESHOLD) {
       ctx.report(firstEl, { token: `${name} (${count} fields)`, offset: 0 });
     }
@@ -175,6 +269,32 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/x/raw.tsx",
       expect: { messageIncludes: "hand-rolls" },
       why: "raw controlled input/textarea/select tags count too — three hand-rolled fields, no factory",
+    },
+    {
+      // #620 TRUE-POSITIVE GUARD: `&&` guards are NOT exclusive — all three render when all three hold,
+      // so they must still SUM. This is the arm a naive "collapse every conditional" fix would have gutted.
+      files:
+        "export function Guarded() {\n  return (\n    <div>\n      {a && <Input value={x} onValueChange={set} />}\n      {b && <Input value={y} onValueChange={set} />}\n      {c && <Input value={z} onValueChange={set} />}\n    </div>\n  );\n}\n",
+      at: "packages/client/src/features/x/guarded.tsx",
+      expect: { messageIncludes: "hand-rolls" },
+      why: "#620: three `&&`-guarded fields all render together — SIBLING conditionals sum, they are not switch arms",
+    },
+    {
+      // #620: exclusivity collapses each arm, it does not exempt the component. One arm carrying a whole
+      // 3-field form is still a hand-rolled form.
+      files:
+        'export function OneFatArm({ kind }) {\n  switch (kind) {\n    case "a":\n      return <Input value={x} onValueChange={set} />;\n    default:\n      return (\n        <div>\n          <Input value={x} onValueChange={set} />\n          <Select value={y} onValueChange={set} />\n          <NumberField value={z} onValueChange={set} />\n        </div>\n      );\n  }\n}\n',
+      at: "packages/client/src/features/x/fat-arm.tsx",
+      expect: { messageIncludes: "hand-rolls" },
+      why: "#620: the MAX arm carries 3 concurrent fields — collapsing arms must not exempt a real hand-rolled form",
+    },
+    {
+      // #620: an exclusive branch's MAX ADDS to the fields rendered unconditionally beside it.
+      files:
+        'export function Mixed({ kind }) {\n  return (\n    <div>\n      {kind === "a" ? <Input value={x} onValueChange={set} /> : <Select value={x} onValueChange={set} />}\n      <Input value={y} onValueChange={set} />\n      <NumberField value={z} onValueChange={set} />\n    </div>\n  );\n}\n',
+      at: "packages/client/src/features/x/mixed.tsx",
+      expect: { messageIncludes: "hand-rolls" },
+      why: "#620: ONE ternary's two arms collapse to 1, and that 1 ADDS to the 2 unconditional siblings = 3 concurrent fields — still a form",
     },
   ],
   mustPass: [
@@ -223,6 +343,29 @@ export const gate: GateDescriptor = {
       files: "export const x = 1;\n",
       at: "packages/client/src/features/demo/hooks/use-thing.ts",
       why: "scope: a non-.tsx feature file is out of scope — not scanned, passes",
+    },
+    {
+      // #620 THE FOUNDING FALSE POSITIVE: B2's `KnobField` shape — ONE control dispatched from an
+      // exhaustive switch over the knob's kind. Four controls are WRITTEN; exactly one ever renders.
+      files:
+        'export function KnobField({ knob }) {\n  switch (knob.kind) {\n    case "number":\n      return <NumberField value={v} onValueChange={set} />;\n    case "toggle":\n      return <Switch checked={v} onCheckedChange={set} />;\n    case "choice":\n      return <Select value={v} onValueChange={set} />;\n    default:\n      return <Input value={v} onChange={set} />;\n  }\n}\n',
+      at: "packages/client/src/features/x/knob-field.tsx",
+      why: "#620 the founding false positive: a 4-arm exhaustive switch renders ONE control — 4 written, 1 concurrent. It reported 'KnobField (4 fields)' and pressured a dynamic server-descriptor knob set toward a fixed-shape entity-form factory",
+    },
+    {
+      // #620: if/else is the same either/or as a switch.
+      files:
+        "export function Either({ flag }) {\n  if (flag) {\n    return (\n      <div>\n        <Input value={a} onValueChange={set} />\n        <Select value={b} onValueChange={set} />\n      </div>\n    );\n  }\n  return (\n    <div>\n      <NumberField value={c} onValueChange={set} />\n      <Switch checked={d} onCheckedChange={set} />\n    </div>\n  );\n}\n",
+      at: "packages/client/src/features/x/either.tsx",
+      why: "#620: an if/else pair is exclusive — 4 written, at most 2 concurrent, under the threshold, passes",
+    },
+    {
+      // #620: the GUARD-CLAUSE shape — exclusivity by control flow, with no `else` at all. The dominant
+      // React dispatch idiom, and a sum here was the same false positive the switch case makes obvious.
+      files:
+        "export function Guard({ flag }) {\n  if (flag) {\n    return (\n      <div>\n        <Input value={a} onValueChange={set} />\n        <Select value={b} onValueChange={set} />\n      </div>\n    );\n  }\n  return (\n    <div>\n      <NumberField value={c} onValueChange={set} />\n      <Switch checked={d} onCheckedChange={set} />\n    </div>\n  );\n}\n",
+      at: "packages/client/src/features/x/guard.tsx",
+      why: "#620: an early-RETURN guard has no `else`, but the trailing return only runs when the guard did not fire — 4 written, at most 2 concurrent, passes",
     },
   ],
 };

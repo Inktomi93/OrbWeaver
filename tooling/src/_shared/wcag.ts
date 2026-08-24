@@ -74,3 +74,54 @@ export const LARGE_MIN_RATIO = 3;
  *  gets composited and still fails, because at that alpha a different authored color genuinely could
  *  have passed. */
 export const MEASURABLE_OPACITY_MIN = 0.05;
+
+// ── Inactive controls (WCAG 1.4.3 / 1.4.11 exemption) ────────────────────────
+// THE ONE CLASSIFIER, shared by every instrument that samples the page. It lives here because two homes
+// for one rule is exactly how snap and design-audit drifted (#624): snap skipped a disabled control out
+// loud ("SKIPPED inactive control (WCAG contrast exemption)") while design-audit, which had NO classifier
+// at all, filed the SAME element as a P1 at 2.64:1. Every disabled control in the app was a standing false
+// positive, which trains a reader to discount the instrument's P1s wholesale.
+
+/** WCAG 1.4.11's non-text boundary, applied to a control that renders NO text (an icon button, a graphical
+ *  control) so a 4.5:1 TEXT ratio is not false-flagged against it. Numerically 3:1 like large-text, but a
+ *  distinct concept — hence its own name. Also the floor below which an INACTIVE control stops being
+ *  perceivable as a control at all (see `INACTIVE_ADVISORY_MAX_RATIO`). */
+export const UI_COMPONENT_MIN_RATIO = 3;
+
+/** How a control is inactive. The three spellings are NOT interchangeable, and the distinction is the
+ *  whole reason this is a union rather than a boolean:
+ *  - `native`  — `:disabled`. Genuinely inoperable: not focusable, not clickable. The clean 1.4.3 exemption.
+ *  - `inert`   — inside `[inert]`. Same: the subtree is removed from interaction and the a11y tree.
+ *  - `aria`    — `[aria-disabled="true"]`. Declared inactive but STILL FOCUSABLE and STILL ANNOUNCED, so a
+ *                keyboard user can land on it and hear it. WCAG's exemption is written for an "inactive
+ *                user interface component", which it is by declaration — but it remains PERCEIVABLE, so it
+ *                is the one kind that keeps earning a usability advisory. */
+export const INACTIVE_KINDS = ["none", "native", "aria", "inert"] as const;
+export type InactiveKind = (typeof INACTIVE_KINDS)[number];
+
+/** The classifier as an in-page JS EXPRESSION over a bound `el`. Both instruments build their sampling
+ *  script as a STRING, so a shared string constant is the only shape that can actually be one home —
+ *  a shared FUNCTION could not cross into the page. Order matters: `inert` is an ancestor test and wins
+ *  over the element's own state, and native `:disabled` outranks the aria declaration. */
+export const INACTIVE_KIND_EXPR =
+  '(el.closest("[inert]") ? "inert" : el.matches(":disabled") ? "native" : el.matches(\'[aria-disabled="true"]\') ? "aria" : "none")';
+
+/** Is this control exempt from a WCAG CONTRAST verdict? All three inactive spellings are — 1.4.3 exempts
+ *  "inactive user interface components", and their dimming is the deliberate signal that they are off.
+ *  This is snap's shipping behavior, preserved exactly; design-audit now agrees instead of contradicting it. */
+export function isContrastExempt(kind: InactiveKind): boolean {
+  return kind !== "none";
+}
+
+/** Does this control remain reachable and announced despite being declared inactive? Only `aria` — which
+ *  is why `aria-disabled` is not identical to `disabled` for exemption purposes: a keyboard user can still
+ *  focus it and a screen reader still reads it, so its legibility is a live usability question even though
+ *  the WCAG contrast MINIMUM does not apply. */
+export function remainsOperable(kind: InactiveKind): boolean {
+  return kind === "aria";
+}
+
+/** Below this ratio an inactive control has stopped reading as a CONTROL at all — the "is it even there?"
+ *  case the exemption must not swallow. Cited, not invented: it is WCAG 1.4.11's own UI-component boundary,
+ *  used here as an advisory floor rather than as a pass/fail criterion. */
+export const INACTIVE_ADVISORY_MAX_RATIO = UI_COMPONENT_MIN_RATIO;

@@ -4,6 +4,7 @@
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { INACTIVE_KIND_EXPR } from "../../../_shared/wcag.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
@@ -52,6 +53,13 @@ export const WALKER_CENSUS_TEXT = `
     if (isDevChrome(el)) continue;
     if (!isVisible(el)) continue;
     var ariaHidden = !!el.closest("[aria-hidden='true']");
+    // #624 — the WCAG 1.4.3 inactive-control exemption, via the ONE shared classifier. This file's
+    // no-dollar-brace convention is about stray sequences in the RAW page JS; this is a deliberate
+    // interpolation of a tooling constant, the same shape snap's own contrast script already uses, and it
+    // is what makes "one home" literally true across two instruments that each build their script as a
+    // STRING. Re-spelling the selector here is exactly the drift that let design-audit file a P1 at 2.64:1
+    // on an element snap reported as SKIPPED.
+    var inactiveKind = ${INACTIVE_KIND_EXPR};
     seenTextEls.add(el);
     textEls.push(el);
     var style = getComputedStyle(el);
@@ -76,6 +84,7 @@ export const WALKER_CENSUS_TEXT = `
         box: { x: textRect.x, y: textRect.y, width: textRect.width, height: textRect.height },
         occludedBy: textBackdrop.kind === "unresolved" ? occluderOf(el) : null,
         ariaHidden: ariaHidden,
+        inactive: inactiveKind,
       });
     }
 
