@@ -44,7 +44,7 @@ export interface CreateInstanceInputIn {
   readonly netHosts?: readonly string[];
   /** Per-instance DoS budgets (the domain leaves them absent → the shared defaults). `settleGraceMs` is the
    *  grace above `cpuDeadlineMs` before an invocation is force-ENDED in real time; absent ⇒
-   *  `PLUGIN_INVOCATION_SETTLE_GRACE_MS`. */
+   *  `HOST_FN_DEADLINE_MS`. */
   readonly budgets?: { readonly cpuDeadlineMs: number; readonly memoryLimitBytes: number; readonly settleGraceMs?: number };
 }
 

@@ -56,6 +56,7 @@ export type {
 export type { PluginLogView, PluginView, SnippetResult } from "./contract/results.ts";
 export type { CreateInstanceInput, CreateInstanceOutcome, PluginBudgets, PluginHostPort, PluginService } from "./contract/service.ts";
 export { createPluginService } from "./service.ts";
-export { createNotifyFloor, type NotifyFloor } from "./substrate/notify-floor.ts";
+export { createNotifyFloor } from "./substrate/notify-floor.ts";
+export type { NotifyFloor } from "./contract/ops.ts";
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";

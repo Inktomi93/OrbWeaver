@@ -32,7 +32,7 @@ import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginHostOps } from "../contract/ops.ts";
-import type { NotifyFloor } from "./notify-floor.ts";
+import type { NotifyFloor } from "../contract/ops.ts";
 
 /** The per-plugin ≤64-entries-per-book ceiling — the plugin mirror of automation's `RULE_MAX_ENTRIES_PER_BOOK`
  *  (a looping inserter fills a book otherwise). Counted over the plugin's OWN title namespace, so one plugin's

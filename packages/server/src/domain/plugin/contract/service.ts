@@ -10,7 +10,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { NotifyFloor } from "../substrate/notify-floor.ts";
+import type { NotifyFloor } from "./ops.ts";
 import type { PluginHostOps, PluginRegistrationHandle } from "./ops.ts";
 import type {
   GetPluginLogParams,

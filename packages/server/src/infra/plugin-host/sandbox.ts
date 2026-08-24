@@ -24,7 +24,6 @@ import {
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
   PLUGIN_INVOCATION_CPU_MS,
-  PLUGIN_INVOCATION_SETTLE_GRACE_MS,
   PLUGIN_INVOKE_ARGS_MAX_BYTES,
   PLUGIN_MEMORY_LIMIT_BYTES,
 } from "./budgets.ts";
@@ -42,7 +41,7 @@ export interface SandboxLimits {
   readonly memoryLimitBytes: number;
   /** Grace above {@link cpuDeadlineMs} before the invocation is force-ENDED in real time
    *  (`cpuDeadlineMs + settleGraceMs` = the settlement deadline). This is the bound the interrupt CANNOT
-   *  provide: see {@link PLUGIN_INVOCATION_SETTLE_GRACE_MS} for why it is the host-fn deadline. */
+   *  provide: see {@link HOST_FN_DEADLINE_MS} for why it is the host-fn deadline. */
   readonly settleGraceMs: number;
 }
 
@@ -88,7 +87,7 @@ export interface EvalOutcome {
 const DEFAULT_LIMITS: SandboxLimits = {
   cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
   memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES,
-  settleGraceMs: PLUGIN_INVOCATION_SETTLE_GRACE_MS,
+  settleGraceMs: HOST_FN_DEADLINE_MS,
 };
 
 function readError(ctx: QuickJSContext, handle: QuickJSHandle): GuestError {
