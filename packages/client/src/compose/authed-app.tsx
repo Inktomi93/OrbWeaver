@@ -28,7 +28,7 @@ import {
   youModal,
 } from "#features/app-shell";
 import { accountModal, reauthModal } from "#features/auth";
-import { automationPane, automationRulesContextTab, automationSuggestionSource } from "#features/automation";
+import { automationPane, automationRulesSection, automationSuggestionSource } from "#features/automation";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
   appearanceAvatarsSection,
@@ -91,6 +91,7 @@ import type {
   CharacterDetailContribution,
   ChatContextState,
   ChatControlSource,
+  ChatSettingsSectionContribution,
   ChatSurfaceContribution,
   CollectionContribution,
   ContextRegionDef,
@@ -123,14 +124,19 @@ import { queryClient, trpcProxy } from "./app-singletons.ts";
 // ({trpc, queryClient}) — the door injects the cross-domain read channel (§12) and assembles the result into
 // the registry, which chat merges at `defineContextTabs`'s `contributors` arm. rpg never imports chat; the
 // `when`/`strip:"game"` gating (a cache-first getChat.rpg read) drives the §4.2 bracket.
-// B2 — automation's host-only "Rules" tab joins the seam's rpg tabs. It needs no injected read channel (its
-// `when` is a plain `isHost` and its body reads through `useTRPC` at render), so it is a ready def, not a
-// factory. (interaction-direction-spec §7 B2; the section-in-"This chat" IA it names would need a new
-// context-tab SECTION registry — recorded in `rules-context-tab.tsx`.)
+// (B2's host-only "Rules" TAB used to ride here too. It was RETIRED at #616 — the owner ruled the surface
+// belongs as a SECTION inside "This chat", and it now grafts through `chatSettingsSections` below.)
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [
   ...makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
-  automationRulesContextTab,
 ]);
+
+// The "This chat" tab's SECTION seam (§6c — the THIRTEENTH contributor family, minted at #616 on the
+// owner's ruling that the Rules surface belongs INSIDE the per-chat-configuration tab rather than beside
+// it as a 5th host tab). automation's Rules is its first tenant: a ready def, not a factory (it needs no
+// injected read channel — the body reads through `useTRPC` at render). `CommittedSettingsTab` renders each
+// contribution in its own `<Section kicker>` at the end of the host-ops band, importing nothing from
+// automation; zero contributors leaves the tab byte-identical to a build without the seam.
+const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", [automationRulesSection]);
 
 // The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
 // engaged game chat — same door, same injected read channel, same one-directional flow as the tabs above.
@@ -225,7 +231,13 @@ const configCollections = createContributorRegistry<CollectionContribution>("con
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
   home: makeHomeSection(homeTiles),
-  chats: makeChatsSection({ contextTabs: chatContextContributors, contextRegions: chatContextRegions, surfaces: chatSurfaceContributors, toolRenderers }),
+  chats: makeChatsSection({
+    contextTabs: chatContextContributors,
+    contextRegions: chatContextRegions,
+    surfaces: chatSurfaceContributors,
+    toolRenderers,
+    settingsSections: chatSettingsSections,
+  }),
   // The characters LIST pane is MODAL (Arm A): its projection half is chat-owned row
   // anatomy over the `chat.listChats` cache, threaded in HERE — the one legal channel for chat UI inside
   // the characters section (the `makeChatsSection` contributor precedent; a direct import is dep-cruiser RED).

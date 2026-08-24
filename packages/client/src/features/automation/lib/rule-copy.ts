@@ -1,0 +1,275 @@
+// B2 — the RULES surface's host-facing COPY: everything that turns a wire value into a sentence a host can
+// read. One home, because the same three translations were being skipped in three places at once
+// (side-eye 2026-08-24, #621): the rule row subtitled the raw camelCase trigger discriminator plus an arm
+// COUNT, the fire log rendered the same raw discriminator in its middle column, and `FireView.detail` — the
+// per-arm result / error / preview the contract documents at `contract/results.ts:31` — was never rendered
+// at all, while the Run-now error toast pointed the host AT the fire log to find it.
+//
+// VOCABULARY (owner ruling, #599): bare "preset" means a GENERATION preset in this app, so nothing here
+// says it — these are rule presets, and a rule is a "rule".
+//
+// THE DISPATCHES ARE SWITCHES, NOT OBJECT LITERALS (the `fireOutcomeView` precedent one file over): the
+// wire vocabularies are snake_case (`set_variable`) and dotted (`character.updated`), and an object literal
+// keyed by them fights `useNamingConvention`. Each switch is exhaustive over its closed tuple with a
+// `never` default, so a new trigger/arm fails `tsc` HERE until it is given copy (§5.5).
+//
+// `triggerLabel` takes a plain `string` on purpose: `FireView.triggerType` is a stored column typed
+// `string`, not the union — a fire written before a vocabulary change must still render. An unknown value
+// falls back to itself, which is the honest answer and is exactly what the guarded narrow buys.
+
+import type { AutomationActionType, AutomationRunOutcome, ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
+import { AUTOMATION_ACTION_TYPES, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, SPEND_ARM_TYPES } from "@orb/contracts/automation";
+import { timeLib } from "#lib";
+
+/** The plain-English phrase for a CHAT-bus trigger — "when this rule looks", in the room's own terms. */
+function chatTriggerLabel(type: ChatTriggerType): string {
+  switch (type) {
+    case "chatOpened":
+      return "when you open this chat";
+    case "messageCommitted":
+      return "after every message";
+    case "messageEdited":
+      return "when a message is edited";
+    case "variantSelected":
+      return "when a swipe is picked";
+    case "turnStarted":
+      return "when a reply starts";
+    case "turnCompleted":
+      return "after each reply";
+    case "turnAborted":
+      return "when a reply is stopped";
+    case "worldInfoActivated":
+      return "when a lore entry fires";
+    case "personaSwitched":
+      return "when the persona changes";
+    case "chatCreated":
+      return "when the chat is created";
+    case "messageHidden":
+      return "when a message is hidden";
+    case "messagesDeleted":
+      return "when messages are deleted";
+    case "chatUpdated":
+      return "when this chat's settings change";
+    case "wiEntryAttached":
+      return "when a lore entry is attached";
+    case "wiEntryDetached":
+      return "when a lore entry is detached";
+    default: {
+      const exhaustive: never = type;
+      throw new Error(`unhandled chat trigger type: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** The plain-English phrase for a DOMAIN-bus trigger (library events, not room events). */
+function domainTriggerLabel(type: DomainTriggerType): string {
+  switch (type) {
+    case "character.updated":
+      return "when a character is edited";
+    case "asset.created":
+      return "when an image is saved";
+    default: {
+      const exhaustive: never = type;
+      throw new Error(`unhandled domain trigger type: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+function isChatTriggerType(type: string): type is ChatTriggerType {
+  return (CHAT_TRIGGER_TYPES as readonly string[]).includes(type);
+}
+
+function isDomainTriggerType(type: string): type is DomainTriggerType {
+  return (DOMAIN_TRIGGER_TYPES as readonly string[]).includes(type);
+}
+
+/** A trigger discriminator as a host-facing phrase. Unknown values (a stored fire from an older
+ *  vocabulary) fall back to the raw value rather than throwing away the row. */
+export function triggerLabel(type: string): string {
+  if (isChatTriggerType(type)) {
+    return chatTriggerLabel(type);
+  }
+  return isDomainTriggerType(type) ? domainTriggerLabel(type) : type;
+}
+
+/** One action arm as the THING IT DOES, not its wire discriminator. */
+export function armLabel(type: AutomationActionType): string {
+  switch (type) {
+    case "set_variable":
+      return "set a variable";
+    case "transform_draft":
+      return "rewrite part of the prompt";
+    case "insert_world_info_entry":
+      return "write a lore entry";
+    case "surface_quick_reply":
+      return "offer quick replies";
+    case "post_notification":
+      return "post a notice";
+    case "trigger_turn":
+      return "ask for a reply";
+    case "generate_image":
+      return "generate an image";
+    case "set_chat_background":
+      return "change the background";
+    default: {
+      const exhaustive: never = type;
+      throw new Error(`unhandled automation action type: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** Does this rule's arm list contain one that COSTS a model call? Drives the row's spend affordance — the
+ *  FIRST client consumer of `SPEND_ARM_TYPES`, which shipped with none (side-eye #621 P1-1/P1-2: Test,
+ *  Run-now and Delete all painted as the same ghost control while only one of them spends and only one is
+ *  irreversible). The set is the contract's, never re-spelled here. */
+export function hasSpendArm(actions: readonly { readonly type: AutomationActionType }[]): boolean {
+  return actions.some((action) => (SPEND_ARM_TYPES as readonly AutomationActionType[]).includes(action.type));
+}
+
+/** The rule row's SECOND line: what this rule does, in the words the rule itself carries. A minted rule
+ *  stores its catalogue entry's own summary as `description` (`createRuleFromPreset` writes
+ *  `description: preset.summary`), so the catalogue's plain-English sentence — the copy the review called
+ *  the only place a user learns what a rule does — follows the rule onto the row. A hand-authored rule with
+ *  no description falls back to WHEN it looks + WHAT it does, never a discriminator and an arm count. */
+export function ruleGloss(rule: {
+  readonly description: string | null;
+  readonly trigger: { readonly type: string };
+  readonly actions: readonly { readonly type: AutomationActionType }[];
+}): string {
+  if (rule.description !== null && rule.description.trim() !== "") {
+    return rule.description;
+  }
+  const first = rule.actions[0];
+  const does = first === undefined ? "does nothing" : armLabel(first.type);
+  const more = rule.actions.length > 1 ? `, +${rule.actions.length - 1} more` : "";
+  return `Runs ${triggerLabel(rule.trigger.type)} — ${does}${more}.`;
+}
+
+/** The rule row's STATE line: when it last did anything. `lastFiredAt` was on the view and rendered
+ *  nowhere, which is why two rules could look byte-identical. */
+export function lastRunLine(lastFiredAt: number | null): string {
+  return lastFiredAt === null ? "Hasn't run yet." : `Last ran ${timeLib.formatRelativeAgo(lastFiredAt)}.`;
+}
+
+/** The caps a `budget_refused` fire needs to become an ANSWER instead of a label ("Rate-capped" tells a
+ *  host nothing; "it had already run 30 times this hour" tells them what to change). */
+export interface RuleFireCaps {
+  readonly cooldownSeconds: number;
+  readonly maxFiresPerHour: number;
+}
+
+/** Read one string field off an open detail blob (`FireView.detail` is `Record<string, unknown>`). */
+function detailString(detail: Record<string, unknown>, key: string): string | null {
+  const value = detail[key];
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/** Read one number field off an open detail blob. */
+function detailNumber(detail: Record<string, unknown>, key: string): number | null {
+  const value = detail[key];
+  return typeof value === "number" ? value : null;
+}
+
+/** Arm discriminator → label for a detail blob whose `armType` is an untyped string. Derived from the
+ *  contract tuple through the exhaustive switch above, so it can never drift from either. */
+const ARM_LABELS: Readonly<Record<string, string>> = Object.fromEntries(AUTOMATION_ACTION_TYPES.map((type) => [type, armLabel(type)]));
+
+/** The `action_error` sentence: WHICH arm aborted and why. The engine writes
+ *  `{armIndex, armType, error}` (`engine/dispatch.ts::runArms`) — or a bare `{error}` when an arm THREW. */
+function actionErrorLine(detail: Record<string, unknown>): string {
+  const error = detailString(detail, "error") ?? "no reason recorded";
+  const armType = detailString(detail, "armType");
+  if (armType === null) {
+    return `An action failed: ${error}`;
+  }
+  const index = detailNumber(detail, "armIndex");
+  const which = index === null ? "" : ` (step ${index + 1})`;
+  return `Couldn't ${ARM_LABELS[armType] ?? armType}${which}: ${error}`;
+}
+
+/** The `budget_refused` sentence — which cap turned the rule away, with the number a host can act on. */
+function budgetRefusedLine(detail: Record<string, unknown>, caps: RuleFireCaps): string {
+  // `?? ""` rather than a `case null`: the switch is over a HOST-facing vocabulary, and "absent" and
+  // "unrecognized" get the same honest generic line.
+  switch (detailString(detail, "limit") ?? "") {
+    case "cooldown":
+      return `Its cooldown hadn't elapsed — it runs at most once every ${caps.cooldownSeconds}s.`;
+    case "rule_hourly":
+      return `It had already run ${caps.maxFiresPerHour} times this hour — its own cap.`;
+    case "chat_hourly":
+      return "This chat had already hit its hourly cap across all rules.";
+    default:
+      return "A fire-rate cap turned it away.";
+  }
+}
+
+/** The dry-run (`test_run`) verdict a stored fire carries: `{predicate, arms}`, the same shape `testRule`
+ *  returns. Only the predicate half fits a log line; the arm previews are the inline Test verdict's job. */
+function testRunLine(detail: Record<string, unknown>): string {
+  const predicate = detail["predicate"];
+  if (typeof predicate === "boolean") {
+    return predicate ? "Dry run — its condition would have matched." : "Dry run — its condition would NOT have matched.";
+  }
+  return "Dry run — nothing was executed.";
+}
+
+/** ONE fire row's detail as a host-facing sentence, or `null` when the row genuinely has nothing to add
+ *  (a plain condition-not-met fire is fully described by its badge). This is the read the contract
+ *  promised and the surface never made: without it the Run-now toast's "see the fire log" pointed at a log
+ *  that showed a badge, a raw discriminator, and a timestamp. */
+export function fireDetailLine(outcome: string, detail: Record<string, unknown> | null, caps: RuleFireCaps): string | null {
+  if (detail === null) {
+    return null;
+  }
+  switch (outcome) {
+    case "action_error":
+      return actionErrorLine(detail);
+    case "predicate_error":
+      return `Its condition errored: ${detailString(detail, "error") ?? "no reason recorded"}`;
+    case "budget_refused":
+      return budgetRefusedLine(detail, caps);
+    case "depth_refused": {
+      const depth = detailNumber(detail, "eventDepth");
+      return depth === null ? "It was refused: too many rules had already chained." : `It was refused — another rule had already chained ${depth} deep.`;
+    }
+    case "authority_refused":
+      return "Its author no longer hosts this chat, so it may not act here.";
+    case "fired":
+      return detail["runNow"] === true ? "You ran this by hand." : null;
+    case "test_run":
+      return testRunLine(detail);
+    default:
+      return null;
+  }
+}
+
+/** A run-now outcome as a host-facing line PLUS the channel it belongs on (side-eye #621 P2-1: every
+ *  outcome — including `action_error` and `authority_refused` — went out as a SUCCESS toast, which is the
+ *  notify seam's own header argument made concrete). `warn` is the honest-degrade channel: the rule is
+ *  healthy, it simply declined to act; `error` is reserved for the two arms where something BROKE. */
+export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): { readonly channel: "success" | "warn" | "error"; readonly line: string } {
+  switch (outcome) {
+    case "fired":
+      return { channel: "success", line: `Ran "${name}" — it fired.` };
+    case "suggested":
+      return { channel: "success", line: `Ran "${name}" — it raised a suggestion card.` };
+    case "predicate_false":
+      return { channel: "warn", line: `Ran "${name}" — its condition did not hold, so nothing happened.` };
+    case "predicate_error":
+      return { channel: "error", line: `Ran "${name}" — its condition errored. Its recent activity has the reason.` };
+    case "budget_refused":
+      return { channel: "warn", line: `Ran "${name}" — the fire-rate cap turned it away.` };
+    case "depth_refused":
+      return { channel: "warn", line: `Ran "${name}" — the cascade-depth cap turned it away.` };
+    case "action_error":
+      return { channel: "error", line: `Ran "${name}" — an action errored. Its recent activity has the reason.` };
+    case "authority_refused":
+      return { channel: "warn", line: `Ran "${name}" — you no longer hold the authority it needs.` };
+    case "test_run":
+      return { channel: "success", line: `Ran "${name}".` };
+    default: {
+      const exhaustive: never = outcome;
+      throw new Error(`unhandled automation run outcome: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}

@@ -23,6 +23,14 @@
 // lands directly AFTER Injections. Same family ("extra content entering this room's prompt"), and it is
 // member-READABLE, so it belongs above the host-only band rather than inside it.
 //
+// FOREIGN SECTIONS GRAFT INTO THE HOST-OPS BAND (#616, owner ruling 2026-08-24). The tab body is the
+// house's one sectioned per-chat-configuration pane, so a foreign feature's per-chat knobs belong IN it —
+// not in a tab of their own beside it. `sections` is the §6c `ChatSettingsSectionContribution` registry
+// (assembled at `compose/authed-app.tsx`, threaded through `makeChatsSection`); this file renders each
+// contribution in its own `<Section kicker>` at the end of the host band, and imports NOTHING from the
+// contributing feature (`client-features-no-cross`). Automation's Rules is the first tenant — it shipped
+// as a 5th host TAB and was retired to a section here in the same change.
+//
 // THE DRAFT TWIN IS GONE (chat-creation-draft-mode-replacement.md §4.9, R1). `DraftSettingsTab` rendered
 // draft-config-store-backed copies of Field overrides / Injections / Group behavior for a room with no
 // server row — and could not offer Background, Documents, Macro picks, Appearance or Tool use at all,
@@ -37,6 +45,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
@@ -101,12 +110,16 @@ export interface CommittedSettingsTabProps {
   readonly background: ThemeBackground | null;
   /** The group-level gate — host of a group chat (was the whole Group tab's `when`). */
   readonly showGroup: boolean;
+  /** §6c — the SECTION contributors a foreign feature grafts into this tab (automation's Rules is the
+   *  first; #616). Omitted ⇒ the tab is byte-identical to a build with no contributors, which is what
+   *  lets a CT mount the tab body alone. The door always wires it (`makeChatsSection`). */
+  readonly sections?: ContributorRegistry<ChatSettingsSectionContribution>;
 }
 
 /** The committed-chat "This chat" tab: Field overrides + Injections always present; Background is host-only;
  *  Group behavior only for a host of a group chat; Tool use only for a host (the §8.1 permission-omit,
  *  moved from tab-level to section-level). */
-export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup }: CommittedSettingsTabProps): ReactElement {
+export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup, sections }: CommittedSettingsTabProps): ReactElement {
   return (
     <Stack gap="section">
       <Section kicker={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}>
@@ -146,7 +159,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       {/* THE HOST-OPS GROUP (D-1). Rendered only for a host, so the group's own name is never an empty
           promise — and the three §8.1 permission-OMITs inside it keep their individual gates (Group behavior
           also needs a group chat). A member's tab simply ends after Macro picks. */}
-      {isHost ? <HostControls chatId={chatId} background={background} showGroup={showGroup} /> : null}
+      {isHost ? <HostControls chatId={chatId} background={background} showGroup={showGroup} sections={sections} /> : null}
     </Stack>
   );
 }
@@ -159,11 +172,15 @@ function HostControls({
   chatId,
   background,
   showGroup,
+  sections,
 }: {
   readonly chatId: ChatId;
   readonly background: ThemeBackground | null;
   readonly showGroup: boolean;
+  readonly sections: ContributorRegistry<ChatSettingsSectionContribution> | undefined;
 }): ReactElement {
+  // The §6c SECTION seam's projection — the committed room, resolved once for every contributor.
+  const state: ChatSettingsSectionState = { chatId };
   return (
     <Section kicker="Host controls">
       <Stack gap="section">
@@ -203,6 +220,18 @@ function HostControls({
             <ToolRecurseControl chatId={chatId} />
           </QueryBoundary>
         </Section>
+        {/* THE GRAFTED SECTIONS (§6c, #616) — a foreign feature's host-only section, rendered LAST so the
+            band's own knobs keep their order and a contributor can never wedge itself between them. The
+            HOST spells the `<Section kicker>`: a contribution carries a name and a body, never chrome, so
+            a grafted section reads in this pane's voice by construction. Zero contributors renders
+            nothing at all (no empty Section, no gap). */}
+        {(sections?.list() ?? [])
+          .filter((section) => section.when?.(state) ?? true)
+          .map((section) => (
+            <Section key={section.id} kicker={section.kicker}>
+              {section.body(state)}
+            </Section>
+          ))}
       </Stack>
     </Section>
   );
