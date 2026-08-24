@@ -12,7 +12,9 @@
 // there is no restore logic and no race window (the removed phase-gate). To exercise the clear/keep
 // windows deterministically, `chat.send` is HELD (its listener stays alive) while the signal is driven.
 
-import { IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
+// The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
+// change goes green against a string nobody ships.
+import { IMPERSONATE_STOP_LABEL, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -598,6 +600,43 @@ test("#8: the generate-image item (committed, empty) is disabled with a 'type a 
   const generate = page.getByRole("menuitem", { name: "Generate image from text" });
   await expect(generate).toBeDisabled();
   await expect(generate).toHaveAttribute("title", TYPE_TO_UNLOCK);
+});
+
+// ── #623 P1-IA: TWO image doors, and the safer one used to be invisible ────────────────────────────────
+// `features/imagery/index.ts` SANCTIONS the split (the composer keeps its fast generate-from-text; /imagine
+// is "the richer surface (mode + preview) BESIDE it, not a replacement"). The ruling stands; what was broken
+// is that only the blind-spend door was findable — /imagine required knowing to type `/`, so a first-timer's
+// default path spends with no mode, no preview and no stated price. The beside-door now sits beside it.
+const IMAGINE_DOOR = { name: "Imagine — modes & preview…" };
+
+test("#623: the ✨ menu's Imagine door is actionable when generate-from-text is NOT (it needs no prompt)", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />); // committed, empty composer
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+
+  // The contrast IS the finding: on an empty composer the fast door is a dead end and the safe door is not,
+  // because an extraction mode reads the conversation instead of the draft.
+  await expect(page.getByRole("menuitem", { name: "Generate image from text" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", IMAGINE_DOOR)).toBeEnabled();
+});
+
+test("#623: the fast door names its spend on hover instead of firing one silently", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />);
+  await component.getByLabel("Message", { exact: true }).fill("a neon city at dusk");
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+
+  // An ENABLED row's `title` is the REGENERATE_PLAIN_HELPER idiom (a helper, not a disabled reason).
+  await expect(page.getByRole("menuitem", { name: "Generate image from text" })).toHaveAttribute("title", SPENDS_RIGHT_AWAY);
+});
+
+test("#623: the Imagine door opens the /imagine surface seeded with whatever is typed", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />);
+  await component.getByLabel("Message", { exact: true }).fill("a neon city at dusk");
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await page.getByRole("menuitem", IMAGINE_DOOR).click();
+
+  // The story has no ModalHost, so the imagery INTENT store is the observable — the same `openImagine` seed
+  // the `/imagine` slash runner writes and the shell's imagine modal reads. Free mode: nothing is spent yet.
+  await expect(component.getByTestId("composer-imagine-seed")).toHaveText("free|a neon city at dusk");
 });
 
 test("wand v2: Attach images & video lives in the ✨ menu (media controls re-homed off the bar)", async ({ mount, page }) => {

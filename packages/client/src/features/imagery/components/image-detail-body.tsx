@@ -5,6 +5,11 @@
 // the OWNER-scoped `assets.resolveBlobRefs` (the host owns the room's images) and writes the ONE background
 // applier (`chat.setChatBackground`) — never a forked second path — against the chatId PINNED into the
 // subject at open time (a room image lives in the open room; the pin survives later navigation).
+//
+// ONE TOAST PER OUTCOME, AND IT MUST BE THE TRUE ONE (#623 P1). Every exit from `onSetBackground` speaks
+// exactly once: the resolver missing the asset · the write REFUSED (the mutation's own `errorToast`, which is
+// why the rejection is caught locally and not re-thrown) · the write SETTLED. The pre-#623 shape fired the
+// success line on the statement after a fire-and-forget `.mutate(...)`, so a refusal painted both.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Images, Pencil } from "@orb/ui/icons";
@@ -48,14 +53,32 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
     // owner-scoped resolver returns them for an image the host owns, absent otherwise (never a leak).
     void queryClient
       .fetchQuery(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [subject.assetId] }))
-      .then((refs) => {
+      .then(async (refs) => {
         const ref = refs[0];
         if (ref === undefined) {
           toast.add({ title: "Couldn't set the background", description: "This image is no longer available to you." });
           return;
         }
-        setBackground.mutate({ chatId: subject.chatId, background: { kind: "asset", assetId: subject.assetId, assetHash: ref.hash, mime: ref.mime } });
-        toast.add({ title: "Set as chat background" });
+        // THE SUCCESS TOAST BELONGS TO THE SETTLED WRITE (#623 P1). It used to fire on the line after a
+        // fire-and-forget `.mutate(...)`, so a REFUSED write (the host-only gate, the asset-ownership gate)
+        // painted the mutation's `errorToast` AND "Set as chat background" together and the viewer could not
+        // tell which was true. Awaiting `mutateAsync` is the sibling shape `image-edit-body.tsx` already uses.
+        // The rejection stops HERE deliberately, and that is not an error swallowed: `useSetChatBackground`
+        // carries `errorToast: "Couldn't set the chat background."`, which IS the handling — re-throwing would
+        // reach the outer `.catch` below and re-open the double toast from the other side. Awaited (not
+        // returned as a nested promise) so the outer `.finally` still releases the resolving flag on settle.
+        try {
+          await setBackground.mutateAsync({
+            chatId: subject.chatId,
+            background: { kind: "asset", assetId: subject.assetId, assetHash: ref.hash, mime: ref.mime },
+          });
+        } catch {
+          return;
+        }
+        // This repaints the whole room from a lightbox button, so the toast names where to change it back —
+        // the revert home EXISTS (context panel → "This chat" tab → Background, `ChatBackgroundSection`) and
+        // nothing pointed at it.
+        toast.add({ title: "Set as chat background", description: "Change it any time in the This chat panel → Background." });
       })
       .catch(() => toast.add({ title: "Couldn't set the background" }))
       .finally(() => setResolvingBackground(false));
