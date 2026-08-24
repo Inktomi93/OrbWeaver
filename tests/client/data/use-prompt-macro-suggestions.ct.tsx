@@ -44,7 +44,9 @@ test("`defaultPresetId: null` is the BUILT-IN preset — no preset read fires, t
 });
 
 test("a WITHHELD settings read still yields the builtin catalog — never an empty popover", async ({ mount, page }) => {
-  // Neither read ever resolves: the hook must fall back to the shared builtin constant, not to `[]`.
+  // DELIBERATELY unfed (ct-unfed-reads.baseline.json, ratified): this is the NO-EMPTY-WINDOW case itself —
+  // `settings.getUserSettings` staying unresolved forever IS the subject under test (header §3), not an
+  // incidental gap. Feeding it would test a different arm than the one this test names.
   await routeTrpc(page, {});
   const component = await mount(<PromptMacroSuggestionsStory />);
 
