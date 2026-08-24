@@ -55,8 +55,10 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
+import type { TeachingIdentity, TeachingKnobs } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign.ts";
+import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import type {
   ChatEventBoundsParams,
@@ -148,7 +150,7 @@ import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
-import { collectTeaching, DEFAULT_TEACHING_KNOBS } from "../substrate/teaching.ts";
+import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -222,6 +224,10 @@ interface PreviewInputs {
    *  guess. A narrator room previews its joined-cast `{{char}}` + `[Cast — …]` framing; per-speaker is
    *  byte-unchanged. `DEFAULT_GROUP_CONFIG` for a room carrying no group blob. */
   readonly group: GroupConfig;
+  /** The room's parsed `metadata` blob — the B1 offer-choices knob's room half, so the host's Preview shows
+   *  the choices teach exactly when a live turn would emit it. Off the chat row `resolvePreviewInputs`
+   *  already reads; the host half rides `foreign.chatBehavior`. */
+  readonly metadata: ChatMetadata;
   readonly foreign: ForeignInputs;
   /** The GAME's authored user macros (the second definition home, owner ruling #20) — resolved with the
    *  other cross-domain preview inputs so the preview registry sees the SAME effective def set a real turn
@@ -466,6 +472,8 @@ async function resolvePreviewInputs(
     castCharacterIds,
     personaIds,
     group,
+    // The SAME row `group` came off — an absent row is a metadata-less room (⇒ every knob inherits).
+    metadata: chatRow?.metadata ?? {},
     foreign,
     gameUserMacros,
   };
@@ -499,11 +507,16 @@ async function previewGatherFields(
     readonly chatId: ChatId;
     /** The room's frozen host (D19) — the identity the collection resolves under, exactly as a turn does. */
     readonly hostUserId: UserId;
-    readonly steerIdentity: { readonly user: string | undefined; readonly char: string };
     /** PROSE-1 — the previewed preset's teach/heading overrides, threaded for the same reason the whole gather
      *  is: the preview must show the bytes the model actually receives, and a host who re-authored a teach on
      *  this preset would otherwise read the shipped default on their own honesty instrument. */
     readonly prose: ProseOverrides;
+    /** The B1 teaching knobs, resolved from the room's metadata over the host's per-user default — the preview
+     *  runs the SAME resolution a turn runs, or the honesty instrument would under-report the choices teach. */
+    readonly knobs: TeachingKnobs;
+    /** The names a host prose OVERRIDE's `{{user}}`/`{{char}}` bind to — the same pair threaded to the rpg
+     *  gather, so a teach resolved here is byte-identical to the one resolved there. */
+    readonly identity: TeachingIdentity;
   },
 ): Promise<{
   rpgMacros?: Readonly<Record<string, string>>;
@@ -517,7 +530,7 @@ async function previewGatherFields(
           chatId: args.chatId,
           pendingUserText: undefined,
           respondsToLatestUserTurn: false,
-          steerIdentity: args.steerIdentity,
+          steerIdentity: args.identity,
           prose: args.prose,
         });
   // The preview runs the SAME S2 collection a turn runs (`buildTurnContext`), for the same reason it runs the
@@ -526,7 +539,9 @@ async function previewGatherFields(
   const teaching = await collectTeaching(ctx.teaching, {
     chatId: args.chatId,
     runAsUserId: args.hostUserId,
-    knobs: DEFAULT_TEACHING_KNOBS,
+    knobs: args.knobs,
+    prose: args.prose,
+    identity: args.identity,
     rpgGather: rpg,
   });
   return {
@@ -557,7 +572,7 @@ async function buildPreviewContext(
   const gatherFields = await previewGatherFields(ctx, {
     chatId,
     hostUserId: inputs.hostUserId,
-    steerIdentity: {
+    identity: {
       user: inputs.foreign.personas.active?.name,
       char: participants
         .filter((p) => classifyParticipant(p)?.kind === "character")
@@ -565,6 +580,9 @@ async function buildPreviewContext(
         .join(", "),
     },
     prose: composeProse({ preset: inputs.foreign.promptConfig.prose }),
+    // The SAME precedence a turn resolves (room value over the frozen host's per-user default) — a preview
+    // that resolved a different posture would be an honesty instrument telling a different story.
+    knobs: resolveTeachingKnobs(inputs.metadata, inputs.foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR),
   });
   const gathered = await gatherAssembleContext(
     ctx,

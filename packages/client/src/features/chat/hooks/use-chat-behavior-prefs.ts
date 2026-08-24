@@ -21,6 +21,12 @@ export interface ChatBehaviorPrefs {
   /** Whether the live reasoning disclosure auto-collapses on the first answer token (the ghost's
    *  `<ReasoningBlock>` — a committed row is unaffected). */
   readonly reasoningAutoCollapse: ChatSettings["reasoningAutoCollapse"];
+  /** B1 — this user's DEFAULT offer-choices posture for rooms they host. The odd one out in this bundle:
+   *  it is SERVER-honored (the turn resolves it as the room's fallback), and the client reads it for exactly
+   *  one reason — the host's per-room toggle must show the state a never-pinned room actually resolves to,
+   *  which is this value. Combine with `ChatDetail.offerChoices` through `resolveOfferChoices`, never with a
+   *  second inline `??`. */
+  readonly offerChoices: ChatSettings["offerChoices"];
 }
 
 export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
@@ -35,5 +41,6 @@ export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
     smoothStreamCps: chat.smoothStreamCps,
     streamScrollMode: chat.streamScrollMode,
     reasoningAutoCollapse: chat.reasoningAutoCollapse,
+    offerChoices: chat.offerChoices,
   };
 }

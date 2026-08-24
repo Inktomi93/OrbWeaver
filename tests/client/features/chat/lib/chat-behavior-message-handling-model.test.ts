@@ -11,6 +11,8 @@ import {
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const populated: ChatSettings = {
+  // B1: NON-default (the section owns it now) — a projection that dropped it would echo the default back.
+  offerChoices: true,
   enterSends: false,
   continueOnSend: false,
   generateOnEmptySend: false,

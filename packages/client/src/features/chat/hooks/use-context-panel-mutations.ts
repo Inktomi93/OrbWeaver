@@ -54,6 +54,20 @@ export const useSetHostDisplayScripts = createEntityMutation<SetHostDisplayScrip
   errorToast: "Couldn't change who sees your display scripts.",
 });
 
+/** `chat.setOfferChoices` vars (B1) — the host's per-room offer-choices posture. */
+interface SetOfferChoicesVars {
+  readonly chatId: ChatId;
+  readonly enabled: boolean;
+}
+
+export const useSetOfferChoices = createEntityMutation<SetOfferChoicesVars, unknown>({
+  options: (trpc) => trpc.chat.setOfferChoices.mutationOptions(),
+  // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the
+  // posture reads back via `ChatDetail.offerChoices`) — the setHostDisplayScripts twin.
+  busDriven: true,
+  errorToast: "Couldn't change whether this chat offers choices.",
+});
+
 export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVars, unknown>({
   options: (trpc) => trpc.chat.setToolRecurseLimit.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the cap

@@ -1149,6 +1149,9 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
     autoContinueRounds: 1,
     autoSwipe: { enabled: false, minLength: 0, blacklist: [], maxRetries: 1 },
     customStoppingStrings: [],
+    // B1: this suite's rooms carry no `chatMetadata.offerChoices`, so the host default alone decides — OFF
+    // keeps every prompt in this file byte-identical to its pre-B1 assertions.
+    offerChoices: false,
   };
 
   test("custom stopping strings reach the generation request's stop set", async () => {
