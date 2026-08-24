@@ -33,7 +33,18 @@ export function AttachmentUrlProvider({ chatId, content, children }: AttachmentU
     enabled: assetIds.length > 0,
   });
   const map: ReadonlyMap<AssetId, ResolvedAttachment> = new Map(
-    (query.data ?? []).map((ref) => [ref.assetId, { url: blobUrl(ref.hash), mime: ref.mime }] as const),
+    (query.data ?? []).map(
+      (ref) =>
+        [
+          ref.assetId,
+          // Both dimensions or neither: a half-known header reserves nothing, so it takes the fallback.
+          {
+            url: blobUrl(ref.hash),
+            mime: ref.mime,
+            ...(ref.width === null || ref.height === null ? {} : { dims: { w: ref.width, h: ref.height } }),
+          },
+        ] as const,
+    ),
   );
   return <AttachmentUrlContext value={map}>{children}</AttachmentUrlContext>;
 }

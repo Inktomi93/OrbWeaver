@@ -33,6 +33,24 @@ test("assets insert→select round-trips (branded id survives, kind/hash stored)
   expect(rows[0]?.hash).toBe("a".repeat(64));
 });
 
+test("#625: width/height round-trip and default to NULL when the writer has no dimensions", async () => {
+  // NULL is a first-class outcome here (a non-image asset, an unparseable header, a pre-#625 row), so the
+  // column is nullable with NO default — the render side reads null as "fall back to the placeholder box".
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_assets_dims", handle: castId<Handle>("asset-owner-dims") });
+  const sized = castId<AssetId>("asset_dims_sized");
+  const unsized = castId<AssetId>("asset_dims_unsized");
+  await db.insert(assets).values({ id: sized, ownerId, kind: "attachment", mime: "image/png", size: 24, hash: "d".repeat(64), width: 1024, height: 1536 });
+  await db.insert(assets).values({ id: unsized, ownerId, kind: "document", mime: "application/zip", size: 8, hash: "e".repeat(64) });
+
+  const sizedRow = await db.select().from(assets).where(eq(assets.id, sized));
+  expect(sizedRow[0]?.width).toBe(1024);
+  expect(sizedRow[0]?.height).toBe(1536);
+  const unsizedRow = await db.select().from(assets).where(eq(assets.id, unsized));
+  expect(unsizedRow[0]?.width).toBeNull();
+  expect(unsizedRow[0]?.height).toBeNull();
+});
+
 test("unique(owner_id, hash) is per-user: same hash collides within owner, coexists across owners", async () => {
   const db = await freshDb();
   const ownerA = await seedUser(db, { id: "user_assets_b", handle: castId<Handle>("asset-owner-b") });

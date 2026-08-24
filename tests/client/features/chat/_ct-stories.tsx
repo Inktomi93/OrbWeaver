@@ -2567,21 +2567,33 @@ export interface AttachmentMediaStoryProps {
   /** `true` resolves the asset as a 1024×1536 PORTRAIT image — the geometry arm (#622): the rendered box must
    *  keep the image's own 2:3 ratio, never the primitive's 16:9 no-dims reservation. */
   readonly portrait?: boolean;
+  /** When set, resolves the asset at THIS url carrying the stored 1024×1536 `dims` — the RESERVATION arm
+   *  (#625). The CT holds the url permanently pending, so the box it measures is the pre-decode one. */
+  readonly reservedSrc?: string;
+}
+
+/** The stored dimensions the #625 reservation arm resolves with — the same 1024×1536 portrait #622 uses. */
+const CT_RESERVED_DIMS = { w: 1024, h: 1536 } as const;
+
+function resolveStillImage(portrait: boolean, reservedSrc: string | undefined): ResolvedAttachment {
+  if (reservedSrc !== undefined) {
+    return { url: reservedSrc, mime: "image/png", dims: CT_RESERVED_DIMS };
+  }
+  return portrait ? { url: CT_PORTRAIT_SVG_DATA_URL, mime: "image/svg+xml" } : { url: CT_PNG_DATA_URL, mime: "image/png" };
 }
 
 /** `MessageMediaBlock`'s ASSET arm (#67/#317) over the `AttachmentUrlContext`: the resolved case provides a
  *  `{url, mime}` (renders the gated `<MessageMedia>` image, or the `<video>` arm for a video mime); `empty`
  *  provides an empty map (the `[image]` placeholder degrade). A pure-render story (no data layer — the
  *  context IS the seam). */
-export function AttachmentMediaStory({ empty = false, video = false, portrait = false }: AttachmentMediaStoryProps): ReactElement {
+export function AttachmentMediaStory({ empty = false, video = false, portrait = false, reservedSrc }: AttachmentMediaStoryProps): ReactElement {
   const block = {
     kind: "media",
     media: "image",
     src: { kind: "asset", assetId: CT_ATTACH_ASSET_ID },
     alt: "an attached image",
   } as const;
-  const stillImage: ResolvedAttachment = portrait ? { url: CT_PORTRAIT_SVG_DATA_URL, mime: "image/svg+xml" } : { url: CT_PNG_DATA_URL, mime: "image/png" };
-  const resolved: ResolvedAttachment = video ? { url: CT_MP4_DATA_URL, mime: "video/mp4" } : stillImage;
+  const resolved: ResolvedAttachment = video ? { url: CT_MP4_DATA_URL, mime: "video/mp4" } : resolveStillImage(portrait, reservedSrc);
   const map = new Map<AssetId, ResolvedAttachment>(empty ? [] : [[CT_ATTACH_ASSET_ID, resolved]]);
   return (
     <AttachmentUrlContext value={map}>
