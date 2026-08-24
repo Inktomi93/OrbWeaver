@@ -36,7 +36,7 @@ import { createSuggestionStore } from "../../../../../packages/server/src/domain
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
-import { FIXED_NOW_MS, makeAutomationHarness, principal, seedHostChat, seedUser } from "../_support.ts";
+import { FIXED_NOW_MS, makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
 
 /** The typed refusals these suites assert (hoisted — `useTopLevelRegex`). */
 const BAD_KNOB = /knob 'everyN'/;
@@ -82,6 +82,7 @@ async function setup(): Promise<Fixture> {
   let seeded = 0;
 
   const ops: AutomationOps = {
+    tools: NO_TOOLS,
     chat: {
       getMessageFact: (): Promise<NonNullable<TriggerFact["message"]> | null> =>
         Promise.resolve({ id: "message_probe", role: "user", authorUserId: host, characterId: null, seq: 1, content: messageContent }),

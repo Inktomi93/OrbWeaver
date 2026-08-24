@@ -111,6 +111,10 @@ export function armLabel(type: AutomationActionType): string {
       return "generate an image";
     case "set_chat_background":
       return "change the background";
+    // Names the ACT, not the mechanism: the arm's payload carries WHICH tool, and a label that said "run_tool"
+    // would leak the wire discriminator into the one surface whose job is to not speak it.
+    case "run_tool":
+      return "run a tool";
     default: {
       const exhaustive: never = type;
       throw new Error(`unhandled automation action type: ${JSON.stringify(exhaustive)}`);
@@ -265,6 +269,11 @@ export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): {
       return { channel: "error", line: `Ran "${name}" — an action errored. Its recent activity has the reason.` };
     case "authority_refused":
       return { channel: "warn", line: `Ran "${name}" — you no longer hold the authority it needs.` };
+    // D146-d: the rule is HOLDING for a plugin that is switched off, not broken. `warn`, never `error` — the
+    // whole point of the pause terminal is that nothing went wrong and nothing was spent, so the line says
+    // what to DO (turn the plugin back on) instead of sending the host to a fire log with nothing in it.
+    case "paused":
+      return { channel: "warn", line: `Ran "${name}" — it uses a tool from a plugin that isn't enabled, so it's paused until you turn that plugin back on.` };
     case "test_run":
       return { channel: "success", line: `Ran "${name}".` };
     default: {

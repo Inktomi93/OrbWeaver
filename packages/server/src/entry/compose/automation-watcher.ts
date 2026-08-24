@@ -87,6 +87,11 @@ export interface AutomationActionOpsDeps {
   readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
   /** BG-F — the quiet summarize-role LLM pick (the `set_chat_background` arm's model call). */
   readonly summarizeQuiet: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly prompt: string }) => Promise<{ readonly text: string }>;
+  /** D146 — the `run_tool` arm's two seams onto the ONE tool registry: the direct-drive reachability predicate
+   *  (the mint gate + the per-fire pause gate) and the invocation itself. Both bound in
+   *  `compose/automation-plugin.ts`, where `domain/tool-use` is in scope. */
+  readonly isToolDrivableBy: AutomationOps["tools"]["isToolDrivableBy"];
+  readonly runTool: AutomationOps["tools"]["runTool"];
 }
 
 /** Assemble the FULL `AutomationOps`: the chat READ projections (turn origin via chat's own
@@ -110,6 +115,7 @@ export function createAutomationOps(deps: AutomationActionOpsDeps): AutomationOp
     worldInfo: { upsertEntries: deps.upsertEntries },
     notifications: { emit: deps.emitNotification },
     imagery: { generatePicture: deps.generatePicture },
+    tools: { isToolDrivableBy: deps.isToolDrivableBy, runTool: deps.runTool },
     summarizeQuiet: deps.summarizeQuiet,
   };
 }

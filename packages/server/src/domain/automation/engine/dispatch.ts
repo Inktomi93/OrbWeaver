@@ -19,6 +19,15 @@
 //   • `manual` (R7's `runRuleNow`) skips that ONE gate and nothing else.
 // The confirm-first STASH is not here: it is the arm dispatcher's chokepoint (`engine/arm-executors.ts`),
 // because the thing stashed is one ARM.
+//
+// D146-d (the CONTRIBUTOR-seam clause) adds ONE gate and ONE terminal, and both exist to keep a switched-off
+// plugin from eating its author's rules. A rule naming a `run_tool` arm whose tool its AUTHOR cannot currently
+// drive PAUSES: `runGates` refuses it before any arm runs, `finalizeRule` records `paused`, and the pause
+// writes NOTHING — no fire row, no `consecutive_errors` tick, no `last_fired_at`. That is what makes it
+// self-healing: the rule's stored state is byte-identical before and after, so the first event once the plugin
+// is re-enabled dispatches normally with no repair step. The alternative — treating a vanished contributor as
+// an `arm_error` — would consume 20 errors and auto-disable the rule, and re-enabling the plugin would NOT
+// re-enable it. A first-party contributor cannot vanish, which is why no other seam here needs this.
 
 import type { AutomationAction, AutomationCelEnv, AutomationFireOutcome, AutomationRunOutcome } from "@orb/contracts/automation";
 import { automationActionsSchema } from "@orb/contracts/automation";
@@ -55,6 +64,9 @@ interface RuleResult {
 
 const SKIPPED: RuleResult = { disabled: false, outcome: null };
 const CORRUPT_DISABLED: RuleResult = { disabled: true, outcome: "action_error" };
+/** D146-d — the rule is HOLDING for a contributor that is not currently available to its author. Not a fire,
+ *  not an error, and above all not a state change: nothing is written, so the rule resumes by itself. */
+const PAUSED: RuleResult = { disabled: false, outcome: "paused" };
 
 function ended(outcome: AutomationRunOutcome, disabled = false): RuleResult {
   return { disabled, outcome };
@@ -169,19 +181,25 @@ function inviteOnRefusal(rc: RuleCtx, actions: readonly AutomationAction[], limi
   rc.ctx.notify({ type: "suggestionRaised", chatId: rc.chatId, source, suggestionId: id, kind: "invitation", summary, expiresAt });
 }
 
-/** A rule's arm run: the aborting arm's `arm_error` detail (`null` = every arm succeeded), plus whether any
- *  arm ASKED instead of acting — the S4 stash, which changes the rule's TERMINAL and nothing else. */
+/** A rule's arm run: the aborting arm's `arm_error` detail (`null` = no arm errored), plus the two terminal
+ *  MODIFIERS an arm can raise — `suggested` (the S4 stash: the arm ASKED instead of acting) and `paused`
+ *  (D146-d: the arm's contributor vanished mid-dispatch). Each changes the rule's TERMINAL and nothing else. */
 interface ArmsResult {
   readonly detail: Record<string, unknown> | null;
   readonly suggested: boolean;
+  readonly paused: boolean;
 }
 
 /** The recursion's seed — the accumulator rides as ONE param (the 4-param bar). */
-const ARMS_START: ArmsResult & { i: number } = { i: 0, detail: null, suggested: false };
+const ARMS_START: ArmsResult & { i: number } = { i: 0, detail: null, suggested: false, paused: false };
 
 /** Run a rule's arms sequentially through the injected seam; the FIRST non-ok outcome aborts the rest
  *  (arms may depend on each other). Recursion (not a loop) expresses the sequential-with-early-abort:
- *  arms share + mutate the env, order IS semantics. */
+ *  arms share + mutate the env, order IS semantics.
+ *
+ *  BOTH non-ok kinds abort, and they diverge only in what the rule is CHARGED: an `arm_error` carries a detail
+ *  that becomes the `action_error` fire row (and one tick of the error budget); a `paused` carries no detail at
+ *  all, because there is nothing to log — the rule did not do anything wrong (D146-d). */
 async function runArms(
   ctx: AutomationContext,
   actions: readonly AutomationAction[],
@@ -190,13 +208,15 @@ async function runArms(
 ): Promise<ArmsResult> {
   const arm = actions[from.i];
   if (arm === undefined) {
-    return { detail: null, suggested: from.suggested }; // past the last arm — every arm succeeded.
+    return { detail: null, suggested: from.suggested, paused: false }; // past the last arm — every arm succeeded.
   }
   const outcome: ArmOutcome = await ctx.runArm(arm, frame);
   if (!outcome.ok) {
-    return { detail: { armIndex: from.i, armType: arm.type, error: outcome.detail }, suggested: from.suggested };
+    return outcome.kind === "paused"
+      ? { detail: null, suggested: from.suggested, paused: true }
+      : { detail: { armIndex: from.i, armType: arm.type, error: outcome.detail }, suggested: from.suggested, paused: false };
   }
-  return runArms(ctx, actions, frame, { i: from.i + 1, detail: null, suggested: from.suggested || outcome.suggested === true });
+  return runArms(ctx, actions, frame, { i: from.i + 1, detail: null, suggested: from.suggested || outcome.suggested === true, paused: false });
 }
 
 /** The env for a rule's chat — built once per chat per dispatch batch (fold cache read). */
@@ -234,7 +254,32 @@ async function envFor(rc: RuleCtx): Promise<AutomationCelEnv> {
  *  vote) would answer every "Run now" with `predicate_false`, which is the same affordance-that-does-nothing
  *  one screen over. The fire row records `runNow` + the invoking host, so the log never claims a rule fired
  *  on its own condition when a human overrode it. */
+/** D146-d — THE PAUSE GATE. The name of the first `run_tool` arm whose tool this rule's AUTHOR cannot
+ *  currently drive, or `null` when every named contributor is present.
+ *
+ *  IT IS A RULE-LEVEL GATE, not an arm-level outcome, and that placement is the design: a rule mixing a
+ *  `set_variable` bookkeeping arm with a `run_tool` arm would otherwise increment its counter on every event
+ *  forever while the act it exists for never happens — partial execution is its own kind of rot, and "the rule
+ *  is waiting for your plugin" is only true if the rule really does nothing. (The arm-level `paused` outcome
+ *  still exists, for the deactivate that lands INSIDE the dispatch: `engine/arm-executors.ts::runRunTool`.)
+ *
+ *  Reachability is asked of the ROLE the arm will run as — the rule's OWNER — never the caller who happens to
+ *  have triggered the event, and never the host who pressed "Run now". The gate is a synchronous in-process
+ *  Map lookup, so putting it on the hot bus path costs nothing. */
+function pausingToolName(rc: RuleCtx, actions: readonly AutomationAction[]): string | null {
+  const named = actions.filter((action) => action.type === "run_tool").map((action) => action.name);
+  return named.find((name) => !rc.ctx.ops.tools.isToolDrivableBy(name, rc.rule.ownerId)) ?? null;
+}
+
 async function runGates(rc: RuleCtx, actions: readonly AutomationAction[]): Promise<RuleResult | null> {
+  // FIRST, ahead of every other gate including the depth cap: a paused rule is not asking to act, so there is
+  // nothing for the other gates to refuse and nothing they could record without misattributing it. Recording a
+  // `depth_refused` or an `authority_refused` for a rule whose plugin is simply switched off would put a
+  // wrong answer in the one surface that exists to answer "why didn't my rule fire".
+  const paused = pausingToolName(rc, actions);
+  if (paused !== null) {
+    return PAUSED;
+  }
   const eventDepth = rc.deps.resolved.automationDepth;
   if (eventDepth >= AUTOMATION_DEPTH_HARD_CAP) {
     await record(rc, "depth_refused", { eventDepth });
@@ -294,7 +339,7 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
   } catch (err) {
     // A throwing arm (a bad op / db fault mid-rule) — treat as `action_error`.
     getLog().warn({ err: err instanceof Error ? err.message : String(err), ruleId: rc.rule.id }, "automation dispatch: arm threw (isolated)");
-    armsResult = { detail: { error: err instanceof Error ? err.message : String(err) }, suggested: false };
+    armsResult = { detail: { error: err instanceof Error ? err.message : String(err) }, suggested: false, paused: false };
   }
   return finalizeRule(rc, armsResult);
 }
@@ -312,6 +357,13 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
 async function finalizeRule(rc: RuleCtx, armsResult: ArmsResult): Promise<RuleResult> {
   if (armsResult.detail !== null) {
     return onRuleError(rc, "action_error", armsResult.detail);
+  }
+  // D146-d — an arm PAUSED (its contributor was deactivated between the pause gate and the call). Terminates
+  // exactly like the gate would have: no fire row, no error tick, no `last_fired_at`. Checked before the
+  // `suggested` branch only because a pause aborts the remaining arms while a stash does not, so the two can
+  // never both be true — the order states which one is the abort.
+  if (armsResult.paused) {
+    return PAUSED;
   }
   if (armsResult.suggested) {
     return ended("suggested");

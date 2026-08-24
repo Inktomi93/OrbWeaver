@@ -24,7 +24,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant } from "../../chat/_support.ts";
-import { makeAutomationHarness, seedHostChat, seedUser } from "../_support.ts";
+import { makeAutomationHarness, NO_TOOLS, seedHostChat, seedUser } from "../_support.ts";
 
 type TriggerType = AutomationTrigger["type"];
 
@@ -59,6 +59,7 @@ function turnCompleted(chatId: ChatId): { type: "turnCompleted"; chatId: ChatId;
  *  every visibility assertion in this file vacuous). */
 function depthOps(db: Awaited<ReturnType<typeof freshDb>>, depth: number): AutomationOps {
   return {
+    tools: NO_TOOLS,
     chat: {
       getMessageFact: () => Promise.resolve(null),
       getTurnOrigin: () => Promise.resolve({ initiator: "automation" as const, automationDepth: depth }),
