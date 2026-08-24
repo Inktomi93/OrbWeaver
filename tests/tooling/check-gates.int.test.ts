@@ -1092,9 +1092,16 @@ function writeFixtures(): void {
 // `__g_` path (its discovery matches `tsconfig*.json`, not `__g_*`) and un-plantable without perturbing the
 // real type program. Its bite is proven by conformance (dead row, classifier, absent/unparseable config,
 // zero-rows, both exemption arms) and by its own permanent pin, tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts.
+// eslint-grant-liveness / depcruise-grant-liveness: the same posture again — each unit is a value inside a
+// REPO-ROOT config (eslint.config.js, .dependency-cruiser.cjs), unreachable by any `__g_` path and
+// un-plantable without perturbing the live lint/import-law config for every concurrent consumer. Their bite
+// is proven by conformance (dead row · the const/spread/template CODE shapes · unreadable-shape refusal ·
+// absent + unparseable config · zero-rows) and by their own permanent pins under tests/tooling/verify/gates/.
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
   "tsconfig-entry-liveness",
+  "eslint-grant-liveness",
+  "depcruise-grant-liveness",
   "baseui-surface-manifest",
   "warning-code-coverage",
   "verify-registry-parity",
