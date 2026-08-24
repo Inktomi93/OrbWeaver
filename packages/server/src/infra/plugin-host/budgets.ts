@@ -57,7 +57,14 @@ export const HOST_FN_RESULT_CAP_BYTES = 1_048_576;
  *  as a CONTAINED result-cap refusal (never a leak). LEAN — tune against measured plugin API sizes. */
 export const PLUGIN_NET_MAX_BYTES = 1_000_000;
 
-/** Concurrent pending host calls per invocation; call N+1 rejects (the bridge back-pressure). */
+/** Concurrent STARTED-AND-UNSETTLED host-fn implementations per INSTANCE; call N+1 rejects (the bridge
+ *  back-pressure). Counted over real host work, NOT over un-timed-out guest promises: `HOST_FN_DEADLINE_MS`
+ *  bounds a host call without CANCELLING it, so charging the slot to the deadline race let a guest start 32
+ *  fresh installer-funded calls every 5 s while the previous ones were still executing (P2-G). The scope is the
+ *  INSTANCE, not the invocation, because the work outlives the invocation — the accounting lives in
+ *  `membrane.ts`'s `attachAsync`/`InFlightCounter`. Design 03 §3 spells this row "32 per invocation"; that
+ *  spelling assumed its own `PluginInvocationEnded` clause disposed the outstanding host work, which nothing on
+ *  this tree can do. */
 export const HOST_CALLS_IN_FLIGHT_MAX = 32;
 
 /** Max serialized (JSON) byte size of a guest-INBOUND resident-handler args payload (the inbound mirror of

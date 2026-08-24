@@ -6,9 +6,12 @@
 // rule row to constrain and no fire log to count. So the floor lives where the plugin's call does.
 //
 // WHY IT MATTERS MORE THAN "spam": every notice is a DURABLE row per present member, and `notifications.post`
-// is one host call. The membrane's ≤32-in-flight cap is the only thing above it, and that cap counts
-// NOT-YET-TIMED-OUT promises rather than started work — so it admits 32 fresh calls every host-fn deadline.
-// An unbounded per-call durable write behind that is a row flood, not a UX wart.
+// is one host call. The membrane's ≤32-in-flight cap is the only thing above it, and that cap bounds
+// CONCURRENCY, never a rate — 32 at a time, as fast as they settle, forever. An unbounded per-call durable write
+// behind that is a row flood, not a UX wart. (That cap used to be weaker still: it counted not-yet-timed-out
+// promises rather than started work, so it admitted 32 FRESH calls every host-fn deadline while the previous
+// ones were still running. Repaired 2026-08-24, P2-G — the reason this floor is written to be the real bound and
+// not a second line behind a working one.)
 //
 // SCOPE, stated so it is not mistaken for more: the state is IN-MEMORY and per process (`ASSUMES(single-replica)`,
 // the enabled-index / resident-registry precedent). A restart resets it. That is the honest bound for a

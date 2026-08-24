@@ -3,11 +3,13 @@
 // Sandbox/port) and drive guest code against them. Pins the three enforcement mechanisms this file owns: the
 // guest-readable grant set (feature-detection), the capability gate (an ungranted namespace call throws
 // uniformly), and the opaque-handle resolution (a forged/stale chat handle fails resolution — no wrong-chat
-// read). The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
+// read). It also owns the IN-FLIGHT ACCOUNTING pin (P2-G) — the counter is only inspectable where the runtime is
+// hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
+// The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
 import type { InvocationChat, PluginBridge, PluginCapability } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
-import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
+import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { describe } from "vitest";
 import type { MembraneRuntime } from "../../../../packages/server/src/infra/plugin-host/membrane.ts";
@@ -109,6 +111,37 @@ async function runAsync(ctx: QuickJSContext, code: string): Promise<string> {
   const handle = "error" in settled && settled.error ? settled.error : settled.value;
   return readString(ctx, handle);
 }
+
+describe("attachMembrane — the in-flight slot is charged to the IMPL, not to the deadline race (P2-G)", () => {
+  // RED-FIRST RECEIPT (2026-08-24, against unmodified source): this test read 0 after the deadline. The host-fn
+  // deadline BOUNDS a call without CANCELLING it — nothing here can abort a bridge op — so releasing the slot
+  // when the RACE settles made the "≤32 concurrent host calls" cap count not-yet-timed-out PROMISES. A guest
+  // could then start 32 fresh installer-funded calls (imagery.generatePicture = GPU/$, chat.requestTurn) every
+  // HOST_FN_DEADLINE_MS while the previous ones were still executing, i.e. unbounded concurrent host work under
+  // a cap that read "32". The cap is a bound on WORK or it is decoration.
+  test("a host call whose impl outlives the deadline KEEPS its slot (the guest promise rejects; the work does not)", { timeout: 30_000 }, async () => {
+    const inFlight = { count: 0 };
+    // The impl never settles — it stands in for host work that outlives the 5 s bound (a real image generation).
+    const neverSettles = new Promise<Record<string, string>>(() => undefined);
+    const { bridge } = fakeBridge();
+    const runtime: MembraneRuntime = {
+      ...makeRuntime(["chat.read"], false, { ...bridge, chat: { ...bridge.chat, getVariables: () => neverSettles } }),
+      inFlight,
+    };
+    await withRuntime(runtime, async (ctx) => {
+      const started = ctx.evalCode(`host.chat.getVariables(${JSON.stringify(TOKEN)}).catch(() => {}); 'ok'`);
+      readString(ctx, started.error ?? started.value);
+      expect(inFlight.count).toBe(1);
+
+      await new Promise((resolve) => setTimeout(resolve, HOST_FN_DEADLINE_MS + 400));
+
+      // The GUEST promise has settled (rejected at the bound) and deregistered from `pending` — that is the
+      // race's business. The SLOT is still held, because the host work is still running.
+      expect(runtime.pending.size).toBe(0);
+      expect(inFlight.count).toBe(1);
+    });
+  });
+});
 
 describe("attachMembrane — grant set is guest-readable (feature-detection)", () => {
   test("host.grants reflects exactly the granted capabilities", async () => {

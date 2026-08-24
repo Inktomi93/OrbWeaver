@@ -114,6 +114,8 @@ function serializeGuest(ctx: QuickJSContext, handle: QuickJSHandle): string {
 interface ResidentState {
   chat: InvocationChat | null;
   token: string | null;
+  /** Concurrent STARTED-AND-UNSETTLED host-fn impls for this INSTANCE (never reset between invocations — host
+   *  work outlives its invocation, so an invocation-scoped count is not a count of work). See `InFlightCounter`. */
   readonly inFlight: InFlightCounter;
   readonly tools: PluginToolRegistration[];
   readonly transforms: PluginTransformRegistration[];
@@ -316,7 +318,13 @@ export class Sandbox implements Disposable {
       return endedInstanceOutcome();
     }
     this.log.reset();
-    this.state.inFlight.count = 0;
+    // NOTE what is deliberately NOT reset here: `state.inFlight`. It counts host-fn IMPLEMENTATIONS that have
+    // started and not settled, and those OUTLIVE an invocation (the host-fn deadline bounds a call without
+    // cancelling it, and an ENDED invocation leaves its impls running). Zeroing it here let a straggler's release
+    // decrement a counter this invocation had already reset — the counter drifted NEGATIVE and admitted more than
+    // `HOST_CALLS_IN_FLIGHT_MAX` concurrent host calls (measured 2026-08-24: 36 of a 40-call burst admitted). The
+    // counter is per-INSTANCE and self-healing by construction (one release per acquisition); see
+    // `InFlightCounter` in membrane.ts for the full P2-G reasoning.
     // The DoS deadline reads a MONOTONIC real clock (performance.now), NOT the guest's injected seam: the
     // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE only —
     // host calls self-bound separately (membrane's attachAsync), and the whole invocation is bounded by the

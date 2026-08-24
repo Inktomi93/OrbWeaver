@@ -365,6 +365,86 @@ describe("escape — resource ceilings hold under adversarial load", () => {
     });
   });
 
+  test("stragglers from a PRIOR invocation cannot widen the ≤32 cap for the next one (no negative drift)", { timeout: LONG }, async () => {
+    // THE ATTACK (P2-G, second order): host work OUTLIVES its invocation — the host-fn deadline bounds a call
+    // without cancelling it. So a guest parks N host calls in invocation 1, lets them settle DURING invocation 2,
+    // and every late release decrements invocation 2's counter. While the counter was zeroed at each invocation
+    // start, that drove it NEGATIVE and bought the guest N extra concurrent host calls above the cap — worth
+    // having when the calls are installer-funded (imagery.generatePicture / chat.requestTurn).
+    // RED-FIRST RECEIPT (2026-08-24, unmodified source): 36 of the 40-call burst were admitted against a cap of
+    // 32, exactly the 4-5 stragglers' worth. The repair is that the counter is per-INSTANCE and never reset.
+    const host = makeHost();
+    let releaseStragglers!: () => void;
+    const stragglerGate = new Promise<string | null>((r) => {
+      releaseStragglers = (): void => r(null);
+    });
+    const bridge: PluginBridge = {
+      chat: {
+        // The BURST's gate: it releases the parked stragglers, then waits long enough (a real timer, so every
+        // late release lands) before settling — so the burst is fired at the worst possible moment for the count.
+        listMessages: async () => {
+          releaseStragglers();
+          await new Promise((r) => setTimeout(r, 50));
+          return [];
+        },
+        getVariables: () => Promise.resolve({}),
+        applyVariableOps: () => Promise.resolve(),
+        requestTurn: () => Promise.resolve(),
+      },
+      worldInfo: { upsertEntry: () => Promise.resolve() },
+      imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
+      // The PARKED calls: activation fires 5 of these fire-and-forget and they do not settle during activation.
+      variables: { get: () => stragglerGate, set: () => Promise.resolve(), delete: () => Promise.resolve() },
+      storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+      notifications: { post: () => Promise.resolve() },
+      surfaceQuickReply: () => Promise.resolve(),
+    };
+    const main = `
+      const h = orb.host(1);
+      for (let i = 0; i < 5; i++) { h.variables.get('k' + i).catch(() => {}); }
+      h.tools.register({
+        name: 'burst',
+        description: 'fires a 40-call burst once the stragglers have landed',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        handler: () => {
+          let rejected = 0;
+          return h.chat.listMessages(h.chat.current())
+            .then(() => {
+              for (let i = 0; i < 40; i++) {
+                h.chat.getVariables(h.chat.current()).catch((e) => {
+                  if (String(e.message).indexOf('too many concurrent') >= 0) { rejected++; }
+                });
+              }
+            })
+            .then(() => undefined)
+            .then(() => undefined)
+            .then(() => 'rejected:' + rejected);
+        },
+      });`;
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["chat.read", "global_vars", "tools.register"],
+      bridge,
+      chat: null,
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    expect(ref).toBeDefined();
+    if (ref === undefined) {
+      return;
+    }
+    const result = await host.invoke(outcome.instance, ref, "{}", { chatId: CHAT_A, canWrite: false, automationDepth: 0 });
+    const admitted = 40 - Number(result.slice("rejected:".length));
+    // The invariant, not the arithmetic: the burst may NEVER be admitted above the cap. (The lower bound keeps
+    // the assertion honest — an all-refused run would satisfy the ceiling vacuously.)
+    expect(admitted).toBeLessThanOrEqual(32);
+    expect(admitted).toBeGreaterThanOrEqual(31);
+    host.dispose(outcome.instance);
+  });
+
   test("net.fetch cannot escape its manifest netHosts wall — a guest-controlled URL to an undeclared host is refused", { timeout: LONG }, async () => {
     // The SSRF containment claim: net.fetch is host-performed through safeFetch pinned to the MANIFEST netHosts,
     // never a guest-supplied allowlist. A hostile guest with the grant + a fully guest-controlled URL still

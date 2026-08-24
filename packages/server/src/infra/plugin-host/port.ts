@@ -71,7 +71,7 @@ function toLog(lines: readonly string[], at: number): PluginLogLineOut[] {
 
 // PER-INSTANCE invoke SERIALIZATION (the untrusted-guest concurrency belt — closes a real race, not a phantom).
 // One resident sandbox is a SINGLE shared QuickJSContext per plugin instance: the invocation-chat scope, the
-// guest heap, and the per-invocation in-flight counter are ALL shared per instance. `invoke` mutates the shared
+// guest heap, and the host-call in-flight counter are ALL shared per instance. `invoke` mutates the shared
 // scope (`setInvocationChat`) and then AWAITS into the guest — so two concurrent `invoke`s on the SAME resident
 // interleave: A sets chatA and awaits, B then sets chatB while A's guest is mid-flight, and when A resumes and
 // reads `chat.current()` (via the membrane's `resolveChat`) it sees chatB — corrupting BOTH `chatId` AND

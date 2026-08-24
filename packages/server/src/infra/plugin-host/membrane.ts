@@ -13,7 +13,8 @@
 //      every chat function validates its handle arg against that token, so a forged/stale handle fails
 //      resolution (no read) rather than reaching a different chat.
 //   3. self-bound — each host call races a real-time deadline (`boundHostFn`'s posture) and caps its
-//      serialized result; ≤ 32 concurrent host calls per invocation (the reentrancy footgun, 03 §3).
+//      serialized result; ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
+//      STARTED-AND-UNSETTLED host work, which is what makes the cap a bound on work rather than on promises.
 
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
 import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
@@ -36,8 +37,21 @@ import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
 
-/** The per-instance concurrent-host-call counter (back-pressure). Lives on the Sandbox (one per context),
- *  reset between invocations — a rejected call 33 never poisons the next invocation. */
+/** The per-instance concurrent-host-call counter (back-pressure). Lives on the Sandbox (one per context) and is
+ *  NEVER reset — it counts host-fn IMPLEMENTATIONS that have STARTED and not yet SETTLED, which is the only
+ *  reading under which "≤32 concurrent host calls" is a bound on WORK rather than on promises.
+ *
+ *  WHY NOT PER-INVOCATION (the P2-G repair, measured 2026-08-24). Two facts make an invocation-scoped counter a
+ *  lie: (1) the host-fn deadline (`attachAsync`) BOUNDS a call without CANCELLING it — the losing impl keeps
+ *  running host-side, so releasing its slot when the RACE settles admitted 32 fresh installer-funded calls
+ *  (`imagery.generatePicture` = GPU/$, `chat.requestTurn`) every `HOST_FN_DEADLINE_MS`, unbounded; and (2) a
+ *  reset at invocation start let stragglers from an ENDED invocation decrement a counter the NEXT invocation had
+ *  already zeroed, drifting it NEGATIVE (measured: 36 of 40 burst calls admitted against a cap of 32). So the
+ *  slot is acquired when the impl starts and released when the IMPL settles, once, and no reset exists.
+ *
+ *  THE ACCEPTED COST, stated: a bridge op that NEVER settles permanently costs the instance one slot, and 32 of
+ *  them wedge that plugin's host calls. That is fail-CLOSED and self-inflicted (the ops are OUR domain code, not
+ *  guest-reachable), and it is the direction to fail in — the alternative it replaces failed OPEN. */
 export interface InFlightCounter {
   count: number;
 }
@@ -613,9 +627,20 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 
 /** Build + attach ONE async host function: guest args via `ctx.dump`, the impl races a real-time deadline, the
  *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped (bounded by
- *  the invocation deadline). ≤ 32 concurrent host calls per invocation — call 33 rejects (back-pressure).
+ *  the invocation deadline). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
  *  A thrown/rejected impl (a capability/handle/host-authority refusal, or a bridge error) rejects the guest
- *  promise — errors-as-data, never a host crash. */
+ *  promise — errors-as-data, never a host crash.
+ *
+ *  THE TWO SETTLEMENTS ARE DIFFERENT EVENTS AND THEY RELEASE DIFFERENT THINGS — this is the whole of P2-G:
+ *   - the RACE settles when the guest's promise resolves/rejects (impl result, or the deadline). That is what
+ *     deregisters `pending` (the guest promise is no longer a teardown hazard) and clears the timer.
+ *   - the IMPL settles when the actual host work finishes. That — and ONLY that — releases the in-flight slot.
+ *  The deadline does not abort the impl (nothing here can: the bridge ops are domain calls, and half of them
+ *  are writes that must not be torn in two), so charging the slot to the race meant the cap counted
+ *  not-yet-timed-out PROMISES. `imagery.generatePicture` outlives the 5 s bound by design; under the old
+ *  accounting a guest could therefore hold unbounded concurrent GPU spend while the cap read "32". Note what
+ *  this does NOT claim to be: a spend CEILING (the D46 2026-07-24 amendment retired the plugin spend tier
+ *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
   const { name, inFlight, pending, impl } = spec;
   using fn = ctx.newFunction(name, (...argHandles) => {
@@ -642,7 +667,16 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
       timer.unref();
     });
 
-    void Promise.race([impl(args), timeout])
+    // The slot is charged to the IMPL, not to the race (see the header): a deadline that bounds without
+    // cancelling must not hand the slot back while the host work it bounds is still running. Exactly one
+    // release per acquisition, on either settle arm — the counter can therefore never drift negative.
+    const running = impl(args);
+    const releaseSlot = (): void => {
+      inFlight.count -= 1;
+    };
+    void running.then(releaseSlot, releaseSlot);
+
+    void Promise.race([running, timeout])
       .then(
         (result) => {
           // A fire-and-forget guest call can outlive its invocation: the context is disposed (snippet end /
@@ -674,8 +708,8 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
         },
       )
       .finally(() => {
-        inFlight.count -= 1;
-        // Settled (or dropped by the alive guard after a post-dispose drain) — no longer a teardown hazard.
+        // The GUEST promise settled (or was dropped by the alive guard after a post-dispose drain) — no longer a
+        // teardown hazard. The in-flight SLOT is deliberately not released here: see `releaseSlot` above.
         pending.delete(deferred);
         clearTimeout(timer);
       });
