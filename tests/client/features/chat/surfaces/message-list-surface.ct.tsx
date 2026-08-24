@@ -35,7 +35,7 @@ import {
   MessageListTabWalkStory,
 } from "../_ct-stories.tsx";
 import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
-import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -124,6 +124,7 @@ const TURN: ChatBusEvent[] = [
 test("renders canon, then streams a turn and swaps the ghost for the canonical row", async ({ mount, page }) => {
   let listCall = 0;
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     // First read = just the user turn; the post-turnCompleted refetch adds the assistant reply.
     "chat.listMessages": () => makeMessagesPage(listCall++ === 0 ? [USER_VIEW] : [USER_VIEW, AI_VIEW]),
@@ -194,11 +195,7 @@ const TURN_START_ONLY: ChatBusEvent[] = [
 ];
 
 test("pending phase (turnStarted, no deltas yet): the typing dots render with REAL rendered width, not collapsed", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-    ...ROSTER_STUB,
-  });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]), ...ROSTER_STUB });
   await routeOrbSocket(page, { frames: chatFrames(TURN_START_ONLY), awaitAttaches: 1 });
 
   const component = await mount(<MessageListSurfaceStory />);
@@ -237,6 +234,7 @@ const SWIPE_HEAD: ChatBusEvent[] = [
 test("a swipe reroll streams the new variant IN PLACE — one row, the committed variant's row suppressed (no appended second row)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     // Canon carries the existing variant ("Hello world" on AI_VIEW); the swipe rerolls it in place.
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
@@ -290,11 +288,7 @@ const HEAD_DELTAS: ChatBusEvent[] = [
 // `markStopping` (streaming→stopping, no bus event).
 test("the ghost row stays mounted with its streamed text after Stop (stopping phase)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-    ...ROSTER_STUB,
-  });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]), ...ROSTER_STUB });
   await routeOrbSocket(page, { frames: chatFrames(HEAD_DELTAS), awaitAttaches: 1 });
 
   const component = await mount(<MessageListStoppingStory />);
@@ -327,11 +321,7 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
 // which is a real message-loss window — pinned in `tests/client/data/bus/use-chat-bus.ct.tsx`. This CT scripts
 // no frames and never drops the connection, so what it sees is the first attach, and null is still correct.
 test("an existing committed chat makes its FIRST attach with NO replay cursor (never re-replays prior turns)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-    ...ROSTER_STUB,
-  });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]), ...ROSTER_STUB });
   const socket = await routeOrbSocket(page, { frames: [] });
 
   const component = await mount(<MessageListSurfaceStory />); // committed=true (default)
@@ -370,11 +360,7 @@ const MARK_THEN_REOPEN: StreamFrame[] = [
 
 test("a chatOpened at a non-advancing cursor seq STILL invalidates on RE-attach (the seq guard exempts synthetics by type)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const trpc = await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-    ...ROSTER_STUB,
-  });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]), ...ROSTER_STUB });
   // `dropFirstConnection` ends the first body WITHOUT the terminal `return` frame → EOF → the link
   // reconnects, the registry force-announces every room past its dedupe, and the script replays. That
   // second delivery is the one whose `chatOpened` heals: the room has been dark across the drop.
@@ -444,11 +430,7 @@ const FIRST_ATTACH_OPENED: StreamFrame[] = [
 
 test("a chatOpened on the room's FIRST attach refetches NOTHING — the open's own read IS the fresh state", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const trpc = await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-    ...ROSTER_STUB,
-  });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]), ...ROSTER_STUB });
   await routeOrbSocket(page, { frames: FIRST_ATTACH_OPENED, awaitAttaches: 1 });
 
   // The SAME deterministic-race gate as the test above, and here it is what makes the assertion mean
@@ -514,6 +496,7 @@ const COMPACTED_PREVIEW_FIT = {
 test("the divider carries the compaction fact + a peek that reveals the summary", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...ROSTER_STUB,
     ...COMPACTED_PREVIEW_FIT,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
@@ -538,6 +521,7 @@ test("the divider carries the compaction fact + a peek that reveals the summary"
 test("no compaction fact when previewContextFit reports no covering summary (plain cutoff line)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...ROSTER_STUB,
     "chat.previewContextFit": (): {
       boundaryMessageId: MessageId;
@@ -577,6 +561,7 @@ test("no compaction fact when previewContextFit reports no covering summary (pla
 test("the context-boundary divider's label speaks the kicker voice (a region name, not body prose)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...ROSTER_STUB,
     ...COMPACTED_PREVIEW_FIT,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
@@ -667,6 +652,7 @@ const SWIPE_TURN: ChatBusEvent[] = [
 test("a completed SWIPE keeps the new variant on screen with the refetch still in flight (no old-variant repaint)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     // The FIRST read is the pre-swipe canon; every later one is held open (see holdListMessagesRefetch), so
     // the only way the new variant can be on screen is the carrier the seam applied.
@@ -697,11 +683,7 @@ const SEND_TURN: ChatBusEvent[] = [
 
 test("a completed SEND leaves the reply on screen as CANON with the refetch still in flight (no vanishing row)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-    ...ROSTER_STUB,
-  });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]), ...ROSTER_STUB });
   await routeOrbSocket(page, { frames: chatFrames(SEND_TURN), awaitAttaches: 1 });
   await holdListMessagesRefetch(page);
 
@@ -722,11 +704,7 @@ const SEND_TO_COMMIT: ChatBusEvent[] = SEND_TURN.slice(0, 4);
 
 test("the ghost yields AT THE COMMIT — one row, never the canon row beside a still-mounted ghost", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-    ...ROSTER_STUB,
-  });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]), ...ROSTER_STUB });
   await routeOrbSocket(page, { frames: chatFrames(SEND_TO_COMMIT), awaitAttaches: 1 });
   await holdListMessagesRefetch(page);
 
@@ -847,7 +825,7 @@ test("LOADING OVER ART: the transcript's skeleton rides a reading plate, not the
   // A hold that is never released makes the suspense fallback a SETTLED render — the CT never has to
   // catch a flash, and the state it asserts is the one Resume actually shows for its first frames.
   const hold = trpcHold();
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": hold });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
   const component = await mount(<MessageListOverArtStory artBackdrop={true} />);
   await hold.requested;
 
@@ -863,7 +841,7 @@ test("LOADING OVER ART CONTROL: the same probe reads the raw backdrop where no a
   // to before this fix). This is the planted positive control: if the sampler ever stops seeing the naked
   // backdrop here, the assertion above is measuring nothing.
   const hold = trpcHold();
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": hold });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
   const component = await mount(<MessageListOverArtStory artBackdrop={false} />);
   await hold.requested;
 
@@ -913,7 +891,7 @@ const TAB_WALK_CAP = 60;
 
 test("TAB BUDGET: the transcript costs the same number of Tab presses at 3 messages and at 15", async ({ mount, page }) => {
   const shortThread = walkThread(3);
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(shortThread) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(shortThread) });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
 
   const shortMount = await mount(<MessageListTabWalkStory />);
@@ -922,7 +900,7 @@ test("TAB BUDGET: the transcript costs the same number of Tab presses at 3 messa
   expect(shortWalk).toBeLessThan(TAB_WALK_CAP);
   await shortMount.unmount();
 
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(15)) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(15)) });
   const longMount = await mount(<MessageListTabWalkStory />);
   await expect(longMount.getByText("Walk row 14")).toBeVisible();
   const longWalk = await tabsToReachEnd(page, TAB_WALK_CAP);
@@ -931,7 +909,7 @@ test("TAB BUDGET: the transcript costs the same number of Tab presses at 3 messa
 });
 
 test("ROVING: arrows move the tab stop between rows, and Escape hands focus back from a row's controls", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(6)) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(6)) });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
   const component = await mount(<MessageListTabWalkStory />);
   await expect(component.getByText("Walk row 5")).toBeVisible();
@@ -963,7 +941,7 @@ test("ROVING: the edit-in-place path survives suppression — reached by MOUSE, 
   // The failure mode a naive suppression would ship: a reader clicks Edit (pointer focus still works on a
   // tabindex=-1 control), lands in the textarea, and then cannot Tab to Save because the row was never
   // "entered". Auto-entry on focusin is what prevents it, and this is the case that proves it.
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(4)) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(4)) });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
   const component = await mount(<MessageListTabWalkStory />);
   await expect(component.getByText("Walk row 3")).toBeVisible();
@@ -997,7 +975,7 @@ test("ROVING: the edit-in-place path survives suppression — reached by MOUSE, 
 // like a first-party button. Forcing `tabIndex={0}` on it (the review's prescribed fix) would put every
 // thread's disclosures back in the document tab order and re-break the #107 budget above.
 test("#488 a message-footer CONTRIBUTED disclosure is a Tab stop inside the entered row", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(4)) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(4)) });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
   const component = await mount(<MessageListFooterDisclosureStory />);
   await expect(component.getByText("Walk row 3")).toBeVisible();
@@ -1040,7 +1018,7 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
   // `kind: "narrator"` gives the row a REAL resolved speaker name against this file's empty roster stub,
   // so the assertion is about what the reader can still SEE, not merely about a container element.
   const tall = makeMessageView({ id: castId<MessageId>("msg_tall"), role: "assistant", kind: "narrator", content: TALL_BODY, seq: 1 });
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([tall]) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([tall]) });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
   const component = await mount(<MessageListSurfaceStory />);
 
@@ -1090,7 +1068,7 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
 
 test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measured height change", async ({ mount, page }) => {
   const shortRow = makeMessageView({ id: castId<MessageId>("msg_short"), role: "assistant", content: "Two words.", seq: 1 });
-  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([shortRow]) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([shortRow]) });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
   const component = await mount(<MessageListSurfaceStory />);
 

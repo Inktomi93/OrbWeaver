@@ -1,6 +1,7 @@
-import type { CharacterId, ChatId, MessageId, TypeIdOf, UserId } from "@orb/kit/ids";
-import { brandedId, castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, TypeIdOf, UserId, WorldBookId } from "@orb/kit/ids";
+import { brandedId, castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { assertType, expectTypeOf, test } from "vitest";
+import type { z } from "zod";
 
 // The brands are the 446-importer universal leaf — a collision (e.g. a `Branded`/`TypeIdOf`
 // regression that makes two entity ids structurally equal) is a SILENT type hole no runtime
@@ -37,4 +38,24 @@ test("brandedId<T> yields a zod schema whose output is the brand", () => {
   const schema = brandedId<UserId>();
   expectTypeOf(schema.parse("u")).toEqualTypeOf<UserId>();
   assertType<UserId>(schema.parse("u"));
+});
+
+// #641 — `z.ZodType`'s Input generic defaults to `unknown` (zod 4.4.3); a schema built without
+// pinning it makes every field typed through `z.input<>` (an authored, pre-parse shape — e.g.
+// `AutomationActionInput`) accept ANY value, not just a wrong string. `unknown` is a valid target
+// for an assignment of literally anything, so the hole was silent at every construction site.
+test("typeIdSchema's z.input is `string` (a validating pre-parse boundary), never `unknown`", () => {
+  const schema = typeIdSchema(ID_PREFIX.worldBook);
+  // The pre-parse INPUT is the raw wire string — by design NOT yet branded (the transform mints the
+  // brand). This is the correctly-narrow input type; `unknown` was the defect, not `WorldBookId`.
+  expectTypeOf<z.input<typeof schema>>().toEqualTypeOf<string>();
+  // A non-string can no longer satisfy a field typed through this schema's input — this is what a
+  // widened `unknown` silently let through pre-fix (a number, an object, anything).
+  expectTypeOf<number>().not.toExtend<z.input<typeof schema>>();
+  // The OUTPUT (post-parse) side was always correctly branded and stays so — this fix does not
+  // touch it. `z.input<>` erasure never reached `z.infer<>`/output reads.
+  expectTypeOf<z.infer<typeof schema>>().toEqualTypeOf<WorldBookId>();
+  // Assigning a validated brand INTO the input position is fine (a brand widens to string) —
+  // the fix narrows what a bare/wrong-shaped value can do, not what a correct one can do.
+  expectTypeOf<WorldBookId>().toExtend<z.input<typeof schema>>();
 });
