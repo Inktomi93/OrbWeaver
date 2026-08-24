@@ -125,7 +125,7 @@ export interface RawIssueNode {
   readonly url: string;
   readonly state: "OPEN" | "CLOSED";
   readonly comments: { readonly nodes: readonly { readonly body: string }[] };
-  readonly blockedBy: { readonly nodes: readonly { readonly number: number }[] };
+  readonly blockedBy: { readonly nodes: readonly { readonly number: number; readonly state: "OPEN" | "CLOSED" }[] };
   readonly projectItems: { readonly nodes: readonly RawItemNode[] };
 }
 
