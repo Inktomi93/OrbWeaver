@@ -21,6 +21,16 @@
 // `spends` marks the two SPEND-class capabilities (`turn.trigger`, `imagery.generate`) — the ones that draw
 // on the installer's model budget every time the plugin uses them. Money is the one consequence a checkbox
 // label must never bury, and the automation surface already names its spend arms the same way.
+//
+// `risk` marks the capabilities that reach BEYOND the plugin's own sandbox in a way that outlasts or leaves
+// the room the person is looking at: rewriting what THEY send before it is committed, mutating shared room
+// or personal global state rather than the plugin's own private store, or leaving the sandbox to the open
+// internet. It is what P2-9 (side-eye #650) named "danger gradation" — every row rendered at identical
+// weight regardless of what it actually does, so `chat.transform` (silently editing an outgoing message)
+// read no louder than `storage.kv` (a private key/value box only the plugin itself can see). This is a
+// judgment call, not a formula — `chat.quick_reply`, `notify` and `events.subscribe` all touch a room too,
+// but only by SUGGESTING or WATCHING, never by silently rewriting what the person themselves said or by
+// leaving the sandbox.
 
 import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
 
@@ -33,6 +43,9 @@ export interface CapabilityCopy {
   readonly consequence: string;
   /** SPEND class: using it draws on your model/image budget. */
   readonly spends?: true;
+  /** RISK class: reaches past the plugin's own sandbox into shared/personal state, your own outgoing
+   *  words, or the open internet — see the file header for the line this draws. */
+  readonly risk?: true;
 }
 
 /** Every capability, in `PLUGIN_CAPABILITIES` order (the declared confirm-dialog display order). */
@@ -46,6 +59,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "chat.variables.write",
     label: "Change room variables",
     consequence: "Writes the counters and flags that rules and macros read. Only in rooms you host.",
+    risk: true,
   },
   {
     id: "chat.quick_reply",
@@ -56,16 +70,19 @@ export const CAPABILITY_COPY_ROWS = [
     id: "chat.transform",
     label: "Rewrite your outgoing messages",
     consequence: "Edits your draft after you press send, before it is committed, in rooms you host.",
+    risk: true,
   },
   {
     id: "worldinfo.write",
     label: "Write lorebook entries",
     consequence: "Adds and updates entries in lorebooks already attached to the room, up to 64 entries.",
+    risk: true,
   },
   {
     id: "global_vars",
     label: "Use your global variables",
     consequence: "Reads and writes your personal global-variable namespace — yours only, never another person's.",
+    risk: true,
   },
   {
     id: "storage.kv",
@@ -98,10 +115,12 @@ export const CAPABILITY_COPY_ROWS = [
     id: "tools.register",
     label: "Add tools",
     consequence: "Registers tools a character or a rule can call. They run with your permissions, never more.",
+    risk: true,
   },
   {
     id: "net.fetch",
     label: "Reach the internet",
+    risk: true,
     consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else.",
   },
 ] as const satisfies readonly CapabilityCopy[];
@@ -123,6 +142,29 @@ const asExplainedCapability: (capability: PluginCapability) => (typeof CAPABILIT
 export function capabilityCopy(capability: PluginCapability): CapabilityCopy | undefined {
   const id = asExplainedCapability(capability);
   return CAPABILITY_COPY_ROWS.find((row) => row.id === id);
+}
+
+/**
+ * The one-line roll-up at the decision point (side-eye #650 P2-9). At the maximal ask (13 checked rows,
+ * 2.63 screens of scroll in the CT-measured pane) a person scrolling to the Install button has forgotten
+ * the top by the time they get there, and nothing at the button itself says what they are about to commit
+ * to. This is the number that travels with the click: how many capabilities are checked, and how many of
+ * THOSE reach past the sandbox (`risk`) or spend the installer's budget (`spends`) — the two axes a
+ * checkbox count alone cannot say. Returns `null` for an empty grant (nothing to summarize) so the caller
+ * can render nothing rather than a hollow "Granting 0 permissions."
+ */
+export function grantSummaryLine(granted: readonly PluginCapability[]): string | null {
+  if (granted.length === 0) {
+    return null;
+  }
+  const rows = granted.map((capability) => capabilityCopy(capability)).filter((row): row is CapabilityCopy => row !== undefined);
+  const notable = rows.filter((row) => row.risk === true || row.spends === true).length;
+  const permissions = rows.length === 1 ? "1 permission" : `${rows.length} permissions`;
+  if (notable === 0) {
+    return `Granting ${permissions}.`;
+  }
+  const notableWord = notable === 1 ? "1 of them reaches" : `${notable} of them reach`;
+  return `Granting ${permissions} — ${notableWord} past the sandbox or spends your budget.`;
 }
 
 /** The lifecycle status as a row's state line — never the raw wire word. */
@@ -151,6 +193,12 @@ export function reConsentLine(addedCapabilities: readonly PluginCapability[]): s
   const permissions = addedCapabilities.length === 1 ? "a permission you hadn't allowed" : `${addedCapabilities.length} permissions you hadn't allowed`;
   return `This update asks for ${permissions}, ${tail}`;
 }
+
+/** The one canonical explanation of what removing a plugin does — the row's overflow menu and the
+ *  re-consent notice's escape action (P1-3) both trigger the SAME irreversible act, so they read the SAME
+ *  sentence rather than two hand-written paraphrases drifting apart. */
+export const REMOVE_PLUGIN_DESCRIPTION =
+  "This deletes the plugin, its private storage and anything it registered. It can't be undone — you'd install it again from its bundle.";
 
 /** `builtAgainst` as a provenance line — display/warn only, never an install gate (the manifest's own rule). */
 export function builtAgainstLine(builtAgainst: PluginBuiltAgainst | null): string | null {
