@@ -11480,6 +11480,83 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/interaction-direction-spec.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 669,
+      "bytes": 70502,
+      "sha256": "5ec5be01acd1a7117afdc3528fbaed4978ddac3459f9c576d8f2013c44a7dbb4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-24"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/interaction-direction-spec.md",
+        "assignedSha256": "5ec5be01acd1a7117afdc3528fbaed4978ddac3459f9c576d8f2013c44a7dbb4",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "5ec5be01acd1a7117afdc3528fbaed4978ddac3459f9c576d8f2013c44a7dbb4",
+        "verifiedCommit": "e69f96774a1606587feaf155b952fc701ef85a87",
+        "verifiedAt": "2026-08-24",
+        "evidence": [
+          "docs/design/interaction-direction-spec.md:1-666 read WHOLE this session before promotion (e69f96774)",
+          "provenance: claude-b max-effort pass — 2 stickler rounds + a five-lens panel (law/legacy/cost/product/security), 39 findings adjudicated 0 refuted, 6 structural refolds; legacy-main whole-file reads per its §10 ledger",
+          "all owner rulings folded and closed: 5 commissioning rulings + F1-F7 (AskUserQuestion 2026-08-24) + the void-all handoff ruling (§8)"
+        ],
+        "summary": "The committed interaction-direction specification: inside/outside taxonomy, S1-S5 substrate, the A/B/C path with per-row tests and merge classes, the honest purged-capability disposition table, the panel findings ledger.",
+        "claims": [
+          {
+            "claim": "All seven forks (F1-F7) and the host-handoff void-all call are owner-ruled and recorded in §8; no open items remain in the specification.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#592"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/interaction-substrate-spec.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 175,
+      "bytes": 12315,
+      "sha256": "284780ad6d0041881be0134b091fbf378b5f1485b579b1a570c1c8a8c7373ab9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-23"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/interaction-substrate-spec.md",
+        "assignedSha256": "284780ad6d0041881be0134b091fbf378b5f1485b579b1a570c1c8a8c7373ab9",
+        "disposition": "superseded",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "284780ad6d0041881be0134b091fbf378b5f1485b579b1a570c1c8a8c7373ab9",
+        "verifiedCommit": "e69f96774a1606587feaf155b952fc701ef85a87",
+        "verifiedAt": "2026-08-24",
+        "evidence": ["docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)"],
+        "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "lane": "design",
       "issue": 5,
