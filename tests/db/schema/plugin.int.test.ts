@@ -192,8 +192,15 @@ test("plugin_kv: composite PK, key/value length CHECKs, pluginId CASCADE", async
   // The key-length CHECK rejects a key over 128 chars.
   await expect(db.insert(pluginKv).values({ pluginId, ownerId, key: "k".repeat(129), value: "x", updatedAt: now })).rejects.toSatisfy(isConstraintErr);
 
-  // The value-length CHECK rejects a value over 64 KiB.
+  // The value CHECK caps at 64 KiB of BYTES, not characters. A legitimate at-cap ASCII value passes…
+  await db.insert(pluginKv).values({ pluginId, ownerId, key: "at-cap", value: "v".repeat(65_536), updatedAt: now });
+  // …one byte over is refused…
   await expect(db.insert(pluginKv).values({ pluginId, ownerId, key: "big", value: "v".repeat(65_537), updatedAt: now })).rejects.toSatisfy(isConstraintErr);
+  // …and so is a value UNDER the cap in characters but OVER it in bytes: 3-byte UTF-8 chars, 30 000
+  // characters ≈ 90 000 bytes. A bare length() on TEXT counts characters and would admit this.
+  await expect(db.insert(pluginKv).values({ pluginId, ownerId, key: "multibyte", value: "€".repeat(30_000), updatedAt: now })).rejects.toSatisfy(
+    isConstraintErr,
+  );
 
   // pluginId CASCADE: deleting the plugin wipes its KV rows.
   await db.delete(plugins).where(eq(plugins.id, pluginId));
