@@ -108,11 +108,14 @@ test("the roster is AWAITED, not gated on — a first-ever click still resumes r
   // into the flow: it awaits the read at CLICK time. The delay below makes the unlanded window real and
   // wide, and the click happens inside it — under a read-what-is-in-cache implementation this test opens
   // the scripted MINT, because the cache holds nothing yet.
+  // Playwright resolves routes LIFO (last-registered wins) — the delaying route below MUST be
+  // registered AFTER routeTrpc, or routeTrpc (registered second, winning the match) answers every
+  // request immediately and this 400ms hold never runs at all (#643/route-trpc-lifo-order).
+  const trpc = await routeTrpc(page, routes([rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT })]));
   await page.route("**/api/trpc/refinery.listSessions**", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 400));
     await route.fallback();
   });
-  const trpc = await routeTrpc(page, routes([rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT })]));
   const component = await mount(<OpenRefineryStory characterId={CHARACTER_ID} />);
 
   // No waiting for anything to land: the door is live from the first frame, which is the ruling.

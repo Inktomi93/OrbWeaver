@@ -137,6 +137,9 @@ function isTransformersLoaderEscape(err: unknown): boolean {
 
 // Installed lazily and kept for the process lifetime — a single hung getSession can emit multiple
 // detached orphans across microtask turns, some after this load's promise already settled.
+// ASSUMES(single-replica): these are live in-process promise `reject` closures tied to THIS process's
+// in-flight `@huggingface/transformers` load calls — they cannot be DB-backed (a closure is not
+// serializable data), and a replica restart legitimately drops them along with the loads they guard.
 const inFlightLoadRejectors: ((err: Error) => void)[] = [];
 let beltInstalled = false;
 
