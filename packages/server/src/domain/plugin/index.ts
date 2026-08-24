@@ -50,10 +50,13 @@ export type {
   PluginActivationScope,
   PluginBelts,
   PluginHostOps,
+  PluginIdentity,
   PluginInvokeHandler,
   PluginRateFloor,
   PluginRegistrationHandle,
+  RaisePluginSuggestion,
   SnippetGate,
+  VoidPluginSuggestions,
 } from "./contract/ops.ts";
 export type {
   GetPluginLogParams,
@@ -67,7 +70,9 @@ export type {
 } from "./contract/params.ts";
 export type { PluginLogView, PluginView, SnippetResult } from "./contract/results.ts";
 export type { CreateInstanceInput, CreateInstanceOutcome, PluginBudgets, PluginHostPort, PluginService } from "./contract/service.ts";
+export { isPluginEnabledFor } from "./persistence/plugins.ts";
 export { createPluginService } from "./service.ts";
+export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
 export { createPluginRateFloor, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOUR } from "./substrate/rate-floor.ts";
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";

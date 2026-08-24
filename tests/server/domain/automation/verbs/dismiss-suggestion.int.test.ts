@@ -24,11 +24,11 @@ function raise(fx: Awaited<ReturnType<typeof ruleFixture>>, id: AutomationSugges
     id,
     kind: "confirm",
     chatId: fx.chatId,
-    ruleId: mintTypeId(ID_PREFIX.automationRule),
-    authorUserId: fx.host,
+    source: { kind: "rule", ruleId: mintTypeId(ID_PREFIX.automationRule) },
+    actorUserId: fx.host,
     summary: "Take a turn in the room?",
     expiresAt: FIXED_NOW_MS + AUTOMATION_SUGGESTION_TTL_MS,
-    stashed: null,
+    payload: null,
   };
   fx.ctx.suggestions.raise(entry);
   return entry;

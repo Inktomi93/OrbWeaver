@@ -95,6 +95,20 @@ export async function getById(db: Db, ownerId: UserId, pluginId: PluginId): Prom
   return rows[0];
 }
 
+/** Is `pluginId` an ENABLED plugin owned by `ownerId`? The confirm-time liveness re-check behind a
+ *  posture-2 suggestion card (wired at compose into `domain/automation`'s `isPluginLive` — automation may not
+ *  query this table). Owner-scoped like every other read here, so a foreign or missing id is `false` with no
+ *  existence leak; `false` is also the fail-CLOSED answer for a disabled or errored row, which is the point —
+ *  a card must not become one more act after the owner turned the plugin off. */
+export async function isPluginEnabledFor(db: Db, ownerId: UserId, pluginId: PluginId): Promise<boolean> {
+  const rows = await db
+    .select({ status: plugins.status })
+    .from(plugins)
+    .where(and(eq(plugins.id, pluginId), eq(plugins.ownerId, ownerId)))
+    .limit(1);
+  return rows[0]?.status === "enabled";
+}
+
 /** The caller's OWN plugins (fetchOwned), newest-installed first. */
 export async function listOwned(db: Db, ownerId: UserId): Promise<PluginRow[]> {
   return await db.select().from(plugins).where(eq(plugins.ownerId, ownerId)).orderBy(desc(plugins.installedAt));

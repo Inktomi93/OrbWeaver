@@ -11,7 +11,7 @@
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
 export type { InvocationChat, PluginBridge } from "./bridge.ts";
-export { HostVersionError, PluginCapabilityError } from "./errors.ts";
+export { HostVersionError, PluginCapabilityError, PluginSuggestedError } from "./errors.ts";
 export type {
   ChatHandle,
   HostFunctionRef,
@@ -34,3 +34,5 @@ export type {
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "./registrations.ts";
+export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts";
+export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts";

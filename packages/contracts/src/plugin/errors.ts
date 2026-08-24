@@ -17,6 +17,29 @@ export class PluginCapabilityError extends Error {
   }
 }
 
+/** POSTURE 2 (interaction spec §3-S4): the installer has the GRANT but not standing authority on this chat,
+ *  so the act was NOT performed — it was raised as a SUGGESTION for the room's host to confirm.
+ *
+ *  WHY A THROW AND NOT A SILENT SUCCESS. The three-posture law says the act becomes an ask; it does not say
+ *  the guest should be misled about what happened. `chat.requestTurn` returns `void`, so resolving would tell
+ *  a plugin its turn ran — and a plugin that believes it wrote does something else next (writes a "done"
+ *  variable, fetches the result, posts a follow-up). A typed rejection is the honest wire: the call did not
+ *  do the thing, AND it is not the flat refusal `PluginCapabilityError` describes. `name` crosses the
+ *  QuickJS boundary intact, so a guest feature-detects by `e.name === "PluginSuggestedError"` and can wait
+ *  rather than retry — retrying only replaces its own pending card (the store is replace-per-origin).
+ *
+ *  It is NOT a security boundary and must not be read as one: the boundary is the host-authority check that
+ *  produced it. This is what the guest is TOLD about that check's outcome. */
+export class PluginSuggestedError extends Error {
+  /** Which act was stashed — the `PluginSuggestedAct` kind, so a guest can branch without parsing prose. */
+  readonly act: string;
+  constructor(act: string) {
+    super(`plugin act "${act}" was raised as a suggestion for the room's host to confirm (the installer does not host this chat)`);
+    this.name = "PluginSuggestedError";
+    this.act = act;
+  }
+}
+
 /** Thrown by `orb.host(requestedMajor)` when the host does not serve that major — at ACTIVATION, loudly,
  *  so a V2-compiled plugin never half-runs on V1 (and, when V2 ships without a V1 adapter, symmetrically). */
 export class HostVersionError extends Error {

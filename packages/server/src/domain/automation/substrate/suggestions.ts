@@ -2,10 +2,16 @@
 // (interaction-direction-spec §3-S4). One per-process instance, created at the composition root and injected
 // on the `AutomationContext` beside the enabled-rule index (`ASSUMES(single-replica)`).
 //
-// TWO INDEXES, one truth: `byId` holds the records, `bySlot` maps `(chatId, ruleId)` → the id currently
+// TWO INDEXES, one truth: `byId` holds the records, `bySlot` maps `(chatId, source)` → the id currently
 // occupying that slot. The slot index is what makes REPLACE-PER-KIND (RULED F1) O(1): a cadence rule that
 // keeps firing keeps exactly ONE live ask, so the one-visible-card attention budget (authoring law 5) is
 // bounded by the chat's RULE COUNT and not by how often those rules fire.
+//
+// ONE INBOX, TWO ORIGINS. Plugins joined the same three-posture law post-#24: a plugin whose installer is not
+// host of the invocation chat ASKS instead of taking a flat refusal, and its ask lands HERE. Deliberately not
+// a second store — a second one would mean a second TTL, a second sweep, a second void-on-handoff and two
+// places a host has to look. The slot key discriminates on the `AutomationEmitSource` union, so a chatty
+// plugin is bounded by the same one-card-per-origin budget a cadence rule is.
 //
 // THE TTL IS SWEPT EXPLICITLY, never by a timer: every method that could observe an expired record takes the
 // injected `nowMs` and drops the dead ones first. A `setInterval` would read the wall clock in a domain whose
@@ -14,16 +20,21 @@
 
 import type { AutomationAction, SuggestibleAction, SuggestibleArmType } from "@orb/contracts/automation";
 import { AUTOMATION_SUGGESTION_SUMMARY_MAX, SPEND_ARM_TYPES } from "@orb/contracts/automation";
-import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
-import type { PendingSuggestion, SuggestionStore } from "../contract/ops.ts";
+import type { PluginSuggestedAct } from "@orb/contracts/plugin";
+import { summarizePluginAct } from "@orb/contracts/plugin";
+import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
+import type { EmitAutomationEvent, PendingSuggestion, SuggestionSource, SuggestionStore } from "../contract/ops.ts";
 
 /** How long a pending ask lives before it is swept. A host who has not answered in half an hour is not
  *  answering THIS beat's ask — the room has moved on, and a re-fire mints a fresh one. */
 export const AUTOMATION_SUGGESTION_TTL_MS = 1_800_000; // 30 minutes
 
-/** The `(chatId, ruleId)` replace-per-kind slot key. */
-function slotKey(chatId: ChatId, ruleId: AutomationRuleId): string {
-  return `${chatId}|${ruleId}`;
+/** The replace-per-kind slot key: `(chatId, source)`. The source is the `AutomationEmitSource` union, so a
+ *  RULE keeps one live ask per rule and a PLUGIN keeps one live ask per plugin — the same attention budget,
+ *  extended to the origin that has no rule id. The `kind:` prefix keeps the two id namespaces from ever
+ *  colliding on a shared string. */
+function slotKey(chatId: ChatId, source: SuggestionSource): string {
+  return source.kind === "rule" ? `${chatId}|rule|${source.ruleId}` : `${chatId}|plugin|${source.pluginId}`;
 }
 
 export function createSuggestionStore(): SuggestionStore {
@@ -32,7 +43,7 @@ export function createSuggestionStore(): SuggestionStore {
 
   const forget = (entry: PendingSuggestion): void => {
     byId.delete(entry.id);
-    const key = slotKey(entry.chatId, entry.ruleId);
+    const key = slotKey(entry.chatId, entry.source);
     // Only clear the slot if it still points at THIS record — a replace already re-pointed it.
     if (bySlot.get(key) === entry.id) {
       bySlot.delete(key);
@@ -74,7 +85,7 @@ export function createSuggestionStore(): SuggestionStore {
     // adds to is already bounded — replace-per-key means at most one entry per (chat, rule). Every call
     // that can HAND an expired ask to a caller sweeps first, which is where it matters.
     raise: (entry): void => {
-      const key = slotKey(entry.chatId, entry.ruleId);
+      const key = slotKey(entry.chatId, entry.source);
       const replaced = bySlot.get(key);
       if (replaced !== undefined) {
         byId.delete(replaced);
@@ -88,7 +99,10 @@ export function createSuggestionStore(): SuggestionStore {
     },
     claim: take,
     drop: take,
-    voidRule: (ruleId): number => voidWhere((entry) => entry.ruleId === ruleId),
+    voidRule: (ruleId): number => voidWhere((entry) => entry.source.kind === "rule" && entry.source.ruleId === ruleId),
+    // The plugin twin (deactivate / uninstall). The confirm-time liveness re-check is what makes a stale
+    // plugin card SAFE; this is what makes it DISAPPEAR, so a host is never offered an answer that refuses.
+    voidPlugin: (pluginId): number => voidWhere((entry) => entry.source.kind === "plugin" && entry.source.pluginId === pluginId),
     voidChat: (chatId): number => voidWhere((entry) => entry.chatId === chatId),
     listForChat: (chatId, nowMs): readonly PendingSuggestion[] => {
       sweep(nowMs);
@@ -149,6 +163,49 @@ export function summarizeSuggestibleArm(action: SuggestibleAction): string {
     }
   }
   return ask.slice(0, AUTOMATION_SUGGESTION_SUMMARY_MAX);
+}
+
+/** Build the PLUGIN-origin raiser — the seam `domain/plugin` is wired to at compose (it declares the type;
+ *  this is the body). It lives HERE because everything it does is this store's business: mint the id, render
+ *  and CAP the question, stamp the same TTL a rule ask gets, put it in the SAME map, and emit the SAME
+ *  host-only card event. A plugin raising its own asks somewhere else would be a second proposal system with
+ *  a second TTL, a second sweep, and two places a host has to look.
+ *
+ *  The QUESTION is rendered by `@orb/contracts/plugin`'s `summarizePluginAct` (the act vocabulary's own home),
+ *  then capped to the shared summary length here — one cap for both origins, so a card is one line either way.
+ *  The ask is always the `confirm` class: the `invitation` class is structurally rule-only (it exists because
+ *  `budget_refused` fires pre-predicate on a RULE), and a plugin ask always carries its act. */
+export function createPluginSuggestionRaiser(deps: {
+  readonly suggestions: SuggestionStore;
+  readonly notify: EmitAutomationEvent;
+  readonly newSuggestionId: () => AutomationSuggestionId;
+  readonly now: () => number;
+}): (req: {
+  readonly plugin: { readonly id: PluginId; readonly name: string };
+  readonly installerUserId: UserId;
+  readonly chatId: ChatId;
+  readonly act: PluginSuggestedAct;
+}) => void {
+  return ({ plugin, installerUserId, chatId, act }): void => {
+    const id = deps.newSuggestionId();
+    const expiresAt = deps.now() + AUTOMATION_SUGGESTION_TTL_MS;
+    const summary = summarizePluginAct(act, plugin.name).slice(0, AUTOMATION_SUGGESTION_SUMMARY_MAX);
+    const source = { kind: "plugin", pluginId: plugin.id } as const;
+    deps.suggestions.raise({
+      id,
+      kind: "confirm",
+      chatId,
+      source,
+      // The INSTALLER is the actor: the confirmed act runs as them, on their budget, in their namespace —
+      // and it is their host authority the confirm re-check re-runs. The confirmer authorizes, never
+      // substitutes.
+      actorUserId: installerUserId,
+      summary,
+      expiresAt,
+      payload: { via: "plugin-act", act },
+    });
+    deps.notify({ type: "suggestionRaised", chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt });
+  };
 }
 
 /** The rate-refusal INVITATION's ask. It names the rule, because that is all a pre-predicate refusal knows

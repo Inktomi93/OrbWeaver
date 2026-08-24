@@ -47,6 +47,7 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
     let mainJs: string;
     let slug: string;
+    let displayName: string;
     let netHosts: readonly string[] | undefined;
     let matchAutomationEvents = false;
     try {
@@ -55,6 +56,8 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
       // The slug is DERIVED from the re-validated manifest (never guest-runtime-supplied) — the registrar
       // namespaces plugin tools `plugin_<slug'>_<name>` with it (PL-A).
       slug = bundle.manifest.id;
+      // The host-facing display name a posture-2 card names — manifest-DERIVED, like the slug beside it.
+      displayName = bundle.manifest.name;
       // The `net.fetch` SSRF allowlist — forwarded from the RE-VALIDATED manifest (never guest-runtime-supplied)
       // so the infra host-fn pins `safeFetch` to it; absent ⇒ fail-closed `[]` (no host reachable) infra-side.
       netHosts = bundle.manifest.netHosts;
@@ -71,7 +74,10 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     // per-plugin spend gate was stripped for enterprise spend enforcement; a runaway plugin's turns are
     // bounded by the engine's per-member turn RATE budget + the cascade-depth guard, and cost VISIBILITY rides
     // the stats domain.)
-    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, input.pluginId, ctx.belts);
+    // The bridge carries the plugin's IDENTITY (id + the manifest's display name) because a posture-2 card has
+    // to say who is asking. The name is DERIVED from the re-validated manifest, never guest-runtime-supplied —
+    // the same rule the slug and the netHosts allowlist follow.
+    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, { id: input.pluginId, name: displayName }, ctx.belts);
     const outcome = await ctx.host.createInstance({ mainJs, grants: input.grants, bridge, chat: null, ...(netHosts !== undefined ? { netHosts } : {}) });
     if (!outcome.ok) {
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: outcome.error, updatedAt: ctx.now() });

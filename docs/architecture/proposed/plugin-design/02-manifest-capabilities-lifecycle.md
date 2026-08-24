@@ -82,6 +82,43 @@ never a boolean the guest trusts — each maps to a concrete host-side mechanism
 | `tools.register` | `tools.register` | grant at activation; INVOCATION is gated by the tool-use registry's own `can()` row as the installing principal (D48 — 03 §5) |
 | `net.fetch` | `net.fetch` | grant + exact-host allowlist + SSRF guard + deadline/size caps (01 §2) + an HOURLY per-plugin EGRESS floor. The floor is the only bound on a RATE: `safeFetch` bounds each REQUEST and the manifest bounds the DESTINATIONS, while `HOST_CALLS_IN_FLIGHT_MAX` bounds CONCURRENCY — so without it a plugin subscribed to `messageCommitted` egressed once per committed message, forever (the D46 review's tracked finding). The belt sits on the RESOURCE, not on event delivery: a delivery-side belt would miss the identical egress from a tool handler or a D50 transform |
 
+**POSTURE 2 — a non-host installer's act becomes an ASK (the #14 three-posture law, plugins joining
+post-#24; interaction spec §3-S4).** Standing authority ⇒ act; NO standing authority ⇒ a SUGGESTION
+the room's host confirms; the fourth posture — direct execution without standing authority — never
+exists. Every "host" row in the table above used to be a FLAT REFUSAL when `InvocationChat.canWrite`
+was false, which is posture 3 wearing posture 2's clothes: safe, but it made "ask" unexpressible and
+pushed authors toward installing under a host account.
+
+- **THREE of the five host-gated ops become asks:** `chat.requestTurn`, `worldInfo.upsertEntry`,
+  `imagery.generatePicture` — each maps onto an existing `confirmFirst` automation arm, so the
+  question a plugin raises is one the product already knows how to ask.
+- **TWO stay refusals, deliberately.** `chat.variables.write`: a variable delta is not a
+  human-weighable act ("set tension to 5?" cannot be judged without knowing what the plugin means by
+  tension), and it is the highest-frequency write in the set, so posture 2 there is an attention
+  flood against §3-S4's one-visible-card budget. `chat.quick_reply`: chips are transient display
+  strings whose whole value is immediacy — a card the host reads and then approves so the text can
+  appear as a chip has already shown them the text.
+- **ONE INBOX.** The ask lands in the SAME `SuggestionStore` a rule's does, keyed by the
+  `AutomationEmitSource` union (`{kind:"plugin", pluginId}`), answered by the same confirm/dismiss
+  verbs. No second proposal system: a second store means a second TTL, a second sweep, and two places
+  a host has to look.
+- **THE ENFORCEMENT SET FOLLOWS THE ORIGIN.** A confirmed plugin act re-enters through the PLUGIN's
+  own bridge (`substrate/confirmed-act.ts`), NOT automation's `runArm`. Two of the three acts have an
+  automation arm that looks identical, so the wrong wiring compiles and demos correctly while silently
+  swapping which belts apply — the attach gate, the per-plugin 64-entry ceiling and `neutralizeMacros`
+  are the plugin's, and a plugin must not gain reach BY BEING CONFIRMED that it lacks when it acts
+  directly. The hourly belts apply to a confirmed act too: a host's "yes" is not a budget top-up.
+- **The guest is told by TYPE.** `PluginSuggestedError` — not a resolve (which would tell a plugin its
+  act ran) and not `PluginCapabilityError` (which would say the grant is missing).
+- **Liveness at confirm, fail-closed both ways:** the plugin is still installed AND enabled, and the
+  INSTALLER still holds host. On a host handoff the pending ask is VOIDED — no re-mint, no transfer
+  to the new host (owner ruling 2026-08-24). Deactivate/uninstall sweeps a plugin's pending asks.
+- **No fire row.** `automation_fires` is keyed to a rule by FK and a plugin has none; a synthetic id
+  would put a lie in the log §3-S4 works to keep honest.
+- **The class-1 wall is untouched.** A suggestion is an ASK, and a confirmed act is the SAME op set
+  the plugin could already perform WITH standing authority — never a new one, and never a message
+  write.
+
 **Grant flow — who approves:** installing and granting are ONE act by ONE person: the plugin's
 **owner** (the installing principal). `installPlugin` presents the declared capability list; the
 caller confirms; `granted_capabilities` is stored as the confirmed SUBSET (a paranoid owner may

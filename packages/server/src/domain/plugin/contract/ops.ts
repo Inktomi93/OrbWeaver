@@ -18,6 +18,7 @@ import type {
   PluginEventSubscription,
   PluginHandlerRef,
   PluginMessageView,
+  PluginSuggestedAct,
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
@@ -200,6 +201,14 @@ export interface PluginHostOps {
     readonly set: (ownerId: UserId, key: string, value: string) => Promise<void>;
     readonly delete: (ownerId: UserId, key: string) => Promise<void>;
   };
+  /** S4 posture 2 — the shared suggestion inbox, as the plugin domain reaches it. `raise` stashes an ask when
+   *  the installer lacks host authority on the invocation chat; `voidForPlugin` clears a plugin's pending asks
+   *  when it is deactivated or uninstalled. Both wired at compose to the ONE `SuggestionStore` automation
+   *  owns — a plugin ask and a rule ask are the same question to a host and belong in the same place. */
+  readonly suggestions: {
+    readonly raise: RaisePluginSuggestion;
+    readonly voidForPlugin: VoidPluginSuggestions;
+  };
   /** The runtime registrar seams (PL-A tool-use, D50 transform, event subscribe). Each takes a collected
    *  registration + the per-handler invoker + the per-activation {@link PluginActivationScope} (slug for
    *  namespacing, installer for the PL-C ceiling) and returns an `unregister` handle. `registerTool` is wired
@@ -220,6 +229,34 @@ export interface PluginHostOps {
     ) => PluginRegistrationHandle;
   };
 }
+
+/** WHO a bridge is built for. The bridge was keyed by `pluginId` alone until posture 2 needed to render a
+ *  host-facing question — and a card that does not say WHICH plugin is asking is a card a host cannot answer
+ *  responsibly (a plugin ask is the one class whose requester is not a rule the host wrote themselves). The
+ *  name is DERIVED from the re-validated manifest at activation, never guest-runtime-supplied. */
+export interface PluginIdentity {
+  readonly id: PluginId;
+  readonly name: string;
+}
+
+/** POSTURE 2 — raise a plugin's ask into the SHARED S4 inbox. Declared HERE (the consumer declares the type)
+ *  and wired at compose to `domain/automation`'s raiser: plugin never imports a sibling domain, and there is
+ *  deliberately no second proposal system — one store, one TTL, one sweep, one card surface, one host answer.
+ *
+ *  It takes the plugin's identity + installer because the STORE holds them: they are what the confirm re-check
+ *  re-reads (still installed? installer still hosts?) and what the executor rebuilds the bridge from. The
+ *  guest supplies only the act. */
+export type RaisePluginSuggestion = (req: {
+  readonly plugin: PluginIdentity;
+  readonly installerUserId: UserId;
+  readonly chatId: ChatId;
+  readonly act: PluginSuggestedAct;
+}) => void;
+
+/** VOID every pending ask of one plugin — the deactivate/uninstall sweep. Wired at compose to the shared
+ *  store's `voidPlugin`. The confirm-time liveness re-check is what makes a stale card SAFE; this is what
+ *  makes it disappear. */
+export type VoidPluginSuggestions = (pluginId: PluginId) => void;
 
 /** The per-plugin HOURLY call floor for the two capabilities whose per-call bounds do not add up to a rate
  *  (`net.fetch` egress, `llm.quiet` spend) — `substrate/rate-floor.ts` implements it, one instance per

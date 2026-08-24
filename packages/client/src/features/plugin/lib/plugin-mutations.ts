@@ -9,7 +9,7 @@
 // or fail) and upgrade (a new bundle logs against the same plugin row).
 //
 // ERROR COPY IS THE SERVER'S. The `domain/plugin` lifecycle errors already carry host-readable sentences
-// ("a plugin with slug \"x\" is already installed — use upgrade to change its bundle"; "you already have 4
+// ("a plugin with slug \"x\" is already installed — use Update to change its bundle"; "you already have 4
 // snippets running…"), which is unusual and deliberate: they are the refusals a person holding a file needs
 // to act on. So `errorToast` forwards `error.message` and falls back to a generic line only when the error
 // is not one of ours — re-spelling them here would give one refusal two homes that drift.

@@ -13,7 +13,14 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
-import type { ArmDispatch, AutomationOps, SuggestionStore, TurnOriginRead } from "../../../../packages/server/src/domain/automation/contract/ops.ts";
+import type {
+  ArmDispatch,
+  AutomationOps,
+  ExecutePluginSuggestion,
+  IsPluginLive,
+  SuggestionStore,
+  TurnOriginRead,
+} from "../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { PluginSubscriberRegistry } from "../../../../packages/server/src/domain/automation/contract/plugin-subscribers.ts";
 import type { AutomationContext, AutomationService } from "../../../../packages/server/src/domain/automation/contract/service.ts";
 import {
@@ -76,6 +83,12 @@ export interface HarnessOverrides {
   readonly pluginSubscribers?: PluginSubscriberRegistry;
   /** S4 — the pending-ask store (default: a fresh empty one). Pass one in to inspect what a fire stashed. */
   readonly suggestions?: SuggestionStore;
+  /** S4 posture 2, the PLUGIN arm — the injected executor a confirmed plugin act runs through, and the plugin
+   *  liveness read the confirm re-check consults. Defaults REFUSE and report NOT LIVE: a confirm test that
+   *  forgets to wire them sees a typed refusal, never a silently-executed act (the fail-closed default class
+   *  `resolveViewerVisibility` and `isBookAttachedToChat` already use in the plugin harness). */
+  readonly executePluginSuggestion?: ExecutePluginSuggestion;
+  readonly isPluginLive?: IsPluginLive;
 }
 
 /** The default injected dispatcher — every arm is not-yet-wired (records `action_error`), the A5 posture a
@@ -178,6 +191,9 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
       const row = rows[0];
       return row === undefined ? null : { userId, role: row.role, handle: row.handle, externalId: null, via: "fallback" };
     },
+    executePluginSuggestion:
+      overrides.executePluginSuggestion ?? ((): Promise<void> => Promise.reject(new Error("test: executePluginSuggestion was not wired for this harness"))),
+    isPluginLive: overrides.isPluginLive ?? ((): Promise<boolean> => Promise.resolve(false)),
     notify: overrides.notify ?? ((): void => undefined),
   };
 }

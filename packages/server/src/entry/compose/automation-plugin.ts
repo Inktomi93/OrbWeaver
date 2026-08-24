@@ -33,12 +33,13 @@ import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
-import type { AutomationService } from "#domain/automation";
+import type { AutomationService, ExecutePluginSuggestion } from "#domain/automation";
 import {
   createArmExecutors,
   createAutomationService,
   createEnabledRuleIndex,
   createPluginSubscriberRegistry,
+  createPluginSuggestionRaiser,
   createPromptTransformIndex,
   createSuggestionStore,
   loadPresentHumanMemberIds,
@@ -46,8 +47,9 @@ import {
 import { loadPresentRole } from "#domain/chat";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
-import type { PluginHostOps, PluginHostPort, PluginService } from "#domain/plugin";
+import type { PluginBelts, PluginHostOps, PluginHostPort, PluginService } from "#domain/plugin";
 import {
+  buildConfirmedActRunner,
   buildPluginPromptTransform,
   buildPluginStorage,
   capFactContent,
@@ -55,6 +57,7 @@ import {
   createPluginRateFloor,
   createPluginService,
   createSnippetGate,
+  isPluginEnabledFor,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
 } from "#domain/plugin";
@@ -214,6 +217,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // from it) must hold the SAME instance — two stores would make every card unconfirmable.
   const automationSuggestions = createSuggestionStore();
   const newSuggestionId = minter(ID_PREFIX.automationSuggestion);
+  // THE ONE LATE BIND in this file, and it is a genuine ordering fact rather than a cycle: automation's context
+  // is constructed BEFORE the plugin op bundle (the plugin ops consume automation's global-var verbs and its
+  // write ops), yet automation's S4 plugin arm needs to execute through the PLUGIN's bridge, which is built
+  // from that bundle. So the runner is assigned immediately after the bundle exists, below. It cannot be
+  // observed unset: the only caller is `confirmSuggestion`, served over the transport long after this returns.
+  let confirmedActRunner: ExecutePluginSuggestion | undefined;
   // The plugin `events.on` fan-out registry — ONE per-process instance, injected into the
   // automation context (the watcher fan-out reads it) AND handed to the membrane host's `subscribeEvent` seam.
   const pluginSubscribers = createPluginSubscriberRegistry();
@@ -249,6 +258,24 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     pluginSubscribers,
     transforms: automationTransforms,
     resolveAuthor: resolveOwnerPrincipal,
+    // S4 POSTURE 2, the plugin arm — declared by automation, BODIED by plugin. THE ENFORCEMENT SET FOLLOWS THE
+    // ORIGIN: a confirmed plugin act re-enters through the PLUGIN's own bridge (`buildConfirmedActRunner`), so
+    // it meets the attach gate, the per-plugin entry ceiling, `neutralizeMacros` and the hourly belts — NOT
+    // automation's `runArm`, whose arms carry a different enforcement set for acts that look identical. The
+    // ops bundle + belts are built below, so this closes over them lazily.
+    executePluginSuggestion: (req) => {
+      const run = confirmedActRunner;
+      if (run === undefined) {
+        // Unreachable after boot and a THROW rather than a silent no-op: a confirm can only arrive over the
+        // transport, which is served long after this file finishes. A silent no-op here would tell a host
+        // their answer was taken while nothing happened.
+        throw new Error("compose: the plugin confirmed-act runner is not wired yet");
+      }
+      return run(req);
+    },
+    // The plugin half of the confirm-time liveness re-check — OWNER-SCOPED, so a row that is not this actor's
+    // answers `false`. Fail-closed on disabled/errored/missing.
+    isPluginLive: (pluginId, ownerId) => isPluginEnabledFor(db, ownerId, pluginId),
     notify: automationNotify,
   });
   // Prime the watcher's in-process enabled index + the transform registry from canon —
@@ -261,6 +288,17 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // write ops verbatim + the installing-user global-KV bridge + the tool-use RUNTIME registrar (PL-A).
   let pluginTransformSeq = 0;
   const pluginHost: PluginHostPort = createPluginHost({ nowEpochMs: now, nextRandom: Math.random, mintId: () => randomUUID() });
+  // The capability BELTS — process-wide state, minted ONCE here and shared by every activation (the
+  // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
+  // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or
+  // per-instance, and `HOST_CALLS_IN_FLIGHT_MAX` bounds concurrency, which is not a rate. Hoisted above the
+  // op bundle because the CONFIRMED-ACT runner needs the same instances — a confirmed act must meet the same
+  // ceilings the direct act would have, so a host answering "yes" never tops a plugin's budget back up.
+  const pluginBelts: PluginBelts = {
+    notify: createNotifyFloor(now),
+    egress: createPluginRateFloor(now, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
+    quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
+  };
   const pluginHostOps: PluginHostOps = {
     // INVARIANT (injected-op-caller-gate, INFO-5): every chat op below takes a BARE chatId and does NOT re-check
     // caller authority — it TRUSTS that admission already happened. The membrane is the ONLY caller and the gate.
@@ -393,6 +431,16 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
       delete: async (ownerId, key) => automation.deleteGlobalVariable({ principal: await resolveOwnerPrincipal(ownerId), key }),
     },
+    // S4 POSTURE 2 — the SHARED suggestion inbox, reached from the plugin side. `raise` is automation's own
+    // raiser (it mints the id, renders + caps the question, stamps the same TTL and emits the same host-only
+    // card event); `voidForPlugin` is the store's plugin sweep, fired on deactivate/uninstall. This is the
+    // whole of "do not build a second proposal system": one store, one TTL, one card surface.
+    suggestions: {
+      raise: createPluginSuggestionRaiser({ suggestions: automationSuggestions, notify: automationNotify, newSuggestionId, now }),
+      voidForPlugin: (pluginId) => {
+        automationSuggestions.voidPlugin(pluginId);
+      },
+    },
     registrar: {
       // PL-A: a plugin tool namespaces `plugin_<slug'>_<name>` and lands in the ONE tool-use registry.
       registerTool: (reg, invoke, scope) =>
@@ -456,6 +504,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
     },
   };
+  // The late bind announced above: automation's S4 plugin arm executes through the PLUGIN's bridge, which
+  // needs this op bundle. Assigned the moment the bundle exists, before any transport is served.
+  confirmedActRunner = buildConfirmedActRunner(pluginHostOps, pluginBelts);
   const plugin = createPluginService({
     db,
     now,
@@ -483,11 +534,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
     // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or
     // per-instance, and `HOST_CALLS_IN_FLIGHT_MAX` bounds concurrency, which is not a rate.
-    belts: {
-      notify: createNotifyFloor(now),
-      egress: createPluginRateFloor(now, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
-      quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
-    },
+    belts: pluginBelts,
     // The per-user concurrent-snippet ceiling — same posture as the notify floor: process-wide state minted ONCE
     // here. `runSnippet` is the one plugin verb a plain member reaches and each call pins a QuickJSContext.
     snippetGate: createSnippetGate(),

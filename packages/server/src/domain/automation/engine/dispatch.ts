@@ -155,17 +155,18 @@ function inviteOnRefusal(rc: RuleCtx, actions: readonly AutomationAction[], limi
   const id = rc.ctx.newSuggestionId();
   const expiresAt = rc.deps.nowMs + AUTOMATION_SUGGESTION_TTL_MS;
   const summary = summarizeRateRefusal(rc.rule.name, limitDetail);
+  const source = { kind: "rule", ruleId: rc.rule.id } as const;
   rc.ctx.suggestions.raise({
     id,
     kind: "invitation",
     chatId: rc.chatId,
-    ruleId: rc.rule.id,
-    authorUserId: rc.rule.ownerId,
+    source,
+    actorUserId: rc.rule.ownerId,
     summary,
     expiresAt,
-    stashed: null,
+    payload: null,
   });
-  rc.ctx.notify({ type: "suggestionRaised", chatId: rc.chatId, ruleId: rc.rule.id, suggestionId: id, kind: "invitation", summary, expiresAt });
+  rc.ctx.notify({ type: "suggestionRaised", chatId: rc.chatId, source, suggestionId: id, kind: "invitation", summary, expiresAt });
 }
 
 /** A rule's arm run: the aborting arm's `arm_error` detail (`null` = every arm succeeded), plus whether any

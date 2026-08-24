@@ -39,7 +39,7 @@
 import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
-import type { PluginBelts, PluginHostOps } from "../contract/ops.ts";
+import type { PluginBelts, PluginHostOps, PluginIdentity } from "../contract/ops.ts";
 
 /** The per-plugin ≤64-entries-per-book ceiling — the plugin mirror of automation's `RULE_MAX_ENTRIES_PER_BOOK`
  *  (a looping inserter fills a book otherwise). Counted over the plugin's OWN title namespace, so one plugin's
@@ -65,7 +65,7 @@ function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
  *  (`entryKey`→`title`, `contentTemplate`→`content`; the guest's `position` hint has no target in the shared
  *  writer and is dropped); imagery forwards the action args + admitted chat to the front door and hands the guest
  *  ONLY `{assetId}` (cost never crosses the realm boundary). */
-export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, pluginId: PluginId | null, belts: PluginBelts): PluginBridge {
+export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, plugin: PluginIdentity | null, belts: PluginBelts): PluginBridge {
   // The plugin-scoped ops (storage / notify / quick_reply / llm.quiet / the net.fetch egress claim) are keyed
   // by a PERSISTENT pluginId — a transient snippet has none (`null`). Its fixed grant profile omits every one
   // of those capabilities, so the membrane's capability gate never reaches these closures on the snippet path;
@@ -73,11 +73,12 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
   // profile, never a live path). For the two BELTED capabilities the requirement is stronger than plumbing:
   // an hourly ceiling has to be keyed to something durable, and an anonymous one-shot has no identity to bill
   // or to bound — so "no pluginId" and "may not egress or spend" are the same fact, not two.
+  const pluginId = plugin?.id ?? null;
   const requirePluginId = (fn: string): PluginId => {
-    if (pluginId === null) {
+    if (plugin === null) {
       throw new Error(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
     }
-    return pluginId;
+    return plugin.id;
   };
   return {
     chat: {
@@ -202,6 +203,19 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         belts.quietLlm.admit(id);
         return await ops.llm.quiet({ installerUserId, prompt });
       },
+    },
+    // POSTURE 2 — stash the act as an ask instead of performing it. The membrane calls this on exactly the
+    // arm that used to be a flat refusal (grant held, host authority absent) and converts the resolution into
+    // the guest-facing `PluginSuggestedError`. The plugin IDENTITY and the INSTALLER are closed over here, so
+    // a guest can no more name whose ask this is than it can name a funder — it supplies the act and nothing
+    // else. `async` so a raise failure reaches the guest as a rejection like every other membrane refusal.
+    suggest: async (chatId, act): Promise<void> => {
+      const id = requirePluginId("suggest");
+      // The name is DERIVED from the re-validated manifest at activation (never guest-supplied) and is what
+      // makes the host's card say WHO is asking — a plugin ask is the one card class whose requester is not
+      // a rule the host wrote themselves.
+      ops.suggestions.raise({ plugin: { id, name: plugin?.name ?? "" }, installerUserId, chatId, act });
+      return await Promise.resolve();
     },
     // The `net.fetch` HOURLY egress claim. Infra performs the fetch (`safeFetch` is the audited SSRF guard and
     // lives in infra — a domain may not import it), so what crosses down is only the admission, keyed by a

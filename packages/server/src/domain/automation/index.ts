@@ -26,6 +26,8 @@ export type {
   DispatchFrame,
   EmitAutomationEvent,
   EnabledRuleIndex,
+  ExecutePluginSuggestion,
+  IsPluginLive,
   PendingSuggestion,
   PromptTransformIndex,
   PromptTransformIndexDeps,
@@ -70,5 +72,5 @@ export { createEnabledRuleIndex } from "./substrate/enabled-index.ts";
 export { createPluginSubscriberRegistry } from "./substrate/plugin-subscribers.ts";
 // S4 — the in-RAM pending-ask store (RULED F1). Created ONCE at the composition root and injected on the
 // context, exactly like the enabled-rule index beside it.
-export { AUTOMATION_SUGGESTION_TTL_MS, createSuggestionStore } from "./substrate/suggestions.ts";
+export { AUTOMATION_SUGGESTION_TTL_MS, createPluginSuggestionRaiser, createSuggestionStore } from "./substrate/suggestions.ts";
 export { startAutomationWatcher } from "./watcher/start-automation-watcher.ts";

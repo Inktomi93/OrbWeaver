@@ -21,7 +21,7 @@ const NOW = 1_700_000_000_000;
 const TTL = 1_800_000;
 
 function raised(ruleId: AutomationRuleId, summary: string, id: AutomationSuggestionId = mintTypeId(ID_PREFIX.automationSuggestion)): AutomationBusEvent {
-  return { type: "suggestionRaised", chatId: CHAT, ruleId, suggestionId: id, kind: "confirm", summary, expiresAt: NOW + TTL };
+  return { type: "suggestionRaised", chatId: CHAT, source: { kind: "rule", ruleId }, suggestionId: id, kind: "confirm", summary, expiresAt: NOW + TTL };
 }
 
 function fold(events: readonly AutomationBusEvent[]): readonly PendingAsk[] {
@@ -30,7 +30,7 @@ function fold(events: readonly AutomationBusEvent[]): readonly PendingAsk[] {
 
 test("suggestionRaised adds the ask, whole — the payload IS the card (there is no row to fetch)", () => {
   const [ask] = fold([raised(RULE_1, "Take a turn in the room?")]);
-  expect(ask).toMatchObject({ ruleId: RULE_1, chatId: CHAT, kind: "confirm", summary: "Take a turn in the room?", expiresAt: NOW + TTL });
+  expect(ask).toMatchObject({ source: { kind: "rule", ruleId: RULE_1 }, chatId: CHAT, kind: "confirm", summary: "Take a turn in the room?", expiresAt: NOW + TTL });
 });
 
 test("a second ask from the SAME rule REPLACES the first (mirroring the server's replace-per-slot)", () => {

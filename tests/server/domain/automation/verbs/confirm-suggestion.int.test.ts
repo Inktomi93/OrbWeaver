@@ -14,9 +14,9 @@
 // cross-feature op bundle (a capturing `requestTurn`), because "the op did not fire" is the assertion.
 
 import { automationBudgets, chatParticipants } from "@orb/db";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { AutomationOps, AutomationTurnRequest } from "@orb/server/domain/automation";
+import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } from "@orb/server/domain/automation";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { AutomationContext } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
@@ -121,7 +121,7 @@ describe("the confirm-first card", () => {
     expect(turns).toEqual([]);
     // The ask exists, keyed to its rule, carrying the rendered summary the host reads.
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
-    expect(ask).toMatchObject({ kind: "confirm", ruleId, chatId: fixture.chatId, authorUserId: fixture.host });
+    expect(ask).toMatchObject({ kind: "confirm", source: { kind: "rule", ruleId }, chatId: fixture.chatId, actorUserId: fixture.host });
     expect(ask?.summary).toBe("Take a turn: “Recap the scene.”");
     // …and the bus told the host, on the ONE new member (host-only by the room's default-deny filter).
     expect(fixture.events.filter((e) => e.type === "suggestionRaised")).toHaveLength(1);
@@ -295,7 +295,7 @@ describe("the rate-refusal invitation (RULED F4)", () => {
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
     expect(ask?.kind).toBe("invitation");
     // No TOCTOU by construction: `budget_refused` precedes predicate and env, so there is nothing to stash.
-    expect(ask?.stashed).toBeNull();
+    expect(ask?.payload).toBeNull();
     expect(ask?.summary).toContain("rate cap");
   });
 
@@ -356,4 +356,154 @@ test("the handoff sweep is per-ROOM", async () => {
   await fixture.svc.handleEvent({ type: "chatUpdated", chatId: otherChat });
 
   expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(1);
+});
+
+// ── PLUGINS JOIN THE THREE-POSTURE LAW (the #24 follow-on) ────────────────────────────────────────────
+// A plugin whose installer is not host of the invocation chat now ASKS instead of taking a flat refusal, and
+// its ask lands in this SAME store, answered by this SAME verb. What these rows pin is the part that could
+// silently go wrong: the confirmed act must re-enter through the PLUGIN's own executor (the enforcement set
+// follows the ORIGIN), and the two liveness re-checks must each fail CLOSED.
+
+const PLUGIN_ID = castId<PluginId>("plugin_confirm00000000000001");
+const PLUGIN_GONE = /no longer installed or enabled/u;
+const INSTALLER_LOST = /installer no longer hosts this room/u;
+
+/** A fixture whose plugin arm RECORDS what it was asked to execute, with injectable liveness. */
+async function pluginAskFixture(over: { readonly live?: boolean; readonly failExec?: boolean } = {}): Promise<{
+  fixture: Awaited<ReturnType<typeof ruleFixture>>;
+  executed: Parameters<ExecutePluginSuggestion>[0][];
+}> {
+  const executed: Parameters<ExecutePluginSuggestion>[0][] = [];
+  const fixture = await ruleFixture({
+    isPluginLive: () => Promise.resolve(over.live ?? true),
+    executePluginSuggestion: (req): Promise<void> => {
+      executed.push(req);
+      return over.failExec === true ? Promise.reject(new Error("the book is not attached to this chat")) : Promise.resolve();
+    },
+  });
+  return { fixture, executed };
+}
+
+/** Raise a plugin-origin ask straight into the fixture's store, as the membrane→bridge→raiser path would. */
+function raisePluginAsk(fx: Awaited<ReturnType<typeof ruleFixture>>, actorUserId: UserId): AutomationSuggestionId {
+  const id = mintTypeId(ID_PREFIX.automationSuggestion);
+  fx.ctx.suggestions.raise({
+    id,
+    kind: "confirm",
+    chatId: fx.chatId,
+    source: { kind: "plugin", pluginId: PLUGIN_ID },
+    actorUserId,
+    summary: "“Weather Teller” wants to save a lore entry for “storm”. Allow it?",
+    expiresAt: FIXED_NOW_MS + 1_800_000,
+    payload: {
+      via: "plugin-act",
+      act: { kind: "worldInfoUpsert", entry: { bookId: "wbook_x", entryKey: "storm", keys: [], contentTemplate: "it rains", position: "before" } },
+    },
+  });
+  return id;
+}
+
+describe("S4 — a PLUGIN-origin ask", () => {
+  test("confirming runs it through the PLUGIN's executor, as the INSTALLER, and never through runArm", async () => {
+    // THE ENFORCEMENT-SET PIN. `runArm` is the not-wired dispatcher in this harness, so if the confirm had
+    // routed a plugin act through automation's arm path this would come back `action_error` with nothing
+    // recorded. `fired` + one recorded call is the proof it took the plugin's own door.
+    const { fixture, executed } = await pluginAskFixture();
+    const id = raisePluginAsk(fixture, fixture.host);
+
+    const result = await fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id });
+
+    expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
+    expect(executed).toHaveLength(1);
+    // The act runs as the INSTALLER — the confirmer authorizes, never substitutes (§3-S4's identity law, in
+    // the plugin's spelling).
+    expect(executed[0]?.installerUserId).toBe(fixture.host);
+    expect(executed[0]?.pluginId).toBe(PLUGIN_ID);
+    expect(executed[0]?.act.kind).toBe("worldInfoUpsert");
+  });
+
+  test("a DISABLED / uninstalled plugin refuses typed — the card is not one more act after the owner said stop", async () => {
+    const { fixture, executed } = await pluginAskFixture({ live: false });
+    const id = raisePluginAsk(fixture, fixture.host);
+
+    await expect(fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id })).rejects.toThrow(PLUGIN_GONE);
+    expect(executed).toEqual([]);
+  });
+
+  test("an installer who LOST host refuses — the confirmer's own host role never stands in (fail-closed handoff)", async () => {
+    // The owner-ruled wall: on a handoff the pending ask dies. No re-mint, no transfer to the new host.
+    const { fixture, executed } = await pluginAskFixture();
+    const id = raisePluginAsk(fixture, fixture.host);
+    const newHost = await handOffHost(fixture, "plugin_newhost");
+
+    await expect(fixture.svc.confirmSuggestion({ principal: principal(newHost), suggestionId: id })).rejects.toThrow(INSTALLER_LOST);
+    expect(executed).toEqual([]);
+  });
+
+  test("TAKE-ONCE holds across the origin branch — a double confirm executes exactly once", async () => {
+    const { fixture, executed } = await pluginAskFixture();
+    const id = raisePluginAsk(fixture, fixture.host);
+
+    const settled = await Promise.allSettled([
+      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id }),
+      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id }),
+    ]);
+
+    expect(settled.filter((s) => s.status === "fulfilled")).toHaveLength(1);
+    expect(executed).toHaveLength(1);
+  });
+
+  test("a non-host member cannot confirm a plugin's ask (the host gate is origin-blind)", async () => {
+    const { fixture, executed } = await pluginAskFixture();
+    const id = raisePluginAsk(fixture, fixture.host);
+    const member = await seedUser(fixture.db, "plugin_member");
+    await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "plugin_member", userId: member, role: "member" });
+
+    await expect(fixture.svc.confirmSuggestion({ principal: principal(member), suggestionId: id })).rejects.toThrow();
+    expect(executed).toEqual([]);
+  });
+
+  test("a stranger gets the leak-free NOT_FOUND, learning nothing about the room or the plugin", async () => {
+    const { fixture, executed } = await pluginAskFixture();
+    const id = raisePluginAsk(fixture, fixture.host);
+    const stranger = await seedUser(fixture.db, "plugin_stranger");
+
+    await expect(fixture.svc.confirmSuggestion({ principal: principal(stranger), suggestionId: id })).rejects.toThrow(SUGGESTION_REFUSAL);
+    expect(executed).toEqual([]);
+  });
+
+  test("a REFUSED act is errors-as-data (`action_error`), and the ask is spent either way", async () => {
+    // The plugin's own gates run at confirm time on the CURRENT tree — a book detached between the ask and
+    // the answer refuses, which is the room withdrawing its consent. The host is told; nothing is retried
+    // against dead state.
+    const { fixture, executed } = await pluginAskFixture({ failExec: true });
+    const id = raisePluginAsk(fixture, fixture.host);
+
+    const result = await fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id });
+
+    expect(result).toEqual({ ran: "stashed-arm", outcome: "action_error" });
+    expect(executed).toHaveLength(1);
+    expect(fixture.ctx.suggestions.peek(id, FIXED_NOW_MS)).toBeNull();
+  });
+
+  test("DISMISS works on a plugin ask exactly as on a rule's, and executes nothing", async () => {
+    const { fixture, executed } = await pluginAskFixture();
+    const id = raisePluginAsk(fixture, fixture.host);
+
+    await fixture.svc.dismissSuggestion({ principal: principal(fixture.host), suggestionId: id });
+
+    expect(fixture.ctx.suggestions.peek(id, FIXED_NOW_MS)).toBeNull();
+    expect(executed).toEqual([]);
+  });
+
+  test("the host-handoff SWEEP voids a plugin's pending ask (the actor is the installer, one field, one rule)", async () => {
+    const { fixture } = await pluginAskFixture();
+    raisePluginAsk(fixture, fixture.host);
+    expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(1);
+
+    await handOffHost(fixture, "plugin_sweep_newhost");
+    await fixture.svc.handleEvent({ type: "chatUpdated", chatId: fixture.chatId });
+
+    expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
+  });
 });

@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import { PluginCrashedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
+import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("enable activates on the CAS bundle under the granted subset; the row is enabled", async () => {
   const db = await freshDb();
@@ -68,4 +68,44 @@ test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused",
     PluginNotFoundError,
   );
   await expect(h.service.setEnabled({ caller: principalFor(user), pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(DomainForbiddenError);
+});
+
+test("DISABLING voids the plugin's pending posture-2 asks — a stale card never outlives the plugin", async () => {
+  // The confirm-time liveness re-check is what makes a stale plugin card SAFE (it refuses); this sweep is what
+  // makes it DISAPPEAR, so a host is never offered an answer that would only refuse. It fires UNCONDITIONALLY,
+  // before the resident check, because a plugin can hold pending cards while holding no resident instance —
+  // an upgrade tears the instance down and lands the row disabled.
+  const db = await freshDb();
+  const voided: PluginId[] = [];
+  const ops = makeInertOps();
+  const h = makePluginHarness(db, {
+    ops: { ...ops, suggestions: { ...ops.suggestions, voidForPlugin: (pluginId): void => void voided.push(pluginId) } },
+  });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "sweep", capabilities: ["chat.read"] }),
+    grant: ["chat.read"],
+  });
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  voided.length = 0; // the enable's own clean-slate deactivate already swept; measure the DISABLE
+
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
+
+  expect(voided).toEqual([installed.id]);
+});
+
+test("UNINSTALL voids them too (the same deactivate path — a removed plugin leaves no answerable card)", async () => {
+  const db = await freshDb();
+  const voided: PluginId[] = [];
+  const ops = makeInertOps();
+  const h = makePluginHarness(db, {
+    ops: { ...ops, suggestions: { ...ops.suggestions, voidForPlugin: (pluginId): void => void voided.push(pluginId) } },
+  });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "gone" }), grant: [] });
+
+  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+
+  expect(voided).toEqual([installed.id]);
 });

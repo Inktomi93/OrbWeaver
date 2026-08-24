@@ -111,6 +111,10 @@ export class PluginSnippetBusyError extends DomainConflictError {
 // `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginAlreadyInstalledError extends DomainConflictError {
   constructor(slug: string) {
-    super(`a plugin with slug "${slug}" is already installed — use upgrade to change its bundle`);
+    // "Update", not "upgrade": the client forwards this sentence VERBATIM as a single-homing choice
+    // (`features/plugin/lib/plugin-mutations.ts`), and its button says Update — so the server string is the
+    // one home where the two can be made to agree. Naming an affordance the product does not have is a
+    // defect one screen over, even when the sentence is otherwise true.
+    super(`a plugin with slug "${slug}" is already installed — use Update to change its bundle`);
   }
 }

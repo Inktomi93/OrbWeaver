@@ -8,7 +8,7 @@
 //   VOID            — by rule (consent withdrawn) and by chat (the RULED host-handoff wall).
 
 import type { AutomationSuggestionKind } from "@orb/contracts/automation";
-import type { AutomationRuleId, AutomationSuggestionId, ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PendingSuggestion } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS, createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
@@ -20,6 +20,8 @@ const CHAT_B = castId<ChatId>("chat_b");
 const RULE_1 = castId<AutomationRuleId>("automationrule_1");
 const RULE_2 = castId<AutomationRuleId>("automationrule_2");
 const AUTHOR = castId<UserId>("user_author");
+const PLUGIN_1 = castId<PluginId>("plugin_one000000000000000001");
+const PLUGIN_2 = castId<PluginId>("plugin_two000000000000000002");
 
 function ask(over: Partial<PendingSuggestion> = {}): PendingSuggestion {
   const kind: AutomationSuggestionKind = "confirm";
@@ -27,11 +29,11 @@ function ask(over: Partial<PendingSuggestion> = {}): PendingSuggestion {
     id: mintTypeId(ID_PREFIX.automationSuggestion),
     kind,
     chatId: CHAT_A,
-    ruleId: RULE_1,
-    authorUserId: AUTHOR,
+    source: { kind: "rule", ruleId: RULE_1 },
+    actorUserId: AUTHOR,
     summary: "Take a turn in the room?",
     expiresAt: NOW + AUTOMATION_SUGGESTION_TTL_MS,
-    stashed: null,
+    payload: null,
     ...over,
   };
 }
@@ -61,9 +63,59 @@ test("raise REPLACES per (chatId, ruleId) — one rule keeps ONE live ask howeve
 
 test("a DIFFERENT rule in the same chat gets its own slot (the replace is per rule, not per chat)", () => {
   const store = createSuggestionStore();
-  store.raise(ask({ ruleId: RULE_1 }));
-  store.raise(ask({ ruleId: RULE_2 }));
+  store.raise(ask({ source: { kind: "rule", ruleId: RULE_1 } }));
+  store.raise(ask({ source: { kind: "rule", ruleId: RULE_2 } }));
   expect(store.countForChat(CHAT_A)).toBe(2);
+});
+
+// ONE INBOX, TWO ORIGINS — plugins joined the same three-posture law post-#24. These pin that the shared store
+// treats a plugin ask as a first-class citizen with its OWN slot, and that neither origin can evict the other.
+test("a PLUGIN ask keeps its own slot, replaces per plugin, and never collides with a rule's", () => {
+  const store = createSuggestionStore();
+  const pluginAsk = ask({ source: { kind: "plugin", pluginId: PLUGIN_1 }, summary: "“Weather” wants to take a turn. Allow it?" });
+  store.raise(ask({ source: { kind: "rule", ruleId: RULE_1 } }));
+  store.raise(pluginAsk);
+  store.raise(ask({ source: { kind: "plugin", pluginId: PLUGIN_2 } }));
+  // Three origins in one room, three cards — the attention budget is per ORIGIN, not per kind of origin.
+  expect(store.countForChat(CHAT_A)).toBe(3);
+
+  // A chatty plugin keeps exactly ONE live ask, the same bound a cadence rule gets.
+  const replacement = ask({ source: { kind: "plugin", pluginId: PLUGIN_1 }, summary: "beat 2" });
+  store.raise(replacement);
+  expect(store.countForChat(CHAT_A)).toBe(3);
+  expect(store.peek(pluginAsk.id, NOW)).toBeNull();
+  expect(store.peek(replacement.id, NOW)?.summary).toBe("beat 2");
+});
+
+test("voidPlugin drops one plugin's asks and leaves every rule's alone (the deactivate/uninstall sweep)", () => {
+  const store = createSuggestionStore();
+  const ruleAsk = ask({ source: { kind: "rule", ruleId: RULE_1 } });
+  const mine = ask({ source: { kind: "plugin", pluginId: PLUGIN_1 } });
+  const theirs = ask({ source: { kind: "plugin", pluginId: PLUGIN_2 } });
+  store.raise(ruleAsk);
+  store.raise(mine);
+  store.raise(theirs);
+
+  expect(store.voidPlugin(PLUGIN_1)).toBe(1);
+  expect(store.peek(mine.id, NOW)).toBeNull();
+  // A rule's ask and another plugin's are untouched — one plugin going away is not a room-wide event.
+  expect(store.peek(ruleAsk.id, NOW)?.id).toBe(ruleAsk.id);
+  expect(store.peek(theirs.id, NOW)?.id).toBe(theirs.id);
+});
+
+test("voidRule never touches a PLUGIN ask (and voidPlugin never touches a rule's)", () => {
+  // The two sweeps are keyed on DIFFERENT arms of the union, so neither can reach the other's records even if
+  // the two id strings ever coincided — which is exactly why the slot key carries its `rule|`/`plugin|` prefix.
+  const store = createSuggestionStore();
+  const ruleAsk = ask({ source: { kind: "rule", ruleId: RULE_1 } });
+  const pluginAsk = ask({ source: { kind: "plugin", pluginId: PLUGIN_1 } });
+  store.raise(ruleAsk);
+  store.raise(pluginAsk);
+
+  expect(store.voidRule(RULE_1)).toBe(1);
+  expect(store.peek(pluginAsk.id, NOW)?.id).toBe(pluginAsk.id);
+  expect(store.voidPlugin(PLUGIN_1)).toBe(1);
+  expect(store.countForChat(CHAT_A)).toBe(0);
 });
 
 test("the TTL is swept against the INJECTED clock, on the calls that can observe an expired ask", () => {
@@ -85,7 +137,7 @@ test("the TTL is swept against the INJECTED clock, on the calls that can observe
 test("listForChat sweeps too — an expired ask never reaches the host-handoff re-check", () => {
   const store = createSuggestionStore();
   const stale = ask({ expiresAt: NOW + 1 });
-  const live = ask({ ruleId: RULE_2 });
+  const live = ask({ source: { kind: "rule", ruleId: RULE_2 } });
   store.raise(stale);
   store.raise(live);
   expect(store.listForChat(CHAT_A, NOW + 2).map((a) => a.id)).toEqual([live.id]);
@@ -93,11 +145,11 @@ test("listForChat sweeps too — an expired ask never reaches the host-handoff r
 
 test("voidRule drops one rule's asks; voidChat drops the whole room's (the handoff wall)", () => {
   const store = createSuggestionStore();
-  const r1 = ask({ ruleId: RULE_1 });
-  const r2 = ask({ ruleId: RULE_2 });
+  const r1 = ask({ source: { kind: "rule", ruleId: RULE_1 } });
+  const r2 = ask({ source: { kind: "rule", ruleId: RULE_2 } });
   // A real ruleId belongs to exactly ONE chat (the FK), so the other room's ask carries its own rule id —
   // `voidRule` is keyed on the rule alone and would otherwise be asked a question reality never poses.
-  const other = ask({ chatId: CHAT_B, ruleId: castId<AutomationRuleId>("automationrule_3") });
+  const other = ask({ chatId: CHAT_B, source: { kind: "rule", ruleId: castId<AutomationRuleId>("automationrule_3") } });
   store.raise(r1);
   store.raise(r2);
   store.raise(other);

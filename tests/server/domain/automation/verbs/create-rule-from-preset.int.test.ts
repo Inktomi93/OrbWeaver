@@ -454,7 +454,7 @@ describe("§4 #1 welcome-back recap (two rules, the confirm-first CARD)", () => 
 
     expect(f.turns).toEqual([]);
     const [ask] = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS);
-    expect(ask).toMatchObject({ kind: "confirm", ruleId: nth(views, 1).id });
+    expect(ask).toMatchObject({ kind: "confirm", source: { kind: "rule", ruleId: nth(views, 1).id } });
     expect(ask?.summary).toBe("Take a turn: “Recap it.”");
   });
 });

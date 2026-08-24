@@ -8,6 +8,11 @@ import type { PluginContext, PluginRegistry } from "../contract/service.ts";
 
 export function createDeactivate(ctx: PluginContext, registry: PluginRegistry): (pluginId: PluginId) => void {
   return (pluginId: PluginId): void => {
+    // VOID this plugin's pending posture-2 asks FIRST, and unconditionally — before the resident check, because
+    // a plugin can hold pending cards while holding no resident instance (an upgrade tears the instance down and
+    // lands the row disabled). The confirm-time liveness re-check is what makes a stale card SAFE; this is what
+    // makes it DISAPPEAR, so a host is never offered an answer that would only refuse.
+    ctx.ops.suggestions.voidForPlugin(pluginId);
     const resident = registry.get(pluginId);
     if (resident === undefined) {
       return;

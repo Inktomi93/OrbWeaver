@@ -15,6 +15,8 @@ import type {
   AutomationOps,
   EmitAutomationEvent,
   EnabledRuleIndex,
+  ExecutePluginSuggestion,
+  IsPluginLive,
   PromptTransformIndex,
   ResolveAuthorPrincipal,
   SuggestionStore,
@@ -76,6 +78,14 @@ export interface AutomationContext {
   readonly transforms: PromptTransformIndex;
   /** Resolve a rule author's Principal for the dispatch-time host re-check (minted at entry). */
   readonly resolveAuthor: ResolveAuthorPrincipal;
+  /** S4 plugin arm — the PLUGIN-origin confirm's executor. Wired at compose to `domain/plugin` (the cake:
+   *  automation never imports a sibling domain). It re-enters the PLUGIN's own bridge, so a confirmed act
+   *  takes the plugin's gates and belts — NOT automation's `runArm`, whose arms carry a different
+   *  enforcement set for acts that look identical (`verbs/confirm-suggestion.ts::runPluginAct`). */
+  readonly executePluginSuggestion: ExecutePluginSuggestion;
+  /** S4 plugin arm — the plugin half of the confirm-time liveness re-check (still installed AND enabled).
+   *  Wired at compose to `domain/plugin`'s owner-scoped read; fail-CLOSED on anything else. */
+  readonly isPluginLive: IsPluginLive;
   /** The automation feedback-bus sink — wired at compose to `publishAutomationEvent`, fanning
    *  the event to the chat's `automation.stream` subscribers (member-visible chips + host-only fire/error). */
   readonly notify: EmitAutomationEvent;
