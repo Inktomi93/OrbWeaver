@@ -30,6 +30,7 @@ export type {
   TurnOriginRead,
 } from "./contract/ops.ts";
 export type {
+  CreateRuleFromPresetParams,
   CreateRuleParams,
   DeleteGlobalVariableParams,
   DeleteRuleParams,
@@ -46,6 +47,10 @@ export type {
   UpdateRuleParams,
 } from "./contract/params.ts";
 export type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "./contract/plugin-subscribers.ts";
+// S3 — the preset catalogue's domain half. The REGISTRY is exported for the transport/test surfaces that
+// need to name a preset's shape; the CEL sources it builds stay behind the mint verb.
+export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
+export { RULE_PRESETS } from "./contract/presets.ts";
 export type { ArmPreview, FireView, RuleView, StreamAuthority, TestRunResult } from "./contract/results.ts";
 export type { AutomationService, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
 export type { BudgetView, GlobalVariableView } from "./contract/views.ts";

@@ -4,7 +4,7 @@
 // watcher/dispatch slice implement. The action-arms slice wires the injected `runArm` dispatcher + WIDENS
 // `AutomationOps` with the write ops — no stubs, no reserved slots here.
 
-import type { BudgetView, GlobalVariableView } from "@orb/contracts/automation";
+import type { BudgetView, GlobalVariableView, RulePresetView } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
@@ -12,6 +12,7 @@ import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId } from "@orb/kit/ids";
 import type { ArmDispatch, AutomationOps, EmitAutomationEvent, EnabledRuleIndex, PromptTransformIndex, ResolveAuthorPrincipal } from "./ops.ts";
 import type {
+  CreateRuleFromPresetParams,
   CreateRuleParams,
   DeleteGlobalVariableParams,
   DeleteRuleParams,
@@ -79,6 +80,14 @@ export interface AutomationService {
    *  action schemas + arm caps + reserved-arm refusal, book attachment, and the cooldown
    *  floor. Assigns `position = max+1`; the rule is born DISABLED (enabling is the consent act). */
   readonly createRule: (params: CreateRuleParams) => Promise<RuleView>;
+  /** Mint a §4 catalogue PRESET's ordered rule set into a chat (host-only). Resolves the caller's partial
+   *  knob overrides against the preset's descriptors (a typed refusal on anything off-shape), substitutes
+   *  them into the preset's CEL sources as literals, and creates each rule through `createRule` — same gate,
+   *  same validation, born DISABLED. Returns the minted rules in mint (position) order. */
+  readonly createRuleFromPreset: (params: CreateRuleFromPresetParams) => Promise<RuleView[]>;
+  /** The preset picker's read model — the committed catalogue projected to id/title/summary/knob
+   *  descriptors, in catalogue order. Static: no principal, no chat, no db. */
+  readonly listRulePresets: () => RulePresetView[];
   /** Replace a rule's editable fields (host-only). Same validation; resets `consecutive_errors`. */
   readonly updateRule: (params: UpdateRuleParams) => Promise<RuleView>;
   /** Enable/disable a rule (host-only) — the watcher's chat-Set is maintained off this. */

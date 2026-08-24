@@ -4,9 +4,10 @@
 // vocabulary (trigger/action shapes) lives in `@orb/contracts/automation`; these are server-internal call
 // shapes.
 
-import type { AutomationAction, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationTrigger, RulePresetId, TriggerFact } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
+import type { RulePresetKnobOverrides } from "./presets.ts";
 
 /** Common to every global-variable verb: the acting principal whose `userId` scopes the plane. */
 interface AutomationActorParams {
@@ -56,6 +57,15 @@ export interface CreateRuleParams extends AutomationActorParams, RuleEditablePar
 
 export interface UpdateRuleParams extends AutomationActorParams, RuleEditableParams {
   readonly ruleId: AutomationRuleId;
+}
+
+/** S3 — mint a preset's ordered rule SET into a chat (host-only; each rule through `createRule`). `knobs`
+ *  is a PARTIAL override bag; an absent key takes its descriptor default, and an unknown key is refused.
+ *  v1 has no post-mint knob edit — the edit path is delete + re-mint (interaction-direction-spec §3-S3). */
+export interface CreateRuleFromPresetParams extends AutomationActorParams {
+  readonly chatId: ChatId;
+  readonly presetId: RulePresetId;
+  readonly knobs?: RulePresetKnobOverrides;
 }
 
 export interface SetRuleEnabledParams extends AutomationActorParams {

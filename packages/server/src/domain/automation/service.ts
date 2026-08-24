@@ -7,12 +7,14 @@
 import type { AutomationContext, AutomationService } from "./contract/service.ts";
 import { createHandleEvent } from "./substrate/handle-event.ts";
 import { createCreateRule } from "./verbs/create-rule.ts";
+import { createCreateRuleFromPreset } from "./verbs/create-rule-from-preset.ts";
 import { createDeleteGlobalVariable } from "./verbs/delete-global-variable.ts";
 import { createDeleteRule } from "./verbs/delete-rule.ts";
 import { createGetBudgets } from "./verbs/get-budgets.ts";
 import { createGetGlobalVariable } from "./verbs/get-global-variable.ts";
 import { createListFires } from "./verbs/list-fires.ts";
 import { createListGlobalVariables } from "./verbs/list-global-variables.ts";
+import { createListRulePresets } from "./verbs/list-rule-presets.ts";
 import { createListRules } from "./verbs/list-rules.ts";
 import { createReorderRules } from "./verbs/reorder-rules.ts";
 import { createResolveStreamAuthority } from "./verbs/resolve-stream-authority.ts";
@@ -23,12 +25,18 @@ import { createTestRule } from "./verbs/test-rule.ts";
 import { createUpdateRule } from "./verbs/update-rule.ts";
 
 export function createAutomationService(ctx: AutomationContext): AutomationService {
+  // Built ONCE and injected into the preset mint: a preset creates its rule set through the SAME verb a hand
+  // authored rule goes through (one write path, one host gate, one validation), and the dependency stays
+  // visible at the composition root instead of hiding inside a verb→verb import.
+  const createRule = createCreateRule(ctx);
   return {
     getGlobalVariable: createGetGlobalVariable(ctx),
     setGlobalVariable: createSetGlobalVariable(ctx),
     deleteGlobalVariable: createDeleteGlobalVariable(ctx),
     listGlobalVariables: createListGlobalVariables(ctx),
-    createRule: createCreateRule(ctx),
+    createRule,
+    createRuleFromPreset: createCreateRuleFromPreset(createRule),
+    listRulePresets: createListRulePresets(),
     updateRule: createUpdateRule(ctx),
     setRuleEnabled: createSetRuleEnabled(ctx),
     deleteRule: createDeleteRule(ctx),
