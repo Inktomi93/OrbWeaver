@@ -608,28 +608,28 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 501,
-      "bytes": 248669,
-      "sha256": "8c6350c4d94c5e87d615d28feb5e396ab9fed9c15ac14b9d01b546e21726a2e3",
+      "lines": 503,
+      "bytes": 252300,
+      "sha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-08-24"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "93f5a9ef0878282f2b988e18ec2c85867525f580f8020078275fa37fed11b570",
+        "assignedSha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "8c6350c4d94c5e87d615d28feb5e396ab9fed9c15ac14b9d01b546e21726a2e3",
-        "verifiedCommit": "53273609e40a8089329be8da926e2de3a0e632e7",
-        "verifiedAt": "2026-08-23",
+        "verifiedSha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
+        "verifiedCommit": "4bf95cf8d6f22b3b153f6e899b3a76ce564b6eb3",
+        "verifiedAt": "2026-08-24",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
           "D61 B5a safeFetch clause truth-repaired 2026-08-23 (examine-media-forms lane receipt: infra/network/egress.ts self-enforcing pin built + no-raw-egress gate armed + three live consumer classes; the not-yet-built clause was false on the tree)",
@@ -645,7 +645,8 @@
           "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
           "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the macro-model row drops the oracle half of its evidence pair; the S1–S4 matrix test still stands. No other claim in this document moved.",
           "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed.",
-          "D144 #487 rider (BACKGROUND_DIM_MIN floor) delta re-derived against packages/contracts/src/settings/appearance.ts + tests/ui/content/theme-scope/palette-contrast.suite.test.ts; standing full-read receipt of 09cd25525 carried forward over the 4-line rider delta"
+          "D144 #487 rider (BACKGROUND_DIM_MIN floor) delta re-derived against packages/contracts/src/settings/appearance.ts + tests/ui/content/theme-scope/palette-contrast.suite.test.ts; standing full-read receipt of 09cd25525 carried forward over the 4-line rider delta",
+          "D145 (the S2 teaching seam, five clauses) delta read IN FULL against the merged lane 7acd88465 (contract/context.ts, substrate/teaching.ts, teaching-contribution.ts, the cruiser stanza + feature-structure allowlist); header range D106-D141 -> D106-D145 + mint trailer for D142-D145 are mechanical truth (entries pre-existed); standing full-read receipt carried forward over the delta (orchestrator re-attest at 4bf95cf8d)"
         ],
         "claims": [
           {
