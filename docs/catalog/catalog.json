@@ -11487,9 +11487,9 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 588,
-      "bytes": 57214,
-      "sha256": "9942430c62f369e39baf92e42d8c1e67c490781da7169ce063f3c6520d5d2dfb",
+      "lines": 599,
+      "bytes": 60085,
+      "sha256": "d1664bed3d74bf2e7e00ac429494955dcb9af233e31716d67a0ad0112347cfe1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11502,18 +11502,19 @@
       },
       "receipt": {
         "path": "docs/design/interaction-direction-spec.md",
-        "assignedSha256": "9942430c62f369e39baf92e42d8c1e67c490781da7169ce063f3c6520d5d2dfb",
+        "assignedSha256": "d1664bed3d74bf2e7e00ac429494955dcb9af233e31716d67a0ad0112347cfe1",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9942430c62f369e39baf92e42d8c1e67c490781da7169ce063f3c6520d5d2dfb",
-        "verifiedCommit": "1a7f20ed3378ce44365a02620796ed1851ce5f94",
+        "verifiedSha256": "d1664bed3d74bf2e7e00ac429494955dcb9af233e31716d67a0ad0112347cfe1",
+        "verifiedCommit": "bde3acca3cdf9501542feb2adaf3efc387318f75",
         "verifiedAt": "2026-08-24",
         "evidence": [
           "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
           "consolidation of five sources into one: the panel-verified RULED spec + the IA placement table + the platform-axes audit + the juice catalogue + the real adversarial A-round (16 findings, 12 of 15 survivors changed)",
           "builder test (stickler, 4 sampled rows A1/B9/C5/preset-12): PASS-WITH-FOLDS, all six folds applied — a row is landable from this file alone",
-          "the four docs/reviews/stickler/ interaction docs are provenance only; §10 points at them for the argument, never for the conclusion"
+          "the four docs/reviews/stickler/ interaction docs are provenance only; §10 points at them for the argument, never for the conclusion",
+          "delta re-verify 2026-08-24 (bde3acca3): C7's row flipped from AFTER-the-review to UNBLOCKED (the D46 review #605 and all seven findings CLOSED and security-verified; #24 out of Parked), and gained §7-C7a — the integration seams folded in from docs/reviews/stickler/2026-08-24-automation-platform-axes.md §3, which was written against the BUILT membrane unlike the parked plugin set. Six clauses, each re-derived on the tree at fold time: run_tool as the zero-arm-growth extensibility shape (registerPluginTool wired at entry/compose/automation-plugin.ts), rules-reach vs turn-attach as two doors, pause-not-rot, the installer-not-caller ceiling (#610), reach-based upgrade re-consent (#615), and the standing membrane walls (#611/#613)."
         ],
         "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items.",
         "claims": [
