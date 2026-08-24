@@ -156,6 +156,7 @@ test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", as
     bundleAssetId: newAsset,
     grantedCapabilities: ["chat.read", "storage.kv"],
     status: "disabled",
+    pendingReconsent: true,
     updatedAt: AT + 5,
   });
   const row = await getById(db, owner, pluginId);
@@ -163,6 +164,8 @@ test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", as
   expect(row?.name).toBe("Renamed");
   expect(row?.bundleAssetId).toBe(newAsset);
   expect(row?.grantedCapabilities).toEqual(["chat.read", "storage.kv"]);
+  // The write is what carries the system's own refusal forward — the verb decides the value, the row stores it.
+  expect(row?.pendingReconsent).toBe(true);
 });
 
 test("deletePlugin removes the row; toPluginView lifts builtAgainst from the manifest", async () => {
