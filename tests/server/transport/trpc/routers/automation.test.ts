@@ -96,6 +96,47 @@ describe("automation.createRule — editable-field wire-through", () => {
   });
 });
 
+describe("automation.listRulePresets — catalogue read wire-through", () => {
+  test("delegates to the static projection verb (no principal, no chat)", async () => {
+    const listRulePresets = vi.fn<AutomationService["listRulePresets"]>(() => []);
+    await caller(ctxWith({ listRulePresets })).automation.listRulePresets();
+    expect(listRulePresets).toHaveBeenCalledWith();
+  });
+});
+
+describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
+  test("threads the caller's principal + validated chatId/presetId, and the knob-override bag when present", async () => {
+    const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
+    await caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({
+      chatId: CHAT,
+      presetId: "pacingNudge",
+      knobs: { everyN: 8, steer: "shift the pacing" },
+    });
+    expect(createRuleFromPreset).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: OWNER }),
+      chatId: CHAT,
+      presetId: "pacingNudge",
+      knobs: { everyN: 8, steer: "shift the pacing" },
+    });
+  });
+
+  test("omits an absent knob bag rather than passing it as undefined (exactOptional discipline)", async () => {
+    const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
+    await caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ chatId: CHAT, presetId: "cutaways" });
+    const [args] = createRuleFromPreset.mock.calls[0] ?? [];
+    expect(args && "knobs" in args).toBe(false);
+  });
+
+  test("rejects an unknown presetId at the wire (the contract id enum bites before the verb)", async () => {
+    const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
+    await expect(
+      // @ts-expect-error — an id outside RULE_PRESET_IDS is a compile error too; the wire enum is the runtime belt.
+      caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ chatId: CHAT, presetId: "notAPreset" }),
+    ).rejects.toThrow();
+    expect(createRuleFromPreset).not.toHaveBeenCalled();
+  });
+});
+
 describe("automation.setBudgets — fire-rate cap wire-through", () => {
   test("threads maxFiresPerHour through to the verb", async () => {
     const setBudgets = vi.fn<AutomationService["setBudgets"]>(async () => undefined);
