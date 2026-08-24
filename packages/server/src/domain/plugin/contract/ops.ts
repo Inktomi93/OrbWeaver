@@ -203,3 +203,11 @@ export interface PluginHostOps {
     ) => PluginRegistrationHandle;
   };
 }
+
+export interface NotifyFloor {
+  /** CHECK-AND-CLAIM for one (plugin, chat): throws when the previous notice is younger than the floor,
+   *  otherwise records this post and returns. Deliberately ONE synchronous step — a check that returned a
+   *  verdict and let the caller await the write before recording would let two concurrent invocations both
+   *  pass (the membrane admits up to 32 concurrent host calls per invocation). */
+  readonly admit: (pluginId: PluginId, chatId: ChatId) => void;
+}

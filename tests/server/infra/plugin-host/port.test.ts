@@ -10,7 +10,7 @@ import type { NotificationRecipient } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { createPluginHost, EVENT_QUEUE_DEPTH, PLUGIN_INVOCATION_SETTLE_GRACE_MS, PLUGIN_MEMORY_LIMIT_BYTES, Sandbox } from "@orb/server/infra/plugin-host";
+import { createPluginHost, EVENT_QUEUE_DEPTH, HOST_FN_DEADLINE_MS, PLUGIN_MEMORY_LIMIT_BYTES, Sandbox } from "@orb/server/infra/plugin-host";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -158,7 +158,7 @@ function fakeBridge(): {
   const notices: { recipient: NotificationRecipient; message: string }[] = [];
   const chips: { label: string; sendText: string }[][] = [];
   const writes = { count: 0 };
-  const lore = { count: 0, chatIds: [] as ChatId[] };
+  const lore: { count: number; chatIds: ChatId[] } = { count: 0, chatIds: [] };
   const pics = { count: 0 };
   // requestTurn records the args the membrane forwarded — the fake bridge receives ONLY (chatId, depth, p); the
   // FUNDER is closed over domain-side, so its absence here IS the "infra stays authority-blind" proof.
@@ -1299,7 +1299,7 @@ describe("the invocation SETTLEMENT deadline through the port (the FIFO wedge + 
       grants: ["tools.register", "chat.read"],
       bridge,
       chat: noChat,
-      budgets: { cpuDeadlineMs: 200, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: PLUGIN_INVOCATION_SETTLE_GRACE_MS },
+      budgets: { cpuDeadlineMs: 200, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: HOST_FN_DEADLINE_MS },
     });
     if (!outcome.ok) {
       throw new Error(`activation failed: ${outcome.error}`);

@@ -16,21 +16,13 @@
 // at all) is the domain-resolved participants-only recipient set, which no cooldown state can weaken.
 
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
-import type { ChatId, PluginId } from "@orb/kit/ids";
+import type { NotifyFloor } from "../contract/ops.ts";
 
 const MS_PER_SECOND = 1000;
 const COOLDOWN_MS = AUTOMATION_NOTICE_COOLDOWN_SECONDS * MS_PER_SECOND;
 /** Sweep threshold — the key set is (plugin × chat) and every entry is dead after the cooldown, so a bounded
  *  lazy sweep keeps a long-lived process from accumulating one entry per room a plugin ever notified. */
 const SWEEP_AT_ENTRIES = 1024;
-
-export interface NotifyFloor {
-  /** CHECK-AND-CLAIM for one (plugin, chat): throws when the previous notice is younger than the floor,
-   *  otherwise records this post and returns. Deliberately ONE synchronous step — a check that returned a
-   *  verdict and let the caller await the write before recording would let two concurrent invocations both
-   *  pass (the membrane admits up to 32 concurrent host calls per invocation). */
-  readonly admit: (pluginId: PluginId, chatId: ChatId) => void;
-}
 
 /** Build the process-wide plugin notice floor over an injected clock (the frozen clock in tests). */
 export function createNotifyFloor(now: () => number): NotifyFloor {

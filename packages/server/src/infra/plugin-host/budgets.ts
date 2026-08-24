@@ -33,24 +33,18 @@ export const GUEST_MAX_STACK_BYTES = 262_144;
 
 /** Host-function self-bound deadline. The interrupt handler does NOT preempt a blocking HOST call — only
  *  guest bytecode — so every host fn self-bounds (the "reentrancy footgun"). `boundHostFn` races the
- *  fn against this real-time deadline; an unbounded host fn cannot be written by omission. */
-export const HOST_FN_DEADLINE_MS = 5000;
-
-/** The GRACE above the CPU deadline before an invocation is force-ENDED in real time (the
- *  `PluginInvocationEnded` posture, 03 §3). Load-bearing, not belt-and-braces: the interrupt handler preempts
- *  guest BYTECODE ONLY, so a guest that stops executing bytecode — `new Promise(() => {})`, or an `await` on a
- *  host call — is never interrupted and its invocation would otherwise hang FOREVER: the context is stranded
- *  (32 MiB ceiling each, unbounded on the member-reachable snippet path), the per-instance invoke FIFO is
- *  wedged, and the 3-strike crash policy never sees it (it only ever counts a REJECTION). The settlement
- *  deadline is therefore `cpuDeadlineMs + this`, raced in real time by `Sandbox.runToSettlement`.
+ *  fn against this real-time deadline; an unbounded host fn cannot be written by omission.
  *
- *  WHY THIS VALUE: the grace must EXCEED the longest a LEGITIMATE invocation can sit blocked without running
- *  bytecode, or the wall would end runs that were going to settle. That maximum is one host call: every host fn
- *  self-bounds at {@link HOST_FN_DEADLINE_MS} (the membrane's `attachAsync` race), after which the guest resumes
- *  and either returns or is interrupted. So the grace IS the host-fn deadline — DERIVED, not a second literal:
- *  tighter can preempt a guest legitimately awaiting a slow `net.fetch`; wider only lengthens how long a hung
- *  invocation holds its context. */
-export const PLUGIN_INVOCATION_SETTLE_GRACE_MS = HOST_FN_DEADLINE_MS;
+ *  IT IS ALSO THE INVOCATION SETTLEMENT GRACE (`Sandbox.runToSettlement`, the `PluginInvocationEnded`
+ *  posture of 03 §3): the settlement wall is `cpuDeadlineMs + this`. ONE constant, not two names for one
+ *  value — the equality is the POINT, not a coincidence. The interrupt handler preempts guest BYTECODE
+ *  ONLY, so a guest that stops executing bytecode (`new Promise(() => {})`, or an `await` on a host call)
+ *  is never interrupted and would hang FOREVER: the context is stranded, the FIFO wedged, and the 3-strike
+ *  crash policy never sees it (it only counts a REJECTION). The grace must EXCEED the longest a LEGITIMATE
+ *  invocation can sit blocked without running bytecode — and that maximum is exactly one host call, i.e.
+ *  this deadline. Tighter would preempt a guest legitimately awaiting a slow `net.fetch`; wider only
+ *  lengthens how long a hung invocation holds its context. */
+export const HOST_FN_DEADLINE_MS = 5000;
 
 /** Max serialized (JSON) byte size of any host-function result crossing back into the guest (= 1 MiB). */
 export const HOST_FN_RESULT_CAP_BYTES = 1_048_576;
@@ -87,7 +81,7 @@ export const LOG_BYTES_PER_INVOCATION = 16_384;
  *  invokes: the N+1 concurrent invoke is REFUSED with a contained typed error (a DoS backstop — a hostile flood
  *  of concurrent deliveries must not unbounded-queue and pin the sandbox forever). The fire-and-forget event
  *  `deliver` swallows the refusal (self-safe fan-out); a tool/transform invoke surfaces it as `threw`. Each
- *  queued item is bounded by the INVOCATION SETTLEMENT deadline (`cpuDeadlineMs + PLUGIN_INVOCATION_SETTLE_GRACE_MS`),
+ *  queued item is bounded by the INVOCATION SETTLEMENT deadline (`cpuDeadlineMs + HOST_FN_DEADLINE_MS`),
  *  so the queue always advances — the `cpuDeadlineMs` interrupt alone does NOT guarantee that (it preempts
  *  bytecode only, so a guest awaiting a never-settling promise wedged the tail forever until the settlement
  *  deadline landed). */

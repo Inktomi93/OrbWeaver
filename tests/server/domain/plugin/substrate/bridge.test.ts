@@ -11,9 +11,8 @@ import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { describe } from "vitest";
-import type { PluginHostOps } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
+import type { NotifyFloor, PluginHostOps } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
 import { buildPluginBridge } from "../../../../../packages/server/src/domain/plugin/substrate/bridge.ts";
-import type { NotifyFloor } from "../../../../../packages/server/src/domain/plugin/substrate/notify-floor.ts";
 import { createNotifyFloor } from "../../../../../packages/server/src/domain/plugin/substrate/notify-floor.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -240,9 +239,9 @@ describe("buildPluginBridge — the lore write is gated, capped, namespaced and 
     const rec = loreOps({ attached: false });
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN, freeFloor());
 
-    await expect(
-      bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: [], contentTemplate: "inert", position: "after" }),
-    ).rejects.toThrow(NOT_ATTACHED_RE);
+    await expect(bridge.worldInfo.upsertEntry(CHAT, { bookId: BOOK, entryKey: "mood", keys: [], contentTemplate: "inert", position: "after" })).rejects.toThrow(
+      NOT_ATTACHED_RE,
+    );
     expect(rec.writes).toEqual([]);
     // The probe asked about the ADMITTED chat, under the installer — not a guest-supplied scope.
     expect(rec.attachProbes).toEqual([{ ownerId: INSTALLER, chatId: CHAT, bookId: BOOK }]);
