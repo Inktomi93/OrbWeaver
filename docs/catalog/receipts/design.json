@@ -594,17 +594,18 @@
     },
     {
       "path": "docs/design/interaction-direction-spec.md",
-      "assignedSha256": "5ec5be01acd1a7117afdc3528fbaed4978ddac3459f9c576d8f2013c44a7dbb4",
+      "assignedSha256": "b76105c264835d2f82d710d67d5d28da8dcf76f33975f8b219bd82d74e621797",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "5ec5be01acd1a7117afdc3528fbaed4978ddac3459f9c576d8f2013c44a7dbb4",
-      "verifiedCommit": "e69f96774a1606587feaf155b952fc701ef85a87",
+      "verifiedSha256": "b76105c264835d2f82d710d67d5d28da8dcf76f33975f8b219bd82d74e621797",
+      "verifiedCommit": "f9e325ef6605d749c3c0aef9ea2edfd58b08afb0",
       "verifiedAt": "2026-08-24",
       "evidence": [
         "docs/design/interaction-direction-spec.md:1-666 read WHOLE this session before promotion (e69f96774)",
         "provenance: claude-b max-effort pass — 2 stickler rounds + a five-lens panel (law/legacy/cost/product/security), 39 findings adjudicated 0 refuted, 6 structural refolds; legacy-main whole-file reads per its §10 ledger",
-        "all owner rulings folded and closed: 5 commissioning rulings + F1-F7 (AskUserQuestion 2026-08-24) + the void-all handoff ruling (§8)"
+        "all owner rulings folded and closed: 5 commissioning rulings + F1-F7 (AskUserQuestion 2026-08-24) + the void-all handoff ruling (§8)",
+        "2026-08-24 truth-repair: the cadence predicate needs int() coercion — probed live against packages/kit/src/cel (bare form throws 'no such overload: dyn<double> % int'); patched at all three sites with the cel-goldens obligation and the two preset-authoring laws"
       ],
       "summary": "The committed interaction-direction specification: inside/outside taxonomy, S1-S5 substrate, the A/B/C path with per-row tests and merge classes, the honest purged-capability disposition table, the panel findings ledger.",
       "claims": [
