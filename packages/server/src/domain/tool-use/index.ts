@@ -22,3 +22,8 @@ export { TOOL_NAME_RE, TOOL_SOURCES } from "./contract/params.ts";
 export type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./contract/results.ts";
 export type { ToolUseService } from "./contract/service.ts";
 export { createToolUseService } from "./service.ts";
+// The S2 teaching contribution (D145's 11th root slot): the per-turn attach of the turn HOST's own plugin
+// tools. Exported HERE and only here — the `domain-teaching-contribution-compose-only` cruiser stanza makes
+// this front door the sole legal importer, so the contribution reaches a turn through the injected registry
+// at `entry/compose` and never through an inline call from a verb.
+export { createToolUseTeachingContributions } from "./teaching-contribution.ts";
