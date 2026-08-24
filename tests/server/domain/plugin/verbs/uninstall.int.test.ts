@@ -45,6 +45,44 @@ test("uninstalling a disabled plugin needs no instance (idempotent deactivate)",
   expect(h.storedBytes.size).toBe(0);
 });
 
+test("uninstall takes the standing re-consent with it — a REINSTALL at the same slug starts clean", async () => {
+  // #659's clear-at-uninstall arm. There is no clear-at-uninstall WRITE to add and there must not be:
+  // `deletePlugin` drops the row, so `pending_reconsent` and `widened_net_hosts` die with it. The arm that
+  // could actually resurrect a stale badge is the REINSTALL — a new row for the same (owner, slug) — so
+  // that is what this pins. A delta that survived here would badge a host as "new in this update" on a row
+  // whose only update was the person choosing this exact grant, seconds ago.
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "mood", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+  const upgraded = await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "mood", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+  expect(upgraded.reconsentPending).toBe(true);
+  expect(upgraded.widenedNetHosts).toEqual(["collector.attacker.example"]);
+
+  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  // The same bundle, installed again — the reach the notice was about, now chosen deliberately.
+  const reinstalled = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "mood", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+    grant: ["net.fetch"],
+  });
+
+  expect(reinstalled.id).not.toBe(installed.id); // a NEW row, not a resurrected one
+  expect(reinstalled.reconsentPending).toBe(false);
+  expect(reinstalled.widenedNetHosts).toEqual([]);
+  // …and the read-back row agrees with the install's own return (one projection, two paths).
+  const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  expect(row?.widenedNetHosts).toEqual([]);
+});
+
 test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);

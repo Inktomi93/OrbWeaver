@@ -6,6 +6,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "@orb/server/domain/plugin";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
@@ -159,6 +160,182 @@ test("a CASE-only netHosts respelling reaches the identical host and does not re
 
   expect(upgraded.status).toBe("enabled");
   expect(h.port.created.length).toBe(2);
+});
+
+test("a STANDING re-consent survives a later NON-widening upgrade — the system never forgets its own refusal", async () => {
+  // RED-FIRST RECEIPT (2026-08-24, against unmodified source): `quiet.reconsentPending` came back FALSE.
+  //
+  // THE HOLE. `widened` is judged against the PRIOR MANIFEST, and the prior manifest is whatever the LAST
+  // upgrade wrote — including one the owner refused. So a plugin author ships v2 bolting a new destination
+  // onto the allowlist (refused, recorded, row disabled), then immediately ships v3 with the IDENTICAL
+  // reach: v3 widens nothing relative to v2, so the old code wrote `pendingReconsent: false` and the
+  // system's refusal evaporated. `net.fetch` is still granted (the grant survives a widening upgrade by
+  // design — the CONSENT is what is pending), so the owner is then one unremarkable toggle away from
+  // running a plugin whose egress wall is armed at `collector.attacker.example`, with no notice, no badge
+  // and no status line saying anything happened. Two owner-initiated upgrades and one toggle, all of which
+  // look routine, because the surface has stopped saying otherwise.
+  //
+  // The fix is one clause: a refusal is cleared by a covering `setGrant` and by nothing else.
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+
+  const widened = await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+  expect(widened.reconsentPending).toBe(true);
+
+  // v3 declares exactly what v2 declared — nothing widens RELATIVE TO V2, but the owner never answered v2.
+  const quiet = await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.1", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+
+  expect(quiet.reconsentPending).toBe(true);
+  expect(quiet.status).toBe("disabled");
+  expect(quiet.widenedNetHosts).toEqual(["collector.attacker.example"]);
+});
+
+test("…but it is NOT a latch: a later upgrade that DROPS the refused host clears it", async () => {
+  // The opposite error, and the reason the flag is recomputed from the new manifest rather than carried
+  // forward as a boolean. If v3 walks the destination back, there is nothing left to consent to — a notice
+  // still standing there would be the same class of lie the flag exists to fix, pointing the other way, and
+  // a re-consent prompt about nothing is how a real one stops being read.
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+  await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+
+  const walkedBack = await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.2.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+  });
+
+  expect(walkedBack.reconsentPending).toBe(false);
+  expect(walkedBack.widenedNetHosts).toEqual([]);
+});
+
+// THE HOST DELTA, PERSISTED (#659). `pending_reconsent` says a re-consent stands; `widened_net_hosts` says
+// WHICH destinations it is about — the half that used to die at the instant it was computed, because the
+// widening is judged against the PRIOR manifest and this very write overwrites it. Without the column a
+// notice can only render the whole host list unmarked; with it, and ONLY with it, the "New" mark is derived
+// rather than invented. These pin the full lifecycle, because a delta that is set and never cleared is a
+// stale-badge generator — the same lie, delayed.
+describe("widenedNetHosts — which destinations the pending re-consent added", () => {
+  test("a widening upgrade records exactly the NEW hosts, and the carried-forward one is not among them", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+    expect(installed.widenedNetHosts).toEqual([]); // a fresh install has nothing widened
+
+    const upgraded = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+    });
+
+    expect(upgraded.reconsentPending).toBe(true);
+    expect(upgraded.widenedNetHosts).toEqual(["collector.attacker.example"]);
+    // The delta is a SUBSET of the rendered list, which is what lets a surface mark it by exact string
+    // membership instead of re-implementing the host fold.
+    expect(upgraded.netHosts).toEqual(["api.vendor.example", "collector.attacker.example"]);
+  });
+
+  test("a CAPABILITY-only widening records an EMPTY host delta — nothing to mark is not the same as unknown", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+
+    const upgraded = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch", "notify"], netHosts: ["api.vendor.example"] }),
+    });
+
+    expect(upgraded.reconsentPending).toBe(true);
+    expect(upgraded.widenedNetHosts).toEqual([]);
+  });
+
+  test("consecutive unanswered widenings ACCUMULATE — the first update's hosts stay marked", async () => {
+    // Replace-instead-of-accumulate would leave `x.attacker.example` rendering unmarked beside a marked
+    // `y.attacker.example`, i.e. reading as "carried forward, already allowed", which it never was.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["a.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+    await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["a.vendor.example", "x.attacker.example"] }),
+    });
+
+    const second = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({
+        id: "pp",
+        version: "1.2.0",
+        capabilities: ["net.fetch"],
+        netHosts: ["a.vendor.example", "x.attacker.example", "y.attacker.example"],
+      }),
+    });
+
+    expect(second.widenedNetHosts).toEqual(["x.attacker.example", "y.attacker.example"]);
+    // …and the host that was there before any of this is still unmarked.
+    expect(second.widenedNetHosts).not.toContain("a.vendor.example");
+  });
+
+  test("a NON-widening upgrade on a SETTLED row leaves the delta empty", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["a.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+
+    const upgraded = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["a.vendor.example"] }),
+    });
+
+    expect(upgraded.reconsentPending).toBe(false);
+    expect(upgraded.widenedNetHosts).toEqual([]);
+  });
 });
 
 test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {

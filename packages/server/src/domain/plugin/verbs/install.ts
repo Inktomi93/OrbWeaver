@@ -46,8 +46,12 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       grantedCapabilities: granted,
       status: "disabled" as const,
       origin: "upload" as const,
-      // Nothing to re-consent TO: the owner just chose this grant against this manifest.
+      // Nothing to re-consent TO: the owner just chose this grant against this manifest — so no refusal is
+      // recorded and there is no host delta to mark. This is also the arm that keeps a REINSTALL honest:
+      // uninstall deletes the row, so installing the same slug again mints a fresh one, and the delta has to
+      // start empty or a "New" badge would resurrect for an update this row never saw.
       pendingReconsent: false,
+      widenedNetHosts: [],
       consecutiveCrashes: 0,
       lastError: null,
       installedAt: now,

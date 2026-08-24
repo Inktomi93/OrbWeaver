@@ -31,6 +31,7 @@ export function toPluginView(row: PluginRow): PluginView {
     declaredCapabilities: row.manifest.capabilities,
     netHosts: row.manifest.netHosts ?? null,
     reconsentPending: row.pendingReconsent,
+    widenedNetHosts: row.widenedNetHosts,
     builtAgainst: row.manifest.builtAgainst ?? null,
     consecutiveCrashes: row.consecutiveCrashes,
     lastError: row.lastError,
@@ -69,8 +70,12 @@ export async function insertPlugin(db: Db, row: InsertPluginRow): Promise<void> 
     status: row.status,
     origin: row.origin,
     // A fresh install has nothing to re-consent TO: the owner just chose this grant against this manifest.
-    // Written explicitly rather than left to the column default so the insert states the whole row.
+    // Written explicitly rather than left to the column default so the insert states the whole row. The
+    // empty delta rides with it — and it is the reinstall arm that makes this load-bearing rather than
+    // decorative: uninstall drops the row, so a reinstall at the same slug mints a new one, and a delta
+    // that defaulted from anywhere but "empty" would resurrect a badge for an update this row never saw.
     pendingReconsent: false,
+    widenedNetHosts: [],
     consecutiveCrashes: 0,
     lastError: null,
     installedAt: row.installedAt,
@@ -147,6 +152,11 @@ interface UpgradePluginRow {
    *  overwritten. A non-widening upgrade writes `false`, which is also the honest answer: nothing new was
    *  asked for, so nothing is pending. */
   readonly pendingReconsent: boolean;
+  /** WHICH hosts the pending re-consent added — the half of the delta the flag alone cannot name, and the
+   *  half no read surface can reconstruct (the comparison is against the prior manifest, overwritten by this
+   *  very write). Empty whenever `pendingReconsent` is false; the `plugins_widened_hosts_check` CHECK makes
+   *  the other combination unwritable rather than merely discouraged. */
+  readonly widenedNetHosts: readonly string[];
   readonly updatedAt: number;
 }
 
@@ -165,6 +175,7 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
       grantedCapabilities: [...row.grantedCapabilities],
       status: row.status,
       pendingReconsent: row.pendingReconsent,
+      widenedNetHosts: [...row.widenedNetHosts],
       lastError: null,
       updatedAt: row.updatedAt,
     })
@@ -189,6 +200,10 @@ export async function applyGrant(
     /** `false` once the owner has consented to the WHOLE ask; still `true` after a PARTIAL re-grant, because
      *  the plugin is still asking for something they have not allowed and the surface must keep saying so. */
     readonly pendingReconsent: boolean;
+    /** The host delta, carried while the re-consent still stands and emptied the moment it is answered — the
+     *  notice is the only surface that renders these marks, and it renders iff `pendingReconsent`. Cleared
+     *  here rather than left to rot: the CHECK refuses a settled row that still carries one. */
+    readonly widenedNetHosts: readonly string[];
     readonly updatedAt: number;
   },
 ): Promise<void> {
@@ -198,6 +213,7 @@ export async function applyGrant(
       grantedCapabilities: [...update.grantedCapabilities],
       status: update.status,
       pendingReconsent: update.pendingReconsent,
+      widenedNetHosts: [...update.widenedNetHosts],
       lastError: null,
       updatedAt: update.updatedAt,
     })
