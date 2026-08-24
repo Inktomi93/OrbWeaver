@@ -34,6 +34,8 @@ const FILE_TRIGGER_INPUT = '[data-slot="file-trigger-input"]';
 const CHAT = castId<ChatId>("chat_ct_plugin_0001");
 /** The re-consent row's accessible name carries "(new in this update)" after the label, so match by prefix. */
 const NEW_LORE_CAPABILITY = /^Write lorebook entries/u;
+/** The re-consent notice's own escape action — named by the plugin, since a settings pane can hold several. */
+const REMOVE_WEATHER_TELLER = /^Remove Weather Teller/u;
 const A_PAST_INSTANT = 1_760_000_000_000;
 
 interface ManifestFixture {
@@ -227,9 +229,12 @@ test("an upgrade that WIDENS reach says exactly what widened, and that the extra
   // WHAT widened — the new capability by its own name and consequence, not a bare count.
   await expect(notice).toContainText("Write lorebook entries");
   await expect(notice).toContainText("lorebooks already attached to the room");
-  // The new capability renders UNCHECKED: that IS the stored grant, and seeing the box empty is how a
-  // person reads "asked for, not allowed".
-  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).not.toBeChecked();
+  // The new capability is NOT rendered as a disabled, tickable-looking checkbox (P1-3, #650): a
+  // read-only row that isn't granted is a "Not granted" STATEMENT, because a disabled control beside
+  // "asks for a permission you hadn't allowed" reads as a live control that silently does nothing on
+  // click. There is exactly one ungranted row in this notice (chat.read/net.fetch are both still granted).
+  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toHaveCount(0);
+  await expect(notice.getByText("Not granted")).toHaveCount(1);
   // Both destinations verbatim: the host list IS the reach for net.fetch, and consent is to the SET.
   await expect(notice).toContainText("collector.elsewhere.example");
   await expect(notice).toContainText("api.weather.example");
@@ -241,6 +246,9 @@ test("an upgrade that WIDENS reach says exactly what widened, and that the extra
   // The TRUE consequence. There is no re-grant verb, so "turn it back on to confirm" would be a lie.
   await expect(notice).toContainText("did not grant the extra permissions");
   await expect(notice).toContainText("remove it and install the new bundle");
+  // THE ESCAPE ACTION LIVES INSIDE THE NOTICE (P1-3): the true next step isn't just described in prose,
+  // it's a reachable control right here, not three UI regions away behind the row's unrelated ⋯ menu.
+  await expect(notice.getByRole("button", { name: REMOVE_WEATHER_TELLER })).toBeVisible();
 });
 
 test("the snippet console shows what a run logged, and shows a contained failure instead of hanging", async ({ mount, page }) => {
