@@ -34,6 +34,17 @@ export interface PluginView {
    *  name alone does not say where it points). `null` when the manifest declares none, which by the
    *  `netHosts ⟺ net.fetch` biconditional is exactly when `net.fetch` is not declared. */
   readonly netHosts: readonly string[] | null;
+  /** THE SYSTEM'S OWN REFUSAL, made visible. `true` from the moment an UPGRADE widened declared reach and
+   *  forced this row `disabled`; cleared when the owner re-consents to the WHOLE ask (`setGrant`), and
+   *  `false` on a fresh install. Untouched by `setEnabled` — re-enabling grants nothing, so the gap outlives
+   *  it.
+   *
+   *  WHY IT IS PROJECTED RATHER THAN DERIVED. Without it a forced disable renders identically to the owner's
+   *  own toggle-off, and the surface then presents the system's refusal as the person's decision. It is not
+   *  recoverable from current state: `declaredCapabilities ⊄ grantedCapabilities` is legitimately TRUE for an
+   *  ENABLED plugin whose owner granted a paranoid subset, and the netHosts half of a widening is judged
+   *  against the PRIOR manifest, which nothing persists. It records an EVENT. */
+  readonly reconsentPending: boolean;
   readonly builtAgainst: PluginBuiltAgainst | null;
   readonly consecutiveCrashes: number;
   readonly lastError: string | null;

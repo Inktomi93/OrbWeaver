@@ -15,6 +15,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "@orb/server/domain/plugin";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
@@ -245,4 +246,155 @@ test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused",
   await expect(
     h.service.setGrant({ caller: principalFor(user), pluginId: installed.id, grant: ["chat.read"], acknowledgedNetHosts: [] }),
   ).rejects.toBeInstanceOf(DomainForbiddenError);
+});
+
+// THE SYSTEM'S OWN REFUSAL, RECORDED (#650 P1-1). A forced disable used to render identically to the owner's
+// own toggle-off, so the surface presented OUR refusal as THEIR decision. `reconsentPending` is the event —
+// deliberately not derived, because `declared ⊄ granted` is legitimately true for an ENABLED plugin whose
+// owner granted a paranoid subset, and the netHosts half is judged against the PRIOR manifest, which nothing
+// persists. These rows pin all three transitions plus the one that must NOT move it.
+describe("reconsentPending — the forced-disable flag", () => {
+  test("a WIDENED-CAPABILITY upgrade raises it; the flag is what distinguishes our refusal from a toggle-off", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
+      grant: ["chat.read"],
+    });
+    expect(installed.reconsentPending).toBe(false); // a fresh install has nothing to re-consent to
+
+    const upgraded = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
+    });
+
+    expect(upgraded.status).toBe("disabled");
+    expect(upgraded.reconsentPending).toBe(true);
+  });
+
+  test("a WIDENED-NETHOSTS upgrade raises it too — the half that is not derivable from any projected state", async () => {
+    // The capability set is byte-identical across this upgrade; only the DESTINATION moved. Nothing a read
+    // surface projects can reconstruct that, because the comparison is against the PRIOR manifest.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+
+    const upgraded = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["collector.attacker.example"] }),
+    });
+
+    expect(upgraded.reconsentPending).toBe(true);
+    expect(upgraded.grantedCapabilities).toEqual(["net.fetch"]); // the grant survives; the CONSENT is what is pending
+  });
+
+  test("a NON-widening upgrade leaves it false (nothing new was asked for)", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
+      grant: ["chat.read"],
+    });
+
+    const upgraded = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read"] }),
+    });
+
+    expect(upgraded.reconsentPending).toBe(false);
+  });
+
+  test("a FULL re-grant CLEARS it — the flag is not a one-way latch", async () => {
+    // Without this the surface would keep saying "needs re-consent" after the person just re-consented, which
+    // is the same class of lie the flag exists to fix, pointing the other way.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
+      grant: ["chat.read"],
+    });
+    await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
+    });
+
+    const regranted = await h.service.setGrant({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      grant: ["chat.read", "notify"],
+      acknowledgedNetHosts: [],
+    });
+
+    expect(regranted.reconsentPending).toBe(false);
+  });
+
+  test("a PARTIAL re-grant leaves it STANDING — the plugin is still asking for something unallowed", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
+      grant: ["chat.read"],
+    });
+    await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify", "storage.kv"] }),
+    });
+
+    // The owner allows ONE of the two newly-declared capabilities.
+    const partial = await h.service.setGrant({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      grant: ["chat.read", "notify"],
+      acknowledgedNetHosts: [],
+    });
+
+    expect(partial.grantedCapabilities).toEqual(["chat.read", "notify"]);
+    expect(partial.reconsentPending).toBe(true);
+  });
+
+  test("ENABLING does NOT clear it — re-enabling grants nothing, so the gap outlives the toggle", async () => {
+    // This is the inversion the flag must not acquire: if enabling cleared it, the surface would forget the
+    // system ever refused the moment the person worked around the refusal.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
+      grant: ["chat.read"],
+    });
+    await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
+    });
+
+    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+
+    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    expect(row?.status).toBe("enabled");
+    expect(row?.reconsentPending).toBe(true);
+    // …and it is running with the STORED grant, not the declared set — the two facts together are the whole
+    // honest picture the surface owes: on, and still not allowed everything it asked for.
+    expect(row?.grantedCapabilities).toEqual(["chat.read"]);
+    expect(row?.declaredCapabilities).toEqual(["chat.read", "notify"]);
+  });
 });

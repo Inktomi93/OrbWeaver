@@ -30,6 +30,7 @@ export function toPluginView(row: PluginRow): PluginView {
     grantedCapabilities: row.grantedCapabilities,
     declaredCapabilities: row.manifest.capabilities,
     netHosts: row.manifest.netHosts ?? null,
+    reconsentPending: row.pendingReconsent,
     builtAgainst: row.manifest.builtAgainst ?? null,
     consecutiveCrashes: row.consecutiveCrashes,
     lastError: row.lastError,
@@ -67,6 +68,9 @@ export async function insertPlugin(db: Db, row: InsertPluginRow): Promise<void> 
     grantedCapabilities: [...row.grantedCapabilities],
     status: row.status,
     origin: row.origin,
+    // A fresh install has nothing to re-consent TO: the owner just chose this grant against this manifest.
+    // Written explicitly rather than left to the column default so the insert states the whole row.
+    pendingReconsent: false,
     consecutiveCrashes: 0,
     lastError: null,
     installedAt: row.installedAt,
@@ -138,6 +142,11 @@ interface UpgradePluginRow {
   readonly bundleAssetId: AssetId;
   readonly grantedCapabilities: readonly PluginCapability[];
   readonly status: PluginStatus;
+  /** Did THIS upgrade widen declared reach and force the disable? Written here because this is the one
+   *  moment the PRIOR manifest — the only source of the "what widened" fact — still exists before being
+   *  overwritten. A non-widening upgrade writes `false`, which is also the honest answer: nothing new was
+   *  asked for, so nothing is pending. */
+  readonly pendingReconsent: boolean;
   readonly updatedAt: number;
 }
 
@@ -155,6 +164,7 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
       bundleAssetId: row.bundleAssetId,
       grantedCapabilities: [...row.grantedCapabilities],
       status: row.status,
+      pendingReconsent: row.pendingReconsent,
       lastError: null,
       updatedAt: row.updatedAt,
     })
@@ -173,11 +183,24 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
 export async function applyGrant(
   db: Db,
   pluginId: PluginId,
-  update: { readonly grantedCapabilities: readonly PluginCapability[]; readonly status: PluginStatus; readonly updatedAt: number },
+  update: {
+    readonly grantedCapabilities: readonly PluginCapability[];
+    readonly status: PluginStatus;
+    /** `false` once the owner has consented to the WHOLE ask; still `true` after a PARTIAL re-grant, because
+     *  the plugin is still asking for something they have not allowed and the surface must keep saying so. */
+    readonly pendingReconsent: boolean;
+    readonly updatedAt: number;
+  },
 ): Promise<void> {
   await db
     .update(plugins)
-    .set({ grantedCapabilities: [...update.grantedCapabilities], status: update.status, lastError: null, updatedAt: update.updatedAt })
+    .set({
+      grantedCapabilities: [...update.grantedCapabilities],
+      status: update.status,
+      pendingReconsent: update.pendingReconsent,
+      lastError: null,
+      updatedAt: update.updatedAt,
+    })
     .where(eq(plugins.id, pluginId));
 }
 

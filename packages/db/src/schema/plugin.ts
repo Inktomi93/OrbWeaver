@@ -51,6 +51,15 @@ export const plugins = sqliteTable(
     status: text("status", { enum: PLUGIN_STATUSES }).notNull(),
     // How the host obtained the bytes (reserved single-arm `upload`; `catalog` rides an additive member).
     origin: text("origin", { enum: PLUGIN_ORIGINS }).notNull(),
+    // THE SYSTEM'S OWN REFUSAL, recorded — set when an UPGRADE widened declared reach and forced the row
+    // `disabled`, cleared when the owner re-consents to the whole ask (`setGrant`) and on a fresh install.
+    // It is a stored EVENT, not a derivable state, and that is what earns it a column: "declared ⊄ granted"
+    // is TRUE for an enabled plugin with a paranoid grant and for a user's own toggle-off, so it cannot tell
+    // the system's refusal from the person's choice; and the netHosts half is not derivable at all, because
+    // the widening is judged against the PRIOR manifest, which nothing persists. Without it a forced disable
+    // renders identically to a toggle-off — the system refuses permissions on the user's behalf and then
+    // makes its refusal look like their own decision.
+    pendingReconsent: integer("pending_reconsent", { mode: "boolean" }).notNull().default(false),
     // The 03 §4 auto-disable counter — a clean invocation resets it, 3 consecutive crashes → errored.
     consecutiveCrashes: integer("consecutive_crashes").notNull().default(0),
     lastError: text("last_error"),
