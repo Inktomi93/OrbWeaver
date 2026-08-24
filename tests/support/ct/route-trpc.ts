@@ -20,6 +20,15 @@
 // Unlisted procedures resolve `{result:{data:null}}` AND are recorded, so an incidental query a
 // surface fires never 404s the test. Exemplar usage: tests/client/data/query-boundary.ct.tsx.
 //
+// …BUT `null` IS NOT A VIEW, AND THAT FAILS SILENTLY (#629). A component that suspends on an unstubbed
+// read gets `null` and throws reading it, which its QueryBoundary catches — so the section's BODY is
+// replaced by `QueryErrorState` while everything OUTSIDE the boundary (the Section heading the test
+// asserts on) still renders. A whole CT file passed for weeks with its subject never rendering.
+// The lenient fulfil stays (an incidental query must not 404 a test that has nothing to do with it),
+// but it is no longer SILENT: every requested-but-unlisted procedure is warned on stderr once per
+// route registration and exposed on the recorder as `unstubbed()`, so a composition-mount CT can
+// assert its subject was actually fed — `expect(trpc.unstubbed()).toEqual([])`.
+//
 // Two responder MARKERS ride alongside plain data/functions: `trpcError(…)` for a scripted failure
 // envelope, and `trpcHold()` for a deferred one — a release valve that lets a CT pin a PENDING render
 // as a stable state rather than trying to catch a flash. Both are recognised on the value a responder
@@ -193,14 +202,31 @@ export interface TrpcRecorder {
   readonly lastInput: (proc: string) => unknown;
   /** How many times a procedure was called. */
   readonly count: (proc: string) => number;
+  /**
+   * Procedures the mounted tree REQUESTED that this call did not stub, first-seen order (header, #629).
+   * They were answered `null`, which is not a view — a suspending reader throws on it and its
+   * QueryBoundary swaps the section body for `QueryErrorState` while the heading outside the boundary
+   * still renders. A composition-mount CT pins the whole tree was actually fed with
+   * `expect(trpc.unstubbed()).toEqual([])`; a CT that deliberately leaves an incidental read unstubbed
+   * simply does not call this.
+   */
+  readonly unstubbed: () => string[];
 }
 
 export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRecorder> {
   const calls = new Map<string, unknown[]>();
+  // Requested-but-unlisted procedures, first-seen order. A Set, so a re-fetch warns once.
+  const unstubbed = new Set<string>();
   const record = (proc: string, input: unknown): void => {
     const arr = calls.get(proc) ?? [];
     arr.push(input);
     calls.set(proc, arr);
+    if (!(proc in routes || unstubbed.has(proc))) {
+      unstubbed.add(proc);
+      // stderr, never a throw: the lenient fulfil is deliberate (header), so this reports rather than
+      // decides. `trpc.unstubbed()` is the arm a test asserts on.
+      console.warn(`[routeTrpc] UNSTUBBED ${proc} — answered null, which is not a view (#629)`);
+    }
   };
 
   await page.route("**/api/trpc/**", async (route) => {
@@ -252,5 +278,6 @@ export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRec
     inputs: (proc): unknown[] => calls.get(proc) ?? [],
     lastInput: (proc): unknown => (calls.get(proc) ?? []).at(-1),
     count: (proc): number => (calls.get(proc) ?? []).length,
+    unstubbed: (): string[] => [...unstubbed],
   };
 }
