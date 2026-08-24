@@ -93,6 +93,7 @@ export const pluginKv = sqliteTable(
     // not the PK's leading column, so the delete scanned every KV row (`fk-columns-indexed` gate).
     index("plugin_kv_owner_idx").on(t.ownerId),
     check("plugin_kv_key_check", sql.raw(`length(key) <= ${KV_KEY_MAX_CHARS}`)),
-    check("plugin_kv_value_check", sql.raw(`length(value) <= ${KV_VALUE_MAX_BYTES}`)),
+    // ≤ 64 KiB of BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.
+    check("plugin_kv_value_check", sql.raw(`length(cast(value as blob)) <= ${KV_VALUE_MAX_BYTES}`)),
   ],
 );
