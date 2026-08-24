@@ -41,8 +41,6 @@ import type {
   RulePresetKnobValueOf,
 } from "@orb/contracts/automation";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { WorldBookId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 
 /** A caller's PARTIAL knob overrides for a mint — an absent key takes its descriptor's default. Validated
  *  against the named preset's own descriptors by `substrate/presets`'s `resolveRulePresetKnobs` before any build. */
@@ -173,9 +171,6 @@ const IDLE_HOURS_MIN = 1;
 const IDLE_HOURS_MAX = 720;
 /** Hours → the epoch-ms the `now.epochMs` predicate compares in. */
 const MS_PER_HOUR = 3_600_000;
-/** A TypeID is 26 base32 chars after a prefix; this is the generous text-knob bound, not the validator —
- *  the arm's own `typeIdSchema` is what actually refuses a non-id. */
-const BOOK_ID_MAX = 64;
 /** `insert_world_info_entry`'s own `entryKey` cap (`automationActionSchema`). */
 const ENTRY_KEY_MAX = 256;
 /** A preset-authored lore note is a paragraph, not the 8 KiB `contentTemplate` ceiling. */
@@ -271,21 +266,15 @@ const AUTO_ADD_LORE = defineRulePreset({
   ruleCount: 1,
   confirmFirst: true,
   knobs: {
-    // NO USABLE DEFAULT, deliberately: a lore rule without a book is not a rule, and there is no knob
-    // kind that can REFERENCE an entity yet (the recorded widening: an entity-ref descriptor the picker
-    // renders as a book selector). The empty default therefore refuses at MINT — twice, in fact: the
-    // arm's own `typeIdSchema` rejects a non-TypeID, and `createRule` rejects a book not attached to
-    // this chat. Both are typed refusals a host can act on, which is the honest shape until the kind exists.
-    bookId: {
-      kind: "text",
-      label: "Lorebook id",
-      // The picker renders this as a text field until a book-REFERENCE knob kind exists (the recorded
-      // widening); the mint validates it twice regardless — the arm's own `typeIdSchema` refuses a
-      // non-TypeID, and `createRule` refuses a book that is not attached to this chat.
-      help: "The book to write into. It must already be attached to this chat.",
-      default: "",
-      maxLength: BOOK_ID_MAX,
-    },
+    // AN ENTITY REFERENCE, and it carries NO DEFAULT — the recorded widening, now built (#630). A lore
+    // rule without a book is not a rule, and no value is the right book, so there is nothing to default
+    // TO: the picker renders this as a chooser over the books THIS CHAT has attached, and an absent
+    // choice refuses at the knob in the host's own noun ("choose a lorebook") rather than as a `""`
+    // riding `resolveKnob`'s unvalidated-default path into a TypeID error deep inside the arm schema.
+    // The mint still validates it twice — the axis schema parses the id here (which is what makes
+    // `knobs.bookId` a `WorldBookId` below, no cast), and `createRule` refuses a book that is not
+    // attached to this chat, which is a LIVE fact the picker cannot pre-empt.
+    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to write into — one of this room's own." },
     everyN: { kind: "number", label: "Every N messages", default: 10, min: CADENCE_MIN, max: CADENCE_MAX },
     entryKey: { kind: "text", label: "Entry name", default: "session notes", maxLength: ENTRY_KEY_MAX },
     note: {
@@ -310,7 +299,8 @@ const AUTO_ADD_LORE = defineRulePreset({
       arms: [
         {
           type: "insert_world_info_entry",
-          bookId: castId<WorldBookId>(knobs.bookId),
+          // Already a `WorldBookId` — the entityRef knob's own axis schema parsed it at resolution.
+          bookId: knobs.bookId,
           entryKey: knobs.entryKey,
           keys: [knobs.entryKey],
           contentTemplate: knobs.note,

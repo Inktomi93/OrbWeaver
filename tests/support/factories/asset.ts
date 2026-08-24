@@ -30,6 +30,10 @@ export function makeAsset(overrides: Partial<AssetRow> = {}): AssetRow {
     size: 100,
     hash: id.padEnd(64, "0"),
     animated: false,
+    // The default row has no header-parsed dimensions (#625) — the same NULL a non-image or an
+    // unparseable header stores. A test needing a reserved box overrides both.
+    width: null,
+    height: null,
     uploadedAt: FROZEN_AT_MS,
     ...overrides,
   };

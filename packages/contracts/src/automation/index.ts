@@ -505,10 +505,15 @@ export const AUTOMATION_BUS_EVENT_TYPES = {
 // and the mint handlers stay domain-side (`domain/automation/contract/presets.ts`).
 export type {
   RulePresetChoiceKnobDescriptor,
+  RulePresetEntityKind,
+  RulePresetEntityRefKnobDescriptor,
+  RulePresetEntityRefValueOf,
   RulePresetId,
   RulePresetKnobDescriptor,
   RulePresetKnobKind,
   RulePresetKnobValue,
+  RulePresetKnobValueInput,
+  RulePresetKnobValueInputs,
   RulePresetKnobValueOf,
   RulePresetKnobView,
   RulePresetNumberKnobDescriptor,
@@ -516,7 +521,15 @@ export type {
   RulePresetTextListKnobDescriptor,
   RulePresetView,
 } from "./presets.ts";
-export { RULE_PRESET_IDS, RULE_PRESET_KNOB_KINDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from "./presets.ts";
+export {
+  RULE_PRESET_ENTITY_KINDS,
+  RULE_PRESET_ENTITY_NOUNS,
+  RULE_PRESET_ENTITY_REF_SCHEMAS,
+  RULE_PRESET_IDS,
+  RULE_PRESET_KNOB_KINDS,
+  rulePresetIdSchema,
+  rulePresetKnobValuesSchema,
+} from "./presets.ts";
 
 // The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.
 // `#prose` imports this to compose `PROSE_SLOTS`; it lives beside the action vocabulary it teaches.

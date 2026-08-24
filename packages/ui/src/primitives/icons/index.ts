@@ -19,6 +19,7 @@ export {
   Ban,
   Beef,
   Bell,
+  Blocks,
   Bone,
   BookOpen,
   BrainCircuit,

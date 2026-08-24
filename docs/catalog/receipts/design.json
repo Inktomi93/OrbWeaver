@@ -630,9 +630,7 @@
       "verifiedSha256": "284780ad6d0041881be0134b091fbf378b5f1485b579b1a570c1c8a8c7373ab9",
       "verifiedCommit": "e69f96774a1606587feaf155b952fc701ef85a87",
       "verifiedAt": "2026-08-24",
-      "evidence": [
-        "docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)"
-      ],
+      "evidence": ["docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)"],
       "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
     },
     {

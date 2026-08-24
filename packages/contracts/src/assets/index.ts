@@ -156,14 +156,21 @@ export const resolveBlobRefsParamsSchema = z.object({
 /** @public twin: resolveBlobRefsParamsSchema — the live `resolveBlobRefs` tRPC input (cross-package PUBLIC). */
 export type ResolveBlobRefsParams = z.infer<typeof resolveBlobRefsParamsSchema>;
 
-/** One resolved `(assetId, hash, mime)` triple. Only the caller's own assets come back; a foreign/gone id
- *  is simply absent (no leak). `mime` rides so the render side can pick the element (`video/*` → a native
- *  `<video>`, everything else `<img>`) without a second lookup — the same asset-owned media-kind fact the
- *  provider wire classifies on (#317).
+/** One resolved reference: the `(assetId, hash, mime)` identity slice plus the stored pixel dimensions.
+ *  Only the caller's own assets come back; a foreign/gone id is simply absent (no leak). `mime` rides so
+ *  the render side can pick the element (`video/*` → a native `<video>`, everything else `<img>`) without
+ *  a second lookup — the same asset-owned media-kind fact the provider wire classifies on (#317).
  *
- *  TYPO class-B demotion (see {@link AssetListItem}): infer-only, never parsed — an output shape. It is
- *  the identity slice of a listed asset, so it DERIVES rather than re-spelling `assetId`/`hash`/`mime`. */
-export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash" | "mime">;
+ *  TYPO class-B demotion (see {@link AssetListItem}): infer-only, never parsed — an output shape. The
+ *  identity slice DERIVES rather than re-spelling `assetId`/`hash`/`mime`; the dimensions are declared
+ *  here because only THIS projection needs them (the grid sizes its own tiles). */
+export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash" | "mime"> & {
+  /** Header-parsed intrinsic size, stored at upload (#625) — the render side reserves the true box with
+   *  it BEFORE the bytes arrive. `null` when the asset is not an image or its header was unparseable
+   *  (and on every row written before #625): the renderer falls back to its placeholder aspect. */
+  readonly width: number | null;
+  readonly height: number | null;
+};
 
 /** `resolveChatBlobRefs` wire params — the chat-scoped sibling of {@link resolveBlobRefsParamsSchema}
  *  so a co-participant (not just the owner) can render an inline attachment. The server resolves a pair

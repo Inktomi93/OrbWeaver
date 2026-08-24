@@ -175,7 +175,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
       const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
       const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
       const rows = await db
-        .selectDistinct({ assetId: assets.id, hash: assets.hash, mime: assets.mime })
+        .selectDistinct({ assetId: assets.id, hash: assets.hash, mime: assets.mime, width: assets.width, height: assets.height })
         .from(assets)
         .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
         .innerJoin(messages, eq(messages.id, messageAssets.messageId))
@@ -226,6 +226,32 @@ export function principal(userId: UserId, role: UserRole = "user", handle: Handl
  *  content hashes). `sniffMime` recognizes the signature; the CAS just hashes/stores the bytes opaquely. */
 export function pngBytes(...tail: number[]): Uint8Array {
   return new Uint8Array([...PNG_SIGNATURE, ...tail]);
+}
+
+// The PNG IHDR width/height u32BE fields sit at byte offsets 16 and 20 — the ONLY bytes
+// `@orb/kit/image-sniff` reads for PNG dimensions. `pngBytes` above stops short of them on purpose (its
+// header is truncated ⇒ dimensions null), so a test needing REAL stored dimensions uses this instead.
+const PNG_IHDR_WIDTH_AT = 16;
+const PNG_IHDR_HEIGHT_AT = 20;
+const PNG_DIMS_HEADER_LEN = 24;
+const BYTE = 256;
+
+/** Fake but well-formed PNG bytes whose header parses as `width × height` (#625 — the stored dimension
+ *  facts). Arithmetic, not bitwise, matching the kit-purity rule the sniffer itself follows. The trailing
+ *  `tail` bytes distinguish content hashes exactly as {@link pngBytes} does. */
+export function pngBytesWithDims(width: number, height: number, ...tail: number[]): Uint8Array {
+  const bytes = new Uint8Array(PNG_DIMS_HEADER_LEN + tail.length);
+  bytes.set(PNG_SIGNATURE, 0);
+  const u32be = (n: number, at: number): void => {
+    bytes[at] = Math.floor(n / (BYTE * BYTE * BYTE)) % BYTE;
+    bytes[at + 1] = Math.floor(n / (BYTE * BYTE)) % BYTE;
+    bytes[at + 2] = Math.floor(n / BYTE) % BYTE;
+    bytes[at + 3] = n % BYTE;
+  };
+  u32be(width, PNG_IHDR_WIDTH_AT);
+  u32be(height, PNG_IHDR_HEIGHT_AT);
+  bytes.set(tail, PNG_DIMS_HEADER_LEN);
+  return bytes;
 }
 
 // "GIF89a" — every GIF is treated animated by `@orb/kit/image-sniff` `isAnimated` (gallery-design §3).

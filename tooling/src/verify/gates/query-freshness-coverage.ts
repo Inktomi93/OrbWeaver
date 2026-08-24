@@ -150,6 +150,17 @@ const STATIC: ExemptionTable = {
   "automation.listRulePresets": {
     why: "IMMUTABLE for the session: the rule-preset catalogue is a pure projection of a compile-time Record (domain/automation/contract/presets.ts via verbs/list-rule-presets.ts — no principal, no chat, no db, per its own header). It cannot change without a deploy, so no bus row is warranted and no mutation can move it; the picker refetching it would answer identically forever.",
   },
+  // The D46 plugin lifecycle emits NO bus event at all — there is no plugin room, and `plugin.list` is a
+  // per-OWNER catalog read rather than a room read, so there is no channel a bus row could ride. Every
+  // mover of these two reads is a mutation the acting tab itself issued (install authority is owner∪admin
+  // and every management verb is gated on it), which makes them the writer-local class this table already
+  // holds for the admin surfaces above.
+  "plugin.list": {
+    why: 'writer-local — the plugin lifecycle has no bus event (no plugin room; `plugin.list` is a per-owner catalog read), and all four writers `invalidates` it: install/upgrade/setEnabled/uninstall in features/plugin/lib/plugin-mutations.ts each carry trpc.plugin.list.queryFilter(). Install authority is owner∪admin (domain/plugin/verbs/install.ts `can(caller,"admin",{kind:"global"})` and each sibling verb), so no second producer can move an admin\'s own plugin catalog behind their pane. Proven by tests/client/features/plugin/surfaces/plugins-settings-surface.ct.tsx (install and the enable toggle each reconcile the list from the server\'s new truth).',
+  },
+  "plugin.getLog": {
+    why: "writer-local — the host.log ring only moves when the plugin RUNS, and the two client acts that can start a run both `invalidates` it: setEnabled (activation logs, or fails and writes lastError) and upgrade (a re-activation on the new bundle) in features/plugin/lib/plugin-mutations.ts carry trpc.plugin.getLog.queryFilter({pluginId}). A run triggered by a chat event moves it with no client act, and that edge is DELIBERATELY not covered here: the log is a disclosure the owner opens on demand, so it refetches when opened rather than streaming — the frozen-tab class this gate guards needs a MOUNTED read, and this one is mounted only inside its own Collapsible.",
+  },
 };
 
 // Empty today — every founding deferral was resolved 2026-08-01 (the twelve `stats.*` reads gained the

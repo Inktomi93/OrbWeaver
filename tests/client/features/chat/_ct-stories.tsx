@@ -29,6 +29,9 @@ import {
   NewChatPicker,
 } from "@orb/client/features/chat";
 import { HomeSurface } from "@orb/client/features/home";
+// #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
+// providers use, never a relative path (a relative import gets a different React context instance).
+import { ImageDetailBody } from "@orb/client/features/imagery";
 import type {
   ChatContextState,
   ChatControl,
@@ -105,6 +108,7 @@ import { AppearanceMessageStyleSection } from "../../../../packages/client/src/f
 import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/chat/components/assembly-preview-panel.tsx";
 import { ChatMessageHandlingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-message-handling-section.tsx";
 import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section.tsx";
+import { ChatBooksSection } from "../../../../packages/client/src/features/chat/components/chat-books-section.tsx";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar.tsx";
 import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section.tsx";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
@@ -2564,26 +2568,70 @@ export interface AttachmentMediaStoryProps {
   /** `true` resolves the asset as a 1024×1536 PORTRAIT image — the geometry arm (#622): the rendered box must
    *  keep the image's own 2:3 ratio, never the primitive's 16:9 no-dims reservation. */
   readonly portrait?: boolean;
+  /** When set, resolves the asset at THIS url carrying the stored 1024×1536 `dims` — the RESERVATION arm
+   *  (#625). The CT holds the url permanently pending, so the box it measures is the pre-decode one. */
+  readonly reservedSrc?: string;
+}
+
+/** The stored dimensions the #625 reservation arm resolves with — the same 1024×1536 portrait #622 uses. */
+const CT_RESERVED_DIMS = { w: 1024, h: 1536 } as const;
+
+function resolveStillImage(portrait: boolean, reservedSrc: string | undefined): ResolvedAttachment {
+  if (reservedSrc !== undefined) {
+    return { url: reservedSrc, mime: "image/png", dims: CT_RESERVED_DIMS };
+  }
+  return portrait ? { url: CT_PORTRAIT_SVG_DATA_URL, mime: "image/svg+xml" } : { url: CT_PNG_DATA_URL, mime: "image/png" };
 }
 
 /** `MessageMediaBlock`'s ASSET arm (#67/#317) over the `AttachmentUrlContext`: the resolved case provides a
  *  `{url, mime}` (renders the gated `<MessageMedia>` image, or the `<video>` arm for a video mime); `empty`
  *  provides an empty map (the `[image]` placeholder degrade). A pure-render story (no data layer — the
  *  context IS the seam). */
-export function AttachmentMediaStory({ empty = false, video = false, portrait = false }: AttachmentMediaStoryProps): ReactElement {
+export function AttachmentMediaStory({ empty = false, video = false, portrait = false, reservedSrc }: AttachmentMediaStoryProps): ReactElement {
   const block = {
     kind: "media",
     media: "image",
     src: { kind: "asset", assetId: CT_ATTACH_ASSET_ID },
     alt: "an attached image",
   } as const;
-  const stillImage: ResolvedAttachment = portrait ? { url: CT_PORTRAIT_SVG_DATA_URL, mime: "image/svg+xml" } : { url: CT_PNG_DATA_URL, mime: "image/png" };
-  const resolved: ResolvedAttachment = video ? { url: CT_MP4_DATA_URL, mime: "video/mp4" } : stillImage;
+  const resolved: ResolvedAttachment = video ? { url: CT_MP4_DATA_URL, mime: "video/mp4" } : resolveStillImage(portrait, reservedSrc);
   const map = new Map<AssetId, ResolvedAttachment>(empty ? [] : [[CT_ATTACH_ASSET_ID, resolved]]);
   return (
     <AttachmentUrlContext value={map}>
       <MessageMediaBlock block={block} allowExternal={false} />
     </AttachmentUrlContext>
+  );
+}
+
+/** #618 — the CLICK→DETAIL path with a NON-NULL active chat, which is the arm the story above cannot reach
+ *  (it mounts with no active chat, so the block takes the plain-zoom fallback). The active chat is seeded by
+ *  the `.ct.tsx` into the PERSISTED store's localStorage key BEFORE the page's scripts run, never by an
+ *  effect here: `useActiveChatId` is read during the media block's FIRST commit, and an effect-seeded store
+ *  would land after it.
+ *
+ *  The mini-host is the shell's ModalHost body-swap narrowed to the one slot — the detail modal lives at the
+ *  shell in production precisely so it survives a virtualized row's unmount, so a story that rendered it
+ *  inside the block would be proving a composition the app never uses. What the pair makes observable is the
+ *  PIN: the chatId the detail body writes a background against is the one that was active AT OPEN TIME. */
+function RoomImageDetailHost(): ReactElement | null {
+  return useOpenModal() === "imageDetail" ? <ImageDetailBody /> : null;
+}
+
+export function RoomImageDetailStory(): ReactElement {
+  const map = new Map<AssetId, ResolvedAttachment>([[CT_ATTACH_ASSET_ID, { url: CT_PNG_DATA_URL, mime: "image/png" }]]);
+  const block = {
+    kind: "media",
+    media: "image",
+    src: { kind: "asset", assetId: CT_ATTACH_ASSET_ID },
+    alt: "an attached image",
+  } as const;
+  return (
+    <CtDataProviders>
+      <AttachmentUrlContext value={map}>
+        <MessageMediaBlock block={block} allowExternal={false} />
+      </AttachmentUrlContext>
+      <RoomImageDetailHost />
+    </CtDataProviders>
   );
 }
 
@@ -2737,6 +2785,26 @@ export function ChatDocumentsSectionStory({ isHost = true }: { readonly isHost?:
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
         >
           <ChatDocumentsSection chatId={CHAT_ID} isHost={isHost} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The per-chat LOREBOOKS rack (chat-books-section.tsx, #640) at the REAL context-panel width — 320px is the
+ *  pane floor the row grammar is stated at, and the width a `shrink-0` trailing cluster is proven at. Same
+ *  `QueryBoundary` its production mount ("This chat" → Lorebooks) gives it. The tab's own `.ct.tsx` owns the
+ *  behavior pins (order, the write-reach copy, attach/detach payloads); this story exists for the geometry
+ *  the 380px tab story cannot see. */
+export function ChatBooksSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 320 }}>
+        <QueryBoundary
+          fallback={<Text tone="muted">Loading lorebooks…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
+        >
+          <ChatBooksSection chatId={CHAT_ID} isHost={isHost} />
         </QueryBoundary>
       </div>
     </CtDataProviders>

@@ -65,6 +65,10 @@ function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; reado
   // here, off the resolved asset's stored mime — an mp4/webm attachment renders the native <video> arm.
   // A gif keeps the <img> arm (browsers animate it natively; only the MODEL wire treats it as frames).
   const media = resolved.mime.startsWith(VIDEO_MIME_PREFIX) ? "video" : block.media;
+  // #625: the block projection is also DIMENSION-blind (`contentSpansToBlocks` parses `asset:<id>` text and
+  // has no row to read), so the reserving dims come off the RESOLVED asset. A block that carries its own
+  // (a direct `buildBlock` consumer) still wins — the row is the producer closest to the content.
+  const dims = block.dims ?? resolved.dims;
   // An own-origin IMAGE opens the imagery detail lightbox (provenance + edit + set-as-background); video —
   // and the null-chat fallback — keep the plain zoom Lightbox.
   if (media === "image" && chatId !== null) {
@@ -73,13 +77,13 @@ function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; reado
         src={{ kind: "asset", url: resolved.url }}
         media="image"
         alt={block.alt}
-        {...(block.dims === undefined ? {} : { dims: block.dims })}
+        {...(dims === undefined ? {} : { dims })}
         allowExternal={true}
         onActivate={(): void => openImageDetail({ assetId, chatId, url: resolved.url, alt: block.alt })}
       />
     );
   }
-  return <MediaWithZoom block={{ ...block, media }} src={{ kind: "asset", url: resolved.url }} allowExternal={true} />;
+  return <MediaWithZoom block={{ ...block, media, ...(dims === undefined ? {} : { dims }) }} src={{ kind: "asset", url: resolved.url }} allowExternal={true} />;
 }
 
 export interface MessageMediaBlockProps {
