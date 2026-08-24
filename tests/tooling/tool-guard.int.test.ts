@@ -642,8 +642,14 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   // fixture could not prove the branch; this isolates it.
   const repo = mkdtempSync(join(tmpdir(), "tg-repo-"));
   const tracked = writeScript(repo, "tracked-run.sh", EVIL_BODY);
+  // #617: the SAME reviewed-ness, but past the body-inspection cap. The two checks used to run in the
+  // other order, so a TRACKED file big enough to clear the cap was refused for its SIZE — a limit reading
+  // as a policy refusal on reviewed code. Live instance: `tests/tooling/check-gates.int.test.ts` (99,797
+  // bytes, tracked) could not be named in the sanctioned `pnpm test:scoped` spelling, which teaches a lane
+  // that the niced door is refused and pushes it onto an ad-hoc unniced one.
+  const trackedBig = writeScript(repo, "tracked-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
   spawnSync("git", ["-C", repo, "init", "-q"], { encoding: "utf8" });
-  spawnSync("git", ["-C", repo, "add", "tracked-run.sh"], { encoding: "utf8" });
+  spawnSync("git", ["-C", repo, "add", "tracked-run.sh", "tracked-big.sh"], { encoding: "utf8" });
 
   const rows: [string, BatchResult["decision"], string | null, Partial<Omit<BatchCase, "command">>?][] = [
     // MUST BITE — the body is what runs
@@ -664,6 +670,12 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`bash ${join(dir, "does-not-exist.sh")}`, "pass", null], // the command would fail anyway
     [`bash ${dir}`, "pass", null], // a directory is not a script
     [`bash ${tracked}`, "pass", null], // TRACKED: reviewed code, body not read — same bytes as `evil`
+    // #617: TRACKED and PAST THE CAP. Reviewed-ness is decided BEFORE size, so a big tracked file is
+    // skipped exactly like a small one — the cap is there to stop the guard waving through an UNREVIEWED
+    // body it could not read, and a tracked file is reviewed whatever its byte count. Pairs with the
+    // `bash ${big}` row above (UNTRACKED + big → still asks): together they prove the reorder narrowed the
+    // cap to its real subject rather than defeating it.
+    [`bash ${trackedBig}`, "pass", null],
     [`bash ${REPO}/tooling/src/stack/stack.sh restart`, "pass", null], // the real-world tracked case
     // `bash -c '<string>'` is the SIBLING visibility gap, closed 2026-08-14 by the nested-command pass:
     // the operand is a command, not a file, so there is no body to read — it is extracted and classified

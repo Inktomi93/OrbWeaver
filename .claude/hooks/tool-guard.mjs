@@ -1131,11 +1131,18 @@ function oneScriptVerdict(operand, ctx, depth) {
     if (!stat.isFile()) {
       return null;
     }
-    if (stat.size > SCRIPT_MAX_BYTES) {
-      return { decision: "ask", rule: "script-too-large", reason: REASONS.scriptTooLarge(file, stat.size), contexts: [] };
-    }
+    // TRACKED FIRST, THEN THE SIZE CAP (#617). These two were the other way round, so a TRACKED file big
+    // enough to clear the cap was refused for its SIZE — a limit that reads as a policy refusal on
+    // reviewed code. Measured: `bash <tests/tooling/check-gates.int.test.ts>` (99,797 bytes, tracked) →
+    // ask script-too-large, while the same spelling on a SMALL tracked file passes silently. The cap
+    // exists so the guard never waves through an UNREVIEWED body it could not read; a tracked file is
+    // reviewed by definition and is skipped whatever its size, so asking about it teaches a lane that the
+    // sanctioned spelling is refused and pushes it onto an unniced ad-hoc one.
     if (isTrackedScript(file)) {
       return null; // reviewed code — the normal rules judge the command line, nothing more
+    }
+    if (stat.size > SCRIPT_MAX_BYTES) {
+      return { decision: "ask", rule: "script-too-large", reason: REASONS.scriptTooLarge(file, stat.size), contexts: [] };
     }
     // Past the read depth: there IS an unreviewed body here and the guard is choosing not to open it, so
     // say so rather than wave it through. Reached only for a resolvable, untracked, readable file — a
