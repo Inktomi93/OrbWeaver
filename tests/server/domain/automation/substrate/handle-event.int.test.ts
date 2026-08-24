@@ -4,7 +4,7 @@
 // gates bite; the error ceiling auto-disables; and a chat with zero enabled rules does NOTHING (the pre-check
 // — the byte-identity no-op's server half).
 
-import type { AutomationAction, AutomationBusEvent, AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationActionInput, AutomationBusEvent, AutomationTrigger } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import { chatParticipants, messages } from "@orb/db";
@@ -19,6 +19,7 @@ import { createArmExecutors } from "../../../../../packages/server/src/domain/au
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
 import { listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
+import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedAsset, seedCharacter } from "../../chat/_support.ts";
@@ -27,7 +28,7 @@ import { makeAutomationHarness, principal, seedHostChat, seedUser } from "../_su
 
 const CHAT_OPENED: AutomationTrigger = { bus: "chat", type: "chatOpened" };
 const TURN_COMPLETED: AutomationTrigger = { bus: "chat", type: "turnCompleted" };
-const SET_VAR: AutomationAction = { type: "set_variable", scope: "chat", key: "mood", op: "set", value: "grim" };
+const SET_VAR: AutomationActionInput = { type: "set_variable", scope: "chat", key: "mood", op: "set", value: "grim" };
 
 interface Fixture {
   readonly db: Awaited<ReturnType<typeof freshDb>>;
@@ -42,7 +43,7 @@ interface Fixture {
  *  These suites only fire `set_variable` rules, so it narrows via a cast (no discriminant guard). */
 function recordingDispatch(calls: string[]): ArmDispatch {
   return (action): Promise<{ ok: true }> => {
-    const arm = action as Extract<AutomationAction, { type: "set_variable" }>;
+    const arm = action as Extract<AutomationActionInput, { type: "set_variable" }>;
     if (arm.op === "set" && arm.value === "boom") {
       throw new Error("arm blew up");
     }
@@ -72,7 +73,7 @@ async function setup(overrides: HarnessOverrides = {}): Promise<Fixture> {
 interface RuleOpts {
   readonly name: string;
   readonly trigger?: AutomationTrigger;
-  readonly actions?: readonly AutomationAction[];
+  readonly actions?: readonly AutomationActionInput[];
   readonly matchAutomationEvents?: boolean;
   readonly cooldownSeconds?: number;
 }
@@ -323,7 +324,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
       imagery: { generatePicture: () => Promise.resolve({ costUsd: null, imageCount: 0 }) },
       summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
     };
-    return { runArm: createArmExecutors({ db, ops, prng: () => 0.42, notify: () => undefined }), ops };
+    return { runArm: createArmExecutors({ db, ops, prng: () => 0.42, notify: () => undefined, suggestions: createSuggestionStore(), newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion) }), ops };
   }
 
   test("in-rule: [set hp=5, inc hp] composes to 6 (the DB alone is stale — write-through is the mechanism)", async () => {
@@ -489,8 +490,8 @@ describe("F5 abort-path cascade guard (self-loop closed)", () => {
 // dispatch + the REAL `postNarratorMessage` verb (the actual F1 seam), exactly like F5's real-path test.
 describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
   // The rule's arm: a `generate_image` with the schema defaults spelled out (createRule re-parses, but the TS
-  // `AutomationAction` union requires the full shape). `quiet:false` ⇒ it POSTS (the F1 path under test).
-  const genImageAction: AutomationAction = {
+  // `AutomationActionInput` union requires the full shape). `quiet:false` ⇒ it POSTS (the F1 path under test).
+  const genImageAction: AutomationActionInput = {
     type: "generate_image",
     mode: "free",
     n: 1,
@@ -555,7 +556,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
       },
       summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
     };
-    return { runArm: createArmExecutors({ db, ops, prng: () => 0.42, notify: () => undefined }), ops, posts };
+    return { runArm: createArmExecutors({ db, ops, prng: () => 0.42, notify: () => undefined, suggestions: createSuggestionStore(), newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion) }), ops, posts };
   }
 
   /** The re-fire event a posted image raises — the exact `messageCommitted` the narrator op emitted. */

@@ -9,13 +9,23 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { AutomationFireId, AutomationRuleId } from "@orb/kit/ids";
-import type { ArmDispatch, AutomationOps, EmitAutomationEvent, EnabledRuleIndex, PromptTransformIndex, ResolveAuthorPrincipal } from "./ops.ts";
+import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId } from "@orb/kit/ids";
 import type {
+  ArmDispatch,
+  AutomationOps,
+  EmitAutomationEvent,
+  EnabledRuleIndex,
+  PromptTransformIndex,
+  ResolveAuthorPrincipal,
+  SuggestionStore,
+} from "./ops.ts";
+import type {
+  ConfirmSuggestionParams,
   CreateRuleFromPresetParams,
   CreateRuleParams,
   DeleteGlobalVariableParams,
   DeleteRuleParams,
+  DismissSuggestionParams,
   GetBudgetsParams,
   GetGlobalVariableParams,
   ListFiresParams,
@@ -23,6 +33,7 @@ import type {
   ListRulesParams,
   ReorderRulesParams,
   ResolveStreamAuthorityParams,
+  RunRuleNowParams,
   SetBudgetsParams,
   SetGlobalVariableParams,
   SetRuleEnabledParams,
@@ -30,7 +41,7 @@ import type {
   UpdateRuleParams,
 } from "./params.ts";
 import type { PluginSubscriberRegistry } from "./plugin-subscribers.ts";
-import type { FireView, RuleView, StreamAuthority, TestRunResult } from "./results.ts";
+import type { ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, StreamAuthority, TestRunResult } from "./results.ts";
 
 /** The DI bundle the automation verbs close over. Assembled at the entry composition root and handed to
  *  `createAutomationService`. `now` is the injected clock; `prng` is the injected [0,1) source the dry-run
@@ -42,6 +53,8 @@ export interface AutomationContext {
   readonly prng: () => number;
   readonly newRuleId: () => AutomationRuleId;
   readonly newFireId: () => AutomationFireId;
+  /** S4 — the pending-ask id minter (an EPHEMERAL TypeID: no table, the id is the claim handle). */
+  readonly newSuggestionId: () => AutomationSuggestionId;
   readonly can: Can;
   /** The injected cross-feature READ ops (chat projections) the fact resolver + CEL env consume. */
   readonly ops: AutomationOps;
@@ -50,6 +63,10 @@ export interface AutomationContext {
   readonly runArm: ArmDispatch;
   /** The in-process pre-check index — maintained by the enable/disable/delete/trigger-change verbs. */
   readonly enabled: EnabledRuleIndex;
+  /** S4 — the in-RAM pending-ask map (RULED F1). One per process, created at compose beside `enabled`;
+   *  the dispatch RAISES into it, the confirm/dismiss verbs TAKE from it, and the lifecycle verbs + the
+   *  host-handoff sweep VOID from it. */
+  readonly suggestions: SuggestionStore;
   /** The plugin `events.on` subscriber registry — the watcher fans every resolved
    *  TriggerFact to the matching, authorized subscribers alongside the rule dispatch. Created at compose and
    *  handed to the membrane host (`register` is the seam `events.on` closes over); the fan-out reads it here. */
@@ -108,6 +125,20 @@ export interface AutomationService {
   /** Dry-run a rule (host-only): evaluate the predicate + render every arm's templates, executing NOTHING
    *  (no op, no budget debit); logs an `outcome:"test_run"` fire row. */
   readonly testRule: (params: TestRuleParams) => Promise<TestRunResult>;
+
+  /** R7 — run ONE rule NOW (host-only): a fresh dispatch at cascade depth 0, the same gates a bus-driven
+   *  fire runs EXCEPT the engine's fire-RATE cap (see the verb's header — the F4 invitation exists because
+   *  that cap refused, so re-applying it would make "run it now" refuse identically forever). Deliberately
+   *  NOT `testRule`, which executes nothing and stays that way. */
+  readonly runRuleNow: (params: RunRuleNowParams) => Promise<RunRuleNowResult>;
+
+  /** S4 — CONFIRM a pending ask (host-only). Take-once by id; re-checks rule-enabled + the AUTHOR's host
+   *  authority; then either executes the STASHED arm (confirm class) or runs the rule fresh (invitation
+   *  class). The confirmer AUTHORIZES; the executed frame stays the author's. */
+  readonly confirmSuggestion: (params: ConfirmSuggestionParams) => Promise<ConfirmSuggestionResult>;
+  /** S4 — the explicit dismiss (host-only): take the ask and run nothing. Idempotent-by-collapse — a
+   *  second dismiss finds nothing and refuses leak-free, exactly like a double confirm. */
+  readonly dismissSuggestion: (params: DismissSuggestionParams) => Promise<void>;
 
   /** The `automation.stream` subscribe-time visibility gate — resolve the caller's authority tier
    *  over the chat (`host` receives every bus event; `member` only the room-visible `quickReplySurfaced`), or

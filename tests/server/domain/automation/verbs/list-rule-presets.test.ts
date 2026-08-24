@@ -27,6 +27,11 @@ test("carries NO CEL and no arm templates — the picker never sees a predicate"
   expect(serialized).not.toContain("has(");
 });
 
-test("declares confirmFirst on every view — A4 reads it, A3 only carries it (all committed rows act directly)", () => {
-  expect(listRulePresets().map((view) => view.confirmFirst)).toEqual(RULE_PRESET_IDS.map(() => false));
+test("declares confirmFirst on every view — the two A4 rows ASK, the rest act directly", () => {
+  // #1 (welcome-back recap) and #3 (auto-add lore) are the confirm-first rows; the picker reads this to
+  // tell a host, BEFORE they enable it, whether the rule will act or ask.
+  const asking = listRulePresets()
+    .filter((view) => view.confirmFirst)
+    .map((view) => view.id);
+  expect(asking).toEqual(["welcomeBackRecap", "autoAddLore"]);
 });

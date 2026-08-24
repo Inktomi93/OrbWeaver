@@ -935,6 +935,15 @@ const PROBES: readonly Probe[] = [
   { path: "automation.deleteRule", call: (c, i) => c.automation.deleteRule({ ruleId: i.automationRuleId }) },
   { path: "automation.reorderRules", call: (c, i) => c.automation.reorderRules({ chatId: i.chatId, orderedIds: [i.automationRuleId] }) },
   { path: "automation.testRule", call: (c, i) => c.automation.testRule({ ruleId: i.automationRuleId }) },
+  // R7 + S4 (interaction-direction-spec §6 R7 / §3-S4). `runRuleNow` is rule-scoped — same `requireRuleHost`
+  // chokepoint as testRule, so a stranger collapses to RuleNotFoundError → NOT_FOUND BEFORE any dispatch (no
+  // fire row, no arm, no spend). The two suggestion verbs take an EPHEMERAL in-RAM id: a fabricated one
+  // resolves to no pending ask and collapses on the store lookup, and a real one (unguessable, and never
+  // emitted to a non-host) would still collapse on the same host gate — the stranger probe proves the
+  // fabricated arm, which is the one a foreigner can actually reach.
+  { path: "automation.runRuleNow", call: (c, i) => c.automation.runRuleNow({ ruleId: i.automationRuleId }) },
+  { path: "automation.confirmSuggestion", call: (c) => c.automation.confirmSuggestion({ suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) }) },
+  { path: "automation.dismissSuggestion", call: (c) => c.automation.dismissSuggestion({ suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) }) },
   { path: "automation.listFires", call: (c, i) => c.automation.listFires({ ruleId: i.automationRuleId }) },
   { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: 5 }) },
   { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },

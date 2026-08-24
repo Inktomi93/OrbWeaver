@@ -1,4 +1,6 @@
 // The Automation settings pane (client-architecture-lockdown.md §8) — DECLARED-PLANNED (unbuilt, O1's arm).
+// Re-homed from `features/settings` with A4: a pane belongs to the feature whose surface it is, and this
+// one becomes the OWNER-GLOBAL rules surface when C5's global lane lands (interaction-direction-spec §3-S3).
 
 import { Zap } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";

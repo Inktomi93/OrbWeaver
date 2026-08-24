@@ -6,10 +6,12 @@
 
 import type { AutomationContext, AutomationService } from "./contract/service.ts";
 import { createHandleEvent } from "./substrate/handle-event.ts";
+import { createConfirmSuggestion } from "./verbs/confirm-suggestion.ts";
 import { createCreateRule } from "./verbs/create-rule.ts";
 import { createCreateRuleFromPreset } from "./verbs/create-rule-from-preset.ts";
 import { createDeleteGlobalVariable } from "./verbs/delete-global-variable.ts";
 import { createDeleteRule } from "./verbs/delete-rule.ts";
+import { createDismissSuggestion } from "./verbs/dismiss-suggestion.ts";
 import { createGetBudgets } from "./verbs/get-budgets.ts";
 import { createGetGlobalVariable } from "./verbs/get-global-variable.ts";
 import { createListFires } from "./verbs/list-fires.ts";
@@ -18,6 +20,7 @@ import { createListRulePresets } from "./verbs/list-rule-presets.ts";
 import { createListRules } from "./verbs/list-rules.ts";
 import { createReorderRules } from "./verbs/reorder-rules.ts";
 import { createResolveStreamAuthority } from "./verbs/resolve-stream-authority.ts";
+import { createRunRuleNow } from "./verbs/run-rule-now.ts";
 import { createSetBudgets } from "./verbs/set-budgets.ts";
 import { createSetGlobalVariable } from "./verbs/set-global-variable.ts";
 import { createSetRuleEnabled } from "./verbs/set-rule-enabled.ts";
@@ -46,6 +49,9 @@ export function createAutomationService(ctx: AutomationContext): AutomationServi
     setBudgets: createSetBudgets(ctx),
     getBudgets: createGetBudgets(ctx),
     testRule: createTestRule(ctx),
+    runRuleNow: createRunRuleNow(ctx),
+    confirmSuggestion: createConfirmSuggestion(ctx),
+    dismissSuggestion: createDismissSuggestion(ctx),
     resolveStreamAuthority: createResolveStreamAuthority(ctx),
     handleEvent: createHandleEvent(ctx),
   };

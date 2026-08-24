@@ -4,7 +4,7 @@
 // pre-validation here gives a clean, typed refusal before the write. The rule-lifecycle errors are added below.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 
 /** A global-variable key/value violates its cap (key ≤ 128 chars, value ≤ 64 KiB, key non-empty). */
 export class GlobalVariableInvalidError extends DomainOperationError {
@@ -39,6 +39,29 @@ export class RuleNotFoundError extends DomainNotFoundError {
   constructor(ruleId: AutomationRuleId) {
     super("automation_rule", ruleId);
     this.ruleId = ruleId;
+    this.name = this.constructor.name;
+  }
+}
+
+/** S4 — a suggestion id names no pending ask the caller may act on. ONE leak-free answer collapsing every
+ *  way an ask can be gone: never existed · already taken (the double-click / replace race — take-once) ·
+ *  TTL-swept · voided by a host handoff or a rule disable · raised in a chat this caller is not a present
+ *  member of. A host learning WHICH of those it was buys nothing and a non-member must learn nothing. */
+export class SuggestionNotFoundError extends DomainNotFoundError {
+  public readonly suggestionId: AutomationSuggestionId;
+  constructor(suggestionId: AutomationSuggestionId) {
+    super("automation_suggestion", suggestionId);
+    this.suggestionId = suggestionId;
+    this.name = this.constructor.name;
+  }
+}
+
+/** S4 — the ask was CLAIMED (it is spent either way) and then refused by a re-check: the rule was disabled
+ *  or deleted since it was raised, or its AUTHOR no longer holds host. A typed, user-visible refusal — the
+ *  host asked for something that can no longer legitimately happen, and they are told which. */
+export class SuggestionRefusedError extends DomainOperationError {
+  constructor(code: string, reason: string) {
+    super(`automation_suggestion_${code}`, reason);
     this.name = this.constructor.name;
   }
 }

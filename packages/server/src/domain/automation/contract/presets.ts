@@ -33,7 +33,7 @@
 // `preset_id`/`knobs` provenance column exists and none is added here.
 
 import type {
-  AutomationAction,
+  AutomationActionInput,
   ChatTriggerType,
   RulePresetId,
   RulePresetKnobDescriptor,
@@ -41,6 +41,8 @@ import type {
   RulePresetKnobValueOf,
 } from "@orb/contracts/automation";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { WorldBookId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 
 /** A caller's PARTIAL knob overrides for a mint — an absent key takes its descriptor's default. Validated
  *  against the named preset's own descriptors by `substrate/presets`'s `resolveRulePresetKnobs` before any build. */
@@ -53,7 +55,8 @@ export type RulePresetKnobOverrides = Readonly<Record<string, RulePresetKnobValu
 export interface RulePresetRuleDef {
   readonly triggerType: ChatTriggerType;
   readonly predicate: string | null;
-  readonly arms: readonly AutomationAction[];
+  /** AUTHORED arms (the schema's INPUT — a builder spells only what it chose; the mint parses). */
+  readonly arms: readonly AutomationActionInput[];
   /** Law 4 — set explicitly on COUNTER rules. Absent ⇒ `createRule`'s per-rule default (30/hr). */
   readonly maxFiresPerHour?: number;
   /** Absent ⇒ 0. A `post_notification` arm forces ≥ 60 (`substrate/validate.ts`'s cooldown floor). */
@@ -164,12 +167,33 @@ const PATTERNS_MAX = 8;
 /** One image per fire (the `generate_image` arm's `n`). */
 const IMAGES_PER_FIRE = 1;
 
+/** #1's idle window, in hours. The floor is 1 (a recap sooner than that is a recap of the last minute); the
+ *  ceiling is a month, past which the room is not "idle", it is over. */
+const IDLE_HOURS_MIN = 1;
+const IDLE_HOURS_MAX = 720;
+/** Hours → the epoch-ms the `now.epochMs` predicate compares in. */
+const MS_PER_HOUR = 3_600_000;
+/** A TypeID is 26 base32 chars after a prefix; this is the generous text-knob bound, not the validator —
+ *  the arm's own `typeIdSchema` is what actually refuses a non-id. */
+const BOOK_ID_MAX = 64;
+/** `insert_world_info_entry`'s own `entryKey` cap (`automationActionSchema`). */
+const ENTRY_KEY_MAX = 256;
+/** A preset-authored lore note is a paragraph, not the 8 KiB `contentTemplate` ceiling. */
+const LORE_NOTE_MAX = 2000;
+
+/** #10's predicate: a rule that NEVER fires on its own. A manual run skips the predicate (it is the
+ *  whether-to-fire-BY-ITSELF gate), so this is the honest spelling of "on demand only" — as opposed to a
+ *  trigger that fires rarely, which would still fire eventually and surprise the room. */
+const NEVER_ON_ITS_OWN = "false";
+
 /** The clock's chat variable. FIXED, not a knob — B9's `SegmentedClock` widget reads this one key, and a
  *  knob-supplied key would land in a CEL identifier position. */
 const CLOCK_VAR_KEY = "clock";
 /** The callback's two chat variables — the catalogue names them (§4 #12). */
 const DEBT_VAR_KEY = "debt";
 const DEBT_BEAT_VAR_KEY = "debtBeat";
+/** #1's beat stamp — the wall-clock of the last committed message, written by R1 and read by R2. */
+const LAST_BEAT_VAR_KEY = "lastBeatMs";
 
 /** The illustration modes a scene-cadence preset may pick: the two SCENE modes plus verbatim `free`. The
  *  character/face/multimodal modes need a subject + an avatar and are the `/imagine` surface's, not a
@@ -179,6 +203,190 @@ const ILLUSTRATE_MODES = ["scenario", "background", "free"] as const satisfies r
 // ── the catalogue ─────────────────────────────────────────────────────────────────────────────────────
 // §4 rows #1/#3/#10 (confirm-first + suggestion riders) are A4's; #8 rides A2's per-choice `mode` field;
 // #2/#11/#14/#15/#16/#20 ride later phases. Only the A3-riding committed rows land here.
+
+/** §4 #1 — welcome-back recap (class 1; the CONFIRM-FIRST card). TWO rules, and the pair is the point:
+ *  R1 stamps the wall-clock of every beat into a chat var (a per-beat counter, hence law 4's explicit high
+ *  cap); R2 fires on `chatOpened` when that stamp is old — or ABSENT, which law 1 forces us to spell, since
+ *  `int(vars.lastBeatMs)` THROWS on a chat that has never had a beat.
+ *
+ *  WHY A CARD AND NOT CHIPS (the catalogue's own WHY, kept because it is the reasoning a later editor would
+ *  otherwise redo): a chip's click posts as the CLICKING member (law 3), while `chatOpened` is per-attach and
+ *  viewer-blind — chips would fan the recap ask room-wide and whoever clicked would appear to have ASKED for
+ *  a recap in their own voice. A card is host-tier, replace-per-rule, take-once, and its stored arm is
+ *  STATIC (a fixed guided steer), so the confirm class's staleness cost is nil here. */
+const WELCOME_BACK_RECAP = defineRulePreset({
+  id: "welcomeBackRecap",
+  title: "Welcome-back recap",
+  summary: "After you have been away a while, offer to recap where the scene left off.",
+  ruleCount: 2,
+  confirmFirst: true,
+  knobs: {
+    idleHours: {
+      kind: "number",
+      label: "Away for at least (hours)",
+      help: "How long the room must have been quiet before the recap is offered.",
+      default: 12,
+      min: IDLE_HOURS_MIN,
+      max: IDLE_HOURS_MAX,
+    },
+    steer: {
+      kind: "text",
+      label: "The recap",
+      default: "Briefly recap where the scene stands — who is present, what just happened, what is unresolved. Two or three sentences, in narration.",
+      maxLength: STEER_TEXT_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "messageCommitted",
+      predicate: null,
+      arms: [{ type: "set_variable", scope: "chat", key: LAST_BEAT_VAR_KEY, op: "set", value: "{{expr::now.epochMs}}" }],
+      maxFiresPerHour: COUNTER_RULE_MAX_FIRES_PER_HOUR, // law 4 — this one stamps every beat.
+    },
+    {
+      triggerType: "chatOpened",
+      // Law 1 — the unguarded read THROWS on a room that has never had a beat, and law 2's `int()` coercion
+      // is what makes the subtraction legal at all.
+      predicate: `!has(vars.${LAST_BEAT_VAR_KEY}) || int(now.epochMs) - int(vars.${LAST_BEAT_VAR_KEY}) > ${celInt(knobs.idleHours * MS_PER_HOUR)}`,
+      arms: [{ type: "trigger_turn", guidedTemplate: knobs.steer, confirmFirst: true }],
+    },
+  ],
+});
+
+/** §4 #3 — auto-add lore entries (class 1), CONFIRM-FIRST BY DEFAULT — "the natural first card".
+ *
+ *  THE V1 LIMITATION, stated plainly because the row's name promises more than the substrate can currently
+ *  deliver: an arm template renders against the CEL activation MINUS `event`
+ *  (`substrate/macro-render.ts::celBindingsForRender` — assembly/render has no trigger), so the TRIGGERING
+ *  MESSAGE'S TEXT is not reachable from `contentTemplate`. v1 therefore maintains a host-authored entry on a
+ *  cadence (macros/`{{expr::…}}` over vars/chat/now are available); the model-authored capture the row
+ *  ultimately wants is C2's `upsertLoreEntry` route off `run_analysis`, not this arm.
+ *
+ *  Law 5 is why the cadence knob exists: the catalogue's trigger is `messageCommitted`, and an ungated
+ *  confirm-first rule on that trigger would raise (and replace) a card on EVERY message. */
+const AUTO_ADD_LORE = defineRulePreset({
+  id: "autoAddLore",
+  title: "Auto-add lore entries",
+  summary: "Every so often, offer to write what has happened into one of this room's lorebooks.",
+  ruleCount: 1,
+  confirmFirst: true,
+  knobs: {
+    // NO USABLE DEFAULT, deliberately: a lore rule without a book is not a rule, and there is no knob
+    // kind that can REFERENCE an entity yet (the recorded widening: an entity-ref descriptor the picker
+    // renders as a book selector). The empty default therefore refuses at MINT — twice, in fact: the
+    // arm's own `typeIdSchema` rejects a non-TypeID, and `createRule` rejects a book not attached to
+    // this chat. Both are typed refusals a host can act on, which is the honest shape until the kind exists.
+    bookId: {
+      kind: "text",
+      label: "Lorebook id",
+      // The picker renders this as a text field until a book-REFERENCE knob kind exists (the recorded
+      // widening); the mint validates it twice regardless — the arm's own `typeIdSchema` refuses a
+      // non-TypeID, and `createRule` refuses a book that is not attached to this chat.
+      help: "The book to write into. It must already be attached to this chat.",
+      default: "",
+      maxLength: BOOK_ID_MAX,
+    },
+    everyN: { kind: "number", label: "Every N messages", default: 10, min: CADENCE_MIN, max: CADENCE_MAX },
+    entryKey: { kind: "text", label: "Entry name", default: "session notes", maxLength: ENTRY_KEY_MAX },
+    note: {
+      kind: "text",
+      label: "What to write",
+      help: "Macros and CEL expressions over this chat's variables are available.",
+      default: "Session notes.",
+      maxLength: LORE_NOTE_MAX,
+    },
+    confirmFirst: {
+      kind: "choice",
+      label: "Before writing",
+      help: "Ask keeps a card in the room until you say yes; Write does it silently.",
+      options: ["ask", "write"],
+      default: "ask",
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "messageCommitted",
+      predicate: everyNBeats(knobs.everyN),
+      arms: [
+        {
+          type: "insert_world_info_entry",
+          bookId: castId<WorldBookId>(knobs.bookId),
+          entryKey: knobs.entryKey,
+          keys: [knobs.entryKey],
+          contentTemplate: knobs.note,
+          position: "before",
+          confirmFirst: knobs.confirmFirst === "ask",
+        },
+      ],
+    },
+  ],
+});
+
+/** §4 #8 — opener chips, the compose-mode staple deck (class 1). Law 3's OTHER half: these are seeds the
+ *  member OWNS and edits before sending, so they may be director-ish shorthand ("Time skip") that would be
+ *  wrong as send-mode text put in a member's mouth. Rides A2's per-choice `mode` field — without it every
+ *  chip fires as the clicking member's line and this deck could not exist. */
+const OPENER_CHIPS = defineRulePreset({
+  id: "openerChips",
+  title: "Opener chips",
+  summary: "When you open the room, offer a short deck of starters you can edit before sending.",
+  ruleCount: 1,
+  knobs: {
+    labels: {
+      kind: "textList",
+      label: "The deck",
+      help: "Each chip SEEDS your composer — you edit it before it is sent, so shorthand is fine.",
+      default: ["Continue.", "Time skip — later that day.", "New scene."],
+      minItems: CHIPS_MIN,
+      maxItems: CHIPS_MAX,
+      maxLength: CHIP_TEXT_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "chatOpened",
+      predicate: null,
+      arms: [{ type: "surface_quick_reply", choices: knobs.labels.map((label) => ({ label, sendTemplate: label, mode: "compose" as const })) }],
+      // Law 4 — an UNGATED rule, and `chatOpened` fires per ATTACH: a room opened across devices and
+      // reloads passes 30/hr long before the deck stops being wanted.
+      maxFiresPerHour: COUNTER_RULE_MAX_FIRES_PER_HOUR,
+    },
+  ],
+});
+
+/** §4 #10 — call a vote (class 1). SEND-mode chips: a vote pick IS the clicking member's own diegetic line
+ *  ("I vote we go east"), which is exactly the case law 3 permits.
+ *
+ *  IT NEVER FIRES ON ITS OWN, and the predicate says so out loud: `false`. The catalogue's row is
+ *  "R7 `runRuleNow` (host) → chips", i.e. the host calls the vote when the table needs one; there is no
+ *  event in the trigger vocabulary that means "the host wants a vote now". A manual run skips the predicate
+ *  (it is the whether-to-fire-BY-ITSELF gate — `engine/dispatch.ts::runGates`), so `false` reads exactly as
+ *  intended: on-demand only. `chatOpened` is the trigger merely because a rule must name one; with this
+ *  predicate no bus event can ever reach the arms. */
+const CALL_A_VOTE = defineRulePreset({
+  id: "callAVote",
+  title: "Call a vote",
+  summary: "On demand, put a short list of choices in the room — each pick is sent as that member's own line.",
+  ruleCount: 1,
+  knobs: {
+    options: {
+      kind: "textList",
+      label: "The options",
+      help: "Each is SENT as the clicking member's line — write them in a player's voice.",
+      default: ["I say we press on.", "I say we turn back.", "I abstain."],
+      minItems: CHIPS_MIN,
+      maxItems: CHIPS_MAX,
+      maxLength: CHIP_TEXT_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "chatOpened",
+      predicate: NEVER_ON_ITS_OWN,
+      arms: [{ type: "surface_quick_reply", choices: knobs.options.map((label) => ({ label, sendTemplate: label, mode: "send" as const })) }],
+    },
+  ],
+});
 
 /** §4 #4 — periodic pacing nudge (class 1). */
 const PACING_NUDGE = defineRulePreset({
@@ -292,7 +500,7 @@ const CLOCK_FIRES = defineRulePreset({
     },
   },
   rules: (knobs) => {
-    const fired: AutomationAction =
+    const fired: AutomationActionInput =
       knobs.firedArm === "narrate"
         ? { type: "trigger_turn", guidedTemplate: knobs.firedText }
         : { type: "post_notification", recipient: "host", messageTemplate: knobs.firedText };
@@ -415,11 +623,15 @@ const CUTAWAYS = defineRulePreset({
 /** THE REGISTRY — exhaustive over `RulePresetId` (a new id without a def, or a def without an id, fails
  *  `tsc`). This is the S3 enforcer the spec names. */
 export const RULE_PRESETS = {
+  welcomeBackRecap: WELCOME_BACK_RECAP,
+  autoAddLore: AUTO_ADD_LORE,
   pacingNudge: PACING_NUDGE,
   illustrateScenes: ILLUSTRATE_SCENES,
   diceChips: DICE_CHIPS,
   clockFires: CLOCK_FIRES,
+  openerChips: OPENER_CHIPS,
   sceneVeil: SCENE_VEIL,
+  callAVote: CALL_A_VOTE,
   callback: CALLBACK,
   cutaways: CUTAWAYS,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;

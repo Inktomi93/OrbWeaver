@@ -3,7 +3,7 @@
 // the AdminUserView precedent. They project the persistence rows onto the closed contract vocabulary
 // (`AutomationTrigger`/`AutomationAction`/`AutomationFireOutcome`), never re-spelling those shapes.
 
-import type { AutomationAction, AutomationActionType, AutomationFireOutcome, AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationActionType, AutomationFireOutcome, AutomationRunOutcome, AutomationTrigger } from "@orb/contracts/automation";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 
 /** One host-authored automation rule, projected for the editor + list surfaces. `actions` is the
@@ -54,6 +54,23 @@ export interface ArmPreview {
 export interface TestRunResult {
   readonly predicate: boolean | { readonly error: string };
   readonly arms: readonly ArmPreview[];
+}
+
+/** R7 — what a host's "run it now" produced. `outcome` is the SAME fire terminal the bus-driven dispatch
+ *  records, so the answer to "I pressed Run now, what happened?" is one word in the same vocabulary the fire
+ *  log speaks (a `predicate_false` is the common honest answer — the rule's own condition no longer holds). */
+export interface RunRuleNowResult {
+  readonly outcome: AutomationRunOutcome;
+}
+
+/** S4 — what a confirm did. `ran` names WHICH of the two classes executed: the STASHED arm (confirm class —
+ *  the act the host was shown, in the author's own frame) or a FRESH rule dispatch (invitation class — a
+ *  pre-predicate refusal had nothing to stash, so its confirm is R7). `outcome` is the fire terminal either
+ *  way, in the fire log's own vocabulary: a stashed arm terminates `fired` or `action_error`; a fresh run can
+ *  additionally come back `predicate_false` — the honest answer when the rule's condition has since moved. */
+export interface ConfirmSuggestionResult {
+  readonly ran: "stashed-arm" | "fresh-run";
+  readonly outcome: AutomationRunOutcome;
 }
 
 /** The `automation.stream` subscriber's authority tier over a chat. The stream is the ONE procedure

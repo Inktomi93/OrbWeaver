@@ -26,6 +26,7 @@ import {
   youModal,
 } from "@orb/client/features/app-shell";
 import { accountModal, reauthModal } from "@orb/client/features/auth";
+import { automationPane } from "@orb/client/features/automation";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
   appearanceAvatarsSection,
@@ -55,7 +56,7 @@ import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { regexCollection } from "@orb/client/features/regex";
-import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeModal } from "@orb/client/features/settings";
+import { appearancePane, chatBehaviorPane, settingsModal, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { tagCollection } from "@orb/client/features/tag";
 import {

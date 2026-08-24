@@ -10,6 +10,8 @@ export {
   GlobalVariableInvalidError,
   RuleNotFoundError,
   RuleValidationError,
+  SuggestionNotFoundError,
+  SuggestionRefusedError,
 } from "./contract/errors.ts";
 export type {
   ArmDispatch,
@@ -24,22 +26,28 @@ export type {
   DispatchFrame,
   EmitAutomationEvent,
   EnabledRuleIndex,
+  PendingSuggestion,
   PromptTransformIndex,
   PromptTransformIndexDeps,
   ResolveAuthorPrincipal,
+  StashedArm,
+  SuggestionStore,
   TurnOriginRead,
 } from "./contract/ops.ts";
 export type {
+  ConfirmSuggestionParams,
   CreateRuleFromPresetParams,
   CreateRuleParams,
   DeleteGlobalVariableParams,
   DeleteRuleParams,
+  DismissSuggestionParams,
   GetBudgetsParams,
   GetGlobalVariableParams,
   ListFiresParams,
   ListGlobalVariablesParams,
   ListRulesParams,
   ReorderRulesParams,
+  RunRuleNowParams,
   SetBudgetsParams,
   SetGlobalVariableParams,
   SetRuleEnabledParams,
@@ -51,7 +59,7 @@ export type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "./contra
 // need to name a preset's shape; the CEL sources it builds stay behind the mint verb.
 export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
 export { RULE_PRESETS } from "./contract/presets.ts";
-export type { ArmPreview, FireView, RuleView, StreamAuthority, TestRunResult } from "./contract/results.ts";
+export type { ArmPreview, ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, StreamAuthority, TestRunResult } from "./contract/results.ts";
 export type { AutomationService, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
 export type { BudgetView, GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";
@@ -60,4 +68,7 @@ export { loadPresentHumanMemberIds } from "./persistence/canon-reads.ts";
 export { createAutomationService } from "./service.ts";
 export { createEnabledRuleIndex } from "./substrate/enabled-index.ts";
 export { createPluginSubscriberRegistry } from "./substrate/plugin-subscribers.ts";
+// S4 — the in-RAM pending-ask store (RULED F1). Created ONCE at the composition root and injected on the
+// context, exactly like the enabled-rule index beside it.
+export { AUTOMATION_SUGGESTION_TTL_MS, createSuggestionStore } from "./substrate/suggestions.ts";
 export { startAutomationWatcher } from "./watcher/start-automation-watcher.ts";

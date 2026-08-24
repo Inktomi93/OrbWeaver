@@ -7,7 +7,6 @@
 // no foreign domain. What stays is the shell, the section renderer, the modals, and the theme pane.
 
 export { appearancePane } from "./lib/appearance-pane.tsx";
-export { automationPane } from "./lib/automation-pane.tsx";
 export { chatBehaviorPane } from "./lib/chat-behavior-pane.tsx";
 export { settingsModal } from "./lib/settings-modal.tsx";
 export { themeModal } from "./lib/theme-modal.tsx";

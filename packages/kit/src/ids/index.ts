@@ -69,6 +69,10 @@ export const ID_PREFIX = {
   // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
   automationFire: "automation_fire",
+  // EPHEMERAL — the S4 suggest/confirm pending ask (interaction-direction-spec §3-S4, RULED F1: an in-RAM
+  // map with a TTL, never a table; a respawn wipes them by design). It needs an id because it crosses the
+  // wire twice — out on the automation bus, back in on `confirmSuggestion` — and a claim is an ID MATCH.
+  automationSuggestion: "automation_suggestion",
   document: "document",
   documentChunk: "document_chunk",
   // The installed-plugin registry row (D46). `plugin_kv` has NO TypeID — its identity is the composite
@@ -169,6 +173,9 @@ export type ModelStatId = TypeIdOf<"model_stat">;
 // --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;
 export type AutomationFireId = TypeIdOf<"automation_fire">;
+/** An S4 pending suggestion (confirm-first card / rate-refusal invitation). NO table — the store is the
+ *  in-RAM per-process map RULED F1; the brand exists because the id is the CLAIM handle on the wire. */
+export type AutomationSuggestionId = TypeIdOf<"automation_suggestion">;
 
 // --- Databank (source documents + vector chunks) --------------------
 export type DocumentId = TypeIdOf<"document">;

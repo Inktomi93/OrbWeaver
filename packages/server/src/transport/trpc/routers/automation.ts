@@ -15,7 +15,7 @@
 // response only, and the `single-stream-transport` gate keeps a `.subscription(` from coming back to it.
 
 import { AUTOMATION_FIRES_LIST_MAX_LIMIT, automationActionsSchema, automationTriggerSchema } from "@orb/contracts/automation";
-import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -91,6 +91,24 @@ export const automationRouter = t.router({
   testRule: authedProcedure
     .input(z.object({ ruleId: brandedId<AutomationRuleId>() }))
     .mutation(({ ctx, input }) => ctx.services.automation.testRule({ principal: ctx.auth, ruleId: input.ruleId })),
+
+  // R7 — run ONE rule NOW (host-only): a fresh dispatch at depth 0. The TWIN of testRule, not a widening of
+  // it: testRule executes NOTHING and stays that way, this one really runs the rule. Its one gate exemption
+  // (the engine's fire-rate cap) is argued in the verb; every belt inside the arm's own pipeline still bites.
+  runRuleNow: authedProcedure
+    .input(z.object({ ruleId: brandedId<AutomationRuleId>() }))
+    .mutation(({ ctx, input }) => ctx.services.automation.runRuleNow({ principal: ctx.auth, ruleId: input.ruleId })),
+
+  // S4 — the suggest/confirm pair (host-only). The suggestion id is the CLAIM handle the card carries: it
+  // reaches the client on the host-only `suggestionRaised` bus event and comes back here. Take-once lives in
+  // the verb, so a double-click's loser gets NOT_FOUND rather than a second execution.
+  confirmSuggestion: authedProcedure
+    .input(z.object({ suggestionId: brandedId<AutomationSuggestionId>() }))
+    .mutation(({ ctx, input }) => ctx.services.automation.confirmSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
+
+  dismissSuggestion: authedProcedure
+    .input(z.object({ suggestionId: brandedId<AutomationSuggestionId>() }))
+    .mutation(({ ctx, input }) => ctx.services.automation.dismissSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
 
   // The fire-log debug surface (host-only, newest first) — the "why didn't my rule fire" answer.
   listFires: authedProcedure

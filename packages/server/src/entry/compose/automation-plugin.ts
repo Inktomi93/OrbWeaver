@@ -40,6 +40,7 @@ import {
   createEnabledRuleIndex,
   createPluginSubscriberRegistry,
   createPromptTransformIndex,
+  createSuggestionStore,
   loadPresentHumanMemberIds,
 } from "#domain/automation";
 import { loadPresentRole } from "#domain/chat";
@@ -189,6 +190,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
   });
   const automationEnabled = createEnabledRuleIndex(db);
+  // S4 — the in-RAM pending-ask map (RULED F1), ONE per process like the enabled index above it. Both the
+  // arm dispatcher (which STASHES a confirm-first arm) and the service (whose confirm/dismiss verbs TAKE
+  // from it) must hold the SAME instance — two stores would make every card unconfirmable.
+  const automationSuggestions = createSuggestionStore();
+  const newSuggestionId = minter(ID_PREFIX.automationSuggestion);
   // The plugin `events.on` fan-out registry — ONE per-process instance, injected into the
   // automation context (the watcher fan-out reads it) AND handed to the membrane host's `subscribeEvent` seam.
   const pluginSubscribers = createPluginSubscriberRegistry();
@@ -208,10 +214,19 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     prng: Math.random,
     newRuleId: minter(ID_PREFIX.automationRule),
     newFireId: minter(ID_PREFIX.automationFire),
+    newSuggestionId,
     can,
     ops: automationOps,
-    runArm: createArmExecutors({ db, ops: automationOps, prng: Math.random, notify: automationNotify }),
+    runArm: createArmExecutors({
+      db,
+      ops: automationOps,
+      prng: Math.random,
+      notify: automationNotify,
+      suggestions: automationSuggestions,
+      newSuggestionId,
+    }),
     enabled: automationEnabled,
+    suggestions: automationSuggestions,
     pluginSubscribers,
     transforms: automationTransforms,
     resolveAuthor: resolveOwnerPrincipal,

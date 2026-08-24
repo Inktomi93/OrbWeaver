@@ -13,9 +13,11 @@
 // the cadence predicates are driven by seeding messages — not by stubbing the env.
 
 import type { AutomationAction, AutomationBusEvent, TriggerFact } from "@orb/contracts/automation";
+import { RULE_PRESET_IDS } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
+import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -24,18 +26,26 @@ import type {
   AutomationImageRequest,
   AutomationOps,
   AutomationTurnRequest,
+  SuggestionStore,
 } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { RuleView } from "../../../../../packages/server/src/domain/automation/contract/results.ts";
 import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
+import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
-import { makeAutomationHarness, principal, seedHostChat, seedUser } from "../_support.ts";
+import { FIXED_NOW_MS, makeAutomationHarness, principal, seedHostChat, seedUser } from "../_support.ts";
 
-/** The typed refusal a bad knob raises (hoisted — `useTopLevelRegex`). */
+/** The typed refusals these suites assert (hoisted — `useTopLevelRegex`). */
 const BAD_KNOB = /knob 'everyN'/;
+/** The empty book knob refuses at the ARM SCHEMA first (a TypeID is 26 chars); a real-but-unattached
+ *  id refuses one step later at `createRule`'s attachment check. Either way: typed, at mint, never stored. */
+const NO_BOOK = /Suffix should have 26 characters/u;
+
+/** #1's idle window is expressed in epoch-ms; the preset substitutes hours × this. */
+const MS_PER_HOUR = 3_600_000;
 
 interface Fixture {
   readonly db: Db;
@@ -48,6 +58,8 @@ interface Fixture {
   readonly images: AutomationImageRequest[];
   readonly notices: NotificationEvent[];
   readonly bus: AutomationBusEvent[];
+  /** S4 — the pending asks a confirm-first preset's fire raised. */
+  readonly suggestions: SuggestionStore;
   /** The message projection `getMessageFact` serves for the next `messageCommitted` event. */
   readonly setMessageContent: (content: string) => void;
   readonly seedBeats: (count: number) => Promise<void>;
@@ -108,8 +120,19 @@ async function setup(): Promise<Fixture> {
     summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
   };
   const notify = (event: AutomationBusEvent): void => void bus.push(event);
-  const runArm: ArmDispatch = createArmExecutors({ db, ops, prng: () => 0.42, notify });
-  const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops, notify }));
+  // ONE store for the arm dispatcher AND the verbs (the compose posture): a confirm-first preset's fire
+  // stashes through the dispatcher and is answered through the service, so two stores would make every
+  // A4 row in this suite assert against an empty map.
+  const suggestions = createSuggestionStore();
+  const runArm: ArmDispatch = createArmExecutors({
+    db,
+    ops,
+    prng: () => 0.42,
+    notify,
+    suggestions,
+    newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
+  });
+  const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops, notify, suggestions }));
 
   return {
     db,
@@ -121,6 +144,7 @@ async function setup(): Promise<Fixture> {
     images,
     notices,
     bus,
+    suggestions,
     setMessageContent: (content: string): void => {
       messageContent = content;
     },
@@ -193,7 +217,9 @@ describe("createRuleFromPreset — the mint", () => {
     expect(view?.name).toBe("Periodic pacing nudge"); // no "(1/1)" on a single-rule set
     expect(view?.enabled).toBe(false); // enabling is the consent act — createRule's law, unchanged
     expect(view?.predicateCel).toBe("int(chat.messageCount) % 4 == 0");
-    expect(view?.actions).toEqual([{ type: "trigger_turn", guidedTemplate: "Shift the pacing." }]);
+    // The stored arm is the PARSED one: `confirmFirst` is defaulted in by the schema, so a rule authored
+    // without the flag is explicitly a DIRECT rule rather than an ambiguous absence.
+    expect(view?.actions).toEqual([{ type: "trigger_turn", guidedTemplate: "Shift the pacing.", confirmFirst: false }]);
     expect(view?.trigger).toEqual({ bus: "chat", type: "turnCompleted" });
   });
 
@@ -403,13 +429,97 @@ describe("§4 #13 cutaways", () => {
   });
 });
 
+// ── A4's four rows (§4 #1/#3/#8/#10) ─────────────────────────────────────────────────────────────────
+
+describe("§4 #1 welcome-back recap (two rules, the confirm-first CARD)", () => {
+  test("R1 stamps every beat; R2 ASKS on a stale open, and answers nothing on a fresh one", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "welcomeBackRecap", { idleHours: 1, steer: "Recap it." });
+
+    // A beat stamps the clock (the injected FIXED clock, so the stamp is deterministic).
+    await f.svc.handleEvent(messageCommitted(f.chatId));
+    expect(f.vars["lastBeatMs"]).toBe(String(FIXED_NOW_MS));
+
+    // Opening NOW is not idle — the recap rule's predicate is false and nothing is asked.
+    await f.svc.handleEvent({ type: "chatOpened", chatId: f.chatId });
+    expect(f.suggestions.countForChat(f.chatId)).toBe(0);
+
+    // Rewind the stamp past the idle window: the SAME open now asks — and asks with a CARD, not a turn.
+    f.vars["lastBeatMs"] = String(FIXED_NOW_MS - 2 * MS_PER_HOUR);
+    await f.svc.handleEvent({ type: "chatOpened", chatId: f.chatId });
+
+    expect(f.turns).toEqual([]);
+    const [ask] = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS);
+    expect(ask).toMatchObject({ kind: "confirm", ruleId: nth(views, 1).id });
+    expect(ask?.summary).toBe("Take a turn: “Recap it.”");
+  });
+});
+
+describe("§4 #3 auto-add lore entries (confirm-first BY DEFAULT)", () => {
+  test("on its cadence it ASKS rather than writing; the ask names the entry", async () => {
+    const f = await setup();
+    const bookId = mintTypeId(ID_PREFIX.worldBook);
+    await f.db.insert(worldBooks).values({ id: bookId, ownerId: f.host, name: "lore" });
+    await f.db.insert(chatBooks).values({ chatId: f.chatId, worldBookId: bookId });
+
+    await mintAndEnable(f, "autoAddLore", { bookId, everyN: 2, entryKey: "session notes" });
+    await f.seedBeats(2);
+    await f.svc.handleEvent(messageCommitted(f.chatId));
+
+    const [ask] = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS);
+    expect(ask?.summary).toBe("Save a lore entry for “session notes”?");
+    // Nothing was written — the whole point of the row (the natural first card).
+    expect(await f.db.select().from(worldEntries)).toEqual([]);
+  });
+
+  test("REFUSES at mint without a book — the knob has no usable default and the refusal is typed", async () => {
+    const f = await setup();
+    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: {} })).rejects.toThrow(NO_BOOK);
+  });
+});
+
+describe("§4 #8 opener chips (the compose-mode staple deck)", () => {
+  test("opening the room surfaces the deck in COMPOSE mode — seeds the member owns and edits", async () => {
+    const f = await setup();
+    await mintAndEnable(f, "openerChips", { labels: ["Continue.", "Time skip."] });
+
+    await f.svc.handleEvent({ type: "chatOpened", chatId: f.chatId });
+
+    const [surfaced] = f.bus.filter((e) => e.type === "quickReplySurfaced");
+    expect(surfaced?.type === "quickReplySurfaced" ? surfaced.choices : []).toEqual([
+      { label: "Continue.", sendText: "Continue.", mode: "compose" },
+      { label: "Time skip.", sendText: "Time skip.", mode: "compose" },
+    ]);
+  });
+});
+
+describe("§4 #10 call a vote (send-mode chips, R7-invoked)", () => {
+  test("it NEVER fires on its own, and the host's run-now surfaces the picks as the members' own lines", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "callAVote", { options: ["I say we press on.", "I abstain."] });
+
+    // Every bus event of its trigger: nothing. That is the `false` predicate, working.
+    await f.svc.handleEvent({ type: "chatOpened", chatId: f.chatId });
+    expect(f.bus.filter((e) => e.type === "quickReplySurfaced")).toEqual([]);
+
+    const result = await f.svc.runRuleNow({ principal: principal(f.host), ruleId: nth(views, 0).id });
+
+    expect(result).toEqual({ outcome: "fired" });
+    const [surfaced] = f.bus.filter((e) => e.type === "quickReplySurfaced");
+    expect(surfaced?.type === "quickReplySurfaced" ? surfaced.choices : []).toEqual([
+      { label: "I say we press on.", sendText: "I say we press on.", mode: "send" },
+      { label: "I abstain.", sendText: "I abstain.", mode: "send" },
+    ]);
+  });
+});
+
 // ── the picker read model, over the same registry the mint uses ───────────────────────────────────────
 
 test("listRulePresets projects every committed preset in catalogue order and carries no CEL", async () => {
   const f = await setup();
   const views = f.svc.listRulePresets();
 
-  expect(views.map((v) => v.id)).toEqual(["pacingNudge", "illustrateScenes", "diceChips", "clockFires", "sceneVeil", "callback", "cutaways"]);
+  expect(views.map((v) => v.id)).toEqual([...RULE_PRESET_IDS]);
   // Each declared ruleCount is the count the MINT actually produces — the picker's "(i/n)" promise.
   const clock = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
   expect(clock).toHaveLength(views.find((v) => v.id === "clockFires")?.ruleCount ?? 0);

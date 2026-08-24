@@ -15,6 +15,7 @@ import { getLog } from "#foundation/observability";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { runDispatch } from "../engine/dispatch.ts";
 import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rules.ts";
+import { holdsChatHostAuthority } from "./authority.ts";
 import { resolveTrigger } from "./fact-resolver.ts";
 import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
 
@@ -54,9 +55,39 @@ function loadMatchedRules(
  *  TWO independent consumers: the rule dispatch AND the plugin `events.on` fan-out.
  *  Either alone is enough to resolve the fact — a chat with no rules but a plugin subscriber still delivers,
  *  and vice versa. When NEITHER is interested the event is dropped before any DB read (the pre-check no-op). */
+/** RULED (§8, VOID-ALL on host handoff) — "authority died, its pending asks die with it; a re-fire under the
+ *  new host mints fresh". This is where that ruling meets the tree.
+ *
+ *  THE EDGE IT RIDES: `chatUpdated`. `acceptHostHandoff` (chat's roster verb) emits it after the atomic role
+ *  swap, and the automation domain has no other sight of a handoff — there is no `hostChanged` member, and
+ *  inventing one on the FROZEN chat bus to serve this sweep would be a bus edit for an in-RAM map. So the
+ *  sweep is stated as what it actually checks: on any chat-row change, RE-PROVE each pending ask's author
+ *  still holds host, and drop the ones that fail. A handoff is the case that fails; a title edit costs one
+ *  role read per pending ask and voids nothing.
+ *
+ *  It runs BEFORE the enabled-rule pre-check on purpose: a pending ask outlives its rule's enablement (a
+ *  host can disable the rule and the ask is voided by that verb, but the reverse — a chat whose last rule was
+ *  disabled while an ask was live — must still sweep). The cost when nothing is pending is ONE Map-key scan
+ *  (`countForChat`), which is why the guard is that and not a db read. */
+async function voidAsksOnLostAuthority(ctx: AutomationContext, chatId: ChatId): Promise<void> {
+  if (ctx.suggestions.countForChat(chatId) === 0) {
+    return;
+  }
+  const pending = ctx.suggestions.listForChat(chatId, ctx.now());
+  const held = await Promise.all(pending.map((ask) => holdsChatHostAuthority(ctx, chatId, ask.authorUserId)));
+  pending.forEach((ask, i) => {
+    if (held[i] !== true) {
+      ctx.suggestions.drop(ask.id, ctx.now());
+    }
+  });
+}
+
 async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
   const domain = isDomainEvent(event);
   const chatId: ChatId | null = "chatId" in event ? event.chatId : null;
+  if (event.type === "chatUpdated" && chatId !== null) {
+    await voidAsksOnLostAuthority(ctx, chatId);
+  }
   const wantRules = rulesInterested(ctx, domain, chatId);
   const wantPlugins = ctx.pluginSubscribers.hasSubscriberFor(event.type);
   if (!(wantRules || wantPlugins)) {
@@ -78,8 +109,8 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
   if (rules.length === 0) {
     return;
   }
-  const anyDisabled = await runDispatch(ctx, rules, resolved);
-  if (anyDisabled) {
+  const summary = await runDispatch(ctx, rules, resolved);
+  if (summary.anyDisabled) {
     await ctx.enabled.reload();
   }
 }

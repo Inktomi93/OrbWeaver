@@ -16,6 +16,7 @@
 // (dispatch step 5).
 
 import type { AutomationAction, QuickReplyMode } from "@orb/contracts/automation";
+import { isConfirmFirstArm } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -24,6 +25,7 @@ import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "..
 import { isBookAttachedToChat, listRuleEntryTitles, loadPresentHumanMemberIds } from "../persistence/canon-reads.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
+import { AUTOMATION_SUGGESTION_TTL_MS, summarizeSuggestibleArm } from "../substrate/suggestions.ts";
 
 const DECIMAL_RADIX = 10;
 const DEFAULT_INC_DEC_OPERAND = 1;
@@ -303,6 +305,41 @@ async function runSetChatBackground(
 
 const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transform pipeline, not the dispatch engine";
 
+// ── S4 — the confirm-first STASH (interaction-direction-spec §3-S4) ───────────────────────────────────
+/** Hold a confirm-first arm as a pending ask instead of running it, and raise the host-only card event.
+ *
+ *  WHAT IS STORED, and why both halves: the ARM and the FRAME it resolved in. "Executes the STORED arm" is
+ *  literal — the confirmed run must be the SAME act the host was shown, under the SAME author, cascade
+ *  origin and `env` snapshot. Re-deriving a frame at confirm time would quietly execute a different act than
+ *  the card described. The staleness that buys is the confirm class's ACKNOWLEDGED cost (the invitation
+ *  class exists precisely because a pre-predicate refusal has no frame to stash) and is bounded by the TTL
+ *  plus the confirm-time re-checks: rule still enabled, author still host.
+ *
+ *  REPLACE-PER-`(chatId, ruleId)` is the store's (RULED F1): a cadence rule that fires every beat keeps ONE
+ *  live ask, so the band's one-visible-card budget is bounded by rule count, not by fire rate. */
+function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame): ArmOutcome | null {
+  if (!isConfirmFirstArm(action)) {
+    return null;
+  }
+  const id = deps.newSuggestionId();
+  const expiresAt = frame.now + AUTOMATION_SUGGESTION_TTL_MS;
+  const summary = summarizeSuggestibleArm(action);
+  deps.suggestions.raise({
+    id,
+    kind: "confirm",
+    chatId: frame.chatId,
+    ruleId: frame.origin.ruleId,
+    authorUserId: frame.authorUserId,
+    summary,
+    expiresAt,
+    stashed: { action, frame },
+  });
+  deps.notify({ type: "suggestionRaised", chatId: frame.chatId, ruleId: frame.origin.ruleId, suggestionId: id, kind: "confirm", summary, expiresAt });
+  // `suggested` is what keeps the fire log honest: the rule's remaining arms still run, but its TERMINAL
+  // records no `fired` row, because nothing fired — a host was asked.
+  return { ok: true, suggested: true };
+}
+
 /** The arm dispatcher. Switches on the CLEAN `AutomationActionType` string union (via the local `type`
  *  binding) — NOT `action.type`: biome's `noUnnecessaryConditions` cannot narrow a `z.infer` zod discriminated
  *  union (PROVEN via scratch probes — a 2-member TOY zod discriminatedUnion trips "unreachable" on every case
@@ -315,6 +352,19 @@ const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transfor
  *  the price of not narrowing off `action.type` — sound by construction (each case calls the matching runner). */
 function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame): Promise<ArmOutcome> {
   const type: AutomationAction["type"] = action.type;
+  // S4 — THE CONFIRM-FIRST CHOKEPOINT, deliberately ahead of the switch: an arm that asked to be confirmed
+  // never reaches its executor on a fire. It STASHES itself (arm + frame) and returns `ok`, so the rule's
+  // REMAINING arms still run — a rule may legitimately mix postures (a confirm-first `trigger_turn` beside a
+  // direct `set_variable` bookkeeping arm means exactly what it says). The confirm verb feeds the stored arm
+  // back through THIS function with the flag CLEARED (`armToExecute`), so a confirmed arm reaches its real
+  // executor and can never re-stash itself into a loop.
+  // The predicate lives INSIDE the helper (rather than as a type guard here) on purpose: narrowing `action`
+  // at this scope would subtract the four suggestible arms from the union the switch below casts against,
+  // and every one of those casts would stop overlapping.
+  const stashed = stashConfirmFirstArm(deps, action, frame);
+  if (stashed !== null) {
+    return Promise.resolve(stashed);
+  }
   switch (type) {
     case "set_variable":
       return runSetVariable(deps, action as Extract<AutomationAction, { type: "set_variable" }>, frame);

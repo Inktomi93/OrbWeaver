@@ -5,7 +5,7 @@
 // stripped 2026-07-24 — enterprise spend enforcement; loop safety rides the per-chat fire-rate cap + the chat
 // member turn budget + the cascade guard.)
 
-import type { AutomationAction, AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -28,10 +28,11 @@ import type {
 } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
 import { selectGlobalVariable } from "../../../../../packages/server/src/domain/automation/persistence/queries.ts";
+import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
-import { seedUser } from "../_support.ts";
+import { arm, seedUser } from "../_support.ts";
 
 /** A stable sort for branded-string ids (biome `useArraySortCompare`). */
 function byId(a: string, b: string): number {
@@ -140,7 +141,15 @@ function makeHarness(
       return Promise.resolve({ text: bg.quietReply ?? "" });
     },
   };
-  const deps: ArmExecutorDeps = { db, ops, prng: FIXED_PRNG, notify: (event) => captured.bus.push(event) };
+  const deps: ArmExecutorDeps = {
+    db,
+    ops,
+    prng: FIXED_PRNG,
+    notify: (event) => captured.bus.push(event),
+    // S4: a real store + minter, so a confirm-first arm in these tests STASHES instead of running.
+    suggestions: createSuggestionStore(),
+    newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
+  };
   return { dispatch: createArmExecutors(deps), captured };
 }
 
@@ -176,8 +185,8 @@ async function setup(): Promise<{ db: Db; host: UserId; chatId: ChatId }> {
 test("set_variable chat scope 'set' renders the value + writes a VarOp through applyVariableOps", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
-  const action: Extract<AutomationAction, { type: "set_variable" }> = { type: "set_variable", scope: "chat", key: "mood", op: "set", value: "grim-{{roll:1}}" };
-  const outcome = await dispatch(action, makeFrame({ chatId, authorUserId: host }));
+  const action: Extract<AutomationActionInput, { type: "set_variable" }> = { type: "set_variable", scope: "chat", key: "mood", op: "set", value: "grim-{{roll:1}}" };
+  const outcome = await dispatch(arm(action), makeFrame({ chatId, authorUserId: host }));
 
   expect(outcome).toEqual({ ok: true });
   expect(captured.varOps).toHaveLength(1);
@@ -187,8 +196,8 @@ test("set_variable chat scope 'set' renders the value + writes a VarOp through a
 test("set_variable chat scope 'inc' computes against the current folded value (operand)", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
-  const action: Extract<AutomationAction, { type: "set_variable" }> = { type: "set_variable", scope: "chat", key: "score", op: "inc", value: "5" };
-  await dispatch(action, makeFrame({ chatId, authorUserId: host, vars: { score: "10" } }));
+  const action: Extract<AutomationActionInput, { type: "set_variable" }> = { type: "set_variable", scope: "chat", key: "score", op: "inc", value: "5" };
+  await dispatch(arm(action), makeFrame({ chatId, authorUserId: host, vars: { score: "10" } }));
 
   expect(captured.varOps[0]?.ops).toEqual([{ op: "set", key: "score", value: "15" }]);
 });
@@ -241,7 +250,7 @@ test("insert_world_info_entry upserts a ruleId-namespaced entry into an ATTACHED
   const bookId = await seedAttachedBook(db, host, chatId);
   const { dispatch, captured } = makeHarness(db);
   const ruleId = mintTypeId(ID_PREFIX.automationRule);
-  const action: Extract<AutomationAction, { type: "insert_world_info_entry" }> = {
+  const action: AutomationActionInput = {
     type: "insert_world_info_entry",
     bookId,
     entryKey: "weather",
@@ -249,7 +258,7 @@ test("insert_world_info_entry upserts a ruleId-namespaced entry into an ATTACHED
     contentTemplate: "The sky darkens.",
     position: "before",
   };
-  const outcome = await dispatch(action, makeFrame({ chatId, authorUserId: host, ruleId }));
+  const outcome = await dispatch(arm(action), makeFrame({ chatId, authorUserId: host, ruleId }));
 
   expect(outcome).toEqual({ ok: true });
   expect(captured.upserts).toHaveLength(1);
@@ -262,7 +271,7 @@ test("insert_world_info_entry refuses a book NOT attached to the chat", async ()
   await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: "detached" });
   const { dispatch, captured } = makeHarness(db);
   const outcome = await dispatch(
-    { type: "insert_world_info_entry", bookId, entryKey: "k", keys: [], contentTemplate: "x", position: "before" },
+    arm({ type: "insert_world_info_entry", bookId, entryKey: "k", keys: [], contentTemplate: "x", position: "before" }),
     makeFrame({ chatId, authorUserId: host }),
   );
 
@@ -291,7 +300,7 @@ test("insert_world_info_entry refuses a NEW entry once the rule owns 64 in the b
     })),
   );
   const { dispatch } = makeHarness(db);
-  const action: Extract<AutomationAction, { type: "insert_world_info_entry" }> = {
+  const action: AutomationActionInput = {
     type: "insert_world_info_entry",
     bookId,
     entryKey: "k64",
@@ -299,7 +308,7 @@ test("insert_world_info_entry refuses a NEW entry once the rule owns 64 in the b
     contentTemplate: "over",
     position: "before",
   };
-  const outcome = await dispatch(action, makeFrame({ chatId, authorUserId: host, ruleId }));
+  const outcome = await dispatch(arm(action), makeFrame({ chatId, authorUserId: host, ruleId }));
   expect(outcome?.ok).toBe(false);
 });
 
@@ -308,7 +317,7 @@ test("surface_quick_reply emits quickReplySurfaced with rendered send text", asy
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
   const ruleId = mintTypeId(ID_PREFIX.automationRule);
-  const action: Extract<AutomationAction, { type: "surface_quick_reply" }> = {
+  const action: Extract<AutomationActionInput, { type: "surface_quick_reply" }> = {
     type: "surface_quick_reply",
     // S1: the per-choice consumption MODE is the author's declaration and travels verbatim to the member's
     // surface — the TEMPLATE is rendered, the mode is not a render product. Both members exercised here, so
@@ -318,7 +327,7 @@ test("surface_quick_reply emits quickReplySurfaced with rendered send text", asy
       { label: "Plan", sendTemplate: "We should", mode: "compose" },
     ],
   };
-  const outcome = await dispatch(action, makeFrame({ chatId, authorUserId: host, ruleId }));
+  const outcome = await dispatch(arm(action), makeFrame({ chatId, authorUserId: host, ruleId }));
 
   expect(outcome).toEqual({ ok: true });
   expect(captured.bus).toEqual([
@@ -369,9 +378,9 @@ test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.g
     subjectCharacterId,
     useAvatarReference: true,
     reuse: "never",
-  }) as Extract<AutomationAction, { type: "generate_image" }>;
+  }) as Extract<AutomationActionInput, { type: "generate_image" }>;
   const frame = makeFrame({ chatId, authorUserId: host });
-  const outcome = await dispatch(action, frame);
+  const outcome = await dispatch(arm(action), frame);
 
   expect(outcome).toEqual({ ok: true });
   expect(captured.images).toHaveLength(1);
@@ -397,14 +406,14 @@ test("generate_image threads quiet through to the op (F1 — quiet:true generate
   const { dispatch, captured } = makeHarness(db);
   // quiet:true — the op must see it (compose then SKIPS the in-chat post; the image is gallery-only).
   await dispatch(
-    automationActionSchema.parse({ type: "generate_image", mode: "free", prompt: "x", quiet: true }) as Extract<AutomationAction, { type: "generate_image" }>,
+    arm({ type: "generate_image", mode: "free", prompt: "x", quiet: true }),
     makeFrame({ chatId, authorUserId: host }),
   );
   expect(captured.images[0]?.quiet).toBe(true);
 
   // default (quiet omitted) → quiet:false → compose posts the image into the chat.
   await dispatch(
-    automationActionSchema.parse({ type: "generate_image", mode: "free", prompt: "y" }) as Extract<AutomationAction, { type: "generate_image" }>,
+    arm({ type: "generate_image", mode: "free", prompt: "y" }),
     makeFrame({ chatId, authorUserId: host }),
   );
   expect(captured.images[1]?.quiet).toBe(false);
@@ -416,9 +425,9 @@ test("trigger_turn dispatches requestTurn with the author/chat/depth + rendered 
   const { dispatch, captured } = makeHarness(db);
   const frame = makeFrame({ chatId, authorUserId: host }); // origin.automationDepth = 1
   const speaker = mintTypeId(ID_PREFIX.character);
-  const action: Extract<AutomationAction, { type: "trigger_turn" }> = { type: "trigger_turn", speakerCharacterId: speaker, guidedTemplate: "steer-{{roll:1}}" };
+  const action: AutomationActionInput = { type: "trigger_turn", speakerCharacterId: speaker, guidedTemplate: "steer-{{roll:1}}" };
 
-  const outcome = await dispatch(action, frame);
+  const outcome = await dispatch(arm(action), frame);
 
   expect(outcome).toEqual({ ok: true });
   expect(captured.turns).toHaveLength(1);
@@ -432,7 +441,7 @@ test("trigger_turn with no steer / no forced speaker omits both fields (normal a
   const { dispatch, captured } = makeHarness(db);
   const frame = makeFrame({ chatId, authorUserId: host });
 
-  const outcome = await dispatch({ type: "trigger_turn" }, frame);
+  const outcome = await dispatch(arm({ type: "trigger_turn" }), frame);
 
   expect(outcome).toEqual({ ok: true });
   expect(captured.turns[0]).toEqual({ authorUserId: host, chatId, automationDepth: 1 });
@@ -448,7 +457,7 @@ test("trigger_turn maps a requestTurn refusal (consent/authority/depth throw) to
   );
   const frame = makeFrame({ chatId, authorUserId: host });
 
-  const outcome = await dispatch({ type: "trigger_turn" }, frame);
+  const outcome = await dispatch(arm({ type: "trigger_turn" }), frame);
 
   expect(outcome).toMatchObject({ ok: false, kind: "arm_error" });
   expect(captured.turns).toHaveLength(0);
@@ -495,7 +504,7 @@ test("set_chat_background: the quiet pick is sent the candidate NAMES and its ch
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" });
 
-  const outcome = await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
 
   expect(outcome).toEqual({ ok: true });
   // The quiet op (the mint) got a prompt listing the real candidate names.
@@ -510,7 +519,7 @@ test("set_chat_background: the quiet pick is sent the candidate NAMES and its ch
 test("set_chat_background: the quiet pick frames the candidates with the shipped prose clauses", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" });
-  await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(captured.quietPrompts[0]?.startsWith(`${PROSE_SLOTS["automation.autobg.task"].text}\n\n`)).toBe(true);
   expect(captured.quietPrompts[0]?.endsWith(`\n\n${PROSE_SLOTS["automation.autobg.reply"].text}`)).toBe(true);
 });
@@ -525,7 +534,7 @@ test("set_chat_background: a host's prose overrides REPLACE both clauses, keepin
       "automation.autobg.reply": { text: "NAME ONLY.", baseVersion: 1 },
     },
   });
-  await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(captured.quietPrompts[0]?.startsWith("PICK A MOOD.\n\n")).toBe(true);
   expect(captured.quietPrompts[0]?.endsWith("\n\nNAME ONLY.")).toBe(true);
   expect(captured.quietPrompts[0]).toContain("Available backgrounds: Dawn Meadow, Dusk Harbor");
@@ -534,7 +543,7 @@ test("set_chat_background: a host's prose overrides REPLACE both clauses, keepin
 test("set_chat_background: the name match is case/space-insensitive", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "  dawn meadow  " });
-  await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(captured.setBackgrounds).toEqual([{ authorUserId: host, chatId, background: BG_ALICE }]);
 });
 
@@ -548,7 +557,7 @@ test("set_chat_background: a host-authority refusal from the write is a typed ar
     setChatBackgroundThrows: new Error("chat: not_host"),
   });
 
-  const outcome = await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
 
   expect(outcome).toEqual({ ok: false, kind: "arm_error", detail: expect.stringContaining("not_host") });
   expect(captured.setBackgrounds).toEqual([]);
@@ -557,7 +566,7 @@ test("set_chat_background: a host-authority refusal from the write is a typed ar
 test("set_chat_background: an empty library is a soft no-op — no quiet call, no write", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db, undefined, { choices: [], quietReply: "anything" });
-  const outcome = await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(outcome).toEqual({ ok: true });
   expect(captured.quietPrompts).toEqual([]);
   expect(captured.setBackgrounds).toEqual([]);
@@ -566,7 +575,7 @@ test("set_chat_background: an empty library is a soft no-op — no quiet call, n
 test("set_chat_background: an off-list / empty quiet reply is a soft no-op — no write, rule stays healthy", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Some Other Place" });
-  const outcome = await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  const outcome = await dispatch(arm({ type: "set_chat_background" }), makeFrame({ chatId, authorUserId: host }));
   expect(outcome).toEqual({ ok: true });
   expect(captured.quietPrompts).toHaveLength(1);
   expect(captured.setBackgrounds).toEqual([]);
@@ -584,7 +593,7 @@ test("the dispatcher handles EVERY action type (no unhandled-arm throw — the s
       const type = (option as { shape: { type: { value: string } } }).shape.type.value;
       try {
         // FABRICATION-OK: a deliberately field-less action — the probe only tests the discriminant ROUTES to a case (not `default: never`); the arm may refuse/crash on the missing fields.
-        await dispatch({ type } as AutomationAction, frame);
+        await dispatch({ type } as unknown as AutomationAction, frame);
         return false;
       } catch (err) {
         return err instanceof Error && err.message.startsWith("unhandled automation arm");
@@ -599,8 +608,8 @@ test("a template render error surfaces as arm_error without calling the op", asy
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
   // `{{roll}}` with no arg is a strict-args error (02 §5).
-  const action: Extract<AutomationAction, { type: "set_variable" }> = { type: "set_variable", scope: "chat", key: "k", op: "set", value: "{{roll}}" };
-  const outcome = await dispatch(action, makeFrame({ chatId, authorUserId: host }));
+  const action: Extract<AutomationActionInput, { type: "set_variable" }> = { type: "set_variable", scope: "chat", key: "k", op: "set", value: "{{roll}}" };
+  const outcome = await dispatch(arm(action), makeFrame({ chatId, authorUserId: host }));
   expect(outcome?.ok).toBe(false);
   expect(captured.varOps).toHaveLength(0);
 });
