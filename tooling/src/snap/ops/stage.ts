@@ -1,7 +1,7 @@
 // ── snap-stage: the ISOLATED serving mode behind `snap --isolated` ───────────────────────────────────
 //
 // WHY THIS EXISTS (the one-liner recovery story): a visual pass (side-eye) run against the LIVE dev stack
-// fights that stack's HMR — a concurrent lane saving mid-edit source crash-loops tsx-watch/vite under the
+// fights that stack's HMR — a concurrent lane saving mid-edit source crash-loops node --watch/vite under the
 // reviewer, who then has to hand-build a worktree at HEAD to finish. `snap --isolated` makes that recovery
 // ONE flag: it serves snaps from a DETACHED git worktree pinned at local HEAD (or `--ref <sha>`), booting a
 // SECOND, fully isolated dev stack on OFFSET ports with its OWN db/data — zero collision with the dev stack,
@@ -336,7 +336,7 @@ function prepareStageSource(root: string, paths: StagePaths, opts: { readonly ta
 }
 
 /** Reuse a healthy warm stage as-is, EXCEPT a dirty one still re-syncs the working tree first (cheap,
- *  idempotent — the point of `--dirty` being refreshable); its own tsx watch picks up the diff. */
+ *  idempotent — the point of `--dirty` being refreshable); its own node --watch picks up the diff. */
 function reuseWarmStage(root: string, active: ActiveStage, dirty: boolean): ActiveStage {
   if (dirty) {
     print(`[snap-stage] re-syncing working tree → warm dirty stage ${active.dir}`);
