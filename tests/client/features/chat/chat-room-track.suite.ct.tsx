@@ -330,6 +330,10 @@ test("#242 both open: the reading line holds the REAL-CHARACTER floor and stays 
   expect(shortLine).toBeLessThan(line.sampleWidth);
 });
 
+/** Echo's art pane measures 192px on this stage and the undecorated bubble's inset is 12px — any padding
+ *  above this says the decoration has landed, and nothing in between exists. */
+const ECHO_ART_PANE_MIN_PX = 100;
+
 // THE BAND'S FLOOR (#213/#212-2). `--reading-measure` is a MAX; the floor is `--reading-measure-min`, and
 // the only thing inside the transcript that can push a line under it is an immersive skin's decoration
 // (echo spent 55% of its own box on `padding-right`, leaving 28 chars/line). The floor is therefore pinned
@@ -338,11 +342,29 @@ test("#242 both open: the reading line holds the REAL-CHARACTER floor and stays 
 // The token-strict floor is STILL not pinned at the both-open pane (#242 bought the real-character one,
 // not the 65ch one — see the test above), and no rule in the transcript can widen a pane: that half of
 // the fork stays where it was answered, in the shell grid.
+//
+// IT BARRIERS ON THE DECORATED FRAME, NOT THE FIRST ONE (2026-08-24, #608's lane). `toBeVisible()` on the
+// content column is true one frame BEFORE echo's `bubbleDecoration` lands, and on that frame the bubble is
+// an ordinary box: `padding-right: 12px`, `max-width: 557.70px` — no art pane reserved. Measured through it,
+// the reading line reads 533.70px (= 557.70 − its own two 12px insets), i.e. 24px UNDER the floor, and the
+// pin fails describing a geometry that does not exist a tick later (sampled 5× at 120ms: frame 0 undecorated,
+// frames 1-4 the settled 761.70 / 192px art pane, textWidth exactly the 557.70 floor). It sat latent because
+// nothing had perturbed style recalc here; a container-query rule added to the swipe chip was enough to move
+// which frame the pin caught, which is how it surfaced. The barrier is the settled arm's OWN tell — the art
+// pane is reserved as padding — never a sleep and never a poll of the assertion itself.
 test("an immersive skin's art does not eat the reading line below the min measure (echo)", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1360, height: 900 });
   await routeRoom(page, "echo");
   await mount(<ChatRoomTrackStory paneWidth={1212} />);
   await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const bubble = document.querySelector('[data-slot="message-bubble"]');
+        return bubble instanceof HTMLElement ? Number.parseFloat(getComputedStyle(bubble).paddingRight) : 0;
+      }),
+    )
+    .toBeGreaterThan(ECHO_ART_PANE_MIN_PX);
 
   const line = await page.evaluate((): { readonly textWidth: number; readonly floorPx: number } => {
     const bubble = document.querySelector('[data-slot="message-bubble"]');

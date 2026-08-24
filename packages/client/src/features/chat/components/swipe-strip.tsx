@@ -27,6 +27,7 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn, turnMutationToast } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
+import { PAGER_CHIP, PAGER_CHIP_COMPACT, PAGER_COUNTER, PAGER_LABEL_QUIET_WHEN_TIGHT, PAGER_TRACK } from "../lib/pager-chrome.ts";
 
 interface SwipeVars {
   readonly chatId: ChatId;
@@ -53,16 +54,6 @@ const useSelectVariantMutation = createEntityMutation<SelectVariantVars, unknown
   busDriven: true,
   errorToast: "Couldn't switch to that variant.",
 });
-
-/** #598 — the width below which the chip drops its "Variant" kicker, as a container query against the
- *  pager TRACK (whose inline size is the bubble's). DERIVED, not chosen: the full chip measures 177.5px
- *  (2 × 34px chevron + the kicker + the `n / m` datum + 3 × `gap-field`), so the word may only stand while
- *  the bubble can hold that — `12rem` (192px) is the next clean step up, and the ~8% margin absorbs the
- *  kicker's font-metric variance across themes. A container query condition cannot read a custom property
- *  (`var()` is invalid in `@container`/`@media` conditions), which is why the length is literal here rather
- *  than a token. Not the `no-arbitrary-tw-values` shape: that gate judges the TERMINAL segment of a class
- *  (`hidden`), and this is a variant. */
-const PAGER_LABEL_HIDE_WHEN_TIGHT = "@max-[12rem]/pager:hidden";
 
 export interface SwipeStripProps {
   readonly message: MessageView;
@@ -141,9 +132,10 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
     // `container-type: inline-size` (Tailwind's `@container`) is the mechanism, and it does BOTH halves at
     // once: an inline-size container's width is resolved WITHOUT regard to its contents, so this track
     // contributes nothing to the column's max-content (the column now sizes to the bubble) while the track
-    // itself still stretches to whatever the column resolved to. The chip inside keeps its own geometry
-    // (#228 `w-fit`, #312 `self-end`) — it is now measured against the BUBBLE's width instead of dictating it.
-    <Stack data-slot="swipe-strip-track" className="@container/pager">
+    // itself still stretches to whatever the column resolved to. The chip inside is then measured against the
+    // BUBBLE's width instead of dictating it — which is what #608 had to answer next: `lib/pager-chrome.ts`
+    // owns the geometry vocabulary both strips share, and its header states the two rules in full.
+    <Stack data-slot="swipe-strip-track" className={PAGER_TRACK}>
       {/* THE PLATE SIZES TO ITS CONTENT (#228). #221 gave this band the row's wallpaper backing and fixed its
           contrast (1.60:1 → 8.78:1), but the band is a block-level flex row, so the plate spanned the full
           message width: a measured 686x50 chip holding one 34x34 button — **3.4% ink coverage**, in the same
@@ -153,13 +145,21 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
 
           TRAILING-EDGE ALIGNED (#312). This chip is a direct child of the content column (a `flex-col`
           `Stack`), so by omission it sat at the cross-START — the left edge — while every other row action
-          (edit/fork/kebab in the name row) packs to the TRAILING edge. `self-end` places the chevron cluster
-          under the actions it belongs with, at the column's right edge, in every skin (the swipe strip is an
-          assistant-only affordance and the name row's actions are `justify-between`/trailing for the assistant
-          side, so the two clusters share one right edge). `w-fit` keeps the plate hugging the chevrons. Both
-          survive #598 unchanged — the chip's own geometry was never the defect; what it was measured AGAINST
-          was. */}
-      <Row gap="field" align="center" data-slot="swipe-strip" className={cn("w-fit self-end", backingClass)}>
+          (edit/fork/kebab in the name row) packs to the TRAILING edge. The chip is placed under the actions
+          it belongs with, at the column's right edge, in every skin (the swipe strip is an assistant-only
+          affordance and the name row's actions are `justify-between`/trailing for the assistant side, so the
+          two clusters share one right edge). #312's PLACEMENT survives #598/#608 verbatim; its LEVER moved
+          from `self-end` to the auto margin in `PAGER_CHIP`, which is the same trailing edge plus a defined
+          overflow direction (read that constant — the difference is a chevron that stayed on screen).
+
+          `w-fit` BECAME `w-max` (#608, `PAGER_CHIP`). Once the track contains the column, `w-fit` resolved
+          the chip against the BUBBLE's width, and at a coarse pointer a short bubble made the chip's own
+          flex children absorb the deficit: chevrons at 41.41×48 (under both the app's 48px coarse box and
+          WCAG 2.5.5's 44px) with the counter wrapped to two lines. `w-max` says the plate is its content
+          and nothing else — the contained track absorbs any overflow, and the column is unaffected either
+          way, which is the whole point of rule 1. The chip still hugs (`max-content` IS the hug) — what it
+          no longer does is shrink below the controls it backs. */}
+      <Row gap="field" align="center" data-slot="swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, backingClass)}>
         {showPager ? (
           <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
             <Icon icon={ChevronLeft} size="sm" />
@@ -178,16 +178,23 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
             wider than the bubble under a short reply, which is the defect above. Track containment stops the
             chip from WIDENING that bubble, but nothing can stop a 177.5px chip from OVERHANGING a 132px one,
             so the word stands down exactly where it cannot fit: the container query reads the track, whose
-            width IS the bubble's, and below `PAGER_LABEL_HIDE_WHEN_TIGHT`'s threshold the chip falls back to
-            its pre-#490 `‹ n / m ›` — 119.14px measured, under the 149.67px floor a bubble reaches with a
-            two-letter body (that floor is the name row's action cluster inside `px-block`). #490's subject — the sighted reader is told what the control is — holds
-            wherever the surface can hold it; the a11y name on both chevrons never depended on the word at all. */}
+            width IS the bubble's, and below `PAGER_LABEL_QUIET_WHEN_TIGHT`'s threshold the chip falls back to
+            its pre-#490 `‹ n / m ›` (99.48px compact at a fine pointer, 127.48px at a coarse one).
+
+            THE STAND-DOWN IS VISUAL ONLY (#608). #598 spelled it `hidden`, which took #490's OTHER half with
+            it — a `display: none` node is out of the a11y tree, so the screen-reader user stopped being told
+            what the control is at exactly the widths where the sighted one already had. `sr-only` leaves the
+            FLOW without leaving the tree (absolutely positioned ⇒ zero width contribution, and an abspos
+            child is not a flex item, so its gap goes too): the band still reads "Variant 2 / 3", pinned by an
+            ariaSnapshot at a narrow mount. #490's subject holds wherever the surface can hold it. */}
         {showPager ? (
           <>
-            <Text as="span" voice="kicker" className={PAGER_LABEL_HIDE_WHEN_TIGHT}>
+            <Text as="span" voice="kicker" className={PAGER_LABEL_QUIET_WHEN_TIGHT}>
               Variant
             </Text>
-            <Text as="span" voice="datum">
+            {/* …and in a tight chip it surrenders the two spaces around its slash (`PAGER_COUNTER`) — 15.6px
+                that buy the chevrons their touch box back. The TEXT never changes; only its word-spacing. */}
+            <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={PAGER_COUNTER}>
               {current} / {total}
             </Text>
           </>
