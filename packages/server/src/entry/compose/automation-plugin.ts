@@ -273,7 +273,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // chat.quick_reply — transient chips onto the chat's automation bus.
     quickReply: {
       surface: ({ pluginId, chatId, choices }) => {
-        const projected = choices.map((c) => ({ label: c.label, sendText: c.sendText }));
+        // `mode` is pinned to `compose` for the PLUGIN emitter: the guest's `surfaceQuickReply` capability
+        // carries no mode field (widening it is the plugin program's own row), and compose is the fail-safe
+        // half of the axis — the member owns and edits guest-authored text before it becomes their message,
+        // where `send` would post it as their turn on one click. The RULE emitter (host-authored, host-gated
+        // `createRule`) declares its mode per choice and defaults to `send`.
+        const projected = choices.map((c) => ({ label: c.label, sendText: c.sendText, mode: "compose" as const }));
         automationNotify({ type: "quickReplySurfaced", chatId, source: { kind: "plugin", pluginId }, choices: projected });
         return Promise.resolve();
       },

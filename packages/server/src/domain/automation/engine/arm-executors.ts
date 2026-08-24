@@ -15,7 +15,7 @@
 // fabricated success. A refusal is an `arm_error`. The first non-ok outcome aborts the rule's remaining arms
 // (dispatch step 5).
 
-import type { AutomationAction } from "@orb/contracts/automation";
+import type { AutomationAction, QuickReplyMode } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -129,13 +129,15 @@ async function runInsertWorldInfo(
 
 // ── 1.4 surface_quick_reply ─────────────────────────────────────────────────────────────────────────
 function runSurfaceQuickReply(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "surface_quick_reply" }>, frame: DispatchFrame): ArmOutcome {
-  const choices: { label: string; sendText: string }[] = [];
+  const choices: { label: string; sendText: string; mode: QuickReplyMode }[] = [];
   for (const choice of action.choices) {
     const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: choice.sendTemplate });
     if (rendered.error !== undefined) {
       return armError(rendered.error);
     }
-    choices.push({ label: choice.label, sendText: rendered.text });
+    // `mode` travels VERBATIM from the authored choice to the member's surface — it is the author's
+    // send-vs-compose declaration (the diegetic-chip authoring law's only lever), not a render product.
+    choices.push({ label: choice.label, sendText: rendered.text, mode: choice.mode });
   }
   // The one MEMBER-visible automation-bus event — rendered display strings, no row (the chips are
   // transient). The `notify` sink is wired at compose to `publishAutomationEvent`, which fans this to the

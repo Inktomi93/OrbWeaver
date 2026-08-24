@@ -26,6 +26,7 @@ export { appearanceMessageDetailsSection } from "./lib/appearance-message-detail
 export { appearanceMessageStyleSection } from "./lib/appearance-message-style-section.tsx";
 export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling-section.tsx";
 export { chatStreamingSection } from "./lib/chat-behavior-streaming-section.tsx";
+export { makeChatControlsContribution } from "./lib/chat-controls-contribution.tsx";
 export { chatSlashCommands } from "./lib/chat-slash-commands.ts";
 export { makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";

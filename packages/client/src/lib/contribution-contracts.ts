@@ -16,6 +16,8 @@
 // (§5.5) so an unlisted anchor is unspellable, a named projection per POSITION, and a contribution union
 // discriminated BY ANCHOR so `when`/`body` narrow to their own state with zero casts.
 
+import type { QuickReplyMode } from "@orb/contracts/automation";
+import { QUICK_REPLY_MODES } from "@orb/contracts/automation";
 import type { MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -57,6 +59,78 @@ export type ChatSurfaceContribution =
       readonly when?: (state: ChatMessageSurfaceState) => boolean;
       readonly body: (state: ChatMessageSurfaceState) => ReactNode;
     };
+
+// ── S1: the in-chat CONTROL seam (interaction-direction-spec.md §3-S1) ────────────────────────────────
+// ONE registry + behavior contract for TRANSIENT interactive controls near the transcript/composer — the
+// generalization of the click/consume contract `choice-send-provider.tsx` already spells for the `:::choices`
+// fence (own `useSendMessage`, busy from the shared turn phase, a compose default the reader can edit).
+//
+// WHY THE DESCRIPTORS LIVE HERE and not in `features/chat/lib/`: a control SOURCE is a foreign feature
+// (automation chips, a suggestion card, a dice ask) grafting onto chat's above-composer band, so both sides
+// must spell the shape without importing each other — the §6c residency rule, and `client-features-no-cross`
+// makes the alternative RED. Chat owns the MOUNT and the stacking law; a source owns only its descriptors.
+//
+// The seam is a TWO-LEVEL contribution: the door assembles a STATIC list of sources, and each source
+// publishes a LIVE, changing list of controls from its own fiber (the `SlashCommandContribution` mount
+// shape, for the same reason — a source's hooks must never run in a loop at the host). Zero sources ⇒ the
+// mount's `when` is false ⇒ the band never renders ⇒ the room is byte-identical to a build without S1.
+
+/** The control KINDS, in STACK ORDER (declared order IS render order: cards above chips — the attention
+ *  budget of the one-visible-card law). Closed `as const` tuple + an exhaustive `Record<ChatControlKind, …>`
+ *  renderer map at the mount: a new kind fails `tsc` until it is given a renderer AND a place in the stack. */
+export const CHAT_CONTROL_KINDS = ["card", "chip"] as const;
+export type ChatControlKind = (typeof CHAT_CONTROL_KINDS)[number];
+
+/** The CONSUMPTION axis — what a control's click DOES, and therefore what makes it busy:
+ *  `send` fires the text as the clicking member's turn (turn-phase-disabled, with the reason on `title`),
+ *  `compose` seeds their composer draft (never disabled — writing a draft is always legal),
+ *  `execute` calls a front-door verb (disabled only while its OWN mutation pends — it is not a turn).
+ *  DERIVED from the wire tuple (`QUICK_REPLY_MODES`) rather than re-spelled, so an arm-surfaced chip's mode
+ *  IS a control mode by construction; `execute` is the client-only third member no chip arm can carry. */
+export const CHAT_CONTROL_MODES = [...QUICK_REPLY_MODES, "execute"] as const;
+export type ChatControlMode = (typeof CHAT_CONTROL_MODES)[number];
+
+/** ONE clickable affordance on a control. The text arms carry the string the click sends or composes; the
+ *  `execute` arm carries its own runner AND its own pending flag — the source owns the mutation, so only the
+ *  source can say whether it is in flight (the host never invents a pending state it cannot observe). */
+export type ChatControlAction =
+  | { readonly label: string; readonly mode: QuickReplyMode; readonly text: string }
+  | { readonly label: string; readonly mode: Extract<ChatControlMode, "execute">; readonly run: () => void; readonly pending: boolean };
+
+/** A TRANSIENT control the band renders. `chip` is one affordance in the capped single row; `card` is the
+ *  host-tier ask — a title, optional detail, its own actions, and an ALWAYS-PRESENT dismiss (a card that
+ *  cannot be dismissed is a modal wearing a card's clothes). */
+export type ChatControl =
+  | { readonly kind: Extract<ChatControlKind, "chip">; readonly id: string; readonly action: ChatControlAction }
+  | {
+      readonly kind: Extract<ChatControlKind, "card">;
+      readonly id: string;
+      readonly title: string;
+      readonly detail?: ReactNode;
+      readonly actions: readonly ChatControlAction[];
+      /** REQUIRED — every card carries an explicit dismiss (§3-S1). */
+      readonly dismiss: () => void;
+    };
+
+/** What a control-source mount is handed: the room projection it resolves against, and the publish channel.
+ *  `publish` is called from the source's OWN effect with its CURRENT control list (an empty array retires
+ *  everything it had raised — that is how a consumed chip disappears), in ARRIVAL order, oldest first: the
+ *  band shows the NEWEST card and discloses the rest as a count, so a source that publishes newest-first
+ *  would hide the card the member is waiting for. */
+export interface ChatControlSourceMountProps {
+  readonly state: ChatRoomSurfaceState;
+  readonly publish: (controls: readonly ChatControl[]) => void;
+}
+
+/** A CONTROL SOURCE (§6c) — a feature raising transient controls into chat's one above-composer band without
+ *  importing chat. `mount` is rendered as a COMPONENT (capitalized at the render site) so its hooks — a bus
+ *  subscription, a store read, a mutation — live in their own fiber; it renders nothing itself and must be
+ *  render-idempotent (a host may mount the set in more than one subtree). */
+export interface ChatControlSource {
+  /** Names this source (the registry key), and namespaces its controls' ids in the band. */
+  readonly id: string;
+  readonly mount: (props: ChatControlSourceMountProps) => ReactNode;
+}
 
 /** The character-DETAIL surface-anchor vocabulary (§6c) — closed `as const` tuple, so an unlisted anchor
  *  is unspellable. `editor-sections` is the review-cards region in the character editor body: the ONE

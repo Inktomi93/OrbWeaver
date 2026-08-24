@@ -310,13 +310,27 @@ test("surface_quick_reply emits quickReplySurfaced with rendered send text", asy
   const ruleId = mintTypeId(ID_PREFIX.automationRule);
   const action: Extract<AutomationAction, { type: "surface_quick_reply" }> = {
     type: "surface_quick_reply",
-    choices: [{ label: "Flee", sendTemplate: "I run from {{roll:1}} danger" }],
+    // S1: the per-choice consumption MODE is the author's declaration and travels verbatim to the member's
+    // surface — the TEMPLATE is rendered, the mode is not a render product. Both members exercised here, so
+    // a passthrough that dropped the field (or pinned one value) fails on the second choice.
+    choices: [
+      { label: "Flee", sendTemplate: "I run from {{roll:1}} danger", mode: "send" },
+      { label: "Plan", sendTemplate: "We should", mode: "compose" },
+    ],
   };
   const outcome = await dispatch(action, makeFrame({ chatId, authorUserId: host, ruleId }));
 
   expect(outcome).toEqual({ ok: true });
   expect(captured.bus).toEqual([
-    { type: "quickReplySurfaced", chatId, source: { kind: "rule", ruleId }, choices: [{ label: "Flee", sendText: "I run from 1 danger" }] },
+    {
+      type: "quickReplySurfaced",
+      chatId,
+      source: { kind: "rule", ruleId },
+      choices: [
+        { label: "Flee", sendText: "I run from 1 danger", mode: "send" },
+        { label: "Plan", sendText: "We should", mode: "compose" },
+      ],
+    },
   ]);
 });
 

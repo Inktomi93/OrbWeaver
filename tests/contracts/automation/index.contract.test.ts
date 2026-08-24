@@ -17,6 +17,7 @@ import {
   GLOBAL_VARIABLE_KEY_MAX_CHARS,
   globalVariableKeySchema,
   LIVE_TRIGGERS,
+  QUICK_REPLY_MODES,
   triggerFactSchema,
 } from "@orb/contracts/automation";
 import { expect, test } from "../../support/fixtures.ts";
@@ -150,6 +151,32 @@ test("automationActionSchema parses each live arm; the generate_image arm import
   // imagery `mode` default of "scenario".
   const img = automationActionSchema.parse({ type: "generate_image" });
   expect(img).toMatchObject({ type: "generate_image", mode: "scenario", n: 1, reuse: "prefer" });
+});
+
+// S1 (interaction-direction-spec.md §3-S1) — the per-choice consumption MODE. Without it the diegetic-chip
+// authoring law has no lever: send-vs-compose was a per-chat GAME knob the `:::choices` fence reads, which a
+// rule-surfaced chip has no access to. The DEFAULT is the arm's built semantic (`send` — a chip has always
+// fired as the clicking member's message), so an existing stored rule keeps behaving exactly as it did.
+test("surface_quick_reply choices carry a per-choice mode — explicit round-trips, absent defaults to send", () => {
+  const parsed = automationActionSchema.parse({
+    type: "surface_quick_reply",
+    choices: [
+      { label: "Flee", sendTemplate: "I run" },
+      { label: "Plan", sendTemplate: "We should", mode: "compose" },
+      { label: "Vote", sendTemplate: "I vote left", mode: "send" },
+    ],
+  });
+  expect(parsed).toMatchObject({
+    type: "surface_quick_reply",
+    choices: [
+      { label: "Flee", sendTemplate: "I run", mode: "send" },
+      { label: "Plan", sendTemplate: "We should", mode: "compose" },
+      { label: "Vote", sendTemplate: "I vote left", mode: "send" },
+    ],
+  });
+  // The axis is CLOSED — an invented mode never reaches a member's surface.
+  expect(automationActionSchema.safeParse({ type: "surface_quick_reply", choices: [{ label: "x", sendTemplate: "y", mode: "execute" }] }).success).toBe(false);
+  expect(QUICK_REPLY_MODES).toEqual(["send", "compose"]);
 });
 
 test("automationActionsSchema enforces the 1..8 arm cap", () => {

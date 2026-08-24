@@ -34,6 +34,19 @@ export const CHOICE_WAIT_FOR_TURN = "Wait for the current reply to finish, then 
 /** A choice button in a surface with no send capability (a preview / read-only mount). */
 export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
 
+// S1 — the in-chat CONTROL band (interaction-direction-spec.md §3-S1). Its `send` arm reuses
+// CHOICE_WAIT_FOR_TURN above (the same fact, the same words: a turn is in flight, pick when it settles);
+// these two are the copy the band adds. `compose` needs none — it is never disabled.
+
+/** An `execute` control whose OWN verb call is already in flight (never a turn — it re-enables on settle). */
+export const CONTROL_ACTION_RUNNING = "Already running — wait for it to finish";
+
+/** The undisclosed remainder, in the ONE grammar both stacks use: the cards' "+N pending" (only the newest
+ *  card is shown — the attention budget) and the chips row's overflow past its display cap. */
+export function controlOverflowNotice(hidden: number, noun: "pending" | "more"): string {
+  return `+${hidden} ${noun}`;
+}
+
 // The composer GUIDED-CLUSTER phase reasons (W-D — the four always-visible dual-mode icons). Each icon is
 // never hidden or swapped ([[no-separate-reduced-modes]]); a phase-unavailable icon renders aria-disabled
 // with its reason LEGIBLE + touch-surfaced (not hover-only). Named unlocks, plain language, no jargon.

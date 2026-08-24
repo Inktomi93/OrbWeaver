@@ -45,6 +45,7 @@ import {
   commandModal,
   databankSettingsSection,
   imageryTemplatesSection,
+  makeChatControlsContribution,
   makeChatsSection,
   memorySettingsSection,
   newChatModal,
@@ -87,6 +88,7 @@ import { worldInfoCollection, worldInfoSettingsSection } from "#features/world-i
 import type {
   CharacterDetailContribution,
   ChatContextState,
+  ChatControlSource,
   ChatSurfaceContribution,
   CollectionContribution,
   ContextRegionDef,
@@ -135,8 +137,20 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // disclosure (TOOLCALLS-INVISIBLE, arm A): on the `folded` path the model emits its state writes alongside
 // its prose and D112 keeps that traffic server-internal, so without this the majority of what a turn DID was
 // invisible to the person who played it. rpg raises it; chat mounts it blind at `message-footer`; neither
-// imports the other.
-const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [rpgTurnToolCallsSurface]);
+// imports the other. Its SECOND is the S1 control mount below.
+//
+// The S1 CONTROL-SOURCE seam (interaction-direction-spec.md §3-S1) — the TWELFTH contributor family:
+// transient interactive controls near the transcript (rule chips, confirm cards, a dice ask). EMPTY but
+// typed, and the emptiness is the acceptance property: with zero sources the mount below `when`-filters
+// itself out, so the room renders exactly as it does with no control seam at all. A feature appends a
+// source here without importing chat, and chat renders it blind through the one band.
+const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", []);
+
+const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
+  rpgTurnToolCallsSurface,
+  // The ONE above-composer control mount, consuming the registry above.
+  makeChatControlsContribution(chatControlSources),
+]);
 
 // The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record
 // renders through the generic @orb/ui `ToolCallBlock` fallback, so today's transcript is byte-identical to a
