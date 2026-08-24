@@ -214,6 +214,14 @@ export interface TrpcRecorder {
 }
 
 export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRecorder> {
+  // THE CENSUS LIVENESS MARKER (#637). The UNSTUBBED lines below are the census's FINDINGS; this line is the
+  // proof the census could take one at all. A run that collected nothing because the marker was renamed, the
+  // stderr plumbing broke, or this stub was swapped would otherwise be indistinguishable from a clean tree —
+  // the blind-gate false clean this repo keeps paying for. The ratchet reds a CT file that ran, calls
+  // `routeTrpc(`, and produced no ACTIVE line (tooling/src/verify/ops/ct-unfed-ratchet.ts, blindCensusRefusals).
+  // Emitted per REGISTRATION rather than once per worker, because the reporter attributes markers to the
+  // currently-running test, and per-file liveness is what the refusal arm needs.
+  console.warn("[routeTrpc] ACTIVE");
   const calls = new Map<string, unknown[]>();
   // Requested-but-unlisted procedures, first-seen order. A Set, so a re-fetch warns once.
   const unstubbed = new Set<string>();

@@ -569,8 +569,15 @@ test("a chat whose participants own no portrait falls back to initials (no broke
   await expect(component.locator(AVATAR_IMAGE)).toHaveCount(0);
 });
 
+// #637 — THE SECOND SINGLETON THIS FILE WAS FLAGGED FOR, and the verdict: `chat.star` was the only unfed
+// read in this file, and it is NOT an error-arm defect. It is a MUTATION whose result nobody reads
+// (`use-chat-row-mutations.ts` declares it `busDriven` with an `unknown` result and no `onSuccess`), so
+// routeTrpc's lenient `null` and a real response are behaviourally identical here — nothing rendered the
+// wrong arm. What WAS true is that the success path was reached through the lenient fulfil rather than
+// stated, which meant the file's one mutation-firing test could not tell a served star from an unrouted one.
+// Feeding it `{}` says what the test means; the assertions below are unchanged and still pass.
 test("§12 the star is the row's state TOGGLE, and clicking it fires the star MUTATION with the row's id", async ({ mount, page }) => {
-  const recorder = await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, STARRED]), "character.list": CHARACTERS });
+  const recorder = await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, STARRED]), "character.list": CHARACTERS, "chat.star": {} });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A pinned thread")).toBeVisible();

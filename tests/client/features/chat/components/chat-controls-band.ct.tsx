@@ -28,7 +28,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatControlsStory } from "../_ct-stories.tsx";
-import { makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 const BAND = '[data-slot="chat-controls"]';
 const ABOVE_COMPOSER = '[data-slot="chat-above-composer"]';
@@ -42,6 +42,7 @@ function routeRoom(
   extra: Record<string, unknown> = {},
 ): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
   return routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     "chat.previewContextFit": (): unknown => ({
       boundaryMessageId: null,
       usedTokens: 120,

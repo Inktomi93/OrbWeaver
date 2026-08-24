@@ -26,7 +26,7 @@ import {
 } from "../../../../support/ct/route-impersonate-stream.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
-import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 const RESPONSE = "Generate reply";
 // P3-dualmode: the guided icons' accessible name reflects the active mode — "Guided …" when the composer has text.
@@ -51,7 +51,7 @@ test("all four guided icons ALWAYS render on a committed chat (never hidden/swap
 });
 
 test("Response on an EMPTY committed composer fires a PLAIN generate (no steer object)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => ({}) });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
@@ -62,7 +62,7 @@ test("Response on an EMPTY committed composer fires a PLAIN generate (no steer o
 });
 
 test("Response fires chat.generate with the typed steer + afterAssistant on an assistant tail", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.generate": () => ({}) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.generate": () => ({}) });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
@@ -81,7 +81,12 @@ test("Try another reply KEEPS the steer (reroll again with the same guidance —
   // The tail is resolved by useGuidedActions' own chat.listMessages read — stub it with an assistant tail so
   // fireSwipe has a target (the prop only feeds the composer's own tailRole).
   const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
-  const trpc = await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]), "chat.swipe": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.listMessages": () => makeMessagesPage([tail]),
+    "chat.swipe": () => ({ ok: true }),
+  });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   const box = component.getByRole("textbox", { name: "Message" });
@@ -97,7 +102,7 @@ test("Try another reply KEEPS the steer (reroll again with the same guidance —
 test("Draft your line on a COMMITTED chat STREAMS into the composer PROGRESSIVELY and persists nothing", async ({ mount, page }) => {
   // The streaming subscription yields deltas; the composer fills delta-by-delta. Two scripted deltas so the
   // CT can assert the value GROWS (partial after delta 1, full after delta 2) — not a one-shot dump.
-  const trpc = await routeTrpc(page, {}); // no startChat/mutation traffic on the committed path
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no startChat/mutation traffic on the committed path
   await routeImpersonateStream(page, ["I step into the tavern, ", "cloak dripping."]);
   const component = await mount(<ComposerStory />); // committed, empty composer
   const box = component.getByRole("textbox", { name: "Message" });
@@ -136,7 +141,7 @@ async function expectNoReconnect(page: Page, sse: { count: () => number }, watch
 }
 
 test("a COMPLETED impersonate stream is unsubscribed — no zombie reconnect", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const sse = await routeImpersonateStreamOnce(page, { deltas: ["I step into the tavern."], end: "return" });
   const component = await mount(<ComposerStory />);
 
@@ -148,7 +153,7 @@ test("a COMPLETED impersonate stream is unsubscribed — no zombie reconnect", a
 });
 
 test("a domain ERROR FRAME settles the stream once, toasts the domain message, and restores the steer", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const sse = await routeImpersonateStreamOnce(page, { end: "error-frame", message: DOMAIN_REFUSAL });
   const component = await mount(<ComposerStory />);
   const box = component.getByRole("textbox", { name: "Message" });
@@ -165,7 +170,7 @@ test("a domain ERROR FRAME settles the stream once, toasts the domain message, a
 });
 
 test("a RETRYABLE server fault is terminal (the dead-engine zombie): one connect, one toast, on an EMPTY composer", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const sse = await routeImpersonateStreamOnce(page, { end: "server-error", message: "connect ECONNREFUSED 127.0.0.1:8000" });
   const component = await mount(<ComposerStory />); // empty composer — the D57 restore is a no-op here, so the toast is the ONLY surface
 
@@ -191,7 +196,7 @@ const STOP_WATCH_MS = 2500;
 const PARTIAL = "I step into the tavern, ";
 
 test("Stop appears while impersonating, unsubscribes the stream, and KEEPS the partial fill", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const sse = await routeImpersonateStream(page, [PARTIAL, "cloak dripping."], STOP_RETRY_MS);
   const component = await mount(<ComposerStory />);
   const box = component.getByRole("textbox", { name: "Message" });
@@ -219,7 +224,7 @@ test("Stop appears while impersonating, unsubscribes the stream, and KEEPS the p
 });
 
 test("while impersonating, the guided icons name the STREAM as the wait reason (not a phantom reply)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await routeImpersonateStream(page, [PARTIAL, "cloak dripping."], STOP_RETRY_MS);
   const component = await mount(<ComposerStory />);
 
@@ -257,7 +262,12 @@ async function expectReason(page: Page, component: Locator, name: string, reason
 test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {
   // Regenerate moved into the ✨ menu (owner). It's a plain reroll — chat.swipe with NO guided object.
   const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
-  const trpc = await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]), "chat.swipe": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.listMessages": () => makeMessagesPage([tail]),
+    "chat.swipe": () => ({ ok: true }),
+  });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("button", { name: "Message tools" }).click();
@@ -281,7 +291,7 @@ test("Regenerate in the ✨ menu is disabled-with-reason when there's no assista
 // title that names it a PLAIN reroll (ignores the typed steer), so it is not the byte-identical twin of Swipe.
 test("P1-A: an enabled Regenerate carries the plain-reroll helper (distinct from the steer-aware Swipe)", async ({ mount, page }) => {
   const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
-  await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessages": () => makeMessagesPage([tail]) });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("button", { name: "Message tools" }).click();
@@ -298,7 +308,7 @@ test("P2-A: the ✨ menu is grouped with labeled sections (Input · Reply · Con
 });
 
 test("Simple send fires chat.commitMessage (post without generating) and clears the composer", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.commitMessage": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.commitMessage": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
   const component = await mount(<ComposerStory />);
 
   const box = component.getByRole("textbox", { name: "Message" });
@@ -364,6 +374,8 @@ async function hoverOpenSubmenu(trigger: Locator, submenu: Locator): Promise<voi
 
 test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => GAME_CHAT,
     "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
     "chat.generate": () => ({}),
@@ -387,6 +399,8 @@ test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a
 
 test("Plot submenu is APPLICABILITY-gated off when plotProgression is false (Offer choices still shows)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => GAME_CHAT,
     "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: false } }),
   });
@@ -398,7 +412,7 @@ test("Plot submenu is APPLICABILITY-gated off when plotProgression is false (Off
 });
 
 test("game steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount, page }) => {
-  await routeTrpc(page, {}); // no rpg pointer → not a game
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no rpg pointer → not a game
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
   await expect(page.getByRole("menuitem", { name: "Offer choices" })).toHaveCount(0);
@@ -411,7 +425,12 @@ test("game steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount
 // DECODED REQUEST BODY, which is the only place the fork is observable from the client.
 test("Corrections fires the toggle KINDS on the wire — no composed fragment bytes leave the browser", async ({ mount, page }) => {
   const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
-  const trpc = await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]), "chat.swipe": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.listMessages": () => makeMessagesPage([tail]),
+    "chat.swipe": () => ({ ok: true }),
+  });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("button", { name: "Message tools" }).click();
@@ -434,7 +453,12 @@ test("Corrections fires the toggle KINDS on the wire — no composed fragment by
 
 test("Corrections with ONLY toggles (no typed instruction) still fires — the kinds are the whole steer", async ({ mount, page }) => {
   const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
-  const trpc = await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]), "chat.swipe": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.listMessages": () => makeMessagesPage([tail]),
+    "chat.swipe": () => ({ ok: true }),
+  });
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("button", { name: "Message tools" }).click();
