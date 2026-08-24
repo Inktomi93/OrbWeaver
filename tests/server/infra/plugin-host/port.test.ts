@@ -10,7 +10,16 @@ import type { NotificationRecipient } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { createPluginHost, EVENT_QUEUE_DEPTH, HOST_FN_DEADLINE_MS, PLUGIN_MEMORY_LIMIT_BYTES, Sandbox } from "@orb/server/infra/plugin-host";
+import {
+  createPluginHost,
+  EVENT_QUEUE_DEPTH,
+  HOST_FN_ARGS_MAX_BYTES,
+  HOST_FN_DEADLINE_MS,
+  PLUGIN_LOG_RING_CHARS,
+  PLUGIN_LOG_RING_LINES,
+  PLUGIN_MEMORY_LIMIT_BYTES,
+  Sandbox,
+} from "@orb/server/infra/plugin-host";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -23,6 +32,10 @@ const INBOUND_CAP_RE = /inbound cap/u;
 const QUEUE_FULL_RE = /queue full/u;
 const HANDLER_BOOM_RE = /handler boom/u;
 const INVOCATION_ENDED_RE = /invocation ended/u;
+/** The membrane's guest→host argument cap refusal (distinct from `INBOUND_CAP_RE`, the handler-args cap). */
+const ARGS_CAP_RE = /arguments exceed/u;
+/** The resident-handler args channel's JSON-only refusal (a non-JSON payload never reaches the guest). */
+const ARGS_JSON_RE = /args must be a JSON document/u;
 
 /** The concurrency-belt witness guest (a resident tool): (1) await a HUNG getVariables — returns control to the
  *  event loop mid-invocation, opening the race window; (2) requestTurn — forwards ITS invocation's
@@ -1310,5 +1323,260 @@ describe("the invocation SETTLEMENT deadline through the port (the FIFO wedge + 
     }
     expect(await host.invoke(outcome.instance, ref, "{}", { chatId: CHAT, canWrite: false, automationDepth: 0 })).toBe("got:9");
     host.dispose(outcome.instance);
+  });
+});
+
+describe("readLog is a RUNTIME record, not an activation snapshot (#627)", () => {
+  test("lines a resident handler logs are RETAINED and readable after the invoke", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const main = `
+      const h = orb.host(1);
+      h.log.info("booted");
+      h.tools.register({
+        name: "speak", description: "log at runtime", parameters: { type: "object", properties: {} },
+        handler: async (args) => { h.log.warn("ran:" + args.n); return "ok"; },
+      });
+      'ok';`;
+    const outcome = await host.createInstance({ mainJs: main, grants: ["tools.register"], bridge, chat: noChat });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    await host.invoke(outcome.instance, ref, JSON.stringify({ n: 1 }), noChat);
+    await host.invoke(outcome.instance, ref, JSON.stringify({ n: 2 }), noChat);
+    const log = host.readLog(outcome.instance);
+    // The activation banner survives AND both per-invocation lines are there, oldest-first.
+    expect(log.map((l) => l.message)).toEqual(["booted", "ran:1", "ran:2"]);
+    expect(log.every((l) => l.at === FIXED_EPOCH)).toBe(true);
+    expect(log.find((l) => l.message === "ran:1")?.level).toBe("warn");
+    host.dispose(outcome.instance);
+  });
+
+  test("the ring is BOUNDED on lines — a flood evicts the OLDEST, the newest always survives", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    // 200 lines per call (under the per-invocation LogRing's own 256) × 8 calls > the ring — so eviction must run.
+    const main = `
+      const h = orb.host(1);
+      h.log.info("booted");
+      h.tools.register({
+        name: "spam", description: "200 lines per call", parameters: { type: "object", properties: {} },
+        handler: async (args) => { for (let i = 0; i < 200; i++) { h.log.info("n:" + args.n + ":" + i); } return "ok"; },
+      });
+      'ok';`;
+    const outcome = await host.createInstance({ mainJs: main, grants: ["tools.register"], bridge, chat: noChat });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    const calls = 8;
+    for (let n = 0; n < calls; n++) {
+      // biome-ignore lint/performance/noAwaitInLoops: the per-instance FIFO serializes invokes anyway — a parallel burst would exercise the queue-depth gate, not the ring.
+      await host.invoke(outcome.instance, ref, JSON.stringify({ n }), noChat);
+    }
+    const log = host.readLog(outcome.instance);
+    expect(log.length).toBeLessThanOrEqual(PLUGIN_LOG_RING_LINES);
+    // The activation banner is the FIRST thing evicted; the newest line is always present.
+    expect(log.some((l) => l.message === "booted")).toBe(false);
+    expect(log.at(-1)?.message).toBe(`n:${calls - 1}:199`);
+    host.dispose(outcome.instance);
+  });
+
+  test("the ring is BOUNDED on volume — fat lines cannot pin a plugin's worth of host memory", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    // 100 × 2000-char lines per call = 200k chars drained in ONE invocation, past the ring's char budget.
+    const main = `
+      const h = orb.host(1);
+      h.tools.register({
+        name: "fat", description: "fat lines", parameters: { type: "object", properties: {} },
+        handler: async () => { const big = "x".repeat(2000); for (let i = 0; i < 100; i++) { h.log.info(big); } return "ok"; },
+      });
+      'ok';`;
+    const outcome = await host.createInstance({ mainJs: main, grants: ["tools.register"], bridge, chat: noChat });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    await host.invoke(outcome.instance, ref, "{}", noChat);
+    await host.invoke(outcome.instance, ref, "{}", noChat);
+    const retained = host.readLog(outcome.instance).reduce((sum, l) => sum + l.message.length, 0);
+    expect(retained).toBeLessThanOrEqual(PLUGIN_LOG_RING_CHARS);
+    expect(retained).toBeGreaterThan(0);
+    host.dispose(outcome.instance);
+  });
+
+  test("readLog hands back a SNAPSHOT — a later invoke does not mutate a prior read", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const main = `
+      const h = orb.host(1);
+      h.tools.register({
+        name: "speak", description: "d", parameters: { type: "object", properties: {} },
+        handler: async () => { h.log.info("later"); return "ok"; },
+      });
+      'ok';`;
+    const outcome = await host.createInstance({ mainJs: main, grants: ["tools.register"], bridge, chat: noChat });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    const before = host.readLog(outcome.instance);
+    await host.invoke(outcome.instance, ref, "{}", noChat);
+    expect(before).toHaveLength(0);
+    expect(host.readLog(outcome.instance).map((l) => l.message)).toEqual(["later"]);
+    host.dispose(outcome.instance);
+  });
+});
+
+describe("membrane — the INBOUND host-call args cap (the mirror of the 1 MiB result cap) (#628 P3-J)", () => {
+  test("a guest argument over the inbound cap is refused LOUDLY — the bridge op never runs", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const fake = fakeBridge();
+    // A guest string just past the declared cap, handed to storage.set. Only the 32 MiB guest heap bounded this
+    // before, so the host materialized whatever the guest could allocate — per call, times the ≤32 in-flight
+    // ceiling. Derived from the constant so a budget re-tune moves the pin with it, never past it.
+    const main = `
+      const h = orb.host(1);
+      h.storage.set("k", "x".repeat(${HOST_FN_ARGS_MAX_BYTES + 1}))
+        .then(() => h.log.info("STORED"))
+        .catch((e) => h.log.error("refused:" + e.message));
+      'ok';`;
+    const outcome = await host.createInstance({ mainJs: main, grants: ["storage.kv"], bridge: fake.bridge, chat: noChat });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    const log = host.readLog(outcome.instance);
+    expect(log.some((l) => l.message === "STORED")).toBe(false);
+    expect(log.some((l) => l.level === "error" && ARGS_CAP_RE.test(l.message))).toBe(true);
+    // The refusal is BEFORE the op: nothing reached the plugin-private store.
+    expect(fake.store.size).toBe(0);
+    host.dispose(outcome.instance);
+  });
+
+  test("a normal-sized argument still crosses (the cap only fires on gross abuse)", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const fake = fakeBridge();
+    const main = `
+      const h = orb.host(1);
+      h.storage.set("k", "x".repeat(1024)).then(() => h.log.info("STORED")).catch((e) => h.log.error("refused:" + e.message));
+      'ok';`;
+    const outcome = await host.createInstance({ mainJs: main, grants: ["storage.kv"], bridge: fake.bridge, chat: noChat });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    expect(host.readLog(outcome.instance).some((l) => l.message === "STORED")).toBe(true);
+    expect(fake.store.get("k")).toHaveLength(1024);
+    host.dispose(outcome.instance);
+  });
+});
+
+describe("the resident-handler args channel is JSON DATA, never guest SOURCE (#628 P3-L)", () => {
+  /** A resident tool that reports what it received + whether a side effect ever ran in its realm. */
+  const witnessSrc = `
+    const h = orb.host(1);
+    globalThis.__sideEffect = 0;
+    h.tools.register({
+      name: "witness", description: "report the args it was handed", parameters: { type: "object", properties: {} },
+      handler: async (args) => JSON.stringify({
+        args: args ?? null,
+        sideEffect: globalThis.__sideEffect,
+        ownProto: args !== null && typeof args === "object" ? Object.hasOwn(args, "__proto__") : false,
+        tainted: (args ?? {}).tainted ?? null,
+      }),
+    });
+    'ok';`;
+
+  async function witness(host: ReturnType<typeof createPluginHost>, bridge: PluginBridge): Promise<{ instance: PluginInstance; ref: PluginHandlerRef }> {
+    const outcome = await host.createInstance({ mainJs: witnessSrc, grants: ["tools.register"], bridge, chat: noChat });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    return { instance: outcome.instance, ref };
+  }
+
+  test("a NON-JSON argsJson is refused — it never EXECUTES in the guest realm", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const { instance, ref } = await witness(host, bridge);
+    // What a future non-JSON caller becomes today: the payload is interpolated as `(${json})` and EVALUATED, so
+    // a comma expression runs its side effect inside the guest realm with that plugin's grants.
+    await expect(host.invoke(instance, ref, "(globalThis.__sideEffect = 1, { evil: true })", noChat)).rejects.toThrow(ARGS_JSON_RE);
+    const after = JSON.parse(await host.invoke(instance, ref, JSON.stringify({ ok: true }), noChat)) as { sideEffect: number };
+    expect(after.sideEffect).toBe(0);
+    host.dispose(instance);
+  });
+
+  test("a MALFORMED argsJson fails loudly instead of silently becoming `undefined` args", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const { instance, ref } = await witness(host, bridge);
+    await expect(host.invoke(instance, ref, "{not json", noChat)).rejects.toThrow(ARGS_JSON_RE);
+    host.dispose(instance);
+  });
+
+  test("a `__proto__` key lands as an OWN property (JSON.parse semantics), never a prototype swap", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const { instance, ref } = await witness(host, bridge);
+    const seen = JSON.parse(await host.invoke(instance, ref, `{"__proto__":{"tainted":true},"a":1}`, noChat)) as {
+      ownProto: boolean;
+      tainted: unknown;
+    };
+    expect(seen.ownProto).toBe(true);
+    expect(seen.tainted).toBeNull();
+    host.dispose(instance);
+  });
+
+  test("a guest that REPLACES JSON.parse cannot interpose on the host's inbound marshalling", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const main = `
+      const h = orb.host(1);
+      JSON.parse = () => ({ hijacked: true });
+      h.tools.register({
+        name: "w", description: "d", parameters: { type: "object", properties: {} },
+        handler: async (args) => JSON.stringify(args ?? null),
+      });
+      'ok';`;
+    const outcome = await host.createInstance({ mainJs: main, grants: ["tools.register"], bridge, chat: noChat });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    expect(await host.invoke(outcome.instance, ref, JSON.stringify({ real: 1 }), noChat)).toBe(`{"real":1}`);
+    host.dispose(outcome.instance);
+  });
+
+  test("well-formed JSON still round-trips unchanged (incl. U+2028 inside a string)", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const { instance, ref } = await witness(host, bridge);
+    const payload = { s: "a\u2028b", n: 4, deep: { list: [1, 2, 3] } };
+    const seen = JSON.parse(await host.invoke(instance, ref, JSON.stringify(payload), noChat)) as { args: unknown };
+    expect(seen.args).toEqual(payload);
+    host.dispose(instance);
   });
 });

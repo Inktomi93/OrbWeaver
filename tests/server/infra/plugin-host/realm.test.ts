@@ -318,4 +318,16 @@ describe("LogRing — per-invocation bounds", () => {
     const totalBytes = ring.drain().reduce((sum, line) => sum + line.length, 0);
     expect(totalBytes).toBeLessThanOrEqual(16_384 + big.length);
   });
+
+  // The budget is a RETENTION bound now that `port` keeps drained lines in a runtime ring (#627): the
+  // pre-existing "check the budget, then push whatever" shape let ONE guest line carry the whole 32 MiB heap
+  // past a ring documented as 16 KiB, and a retained 32 MiB line is the unbounded-per-instance allocation
+  // #613 closed elsewhere. A single oversized line is CLAMPED to what is left of the budget.
+  test("ONE oversized line cannot exceed the byte budget (it is clamped, not admitted whole)", () => {
+    const ring = new LogRing();
+    ring.push("info", "x".repeat(1_000_000));
+    const totalChars = ring.drain().reduce((sum, line) => sum + line.length, 0);
+    expect(totalChars).toBeLessThanOrEqual(16_384);
+    expect(ring.drain()).toHaveLength(1);
+  });
 });

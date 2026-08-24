@@ -85,7 +85,11 @@ export interface PluginHostPort {
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
   }) => Promise<SnippetResult>;
-  /** A non-destructive snapshot of the instance's per-plugin host.log ring. */
+  /** A non-destructive snapshot of the instance's RUNTIME host.log ring: the activation drain plus every later
+   *  invocation's, oldest-first, bounded and evicted from the front by the port. IN-MEMORY and per resident
+   *  instance (`ASSUMES(single-replica)`) — a restart or a deactivate→activate cycle resets it. It is a recent-
+   *  activity view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it
+   *  contains or from what it is missing. */
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   /** Tear down the instance (disposes the guest context + all realm handles). Idempotent-safe. */
   readonly dispose: (instance: PluginInstance) => void;

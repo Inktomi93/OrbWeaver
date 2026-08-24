@@ -35,8 +35,14 @@ export interface HostSeams {
 const LOG_LEVELS = PLUGIN_LOG_LEVELS;
 type LogLevel = PluginLogLevel;
 
-/** Per-invocation log ring — bounded by line count AND byte volume; overflow drops silently
- *  (the guest cannot DoS the host log by flooding). Drained into the invocation outcome. */
+/** Per-invocation log ring — bounded by line count AND volume; overflow drops silently
+ *  (the guest cannot DoS the host log by flooding). Drained into the invocation outcome.
+ *
+ *  The volume bound is HARD, including for one line: an oversized message is CLAMPED to what is left of the
+ *  budget rather than admitted whole. The check-then-push-anything shape it replaces let a single guest line
+ *  carry the whole 32 MiB instance heap past a ring documented as 16 KiB — harmless while every drain was
+ *  discarded, but `port`'s runtime ring now RETAINS drained lines, and a retained 32 MiB line is exactly the
+ *  unbounded per-instance allocation the in-flight cap repair closed elsewhere. */
 export class LogRing {
   private readonly lines: string[] = [];
   private bytes = 0;
@@ -46,8 +52,11 @@ export class LogRing {
       return;
     }
     const line = `[${level}] ${message}`;
-    this.bytes += line.length;
-    this.lines.push(line);
+    // Clamped, not refused: a truncated line still tells an operator WHAT ran. Accounting is in UTF-16 code
+    // units — the unit a JS string actually costs, and ≥ 1 UTF-8 byte each (conservative for a memory bound).
+    const clamped = line.length <= LOG_BYTES_PER_INVOCATION - this.bytes ? line : line.slice(0, LOG_BYTES_PER_INVOCATION - this.bytes);
+    this.bytes += clamped.length;
+    this.lines.push(clamped);
   }
 
   drain(): readonly string[] {
