@@ -33,6 +33,11 @@ const THIS_CHAT_TAB_READS = {
   "chat.getUserMacroPicks": (): unknown => ({ macros: [], values: {} }),
   "chat.getVariablePicks": (): unknown => ({ variables: [], values: {} }),
   "databank.listActiveForChat": (): unknown => [],
+  // #637 — the Books section (chat-books-section.tsx, landed in #630) joined this tab with a SUSPENDING
+  // `worldInfo.listForChat`, so an unfed read threw into its QueryBoundary and the "no read-error surface"
+  // assertion below reddened. Exactly the "including one added tomorrow" case that assertion was written
+  // for, and the unfed-read ratchet named the procedure in the same run. Empty = the section's empty state.
+  "worldInfo.listForChat": (): unknown => [],
 };
 
 const NATE_HOST_RE = /Nate — host/u;

@@ -56,7 +56,10 @@
 //     posture as a defect).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { RatchetRow } from "@orb/tooling/_shared/ratchet-rows";
+
+refuseDirectInvocation(import.meta.url, "pnpm test:ct (the CT reporter imports this judge; it has no CLI of its own)");
 
 /** The committed ledger, at the ONE path every consumer imports rather than re-spells (a rename then breaks
  *  `tsc` instead of silently leaving the debt walk reading a path nothing writes). */

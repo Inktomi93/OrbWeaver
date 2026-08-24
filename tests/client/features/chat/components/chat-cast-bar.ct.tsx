@@ -9,7 +9,7 @@
 import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { MessageId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -44,7 +44,7 @@ function roster(...members: unknown[]): unknown {
  */
 const CAST_CHARACTER_ROUTE: Record<string, unknown> = {
   "character.get": (input: unknown): unknown => ({
-    id: (input as { characterId?: string } | undefined)?.characterId ?? "character_unknown",
+    id: (input as { characterId?: CharacterId } | undefined)?.characterId ?? castId<CharacterId>("character_unknown"),
     name: "Cast member",
     avatarHash: null,
     description: "",
