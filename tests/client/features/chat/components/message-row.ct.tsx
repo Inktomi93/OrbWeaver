@@ -2035,3 +2035,82 @@ test("#220 at a FINE pointer the inline Edit/Fork pair is untouched", async ({ m
   await expect(component.getByRole("button", { name: "Edit message" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Fork chat here" })).toBeVisible();
 });
+
+// ── #598: THE PAGER MAY NOT WIDEN OR OVERHANG THE BUBBLE IT PAGES ─────────────────────────────────
+//
+// The content column resolves to the max-content of its widest child (the bubble family's row outer is
+// `items-start`, so the row body shrink-wraps — the #245 note on message-row.tsx). #490 grew the swipe chip
+// to 177.5px by naming it "Variant", which is WIDER than a short reply's bubble, so the chip became that
+// widest child: measured on the pre-fix source, a two-word reply rendered bubble 132.00 / strip 177.55 /
+// column 177.55 — a pager hanging 45px past the right edge of the box it pages, at BOTH ends of the width
+// matrix. (The #312 pin above records the same collapse from the other side and worked around it by
+// lengthening its fixture.)
+//
+// Two properties, both asserted per cell, because they fail independently: the chip must not SIZE the column
+// (fixed by the pager track's `container-type: inline-size` — an inline-size container resolves its width
+// without regard to its contents, so it contributes nothing upward and still stretches downward), and it
+// must not EXTEND past the bubble (fixed by the kicker standing down below the width that can hold it — no
+// containment can shrink a 177.5px chip under a 132px bubble). The label assertions run in BOTH directions
+// in the same matrix, so a rule that hid the word everywhere would fail as loudly as one that never hid it.
+const PAGER_LABEL = "Variant";
+/** Every cell keeps a USABLE pager: both chevrons and the counter, whatever the label does. */
+async function expectPagerUsable(component: Locator): Promise<void> {
+  await expect(component.getByRole("button", { name: "Previous variant" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Next variant" })).toBeVisible();
+  await expect(component.getByText("2 / 3")).toBeVisible();
+}
+
+const PAGER_MATRIX = [
+  // A SHORT reply is the defect cell: its bubble is narrower than the full chip, so the label stands down.
+  { label: "short", content: "Hi there", labelShown: false },
+  // One line at roughly the chip's own width — the crossover, where the label comes back.
+  { label: "medium", content: "That is a reasonably sized reply line", labelShown: true },
+  {
+    label: "long",
+    content:
+      "This one runs on for quite a while so that the body wraps across several lines and the bubble reaches the reading measure cap without any doubt about it.",
+    labelShown: true,
+  },
+] as const;
+
+for (const width of [360, 900] as const) {
+  for (const cell of PAGER_MATRIX) {
+    test(`#598 the variant pager neither widens nor overhangs its bubble (${cell.label} body, ${width}px)`, async ({ mount, page }) => {
+      await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+      const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
+      await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
+      await expectPagerUsable(component);
+
+      const bubbleBox = await component.locator(BUBBLE).boundingBox();
+      const stripBox = await component.locator(SWIPE_STRIP).boundingBox();
+      const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
+      const bubbleRight = (bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0);
+      const stripRight = (stripBox?.x ?? 0) + (stripBox?.width ?? 0);
+
+      // (1) THE COLUMN IS THE BUBBLE'S. A chip that still sized the column reads column === strip here.
+      expect(bubbleBox?.width ?? 0).toBeGreaterThan(0);
+      expect(columnBox?.width ?? 0).toBeCloseTo(bubbleBox?.width ?? 0, 1);
+      // (2) NOTHING HANGS OUT. Trailing edges meet (#312) and the chip never reaches past them.
+      expect(stripBox?.width ?? 0).toBeLessThanOrEqual((bubbleBox?.width ?? 0) + 1);
+      expect(stripRight).toBeLessThanOrEqual(bubbleRight + 1);
+      // …and the word is present exactly where the bubble can hold it — both arms, same matrix.
+      await expect(component.getByText(PAGER_LABEL, { exact: true })).toBeVisible({ visible: cell.labelShown });
+    });
+  }
+}
+
+// THE FLOOR CASE — a two-letter body, so the bubble is as narrow as the row can make it: its width is the
+// name row's action cluster inside `px-block` and nothing else (166.59px here; 149.67px measured with a
+// two-letter speaker name). The label-less chip is 119.14px, so the stand-down leaves real headroom rather
+// than a coincidence; if a future action cluster shrinks past the chip, THIS is the pin that goes red.
+test("#598 even the narrowest bubble the row can produce still contains its pager", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} characterId={ALICE_ID} participants={[alice()]} />,
+  );
+  await expectPagerUsable(component);
+  const bubbleBox = await component.locator(BUBBLE).boundingBox();
+  const stripBox = await component.locator(SWIPE_STRIP).boundingBox();
+  expect(stripBox?.width ?? 0).toBeLessThan(bubbleBox?.width ?? 0);
+  expect((stripBox?.x ?? 0) + (stripBox?.width ?? 0)).toBeLessThanOrEqual((bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0) + 1);
+});

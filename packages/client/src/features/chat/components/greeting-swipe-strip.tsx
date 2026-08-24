@@ -23,7 +23,7 @@
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
@@ -85,31 +85,40 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
     // TRAILING-EDGE ALIGNED (#312), for the same reason and by the same lever as `SwipeStrip`: the two
     // strips share one slot, so they cannot differ on which edge the chevrons pack to. `self-end` places
     // the chip under the row actions at the content column's right edge instead of at its left-by-omission.
-    <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn("w-fit self-end", backingClass)}>
-      <Button
-        intent="ghost"
-        size="icon"
-        disabled={!canPrev || step.isPending}
-        loading={step.isPending}
-        aria-label="Previous greeting"
-        onClick={(): void => pick(prevIdx)}
-      >
-        <Icon icon={ChevronLeft} size="sm" />
-      </Button>
-      {/* Same counter, same `datum` voice as the settled row's swipe strip — one grammar for both. */}
-      <Text as="span" voice="datum">
-        {atCustom ? "—" : currentIdx + 1} / {total}
-      </Text>
-      <Button
-        intent="ghost"
-        size="icon"
-        disabled={!canNext || step.isPending}
-        loading={step.isPending}
-        aria-label="Next greeting"
-        onClick={(): void => pick(nextIdx)}
-      >
-        <Icon icon={ChevronRight} size="sm" />
-      </Button>
-    </Row>
+    // AND IT MAY NOT SIZE THE BUBBLE'S COLUMN EITHER (#598, same slot ⇒ same track). The content column
+    // resolves to the max-content of its widest child, so a `w-fit` chip under a SHORT greeting became that
+    // child and hung past the bubble it pages. `container-type: inline-size` (Tailwind's `@container`)
+    // resolves this track's width without regard to its contents: it contributes nothing to the column and
+    // still stretches to whatever the bubble set. This chip carries no kicker (it never took #490's word), so
+    // its 119.14px is under any bubble the row can produce and it needs no stand-down rule — the track is here
+    // because the two strips share one slot and must not differ on whether the pager can widen a message.
+    <Stack data-slot="greeting-swipe-strip-track" className="@container/pager">
+      <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn("w-fit self-end", backingClass)}>
+        <Button
+          intent="ghost"
+          size="icon"
+          disabled={!canPrev || step.isPending}
+          loading={step.isPending}
+          aria-label="Previous greeting"
+          onClick={(): void => pick(prevIdx)}
+        >
+          <Icon icon={ChevronLeft} size="sm" />
+        </Button>
+        {/* Same counter, same `datum` voice as the settled row's swipe strip — one grammar for both. */}
+        <Text as="span" voice="datum">
+          {atCustom ? "—" : currentIdx + 1} / {total}
+        </Text>
+        <Button
+          intent="ghost"
+          size="icon"
+          disabled={!canNext || step.isPending}
+          loading={step.isPending}
+          aria-label="Next greeting"
+          onClick={(): void => pick(nextIdx)}
+        >
+          <Icon icon={ChevronRight} size="sm" />
+        </Button>
+      </Row>
+    </Stack>
   );
 }
