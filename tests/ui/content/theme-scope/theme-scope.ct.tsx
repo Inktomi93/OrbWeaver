@@ -1,5 +1,6 @@
 import { Dialog, DialogPopup, DialogTrigger } from "@orb/ui/dialog";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Meter } from "@orb/ui/meter";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Select } from "@orb/ui/select";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -391,6 +392,77 @@ test("#243 a CUSTOM dark theme's elevation ring stays light-from-above (the dark
   );
   const [composite, base] = await cmp.getByTestId("ring-probe-dark").evaluate(paintedRingVsBase, DARK_SEED_BASE);
   expect(composite).toBeGreaterThan(base);
+});
+
+// ── #682: THE MUTED-ON-CARD GRAPHIC UNDER A NEAR-WHITE CARRIED PALETTE (rendered) ──────────────────
+// The additive ramp saturated every positive member at L 1.0 on a near-white base, so `--color-muted`
+// and `--color-card` resolved to the SAME white and the arc meter's track (`text-muted`, painted as
+// `stroke="currentColor"` over a `bg-card` panel) measured 1.0000:1 — a graphic that is not there.
+// Only the browser resolves the emitted relative colour, so this is asserted on the PAINTED pair: the
+// track's own computed `color` against the panel's computed `background-color`.
+const NEAR_WHITE_BASE = "oklch(0.98 0.004 75)";
+
+/** The track's stroke colour vs the card it is painted on, WCAG-contrasted on framebuffer pixels. */
+const trackVsCard = (panel: Element): number => {
+  const track = panel.querySelector('[data-slot="meter-track"] circle');
+  if (track === null) {
+    throw new Error("no arc meter track in the panel");
+  }
+  const toRgb = (color: string): [number, number, number] => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return [r ?? 0, g ?? 0, b ?? 0];
+  };
+  const lum = (rgb: [number, number, number]): number => {
+    const [r, g, b] = rgb.map((v) => {
+      const c = v / 255;
+      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    }) as [number, number, number];
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const la = lum(toRgb(getComputedStyle(track).color));
+  const lb = lum(toRgb(getComputedStyle(panel).backgroundColor));
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+};
+
+test("#682 an arc meter's TRACK is still a graphic on a card under a near-white carried palette", async ({ mount }) => {
+  const cmp = await mount(
+    <ThemeScope tokens={{ background: NEAR_WHITE_BASE }}>
+      <div data-testid="card-panel" style={{ backgroundColor: "var(--color-card)" }}>
+        <Meter kind="arc" label="Stamina" value={40} />
+      </div>
+    </ThemeScope>,
+  );
+  // Pre-#682 the track and the card resolved to the identical white: 1.0000:1 RENDERED, an arc that is
+  // not there. The floor is the class the DARK arm renders at (1.1315:1 measured in this browser on the
+  // Hearth base, the test below) — two NEIGHBOURING ramp surfaces cannot reach the 3:1 non-text ratio on
+  // either polarity (the shipped Hearth pair is 1.1356 in node math), so the pin is "as legible as the
+  // polarity that was never broken", not WCAG 1.4.11. Whether a 1.13 neighbour step is enough for a
+  // GRAPHIC is a meter-side question (which token the track picks), not a derivation one.
+  await expect.poll(() => cmp.getByTestId("card-panel").evaluate(trackVsCard), { intervals: [20, 50, 100] }).toBeGreaterThan(1.1);
+});
+
+test("#682 the DARK arm's track/card separation does not move (the polarity that was never broken)", async ({ mount }) => {
+  const cmp = await mount(
+    <ThemeScope tokens={{ background: DARK_SEED_BASE }}>
+      <div data-testid="card-panel-dark" style={{ backgroundColor: "var(--color-card)" }}>
+        <Meter kind="arc" label="Stamina" value={40} />
+      </div>
+    </ThemeScope>,
+  );
+  const ratio = await cmp.getByTestId("card-panel-dark").evaluate(trackVsCard);
+  // Hearth's derived pair as this browser RESOLVES it (1.1315; node's own oklch math says 1.1356 — the
+  // gap is 8-bit channel quantization, not a disagreement). A fence, not a defect proof: it passes
+  // pre-fix too, and its job is to red if the dark arm ever moves a digit.
+  expect(ratio).toBeCloseTo(1.1315, 3);
 });
 
 test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte-identically", async ({ mount }) => {
