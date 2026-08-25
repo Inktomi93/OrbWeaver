@@ -404,6 +404,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // D53 watchdog seam (WI/SEND/RECEIVE) overrides this with a fake that throws on a pathological pattern.
     tools: null,
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
+    // Default = NATIVE `.test` (no node:vm) — deterministic + fast for tests. A test exercising the #710 ReDoS
+    // key watchdog overrides this with the real `createRegexTest()` (or a fake that throws on a pathological key).
+    testRegexKey: (regex, haystack) => regex.test(haystack),
     runChatTurn: notStubbed,
     // The side-gen sampling ladder's middle rung (chat host preset params) — default = an empty posture so the
     // per-site floors stand (byte-identical to pre-ladder behavior). A test exercising the override supplies its own.

@@ -39,3 +39,33 @@ export function createRegexApplyReplace(timeoutMs: number = REGEX_APPLY_TIMEOUT_
 /** The server's default `applyReplace` — the {@link createRegexApplyReplace} watchdog at the standard
  *  {@link REGEX_APPLY_TIMEOUT_MS} budget. */
 export const applyReplace = createRegexApplyReplace();
+
+// The `.test` twin of {@link APPLY_SCRIPT}, for the world-info regex-KEY matcher (#710). A V3 `use_regex`
+// entry key is a user-authored pattern `.test`ed against the chat-history haystack EVERY turn; a catastrophic
+// key (`(a|a)+$`, `(a+)+$`) that slips past the kit's pre-compile heuristic backtracks unbounded on the main
+// event loop, hanging the server for every user on the process. Running the `.test` under V8's watchdog
+// interrupts it and throws — the kit matcher catches that and treats the key as a non-match.
+const TEST_SCRIPT = new vm.Script("regex.test(haystack)", {
+  filename: "orb-regex-test-watchdog.vm",
+});
+
+/**
+ * Build a node:vm-sandboxed `regex.test(haystack)` bound to `timeoutMs`. Throws on timeout (V8's execution
+ * watchdog interrupts the backtrack) or on a non-boolean result. The world-info key matcher
+ * ({@link matchEntryKeys}) injects this as its `testRegex` seam and routes a throw to `onKeyCompileFailure`,
+ * so a ReDoS key never hangs the turn and never silently passes as a match.
+ */
+export function createRegexTest(timeoutMs: number = REGEX_APPLY_TIMEOUT_MS): (regex: RegExp, haystack: string) => boolean {
+  return (regex: RegExp, haystack: string): boolean => {
+    const context = vm.createContext({ regex, haystack }, { codeGeneration: { strings: false, wasm: false } });
+    const result: unknown = TEST_SCRIPT.runInContext(context, { timeout: timeoutMs });
+    if (typeof result !== "boolean") {
+      throw new TypeError(`regex test produced a non-boolean result (${typeof result})`);
+    }
+    return result;
+  };
+}
+
+/** The server's default world-info key `testRegex` — the {@link createRegexTest} watchdog at the standard
+ *  {@link REGEX_APPLY_TIMEOUT_MS} budget. */
+export const testRegex = createRegexTest();

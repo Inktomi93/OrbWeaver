@@ -220,6 +220,41 @@ test("isDelimitedKeyPattern recognizes ONLY a genuine /pattern/flags key (#268 a
   expect(isDelimitedKeyPattern("/(a+)+(b+)+(c+)+/")).toBe(false);
 });
 
+// ── the injected `testRegex` ReDoS seam (#710) ─────────────────────────────
+
+test("matchEntryKeys runs a regex-key `.test` through the injected testRegex seam", () => {
+  // The seam the server fills with a node:vm-budgeted `.test`. Here a recording native impl proves the key's
+  // COMPILED regex + the haystack reach it, and that its boolean result decides the fire.
+  const calls: string[] = [];
+  const testRegex = (regex: RegExp, haystack: string): boolean => {
+    calls.push(regex.source);
+    return regex.test(haystack);
+  };
+  expect(matchEntryKeys(["he(llo|y)"], "hey there", { keyMode: "regex", testRegex })).toEqual(["he(llo|y)"]);
+  expect(matchEntryKeys(["he(llo|y)"], "howdy there", { keyMode: "regex", testRegex })).toEqual([]);
+  // The seam saw the real compiled pattern (forced `i`), not the raw key string, on each call.
+  expect(calls).toEqual(["he(llo|y)", "he(llo|y)"]);
+});
+
+test("a testRegex THROW (a watchdog timeout) makes the key a non-match + reports — never crashes the scan", () => {
+  // The load-bearing security case: when the injected watchdog interrupts a catastrophic user key, the throw
+  // is caught, the key does NOT fire (fail-closed on the pathological key), and it is reported like a bad
+  // compile — so the turn proceeds fail-open on the OTHER keys rather than taking the whole context build down.
+  const failures: { key: string; reason: string }[] = [];
+  const onKeyCompileFailure = (key: string, reason: string): void => {
+    failures.push({ key, reason });
+  };
+  const testRegex = (regex: RegExp, haystack: string): boolean => {
+    if (regex.source.includes("a")) {
+      throw new Error("Script execution timed out after 50ms");
+    }
+    return regex.test(haystack);
+  };
+  // The evil key throws → dropped; the benign key beside it still matches → the scan survives.
+  expect(matchEntryKeys(["(a+)+$", "he(llo|y)"], "hey there", { keyMode: "regex", testRegex, onKeyCompileFailure })).toEqual(["he(llo|y)"]);
+  expect(failures).toEqual([{ key: "(a+)+$", reason: "Script execution timed out after 50ms" }]);
+});
+
 test("resolveEntryKeyMode reads metadata.keyMode in isolation, defaulting to literal", () => {
   expect(resolveEntryKeyMode({ keyMode: "regex" })).toBe("regex");
   expect(resolveEntryKeyMode({ keyMode: "literal" })).toBe("literal");
