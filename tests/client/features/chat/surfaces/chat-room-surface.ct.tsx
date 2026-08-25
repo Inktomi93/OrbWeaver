@@ -288,6 +288,37 @@ test("a fake thread-flank contribution with `when:false` renders NO flank column
   await expect(page.locator('[data-slot="chat-thread-flank"]')).toHaveCount(0);
 });
 
+// THE SILENT-CONTRIBUTOR COLLAPSE (#16's needle meter is the case that needed it). The column activates on
+// the CONTRIBUTION COUNT, decided by a SYNC `when` that cannot see query data — so a contributor whose
+// applicability is DATA must mount in every room and paint nothing where it does not apply. Without the
+// flank stack's `empty:hidden`, every room without a tension score paid a flex child and its `gap="block"`
+// step beside the transcript. This pins that "mounted but silent" and "not mounted" render IDENTICALLY.
+test("a MOUNTED BUT SILENT thread-flank contribution costs the room nothing — the thread keeps its full width", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1024, height: 600 });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+
+  const silent = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} silent={true} />);
+  await expect(silent.getByText("Well met, traveller.")).toBeVisible();
+  // The stack IS mounted (the contribution passed `when`) and is OUT of layout.
+  const flank = page.locator('[data-slot="chat-thread-flank"]');
+  await expect(flank).toHaveCount(1);
+  await expect(flank).toBeHidden();
+  // The TRANSCRIPT's own scroll box is the thing a reader sees narrow when a flank takes its share.
+  const silentThread = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
+
+  // …and the same room with the contribution NOT MOUNTED AT ALL gives the transcript the identical width.
+  await silent.unmount();
+  const absent = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={false} />);
+  await expect(absent.getByText("Well met, traveller.")).toBeVisible();
+  await expect(page.locator('[data-slot="chat-thread-flank"]')).toHaveCount(0);
+  const absentThread = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
+
+  // Both boxes must EXIST before their equality means anything — two `undefined`s compare equal, which is
+  // how a width pin goes vacuous when a selector drifts.
+  expect(silentThread?.width).toBeGreaterThan(0);
+  expect(silentThread?.width).toBe(absentThread?.width);
+});
+
 // THE RULING (2026-07-15) — the thread-flank anchor is the SEAM's responsibility, not the
 // contributor's: flank layout must be responsive-correct BY CONSTRUCTION so a live flank never
 // crushes the thread's reading column at narrow content width. Proven via a CONTAINER query (the

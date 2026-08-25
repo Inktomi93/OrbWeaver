@@ -26,12 +26,19 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { pixelContrast } from "../../../../support/ct/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatControlsStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 /** A non-empty `aria-describedby` — the disabled chip points at a real reason element, not title-only. */
 const NON_EMPTY = /\S/;
+/** WCAG AA for normal text — what an interactive chip's label owes its backdrop. */
+const AA_NORMAL = 4.5;
+/** The house body-adjacent icon step (`ICON_SM`), in rendered px — a bare lucide glyph is 24. */
+const HOUSE_GLYPH_PX = 16;
+/** A fully transparent computed background — the #674 tell, and the empty-band pin's discriminator. */
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
 const BAND = '[data-slot="chat-controls"]';
 const ABOVE_COMPOSER = '[data-slot="chat-above-composer"]';
 const CARDS = '[data-slot="chat-control-cards"]';
@@ -94,6 +101,102 @@ test("a registered source publishing NOTHING paints no band, and its empty wrapp
   const wrapper = component.locator(ABOVE_COMPOSER);
   await expect(wrapper).toHaveCount(1);
   await expect(wrapper).toHaveCSS("display", "none");
+  // #674 BYTE-IDENTITY: the band now PAINTS a reading surface, and a surface on an always-rendered wrapper
+  // would put an empty strip above every silent room's composer. The fill rides the `chat-controls` element
+  // (absent above) and NOT this wrapper — asserted rather than assumed, because "the surface migrated one
+  // level up" is invisible to every other row in this file.
+  await expect(wrapper).toHaveCSS("background-color", TRANSPARENT);
+});
+
+// ── #674: THE BAND'S READING SURFACE, over worst-case art ────────────────────────────────────────────
+// The defect these rows close was measured live at 1.01–1.63:1 (`snap --contrast --contrast-pixel`, a
+// carried-art room): the band had NO surface, so an `intent="outline"` chip drew onto the photograph.
+//
+// THEY ARE PIXEL RECEIPTS, NOT COMPUTED-STYLE ONES, and that is the whole point of the family: over art
+// the composited backdrop is what a reader sees, and `getComputedStyle` reported `rgba(0, 0, 0, 0)` on
+// every ancestor while the number was 1.01. `pixelContrast` samples the chip box's perimeter ring out of
+// the framebuffer through the SAME `ringBackdrop` kernel snap uses.
+//
+// THE ART IS WHITE ON PURPOSE. The story's palette is the dark seed, so its chip ink is the LIGHT muted
+// tone and the worst legal wallpaper is the BRIGHT one (D144/#217 state this polarity inversion). A lane
+// choosing its own worst case is why this is a CT rather than a drive against whatever picture the dev
+// account carries.
+//
+// TWO WIDTHS, because a point measurement never proves a range property: the chip row wraps and the touch
+// floor widens the chips at the narrow end, and neither may be allowed to move a chip off its backing.
+// (The narrow arm is a VIEWPORT width, not full coarse-pointer emulation — contrast is pointer-invariant,
+// the tap-floor geometry that is not lives in the touch-floor suite.)
+const WORST_ART = "#ffffff";
+const CONTRAST_WIDTHS = [
+  { label: "desktop", width: 1280, height: 800 },
+  { label: "mobile", width: 430, height: 932 },
+] as const;
+
+for (const { label, width, height } of CONTRAST_WIDTHS) {
+  test(`#674 ${label} (${String(width)}px): both chip modes clear AA over worst-case art — the band owns a surface`, async ({ mount, page }) => {
+    await page.setViewportSize({ width, height });
+    await routeRoom(page);
+
+    const component = await mount(
+      <div data-has-bg-image="" style={{ background: WORST_ART }}>
+        <ChatControlsStory fixture="chips" />
+      </div>,
+    );
+
+    // The room is live (the barrier — a blank mount would make every locator below vacuous).
+    await expect(component.getByText("The corridor forks.")).toBeVisible();
+    const band = component.locator(BAND);
+    await expect(band).toBeVisible();
+    for (const mode of ["send", "compose"] as const) {
+      const chip = component.locator(`${CHIPS} button[data-mode="${mode}"]`);
+      // biome-ignore lint/performance/noAwaitInLoops: a framebuffer read is a SEQUENTIAL browser operation — two concurrent screenshots of the same page interleave and one of them samples the other's frame.
+      await expect(chip).toBeVisible();
+      // ONESHOT-OK: the visibility barrier above settled this chip's box; the framebuffer read is of a
+      // painted, settled frame, not of mutable async state.
+      const receipt = await pixelContrast(page, chip);
+      expect(receipt.ratio, `${mode} chip @ ${label}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
+    }
+
+    // The STRUCTURAL companion, asserted LAST so a regression's first failure is the NUMBER (the finding),
+    // not a class list. Pre-fix this resolved fully transparent, which is why the ratios above were ~1:1 —
+    // but a computed-style assertion alone would also pass a 5%-alpha wash, so it never stands in for them.
+    await expect(band).not.toHaveCSS("background-color", TRANSPARENT);
+  });
+}
+
+test("#674 an ENABLED control names its mode's CONSEQUENCE on title — both chip modes", async ({ mount, page }) => {
+  // `title` used to be set only when a control was DISABLED, so an operable chip said nothing on hover
+  // about what the click costs — and `send` posts a turn with no confirm step. The disabled REASON still
+  // wins the slot; that half is pinned by the BUSY-IS-PER-MODE row above, which asserts the unlock text on
+  // the same attribute.
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="chips" />);
+
+  const sendChip = component.locator(`${CHIPS} button[data-mode="send"]`);
+  const composeChip = component.locator(`${CHIPS} button[data-mode="compose"]`);
+  await expect(sendChip).toBeEnabled();
+  await expect(composeChip).toBeEnabled();
+  await expect(sendChip).toHaveAttribute("title", "Sends as your line");
+  await expect(composeChip).toHaveAttribute("title", "Drafts into your composer");
+});
+
+test("#674 the chip's mode glyph renders at the house 16px step, not lucide's intrinsic 24px", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="chips" />);
+
+  for (const mode of ["send", "compose"] as const) {
+    const glyph = component.locator(`${CHIPS} button[data-mode="${mode}"] svg`);
+    // biome-ignore lint/performance/noAwaitInLoops: two ordered assertions over a two-element set — the same sequential discipline the contrast loop above states.
+    await expect(glyph).toBeVisible();
+    // The RENDERED box, not the attribute alone: a `size` prop that a stylesheet then overrode would pass
+    // an attribute check and still paint 24px.
+    // ONESHOT-OK: the visibility barrier settled this node; an SVG's intrinsic box does not move after paint.
+    const box = await glyph.boundingBox();
+    expect(box?.width, `${mode} glyph width`).toBe(HOUSE_GLYPH_PX);
+    expect(box?.height, `${mode} glyph height`).toBe(HOUSE_GLYPH_PX);
+  }
 });
 
 test("chips render their labels in one row", async ({ mount, page }) => {

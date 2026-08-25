@@ -14,6 +14,7 @@ import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
 import type {
+  ApplyProseRewrite,
   ArmDispatch,
   AutomationOps,
   ExecutePluginSuggestion,
@@ -89,6 +90,9 @@ export interface HarnessOverrides {
    *  `resolveViewerVisibility` and `isBookAttachedToChat` already use in the plugin harness). */
   readonly executePluginSuggestion?: ExecutePluginSuggestion;
   readonly isPluginLive?: IsPluginLive;
+  /** C3 — the CONFIRM-ONLY prose-rewrite op. Same fail-closed default class: it REJECTS unless a test wires
+   *  it, so nothing can assert a landed rewrite the harness never performed. */
+  readonly applyProseRewrite?: ApplyProseRewrite;
   /** D146 — the `run_tool` arm's tool seam. Default {@link NO_TOOLS}: nothing is drivable, so a rule naming a
    *  tool PAUSES. A test that exercises the arm passes a stub naming exactly the tools it pretends are
    *  installed, for exactly the author it pretends installed them. */
@@ -208,6 +212,10 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
     executePluginSuggestion:
       overrides.executePluginSuggestion ?? ((): Promise<void> => Promise.reject(new Error("test: executePluginSuggestion was not wired for this harness"))),
     isPluginLive: overrides.isPluginLive ?? ((): Promise<boolean> => Promise.resolve(false)),
+    // C3 — REJECTS by default, like `executePluginSuggestion` above and for the same reason: a harness that
+    // silently no-op'd a confirmed rewrite would let a test assert a landed rewrite that never happened.
+    applyProseRewrite:
+      overrides.applyProseRewrite ?? ((): Promise<void> => Promise.reject(new Error("test: applyProseRewrite was not wired for this harness"))),
     notify: overrides.notify ?? ((): void => undefined),
   };
 }

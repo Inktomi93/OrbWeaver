@@ -8,14 +8,20 @@
 // feature) RED. B3's chips still land here too, so the slice is the home the interaction path already
 // assumes, not a folder minted for one file.
 
+// #16's NEEDLE METER is the third graft, and the first onto the transcript itself: a `thread-flank`
+// contribution rendering the tension score the needle preset publishes into this room's chat variables.
+//
 // It also owns the Automation SETTINGS PANE, moved here from `features/settings` with A4 for two reasons
 // that agree: the `feature-owns-definition` gate requires a feature dir to own a registered definition, and
 // the pane IS automation's surface (spec §3-S3 names it as the owner-global rules home when C5 lands).
 
+export type { NeedleMeterProps } from "./components/needle-meter.tsx";
+export { NeedleMeter } from "./components/needle-meter.tsx";
 export { RulesSection } from "./components/rules-section.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
 export { automationPane } from "./lib/automation-pane.tsx";
+export { automationNeedleMeterSurface } from "./lib/needle-meter-surface.tsx";
 export { automationQuickReplySource } from "./lib/quick-reply-control-source.ts";
 export { automationRulesSection } from "./lib/rules-settings-section.tsx";
 export { automationSuggestionSource } from "./lib/suggestion-control-source.ts";

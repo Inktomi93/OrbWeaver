@@ -3,7 +3,15 @@
 // hidden/seq — never doubling content. Each verb: gate → the correct mutation → emit the room-public bus
 // event → return the fresh MessageView (or void for the bulk mutators).
 //
-// Authority: edit/delete a slot is author-or-host; reorder + re-attribute is host-only. The bulk
+// ONE VERB HERE APPENDS INSTEAD OF MUTATING, and the exception is the rule's own proof: `applyProseRewrite`
+// (C3) lands a host-CONFIRMED automation rewrite as a NEW VARIANT of the audited slot rather than overwriting
+// it, because a machine-authored rewrite of settled prose must be revertible and a swipe already is one. It is
+// not "doubling content" — it is a swipe, the shape this schema was built for; the doubling ban is about one
+// BODY living in two places, which is exactly what an in-place edit here would have forced (a snapshot column
+// beside the variant it snapshots).
+//
+// Authority: edit/delete a slot is author-or-host; reorder + re-attribute is host-only; the C3 rewrite door is
+// host-only (see its own header). The bulk
 // deleteMessages gates each target's author independently (the host clears any; a member clears only their own).
 //
 // reattributeMessages/reattributePersona deliberately emit one messageEdited per slot (an attribution
@@ -35,11 +43,13 @@ import type { MacroFreeze } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
+import { sha256Hex } from "@orb/server/kit/content-hash";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
 import type {
+  ApplyProseRewriteParams,
   ClearReasoningParams,
   DeleteMessagesParams,
   DuplicateMessageParams,
@@ -55,6 +65,7 @@ import type {
 import type { ChatService } from "../contract/service.ts";
 import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
 import {
+  appendVariantStatements,
   buildCommittedMessageView,
   deleteMessagesStatement,
   editMessageContentStatements,
@@ -116,6 +127,7 @@ type EditVerbs = Pick<
   | "selectVariant"
   | "editMessage"
   | "setSeededGreeting"
+  | "applyProseRewrite"
   | "setMessageHidden"
   | "deleteMessages"
   | "editReasoning"
@@ -591,6 +603,70 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
   };
 }
 
+/**
+ * `applyProseRewrite` — HOST-only. Lands an automation prose audit's CONFIRMED rewrite (C3) on the reply it
+ * audited, as a NEW VARIANT of that slot, selected. See {@link ApplyProseRewriteParams} for why this is its
+ * own verb rather than an arm of `editMessage`.
+ *
+ * THE TWO PINS, checked before anything is written and refusing without touching canon:
+ *  (a) the slot's selected variant must still be the one the audit read (`rewrite_superseded` — the host
+ *      swiped since the ask); and
+ *  (b) that variant's bytes must still hash to what the audit read (`rewrite_stale` — the text changed).
+ * Together they make the confirm a re-read gate: this door can land only on the exact body an audit was
+ * written against, which is the whole reason a machine may be given a door into settled prose at all.
+ *
+ * THE WRITE IS AN APPEND, NOT AN EDIT, and that is the revert obligation: the audited variant stays as a
+ * swipe, so undoing a confirmed rewrite is the swipe control the room already has — durable, unexpiring, and
+ * nothing new to teach. Its stats are the SAME three-part swap the engine's own append-variant arm folds (the
+ * old variant leaves the selected-message bucket and re-enters as a swipe; the new one enters as the selected
+ * message), so a rebuild agrees with the live mirror column-for-column.
+ *
+ * NO REGEX RE-APPLY and NO self-label purify, deliberately, where `editMessage` runs both: those exist to
+ * clean text a HUMAN just typed. This content is a machine's conservative repair of a body that already went
+ * through the receive tier once on its own turn — re-running AI_OUTPUT over it would transform
+ * already-transformed prose, and the audit's whole promise is that nothing changes except the flaw.
+ */
+function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatService["applyProseRewrite"] {
+  return async ({ principal, chatId, messageId, variantId, expectedContentHash, content }: ApplyProseRewriteParams) => {
+    const membership = await requireHost(ctx, principal, chatId);
+    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    if (slot.selectedVariantId !== variantId) {
+      throw new ChatOperationError(CHAT_OP_CODES.rewriteSuperseded, `chat ${chatId}: the audited variant is no longer the selected one`);
+    }
+    const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
+    const audited = variants.find((v) => v.id === variantId);
+    if (audited === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    if (sha256Hex(audited.content) !== expectedContentHash) {
+      throw new ChatOperationError(CHAT_OP_CODES.rewriteStale, `chat ${chatId}: the audited reply has changed since it was read`);
+    }
+    const now = ctx.now();
+    const newVariantId = ctx.newMessageVariantId();
+    const statements = appendVariantStatements(ctx.db, { messageId, variantId: newVariantId, idx: variants.length, now, variant: { content } });
+    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    // EACH HALF DESCRIBES ITS OWN ERA, and that is not pedantry: `canonMessageDelta` derives the
+    // `variantMessages` / `activeIdxSum` counters from `variantCount > 1`, so a subtraction told the POST
+    // count would remove a "this slot has swipes" credit the PRE state never had — the two would cancel and
+    // the live mirror would drift from a rebuild by exactly one. (Caught by the rebuild-parity pin, not by
+    // inspection.)
+    const swap: StatsDelta[] = [
+      canonMessageDelta({ ownerId, sign: -1, now, row: canonRowOf(slot, audited, variants.length) }),
+      swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, audited) }),
+      canonMessageDelta({ ownerId, sign: 1, now, row: canonRowOf(slot, { ...audited, content, idx: variants.length }, variants.length + 1) }),
+    ];
+    for (const delta of swap) {
+      ctx.applyStatsDelta(statements, ctx.db, delta);
+    }
+    await ctx.db.batch(batchMany(statements));
+    const view = await reloadSlot(ctx, chatId, messageId);
+    // `variantSelected` is the honest event: the slot gained a swipe AND its selection moved to it, which is
+    // exactly what a manual swipe emits — so every live consumer already knows how to fold it.
+    await emit({ type: "variantSelected", chatId, messageId, view });
+    return await projectEditReturn(ctx, view, membership);
+  };
+}
+
 /** `setMessageHidden` — author-or-host. Holds the slot out of assembly (or restores it) — a pure slot-flag
  *  write, no content change. Emits messageHidden. */
 function createSetMessageHidden(ctx: ChatContext, emit: EmitChatEvent): ChatService["setMessageHidden"] {
@@ -981,6 +1057,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
     selectVariant: claim(createSelectVariant(ctx, deps)),
     editMessage: claim(createEditMessage(ctx, deps)),
     setSeededGreeting: claim(createSetSeededGreeting(ctx, emit)),
+    applyProseRewrite: claim(createApplyProseRewrite(ctx, emit)),
     setMessageHidden: claim(createSetMessageHidden(ctx, emit)),
     deleteMessages: claim(createDeleteMessages(ctx, emit)),
     editReasoning: claim(createEditReasoning(ctx, emit)),
