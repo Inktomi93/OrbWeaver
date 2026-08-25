@@ -111,6 +111,10 @@ export function armLabel(type: AutomationActionType): string {
       return "generate an image";
     case "set_chat_background":
       return "change the background";
+    // The quiet think-first pass (S5). "Study", not "analyze": the label names what the host FEELS the rule
+    // doing (reading the scene and steering quietly), not the wire mechanism.
+    case "run_analysis":
+      return "study the story";
     // Names the ACT, not the mechanism: the arm's payload carries WHICH tool, and a label that said "run_tool"
     // would leak the wire discriminator into the one surface whose job is to not speak it.
     case "run_tool":

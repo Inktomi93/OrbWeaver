@@ -240,6 +240,42 @@
       "version": 1,
       "sha256": "63eee380890b3d3e41d9ccb806b7a51d2587536f1d34a6cc9667ec27d06a27f8"
     },
+    "automation.autobg.system": {
+      "version": 1,
+      "sha256": "8a1ef177ec4602a145932c2464b9c3e245be455c393bbd115766594262938426"
+    },
+    "automation.analysis.lead": {
+      "version": 1,
+      "sha256": "b8f08ae430a3fa3a9a9ae811197a7064430f1a4f238a8827a0c67ab0ec189cd3"
+    },
+    "automation.analysis.arc": {
+      "version": 1,
+      "sha256": "08f237f6ad0b1cc753a7e9a5ad692c88b804f2bf3aae1352bc3e0bea47c086c0"
+    },
+    "automation.analysis.steer": {
+      "version": 1,
+      "sha256": "66cb18fdac5b8ad13d5764f6f4fadf0286c7a10d335ae19408a81aa3993136e9"
+    },
+    "automation.analysis.lore": {
+      "version": 1,
+      "sha256": "fe438ed082705cbd04f32b6bdab36cf944b3042f5dd9251cbccff4859d9c4d70"
+    },
+    "automation.analysis.suggest": {
+      "version": 1,
+      "sha256": "9e90cb7f852c264248cdfdae3ae07ce9b7bdaa5b13f2cfb15d3e4f4a5f942f64"
+    },
+    "automation.analysis.vars": {
+      "version": 1,
+      "sha256": "6d7ae65d704b8e4146bde6133f8bd6399bc66508d1b22332e34ca909a00ef34f"
+    },
+    "automation.analysis.close": {
+      "version": 1,
+      "sha256": "ed4d689793950c1944b357f8788043a14917ba51f7261413f9bb035f92302789"
+    },
+    "automation.analysis.firstArc": {
+      "version": 1,
+      "sha256": "d491672c37aec8703a0a938e2d0ec22f3341df11717c1273d195a064c1354937"
+    },
     "discovery.compare.system": {
       "version": 1,
       "sha256": "64c6697200e6b1cb6ea718876c18b89d4c2ee8aba68f85b9ba176c6f79567905"

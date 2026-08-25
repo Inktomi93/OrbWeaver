@@ -22,13 +22,16 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PluginSuggestedAct } from "@orb/contracts/plugin";
+import type { SideGenKind } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
 import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, MessageId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { ResolveViewerVisibility } from "#domain/chat";
+import type { AnalysisConfirmAct } from "./analysis.ts";
 
 /** A stored automation-rule row — the dispatch's unit of work (its `actions` json is parsed at dispatch with
  *  the active disable-on-corrupt). Homed here (not persistence) so the engine/watcher share ONE row type. */
@@ -234,13 +237,30 @@ export interface AutomationOps {
      *  deactivated in the window between the gate and this call. Never throws for a tool-level failure. */
     readonly runTool: (req: AutomationToolRequest) => Promise<AutomationToolOutcome>;
   };
-  /** BG-F — the FIRST quiet LLM op in `AutomationOps`: a one-shot summarize-role generation that returns raw
-   *  text and posts NOTHING to the chat (the `set_chat_background` arm's model pick). Wired at compose to the
-   *  author's resolved `summarize`-role connection (the D79 quiet-turn seam), author-scoped for the
-   *  connection. Generic by design (the extensible shape) — future quiet-LLM arms reuse it. `text` is `""` on
-   *  an empty/failed generation (the caller treats "" as "no pick"). (Cost VISIBILITY rides the stats domain
-   *  off the generation itself; automation no longer gates spend.) */
-  readonly summarizeQuiet: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly prompt: string }) => Promise<{ readonly text: string }>;
+  /** THE generic quiet-LLM op (widened at C1 from the /autobg-only shape its own header always promised): a
+   *  one-shot generation on the AUTHOR's own role-resolved connection that returns raw text and posts NOTHING
+   *  to the chat. Two variants through ONE op, decided by `responseFormat`:
+   *    • absent — a plain quiet generation on the `summarize` role (the /autobg pick, the D79 quiet-turn seam);
+   *    • present — a SCHEMA-CONSTRAINED generation the compose-side summarize facade routes to the
+   *      `structured` role (D109-4; its firewall row excludes the metered sub — hosted-cred laundering
+   *      structurally closed). NOT a second op and NOT a bare `runStructuredTurn` import into this domain:
+   *      the facade already owns the constrained-vs-plain wire split (`entry/compose/role-clients.ts`), so
+   *      the variant is a pass-through field on the ONE lane.
+   *  `systemPrompt` and `posture` are the CALLER's (the domain owns its prompt text and each call site names
+   *  its `SIDE_GEN_POSTURES` floor — the no-hardcoded-side-gen-sampling law; compose folds the author's
+   *  preset params over it). WHY author-scoped rather than D109-2 turn-inheritance: an automation arm is the
+   *  author's standing side generation (it can fire with no committed turn — `runRuleNow`); the author funds
+   *  their own call under their own consent; no by-proxy triple exists. `text` is `""` on an empty/failed
+   *  generation (the caller treats "" as "no answer"). (Cost VISIBILITY rides the stats domain off the
+   *  generation itself; automation no longer gates spend.) */
+  readonly summarizeQuiet: (args: {
+    readonly authorUserId: UserId;
+    readonly chatId: ChatId;
+    readonly systemPrompt: string;
+    readonly prompt: string;
+    readonly posture: SideGenKind;
+    readonly responseFormat?: ResponseFormat | undefined;
+  }) => Promise<{ readonly text: string }>;
 }
 
 /** Resolve a rule AUTHOR's `Principal` for the dispatch-time authority re-check. Minted at the entry
@@ -381,7 +401,17 @@ export type SuggestionPayload =
   /** A plugin-origin act, re-executed through `domain/plugin`'s OWN bridge at confirm (the injected
    *  {@link ExecutePluginSuggestion} op — automation may not import a sibling domain). Inert data: it names
    *  an act and nothing that could execute it. */
-  | { readonly via: "plugin-act"; readonly act: PluginSuggestedAct };
+  | { readonly via: "plugin-act"; readonly act: PluginSuggestedAct }
+  /** A confirm-routed `run_analysis` OUTPUT (S5 §4 — a per-route `apply:"confirm"`), executed by the
+   *  analysis engine's OWN confirm executor. Deliberately NOT a `via:"arm"` stash of a synthesized arm,
+   *  for two load-bearing reasons: (1) a stashed `insert_world_info_entry` would MACRO-RENDER the model's
+   *  bytes at confirm (`runInsertWorldInfo` renders `contentTemplate`) — machine-authored content is
+   *  macro-inert data (§2 law 6), so the act is stashed FULLY RESOLVED and nothing renders; (2) a
+   *  durable-write confirm must advance the rule-state WATERMARK on apply, which no generic arm knows
+   *  about. The BELTS still have one home: the lore act applies through the SAME `applyRuleLoreWrite`
+   *  helper the arm uses (attach gate, per-rule entry cap) — the enforcement set follows the origin
+   *  without forking the belt. */
+  | { readonly via: "analysis"; readonly act: AnalysisConfirmAct };
 
 /** WHO raised the ask. The SAME `AutomationEmitSource` union the bus already carries for `quickReplySurfaced`
  *  (one home — a plugin has no rule, so the source names the real origin id, never a synthetic one), plus the
@@ -404,6 +434,15 @@ export interface PendingSuggestion {
   readonly summary: string;
   readonly expiresAt: number;
   readonly payload: SuggestionPayload | null;
+}
+
+/** What the analysis CONFIRM executor (`substrate/analysis-confirm.ts`) needs — a subset of the verb's ctx
+ *  (db + the injected ops + the claim-time clock value). Homed here beside the payload union it executes:
+ *  the deps name `AutomationOps`, and a home in `contract/analysis.ts` would make `analysis ⇄ ops` a cycle. */
+export interface AnalysisConfirmDeps {
+  readonly db: Db;
+  readonly ops: AutomationOps;
+  readonly nowMs: number;
 }
 
 /** Execute a CONFIRMED plugin-origin act through `domain/plugin`'s own bridge — declared here as a TYPE and
