@@ -1,7 +1,7 @@
 ---
 kind: index
 status: active
-updated: 2026-08-14
+updated: 2026-08-25
 ---
 
 # proposed/ Index — committed program map
@@ -17,18 +17,18 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | Program | Disposition | Project sprint |
 | - | - | - |
 | `connections/` | **REALIZED** | — |
-| `tool-use-design/` | **PARTIAL** | [#28](https://github.com/Inktomi93/orbweaver/issues/28) |
+| `tool-use-design/` | **REALIZED** | [#28](https://github.com/Inktomi93/orbweaver/issues/28) |
 | `agent-principal-design/` | **FUTURE** | [#13](https://github.com/Inktomi93/orbweaver/issues/13) |
-| `agent-tool-propose-spec.md` | **FUTURE** | [#14](https://github.com/Inktomi93/orbweaver/issues/14) |
+| `agent-tool-propose-spec.md` | **SUPERSEDED** | [#14](https://github.com/Inktomi93/orbweaver/issues/14) |
 | `saved-rosters-design.md` | **FUTURE** | [#26](https://github.com/Inktomi93/orbweaver/issues/26) |
 | `hub-browse-design/` | **SUPERSEDED** | [#21](https://github.com/Inktomi93/orbweaver/issues/21) |
-| `imagery-design/` | **PARTIAL** | [#22](https://github.com/Inktomi93/orbweaver/issues/22) |
+| `imagery-design/` | **REALIZED** | [#22](https://github.com/Inktomi93/orbweaver/issues/22) |
 | `expressions-design/` | **FUTURE** | [#20](https://github.com/Inktomi93/orbweaver/issues/20) |
 | `databank-design/` | **REALIZED** | — |
-| `automation-design/` | **PARTIAL** | [#15](https://github.com/Inktomi93/orbweaver/issues/15) |
+| `automation-design/` | **REALIZED** | [#15](https://github.com/Inktomi93/orbweaver/issues/15) |
 | `rpg-design/` | **PARTIAL** | [#25](https://github.com/Inktomi93/orbweaver/issues/25) |
 | `chat-crew-design/` | **SUPERSEDED** | — |
-| `plugin-design/` | **PARTIAL** | [#24](https://github.com/Inktomi93/orbweaver/issues/24) |
+| `plugin-design/` | **REALIZED** | [#24](https://github.com/Inktomi93/orbweaver/issues/24) |
 | `autosave-form-doctrine.md` | **REALIZED** | — |
 | `bg-video-background-mini-spec.md` | **REALIZED** | — |
 | `message-reactions-mini-spec.md` | **FUTURE** | [#23](https://github.com/Inktomi93/orbweaver/issues/23) |
