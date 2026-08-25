@@ -39,10 +39,9 @@ test("pressed paints an Ember inset-ring as a non-color selection cue", async ({
   await expect(toggle).toHaveCSS("box-shadow", "none");
   await control.click();
   await expect(control).toHaveAttribute("aria-pressed", "true");
-  const shadow = await control.evaluate((el) => getComputedStyle(el).boxShadow);
-  expect(shadow).not.toBe("none");
-  expect(shadow).toContain("inset");
-  expect(shadow).toContain(TOKENS["color.primary"].value);
+  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
+  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).boxShadow)).toContain("inset");
+  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).boxShadow)).toContain(TOKENS["color.primary"].value);
 });
 
 test("onPressedChange reports the next state", async ({ mount, page }) => {
@@ -72,8 +71,7 @@ test("keyboard focus shows a focus-visible ring", async ({ mount, page }) => {
   await expect(toggle).toHaveCSS("box-shadow", "none");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button")).toBeFocused();
-  const shadow = await toggle.evaluate((el) => getComputedStyle(el).boxShadow);
-  expect(shadow).not.toBe("none");
+  await expect.poll(async () => await toggle.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
 });
 
 test("disabled is inert and removed from the tab order", async ({ mount, page }) => {

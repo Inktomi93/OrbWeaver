@@ -13,8 +13,7 @@ const microPx = `${Number.parseFloat(TOKENS["text.micro"].value) * ROOT_PX}px`;
 
 test("renders a <kbd> with the muted surface + muted-foreground text", async ({ mount }) => {
   const kbd = await mount(<Kbd>⌘K</Kbd>);
-  const tag = await kbd.evaluate((el) => el.tagName.toLowerCase());
-  expect(tag).toBe("kbd");
+  await expect.poll(async () => await kbd.evaluate((el) => el.tagName.toLowerCase())).toBe("kbd");
   await expect(kbd).toHaveCSS("background-color", TOKENS["color.muted"].value);
   await expect(kbd).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });
@@ -25,8 +24,7 @@ test("rides the micro type-scale token and the mono font stack", async ({ mount 
   const family = await kbd.evaluate((el) => getComputedStyle(el).fontFamily);
   expect(family.toLowerCase()).toContain("mono");
   // The micro tracking is applied (not the default "normal") — the micro-caps voice.
-  const tracking = await kbd.evaluate((el) => getComputedStyle(el).letterSpacing);
-  expect(tracking).not.toBe("normal");
+  await expect.poll(async () => await kbd.evaluate((el) => getComputedStyle(el).letterSpacing)).not.toBe("normal");
 });
 
 test("passes className through and renders caller copy", async ({ mount, page }) => {

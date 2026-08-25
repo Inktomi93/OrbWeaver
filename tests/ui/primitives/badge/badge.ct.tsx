@@ -44,6 +44,7 @@ test("soft tone swaps the fill for a tinted background + intent-colored text + a
   await soft.unmount();
   const solid = await mount(<Badge intent="info">Filtered</Badge>);
   const solidBg = await solid.evaluate((el) => getComputedStyle(el).backgroundColor);
+  // ONESHOT-OK: the preceding web-first CSS assertions settled both badges before this cross-mount comparison.
   expect(softBg).not.toBe(solidBg);
 });
 
@@ -56,8 +57,7 @@ test("ghost tone drops the fill entirely, keeping the hairline outline + muted t
       noir
     </Badge>,
   );
-  const alpha = await ghost.evaluate((el) => Number.parseFloat(getComputedStyle(el).backgroundColor.split(",")[3] ?? "1"));
-  expect(alpha).toBe(0);
+  await expect.poll(async () => await ghost.evaluate((el) => Number.parseFloat(getComputedStyle(el).backgroundColor.split(",")[3] ?? "1"))).toBe(0);
   await expect(ghost).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
   const borderWidth = await ghost.evaluate((el) => getComputedStyle(el).borderTopWidth);
   expect(Number.parseFloat(borderWidth)).toBeGreaterThan(0);
@@ -330,7 +330,7 @@ test("size=inline keeps a leading glyph ON the line — it does not split the in
   // The chip carrying a mark is the same line-box height as the chip that carries none.
   expect(marked.height).toBeCloseTo(plain.height, 1);
   // …and the mark rides beside its word rather than above it: the glyph's own box sits inside the chip's.
-  const glyph = await run.getByTestId("marked").evaluate((el) => {
+  let glyph = await run.getByTestId("marked").evaluate((el) => {
     const svg = el.querySelector("svg")?.getBoundingClientRect();
     const range = el.ownerDocument.createRange();
     const text = [...el.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
@@ -341,6 +341,21 @@ test("size=inline keeps a leading glyph ON the line — it does not split the in
     const label = range.getBoundingClientRect();
     return { labelCenter: label.top + label.height / 2, svgCenter: svg.top + svg.height / 2 };
   });
-  expect(glyph).not.toBeNull();
+  await expect
+    .poll(async () => {
+      glyph = await run.getByTestId("marked").evaluate((el) => {
+        const svg = el.querySelector("svg")?.getBoundingClientRect();
+        const range = el.ownerDocument.createRange();
+        const text = [...el.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+        if (svg === undefined || text === undefined) {
+          return null;
+        }
+        range.selectNodeContents(text);
+        const label = range.getBoundingClientRect();
+        return { labelCenter: label.top + label.height / 2, svgCenter: svg.top + svg.height / 2 };
+      });
+      return glyph;
+    })
+    .not.toBeNull();
   expect(Math.abs((glyph?.svgCenter ?? 0) - (glyph?.labelCenter ?? 0))).toBeLessThan(2);
 });

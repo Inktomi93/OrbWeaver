@@ -22,8 +22,7 @@ test("the box is as wide as the WIDEST child, not the sum of them", async ({ mou
   await expect(strip).toHaveCSS("display", "grid");
   // 120, never 160. Two flow SIBLINGS of the same widths reserve 160 — that sum is the defect this exists
   // to remove, and it is what the name column was paying for.
-  const width = await strip.evaluate((el: HTMLElement): number => Math.round(el.getBoundingClientRect().width));
-  expect(width).toBe(120);
+  await expect.poll(async () => await strip.evaluate((el: HTMLElement): number => Math.round(el.getBoundingClientRect().width))).toBe(120);
 });
 
 test("every child occupies the SAME cell — identical origins, whatever the order", async ({ mount }) => {
@@ -37,12 +36,22 @@ test("every child occupies the SAME cell — identical origins, whatever the ord
       </span>
     </Layer>,
   );
-  const origins = await component.evaluate((el: HTMLElement): readonly (readonly [number, number])[] =>
+  let origins = await component.evaluate((el: HTMLElement): readonly (readonly [number, number])[] =>
     Array.from(el.children).map((child): readonly [number, number] => {
       const box = child.getBoundingClientRect();
       return [Math.round(box.left), Math.round(box.top)];
     }),
   );
-  expect(origins).toHaveLength(2);
+  await expect
+    .poll(async () => {
+      origins = await component.evaluate((el: HTMLElement): readonly (readonly [number, number])[] =>
+        Array.from(el.children).map((child): readonly [number, number] => {
+          const box = child.getBoundingClientRect();
+          return [Math.round(box.left), Math.round(box.top)];
+        }),
+      );
+      return origins;
+    })
+    .toHaveLength(2);
   expect(origins[0]).toEqual(origins[1]);
 });

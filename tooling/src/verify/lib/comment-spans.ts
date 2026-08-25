@@ -63,20 +63,6 @@ function blankTsCommentsUncached(sf: SourceFile): string {
 
 let scratchProject: Project | undefined;
 
-/** The same blanking for text a gate read off the REAL FILESYSTEM rather than from the shared workspace —
- *  a `.ct.tsx` mirror, a `surfaces/*.tsx` read by `readFileSync`. It parses into ONE lazily-created
- *  in-memory scratch project (reused, file overwritten per call), which is NOT the banned "a gate never
- *  does `new Project(`" shape from GATE-AUTHORING.md §1: nothing here walks the workspace or resolves a
- *  dependency — it is a parser for one string, so that a `//` inside a string literal is still not a
- *  comment. Fence the CALL, not the parse: only hand it text a raw check already says could match. */
-export function blankTsCommentsInText(text: string): string {
-  scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
-  const sf = scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });
-  // UNCACHED deliberately: `overwrite` REUSES the same SourceFile object with new text, so the identity
-  // cache would answer every later call with the FIRST file's blanking (it did — six conformance rows).
-  return blankTsCommentsUncached(sf);
-}
-
 /** The string-prose token kinds: every span whose text is DATA, never a code reference. Template
  *  interpolation EXPRESSIONS are separate AST nodes and are deliberately not here — a real call inside
  *  a `${…}` is code and must survive the blanking. */
@@ -90,12 +76,14 @@ const STRING_PROSE_KINDS: readonly SyntaxKind[] = [
   SyntaxKind.RegularExpressionLiteral,
 ];
 
-/** `blankTsCommentsInText` PLUS string-prose blanking — for PRESENCE checks over fs-read corpora where a
- *  name inside a STRING must not satisfy the check (the same permissive-direction lie as a commented-out
- *  call, wearing quotes: a vitest description `it("calls doThing( …")` is prose, not coverage —
- *  test-presence-client clause C reported clean over exactly that shape until 2026-08-24). String literals,
- *  template CHUNKS (head/middle/tail — interpolated expressions stay), JSX text, and regex literals are
- *  blanked; length and newlines preserved, same as every other door here. */
+/** Comment PLUS string-prose blanking for PRESENCE checks over fs-read corpora where a name inside a
+ *  STRING must not satisfy the check (the same permissive-direction lie as a commented-out call, wearing
+ *  quotes: a vitest description `it("calls doThing( …")` is prose, not coverage — test-presence-client
+ *  clause C reported clean over exactly that shape until 2026-08-24). It parses into ONE lazily-created
+ *  in-memory scratch project (reused, file overwritten per call), which is NOT the banned "a gate never
+ *  does `new Project(`" shape from GATE-AUTHORING.md §1: nothing here walks the workspace or resolves a
+ *  dependency. String literals, template CHUNKS (head/middle/tail — interpolated expressions stay), JSX
+ *  text, and regex literals are blanked; length and newlines preserved, same as every other door here. */
 export function blankTsCommentsAndStringsInText(text: string): string {
   scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
   const sf = scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });

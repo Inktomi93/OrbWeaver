@@ -43,11 +43,15 @@ test("MeterRow UNSET: an unwritten reading is an em dash over an EMPTY rail — 
   await expect(component.getByText("0/30")).toHaveCount(0);
   await expect(ceilinged).toHaveAttribute("data-unset", "true");
   // The decoration agrees with the text: nothing filled.
-  const fill = await page
-    .locator("[data-slot=track-bar-fill]")
-    .first()
-    .evaluate((el) => el.getBoundingClientRect().width);
-  expect(fill).toBe(0);
+  await expect
+    .poll(
+      async () =>
+        await page
+          .locator("[data-slot=track-bar-fill]")
+          .first()
+          .evaluate((el) => el.getBoundingClientRect().width),
+    )
+    .toBe(0);
 
   // No ceiling either (a poolless tracker) ⇒ no `/max` half at all, rather than a fabricated `/0`.
   const poolless = component.locator("[data-slot=meter-row]").nth(1);
@@ -250,8 +254,7 @@ test("BeatLine: long model-authored content WRAPS — no horizontal overflow (ow
   );
   const line = page.locator("[data-slot=beat-line]");
   await expect(line).toBeVisible();
-  const overflow = await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth);
-  expect(overflow).toBe(0);
+  await expect.poll(async () => await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth)).toBe(0);
   const box = await line.boundingBox();
   if (box === null) {
     throw new Error("beat line has no box");
@@ -279,11 +282,15 @@ test("CastCard: a long model-authored mood WRAPS instead of overflowing the card
   );
   const rest = page.getByRole("button", { name: `Sera mood: ${longMood}` });
   await expect(rest).toBeVisible();
-  const overflow = await page.evaluate(() => {
-    const host = document.body;
-    return host.scrollWidth - host.clientWidth;
-  });
-  expect(overflow).toBe(0);
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const host = document.body;
+          return host.scrollWidth - host.clientWidth;
+        }),
+    )
+    .toBe(0);
   const box = await rest.boundingBox();
   if (box === null) {
     throw new Error("mood rest button has no box");
@@ -324,8 +331,7 @@ test("CastCard guides: long model-authored guide prose WRAPS instead of widening
       <CastCard name="Sera" outfit={longOutfit} />
     </div>,
   );
-  const overflow = await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth);
-  expect(overflow).toBe(0);
+  await expect.poll(async () => await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth)).toBe(0);
   const box = await page.getByText(longOutfit).boundingBox();
   if (box === null) {
     throw new Error("guide line has no box");

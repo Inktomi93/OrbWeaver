@@ -28,8 +28,7 @@ const DEFAULT_ARM_SVG =
 
 test("renders the glyph at the token size, decorative by default", async ({ mount }) => {
   const component = await mount(<CloseIconStory size="sm" />);
-  const tag = await component.evaluate((el) => el.tagName.toLowerCase());
-  expect(tag).toBe("svg");
+  await expect.poll(async () => await component.evaluate((el) => el.tagName.toLowerCase())).toBe("svg");
   await expect(component).toHaveAttribute("width", ICON_SM_PX);
   await expect(component).toHaveAttribute("height", ICON_SM_PX);
   await expect(component).toHaveAttribute("aria-hidden", "true");
@@ -44,8 +43,7 @@ test("md is the default size and label makes the icon accessible", async ({ moun
 
 test("the default arm is byte-identical to the pre-axes seal", async ({ mount }) => {
   const component = await mount(<CloseIconStory />);
-  const html = await component.evaluate((el) => el.outerHTML);
-  expect(html).toBe(DEFAULT_ARM_SVG);
+  await expect.poll(async () => await component.evaluate((el) => el.outerHTML)).toBe(DEFAULT_ARM_SVG);
 });
 
 test("weight lands as a COMPUTED stroke-width and stays optically constant across sizes", async ({ mount }) => {
@@ -67,21 +65,21 @@ test("absoluteStrokeWidth keeps the RENDERED px weight identical at xs and lg", 
   // The point of the axis: the stroke-width attribute is in viewBox units, so the on-screen px weight
   // is attribute * (renderedSize / 24). Both sizes must resolve to the same 1.75px.
   const small = await mount(<CloseIconStory size="xs" />);
-  const smallPx = await small.evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth) * (el.getBoundingClientRect().width / 24));
   await small.unmount();
 
   const large = await mount(<CloseIconStory size="lg" />);
-  const largePx = await large.evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth) * (el.getBoundingClientRect().width / 24));
-
-  expect(smallPx).toBeCloseTo(OPTICAL_REGULAR_PX);
-  expect(largePx).toBeCloseTo(OPTICAL_REGULAR_PX);
+  await expect
+    .poll(async () => await small.evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth) * (el.getBoundingClientRect().width / 24)))
+    .toBeCloseTo(OPTICAL_REGULAR_PX);
+  await expect
+    .poll(async () => await large.evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth) * (el.getBoundingClientRect().width / 24)))
+    .toBeCloseTo(OPTICAL_REGULAR_PX);
 });
 
 test("fill=none is the default and paints nothing", async ({ mount }) => {
   const component = await mount(<StarIconStory />);
   await expect(component).toHaveAttribute("fill", "none");
-  const pathFill = await component.evaluate((el) => getComputedStyle(el.querySelector("path") as Element).fill);
-  expect(pathFill).toBe("none");
+  await expect.poll(async () => await component.evaluate((el) => getComputedStyle(el.querySelector("path") as Element).fill)).toBe("none");
   await expect(component.locator("defs")).toHaveCount(0);
 });
 
@@ -99,21 +97,29 @@ test("fill=solid rides lucide's own fill pass-through down to the path, in curre
 
 test("partialFill draws a hard-stop gradient at the fraction and the path resolves it", async ({ mount }) => {
   const component = await mount(<StarIconStory partialFill={0.5} />);
-  const gradientId = await component.evaluate((el) => el.querySelector("linearGradient")?.id ?? "");
-  expect(gradientId).not.toBe("");
+  let gradientId = await component.evaluate((el) => el.querySelector("linearGradient")?.id ?? "");
+  await expect
+    .poll(async () => {
+      gradientId = await component.evaluate((el) => el.querySelector("linearGradient")?.id ?? "");
+      return gradientId;
+    })
+    .not.toBe("");
   await expect(component).toHaveAttribute("fill", `url(#${gradientId})`);
-
-  const stops = await component.evaluate((el) =>
-    [...el.querySelectorAll("stop")].map((stop) => ({
-      offset: stop.getAttribute("offset"),
-      opacity: stop.getAttribute("stop-opacity"),
-      color: stop.getAttribute("stop-color"),
-    })),
-  );
-  expect(stops).toEqual([
-    { offset: "0.5", opacity: "1", color: "currentColor" },
-    { offset: "0.5", opacity: "0", color: "currentColor" },
-  ]);
+  await expect
+    .poll(
+      async () =>
+        await component.evaluate((el) =>
+          [...el.querySelectorAll("stop")].map((stop) => ({
+            offset: stop.getAttribute("offset"),
+            opacity: stop.getAttribute("stop-opacity"),
+            color: stop.getAttribute("stop-color"),
+          })),
+        ),
+    )
+    .toEqual([
+      { offset: "0.5", opacity: "1", color: "currentColor" },
+      { offset: "0.5", opacity: "0", color: "currentColor" },
+    ]);
 
   // The reference must actually RESOLVE (the <defs> follows the path in document order — a forward
   // reference; if the browser failed to resolve it the paint server would fall back to none/black).
@@ -149,12 +155,17 @@ test("out-of-range fractions clamp instead of minting a broken gradient", async 
 
 test("two partial instances get DISTINCT gradient ids", async ({ mount }) => {
   const component = await mount(<TwoPartialStarsStory />);
-  const ids = await component.evaluate((el) => [...el.querySelectorAll("linearGradient")].map((g) => g.id));
-  expect(ids).toHaveLength(2);
+  let ids = await component.evaluate((el) => [...el.querySelectorAll("linearGradient")].map((g) => g.id));
+  await expect
+    .poll(async () => {
+      ids = await component.evaluate((el) => [...el.querySelectorAll("linearGradient")].map((g) => g.id));
+      return ids;
+    })
+    .toHaveLength(2);
   expect(new Set(ids).size).toBe(2);
-
-  const offsets = await component.evaluate((el) => [...el.querySelectorAll("linearGradient")].map((g) => g.querySelector("stop")?.getAttribute("offset")));
-  expect(offsets).toEqual(["0.25", "0.75"]);
+  await expect
+    .poll(async () => await component.evaluate((el) => [...el.querySelectorAll("linearGradient")].map((g) => g.querySelector("stop")?.getAttribute("offset"))))
+    .toEqual(["0.25", "0.75"]);
 });
 
 test("axis gallery renders (screenshot receipt)", async ({ mount }) => {

@@ -36,8 +36,7 @@ test("the band starts a reading measure in from the host's inline start — the 
 
 test("a host NARROWER than the measure gets no band at all — 'desktop only' with no media query", async ({ mount }) => {
   const host = await mount(<ArtBleedNarrowStory />);
-  const width = await host.locator('[data-slot="art-bleed"]').evaluate((el) => el.getBoundingClientRect().width);
-  expect(width).toBe(0);
+  await expect.poll(async () => await host.locator('[data-slot="art-bleed"]').evaluate((el) => el.getBoundingClientRect().width)).toBe(0);
 });
 
 test("it is decoration: no a11y stop, and it never takes the host's hit target", async ({ mount, page }) => {
@@ -46,10 +45,14 @@ test("it is decoration: no a11y stop, and it never takes the host's hit target",
   // Nothing in the mounted tree announces itself…
   await expect(page.locator("[data-testid='host'] [role]")).toHaveCount(0);
   // …and a pointer over the band's own pixels lands on the HOST, not on the decoration.
-  const hit = await host.evaluate((el) => {
-    const band = el.querySelector('[data-slot="art-bleed"]')?.getBoundingClientRect();
-    const at = el.ownerDocument.elementFromPoint((band?.left ?? 0) + (band?.width ?? 0) / 2, (band?.top ?? 0) + (band?.height ?? 0) / 2);
-    return at?.getAttribute("data-testid") ?? at?.getAttribute("data-slot") ?? "none";
-  });
-  expect(hit).toBe("host");
+  await expect
+    .poll(
+      async () =>
+        await host.evaluate((el) => {
+          const band = el.querySelector('[data-slot="art-bleed"]')?.getBoundingClientRect();
+          const at = el.ownerDocument.elementFromPoint((band?.left ?? 0) + (band?.width ?? 0) / 2, (band?.top ?? 0) + (band?.height ?? 0) / 2);
+          return at?.getAttribute("data-testid") ?? at?.getAttribute("data-slot") ?? "none";
+        }),
+    )
+    .toBe("host");
 });

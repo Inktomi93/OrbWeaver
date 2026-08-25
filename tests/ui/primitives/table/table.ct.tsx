@@ -47,15 +47,13 @@ test("clicking a sortable header cycles none -> asc -> desc -> none with aria-so
 test("blank (null) cells sort LAST in both directions, not flipped to the top under desc", async ({ mount, page }) => {
   // Ascending: the two real values order low→high, then the two blank rows land at the bottom.
   const asc = await mount(<NullableSortStory direction="asc" />);
-  const ascNames = await page.locator("tbody tr td:first-child").allInnerTexts();
-  expect(ascNames).toEqual(["Echo", "Alpha", "Ciel", "Bravo", "Delta"]);
+  await expect.poll(async () => await page.locator("tbody tr td:first-child").allInnerTexts()).toEqual(["Echo", "Alpha", "Ciel", "Bravo", "Delta"]);
   await asc.unmount();
 
   // Descending: the real values reverse to high→low, but the blanks STAY at the bottom (the fix —
   // the direction sign no longer flips the null placement).
   await mount(<NullableSortStory direction="desc" />);
-  const descNames = await page.locator("tbody tr td:first-child").allInnerTexts();
-  expect(descNames).toEqual(["Ciel", "Alpha", "Echo", "Bravo", "Delta"]);
+  await expect.poll(async () => await page.locator("tbody tr td:first-child").allInnerTexts()).toEqual(["Ciel", "Alpha", "Echo", "Bravo", "Delta"]);
 });
 
 test("a non-sortable column carries no aria-sort attribute at all (vs. 'none' for sortable-unsorted)", async ({ mount, page }) => {
@@ -129,6 +127,7 @@ test("a selected row wears the accent token background", async ({ mount, page })
 
 test("compact density is shorter than default density", async ({ mount, page }) => {
   const compact = await mount(<BasicTableStory density="compact" />);
+  await expect(page.locator("tbody tr").first()).toBeVisible();
   const compactHeight = await page
     .locator("tbody tr")
     .first()
@@ -136,12 +135,14 @@ test("compact density is shorter than default density", async ({ mount, page }) 
   await compact.unmount();
 
   const defaultMount = await mount(<BasicTableStory density="default" />);
+  await expect(page.locator("tbody tr").first()).toBeVisible();
   const defaultHeight = await page
     .locator("tbody tr")
     .first()
     .evaluate((el) => el.getBoundingClientRect().height);
   await defaultMount.unmount();
 
+  // ONESHOT-OK: web-first visibility settled each table before its cross-mount row-height sample.
   expect(compactHeight).toBeLessThan(defaultHeight);
 });
 

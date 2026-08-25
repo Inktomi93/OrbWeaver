@@ -36,8 +36,7 @@ test("on src change the new image fades in over the old, which is then dropped",
   await component.update(<CrossfadeImage alt="Portrait" aspectRatio="1" src={OTHER_PX_SVG} />);
 
   // The new image is a real transition (nonzero duration) — contrasts with the reduced-motion case.
-  const transitionDuration = await current.evaluate((el) => getComputedStyle(el).transitionDuration);
-  expect(transitionDuration).not.toBe("0s");
+  await expect.poll(async () => await current.evaluate((el) => getComputedStyle(el).transitionDuration)).not.toBe("0s");
 
   // The outgoing image is kept around as the static background layer while the new one fades in...
   await expect(previous).toHaveAttribute("src", ONE_PX_SVG);

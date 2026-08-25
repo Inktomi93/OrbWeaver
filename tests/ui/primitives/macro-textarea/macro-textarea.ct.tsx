@@ -203,8 +203,9 @@ test("a 60-word ghost default never becomes the field's accessible name", async 
   await mount(<GhostDefaultStory />);
   const control = page.getByRole("textbox", { name: "Template" });
   await expect(control).toHaveAccessibleName("Template");
-  const name = await control.evaluate((el) => (el as HTMLTextAreaElement).labels?.[0]?.textContent ?? "");
-  expect(name).not.toContain("Forget all other previous instructions");
+  await expect
+    .poll(async () => await control.evaluate((el) => (el as HTMLTextAreaElement).labels?.[0]?.textContent ?? ""))
+    .not.toContain("Forget all other previous instructions");
 });
 
 // `maxRows` must reach the underlying control THROUGH this wrapper (the same conditional-spread seam

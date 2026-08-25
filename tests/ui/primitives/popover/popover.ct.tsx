@@ -27,8 +27,13 @@ test("a tall popover clamps to the available height and scrolls instead of runni
 
   const viewportHeight = page.viewportSize()?.height ?? 0;
   expect(viewportHeight).toBeGreaterThan(0);
-  const box = await popup.boundingBox();
-  expect(box).not.toBeNull();
+  let box = await popup.boundingBox();
+  await expect
+    .poll(async () => {
+      box = await popup.boundingBox();
+      return box;
+    })
+    .not.toBeNull();
   expect(box?.height ?? 0).toBeLessThanOrEqual(viewportHeight);
   expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewportHeight + 1);
   const scroll = await popup.evaluate((el) => ({ client: el.clientHeight, content: el.scrollHeight }));
@@ -108,13 +113,11 @@ test("the anchored popup is a focus stop whose transition names its properties â
   const popup = page.locator('[data-slot="popover-popup"]');
   await expect(popup).toBeVisible();
   await expect(popup).toBeFocused();
-
-  const transitioned = await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty);
-  expect(transitioned).not.toBe("all");
-  expect(transitioned).not.toContain("outline");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).not.toBe("all");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).not.toContain("outline");
   // â€¦while the enter/exit fade+scale keeps both of its halves. Dropping either silently kills that half.
-  expect(transitioned).toContain("opacity");
-  expect(transitioned).toContain("scale");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).toContain("opacity");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).toContain("scale");
 });
 
 test("closes on outside click", async ({ mount, page }) => {

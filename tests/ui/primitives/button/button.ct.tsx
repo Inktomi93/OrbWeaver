@@ -558,8 +558,7 @@ test("keyboard focus shows a focus-visible ring", async ({ mount, page }) => {
   await expect(button).toHaveCSS("box-shadow", "none");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Save" })).toBeFocused();
-  const shadow = await button.evaluate((el) => getComputedStyle(el).boxShadow);
-  expect(shadow).not.toBe("none");
+  await expect.poll(async () => await button.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
 });
 
 test("Enter and Space activate the button", async ({ mount, page }) => {

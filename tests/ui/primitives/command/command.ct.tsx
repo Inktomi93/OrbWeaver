@@ -141,8 +141,13 @@ test.describe("coarse pointer", () => {
 
   test("the interactive command input itself meets the touch floor", async ({ mount, page }) => {
     await mount(<CommandPaletteStory />);
-    const box = await page.getByRole("combobox").boundingBox();
-    expect(box).not.toBeNull();
+    let box = await page.getByRole("combobox").boundingBox();
+    await expect
+      .poll(async () => {
+        box = await page.getByRole("combobox").boundingBox();
+        return box;
+      })
+      .not.toBeNull();
     expect(box?.height).toBeGreaterThanOrEqual(Number.parseFloat(TOKENS["spacing.touch-target"].value) * 16);
   });
 });

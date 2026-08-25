@@ -63,9 +63,8 @@ test("resolves chart chrome from the marked token root, so a custom theme paints
   await expect(readout).toHaveAttribute("data-mount-id", FIRST_MOUNT_ID);
   // The seam's OTHER read — the attached probe, whose host moved into the marked root with this fix. Read
   // once here rather than polled: the auto-retrying assertion above already settled this readout.
-  const seriesPositive = await readout.getAttribute("data-series-positive");
-  expect(seriesPositive).toMatch(A_COLOR_FUNCTION);
-  expect(seriesPositive).not.toMatch(UNRESOLVED_INTENT_TOKEN);
+  await expect.poll(async () => await readout.getAttribute("data-series-positive")).toMatch(A_COLOR_FUNCTION);
+  await expect.poll(async () => await readout.getAttribute("data-series-positive")).not.toMatch(UNRESOLVED_INTENT_TOKEN);
 
   // Custom → a DIFFERENT custom: the flip that moves NO attribute anywhere but ThemeScope's inline `style`.
   await scope.getByRole("button", { name: "Next theme" }).click();
@@ -73,8 +72,13 @@ test("resolves chart chrome from the marked token root, so a custom theme paints
   await expect(readout).toHaveAttribute("data-mount-id", FIRST_MOUNT_ID);
 
   // Custom → seed/no-override: the scope stops declaring the token and the base cascade takes it back.
-  const baseBorder = await page.evaluate((): string => getComputedStyle(document.documentElement).getPropertyValue("--color-border").trim());
-  expect(baseBorder).not.toBe("");
+  let baseBorder = await page.evaluate((): string => getComputedStyle(document.documentElement).getPropertyValue("--color-border").trim());
+  await expect
+    .poll(async () => {
+      baseBorder = await page.evaluate((): string => getComputedStyle(document.documentElement).getPropertyValue("--color-border").trim());
+      return baseBorder;
+    })
+    .not.toBe("");
   await scope.getByRole("button", { name: "Next theme" }).click();
   await expect(readout).toHaveAttribute("data-axis-line", baseBorder);
   await expect(readout).toHaveAttribute("data-mount-id", FIRST_MOUNT_ID);

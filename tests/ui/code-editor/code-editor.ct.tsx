@@ -132,8 +132,13 @@ test("diagnostics are exposed via aria-describedby + an aria-live region, not ju
     />,
   );
   const content = component.locator(".cm-content");
-  const describedBy = await content.getAttribute("aria-describedby");
-  expect(describedBy).not.toBeNull();
+  let describedBy = await content.getAttribute("aria-describedby");
+  await expect
+    .poll(async () => {
+      describedBy = await content.getAttribute("aria-describedby");
+      return describedBy;
+    })
+    .not.toBeNull();
   const liveRegion = component.locator(`#${describedBy}`);
   await expect(liveRegion).toHaveAttribute("aria-live", "polite");
   await expect(liveRegion).toContainText("Error: Unknown color keyword");

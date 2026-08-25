@@ -28,10 +28,7 @@ test("SettingSwitchRow honours disabled + renders its reason as the row's descri
   // The reason is ON SCREEN…
   await expect(page.getByText("Turn on auto-continue first.")).toBeVisible();
   // …and IN the control's accessible description, which is the half a sighted-only check would miss.
-  const describedBy = await control.getAttribute("aria-describedby");
-  expect(describedBy).not.toBeNull();
-  const described = await page.locator(`#${describedBy ?? "none"}`).textContent();
-  expect(described).toContain("Turn on auto-continue first.");
+  await expect(control).toHaveAccessibleDescription("Turn on auto-continue first.");
 });
 
 test("SettingSwitchRow with no disabled state is a live switch with no stray description", async ({ mount, page }) => {

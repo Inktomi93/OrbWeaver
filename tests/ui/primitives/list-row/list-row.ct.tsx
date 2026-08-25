@@ -293,11 +293,14 @@ test.describe("coarse pointer — density heights", () => {
 
   test("compact density is shorter than the default density", async ({ mount, page }) => {
     const compact = await mount(<ListRow density="compact" title="Elara" />);
+    await expect(page.locator('[data-slot="list-row-body"]')).toBeVisible();
     const compactHeight = await page.locator('[data-slot="list-row-body"]').evaluate((el) => el.getBoundingClientRect().height);
     await compact.unmount();
     const defaultRow = await mount(<ListRow title="Elara" />);
+    await expect(page.locator('[data-slot="list-row-body"]')).toBeVisible();
     const defaultHeight = await page.locator('[data-slot="list-row-body"]').evaluate((el) => el.getBoundingClientRect().height);
     await defaultRow.unmount();
+    // ONESHOT-OK: web-first visibility settled each row before its cross-mount height sample.
     expect(compactHeight).toBeLessThan(defaultHeight);
   });
 });
@@ -327,8 +330,7 @@ test("actionsFloat gives the text column back the width a rest-hidden cluster re
   // …and the row is not merely wider at rest: hovering it (the reveal) leaves the text column exactly where
   // it was — the layout-jump the width-collapse alternative would have shipped.
   await floated.hover();
-  const hovered = await page.locator(content).evaluate((el) => el.getBoundingClientRect().width);
-  expect(hovered).toBe(roomy);
+  await expect.poll(async () => await page.locator(content).evaluate((el) => el.getBoundingClientRect().width)).toBe(roomy);
   await expect
     .poll(() => page.locator('[data-slot="list-row-meta"]').evaluate((el) => el.getBoundingClientRect().x), { intervals: [20, 50, 100] })
     .toBeGreaterThan(metaAtRest);

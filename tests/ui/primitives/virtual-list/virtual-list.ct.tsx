@@ -26,9 +26,8 @@ const SCROLL_TARGET_INDEX = 500;
 test("renders only a window of a 1000-item list", async ({ mount }) => {
   const component = await mount(<BoundedList itemCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText("Item 0", { exact: true })).toBeVisible();
-  const rendered = await component.locator("[data-index]").count();
-  expect(rendered).toBeGreaterThan(0);
-  expect(rendered).toBeLessThan(MAX_WINDOWED_ROWS);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeGreaterThan(0);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeLessThan(MAX_WINDOWED_ROWS);
   // A deep item is NOT in the DOM before scrolling.
   await expect(component.getByText(`Item ${SCROLL_TARGET_INDEX}`, { exact: true })).toHaveCount(0);
 });
@@ -45,8 +44,7 @@ test("rows carry stable data-index measurement wiring", async ({ mount }) => {
   const component = await mount(<BoundedList itemCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.locator('[data-index="0"]')).toBeVisible();
   // Every rendered row is wired for measureElement: row count === data-index count.
-  const rows = await component.locator("[data-index]").count();
-  expect(rows).toBeGreaterThan(0);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeGreaterThan(0);
 });
 
 test("the tripwire THROWS when the parent gives no bounded height", async ({ mount, page }) => {
@@ -92,15 +90,13 @@ test("rangeExtractor passthrough: a custom extractor's forced index stays mounte
 // comparison.
 test("overscan default: renders roughly the visible window + the seal's own default padding", async ({ mount }) => {
   const component = await mount(<OverscanList itemCount={500} />);
-  const rendered = await component.locator("[data-index]").count();
-  expect(rendered).toBeGreaterThan(0);
-  expect(rendered).toBeLessThan(20);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeGreaterThan(0);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeLessThan(20);
 });
 
 test("overscan=20 renders MORE off-screen rows than the seal's own default window", async ({ mount }) => {
   const component = await mount(<OverscanList itemCount={500} overscan={20} />);
-  const rendered = await component.locator("[data-index]").count();
-  expect(rendered).toBeGreaterThanOrEqual(30);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeGreaterThanOrEqual(30);
 });
 
 test("fadeEdge=false never writes the data-more cue, even with more list below the fold", async ({ mount }) => {
@@ -192,6 +188,7 @@ test("a 906-row measured list resets a settled 30-row scope after old-offset cla
       visibleCount: visibleRows.length,
     };
   });
+  // ONESHOT-OK: the pre-scope-change poll settled oldOffset above 30,000 before this retained-value assertion.
   expect(oldOffset).toBeGreaterThan(30_000);
   expect(settled.scrollTop).toBe(0);
   expect(settled.firstIndex).toBe(0);
@@ -254,8 +251,11 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
       pending.delete(id);
     };
   });
-  const drained = await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain());
-  expect(drained).toBe(0);
+  await expect
+    .poll(
+      async () => await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain()),
+    )
+    .toBe(0);
   await scroll.evaluate((node) => {
     node.scrollTop = 2500;
   });
@@ -342,8 +342,11 @@ test("unmount before the reset frame cancels the stale landing without errors or
       pending.delete(id);
     };
   });
-  const drained = await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain());
-  expect(drained).toBe(0);
+  await expect
+    .poll(
+      async () => await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain()),
+    )
+    .toBe(0);
   await scroll.evaluate((node) => {
     node.scrollTop = 2500;
   });

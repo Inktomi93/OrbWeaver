@@ -55,10 +55,8 @@ test("inside an invalid <Field>, data-invalid lands and the border swaps to dest
 test("wears the token skin and autosizes to content", async ({ mount, page }) => {
   await mount(<Textarea aria-label="Scene" />);
   const control = page.getByRole("textbox");
-  const border = await control.evaluate((el) => getComputedStyle(el).borderTopColor);
-  expect(border).toContain("oklch");
-  const sizing = await control.evaluate((el) => getComputedStyle(el).fieldSizing);
-  expect(sizing).toBe("content");
+  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).borderTopColor)).toContain("oklch");
+  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).fieldSizing)).toBe("content");
 });
 
 test("disabled blocks input and drops the interactive skin", async ({ mount, page }) => {
@@ -97,9 +95,14 @@ test("rows sets a min-height floor under field-sizing: content", async ({ mount,
   await mount(<Textarea aria-label="Scene" rows={3} />);
   const control = page.getByRole("textbox");
   const singleLineHeight = await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
-  const minHeight = await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).minHeight));
+  let minHeight = await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).minHeight));
   // Empty content collapses under field-sizing: content, so the rendered height IS the floor.
   const box = await control.boundingBox();
-  expect(minHeight).toBeGreaterThanOrEqual(singleLineHeight * 3);
+  await expect
+    .poll(async () => {
+      minHeight = await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).minHeight));
+      return minHeight;
+    })
+    .toBeGreaterThanOrEqual(singleLineHeight * 3);
   expect(box?.height).toBeGreaterThanOrEqual(minHeight - 1);
 });

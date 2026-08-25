@@ -64,8 +64,7 @@ test("checked vs unchecked wear DIFFERENT track token values (the on/off distinc
   const off = await control.evaluate((el) => getComputedStyle(el).backgroundColor);
   await control.click();
   await expect(control).toHaveCSS("background-color", TOKENS["color.primary"].value);
-  const on = await control.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(on).not.toBe(off); // rendered colours actually diverge on/off, not just the source classes
+  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(off); // rendered colours actually diverge on/off, not just the source classes
 });
 
 test("the track is a generous rectangle and the thumb travels a substantial distance", async ({ mount, page }) => {

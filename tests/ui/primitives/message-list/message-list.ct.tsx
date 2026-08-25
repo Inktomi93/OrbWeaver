@@ -39,12 +39,24 @@ test("blockPaddingToken: a sticky top-0 band pins FLUSH at the scrollport top; t
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 400;
   });
-  const bandOffset = await scroller.evaluate((el: HTMLElement) => {
-    const band = el.querySelector('[data-testid="sticky-band"]');
-    return band === null ? Number.NaN : band.getBoundingClientRect().top - el.getBoundingClientRect().top;
-  });
-  expect(bandOffset).toBeGreaterThanOrEqual(0);
-  expect(bandOffset).toBeLessThan(1);
+  await expect
+    .poll(
+      async () =>
+        await scroller.evaluate((el: HTMLElement) => {
+          const band = el.querySelector('[data-testid="sticky-band"]');
+          return band === null ? Number.NaN : band.getBoundingClientRect().top - el.getBoundingClientRect().top;
+        }),
+    )
+    .toBeGreaterThanOrEqual(0);
+  await expect
+    .poll(
+      async () =>
+        await scroller.evaluate((el: HTMLElement) => {
+          const band = el.querySelector('[data-testid="sticky-band"]');
+          return band === null ? Number.NaN : band.getBoundingClientRect().top - el.getBoundingClientRect().top;
+        }),
+    )
+    .toBeLessThan(1);
   // The breathing half: scrolled to the very top, row 0 sits one spacing.block (12px) inside the edge.
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 0;
@@ -58,9 +70,8 @@ test("blockPaddingToken: a sticky top-0 band pins FLUSH at the scrollport top; t
 
 test("renders only a window of a 500-item list", async ({ mount }) => {
   const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
-  const rendered = await component.locator("[data-index]").count();
-  expect(rendered).toBeGreaterThan(0);
-  expect(rendered).toBeLessThan(MAX_WINDOWED_ROWS);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeGreaterThan(0);
+  await expect.poll(async () => await component.locator("[data-index]").count()).toBeLessThan(MAX_WINDOWED_ROWS);
   // An early item is NOT in the DOM — the window sits at the tail, not the head.
   await expect(component.getByText("Message 0", { exact: true })).toHaveCount(0);
 });

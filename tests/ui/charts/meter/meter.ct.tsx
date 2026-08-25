@@ -15,8 +15,7 @@ test("linear renders from plain props with correct ARIA meter values", async ({ 
   await expect(component).toHaveAttribute("aria-valuemax", "60");
   await expect(component).toHaveAttribute("aria-valuenow", "30");
   await expect(component).toHaveAttribute("aria-label", "HP");
-  const style = await component.locator('[data-slot="fill"]').getAttribute("style");
-  expect(style).toContain("width: 50%");
+  await expect.poll(async () => await component.locator('[data-slot="fill"]').getAttribute("style")).toContain("width: 50%");
 });
 
 test("arc renders an SVG gauge with the same ARIA mechanism", async ({ mount }) => {
@@ -28,8 +27,7 @@ test("arc renders an SVG gauge with the same ARIA mechanism", async ({ mount }) 
   await expect(component.locator('[data-slot="fill"]')).toBeVisible();
   // The a11y shell is now Base UI Meter.Root (a <div role="meter">); the arc geometry is the nested
   // <svg> gauge (§10.4 hybrid).
-  const rootTag = await component.evaluate((el) => el.tagName.toLowerCase());
-  expect(rootTag).toBe("div");
+  await expect.poll(async () => await component.evaluate((el) => el.tagName.toLowerCase())).toBe("div");
   await expect(component.locator("svg")).toHaveCount(1);
 });
 
@@ -41,9 +39,8 @@ test("bipolar takes a −max..max domain by default and renders milestone ticks"
   await expect(component.locator('[data-slot="tick"]')).toHaveCount(3);
   await expect(component.locator('[data-slot="origin"]')).toHaveCount(1);
   // value 40 in −100..100 → fill runs from the 50% origin to 70%.
-  const style = await component.locator('[data-slot="fill"]').getAttribute("style");
-  expect(style).toContain("left: 50%");
-  expect(style).toContain("width: 20%");
+  await expect.poll(async () => await component.locator('[data-slot="fill"]').getAttribute("style")).toContain("left: 50%");
+  await expect.poll(async () => await component.locator('[data-slot="fill"]').getAttribute("style")).toContain("width: 20%");
 });
 
 test("dangerBelow swaps the linear fill to the destructive token", async ({ mount }) => {
@@ -70,25 +67,22 @@ test("aria-valuetext announces the value on its OWN scale by default, never a pe
   const component = await mount(<Meter kind="linear" value={30} max={60} label="HP" />);
   // Scale honesty (schema-renderer §3.4; live-drive D1): a 30/60 meter announces "30 of 60", NOT "50%".
   // Base UI's percent-of-range default is the exact defect this pins.
-  const valueText = await component.getAttribute("aria-valuetext");
-  expect(valueText).toBe("30 of 60");
-  expect(valueText).not.toContain("%");
+  await expect.poll(async () => await component.getAttribute("aria-valuetext")).toBe("30 of 60");
+  await expect.poll(async () => await component.getAttribute("aria-valuetext")).not.toContain("%");
 });
 
 test("a schema-bounded 1-10 score announces on its own bounds, not as a percent (the D1 shape)", async ({ mount }) => {
   const component = await mount(<Meter kind="linear" value={8} max={10} min={1} label="Overall score" />);
   // The live scar: aria-valuenow=8 on a 1-10 scale used to announce aria-valuetext="78%".
-  const valueText = await component.getAttribute("aria-valuetext");
-  expect(valueText).toBe("8 of 10");
-  expect(valueText).not.toContain("78%");
+  await expect.poll(async () => await component.getAttribute("aria-valuetext")).toBe("8 of 10");
+  await expect.poll(async () => await component.getAttribute("aria-valuetext")).not.toContain("78%");
 });
 
 test("readout='percent' opts back into Base UI's fraction-of-range announcement", async ({ mount }) => {
   const component = await mount(<Meter kind="linear" value={30} max={60} label="HP" readout="percent" />);
   // The escape hatch for a surface where a 0-100% reading IS the honest one.
-  const valueText = await component.getAttribute("aria-valuetext");
-  expect(valueText).toContain("50");
-  expect(valueText).toContain("%");
+  await expect.poll(async () => await component.getAttribute("aria-valuetext")).toContain("50");
+  await expect.poll(async () => await component.getAttribute("aria-valuetext")).toContain("%");
 });
 
 test("showValue renders the visible label + value readout on the meter's own scale and names the meter", async ({ mount, page }) => {

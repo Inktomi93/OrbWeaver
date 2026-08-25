@@ -46,8 +46,9 @@ test("F-5: exactly one radio is tabbable, and it is the checked one", async ({ m
   // The group itself is not a tab stop — the roving radio is. (The container carries no `tabindex`
   // ATTRIBUTE at all, which resolves to the -1 property a non-focusable div has; asserting the property is
   // what makes this true rather than accidentally true.)
-  const groupTabIndex = await page.getByRole("radiogroup", { name: "Active preset for generation" }).evaluate((el) => (el as HTMLElement).tabIndex);
-  expect(groupTabIndex).toBe(-1);
+  await expect
+    .poll(async () => await page.getByRole("radiogroup", { name: "Active preset for generation" }).evaluate((el) => (el as HTMLElement).tabIndex))
+    .toBe(-1);
 });
 
 // ── #481: FOCUS IS NOT SELECTION ─────────────────────────────────────────────────────────────────

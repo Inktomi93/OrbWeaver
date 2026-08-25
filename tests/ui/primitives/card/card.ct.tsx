@@ -40,8 +40,7 @@ test("elevated opts into the floating-island radius + shadow; a plain card gets 
 
 test("interactive adds the pointer affordance", async ({ mount }) => {
   const card = await mount(<Card interactive={true}>Panel</Card>);
-  const cursor = await card.evaluate((el) => getComputedStyle(el).cursor);
-  expect(cursor).toBe("pointer");
+  await expect.poll(async () => await card.evaluate((el) => getComputedStyle(el).cursor)).toBe("pointer");
 });
 
 test("interactive is keyboard-operable: role/tabIndex + Enter/Space fire onClick", async ({ mount, page }) => {

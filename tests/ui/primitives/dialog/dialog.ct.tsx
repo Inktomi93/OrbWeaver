@@ -129,13 +129,11 @@ test("the modal popup is a focus stop whose transition names its properties — 
   const popup = page.locator('[data-slot="dialog-popup"]');
   await expect(popup).toBeVisible();
   await expect(popup).toBeFocused();
-
-  const transitioned = await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty);
-  expect(transitioned).not.toBe("all");
-  expect(transitioned).not.toContain("outline");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).not.toBe("all");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).not.toContain("outline");
   // …while the enter/exit fade+scale keeps both of its halves. Dropping either silently kills that half.
-  expect(transitioned).toContain("opacity");
-  expect(transitioned).toContain("scale");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).toContain("opacity");
+  await expect.poll(async () => await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty)).toContain("scale");
 });
 
 const ROOT_PX = 16;
@@ -214,11 +212,9 @@ test("popup content taller than the viewport scrolls instead of clipping", async
   // The popup's own scrollHeight exceeds its clientHeight (content genuinely overflows the clamped
   // popup, not just the page) — and scrolling the popup element itself reaches the submit button
   // pinned below the tall content, proving the overflow is functional, not just declared.
-  const overflowing = await popup.evaluate((el) => el.scrollHeight > el.clientHeight);
-  expect(overflowing).toBe(true);
+  await expect.poll(async () => await popup.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
 
   const submit = page.getByRole("button", { name: "Submit" });
   await submit.scrollIntoViewIfNeeded();
-  const scrollTop = await popup.evaluate((el) => el.scrollTop);
-  expect(scrollTop).toBeGreaterThan(0);
+  await expect.poll(async () => await popup.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });

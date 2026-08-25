@@ -113,8 +113,7 @@ test("ring=accent paints a visible ring (§B.3 — reuse-ready for active-speake
       AR
     </Avatar>,
   );
-  const boxShadow = await page.locator('[data-slot="avatar-root"]').evaluate((el) => getComputedStyle(el).boxShadow);
-  expect(boxShadow).not.toBe("none");
+  await expect.poll(async () => await page.locator('[data-slot="avatar-root"]').evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
 });
 
 // Every rendered fallback's background-color in one read (no await-in-loop).

@@ -50,15 +50,15 @@ test("a lookalike type identifier is not a Base UI derivation", () => {
   ).toEqual([]);
 });
 
-test("a mutable DOM read stored in a local is still one-shot", () => {
+test("only the local initialized by a mutable DOM read is one-shot", () => {
   expect(
     failuresFor(oneshotGate, [
       {
         files:
-          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ pane }) => {\n  const text = await pane.textContent();\n  expect(text).toBe("settled");\n});\n',
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("live", async ({ pane }) => {\n  const text = await pane.textContent();\n  expect(text).toBe("settled");\n});\ntest("static", () => {\n  const text = "settled";\n  expect(text).toBe("settled");\n});\n',
         at: "tests/ui/pane.ct.tsx",
-        expect: { messageIncludes: "MUTABLE ASYNC" },
-        why: "assigning the sampled DOM value to a local does not make it settled",
+        expect: { count: 1, messageIncludes: "MUTABLE ASYNC" },
+        why: "symbol identity matters: the live-read local is flagged while a same-named local in another test scope stays clean",
       },
     ]),
   ).toEqual([]);

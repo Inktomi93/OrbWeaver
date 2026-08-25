@@ -309,11 +309,15 @@ test("a real Tab paints a visible focus ring on the root, and the elevation shad
   // --motion-base, so a keyboard user moving at speed saw a desaturated half-ring at every stop; the
   // transition names its three properties now, and the ring is therefore already settled on first read.
   const ring = await resolvedToken(page, "color", TOKENS["color.ring"].cssVar);
-  const painted = await toast.evaluate((element: Element) => {
-    const style = getComputedStyle(element);
-    return { color: style.outlineColor, style: style.outlineStyle, width: style.outlineWidth };
-  });
-  expect(painted).toEqual({ color: ring, style: "solid", width: "2px" });
+  await expect
+    .poll(
+      async () =>
+        await toast.evaluate((element: Element) => {
+          const style = getComputedStyle(element);
+          return { color: style.outlineColor, style: style.outlineStyle, width: style.outlineWidth };
+        }),
+    )
+    .toEqual({ color: ring, style: "solid", width: "2px" });
 
   // …and the elevation is untouched — the whole point of moving off the box-shadow slot is that the two
   // no longer compete. Compared as FULL strings, never a slice.
@@ -321,13 +325,13 @@ test("a real Tab paints a visible focus ring on the root, and the elevation shad
 
   // The mechanism behind the unpolled read above: the transition may not name `outline`/`all`, or the
   // ring becomes interpolable again and the fade returns. Named properties only.
-  const transitioned = await toast.evaluate((element: Element) => getComputedStyle(element).transitionProperty);
-  expect(transitioned).not.toContain("outline");
-  expect(transitioned).not.toBe("all");
+  const transitionProperties = (): Promise<string> => toast.evaluate((element: Element) => getComputedStyle(element).transitionProperty);
+  await expect.poll(transitionProperties).not.toContain("outline");
+  await expect.poll(transitionProperties).not.toBe("all");
   // …while the enter/exit slide and the swipe still have theirs (the leg-1 motion CTs exercise them).
-  for (const property of ["opacity", "transform", "translate"]) {
-    expect(transitioned).toContain(property);
-  }
+  await expect.poll(transitionProperties).toContain("opacity");
+  await expect.poll(transitionProperties).toContain("transform");
+  await expect.poll(transitionProperties).toContain("translate");
 });
 
 // ── The side-eye RE-VERIFY findings (2026-08-07, leg 2) ──────────────────────────────────────────────
