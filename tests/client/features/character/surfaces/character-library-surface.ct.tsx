@@ -812,14 +812,16 @@ test("a 72-character tag name TRUNCATES inside the pane instead of overflowing i
   await openFilters(component);
 
   const chip = component.locator("[data-tag-filter-state]");
-  const chipBox = await chip.boundingBox();
-  const paneBox = await component.boundingBox();
-  expect(chipBox).not.toBeNull();
   // RENDERED containment: the chip's right edge stays inside the pane it lives in.
-  expect((chipBox?.x ?? 0) + (chipBox?.width ?? 0)).toBeLessThanOrEqual((paneBox?.x ?? 0) + NARROW_PANE_PX);
+  await expect
+    .poll(async () => {
+      const chipBox = await chip.boundingBox();
+      const paneBox = await component.boundingBox();
+      return (chipBox?.x ?? 0) + (chipBox?.width ?? 0) <= (paneBox?.x ?? 0) + NARROW_PANE_PX;
+    })
+    .toBe(true);
   // …and it is TRUNCATION, not a lucky short name: the label's content is wider than its box.
-  const overflowing = await chip.locator('[data-slot="text"]').evaluate((el: Element): boolean => el.scrollWidth > el.clientWidth);
-  expect(overflowing).toBe(true);
+  await expect.poll(async () => chip.locator('[data-slot="text"]').evaluate((el: Element): boolean => el.scrollWidth > el.clientWidth)).toBe(true);
   // The full name survives for a pointer; the accessible name already carried it whole.
   await expect(chip).toHaveAttribute("title", LONG_TAG);
   await expect(chip).toHaveAttribute("aria-label", `Filter by ${LONG_TAG}: off — activate to include`);
@@ -1052,8 +1054,7 @@ test("the filter rail NAMES its two groups, each under its own hairline (CD1 —
       // … and the rule that completes CD1 is the group's OWN top edge. That is the whole reason B is
       // height-neutral where A costs +22px: the hairline is a border, not a line of its own, and the
       // kicker LEADS the control line instead of standing on one.
-      const border = await group.evaluate((el: Element) => Number.parseFloat(getComputedStyle(el).borderTopWidth));
-      expect(border).toBeGreaterThan(0);
+      await expect.poll(async () => group.evaluate((el: Element) => Number.parseFloat(getComputedStyle(el).borderTopWidth))).toBeGreaterThan(0);
     }),
   );
 });
@@ -1206,8 +1207,7 @@ test("P1 the expansion is BOUNDED — the character list keeps its height and th
   await openFilters(component);
 
   const scroller = component.locator('[data-slot="virtual-list-scroll"]');
-  const beforeHeight = await scroller.evaluate((el: Element) => el.clientHeight);
-  expect(beforeHeight).toBeGreaterThan(0);
+  await expect.poll(async () => scroller.evaluate((el: Element) => el.clientHeight)).toBeGreaterThan(0);
 
   await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
 
@@ -1380,8 +1380,8 @@ test("the rail's text affordances carry disclosure semantics and object-qualifie
   // The disclosure is a DISCLOSURE: a verb, its state, and the region it owns.
   const more = component.getByRole("button", { name: moreTagsName(4) });
   await expect(more).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(async () => more.getAttribute("aria-controls")).not.toBeNull();
   const controls = await more.getAttribute("aria-controls");
-  expect(controls).not.toBeNull();
   // …and it has a RESTING affordance again (taste (d)): the mockup's underline, dropped by the build and
   // never listed among its deviations, so "+N more" sat as one more muted word in a rail of muted words.
   await expect(more).toHaveCSS("text-decoration-line", "underline");
@@ -1442,17 +1442,17 @@ test("a focused SELECTED chip rings in a different hue from its selection ring",
   await selected.focus();
   await expect(selected).toBeFocused();
 
-  const focusedShadow = await selected.evaluate((el: Element) => getComputedStyle(el).boxShadow);
-  const resting = await component.getByRole("button", { name: SECOND_RAIL_CHIP }).evaluate((el: Element) => getComputedStyle(el).boxShadow);
   const [ringHue, selectionHue] = await Promise.all([resolvedColor(component, "--color-foreground"), resolvedColor(component, "--color-ring")]);
 
   // TWO rings, TWO hues: the focus layer paints `foreground`, the selection layer keeps `ring` (the
   // Toggle-parity reading). Before this both were `ring` and the two states were one picture.
-  expect(focusedShadow).toContain(ringHue);
-  expect(focusedShadow).toContain(selectionHue);
+  await expect.poll(async () => selected.evaluate((el: Element) => getComputedStyle(el).boxShadow)).toContain(ringHue);
+  await expect.poll(async () => selected.evaluate((el: Element) => getComputedStyle(el).boxShadow)).toContain(selectionHue);
   expect(ringHue).not.toBe(selectionHue);
   // …and a chip that is merely at rest carries neither.
-  expect(resting).not.toContain(ringHue);
+  await expect
+    .poll(async () => component.getByRole("button", { name: SECOND_RAIL_CHIP }).evaluate((el: Element) => getComputedStyle(el).boxShadow))
+    .not.toContain(ringHue);
 });
 
 /** A theme colour token, resolved from the SAME document the assertion runs against — a computed
@@ -1517,13 +1517,11 @@ test("P1-3 the row name keeps the full text column at rest — the hidden cluste
   const title = component.locator('[data-slot="list-row-title"]');
   await expect(title).toHaveText(LONG_NAME);
 
-  const width = await title.evaluate((el: Element) => el.clientWidth);
   // MEASURED at the docked 307px pane: 131px before, 251px after — past the review's own ≥200px receipt
   // and past select mode's 210px, which is the width the app already proved fits there.
-  expect(width).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
+  await expect.poll(async () => title.evaluate((el: Element) => el.clientWidth)).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
   // …and the name is not clipped at all at this width (the whole point — 114px cut it to "Morgatha, the …").
-  const clipped = await title.evaluate((el: Element) => el.scrollWidth > el.clientWidth);
-  expect(clipped).toBe(false);
+  await expect.poll(async () => title.evaluate((el: Element) => el.scrollWidth > el.clientWidth)).toBe(false);
 });
 
 /** The NARROWEST this pane can ever be docked: `--dimension-panel-floor` (17rem = 272px) — the clamp's own
@@ -1541,8 +1539,7 @@ test("P1-3 the row name keeps its column at the #242 SQUEEZED list width too (th
 
   // 35px narrower than the docked-at-1280 pane the pin above measures: the title column pays that
   // pixel-for-pixel (nothing else in the row is elastic), so it must still clear the review's floor.
-  const width = await title.evaluate((el: Element) => el.clientWidth);
-  expect(width).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
+  await expect.poll(async () => title.evaluate((el: Element) => el.clientWidth)).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
 });
 
 // HOVER STABILITY IS HELD-UNDER-ATTACK, and this fix is exactly the kind that breaks it: a cluster that
@@ -1710,14 +1707,17 @@ test("#491 the pane's skip link lands focus on the first character row", async (
   // first focusable is a second tab stop, not a skip. Asserted structurally rather than by pressing Tab,
   // because where a CT's initial focus SITS is the harness's business, not this pane's.
   const skip = component.getByRole("button", { name: "Skip to characters" });
-  const isFirstInPane = await skip.evaluate((el: HTMLElement) => {
-    // The pane is the surface's own focus container (`tabIndex={-1}`) — scoped there rather than to the
-    // story root, which also mounts the LIST chrome band above the surface.
-    const pane = el.closest<HTMLElement>('[tabindex="-1"]');
-    const focusables = pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])');
-    return focusables?.[0] === el;
-  });
-  expect(isFirstInPane).toBe(true);
+  await expect
+    .poll(async () =>
+      skip.evaluate((el: HTMLElement) => {
+        // The pane is the surface's own focus container (`tabIndex={-1}`) — scoped there rather than to the
+        // story root, which also mounts the LIST chrome band above the surface.
+        const pane = el.closest<HTMLElement>('[tabindex="-1"]');
+        const focusables = pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])');
+        return focusables?.[0] === el;
+      }),
+    )
+    .toBe(true);
 
   await skip.focus();
   await page.keyboard.press("Enter");
@@ -1795,14 +1795,13 @@ test("#517 the qualifier is VISIBLE, and the row's visible label IS its accessib
   // RENDERED, not sr-only: a real box with the handle in it.
   const qualifier = qualified.locator('[data-slot="list-row-title-qualifier"]');
   await expect(qualifier).toHaveText("· emily-3");
-  expect((await qualifier.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+  await expect.poll(async () => (await qualifier.boundingBox())?.width ?? 0).toBeGreaterThan(0);
 
   // The visible label and the announced one are the SAME STRING — a voice-control user can say what they
   // read, and there is nothing in the name that is not on the screen. Scoped to the TITLE LINE: the row's
   // button also wraps the `aria-hidden` avatar (whose fallback paints the name's initials) and the subtitle.
-  const visible = await qualified.locator('[data-slot="list-row-title-row"]').evaluate((el: HTMLElement) => el.textContent?.replace(/\s+/gu, " ").trim() ?? "");
-  expect(visible).toBe("Emily · emily-3");
-  await expect(qualified).toHaveAttribute("aria-label", visible);
+  await expect(qualified.locator('[data-slot="list-row-title-row"]')).toHaveText("Emily · emily-3");
+  await expect(qualified).toHaveAttribute("aria-label", "Emily · emily-3");
 });
 
 // ── #493 · the honesty P2s ───────────────────────────────────────────────────────────────────────────

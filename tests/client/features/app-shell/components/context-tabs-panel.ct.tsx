@@ -49,7 +49,7 @@ test("the shell's own panel width: every tab shows its ICON and its WORD — no 
   );
   // And not one of them is an ellipsis: the tracks are `minmax(max-content, 1fr)`, so a cell cannot be
   // squeezed below its own word.
-  expect(await clippedCaptions(component)).toBe(0);
+  await expect.poll(async () => clippedCaptions(component)).toBe(0);
 });
 
 test("a wide host changes nothing but the slack — same icon+label cell, still no clip", async ({ mount }) => {
@@ -58,11 +58,10 @@ test("a wide host changes nothing but the slack — same icon+label cell, still 
   const membersLabel = component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label");
   await expect(membersLabel).toHaveText("Members");
   await expect(membersLabel).not.toHaveCSS("display", "none");
-  expect(await clippedCaptions(component)).toBe(0);
+  await expect.poll(async () => clippedCaptions(component)).toBe(0);
   // With slack the `1fr` MAX still fills the strip as equal cells (the 2026-07-28 bracket ruling): the
   // strip has no horizontal overflow to scroll.
-  const overflow = await component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-  expect(overflow).toBe(false);
+  await expect.poll(async () => component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
 });
 
 test("5 tabs at the default width (the Trackers ceiling): every word survives — the strip SCROLLS, it does not clip", async ({ mount }) => {
@@ -77,7 +76,7 @@ test("5 tabs at the default width (the Trackers ceiling): every word survives �
   );
   // …and the degradation, where five words no longer share 291px, is the strip's own scroll — never an
   // ellipsis. This is the ONE assertion that separates the fix from the defect it replaces.
-  expect(await clippedCaptions(component)).toBe(0);
+  await expect.poll(async () => clippedCaptions(component)).toBe(0);
 });
 
 test("an icon-LESS tab sits in the same strip as icon tabs and both keep their word", async ({ mount }) => {
@@ -91,7 +90,7 @@ test("an icon-LESS tab sits in the same strip as icon tabs and both keep their w
   const membersLabel = component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label");
   await expect(membersLabel).toHaveText("Members");
   await expect(membersLabel).not.toHaveCSS("display", "none");
-  expect(await clippedCaptions(component)).toBe(0);
+  await expect.poll(async () => clippedCaptions(component)).toBe(0);
 });
 
 test("#208: the strip is a REAL tablist — role, selected state and panel wiring, not an orange fill", async ({ mount }) => {
@@ -116,8 +115,8 @@ test("#208: the strip is a REAL tablist — role, selected state and panel wirin
   const members = component.getByRole("tab", { name: "Members" });
   await expect(members).toHaveAttribute("aria-selected", "true");
   // The selected tab NAMES its panel, and the panel is a real tabpanel (not a bare div).
+  await expect.poll(async () => members.getAttribute("aria-controls")).not.toBeNull();
   const controls = await members.getAttribute("aria-controls");
-  expect(controls).not.toBeNull();
   await expect(component.getByRole("tabpanel")).toHaveAttribute("id", controls ?? "");
 
   // Roving tabindex + arrow keys: the strip is ONE tab stop, and an arrow moves the selection within it.
@@ -227,8 +226,7 @@ test.describe("coarse pointer (touch)", () => {
 
   test("the emulation actually landed — nothing below is trusted otherwise", async ({ mount }) => {
     const component = await mount(<ContextTabStripStory width={291} />);
-    const coarse = await component.evaluate(() => matchMedia("(pointer: coarse)").matches);
-    expect(coarse).toBe(true);
+    await expect.poll(async () => component.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
   });
 
   test("at the shell's own panel width every tab shows its WORD — a title-only name is unreachable by touch", async ({ mount }) => {

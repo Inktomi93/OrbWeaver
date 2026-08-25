@@ -416,13 +416,13 @@ test("F3 suggestions render as ghost chips — muted, unfilled, never info blue 
   await expect(chip).toBeVisible();
   // The muted voice: the intent's own text color, NOT the info pair the surface uses nowhere else.
   await expect(chip).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
-  const background = await chip.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor);
-  expect(background).not.toBe(resolvedTokenColor("color.info"));
+  await expect
+    .poll(async () => chip.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor))
+    .not.toBe(resolvedTokenColor("color.info"));
   // GHOST weight — a resting suggestion paints NO fill at all; the accepted tag beside it still does.
-  expect(background).toBe(TRANSPARENT);
+  await expect.poll(async () => chip.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor)).toBe(TRANSPARENT);
   const accepted = component.locator('[data-slot="character-tags"] [data-slot="badge"]').first();
-  const acceptedBackground = await accepted.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor);
-  expect(acceptedBackground).not.toBe(TRANSPARENT);
+  await expect.poll(async () => accepted.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor)).not.toBe(TRANSPARENT);
 });
 
 test("F3 every pending suggestion renders at rest — no cap, no disclosure", async ({ mount, page }) => {
@@ -658,8 +658,7 @@ test("P1-4 on a phone the save bar prints the NAME whole — the census takes it
   await expect(title).toHaveText(HERO_NAME);
 
   // Not clipped — the whole point. (`scrollWidth > clientWidth` is what "Sabin…" looked like.)
-  const clipped = await title.evaluate((el: Element) => el.scrollWidth > el.clientWidth);
-  expect(clipped).toBe(false);
+  await expect.poll(async () => title.evaluate((el: Element) => el.scrollWidth > el.clientWidth)).toBe(false);
 
   // The census is not hidden, abbreviated or behind a tap — it moved to its own full-width line BELOW the
   // identity, which is what makes both readable at once.

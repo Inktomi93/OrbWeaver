@@ -464,8 +464,7 @@ test("#116: the aria-live semantics are UNCHANGED — the name enters the announ
   // gone by the first token — so mid-stream there is nothing announcing on its own.
   expect(aria.liveDescendants).toEqual([]);
   // …and the speaker's name appears exactly once in the row's text, not once in chrome + once in a label.
-  const occurrences = await ghost.evaluate((el: HTMLElement) => (el.textContent ?? "").split("Marguerite").length - 1);
-  expect(occurrences).toBe(1);
+  await expect.poll(async () => ghost.evaluate((el: HTMLElement) => (el.textContent ?? "").split("Marguerite").length - 1)).toBe(1);
 });
 
 test("reduced motion: the full streamed text lands immediately, with no pacing lag", async ({ mount, page }) => {

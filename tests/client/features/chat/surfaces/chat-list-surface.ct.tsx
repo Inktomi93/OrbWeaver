@@ -300,8 +300,8 @@ test.describe("date jump coarse pointer", () => {
     await expect(scroll).toHaveJSProperty("scrollTop", 0);
 
     const firstRow = component.locator('[data-slot="virtual-list-row"][data-index="0"]');
+    await expect.poll(async () => firstRow.boundingBox()).not.toBeNull();
     const firstBox = await firstRow.boundingBox();
-    expect(firstBox).not.toBeNull();
     await page.mouse.click((firstBox?.x ?? 0) + (firstBox?.width ?? 0) / 2, (firstBox?.y ?? 0) + (firstBox?.height ?? 0) / 2);
     await expect(component.getByTestId("selected")).toHaveText("chat_compact_0");
   });
@@ -334,9 +334,8 @@ test("#372 keeps the accessible import control compact at a fine pointer", async
   await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
   const component = await mount(<ChatListHeaderStory width={320} />);
   const button = component.getByRole("button", { name: "Import a chat transcript" });
+  await expect.poll(async () => button.boundingBox()).not.toBeNull();
   const box = await button.boundingBox();
-
-  expect(box).not.toBeNull();
   expect(box?.width).toBe(32);
   expect(box?.height).toBe(32);
 });
@@ -661,8 +660,7 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
     const before = await starredRow.locator(CONTENT).evaluate((el) => el.getBoundingClientRect().width);
     await starredRow.hover();
     await expect(component.getByRole("button", { name: PINNED_UNSTAR })).toBeVisible();
-    const after = await starredRow.locator(CONTENT).evaluate((el) => el.getBoundingClientRect().width);
-    expect(after).toBe(before);
+    await expect.poll(async () => starredRow.locator(CONTENT).evaluate((el) => el.getBoundingClientRect().width)).toBe(before);
   });
 
   test("the markers render IN the title line and stay accessible content (aria-describedby, not the name)", async ({ mount, page }) => {
@@ -679,8 +677,8 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
     await expect(gameRow.locator(MARKERS).getByLabel("Game chat")).toBeVisible();
     // The datum survives for a screen reader: the row body DESCRIBES itself with the marker span.
     const describedBy = await gameRow.locator('[data-slot="list-row-body"]').getAttribute("aria-describedby");
+    await expect.poll(async () => gameRow.locator(MARKERS).getAttribute("id")).not.toBeNull();
     const markersId = await gameRow.locator(MARKERS).getAttribute("id");
-    expect(markersId).not.toBeNull();
     expect((describedBy ?? "").split(" ")).toContain(markersId);
   });
 
@@ -714,16 +712,19 @@ test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME ma
   await expect(component.locator(LIST_ROW_ROOT).getByText("Aria Nightshade", { exact: true })).toHaveCount(1);
   // done ≠ rendered: the long snippet must actually be clipped to one line, not wrap the row open.
   const subtitle = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" }).locator(SUBTITLE);
-  const clipping = await subtitle.evaluate((el) => {
-    const s = getComputedStyle(el);
-    return {
-      whiteSpace: s.whiteSpace,
-      overflow: s.overflow,
-      textOverflow: s.textOverflow,
-      lines: Math.round(el.getBoundingClientRect().height / Number.parseFloat(s.lineHeight)),
-    };
-  });
-  expect(clipping).toEqual({ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lines: 1 });
+  await expect
+    .poll(async () =>
+      subtitle.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return {
+          whiteSpace: s.whiteSpace,
+          overflow: s.overflow,
+          textOverflow: s.textOverflow,
+          lines: Math.round(el.getBoundingClientRect().height / Number.parseFloat(s.lineHeight)),
+        };
+      }),
+    )
+    .toEqual({ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lines: 1 });
 
   // The game marker is a labelled glyph — the datum is TEXT for a screen reader — and only the game row has it.
   await expect(component.getByLabel("Game chat")).toHaveCount(1);
@@ -957,15 +958,16 @@ test("FACEFILT: a folded character picked from the roster scopes the pane AND ta
   // …and she is a FACE now, current and inside the row's box — never a filter you can't see or re-tap.
   const face = component.getByRole("button", { name: `Show chats with ${FOLDED_NAME}`, exact: true });
   await expect(face).toHaveAttribute("aria-pressed", "true");
-  const inside = await component.locator(FACE_ROW).evaluate((row) => {
-    const box = row.getBoundingClientRect();
-    const current = row.querySelector('[aria-pressed="true"]');
-    const rect = current?.getBoundingClientRect();
-    return rect === undefined ? null : { left: rect.left - box.left, right: rect.right - box.right };
-  });
-  expect(inside).not.toBeNull();
-  expect(inside?.left).toBeGreaterThanOrEqual(0);
-  expect(inside?.right).toBeLessThanOrEqual(0);
+  await expect
+    .poll(async () =>
+      component.locator(FACE_ROW).evaluate((row) => {
+        const box = row.getBoundingClientRect();
+        const current = row.querySelector('[aria-pressed="true"]');
+        const rect = current?.getBoundingClientRect();
+        return rect !== undefined && rect.left - box.left >= 0 && rect.right - box.right <= 0;
+      }),
+    )
+    .toBe(true);
   // The picker got out of the way once it did its job.
   await expect(page.getByPlaceholder("Search characters…")).toHaveCount(0);
 });
@@ -1395,12 +1397,15 @@ test("#500 the pane's skip link is its FIRST focusable and lands focus on the fi
   // FIRST among the pane's focusables in DOM order — the whole contract: a skip control that is not the
   // first focusable is a second tab stop, not a skip. Asserted structurally rather than by pressing Tab,
   // because where a CT's initial focus SITS is the harness's business, not this pane's.
-  const isFirstInPane = await skip.evaluate((el: HTMLElement) => {
-    const pane = el.closest<HTMLElement>('[tabindex="-1"]');
-    const focusables = pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])');
-    return focusables?.[0] === el;
-  });
-  expect(isFirstInPane).toBe(true);
+  await expect
+    .poll(async () =>
+      skip.evaluate((el: HTMLElement) => {
+        const pane = el.closest<HTMLElement>('[tabindex="-1"]');
+        const focusables = pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])');
+        return focusables?.[0] === el;
+      }),
+    )
+    .toBe(true);
 
   await skip.focus();
   await page.keyboard.press("Enter");

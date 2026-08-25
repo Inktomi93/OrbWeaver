@@ -219,9 +219,8 @@ test("when the strip is CLOSED, ArrowUp/Down are NOT hijacked (multiline caret m
   });
   const endPos = await textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart);
   await textarea.press("ArrowUp");
-  const afterPos = await textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart);
   // The caret moved up (native behavior preserved) — a hijacked ArrowUp would have left it pinned at the end.
-  expect(afterPos).toBeLessThan(endPos);
+  await expect.poll(async () => textarea.evaluate((el: HTMLTextAreaElement) => el.selectionStart)).toBeLessThan(endPos);
 });
 
 // ── the zero-registrant baseline ────────────────────────────────────────────────────────────────────

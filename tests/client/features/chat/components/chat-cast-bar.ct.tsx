@@ -142,12 +142,15 @@ test("#229: over a wallpaper the strip takes the derived plate + blur; without o
   const plain = await mount(<ChatCastBarStory />);
   const plainStrip = plain.getByTestId("chat-cast-bar");
   await expect(plainStrip).toBeVisible();
-  const plainPaint = await plainStrip.evaluate((el) => {
-    const s = getComputedStyle(el);
-    return { backdrop: s.backdropFilter, bg: s.backgroundColor };
-  });
   // No wallpaper ⇒ no plate, no blur: the strip is exactly the transparent band it always was.
-  expect(plainPaint).toStrictEqual({ backdrop: "none", bg: "rgba(0, 0, 0, 0)" });
+  await expect
+    .poll(async () =>
+      plainStrip.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { backdrop: s.backdropFilter, bg: s.backgroundColor };
+      }),
+    )
+    .toStrictEqual({ backdrop: "none", bg: "rgba(0, 0, 0, 0)" });
   await plain.unmount();
 
   const overArt = await mount(<ChatCastBarStory overArt={true} />);

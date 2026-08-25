@@ -62,12 +62,11 @@ test("the note is set as PROSE, at the switch description's step — not the 10.
   // continues. Assert the RESOLVED sizes agree, never a literal px — the tokens own the value.
   await stub(page);
   await mount(<MemorySettingsSectionStory />);
-  const noteSize = await page.getByText(FORWARD_ONLY_NOTE).evaluate((el) => getComputedStyle(el).fontSize);
   const descriptionSize = await page
     .locator('[data-slot="field-description"]')
     .first()
     .evaluate((el) => getComputedStyle(el).fontSize);
-  expect(noteSize).toBe(descriptionSize);
+  await expect.poll(async () => page.getByText(FORWARD_ONLY_NOTE).evaluate((el) => getComputedStyle(el).fontSize)).toBe(descriptionSize);
 });
 
 test("flipping the switch ON fires updateUserSettingsSection('memory') with enabled=true", async ({ mount, page }) => {

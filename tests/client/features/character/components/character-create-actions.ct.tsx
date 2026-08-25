@@ -95,11 +95,14 @@ test("#548 the refused Name field is marked invalid and points at the refusal, i
   // AFTER: invalid, and the message it names is the rendered refusal — resolved through the DOM, so a
   // dangling id (the failure this attribute has) cannot pass.
   await expect(name).toHaveAttribute("aria-invalid", "true");
-  const named = await name.evaluate((el: HTMLElement) => {
-    const id = el.getAttribute("aria-errormessage") ?? "";
-    return el.ownerDocument.getElementById(id)?.textContent ?? null;
-  });
-  expect(named).toBe(HANDLE_CONFLICT_COPY);
+  await expect
+    .poll(async () =>
+      name.evaluate((el: HTMLElement) => {
+        const id = el.getAttribute("aria-errormessage") ?? "";
+        return el.ownerDocument.getElementById(id)?.textContent ?? null;
+      }),
+    )
+    .toBe(HANDLE_CONFLICT_COPY);
 
   // …and the mark is as live as the line: editing the name retires both together.
   await name.fill("Elara Vancey");

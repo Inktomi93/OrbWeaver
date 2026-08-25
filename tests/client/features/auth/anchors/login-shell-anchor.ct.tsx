@@ -69,10 +69,7 @@ test("PHONE container (390px): card + wordmark contained, no horizontal overflow
   // The container-model overflow check: the scene box must not scroll horizontally at phone width.
   await expect.poll(async () => page.getByTestId("ct-login-scene").evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
   // The card itself fits the 390px container.
-  const cardBox = await page.locator('[data-slot="card-root"]').boundingBox();
-  expect(cardBox).not.toBeNull();
-  // ONESHOT-OK: layout settled — the visibility asserts above already awaited the rendered scene.
-  expect((cardBox?.width ?? Number.POSITIVE_INFINITY) <= PHONE_W).toBe(true);
+  await expect.poll(async () => (await page.locator('[data-slot="card-root"]').boundingBox())?.width ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(PHONE_W);
   // The brand web is mounted behind and genuinely painting.
   const canvas = page.locator('[data-slot="web-weave-canvas"]');
   await expect(canvas).toBeVisible();
@@ -84,11 +81,8 @@ test("DESKTOP container (1280px): the same ONE surface — card centered at max-
   await stubAuthConfig(page, cfg);
   await mount(<LoginSceneStory width={DESKTOP_W} config={cfg} />);
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  const cardBox = await page.locator('[data-slot="card-root"]').boundingBox();
-  expect(cardBox).not.toBeNull();
-  // ONESHOT-OK: layout settled (heading visibility awaited above).
   // max-w-sm = 24rem = 384px — the card never balloons to the desktop container.
-  expect((cardBox?.width ?? 0) <= 384).toBe(true);
+  await expect.poll(async () => (await page.locator('[data-slot="card-root"]').boundingBox())?.width ?? 0).toBeLessThanOrEqual(384);
   const canvas = page.locator('[data-slot="web-weave-canvas"]');
   await expect.poll(async () => paintedPixels(canvas)).toBeGreaterThan(1000);
 });

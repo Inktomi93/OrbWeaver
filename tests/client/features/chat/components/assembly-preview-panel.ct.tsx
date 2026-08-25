@@ -513,15 +513,18 @@ test("the wire readout has NO inner scroller — every delivered row is reachabl
   await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
   await expect(component.getByText("Wire rows — 5 delivered")).toBeVisible();
 
-  const clipped = await component
-    .locator("[data-slot=wire-row-trace]")
-    .first()
-    .evaluate((row: HTMLElement): boolean => {
-      const list = row.parentElement as HTMLElement;
-      const style = getComputedStyle(list);
-      return style.overflowY !== "visible" && list.scrollHeight > list.clientHeight + 1;
-    });
-  expect(clipped).toBe(false);
+  await expect
+    .poll(async () =>
+      component
+        .locator("[data-slot=wire-row-trace]")
+        .first()
+        .evaluate((row: HTMLElement): boolean => {
+          const list = row.parentElement as HTMLElement;
+          const style = getComputedStyle(list);
+          return style.overflowY !== "visible" && list.scrollHeight > list.clientHeight + 1;
+        }),
+    )
+    .toBe(false);
 });
 
 test("no delivered rows ⇒ the drawer says so rather than rendering an empty block", async ({ mount, page }) => {

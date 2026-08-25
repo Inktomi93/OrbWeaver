@@ -331,15 +331,18 @@ test("#242 both open: the reading line holds the REAL-CHARACTER floor and stays 
       pane.style.width = `${width}px`;
     }
   }, PRE_SQUEEZE_BOTH_OPEN_PANE_WIDTH);
-  const shortLine = await page.evaluate((): number => {
-    const bubble = document.querySelector('[data-slot="message-bubble"]');
-    if (!(bubble instanceof HTMLElement)) {
-      throw new Error("no bubble mounted");
-    }
-    const style = getComputedStyle(bubble);
-    return bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
-  });
-  expect(shortLine).toBeLessThan(line.sampleWidth);
+  await expect
+    .poll(async () =>
+      page.evaluate((): number => {
+        const bubble = document.querySelector('[data-slot="message-bubble"]');
+        if (!(bubble instanceof HTMLElement)) {
+          throw new Error("no bubble mounted");
+        }
+        const style = getComputedStyle(bubble);
+        return bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+      }),
+    )
+    .toBeLessThan(line.sampleWidth);
 });
 
 /** Echo's art pane measures 192px on this stage and the undecorated bubble's inset is 12px — any padding

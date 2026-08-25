@@ -214,13 +214,16 @@ test("#102 RAMP: the hero title is the HEADLINE step — strictly larger than an
 
   const home = await mount(<ChatRecentsPairStory />);
 
-  const heroSize = await home
-    .locator('[data-home-hearth="chat_recent"]')
-    .getByText("A grand adventure")
-    .evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
   const rowSize = await home.getByText("The quiet ledger").evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
 
-  expect(heroSize).toBeGreaterThan(rowSize);
+  await expect
+    .poll(async () =>
+      home
+        .locator('[data-home-hearth="chat_recent"]')
+        .getByText("A grand adventure")
+        .evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize)),
+    )
+    .toBeGreaterThan(rowSize);
 });
 
 // ── RED-FIRST (#102 review F5): the hero announces ONCE, with a verb ────────────────────────────────
@@ -406,8 +409,7 @@ test("#147/#192 an also-open row's faces come from the CHAT page — held-open c
   // The two-seat room's stack is THERE while the character read is still pending — its faces never depended
   // on it. (`trpcHold` is never released: nothing in this pane may wait on that read.)
   await expect(home.locator('[data-home-tile="chat.alsoOpen"] [data-slot="avatar-stack-item"]')).toHaveCount(2);
-  const settled = await row.evaluate((el) => Math.round(el.getBoundingClientRect().x));
-  expect(settled).toBeGreaterThan(0);
+  await expect.poll(async () => row.evaluate((el) => Math.round(el.getBoundingClientRect().x))).toBeGreaterThan(0);
 });
 
 test("an empty chats list renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
@@ -500,8 +502,7 @@ test("#205 a NARROW island keeps its whole width for the prose — the bleed is 
 
   const home = await mount(<ChatRecentsTileStory />);
   await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
-  const width = await home.locator('[data-slot="art-bleed"]').evaluate((el) => el.getBoundingClientRect().width);
-  expect(width).toBe(0);
+  await expect.poll(async () => home.locator('[data-slot="art-bleed"]').evaluate((el) => el.getBoundingClientRect().width)).toBe(0);
 });
 
 // ── RED-FIRST (side-eye rail-home P3-4): the hero is a NATIVE button, not a div wearing role=button ──
@@ -543,6 +544,7 @@ test("P3-4 the native hero still reads left-aligned — the UA button centring i
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsTileStory />);
-  const align = await home.locator('[data-home-hearth="chat_recent"]').evaluate((el) => globalThis.getComputedStyle(el).textAlign);
-  expect(align).not.toBe("center");
+  await expect
+    .poll(async () => home.locator('[data-home-hearth="chat_recent"]').evaluate((el) => globalThis.getComputedStyle(el).textAlign))
+    .not.toBe("center");
 });

@@ -792,8 +792,8 @@ test.describe("#663: the picker's popup at the real docked-pane geometry", () =>
     const viewportWidth = page.viewportSize()?.width ?? 0;
     expect(viewportWidth).toBeGreaterThan(0);
 
+    await expect.poll(async () => popup.boundingBox()).not.toBeNull();
     const step1 = await popup.boundingBox();
-    expect(step1).not.toBeNull();
     expect((step1?.x ?? 0) + (step1?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1);
     // Constrained, not just "fits": the popup took LESS than the 384px cap — proof `--available-width`
     // actually won the `min()`, not that nothing happened to overflow by coincidence.
@@ -801,8 +801,8 @@ test.describe("#663: the picker's popup at the real docked-pane geometry", () =>
 
     await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
     await expect(popup.getByRole("heading", { name: "Periodic pacing nudge" })).toBeVisible();
+    await expect.poll(async () => popup.boundingBox()).not.toBeNull();
     const step2 = await popup.boundingBox();
-    expect(step2).not.toBeNull();
     expect((step2?.x ?? 0) + (step2?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1);
 
     // The teleport, as a number: the frame's box holds within a tight tolerance across the content swap
@@ -905,17 +905,19 @@ for (const theme of THEMES) {
       await expect(name).toBeVisible();
 
       // 1. The name column owns its share of the row — the trailing cluster never squeezes the identity.
-      const share = await name.evaluate((el) => {
-        const column = el.parentElement as HTMLElement;
-        const row = column.parentElement as HTMLElement;
-        return column.getBoundingClientRect().width / row.getBoundingClientRect().width;
-      });
-      expect(share).toBeGreaterThanOrEqual(NAME_COLUMN_SHARE);
+      await expect
+        .poll(async () =>
+          name.evaluate((el) => {
+            const column = el.parentElement as HTMLElement;
+            const row = column.parentElement as HTMLElement;
+            return column.getBoundingClientRect().width / row.getBoundingClientRect().width;
+          }),
+        )
+        .toBeGreaterThanOrEqual(NAME_COLUMN_SHARE);
 
       // 2. Nothing paints outside the pane at any real width (the 1024px tab-strip overflow this surface
       //    caused is gone with the tab; the section itself must not reintroduce one).
-      const overflow = await component.evaluate((el) => el.scrollWidth - el.clientWidth);
-      expect(overflow).toBeLessThanOrEqual(1);
+      await expect.poll(async () => component.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
 
       // 3. Contrast of the row's gloss (its description line) against the surface behind it.
       const gloss = await page

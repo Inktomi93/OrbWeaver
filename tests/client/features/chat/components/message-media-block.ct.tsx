@@ -156,6 +156,5 @@ test("#317: an asset resolved with a video mime renders the native <video> arm, 
   await mount(<AttachmentMediaStory video={true} />);
   const media = page.locator(MEDIA_IMG);
   await expect(media).toHaveCount(1);
-  const tag = await media.evaluate((el) => el.tagName);
-  expect(tag).toBe("VIDEO");
+  await expect(media).toHaveJSProperty("tagName", "VIDEO");
 });
