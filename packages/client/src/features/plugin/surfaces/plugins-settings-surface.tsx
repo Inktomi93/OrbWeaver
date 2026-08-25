@@ -6,10 +6,11 @@
 // Installed comes FIRST because after the first install this pane is a management screen, not an install
 // screen — and the empty state carries the teaching copy instead, which retires itself once there is a list.
 //
-// ADMIN-GATED AT THE PANE, matching the server: every management verb runs `can(caller,"admin",{kind:"global"})`
-// (`domain/plugin/verbs/install.ts:17` and each sibling), so a non-admin's `plugin.list` is not a shorter list,
-// it is a refusal — the pane's `when` keeps them out of a screen whose every control would throw. The one
-// plugin path a plain member reaches is the inline SNIPPET, and that lives in the chat, not here.
+// PER-USER, matching the server (D147): plugins are user-scoped — anyone installs for themselves and the
+// plugin runs under them — so `plugin.list` is the CALLER's own rows (`fetchOwned`), every control here acts
+// on a row they own, and the pane carries no viewer gate. An EMPTY list therefore means "you have installed
+// nothing", never "this deployment has no plugins": the empty state below is written for the person asking,
+// not for an operator surveying a box.
 
 import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

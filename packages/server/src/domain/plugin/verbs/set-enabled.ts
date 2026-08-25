@@ -1,5 +1,11 @@
-// verb: setEnabled — activate or deactivate an installed plugin. Authority = install authority
-// (owner ∪ admin). Enable ⇒ (idempotent clean slate: deactivate any stale resident) → activate on the CAS
+// verb: setEnabled — activate or deactivate an installed plugin. Authority = OWNERSHIP (D147): the
+// owner-scoped row load IS the gate — a row belonging to anyone else is indistinguishable from a missing one
+// (leak-free `PluginNotFoundError`), and there is deliberately NO admin any-row branch. Enabling is the act
+// that RUNS the guest code, and it runs it as `caller` (`activate` builds the bridge over `caller.userId` and
+// hands `caller` to the PL-C ceiling as the installer) — so a cross-owner enable would execute one user's
+// untrusted bundle under another's identity, credential and rooms. The principal that owns the row is the
+// only principal that may start it.
+// Enable ⇒ (idempotent clean slate: deactivate any stale resident) → activate on the CAS
 // bundle under the granted subset; a contained activation failure surfaces as `PluginCrashedError` after the
 // row lands `errored`. Disable ⇒ dispose the instance + deregister its tools/transforms/subs →
 // status `disabled`. Idempotent per target state.
@@ -11,8 +17,6 @@ import { getById, setStatus } from "../persistence/plugins.ts";
 
 export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): PluginService["setEnabled"] {
   return async ({ caller, pluginId, enabled }: SetPluginEnabledParams): Promise<void> => {
-    ctx.can(caller, "admin", { kind: "global" });
-
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);

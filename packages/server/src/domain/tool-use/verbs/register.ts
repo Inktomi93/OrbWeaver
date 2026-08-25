@@ -11,6 +11,7 @@ import { ToolNameCollisionError } from "../contract/errors.ts";
 import type { ToolDefinition, ToolExecutionContext } from "../contract/params.ts";
 import { TOOL_NAME_RE } from "../contract/params.ts";
 import type { RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
+import { toolRegistryKey } from "../substrate/partition.ts";
 
 // Fused so the typed pair never escapes: parse → gate → invoke.
 function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
@@ -62,9 +63,14 @@ export function createRegister(registry: ToolRegistry): <A>(def: ToolDefinition<
     if (!TOOL_NAME_RE.test(def.name)) {
       throw new ToolNameCollisionError(`${def.name} (invalid — must match OpenAI∩MCP name charset ${TOOL_NAME_RE.source})`);
     }
-    if (registry.has(def.name)) {
+    // The FIRST-PARTY partition (owner `null`) — one shelf for the whole process, so this collision check is
+    // still global over builtins. It cannot see a plugin entry, and does not need to: this verb is compose-time
+    // only, which runs before any activation, and the runtime registrar refuses a name a builtin already holds
+    // (`register-plugin-tool.ts`). The two partitions therefore never hold the same name.
+    const key = toolRegistryKey(null, def.name);
+    if (registry.has(key)) {
       throw new ToolNameCollisionError(def.name);
     }
-    registry.set(def.name, eraseDefinition(def));
+    registry.set(key, eraseDefinition(def));
   };
 }

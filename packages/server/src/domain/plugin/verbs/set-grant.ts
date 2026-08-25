@@ -1,6 +1,9 @@
-// verb: setGrant — the RE-CONSENT act. Authority = install authority (owner ∪ admin). Flow: gate → load the
-// owned row (leak-free NotFound) → the grant ⊆ DECLARED check against the PERSISTED manifest → the
-// `net.fetch` host acknowledgement → write the grant → restore the instance to agree with it.
+// verb: setGrant — the RE-CONSENT act. Authority = OWNERSHIP (D147): the owner-scoped row load IS the gate,
+// and consent is the one act that could never be delegated anyway — the question this verb asks is "may this
+// plugin have these powers OVER YOUR REACH", so only the row's owner can answer it. A foreign row is a
+// leak-free NotFound; there is no admin any-row branch. Flow: load the owned row → the grant ⊆ DECLARED check
+// against the PERSISTED manifest → the `net.fetch` host acknowledgement → write the grant → restore the
+// instance to agree with it.
 //
 // WHY THIS VERB EXISTS (the loop that could not close). `upgrade` computes the new grant as
 // `normalizeGrant(newManifest.capabilities, priorGrant)` — an INTERSECTION — so a newly-declared capability is
@@ -58,8 +61,6 @@ function refusalAfterGrant(
 
 export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): PluginService["setGrant"] {
   return async ({ caller, pluginId, grant, acknowledgedNetHosts }: SetPluginGrantParams) => {
-    ctx.can(caller, "admin", { kind: "global" });
-
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);

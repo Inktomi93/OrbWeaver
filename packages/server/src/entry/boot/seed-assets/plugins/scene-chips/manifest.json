@@ -1,0 +1,10 @@
+{
+  "id": "scene-chips",
+  "name": "Scene Chips",
+  "version": "1.0.0",
+  "hostVersion": 1,
+  "entry": "main.js",
+  "description": "When the narrator finishes a long beat, it offers three quiet doors — continue, time skip, new scene — as quick-reply chips you can edit before you send.",
+  "author": "Orbweaver",
+  "capabilities": ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe"]
+}

@@ -1605,10 +1605,14 @@ const doneFinal = (content: string): TurnStreamChunk => ({
   economics: { content, tokensIn: 7, tokensOut: 3, costUsd: 0.02, finishReason: "stop" },
 });
 
-/** A fake ChatToolOps: echoes executions as records; `failWith` makes every call errors-as-data. */
-function fakeToolOps(executed: string[][], failWith?: string): ChatToolOps {
+/** A fake ChatToolOps: echoes executions as records; `failWith` makes every call errors-as-data. `drivers`
+ *  records who each attach-time resolve was scoped to (#677). */
+function fakeToolOps(executed: string[][], failWith?: string, drivers: UserId[] = []): ChatToolOps {
   return {
-    resolveTools: (names) => ({ marker: "resolved-set", names }),
+    resolveTools: (driverUserId, names): { marker: string; names: readonly string[] } => {
+      drivers.push(driverUserId);
+      return { marker: "resolved-set", names };
+    },
     toWireTools: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" } }],
     toAgentToolServer: () => Promise.resolve({ marker: "mcp-server" }),
     executeToolCalls: (_set, calls): Promise<ToolCallRecord[]> => {
@@ -1628,6 +1632,25 @@ function fakeToolOps(executed: string[][], failWith?: string): ChatToolOps {
 }
 
 describe("runTurnPipeline — the D48 recurse loop", () => {
+  test("#677: the attach-time resolve is scoped to the TURN HOST, never the triggering member", async () => {
+    // The attach union comes from the host's own contributor tools (`tctx.runAsUserId`), so the resolve that
+    // turns those names into entries has to be keyed the same way — otherwise a name that exists once per
+    // installing user resolves to whoever registered first. `runAsUserId` and `triggeredBy` differ in the
+    // fixture precisely so a pipeline reaching for the wrong one is visible.
+    const drivers: UserId[] = [];
+    const host = castId<UserId>("user_room_host");
+    const member = castId<UserId>("user_room_member");
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps([], undefined, drivers),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: scriptedDepths([[doneFinal("ok")]], []),
+      toolExecFrame: { runAsUserId: host, triggeredBy: member, chatId: castId<ChatId>("chat_a"), roster: null, turnId: castId<ChatTurnId>("chat_turn_a") },
+    });
+    await runTurnPipeline(args);
+    expect(drivers).toEqual([host]);
+  });
+
   test("loop golden: emits calls → executes → recurses with the exchange → finishes; content + usage aggregate", async () => {
     const requests: TurnRequest[] = [];
     const executed: string[][] = [];

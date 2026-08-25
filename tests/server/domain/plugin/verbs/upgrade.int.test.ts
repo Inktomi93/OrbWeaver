@@ -2,7 +2,6 @@
 // rule (WIDENED REACH — new caps OR new netHosts ⇒ disabled), the old-bundle reap, and enabled-state
 // preservation when no re-confirmation is needed.
 
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "@orb/server/domain/plugin";
@@ -91,8 +90,10 @@ test("an upgrade that SWAPS the netHosts allowlist lands disabled — the egress
   // P3-H. RED-FIRST RECEIPT (2026-08-24, against unmodified source): status was "enabled" and the plugin was
   // re-activated on the new bundle, i.e. `net.fetch` came back up pointed at a host the owner never approved.
   // The capability set is byte-identical across this upgrade — only the DESTINATION moved — so a re-grant rule
-  // that compares capability names alone is structurally blind to it. Admin-gated, so this is the TOFU /
-  // supply-chain case (a compromised or sold plugin shipping a new "1.1.0"), not privilege escalation.
+  // that compares capability names alone is structurally blind to it. It is the TOFU / supply-chain case (a
+  // compromised or sold plugin shipping a new "1.1.0"), never privilege escalation — a plugin's reach is its
+  // INSTALLER's reach under D147, so the loss here is the installer's own data going somewhere they did not
+  // agree to, which is exactly why the consent, not a role gate, is what has to hold.
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -338,17 +339,61 @@ describe("widenedNetHosts — which destinations the pending re-consent added", 
   });
 });
 
-test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
+test("a missing plugin id is a leak-free NotFound", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const user = await seedUser(db, { handle: castId<Handle>("user") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp" }), grant: [] });
 
   await expect(
     h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing"), bundle: makeBundle({ id: "pp", version: "2.0.0" }) }),
   ).rejects.toBeInstanceOf(PluginNotFoundError);
-  await expect(
-    h.service.upgrade({ caller: principalFor(user), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "2.0.0" }) }),
-  ).rejects.toBeInstanceOf(DomainForbiddenError);
+});
+
+// THE #668-CLASS DRIFT GUARD, UNDER SELF-SCOPE (D147). Every re-consent test above runs as `role:"owner"`
+// because install used to demand it. The machinery must not have been quietly wired to the ROLE — a plain
+// user's widening upgrade has to land `disabled` with the recorded refusal exactly like anyone else's, and
+// the plain user is now the COMMON case, not the exotic one.
+test("a plain user's widening upgrade still records the refusal — the re-consent machinery is not role-keyed", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
+  const installed = await h.service.install({
+    caller: principalFor(user),
+    bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+  await h.service.setEnabled({ caller: principalFor(user), pluginId: installed.id, enabled: true });
+
+  const upgraded = await h.service.upgrade({
+    caller: principalFor(user),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch", "notify"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+
+  expect(upgraded.status).toBe("disabled");
+  expect(upgraded.reconsentPending).toBe(true);
+  expect(upgraded.widenedNetHosts).toEqual(["collector.attacker.example"]);
+  expect(upgraded.grantedCapabilities).toEqual(["net.fetch"]); // the INTERSECTION — `notify` was never confirmed
+  expect(h.port.created.length).toBe(1); // the new wall was NOT armed
+});
+
+// The upgrade arm of the cross-user matrix. It is the sharpest write-IDOR on this surface: an ungated
+// upgrade would let a stranger REPLACE the code another user's row runs, so the refusal is asserted together
+// with A's row being byte-unchanged (version, grant, and the bundle bytes still in the CAS).
+test("a stranger cannot upgrade another user's plugin — not a plain user, and NOT an owner/admin either", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+  const bob = await seedUser(db, { handle: castId<Handle>("bob") });
+  const boss = await seedUser(db, { handle: castId<Handle>("boss") });
+  const hers = await h.service.install({ caller: principalFor(alice), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
+  const hostile = makeBundle({ id: "pp", version: "9.9.9", capabilities: ["net.fetch"], netHosts: ["collector.attacker.example"] });
+
+  await expect(h.service.upgrade({ caller: principalFor(bob), pluginId: hers.id, bundle: hostile })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.upgrade({ caller: ownerPrincipalFor(boss), pluginId: hers.id, bundle: hostile })).rejects.toBeInstanceOf(PluginNotFoundError);
+
+  const [row] = await h.service.list({ caller: principalFor(alice) });
+  expect(row?.version).toBe("1.0.0"); // never swapped
+  expect(row?.declaredCapabilities).toEqual([]); // the hostile manifest never landed
+  expect(h.storedBytes.size).toBe(1); // and the stranger's bytes were never stored
 });

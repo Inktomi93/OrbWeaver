@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-07-03
+updated: 2026-08-24
 ---
 
 # 04 — Build Plan: Chunks, Dependencies, Checkpoints, Test Plans
@@ -13,7 +13,7 @@ updated: 2026-07-03
 ## Dependencies
 
 | Dependency | Source | Consumed by |
-|---|---|---|
+| - | - | - |
 | `can()` axes + `fetchOwned` | Phase 5 (live) | P3, P4 |
 | TriggerFact resolver + cascade depth plumbing | automation-design A5/A6 | P4 |
 | `automation_budgets` spend stack + D17 gates | automation-design A6 | P4 |
@@ -25,7 +25,7 @@ updated: 2026-07-03
 ## Chunks
 
 | # | Chunk | Size | Contents | Checkpoint (must demo) |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | P1 | Runtime spike + realm | **M** | `infra/plugin-host` skeleton: module load, context-per-instance, realm setup (empty globals, throwing stubs, `orb.host(1)`), the `boundHostFn` wrapper, interrupt/memory budgets, handle-lifetime bridge | a hello-world guest runs; `Date.now()` throws in-guest; a `while(true)` guest dies at the deadline with the process healthy |
 | P2 | The membrane contract | **M** | `@orb/contracts/plugin` in full (01 §2): `PluginHostV1`, handles, manifest schema + capability tuple (02 §1), errors | contract tests: every host-function capability annotation present (mapped-type Record over `PLUGIN_CAPABILITIES` — a capability with no function, or vice versa, fails `tsc`) |
 | P3 | `domain/plugin` + lifecycle | **L** | DDL (02 §3), all verbs (02 §4), bundle unzip/validation, CAS storage, grants math, activation subsystem, crash policy (03 §4), the log ring | install→grant→enable→invoke→disable round-trip; upgrade-with-new-caps lands disabled; uninstall leaves zero rows/assets/registrations |
@@ -73,7 +73,10 @@ updated: 2026-07-03
 1. **The snippet capability profile** (03 §1) is a design call inside D46's "same membrane, caller
    principal, transient" clause — the fixed four-capability profile is the narrowest useful REPL;
    ratify or widen deliberately.
-2. **Install authority owner∪admin v1** (02 §4) with a recorded widening criterion — ratify.
+2. ~~**Install authority owner∪admin v1** (02 §4) with a recorded widening criterion — ratify.~~
+   RESOLVED 2026-08-24: the criterion came due and the owner ruled. Install authority is SELF — any
+   authenticated principal, for themselves — with the row's `ownerId` as the entire gate and no admin
+   any-row branch (`Core-Path-Registry.md` D147; 02 §4 carries the resolution).
 3. **`matchAutomationEvents` as a manifest boolean** mirrors the rule column so ONE cascade guard
    serves both (03 §2) — the automation builder should treat the depth plumbing as shared
    infrastructure, not rule-private.

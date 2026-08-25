@@ -113,9 +113,10 @@ describe("the per-turn plugin-tool attach matrix", () => {
     const collected = await collectTeaching(registryOver(service), tctxFor(ALICE.userId));
     expect(collected.toolNames).toEqual(["plugin_alice_one"]);
     // The property the whole read-through shape exists for: what the turn attaches is still resolvable.
-    expect(() => service.resolveTools([...collected.toolNames])).not.toThrow();
+    // Resolved as the SAME driver the union was collected for (`tctx.runAsUserId`) — #677 keys both halves.
+    expect(() => service.resolveTools(ALICE.userId, [...collected.toolNames])).not.toThrow();
     // ...and the CONTROL, so that is not vacuous: the dropped name really would have thrown at attach.
-    expect(() => service.resolveTools(["plugin_alice_two"])).toThrow();
+    expect(() => service.resolveTools(ALICE.userId, ["plugin_alice_two"])).toThrow();
   });
 
   test("the contribution folds AFTER chat's own (order), so a game's state block still leads", () => {
