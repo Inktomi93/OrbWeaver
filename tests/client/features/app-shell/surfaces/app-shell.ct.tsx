@@ -61,11 +61,17 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // `RefinerySessionSummary[]` — the refinery door's roster read off the You sheet.
   "refinery.listSessions": [],
   // The home temp-chat tile's fire-and-forget janitor mutation. A CASCADE row: it is not in the #649 ledger
-  // for this file because the tile could not mount while `databank.list`/`bankHealth` answered null — the
-  // ratchet named it on the very next run once they were fed. Its `onSuccess` reads `data.reaped`
-  // (home-temp-chat-tile-body.tsx), so an unfed `null` THROWS reading `.reaped` — a real defect this feed
-  // retires rather than papers over, and the same one `tests/client/routes/app-root.ct.tsx` already fixed.
-  // `{reaped: 0}` is the honest "nothing expired" default.
+  // for this file because the tile could not mount at all while `databank.list`/`bankHealth` answered null —
+  // the ratchet named it on the very next run once they were fed. `{reaped: 0}` is the honest "nothing
+  // expired" default (home-temp-chat-tile-body.tsx:31 says so in as many words).
+  //
+  // NOT A PRODUCTION DEFECT — and `tests/client/routes/app-root.ct.tsx`'s comment on this same read claims
+  // otherwise, so read this instead of that. Its `invalidates` reads `data !== undefined && data.reaped`
+  // (home-temp-chat-tile-body.tsx:35-36), and `routeTrpc`'s unfed `null` does slip past a `!== undefined`
+  // guard where a `!= null` would hold — but the WIRE type is `{reaped: number}`, non-nullable, so `data` on
+  // the real network is only ever the row or `undefined`. The guard is correct; the null is the HARNESS's.
+  // Feeding this makes the janitor's real reconcile path run, which is the whole point — it fixes nothing in
+  // production because nothing there was broken.
   "chat.reapTemporaryChats": { reaped: 0 },
 };
 
