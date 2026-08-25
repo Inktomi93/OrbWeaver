@@ -11,7 +11,7 @@ import type { AssetId } from "@orb/kit/ids";
 export const METER_DEFAULT_MAX = 100;
 
 /** Read a dotted path out of the published state (`{ $state: "a.b" }`); `undefined` for any miss or non-object hop. */
-export function readStatePath(state: Record<string, unknown>, path: string): unknown {
+function readStatePath(state: Record<string, unknown>, path: string): unknown {
   let cursor: unknown = state;
   for (const segment of path.split(".")) {
     if (typeof cursor !== "object" || cursor === null) {

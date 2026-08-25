@@ -213,8 +213,8 @@ export interface PluginHostOps {
     readonly voidForPlugin: VoidPluginSuggestions;
   };
   /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface` — plugin-ui-plane #679
-   *  U1). `setState` publishes a surface's whole replacement state: the compose op writes the per-`(pluginId,
-   *  surfaceId)` in-memory state row (the S4-suggestion-store precedent — respawn wipes; durable state is the
+   *  U1). `setState` publishes a surface's whole replacement state: the compose op writes the per-(pluginId,
+   *  surfaceId) in-memory state row (the S4-suggestion-store precedent — respawn wipes; durable state is the
    *  plugin's own `storage.kv` job) and emits the per-user `pluginSurfaceStateChanged` freshness poke so the
    *  INSTALLER's own client refetches. Keyed by BOTH `pluginId` AND `installerUserId` (the store guard + the
    *  emit channel), closed over the installer domain-side — a guest names only the surfaceId + state. NO chat
