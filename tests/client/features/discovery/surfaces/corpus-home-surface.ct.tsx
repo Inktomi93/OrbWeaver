@@ -68,6 +68,15 @@ const FAMILIES = [
   },
 ];
 
+/** The viewer-identity read (#649) — spread FIRST into every `routeTrpc` call in this file. The corpus
+ *  surface's run-the-pass door resolves the viewer off it, and it is nobody's subject here. Unfed it
+ *  answered `routeTrpc`'s null, so this mount's viewer resolved through its no-data branch and nothing in
+ *  thirty-three mounts exercised the identity-dependent path. The `userId` matches the settings row the
+ *  route bags below already carry, so the two ambient reads describe ONE viewer rather than two. */
+const CORPUS_VIEWER_ROUTE: TrpcRoutes = {
+  "sessions.me": { userId: "user_me", handle: "me", globalRole: "user" },
+};
+
 /** A library with characters and a finished VISUAL pass only — the invitation holds the focal. */
 const UNANALYSED: TrpcRoutes = {
   "discovery.home": {
@@ -114,7 +123,7 @@ async function composition(page: Page): Promise<{ islandRight: number; islandTop
 }
 
 test("THE DESIGNED TWO-COLUMN SPLIT RENDERS at the owner's default pane width (P1-2)", async ({ mount, page }) => {
-  await routeTrpc(page, ANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
   await expect(component.getByRole("heading", { name: "Readiness" })).toBeVisible();
@@ -127,7 +136,7 @@ test("THE DESIGNED TWO-COLUMN SPLIT RENDERS at the owner's default pane width (P
 test("…and the split is CONDITIONAL: the three-pane width still stacks the two tracks", async ({ mount, page }) => {
   // The container query is the whole mechanism — an unconditional two-column grid would be a different
   // defect, not a fix, and this is the pane state that catches it: list docked AND context open, 484.81px.
-  await routeTrpc(page, ANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
   await mount(<CorpusHomeThreePaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -137,7 +146,7 @@ test("…and the split is CONDITIONAL: the three-pane width still stacks the two
 });
 
 test("THE SURFACE'S ONE DOOR IS A CONTROL: a painted, bounded button (P1-3)", async ({ mount, page }) => {
-  await routeTrpc(page, ANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -189,7 +198,7 @@ const FAMILIES_DOOR = /All families/;
 // grid of cards: a screen reader met each as ONE flat run with no count, no boundary to step to, and no
 // way to tell where a stage's NAME ended and its measurement began. Both are lists; they say so now.
 test("#537 the readiness rail is a LIST of stages, not one flat run of text", async ({ mount, page }) => {
-  await routeTrpc(page, FAILED_PASS);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...FAILED_PASS });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -203,7 +212,7 @@ test("#537 the readiness rail is a LIST of stages, not one flat run of text", as
 });
 
 test("#537 the family map is a LIST of plates", async ({ mount, page }) => {
-  await routeTrpc(page, FAILED_PASS);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...FAILED_PASS });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   const island = page.locator('[data-corpus-focal="familyMap"]');
   await expect(island).toBeVisible();
@@ -214,7 +223,7 @@ test("#537 the family map is a LIST of plates", async ({ mount, page }) => {
 });
 
 test("A5: the readiness failure keeps the door to the log it names", async ({ mount, page }) => {
-  await routeTrpc(page, FAILED_PASS);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...FAILED_PASS });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -236,7 +245,7 @@ test("A5: the readiness failure keeps the door to the log it names", async ({ mo
 const READABLE_FLOOR_PX = 11;
 
 test("the readiness failure is dated by a kicker and reads in the rail's quiet register (P3-F)", async ({ mount, page }) => {
-  await routeTrpc(page, FAILED_PASS);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...FAILED_PASS });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -270,7 +279,7 @@ test("the readiness failure is dated by a kicker and reads in the rail's quiet r
 });
 
 test("…and the jobs door is present in the CLEAN arm too — the fix did not just move the hole", async ({ mount, page }) => {
-  await routeTrpc(page, ANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -279,7 +288,7 @@ test("…and the jobs door is present in the CLEAN arm too — the fix did not j
 });
 
 test("A7: 'All families' renders only when its destination will actually draw them", async ({ mount, page }) => {
-  await routeTrpc(page, ANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -290,7 +299,7 @@ test("…and it is GONE on the undistilled library, where the Archetypes tab ans
   // `UNANALYSED` carries families (the island is at its LOUDEST here) with `totalDistilled: 0` — the exact
   // state the old comment called impossible ("populated whenever this island renders at all") and the one
   // where the tab's #154 gate refuses to draw a single cluster.
-  await routeTrpc(page, UNANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...UNANALYSED });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -345,7 +354,7 @@ for (const [pane, Story] of [
   ["the three-pane width", CorpusHomeThreePaneStory],
 ] as const) {
   test(`THE FAMILY PLATES STAY READABLE at ${pane} (#256 — the 16rem floor)`, async ({ mount, page }) => {
-    await routeTrpc(page, ANALYSED);
+    await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
     await mount(<Story />);
     await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
 
@@ -363,7 +372,7 @@ for (const [phase, routes] of [
   ["ANALYSED (the map reclaims it)", ANALYSED],
 ] as const) {
   test(`THE FOCAL IS RINGED, NOT TABBED — ${phase} (P2-1)`, async ({ mount, page }) => {
-    await routeTrpc(page, routes);
+    await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...routes });
     await mount(<CorpusHomeDefaultPaneStory />);
     await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -393,7 +402,7 @@ const NEVER_PLAYED: TrpcRoutes = {
 };
 
 test("the Never-played list announces as a list of listitems, not a bag of divs (A6)", async ({ mount, page }) => {
-  await routeTrpc(page, NEVER_PLAYED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...NEVER_PLAYED });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -407,7 +416,7 @@ test("the Never-played list announces as a list of listitems, not a bag of divs 
 // and 24 again. The derivation is unit-tested at every phase boundary; this is the RENDERED half — that the
 // surface actually prints one of each, and that the figure block DISAPPEARS rather than repeating itself.
 test("the masthead never prints a number its own sentence just said (§5 distill)", async ({ mount, page }) => {
-  await routeTrpc(page, ANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -432,7 +441,7 @@ const SKELETON_EYEBROW_MAX_RATIO = 0.4;
 // `trpcHold()` is the release valve that makes the PENDING render a stable state instead of a flash.
 test("the pending corpus renders a skeleton composition, not a lone sentence (§5)", async ({ mount, page }) => {
   const held = trpcHold();
-  await routeTrpc(page, { ...ANALYSED, "discovery.home": held });
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "discovery.home": held });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await held.requested;
 
@@ -462,7 +471,7 @@ test("the pending corpus renders a skeleton composition, not a lone sentence (§
 
 test("below-fold insights do not hold the settled corpus overview hostage (#269)", async ({ mount, page }) => {
   const heldUnused = trpcHold();
-  await routeTrpc(page, { ...ANALYSED, "discovery.unusedCharacters": heldUnused });
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "discovery.unusedCharacters": heldUnused });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await heldUnused.requested;
 
@@ -508,7 +517,7 @@ const WARM_KEYWORD_QUEUE: TrpcRoutes = {
 
 test("the readiness rail states no keyword measurement while the keyword read is in flight (#384)", async ({ mount, page }) => {
   const heldKeywords = trpcHold();
-  await routeTrpc(page, { ...WARM_KEYWORD_QUEUE, "discovery.topKeywords": heldKeywords });
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...WARM_KEYWORD_QUEUE, "discovery.topKeywords": heldKeywords });
   const component = await mount(<CorpusHomeWarmQueueStory />);
   await heldKeywords.requested;
   // SETTLED barrier: the focal island, which only the settled above-fold arm produces — the held read is
@@ -572,7 +581,7 @@ async function railRowAir(page: Page): Promise<number[]> {
 // generated const, and a story named in a second `as const` tuple array in the same file collides with the
 // first ("Identifier … has already been declared", at bundle eval — not a test failure, a build one).
 test("THE READINESS ROWS KEEP THEIR OWN PITCH at the owner's default pane (P2-1)", async ({ mount, page }) => {
-  await routeTrpc(page, TALL_ISLAND);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...TALL_ISLAND });
   await mount(<CorpusHomeDefaultPaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -582,7 +591,7 @@ test("THE READINESS ROWS KEEP THEIR OWN PITCH at the owner's default pane (P2-1)
 });
 
 test("…and at a wide pane, where the island is tallest and the spread was worst (P2-1)", async ({ mount, page }) => {
-  await routeTrpc(page, TALL_ISLAND);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...TALL_ISLAND });
   await mount(<CorpusHomeWidePaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -606,7 +615,7 @@ function textLeft(locator: ReturnType<Page["locator"]>): Promise<number> {
 }
 
 test("the masthead figure lines up with the headline when the arms STACK (P2-6)", async ({ mount, page }) => {
-  await routeTrpc(page, TALL_ISLAND);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...TALL_ISLAND });
   const component = await mount(<CorpusHomeNarrowPaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -618,7 +627,7 @@ test("the masthead figure lines up with the headline when the arms STACK (P2-6)"
 });
 
 test("the mobile masthead STACKS rather than squeezing the headline into a column (B7)", async ({ mount, page }) => {
-  await routeTrpc(page, ANALYSED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED });
   const component = await mount(<CorpusHomeNarrowPaneStory />);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 
@@ -829,7 +838,7 @@ async function settled(page: Page): Promise<void> {
 // re-run of a pass that had already succeeded. That is a trust defect and a compute bill.
 
 test("#555: a crash a LATER run of the same kind fixed is not announced (P1-3)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -843,7 +852,7 @@ test("#555: a crash a LATER run of the same kind fixed is not announced (P1-3)",
 });
 
 test("#555: a pass that RAN and found nothing reads 'none found', not 'not run' (P1-3)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -857,7 +866,7 @@ test("#555: a pass that RAN and found nothing reads 'none found', not 'not run' 
 // the surface never accounts for, and 85 characters in no visual family is a fact a reader can act on.
 
 test("#535: the visual-families row names the base its count is out of", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -878,7 +887,7 @@ test("#535: the visual-families row names the base its count is out of", async (
 // `datum: shrink-0`, the only thing that could give was the LABEL: "Visual families" rendered "Visu…" at
 // the 1280px context-closed width. The rail's whole job is naming what has and has not run.
 test("#535 N1: no readiness row ellipsises the PASS NAME to fit its measurement", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -897,7 +906,7 @@ test("#535 N1: no readiness row ellipsises the PASS NAME to fit its measurement"
 // "large" about the smallest number on the page — with 11,321 generations and 8M tokens rendered nowhere.
 
 test("#553: model economics renders the COMPLETE quantities over mostly-null cost (P1-1)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -921,7 +930,7 @@ test("#553: model economics renders the COMPLETE quantities over mostly-null cos
 // the POPULATED one: the 12-character arm's two short names fit, which is why the #256 clipping fence has
 // been green through the whole defect.
 test("N7: the family plates name a bounded member run and COUNT the rest", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -949,7 +958,7 @@ test("N7: the family plates name a bounded member run and COUNT the rest", async
 const KEYWORD_BAR_CAP = 12;
 
 test("#557: the keyword chart caps its series and states the denominator (P2-3)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -977,7 +986,7 @@ test("#557: the keyword chart caps its series and states the denominator (P2-3)"
 const CANVAS_HEIGHT_BUDGET_PX = 1200;
 
 test("#556: the overview's chart canvases stay inside a budget (the 287ms attribution)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
   // SETTLED for the CHARTS specifically: the keyword series is a below-fold deferred read, so the focal
@@ -1000,7 +1009,7 @@ test("#556: the overview's chart canvases stay inside a budget (the 287ms attrib
 // denominator anywhere. A reader concludes they have eight unplayed cards.
 
 test("#557: the never-played section states how many there are (P2-4)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -1017,7 +1026,7 @@ test("#557: the never-played section states how many there are (P2-4)", async ({
 // gloss slots were inverted relative to its seven siblings.
 
 test("#557: the unlabelled family plate carries the name its sibling surface gives it (P2-1)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -1033,7 +1042,7 @@ test("#557: the unlabelled family plate carries the name its sibling surface giv
 // sequence a reader is looking at is itself the datum rather than a claim the numbers contradict.
 
 test("#536: each gem tile carries its rank, so the order is a stated quantity (P2-2)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
@@ -1061,7 +1070,7 @@ const READING_MEASURE_CH = 75;
 const PROSE_TEXT_MIN_CHARS = 80;
 
 test("#536: the overview's prose is capped at the reading measure (P3-1)", async ({ mount, page }) => {
-  await routeTrpc(page, POPULATED);
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 

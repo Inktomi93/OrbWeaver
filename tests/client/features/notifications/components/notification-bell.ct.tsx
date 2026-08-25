@@ -16,6 +16,11 @@ import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+// The bus's OWN transport mutations (#649). `stream.attach` rides the BATCHED HTTP link, not the SSE leg
+// (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket` never answers
+// it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture
+// module rather than re-spelled, so the two directions of this feed cannot drift apart.
+import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { NotificationBellSheetStory, NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
 
 /** One inbox row in the wire shape (`InboxView` — domain/notifications/contract/views.ts). */
@@ -55,6 +60,7 @@ async function routeInboxStream(page: Page, frames: readonly StreamFrame[]): Pro
 
 test("unread invites badge the bell; opening lists the invite and marks it read", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
   });
@@ -74,9 +80,7 @@ test("unread invites badge the bell; opening lists the invite and marks it read"
 });
 
 test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "notifications.list": () => ({ items: [], nextCursor: null }),
-  });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "notifications.list": () => ({ items: [], nextCursor: null }) });
   await routeInboxStream(page, []);
 
   await mount(<NotificationBellStory />);
@@ -88,6 +92,7 @@ test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
 
 test("Accept fires acceptInvite with the notification's inviteId, then dismisses the row", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => null,
@@ -117,6 +122,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
   // the row detached mid-click).
   let dismissed = false;
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => (dismissed ? { items: [], nextCursor: null } : { items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => {
@@ -142,6 +148,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
 test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driven invalidate)", async ({ mount, page }) => {
   let listCalls = 0;
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => {
       listCalls += 1;
       // The first read (before the stream delivers) is empty; the stream-driven refetch finds the row.
@@ -178,9 +185,7 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
 });
 
 test("a typed roomFailed frame surfaces as a toast (it is NOT an arrival)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "notifications.list": () => ({ items: [], nextCursor: null }),
-  });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "notifications.list": () => ({ items: [], nextCursor: null }) });
   // The frame the socket yields when THIS room's pump throws a DomainError (here: the durable replay).
   // Before `54643a8d` the consumer took the typed fault for an inbox arrival and INVALIDATED on it — the
   // inbox looked freshly-loaded behind a stream that had just died, and the user was told nothing. The fold
@@ -211,6 +216,7 @@ test("a typed roomFailed frame surfaces as a toast (it is NOT an arrival)", asyn
 
 test("the sheet lens marks the inbox read ON MOUNT — the phone has no 'open' event to hang it on", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
   });
@@ -227,6 +233,7 @@ test("the sheet lens marks the inbox read ON MOUNT — the phone has no 'open' e
 
 test("an ALREADY-READ inbox writes nothing on mount", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [inviteRow({ readAt: 1_750_000_000_000 })], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 0 }),
   });
@@ -242,6 +249,7 @@ test("an ALREADY-READ inbox writes nothing on mount", async ({ mount, page }) =>
 
 test("the sheet block's name is a real HEADING, not a styled span", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
   });
@@ -273,6 +281,7 @@ function handoffRow(): Record<string, unknown> {
 
 test("a handoff-nominated row carries Accept — fires acceptHostHandoff with the chatId, then dismisses", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [handoffRow()], unreadCount: 1 }),
     "notifications.markAllRead": () => null,
     "notifications.dismiss": () => null,
@@ -299,6 +308,7 @@ test("the inbox rides the tab's ONE socket — one connect, one attach, zero ext
   // browser allows ~6 per origin (the 2026-08-01 starvation incident). Now it is a ROOM — one `stream.attach`
   // mutation on the batched HTTP link, which costs no connection at all.
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
   });

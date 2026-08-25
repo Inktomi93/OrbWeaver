@@ -17,7 +17,7 @@ import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterEditorSuggestToastStory } from "../_ct-stories.tsx";
-import { makeCharacterDetail } from "../fixtures.ts";
+import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail } from "../fixtures.ts";
 
 // A NAME-ONLY card — the state under test, modelled honestly (no description, no opening line).
 const CARD = makeCharacterDetail({ name: "Bare", handle: castId<CharacterHandle>("bare"), description: null, greetings: [] });
@@ -26,9 +26,12 @@ const TOAST = '[data-slot="toast-root"]';
 /** Everything the editor reads, plus a scripted `suggestCharacterTags` failure. */
 async function routeEditorWithSuggestFailure(page: Page, failure: ReturnType<typeof trpcError>): Promise<void> {
   await routeTrpc(page, {
+    // The editor tree's ambient reads (#649) — `regex.listForCharacter` and the viewer's settings row were
+    // unfed here, so the attachment and settings-driven presentation pipelines ran INERT while this file's
+    // subject (the refusal toast) passed. The spread leads; the scripted failure below still wins.
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD,
     "chat.listChats": chatListResponder([]),
-    "tag.listPendingSuggestions": () => [],
     "discovery.suggestCharacterTags": () => failure,
   });
 }

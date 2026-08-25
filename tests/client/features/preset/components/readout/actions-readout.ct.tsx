@@ -59,6 +59,11 @@ function readoutRoutes(): Record<string, unknown> {
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
     "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [] }),
+    // #649 — the CONTEXT panel's backward-BINDINGS read (`preset.listUsage`). Not this file's subject, but
+    // every readout mount fires it, and unfed it rode `routeTrpc`'s null so the usage/gm-room resolve path
+    // ran INERT here. The honest default for a preset nobody has picked and no room routes its GM voice to;
+    // `usage-readout.ct.tsx` is the suite that varies it.
+    "preset.listUsage": () => ({ isUserDefault: false, gmRooms: [] }),
     "chat.getChat": () => CHAT_DETAIL,
     "chat.previewActionTemplates": () => RESOLVED,
   };

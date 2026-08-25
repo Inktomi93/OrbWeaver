@@ -15,6 +15,11 @@ import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { findSettingsColumnViolation, readSettingsPaneGeometry, readSettingsShellColumns } from "../../../../support/ct/settings-geometry.ts";
+// The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
+// SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
+// never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
+// own fixture module rather than re-spelled, so the two directions of this feed cannot drift apart.
+import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { SettingsShellDeepLinkStory, SettingsShellNarrowStory, SettingsShellStory } from "../../settings/_ct-stories.tsx";
 import { WorkloadsPaneStory } from "../_ct-stories.tsx";
 
@@ -39,6 +44,7 @@ const FLASH_ANCHOR_CLASS = /settings-flash-anchor/;
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     "sessions.me": () => USER_VIEWER,
     "workloads.list": () => [],
@@ -259,6 +265,7 @@ function scheduleRow(overrides: Record<string, unknown>): Record<string, unknown
 
 test("POPULATED: both lanes, a job in flight, a poison row, a finished stats rebuild and live schedules", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     "sessions.me": () => USER_VIEWER,
     "workloads.list": () => [

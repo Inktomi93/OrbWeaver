@@ -17,6 +17,11 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+// The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
+// SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
+// never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
+// own fixture module rather than re-spelled, so the two directions of this feed cannot drift apart.
+import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { NotificationsTrailStory } from "../_ct-stories.tsx";
 
 /** The store's own key (`createPersistedStore("deployment-boot")`) on a browser with no identity bound. */
@@ -59,7 +64,11 @@ async function routeAuthConfig(page: Page): Promise<(multiHumanCapable: boolean)
 
 /** The bell's own reads — an empty inbox, so its accessible name is the bare "Notifications". */
 async function routeInbox(page: Page): Promise<void> {
-  await routeTrpc(page, { "notifications.list": () => ({ items: [], nextCursor: null }), "notifications.markAllRead": () => ({ markedCount: 0 }) });
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 0 }),
+  });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
 }
 

@@ -11,12 +11,18 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { CharacterOptionsTabStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
 
+// The theme cluster's picker read (#649). `listThemes` is "the caller's own themes PLUS every seed palette"
+// (domain/settings/verbs/list-themes.ts:1), so an EMPTY array is a shape the server cannot mint — one seed
+// row is the honest floor. Left unfed it resolved `routeTrpc`'s null and the picker's resolve path never ran.
+const SEED_THEMES = [{ id: "theme_1", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 }];
+
 function route(page: Page): Promise<unknown> {
   const card = makeCharacterDetail({ themeOverride: null });
   return routeTrpc(page, {
     "character.get": () => card,
     "character.update": () => card,
     "character.listSnapshots": () => [],
+    "settings.listThemes": () => SEED_THEMES,
   });
 }
 
@@ -48,7 +54,7 @@ test("no theme-cluster action clips the context panel's width", async ({ mount, 
     "character.get": () => makeCharacterDetail({ themeOverride: { accent: "#c98a5b" } }),
     "character.update": () => makeCharacterDetail({ themeOverride: { accent: "#c98a5b" } }),
     "character.listSnapshots": () => [],
-    "settings.listThemes": () => [{ id: "theme_1", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 }],
+    "settings.listThemes": () => SEED_THEMES,
   });
   const component = await mount(<CharacterOptionsTabStory />);
 

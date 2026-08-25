@@ -43,9 +43,38 @@ function rosterRow(name: string): ReturnType<typeof makeRefinerySessionSummary> 
   return makeRefinerySessionSummary({ id: SESSION_ID, characterId: CHARACTER_ID, name });
 }
 
+/**
+ * THE STORY'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call here.
+ *
+ * `RefineryDataStory` is handed a `sessionId`, so every mount also opens that session: the detail read and
+ * its run ledger. Neither is this file's subject (the WRITE tier is), and unfed both resolved `routeTrpc`'s
+ * null — so the session-detail and ledger pipelines ran INERT through all six mounts.
+ *
+ * The session view is the shape `refinery-content-surface.ct.tsx`'s `sessionView()` feeds, on THIS file's
+ * minted ids; the ledger is empty, which is honest for a session whose first stage has not been run and is
+ * still a real array the ledger reader can select over.
+ */
+const REFINERY_SESSION_ROUTES: Readonly<Record<string, unknown>> = {
+  "refinery.getSession": {
+    id: SESSION_ID,
+    characterId: CHARACTER_ID,
+    name: "Rev",
+    status: "active",
+    originalCard: makeCharacterDetail(),
+    selection: { fields: ["description", "personality"] },
+    stageConfig: { score: { kind: "fixed", mode: "full" }, rewrite: { kind: "fixed", mode: "balanced" }, analyze: { kind: "fixed", mode: "full" } },
+    guidance: null,
+    iterationCount: 1,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  "refinery.listRuns": [],
+};
+
 test("a refineryChanged bus tick REFETCHES the roster — the cross-device driver that replaced the writer-local invalidates", async ({ mount, page }) => {
   let rosterCalls = 0;
   const trpc = await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
     // Grows on the second call: the assertion is a REPAINT, not just a wire count, so a refetch that never
     // reached the observer cannot pass.
     "refinery.listSessions": () => (rosterCalls++ === 0 ? [] : [rosterRow("Rev")]),
@@ -69,6 +98,7 @@ test("a refineryChanged bus tick REFETCHES the roster — the cross-device drive
 test("an OUT-OF-ORDER stage refusal toasts the SERVER's sentence — the only text naming the stage to run first", async ({ mount, page }) => {
   const serverSentence = "There is no rewrite to judge yet — run the rewrite stage first.";
   await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
     "refinery.listSessions": () => [rosterRow("Rev")],
     // BAD_REQUEST + the reason code, exactly as `RefineryStageNotReadyError` → the tRPC error formatter emits
     // it (a DomainOperationError is the only class that carries a `.code`).
@@ -93,6 +123,7 @@ test("a BUDGET refusal toasts the server's FIT RECEIPT — the numbers and the k
   const receipt =
     "This score run needs about 1740 output tokens, but your preset caps max output at 768 — it would truncate and fail. Raise max output in the preset, or narrow the selection.";
   await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
     "refinery.listSessions": () => [rosterRow("Rev")],
     "refinery.runStage": () => trpcError({ code: "BAD_REQUEST", message: receipt, reason: REFINERY_OUTPUT_BUDGET_REASON }),
   });
@@ -114,6 +145,7 @@ test("a run FAILURE keeps the RETRY copy — the reason branch is narrow", async
   // emits no reason code for it. "Try again" is the honest copy for that arm, and the server's own sentence
   // (which names no stage and no fix) must NOT be promoted to the toast.
   await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
     "refinery.listSessions": () => [rosterRow("Rev")],
     "refinery.runStage": () => trpcError({ code: "SERVICE_UNAVAILABLE", message: "The refiner returned nothing usable for that stage." }),
   });
@@ -131,6 +163,7 @@ test("a run FAILURE keeps the RETRY copy — the reason branch is narrow", async
 
 test("an apply that dropped EVERY accepted entry toasts the refusal — the write RESOLVED, so nothing else would", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
     "refinery.listSessions": () => [rosterRow("Rev")],
     // The zero-write arm of `applyFields`: every accept died on the intersection belts, itemized, HTTP 200.
     "refinery.applyFields": () => ({
@@ -154,6 +187,7 @@ test("an apply that dropped EVERY accepted entry toasts the refusal — the writ
 test("a PARTIAL apply toasts NOTHING — the write landed, and its per-entry drops are data, not a failure", async ({ mount, page }) => {
   let rosterCalls = 0;
   await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
     // The second response differs so the roster can serve as a POST-DECISION barrier. The apply is
     // `busDriven` now, so its own settle no longer refetches anything — the tick below is what moves the
     // roster, and it is pressed only after `applied=` has painted, i.e. after `onSuccess` (where a refusal
