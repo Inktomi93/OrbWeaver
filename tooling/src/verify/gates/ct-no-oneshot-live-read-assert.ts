@@ -30,6 +30,8 @@ import type { GateDescriptor } from "../contract/gate.ts";
 const CT_FILE_RE = /\.ct\.tsx$/u;
 const ESCAPE = "ONESHOT-OK";
 const ACTIVE_ELEMENT = "activeElement";
+const ESCAPE_OPENER_RE = /^\/\/\s*ONESHOT-OK\b/u;
+const ESCAPE_VALID_RE = /^\/\/\s*ONESHOT-OK\s*:\s*\S/u;
 
 // Playwright locator/page reads that resolve ONCE (no auto-retry) — awaited inside a non-retrying expect()
 // they sample a single mid-transition frame of live DOM.
@@ -94,7 +96,8 @@ const MESSAGE =
   "(focus/animation/ResizeObserver/an unrecorded call) and flakes by timing luck (the DEF-14 class, 2026-07-20). Use " +
   "a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/" +
   "toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`. Provably settled at read-time? " +
-  "mark it `// ONESHOT-OK: <concrete reason>` (core/Spine-Testing.md §7).";
+  "mark it `// ONESHOT-OK: <concrete reason>` (core/Spine-Testing.md §7). A malformed marker exempts nothing; " +
+  "a stale marker not exactly adjacent to one guarded consumption is RED.";
 
 /** Unwrap parentheses / non-null / `as` wrappers to the inner expression (see-through-wraps). */
 function unwrap(node: TsNode): TsNode {
@@ -111,60 +114,9 @@ function calleeTailMethod(call: CallExpression): string | undefined {
   return Node.isPropertyAccessExpression(callee) ? callee.getName() : undefined;
 }
 
-/** True when a node's subtree references `document.activeElement` / `.activeElement`. */
-function subtreeReadsActiveElement(node: TsNode): boolean {
-  if (Node.isPropertyAccessExpression(node) && node.getName() === ACTIVE_ELEMENT) {
-    return true;
-  }
-  return node.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression).some((p) => p.getName() === ACTIVE_ELEMENT);
-}
-
-/** True when `<arg>` is a focus read: an inline `…document.activeElement…` OR a plain identifier whose local
- *  `const`/`let` initializer captured `activeElement` (the "snapshot into a variable then assert" shape). */
-function readsActiveElement(arg: TsNode): boolean {
-  if (subtreeReadsActiveElement(arg)) {
-    return true;
-  }
+/** True when this exact expression is `await <locator/page>.<domReadMethod>(...)`. */
+function isAwaitedDomRead(arg: TsNode): boolean {
   const inner = unwrap(arg);
-  if (!Node.isIdentifier(inner)) {
-    return false;
-  }
-  return inner.getDefinitionNodes().some((def) => {
-    if (!Node.isVariableDeclaration(def)) {
-      return false;
-    }
-    const init = def.getInitializer();
-    return init !== undefined && subtreeReadsActiveElement(init);
-  });
-}
-
-/** The root read at the head of `<arg>`, descending a trailing property/element access chain
- *  (`(await el.boundingBox())?.width` → the awaited call; `trpc.inputs(x)[0]` → the recorder call). */
-function rootRead(arg: TsNode): TsNode {
-  let inner = unwrap(arg);
-  while (Node.isPropertyAccessExpression(inner) || Node.isElementAccessExpression(inner)) {
-    inner = unwrap(inner.getExpression());
-  }
-  return inner;
-}
-
-/** Follow a local snapshot into its initializer. The assignment does not settle the mutable read. */
-function localInitializer(node: TsNode): TsNode {
-  const inner = unwrap(node);
-  if (!Node.isIdentifier(inner)) {
-    return node;
-  }
-  for (const definition of inner.getDefinitionNodes()) {
-    if (Node.isVariableDeclaration(definition)) {
-      return definition.getInitializer() ?? node;
-    }
-  }
-  return node;
-}
-
-/** True when `<arg>` is `await <locator/page>.<domReadMethod>(...)` — a one-shot live-DOM read. */
-function readsAwaitedDom(arg: TsNode): boolean {
-  const inner = rootRead(localInitializer(arg));
   if (!Node.isAwaitExpression(inner)) {
     return false;
   }
@@ -176,14 +128,60 @@ function readsAwaitedDom(arg: TsNode): boolean {
   return method !== undefined && DOM_READ_METHODS.has(method);
 }
 
-/** True when `<arg>` is a direct `<x>.count/inputs/lastInput(...)` — a CT tRPC recorder read. */
-function readsRecorder(arg: TsNode): boolean {
-  const inner = rootRead(localInitializer(arg));
+/** True when this exact expression is `<x>.count/inputs/lastInput(...)`. */
+function isRecorderRead(arg: TsNode): boolean {
+  const inner = unwrap(arg);
   if (!Node.isCallExpression(inner)) {
     return false;
   }
   const method = calleeTailMethod(inner);
   return method !== undefined && RECORDER_READ_METHODS.has(method);
+}
+
+/** Value-flow taint: property selection, transforms, and local aliases do not settle a mutable snapshot. */
+function readsMutableAsync(node: TsNode, seenDefinitions = new Set<TsNode>()): boolean {
+  const inner = unwrap(node);
+  if (Node.isPropertyAccessExpression(inner) && inner.getName() === ACTIVE_ELEMENT) {
+    return true;
+  }
+  if (isAwaitedDomRead(inner) || isRecorderRead(inner)) {
+    return true;
+  }
+  if (Node.isIdentifier(inner)) {
+    return readsIdentifierInitializer(inner, seenDefinitions);
+  }
+  if (Node.isPropertyAccessExpression(inner) || Node.isElementAccessExpression(inner)) {
+    return readsMutableAsync(inner.getExpression(), seenDefinitions);
+  }
+  if (Node.isAwaitExpression(inner)) {
+    return readsMutableAsync(inner.getExpression(), seenDefinitions);
+  }
+  if (Node.isCallExpression(inner)) {
+    const callee = unwrap(inner.getExpression());
+    const receiver = Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee) ? callee.getExpression() : undefined;
+    return (
+      (receiver !== undefined && readsMutableAsync(receiver, seenDefinitions)) ||
+      inner.getArguments().some((argument) => readsMutableAsync(argument, seenDefinitions))
+    );
+  }
+  return false;
+}
+
+function readsIdentifierInitializer(identifier: TsNode, seenDefinitions: Set<TsNode>): boolean {
+  if (!Node.isIdentifier(identifier)) {
+    return false;
+  }
+  for (const definition of identifier.getDefinitionNodes()) {
+    if (!Node.isVariableDeclaration(definition) || seenDefinitions.has(definition)) {
+      continue;
+    }
+    seenDefinitions.add(definition);
+    const initializer = definition.getInitializer();
+    if (initializer !== undefined && readsMutableAsync(initializer, seenDefinitions)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** The matcher call sitting on an `expect(<arg>)` chain, and its name — walking through an optional `.not`.
@@ -216,24 +214,63 @@ function isBareExpectCall(call: CallExpression): boolean {
   return Node.isIdentifier(callee) && callee.getText() === "expect" && call.getArguments().length === 1;
 }
 
-function isEscaped(node: TsNode, sf: SourceFile): boolean {
-  const lines = sf.getFullText().split("\n");
-  const line = node.getStartLineNumber(); // 1-based
-  // The escape can sit on the node's own line (a trailing comment) or ANYWHERE in the contiguous block of
-  // `//` comment lines directly above it (a multi-line justification) — walk up until a non-comment line.
-  if ((lines[line - 1] ?? "").includes(ESCAPE)) {
-    return true;
-  }
-  for (let i = line - 2; i >= 0; i -= 1) {
-    const text = (lines[i] ?? "").trim();
-    if (!text.startsWith("//")) {
-      break;
+interface EscapeMarker {
+  readonly node: TsNode;
+  readonly line: number;
+  readonly valid: boolean;
+  consumed: boolean;
+}
+
+function escapeMarkers(sf: SourceFile): EscapeMarker[] {
+  const seen = new Set<number>();
+  const markers: EscapeMarker[] = [];
+  for (const node of [sf, ...sf.getDescendants()]) {
+    for (const range of [...node.getLeadingCommentRanges(), ...node.getTrailingCommentRanges()]) {
+      if (seen.has(range.getPos())) {
+        continue;
+      }
+      seen.add(range.getPos());
+      const text = range.getText().trim();
+      if (ESCAPE_OPENER_RE.test(text)) {
+        markers.push({ node, line: sf.getLineAndColumnAtPos(range.getPos()).line, valid: ESCAPE_VALID_RE.test(text), consumed: false });
+      }
     }
-    if (text.includes(ESCAPE)) {
-      return true;
+  }
+  return markers.sort((a, b) => a.line - b.line);
+}
+
+function liveReadExpectCalls(sf: SourceFile): CallExpression[] {
+  return sf.getDescendantsOfKind(SyntaxKind.CallExpression).filter((node) => {
+    if (!isBareExpectCall(node)) {
+      return false;
+    }
+    const matcher = matcherName(node);
+    const [arg] = node.getArguments();
+    return matcher !== undefined && !RETRYING_MATCHERS.has(matcher) && arg !== undefined && readsMutableAsync(arg);
+  });
+}
+
+function inspectFile(sf: SourceFile, report: (node: TsNode, token: string) => void): void {
+  const markers = escapeMarkers(sf);
+  for (const marker of markers) {
+    if (!marker.valid) {
+      report(marker.node, ESCAPE);
     }
   }
-  return false;
+  for (const node of liveReadExpectCalls(sf)) {
+    const line = node.getStartLineNumber();
+    const marker = markers.find((candidate) => candidate.valid && !candidate.consumed && (candidate.line === line || candidate.line === line - 1));
+    if (marker !== undefined) {
+      marker.consumed = true;
+    } else {
+      report(node, "expect");
+    }
+  }
+  for (const marker of markers) {
+    if (marker.valid && !marker.consumed) {
+      report(marker.node, ESCAPE);
+    }
+  }
 }
 
 export const gate: GateDescriptor = {
@@ -244,25 +281,8 @@ export const gate: GateDescriptor = {
   message: MESSAGE,
   fix: "use a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`; mark a provably-settled read `// ONESHOT-OK: <reason>`.",
   scanRoot: (p) => CT_FILE_RE.test(p),
-  kinds: [SyntaxKind.CallExpression],
-  visit: (node, sf, ctx) => {
-    if (!Node.isCallExpression(node)) {
-      return;
-    }
-    if (!isBareExpectCall(node)) {
-      return;
-    }
-    const matcher = matcherName(node);
-    if (matcher === undefined || RETRYING_MATCHERS.has(matcher)) {
-      return; // not asserted, or a web-first auto-retrying matcher — never the flake class
-    }
-    const [arg] = node.getArguments();
-    if (arg === undefined || isEscaped(node, sf)) {
-      return;
-    }
-    if (readsActiveElement(arg) || readsAwaitedDom(arg) || readsRecorder(arg)) {
-      ctx.report(node, { token: "expect", offset: 0 });
-    }
+  visitFile: (sf, ctx) => {
+    inspectFile(sf, (node, token) => ctx.report(node, { token, offset: 0 }));
   },
   mustFlag: [
     {

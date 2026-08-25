@@ -6,23 +6,22 @@
 // COMMENT POSTURE: comment-SAFE — portal tags, props members, and JSX attributes are AST nodes.
 //
 // TWO ARMS, because either half alone is a dead seam:
-//   A the seal renders a `*.Portal` but no exported `*Props` interface in that file declares `container` —
-//     the caller has no way to say where the popup goes;
-//   B a rendered `*.Portal` carries no `container` attribute — the prop exists but is not wired, which reads
-//     like a seam while behaving exactly like the default (the dead-wire class).
+//   A the callable owning an actual imported Base UI `*.Portal` accepts no `container` prop — the caller
+//     has no way to say where the popup goes;
+//   B the actual Portal target does not consume that owning callable's prop — ignored props, omitted/
+//     undefined targets, and `document.body` read like a seam while behaving as the unsafe default.
 //
 // MEASURED AT LANDING: zero live sites — all ten portal-bearing seals (popover, menu, tooltip, dialog,
 // alert-dialog, drawer, select, combobox, autocomplete, toast) already declare `container?:
 // BasePortalProps["container"]` and thread it through `container={container ?? portalContainer}`. An honest
 // zero, held as a ratchet: the eleventh seal is the one that would have forgotten.
-import type { JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
+import type { JsxOpeningElement, JsxSelfClosingElement, ParameterDeclaration, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { repoRelative, UI_SRC } from "../lib/baseui-read.ts";
+import { baseUiBindings, repoRelative, UI_SRC } from "../lib/baseui-read.ts";
 
 const CONTAINER = "container";
-const PORTAL_TAG_RE = /(?:^|\.)Portal$/u;
 
 // THE ONE REASON, carrying BOTH arms by token (the per-arm overrides died with the Finding overload).
 const MESSAGE =
@@ -30,9 +29,9 @@ const MESSAGE =
   "which sits outside every `<ThemeScope>`: the popup then resolves its theme variables against the ROOT " +
   "palette instead of the scope it was opened from, and it leaves the surrounding focus scope at the same " +
   "time. Every portal-bearing seal in @orb/ui takes a `container` prop and defaults it to the themed portal " +
-  "root (`usePortalContainer()`), so the caller can override it per call site. `no-container-prop`: the file " +
-  "renders a `*.Portal` but no exported props interface declares `container`, so no caller can place the " +
-  "popup at all. `container-not-wired`: this `*.Portal` gets no `container` — the prop exists but never " +
+  "root (`usePortalContainer()`), so the caller can override it per call site. `no-container-prop`: the owning " +
+  "callable accepts no `container`, so no caller can place the popup at all. `container-not-wired`: this " +
+  "actual Base UI Portal target does not consume that callable's prop — the prop exists but never " +
   "reaches Base UI, which reads like a seam while behaving exactly like the default (a dead wire is worse " +
   "than a missing one). packages/ui/src/primitives/dialog/dialog.tsx is the reference for both halves.";
 
@@ -44,17 +43,72 @@ const FIX =
 /** The ARM tokens — each finding's `token`, and the position an `@orb-gate-ignore` names. */
 const ARM_TOKENS = { noProp: "no-container-prop", notWired: "container-not-wired" } as const;
 
-function isPortalTag(text: string): boolean {
-  return PORTAL_TAG_RE.test(text);
+function owningCallable(node: TsNode): TsNode | undefined {
+  return node.getFirstAncestor(
+    (ancestor) =>
+      Node.isFunctionDeclaration(ancestor) || Node.isArrowFunction(ancestor) || Node.isFunctionExpression(ancestor) || Node.isMethodDeclaration(ancestor),
+  );
 }
 
-/** Does any exported interface in this file declare a `container` member? */
-function declaresContainer(sf: SourceFile): boolean {
-  return sf.getInterfaces().some((i) => i.isExported() && i.getProperties().some((p) => p.getName() === CONTAINER));
+function callableParameters(callable: TsNode | undefined): readonly ParameterDeclaration[] {
+  if (
+    callable === undefined ||
+    !(Node.isFunctionDeclaration(callable) || Node.isArrowFunction(callable) || Node.isFunctionExpression(callable) || Node.isMethodDeclaration(callable))
+  ) {
+    return [];
+  }
+  return callable.getParameters();
 }
 
-/** Presence is not wiring: `container={undefined}` is Base UI's default-body behavior in disguise. */
-function hasLiveContainer(el: JsxOpeningElement | JsxSelfClosingElement): boolean {
+function declaresContainer(callable: TsNode | undefined): boolean {
+  return callableParameters(callable).some((parameter) => parameter.getType().getProperty(CONTAINER) !== undefined);
+}
+
+function isParameterReference(node: TsNode, parameters: readonly ParameterDeclaration[]): boolean {
+  return Node.isIdentifier(node) && node.getDefinitionNodes().some((definition) => parameters.includes(definition as ParameterDeclaration));
+}
+
+function bindingComesFromParameter(binding: TsNode, parameters: readonly ParameterDeclaration[]): boolean {
+  const parameter = binding.getFirstAncestorByKind(SyntaxKind.Parameter);
+  if (parameter !== undefined) {
+    return parameters.includes(parameter);
+  }
+  const variable = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  const initializer = variable?.getInitializer();
+  return initializer !== undefined && isParameterReference(unwrapExpression(initializer), parameters);
+}
+
+function usesOwningContainer(expression: TsNode, callable: TsNode | undefined): boolean {
+  const parameters = callableParameters(callable);
+  for (const access of [expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)]) {
+    if (
+      Node.isPropertyAccessExpression(access) &&
+      access.getName() === CONTAINER &&
+      isParameterReference(unwrapExpression(access.getExpression()), parameters)
+    ) {
+      return true;
+    }
+  }
+  for (const id of [expression, ...expression.getDescendantsOfKind(SyntaxKind.Identifier)]) {
+    if (
+      Node.isIdentifier(id) &&
+      id.getText() === CONTAINER &&
+      id.getDefinitionNodes().some((definition) => Node.isBindingElement(definition) && bindingComesFromParameter(definition, parameters))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function usesDocumentBody(expression: TsNode): boolean {
+  return [expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)].some(
+    (node) => Node.isPropertyAccessExpression(node) && node.getName() === "body" && node.getExpression().getText() === "document",
+  );
+}
+
+/** Presence is not wiring: the actual Base UI target must consume THIS callable's caller prop. */
+function hasLiveContainer(el: JsxOpeningElement | JsxSelfClosingElement, callable: TsNode | undefined): boolean {
   return el.getAttributes().some((attribute) => {
     if (!Node.isJsxAttribute(attribute) || attribute.getNameNode().getText() !== CONTAINER) {
       return false;
@@ -68,7 +122,10 @@ function hasLiveContainer(el: JsxOpeningElement | JsxSelfClosingElement): boolea
       return false;
     }
     const value = unwrapExpression(expression);
-    return !((Node.isIdentifier(value) && value.getText() === "undefined") || value.isKind(SyntaxKind.NullKeyword));
+    if ((Node.isIdentifier(value) && value.getText() === "undefined") || value.isKind(SyntaxKind.NullKeyword) || usesDocumentBody(value)) {
+      return false;
+    }
+    return usesOwningContainer(value, callable);
   });
 }
 
@@ -78,18 +135,23 @@ function run(ctx: GateRunCtx): void {
     if (!rel.includes(UI_SRC)) {
       continue;
     }
+    const portalTags = new Set(
+      baseUiBindings(sf)
+        .filter((binding) => !binding.typeOnly)
+        .map((binding) => `${binding.local}.Portal`),
+    );
     const portals = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)].filter((el) =>
-      isPortalTag(el.getTagNameNode().getText()),
+      portalTags.has(el.getTagNameNode().getText()),
     );
     if (portals.length === 0) {
       continue;
     }
-    const first = portals[0];
-    if (!declaresContainer(sf) && first !== undefined) {
-      ctx.report(first, { token: ARM_TOKENS.noProp, offset: 0 });
-    }
     for (const el of portals) {
-      if (!hasLiveContainer(el)) {
+      const callable = owningCallable(el);
+      if (!declaresContainer(callable)) {
+        ctx.report(el, { token: ARM_TOKENS.noProp, offset: 0 });
+      }
+      if (!hasLiveContainer(el, callable)) {
         ctx.report(el, { token: ARM_TOKENS.notWired, offset: 0 });
       }
     }
@@ -112,21 +174,21 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files:
-        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  className?: string;\n}\nexport const P = () => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
+        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  className?: string;\n}\nexport const P = (_props: DialogPopupProps) => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
       at: AT,
       expect: { token: "no-container-prop" },
       why: "ARM A — the seal portals but offers the caller no way to place it, so every popup lands on document.body outside the ThemeScope",
     },
     {
       files:
-        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = () => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
+        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = (_props: DialogPopupProps) => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
       at: AT,
       expect: { token: "container-not-wired" },
       why: "ARM B, the dead-wire half: the prop is declared but not threaded — an affordance that looks live and does nothing, which no type error can catch because the seal simply never reads it",
     },
     {
       files:
-        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = () => <BaseDialog.Portal container={document.body} />;\nexport const Q = () => <BaseDialog.Portal />;\n',
+        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = ({ container }: DialogPopupProps) => <BaseDialog.Portal container={container} />;\nexport const Q = (_props: DialogPopupProps) => <BaseDialog.Portal />;\n',
       at: AT,
       expect: { count: 1, token: "container-not-wired" },
       why: "the SELF-CLOSING spelling, and per-OCCURRENCE granularity: one wired portal and one unwired portal in the same file must yield exactly one finding, on the unwired one",

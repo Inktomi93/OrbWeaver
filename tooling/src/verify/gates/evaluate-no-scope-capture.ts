@@ -6,8 +6,8 @@
 // STRING form of `.evaluate` silently drops its `arg` (`ops/overflow.ts` header) — a different failure,
 // same "reads as nothing" shape; know both.
 // ARMS: A) inline `(el, args) => …` / `function (…) {…}` literal. B) a bare identifier resolving to a
-// module-scope function/const-arrow of the SAME file (`sweepOverflowEscapes`'s self-contained-by-contract
-// shape). Both are scope-checked identically via ts-morph symbol resolution — never name-matching.
+// module-scope function/const-arrow in this file OR an imported module. Both are scope-checked in the
+// callback's DECLARING file via ts-morph symbol resolution — never name-matching.
 // DECLARED LIMIT: an identifier in a TYPE position is erased before serialization and ignored. An
 // unresolved RUNTIME identifier is not guessed into a capture finding, but it makes the checker itself
 // inconclusive and therefore throws a TOOL ERROR after preserving its scan count.
@@ -150,30 +150,39 @@ function isModuleScopeDeclaration(decl: TsNode): boolean {
 }
 
 /** The function BODY to scope-check, and the declaration node used for the self-reference guard —
- *  resolved either from an inline literal (ARM A) or a same-file by-reference identifier (ARM B). A raw
- *  string, a call expression, or an identifier that does not resolve to a same-file function/const-arrow
- *  is NOT function-form here — exempt by construction (a string cannot close over scope at all; anything
- *  else this reader cannot confirm as a function is DECLARED unresolvable, never guessed RED). */
-function resolveCallback(arg: TsNode, sf: SourceFile): { readonly fnNode: TsNode; readonly declNode: TsNode } | undefined {
+ *  resolved either from an inline literal (ARM A) or a local/imported by-reference identifier (ARM B).
+ *  A raw string or call expression is not function-form; an unresolved identifier fails loud. */
+function resolveCallback(arg: TsNode): { readonly fnNode: TsNode; readonly declNode: TsNode; readonly sourceFile: SourceFile } | undefined {
   if (Node.isArrowFunction(arg) || Node.isFunctionExpression(arg)) {
-    return { fnNode: arg, declNode: arg };
+    return { fnNode: arg, declNode: arg, sourceFile: arg.getSourceFile() };
   }
   if (!Node.isIdentifier(arg)) {
     return;
   }
   const symbol = arg.getSymbol();
-  const decl = symbol?.getValueDeclaration();
-  if (decl === undefined || decl.getSourceFile() !== sf) {
+  const target = symbol?.getAliasedSymbol() ?? symbol;
+  const decl = target?.getValueDeclaration();
+  if (decl === undefined) {
     return;
   }
   if (Node.isFunctionDeclaration(decl)) {
-    return { fnNode: decl, declNode: decl };
+    return { fnNode: decl, declNode: decl, sourceFile: decl.getSourceFile() };
   }
   if (!Node.isVariableDeclaration(decl)) {
     return;
   }
   const init = decl.getInitializer();
-  return init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init)) ? { fnNode: init, declNode: decl } : undefined;
+  return init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))
+    ? { fnNode: init, declNode: decl, sourceFile: decl.getSourceFile() }
+    : undefined;
+}
+
+function resolvesToValue(arg: TsNode): boolean {
+  if (!Node.isIdentifier(arg)) {
+    return false;
+  }
+  const symbol = arg.getSymbol();
+  return (symbol?.getAliasedSymbol() ?? symbol)?.getValueDeclaration() !== undefined;
 }
 
 interface ScopeCaptureCensus {
@@ -220,6 +229,7 @@ function censusScopeCaptures(fnNode: TsNode, declNode: TsNode, sf: SourceFile): 
 }
 
 const unresolvedRuntimeIdentifiers = new Set<string>();
+const unresolvedCallbacks = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "evaluate-no-scope-capture",
@@ -235,6 +245,7 @@ export const gate: GateDescriptor = {
 
   begin: () => {
     unresolvedRuntimeIdentifiers.clear();
+    unresolvedCallbacks.clear();
   },
 
   visit: (node, sf, ctx) => {
@@ -245,11 +256,14 @@ export const gate: GateDescriptor = {
     if (arg0 === undefined) {
       return;
     }
-    const resolved = resolveCallback(arg0, sf);
+    const resolved = resolveCallback(arg0);
     if (resolved === undefined) {
-      return; // a raw string / call expression / cross-file or unresolvable reference — not function-form here
+      if (Node.isIdentifier(arg0) && !resolvesToValue(arg0)) {
+        unresolvedCallbacks.add(`${sf.getFilePath()}:${arg0.getText()}`);
+      }
+      return; // a raw string / call expression is not function-form; an unresolved identifier fails loud below
     }
-    const { captures, unresolved } = censusScopeCaptures(resolved.fnNode, resolved.declNode, sf);
+    const { captures, unresolved } = censusScopeCaptures(resolved.fnNode, resolved.declNode, resolved.sourceFile);
     for (const id of unresolved) {
       unresolvedRuntimeIdentifiers.add(id.getText());
     }
@@ -259,10 +273,10 @@ export const gate: GateDescriptor = {
   },
 
   finalize: (ctx) => {
-    ctx.scan({ skipped: { "unresolved-identifier": unresolvedRuntimeIdentifiers.size } });
-    if (unresolvedRuntimeIdentifiers.size > 0) {
+    ctx.scan({ skipped: { "unresolved-callback": unresolvedCallbacks.size, "unresolved-identifier": unresolvedRuntimeIdentifiers.size } });
+    if (unresolvedCallbacks.size > 0 || unresolvedRuntimeIdentifiers.size > 0) {
       throw new Error(
-        `could not resolve runtime identifier(s) inside serialized browser callbacks: ${[...unresolvedRuntimeIdentifiers].sort().join(", ")} — callback evidence is incomplete`,
+        `could not resolve serialized browser callback evidence: callbacks=[${[...unresolvedCallbacks].sort().join(", ")}], runtime identifiers=[${[...unresolvedRuntimeIdentifiers].sort().join(", ")}] — callback evidence is incomplete`,
       );
     }
   },
@@ -281,6 +295,16 @@ export const gate: GateDescriptor = {
       at: "tooling/src/snap/ops/y.ts",
       expect: { count: 1, token: "PREFIX" },
       why: "ARM B — a module-scope function passed BY REFERENCE (the sweepOverflowEscapes shape) whose OWN body closes over a sibling module const; the risk is identical whether the callback is inline or named",
+    },
+    {
+      files: {
+        "tooling/src/snap/ops/imported-callback.ts":
+          'const MARK = "data-mark";\nexport function mark(el: { setAttribute(name: string, value: string): void }): void { el.setAttribute(MARK, "1"); }\n',
+        "tooling/src/snap/ops/imported-caller.ts":
+          'import { mark } from "./imported-callback.ts";\nexport async function run(page: { evaluate(fn: unknown): Promise<void> }): Promise<void> { await page.evaluate(mark); }\n',
+      },
+      expect: { count: 1, token: "MARK" },
+      why: "ARM B across a module boundary — the imported callback is serialized alone, so a constant from its declaring module is still absent in the browser",
     },
   ],
   mustPass: [

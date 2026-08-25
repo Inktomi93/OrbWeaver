@@ -7,7 +7,8 @@
 // composed-child-only surfaces need no container; any anchor container is the feature-level wrapper proof.
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TSX surface fixture
 // snippets, not secrets.
-import type { SourceFile } from "ts-morph";
+import type { JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 import { renderedTagNames } from "../lib/baseui-read.ts";
@@ -23,7 +24,6 @@ const GATE_SELF = "tooling/src/verify/gates/surface-in-a-container.ts";
 const ANCHOR_FEATURE = "chat";
 const STALE_PREFIX = "stale SHELL_EXEMPT row — no such feature dir under packages/client/src/features (ratchet down): ";
 // A layout container from @orb/ui/layout: the surface (or, once cross-file, its anchor) must render one.
-const CONTAINER_TAGS = new Set(["Container", "Section"]);
 // A structural root worth containing — the surface establishes layout (a raw box/grid/flex element).
 // A surface that returns only text / a single composed child needs no container of its own.
 const STRUCTURAL_TAGS = new Set(["div", "main", "section", "ul", "ol", "form", "Stack", "Row", "Grid", "Toolbar"]);
@@ -33,11 +33,43 @@ function hasTag(sf: SourceFile, names: ReadonlySet<string>): boolean {
   return [...renderedTagNames(sf).keys()].some((tag) => names.has(tag));
 }
 
+function importedLayoutBindings(sf: SourceFile): { readonly containers: ReadonlySet<string>; readonly sections: ReadonlySet<string> } {
+  const containers = new Set<string>();
+  const sections = new Set<string>();
+  for (const declaration of sf.getImportDeclarations()) {
+    if (declaration.getModuleSpecifierValue() !== "@orb/ui/layout") {
+      continue;
+    }
+    for (const specifier of declaration.getNamedImports()) {
+      const local = specifier.getAliasNode()?.getText() ?? specifier.getName();
+      if (specifier.getName() === "Container") {
+        containers.add(local);
+      } else if (specifier.getName() === "Section") {
+        sections.add(local);
+      }
+    }
+  }
+  return { containers, sections };
+}
+
+function hasContainerAttribute(element: JsxOpeningElement | JsxSelfClosingElement): boolean {
+  return element.getAttributes().some((attribute) => Node.isJsxAttribute(attribute) && attribute.getNameNode().getText() === "container");
+}
+
+function hasLayoutContainer(sf: SourceFile): boolean {
+  const bindings = importedLayoutBindings(sf);
+  const elements = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
+  return elements.some((element) => {
+    const tag = element.getTagNameNode().getText();
+    return bindings.containers.has(tag) || (bindings.sections.has(tag) && hasContainerAttribute(element));
+  });
+}
+
 // The calibrated cross-file exemption: does ANY `.tsx` file under this feature's `anchors/` dir render
 // a layout container? (the anchor-wraps-surface shape §4 mandates — message-thread-anchor.tsx is the
 // first real instance). No anchors dir, or none of its files mention Container/Section → false.
 function anchorHasContainer(anchors: readonly SourceFile[]): boolean {
-  return anchors.some((sf) => hasTag(sf, CONTAINER_TAGS));
+  return anchors.some(hasLayoutContainer);
 }
 
 interface FeatureFiles {
@@ -81,7 +113,7 @@ function scanSurfaceInAContainer(root: string, files: readonly SourceFile[]): { 
     }
     const containedByAnchor = anchorHasContainer(indexed.anchors.get(feature) ?? []);
     for (const { rel, sf } of featureSurfaces) {
-      if (hasTag(sf, STRUCTURAL_TAGS) && !hasTag(sf, CONTAINER_TAGS) && !containedByAnchor) {
+      if (hasTag(sf, STRUCTURAL_TAGS) && !hasLayoutContainer(sf) && !containedByAnchor) {
         out.push({ file: rel, line: 0, message: CONTAINER_MESSAGE });
       }
     }
@@ -133,7 +165,8 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/chat/surfaces/ok.tsx": "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
+        "packages/client/src/features/chat/surfaces/ok.tsx":
+          'import { Container } from "@orb/ui/layout";\nexport const Ok = () => <Container><ul><li>row</li></ul></Container>;\n',
       },
       expect: { count: 1, messageIncludes: "stale SHELL_EXEMPT row" },
       why: "THE STALE ARM: the real-tree anchor feature is present but `app-shell` is not — the container-PROVIDER exemption outlived its feature and must ratchet down instead of un-scanning a name a future feature could reuse",
@@ -142,7 +175,8 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/client/src/features/x/surfaces/ok.tsx": "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
+        "packages/client/src/features/x/surfaces/ok.tsx":
+          'import { Container } from "@orb/ui/layout";\nexport const Ok = () => <Container><ul><li>row</li></ul></Container>;\n',
       },
       why: "the surface renders a <Container> around its structural content — the sanctioned shape, passes",
     },
@@ -160,7 +194,8 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/chat/surfaces/ok.tsx": "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
+        "packages/client/src/features/chat/surfaces/ok.tsx":
+          'import { Container } from "@orb/ui/layout";\nexport const Ok = () => <Container><ul><li>row</li></ul></Container>;\n',
         "packages/client/src/features/app-shell/surfaces/app-shell.tsx": "export const A = () => <Stack>x</Stack>;\n",
       },
       why: "the row STILL EARNED, judged against the real-tree anchor: the exempt feature exists, so neither arm fires",
