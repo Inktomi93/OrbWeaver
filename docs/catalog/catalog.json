@@ -11489,9 +11489,9 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 599,
-      "bytes": 60085,
-      "sha256": "d1664bed3d74bf2e7e00ac429494955dcb9af233e31716d67a0ad0112347cfe1",
+      "lines": 623,
+      "bytes": 62239,
+      "sha256": "bf2bb2a366cecbca13ca5274bbf8a6c09a100adda7b18db4fe583a78436f4bb4",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11504,21 +11504,22 @@
       },
       "receipt": {
         "path": "docs/design/interaction-direction-spec.md",
-        "assignedSha256": "d1664bed3d74bf2e7e00ac429494955dcb9af233e31716d67a0ad0112347cfe1",
+        "assignedSha256": "bf2bb2a366cecbca13ca5274bbf8a6c09a100adda7b18db4fe583a78436f4bb4",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "d1664bed3d74bf2e7e00ac429494955dcb9af233e31716d67a0ad0112347cfe1",
-        "verifiedCommit": "bde3acca3cdf9501542feb2adaf3efc387318f75",
+        "verifiedSha256": "bf2bb2a366cecbca13ca5274bbf8a6c09a100adda7b18db4fe583a78436f4bb4",
+        "verifiedCommit": "9bc1cd142070e2a925caac67eeddbc6c75ae2c28",
         "verifiedAt": "2026-08-24",
         "evidence": [
           "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
           "consolidation of five sources into one: the panel-verified RULED spec + the IA placement table + the platform-axes audit + the juice catalogue + the real adversarial A-round (16 findings, 12 of 15 survivors changed)",
           "builder test (stickler, 4 sampled rows A1/B9/C5/preset-12): PASS-WITH-FOLDS, all six folds applied — a row is landable from this file alone",
           "the four docs/reviews/stickler/ interaction docs are provenance only; §10 points at them for the argument, never for the conclusion",
-          "delta re-verify 2026-08-24 (bde3acca3): C7's row flipped from AFTER-the-review to UNBLOCKED (the D46 review #605 and all seven findings CLOSED and security-verified; #24 out of Parked), and gained §7-C7a — the integration seams folded in from docs/reviews/stickler/2026-08-24-automation-platform-axes.md §3, which was written against the BUILT membrane unlike the parked plugin set. Six clauses, each re-derived on the tree at fold time: run_tool as the zero-arm-growth extensibility shape (registerPluginTool wired at entry/compose/automation-plugin.ts), rules-reach vs turn-attach as two doors, pause-not-rot, the installer-not-caller ceiling (#610), reach-based upgrade re-consent (#615), and the standing membrane walls (#611/#613)."
+          "delta re-verify 2026-08-24 (bde3acca3): C7's row flipped from AFTER-the-review to UNBLOCKED (the D46 review #605 and all seven findings CLOSED and security-verified; #24 out of Parked), and gained §7-C7a — the integration seams folded in from docs/reviews/stickler/2026-08-24-automation-platform-axes.md §3, which was written against the BUILT membrane unlike the parked plugin set. Six clauses, each re-derived on the tree at fold time: run_tool as the zero-arm-growth extensibility shape (registerPluginTool wired at entry/compose/automation-plugin.ts), rules-reach vs turn-attach as two doors, pause-not-rot, the installer-not-caller ceiling (#610), reach-based upgrade re-consent (#615), and the standing membrane walls (#611/#613).",
+          "delta re-verify 2026-08-24 (9bc1cd142, lane cb-plugui-design — the spec was read IN FULL by this lane before the edit): the ONE changed passage is the new §7-C7b pointer block after §7-C7a — a one-home POINTER to docs/design/plugin-ui-plane.md (#679) naming its phases U0-U8, the six folded owner rulings, the §5a enablement price sheet, and two dated branch-side build-state receipts (D147 user-scoping 8340b7f87; seeded example plugins 79e89d255 — both verified NOT on local main at fold time via merge-base --is-ancestor); no other line changed and the typed claims are unaffected"
         ],
-        "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items.",
+        "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items. §7-C7b (added 2026-08-24) points at the one-homed plugin UI plane design (docs/design/plugin-ui-plane.md, #679) — pointer, phases and rulings only.",
         "claims": [
           {
             "claim": "All seven forks (F1-F7) and the host-handoff void-all call are owner-ruled and recorded in §8; no open items remain in the specification.",
@@ -12418,9 +12419,9 @@
       "path": "docs/design/plugin-ui-plane.md",
       "lane": "design",
       "issue": 5,
-      "lines": 543,
-      "bytes": 51537,
-      "sha256": "32ad48a5d99f20b8f39f63be5daf2b142a799e036dd1e54f4dad1315b2289808",
+      "lines": 606,
+      "bytes": 61570,
+      "sha256": "7c7f6f77da6efe11e8ca3f6a827de87f16cc57f6b2d77633c0a614b08a62320f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12433,18 +12434,19 @@
       },
       "receipt": {
         "path": "docs/design/plugin-ui-plane.md",
-        "assignedSha256": "32ad48a5d99f20b8f39f63be5daf2b142a799e036dd1e54f4dad1315b2289808",
+        "assignedSha256": "7c7f6f77da6efe11e8ca3f6a827de87f16cc57f6b2d77633c0a614b08a62320f",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "32ad48a5d99f20b8f39f63be5daf2b142a799e036dd1e54f4dad1315b2289808",
-        "verifiedCommit": "76652500609cbe650f23da96c1a83c0ef91b7bff",
+        "verifiedSha256": "7c7f6f77da6efe11e8ca3f6a827de87f16cc57f6b2d77633c0a614b08a62320f",
+        "verifiedCommit": "9bc1cd142070e2a925caac67eeddbc6c75ae2c28",
         "verifiedAt": "2026-08-24",
         "evidence": [
           "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
           "designed against the full commissioned reading set: plugin-design 01-04, the D46 security review (docs/reviews/security/2026-08-24-d46-membrane-review.md), client-architecture-lockdown (D70), interaction-direction-spec §1/§3/§7-C7a, plugin-automation-juice (A2-F5), contribution-contracts.ts, the card-frame substrate (kit + entry/http + ui sandbox-frame), and issues #675/#677/#124",
           "four owner steers folded verbatim (capability-first; ST-parity register; integrated-not-iframe primary; the open dep budget resolved to the live QuickJS family at infra/plugin-host/module.ts:12-14)",
-          "the ST parity register (§5) built from Core-SillyTavern-Feature-Map.md + Core-ST-Feature-Gap-Register.md plus the live ST extension-authoring docs fetched raw per the web-fetching rule 2026-08-24"
+          "the ST parity register (§5) built from Core-SillyTavern-Feature-Map.md + Core-ST-Feature-Gap-Register.md plus the live ST extension-authoring docs fetched raw per the web-fetching rule 2026-08-24",
+          "revision 9bc1cd142 (same lane, same day): the full-parity ruling folded — every deferred parity row committed and phase-slotted (U5-U8), the ui.frame hatch committed as scheduled phase U7 (security-executor-gated), §6.1 arbitrary-pixels rows resolved to the hatch, §5a converted to the enablement price sheet per the follow-up steer ('some of those features I could be convinced to enable'), the five original open questions resolved against the ruling, residual owner ask reduced to TTS/STT (substrate)"
         ],
         "claims": [
           {
@@ -12470,7 +12472,7 @@
             ]
           }
         ],
-        "summary": "The #679 design: plugin UI as a declarative contribution tree over sealed @orb/ui, two tiers (static server-round-trip + client-side QuickJS-worker scripted) sharing one zod spec vocabulary; one new ui.surface capability; anchors = settings/chat-flank/chat-settings-section/tool-card; the ST extension-ability parity register (35 rows, all classified); the iframe arm demoted to a parked ui.frame hatch riding the card-frame substrate; priced seams, U0-U6 phases, threat model with security-executor routing, and five owner questions with defaults."
+        "summary": "The #679 design (full-parity revision): plugin UI as a declarative contribution tree over sealed @orb/ui, two tiers (static server-round-trip + client-side QuickJS-worker scripted) on one zod spec vocabulary; one new ui.surface capability; anchors settings/chat-flank/chat-settings-section/tool-card + the dialog surface and host toasts; the ST extension-ability parity register (35 rows — every former deferred row COMMITTED with a phase, U0-U8 stop-anywhere); the ui.frame hatch COMMITTED as phase U7 on the card-frame substrate; §5a = the enablement price sheet for the five default-refused walls (owner-purchasable, other-user walls marked); threat model with security-executor routing; residual owner ask: TTS/STT substrate only."
       },
       "receiptCurrent": true
     },
