@@ -4,7 +4,7 @@
 // watcher/dispatch slice implement. The action-arms slice wires the injected `runArm` dispatcher + WIDENS
 // `AutomationOps` with the write ops — no stubs, no reserved slots here.
 
-import type { BudgetView, GlobalVariableView, RulePresetView } from "@orb/contracts/automation";
+import type { BudgetView, GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
@@ -17,6 +17,7 @@ import type {
   EmitAutomationEvent,
   EnabledRuleIndex,
   ExecutePluginSuggestion,
+  IsAuthorEnabled,
   IsPluginLive,
   PromptTransformIndex,
   ResolveAuthorPrincipal,
@@ -31,14 +32,17 @@ import type {
   DismissSuggestionParams,
   GetBudgetsParams,
   GetGlobalVariableParams,
+  GetOwnerBudgetsParams,
   ListFiresParams,
   ListGlobalVariablesParams,
+  ListOwnerRulesParams,
   ListRulesParams,
   ReorderRulesParams,
   ResolveStreamAuthorityParams,
   RunRuleNowParams,
   SetBudgetsParams,
   SetGlobalVariableParams,
+  SetOwnerBudgetsParams,
   SetRuleEnabledParams,
   TestRuleParams,
   UpdateRuleParams,
@@ -79,6 +83,10 @@ export interface AutomationContext {
   readonly transforms: PromptTransformIndex;
   /** Resolve a rule author's Principal for the dispatch-time host re-check (minted at entry). */
   readonly resolveAuthor: ResolveAuthorPrincipal;
+  /** C5 — the OWNER-GLOBAL lane's standing-authority read: is a chat-less rule's author still an ENABLED
+   *  account? Injected rather than selected locally because `users` belongs to `domain/sessions` +
+   *  `domain/admin` alone (see {@link IsAuthorEnabled}). */
+  readonly isAuthorEnabled: IsAuthorEnabled;
   /** S4 plugin arm — the PLUGIN-origin confirm's executor. Wired at compose to `domain/plugin` (the cake:
    *  automation never imports a sibling domain). It re-enters the PLUGIN's own bridge, so a confirmed act
    *  takes the plugin's gates and belts — NOT automation's `runArm`, whose arms carry a different
@@ -108,9 +116,10 @@ export interface AutomationService {
   /** List the caller's globals (key-sorted); `prefix` narrows the read — the settings-page surface. */
   readonly listGlobalVariables: (params: ListGlobalVariablesParams) => Promise<GlobalVariableView[]>;
 
-  /** Create a chat-scoped rule (host-only). Validates trigger liveness, CEL parse, the
-   *  action schemas + arm caps + reserved-arm refusal, book attachment, and the cooldown
-   *  floor. Assigns `position = max+1`; the rule is born DISABLED (enabling is the consent act). */
+  /** Create a rule in EITHER scope — a chat (host-gated) or the caller's owner-GLOBAL lane (`chatId: null`,
+   *  C5). Validates trigger liveness, CEL parse, the action schemas + arm caps + reserved-arm refusal, the
+   *  owner-global scope matrix, book consent, and the cooldown floor. Assigns `position = max+1` WITHIN the
+   *  scope; the rule is born DISABLED (enabling is the consent act). */
   readonly createRule: (params: CreateRuleParams) => Promise<RuleView>;
   /** Mint a §4 catalogue PRESET's ordered rule set into a chat (host-only). Resolves the caller's partial
    *  knob overrides against the preset's descriptors (a typed refusal on anything off-shape), substitutes
@@ -130,6 +139,9 @@ export interface AutomationService {
   readonly reorderRules: (params: ReorderRulesParams) => Promise<void>;
   /** List a chat's rules (host-only in v1), ordered by position. */
   readonly listRules: (params: ListRulesParams) => Promise<RuleView[]>;
+  /** C5 — list the caller's OWN owner-global (chat-less) rules, ordered by position. The D18 single-owned
+   *  read: the scope is `principal.userId`, so there is no id to pass and no lane but your own to see. */
+  readonly listOwnerRules: (params: ListOwnerRulesParams) => Promise<RuleView[]>;
   /** The debug surface: a rule's recent fire log (host-only), newest first. */
   readonly listFires: (params: ListFiresParams) => Promise<FireView[]>;
   /** Upsert the per-chat fire-rate cap (host-only; the loop-safety belt). */
@@ -137,6 +149,11 @@ export interface AutomationService {
   /** Read the per-chat fire-rate cap (host-only): the host-editable fire-rate ceiling. An absent budget row
    *  projects to the defaulted view (what the write path stamps on insert). */
   readonly getBudgets: (params: GetBudgetsParams) => Promise<BudgetView>;
+  /** C5 — the caller's OWN owner-global fire-rate ceiling: the belt every chat-less rule of theirs counts
+   *  against. An absent row projects to the DDL default (the value the dispatch already uses for it). */
+  readonly getOwnerBudgets: (params: GetOwnerBudgetsParams) => Promise<OwnerBudgetView>;
+  /** C5 — upsert that ceiling. Single-owned: there is no other lane to write. */
+  readonly setOwnerBudgets: (params: SetOwnerBudgetsParams) => Promise<void>;
   /** Dry-run a rule (host-only): evaluate the predicate + render every arm's templates, executing NOTHING
    *  (no op, no budget debit); logs an `outcome:"test_run"` fire row. */
   readonly testRule: (params: TestRuleParams) => Promise<TestRunResult>;

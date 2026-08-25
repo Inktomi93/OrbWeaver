@@ -56,6 +56,26 @@ export function reachGap(samples: RawSamples): EvidenceGap | null {
   };
 }
 
+/** THE READINESS GAP (#678). The `html[data-app-ready]` wait is deliberately graceful — a `file://`
+ *  fixture page is a legitimate audit target and never runs the app. But on an APP ORIGIN that grace is a
+ *  false-clean generator: when the app never mounts (a vite dep-optimizer 504 on a cold isolated stage, a
+ *  half-booted dev stack, a route that threw before hydration) the walk censuses the SHELL — measured on the
+ *  #678 receipt run: 14 nodes and one reachable control, `findings=0`, exit 0, on a tree carrying a planted
+ *  1:1 contrast defect that the same command REDed on once the app was actually up (census 332). Fourteen is
+ *  not zero and one is not zero, so neither `censusGap` nor `reachGap` catches it — the discriminator has to
+ *  be the READINESS SIGNAL ITSELF, which the app publishes exactly for this purpose.
+ *
+ *  Returns null for a file:// target (no app is expected) and for a page that announced itself ready. */
+export function readinessGap(url: string, appReady: boolean): EvidenceGap | null {
+  if (appReady || url.startsWith("file://")) {
+    return null;
+  }
+  return {
+    evidence: "the app-readiness signal",
+    detail: `${url} never published html[data-app-ready] — the app did not mount, so the walk censused the shell around it and every check family folded a near-empty list into "no findings". On an isolated stage this is usually a COLD vite (re-run against the now-warm stage); on the dev stack it means the app is broken, which is a finding for a human, not a clean audit`,
+  };
+}
+
 /** WHY an empty census is a HARD gap rather than "the page is simply bare": the walk censuses text,
  *  styles, images, tap targets, accessible names, headings, tab indexes and z-indexes — a rendered app
  *  surface cannot be empty across ALL of them. Zero means the walk saw nothing, which is a statement

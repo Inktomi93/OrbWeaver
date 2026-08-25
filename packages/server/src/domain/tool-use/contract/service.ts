@@ -31,8 +31,11 @@ export interface ToolUseService {
    *  Read-through — a deactivated plugin's tools have already left the registry, so a name that stops being
    *  drivable stops appearing, and the per-turn attach seam can never hand `resolveTools` a ghost. */
   readonly listDrivableToolNames: (userId: UserId) => readonly string[];
-  /** Resolve caller-supplied names against the registry. Unknown name throws (our wiring bug). */
-  readonly resolveTools: (names: readonly string[]) => ResolvedToolSet;
+  /** Resolve caller-supplied names against `driverUserId`'s view of the registry — their own contributor tools
+   *  plus the first-party ones, never another user's (#677; `substrate/partition.ts`). The driver is the turn
+   *  HOST for a chat attach (the identity `listDrivableToolNames` enumerated from) and the rule AUTHOR for the
+   *  `run_tool` arm. Unknown name throws (our wiring bug). */
+  readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ResolvedToolSet;
   /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. */
   readonly executeToolCalls: (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]>;
   readonly toWireTools: (set: ResolvedToolSet) => readonly WireTool[];

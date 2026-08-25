@@ -22,12 +22,27 @@
 // path; deleting the incomplete set is one host click, and the knob resolution that could realistically fail
 // already ran BEFORE the first write.
 
+import { automationTriggerFor } from "@orb/contracts/automation";
+import { RuleValidationError } from "../contract/errors.ts";
 import type { CreateRuleFromPresetParams } from "../contract/params.ts";
 import type { ErasedRulePresetDef, RulePresetRuleDef } from "../contract/presets.ts";
 import { RULE_PRESETS } from "../contract/presets.ts";
 import type { RuleView } from "../contract/results.ts";
 import type { AutomationService } from "../contract/service.ts";
 import { resolveRulePresetKnobs } from "../substrate/presets.ts";
+
+/** Refuse a preset/chat mismatch, in the host's own vocabulary. BOTH directions are refused, not just the
+ *  obviously-wrong one: a chat preset with no chat has no room to act in, and a GLOBAL preset handed a chat
+ *  is a caller who thinks they are adding a room rule and would get a library-wide one — silently honouring
+ *  either would be a surprise about scope, which is the one thing a rule must never be. */
+function assertScopeMatches(preset: ErasedRulePresetDef, chatId: CreateRuleFromPresetParams["chatId"]): void {
+  if (preset.scope === "global" && chatId !== null) {
+    throw new RuleValidationError("preset_scope", `"${preset.title}" is a library-wide rule — it is added from Settings → Automation, not to one chat`);
+  }
+  if (preset.scope === "chat" && chatId === null) {
+    throw new RuleValidationError("preset_scope", `"${preset.title}" watches one chat — open the chat you want it in and add it there`);
+  }
+}
 
 /** The mint's title for rule `i` of `n`. */
 function ruleTitle(preset: ErasedRulePresetDef, index: number, count: number): string {
@@ -38,6 +53,13 @@ export function createCreateRuleFromPreset(createRule: AutomationService["create
   return async (params: CreateRuleFromPresetParams): Promise<RuleView[]> => {
     // The id is a closed union and `RULE_PRESETS` is exhaustive over it — the lookup is total by `tsc`.
     const preset: ErasedRulePresetDef = RULE_PRESETS[params.presetId];
+    // THE SCOPE IS THE PRESET'S, and the caller's chat must AGREE with it. A preset's rules are authored
+    // against one scope — a global preset's arms are drawn from the chat-INDEPENDENT set and its predicate
+    // may not read a room — so pairing it with the wrong chat is an authoring mistake, not a configuration.
+    // Refusing it HERE, by name, is what keeps the failure legible: minting anyway would produce a cascade of
+    // per-arm refusals from `createRule` that describe the symptom and never the cause.
+    assertScopeMatches(preset, params.chatId);
+    const chatId = preset.scope === "global" ? null : params.chatId;
     const knobs = resolveRulePresetKnobs(preset.knobs, params.knobs ?? {});
     const rules = preset.rules(knobs);
 
@@ -50,10 +72,12 @@ export function createCreateRuleFromPreset(createRule: AutomationService["create
       }
       const view = await createRule({
         principal: params.principal,
-        chatId: params.chatId,
+        chatId,
         name: ruleTitle(preset, index, rules.length),
         description: preset.summary,
-        trigger: { bus: "chat", type: def.triggerType },
+        // The BUS is derived from the type against the contracts tuples (`automationTriggerFor`) — a preset
+        // def names a trigger type and cannot spell an inconsistent `{bus, type}` pair.
+        trigger: automationTriggerFor(def.triggerType),
         predicateCel: def.predicate,
         actions: def.arms,
         cooldownSeconds: def.cooldownSeconds ?? 0,

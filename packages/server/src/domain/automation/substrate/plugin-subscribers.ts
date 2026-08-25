@@ -26,7 +26,7 @@ import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
 import type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "../contract/plugin-subscribers.ts";
-import { isDomainRowOwnedBy } from "../persistence/canon-reads.ts";
+import { ownsFactSubject } from "./fact-scope.ts";
 
 /** Build the in-process subscriber registry (`ASSUMES(single-replica)`). One instance is created at compose,
  *  injected into `AutomationContext` (read by the fan-out) and handed to the plugin-host wiring (`register` is
@@ -72,8 +72,8 @@ interface VisibilityDeps {
  * ids, counts, lifecycle) carries no canon bytes, and the ids it names resolve only through equally-clamped
  * reads. Withholding them would blind a clamped member's plugin to its own post-join room activity.
  *
- * A chat-less DOMAIN fact (character.updated / asset.created) requires OWNERSHIP of the referenced resource.
- * Any other chat-less fact fails CLOSED.
+ * A chat-less DOMAIN fact (all four members — character/asset/persona/world-info) requires OWNERSHIP of the
+ * referenced resource. Any other chat-less fact fails CLOSED.
  */
 /** The per-installer visibility verdict for one fact: denied (no delivery), or visible WITH the §3.6 / D106
  *  hidden-content read decision (`readsHidden` false ⇒ strip `<lie>`/`<ofilter>` from the delivered body). A
@@ -95,13 +95,11 @@ async function resolveFactVisibility(deps: VisibilityDeps, installer: UserId, fa
     // a member's delivered `message.content` is hidden-stripped below; a host reads verbatim (reveal plane).
     return { visible: true, readsHidden: visibility.readsHidden };
   }
-  if (fact.characterId !== undefined) {
-    return { visible: await isDomainRowOwnedBy(deps.db, "character", fact.characterId, installer), readsHidden: true };
-  }
-  if (fact.assetId !== undefined) {
-    return { visible: await isDomainRowOwnedBy(deps.db, "asset", fact.assetId, installer), readsHidden: true };
-  }
-  return { visible: false };
+  // The chat-less DOMAIN arm — OWNERSHIP of the row the fact names, resolved through the ONE home
+  // (`substrate/fact-scope.ts`) the owner-global RULE gate also reads, so the two consumers of that question
+  // cannot answer it differently. `readsHidden: true` because a chat-less fact carries no canon body to
+  // strip. A fact naming no owned row is fail-CLOSED inside `ownsFactSubject`.
+  return { visible: await ownsFactSubject(deps.db, fact, installer), readsHidden: true };
 }
 
 /** §3.6 / D106: project the fact's message body for THIS installer — a member's delivered `message.content` is

@@ -38,7 +38,12 @@ interface ResolvedPrompt {
 }
 interface ResolvePromptArgs {
   readonly caller: Principal;
-  readonly chatId: ChatId;
+  /** ABSENT for a chat-less caller (the owner-global automation lane, C5). Only the CAPTION modes can
+   *  resolve without one — they read the subject's avatar — and `extractText` refuses typed when an
+   *  EXTRACTION mode arrives with no chat, because its prompt comes from chat's quiet shaper reading the
+   *  room's recent canon. Optional rather than nullable to match `GeneratePictureParams.chatId`, which this
+   *  is threaded from unchanged. */
+  readonly chatId?: ChatId | undefined;
   readonly mode: Exclude<PromptTemplateMode, "free">;
   readonly subjectCharacterId: CharacterId | undefined;
 }

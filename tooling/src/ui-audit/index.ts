@@ -42,8 +42,20 @@ export { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeate
 export { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./lib/checks-structure.ts";
 export { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./lib/checks-typography.ts";
 export { collectFindings } from "./lib/collect.ts";
+export { censusGap, censusTotal, reachGap, readinessGap } from "./lib/evidence.ts";
 export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./lib/ramp.ts";
 export { isAtOrAboveSeverity, isValidSeverity } from "./lib/severity.ts";
+export {
+  COLD_STAGE_REFUSAL,
+  STAGE_DB_NOTE,
+  STAGE_WARMUP_NOTE,
+  stageArgErrors,
+  stageBootedByThisRun,
+  stageBootRefusal,
+  stageLabel,
+  unknownRefRefusal,
+} from "./lib/stage-request.ts";
 export { DESIGN_AUDIT_HELP, parseAuditArgs } from "./ops/parse.ts";
 export { runUiAudit } from "./ops/run.ts";
+export { configureAuditStage } from "./ops/stage.ts";
 export { COLLECT_SAMPLES_JS } from "./ops/walker.ts";

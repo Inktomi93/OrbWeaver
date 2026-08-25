@@ -4,12 +4,12 @@
 import type { ListFiresParams } from "../contract/params.ts";
 import type { FireView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
-import { requireRuleHost } from "../guard.ts";
+import { requireRuleAuthority } from "../guard.ts";
 import { listFiresForRule } from "../persistence/fires.ts";
 
 export function createListFires(ctx: AutomationContext): AutomationService["listFires"] {
   return async ({ principal, ruleId, limit }: ListFiresParams): Promise<FireView[]> => {
-    await requireRuleHost(ctx, principal, ruleId);
+    await requireRuleAuthority(ctx, principal, ruleId);
     return listFiresForRule(ctx.db, ruleId, limit);
   };
 }

@@ -112,6 +112,16 @@ const NON_PORTABLE_CANON: ExemptionTable<NonPortableRow> = {
       "automation rules are not chat-anchored. They need their OWN portable family (serde + verbs + descriptor + import-order " +
       "slot + doors), which is a separate wave. Ends when `automation` registers a PORTABLE_KINDS member.",
   },
+  automationOwnerBudgets: {
+    classification: "RULED-OUT",
+    why:
+      "C5's owner-GLOBAL fire-rate ceiling — a LOOP-SAFETY BELT, not user data. It is the same class as the " +
+      "per-chat `automationBudgets` belt it siblings, and an ABSENT row is dispatched as the DDL default, so a " +
+      "restored account is bounded by the shipped ceiling rather than by nothing: dropping it loses a tuned " +
+      "number, never a capability or a piece of authored work. Carrying it would also restore a ceiling that " +
+      "was tuned against a library the restore may not reproduce. Ends if the ceiling ever becomes an " +
+      "AUTHORED artifact (a per-rule schedule, a spend plan) rather than a single defaulted belt.",
+  },
   globalVariables: {
     classification: "DEFERRED",
     why: "O-4 RULED these portable, same wave and same corrected end condition as `automationRules` (NOT R6 — see that row). Ends when the automation descriptor lands.",

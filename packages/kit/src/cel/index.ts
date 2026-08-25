@@ -6,6 +6,7 @@
 // PARSE-TIME source cap (≤ 2 KiB) IS the whole budget — no runtime watchdog (contrast kit/regex, whose
 // node:vm timeout exists only because regex backtracking is superlinear).
 
+import type { ASTNode } from "@marcbachmann/cel-js";
 import { EvaluationError, ParseError, parse } from "@marcbachmann/cel-js";
 
 // The source-length cap. Bytes, not chars — a multi-byte predicate can't sneak past a char cap.
@@ -43,6 +44,49 @@ export interface CelProgram {
   readonly source: string;
   /** @internal — the captured evaluator; go through evalCel (it normalizes + wraps eval errors). */
   readonly evaluate: (bindings: CelBindings) => unknown;
+  /** Every ROOT IDENTIFIER this program reads, in first-seen order — "which named bindings does this
+   *  expression need?", answered STATICALLY (no evaluation, no activation).
+   *
+   *  LAZY BY CONSTRUCTION: the walk runs on the first call and never on `parseCel` itself, because the hot
+   *  consumer of `parseCel` is the per-event dispatch predicate evaluation and it asks this of nothing. The
+   *  one caller today is an AUTHORING gate (automation's owner-global mint, which refuses a predicate naming
+   *  a chat-keyed root on a rule that has no chat), which runs once per stored rule.
+   *
+   *  WHAT COUNTS AS A ROOT, stated because the answer is what a caller may rely on: every `id` node in the
+   *  tree. Member selections (`chat.messageCount`) carry their field as a STRING, not a node, so only `chat`
+   *  is reported; function names (`has`, `int`) are strings too, so a builtin is never mistaken for a
+   *  binding. The one over-report is a COMPREHENSION variable (`list.all(chat, …)` binds `chat` locally and
+   *  would be reported) — deliberately accepted, because every caller is a fail-CLOSED gate for which an
+   *  over-report is a refusal to explain rather than a hole to walk through. */
+  readonly rootIdentifiers: () => readonly string[];
+}
+
+/** Collect every `id` node's name from an AST subtree, in first-seen order, into `out`. Recursive over the
+ *  operator's own operand shape — `args` is operator-keyed (`ASTNodeArgsMap`), so the walk reads it
+ *  structurally rather than by a per-operator switch this wrapper would have to re-sync with the lib. */
+function collectRootIdentifiers(node: unknown, out: string[]): void {
+  if (node === null || typeof node !== "object") {
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      collectRootIdentifiers(child, out);
+    }
+    return;
+  }
+  const { op, args } = node as { readonly op?: unknown; readonly args?: unknown };
+  if (op === "id") {
+    // An `id` node's payload IS the name (a string, never a child node).
+    if (typeof args === "string" && !out.includes(args)) {
+      out.push(args);
+    }
+    return;
+  }
+  // `value` holds a LITERAL (string/number/bytes) — never a child node, and a string literal is not a root.
+  if (op === "value") {
+    return;
+  }
+  collectRootIdentifiers(args, out);
 }
 
 /** Thrown by {@link evalCel} on a RUNTIME failure (missing field without `has()`, type mismatch). The
@@ -64,7 +108,19 @@ export function parseCel(source: string): CelProgram | CelParseError {
   }
   try {
     const program = parse(source);
-    return { kind: "cel-program", source, evaluate: (bindings) => program(bindings) };
+    // The AST is captured but NEVER walked here — `rootIdentifiers` is the lazy door (see its doc). The
+    // local type-only `ASTNode` annotation is what keeps the lib's node shape from leaking into the seam.
+    const ast: ASTNode = program.ast;
+    return {
+      kind: "cel-program",
+      source,
+      evaluate: (bindings) => program(bindings),
+      rootIdentifiers: (): readonly string[] => {
+        const out: string[] = [];
+        collectRootIdentifiers(ast, out);
+        return out;
+      },
+    };
   } catch (err) {
     if (err instanceof ParseError) {
       return { kind: "cel-parse-error", code: err.code, message: err.summary };

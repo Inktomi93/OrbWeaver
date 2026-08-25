@@ -108,8 +108,11 @@ export interface ChatToolExecFrame {
 /** The injected tool-use op bundle. `ChatContext.tools` is null when tool-use isn't wired, so the request
  *  never carries `tools` and the assembled request is byte-identical wired-unattached vs null. */
 export interface ChatToolOps {
-  /** Attach-time resolve (throws on an unknown name — a wiring bug, never model data). */
-  readonly resolveTools: (names: readonly string[]) => ChatToolSet;
+  /** Attach-time resolve (throws on an unknown name — a wiring bug, never model data). `driverUserId` is the
+   *  turn's frozen `runAsUserId`: the attach union was enumerated from the HOST's own contributor tools, so it
+   *  is resolved on the host's shelf too (#677 — the same namespaced plugin tool name exists once per
+   *  installing user, so a name alone no longer identifies an entry). */
+  readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ChatToolSet;
   readonly toWireTools: (set: ChatToolSet) => readonly WireTool[];
   /** The one execute path — sequential, errors-as-data; never throws per-call. */
   readonly executeToolCalls: (set: ChatToolSet, calls: readonly ToolCallInput[], frame: ChatToolExecFrame) => Promise<readonly ToolCallRecord[]>;

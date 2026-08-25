@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { RuleRow } from "../contract/ops.ts";
 import type { RuleView } from "../contract/results.ts";
 
@@ -20,7 +20,8 @@ const LIMIT_ONE = 1;
 interface RuleInsert {
   readonly id: AutomationRuleId;
   readonly ownerId: UserId;
-  readonly chatId: ChatId;
+  /** NULL = the owner-GLOBAL lane (C5). The column was born nullable for this. */
+  readonly chatId: ChatId | null;
   readonly name: string;
   readonly description: string | null;
   readonly position: number;
@@ -82,13 +83,30 @@ export function toRuleView(row: RuleRow): RuleView {
   };
 }
 
-/** The highest `position` among a chat's rules, or -1 when it has none (so `+1` yields 0 for the first). */
-export async function maxPosition(db: Db, chatId: ChatId): Promise<number> {
+/** The highest `position` within ONE SCOPE — a chat's rules, or an owner's chat-less ones — or -1 when the
+ *  scope is empty (so `+1` yields 0 for the first).
+ *
+ *  THE OWNER PREDICATE IS LOAD-BEARING ON THE GLOBAL ARM, not defensive scoping: `chat_id IS NULL` alone
+ *  spans EVERY user's global lane, so without it the first global rule a second user creates would be handed
+ *  a position past the first user's — one shared, ever-climbing counter across a partition that is supposed
+ *  to be per-owner. (SQL's `= NULL` is never true either, which is why the null arm cannot reuse `eq`.) */
+export async function maxPosition(db: Db, chatId: ChatId | null, ownerId: UserId): Promise<number> {
+  const scope = chatId === null ? and(isNull(automationRules.chatId), eq(automationRules.ownerId, ownerId)) : eq(automationRules.chatId, chatId);
   const rows = await db
     .select({ max: sql<number | null>`max(${automationRules.position})` })
     .from(automationRules)
-    .where(eq(automationRules.chatId, chatId));
+    .where(scope);
   return rows[0]?.max ?? -1;
+}
+
+/** C5 — an OWNER's chat-less rules in list order, `position` then `created_at` (the `listRuleRowsForChat`
+ *  posture, one scope over). The Automation settings pane's read. */
+export function listRuleRowsForOwnerGlobal(db: Db, ownerId: UserId): Promise<RuleRow[]> {
+  return db
+    .select()
+    .from(automationRules)
+    .where(and(isNull(automationRules.chatId), eq(automationRules.ownerId, ownerId)))
+    .orderBy(asc(automationRules.position), asc(automationRules.createdAt));
 }
 
 export async function insertRule(db: Db, row: RuleInsert): Promise<void> {
@@ -138,7 +156,9 @@ export async function deleteRuleRow(db: Db, ruleId: AutomationRuleId): Promise<v
 
 // ── the watcher/dispatch reads + writes ─────────────────────────────────────────────────────────────
 /** Distinct chat ids with ≥1 enabled rule — the watcher's chat-Set (pre-check), rebuilt at boot +
- *  after each lifecycle mutation. Only chat-scoped rows (v1 refuses the owner-global chat-less shape). */
+ *  after each lifecycle mutation. Chat-scoped rows only, and the `null` filter is CORRECT rather than a
+ *  leftover: an owner-global rule triggers on the DOMAIN bus, whose pre-check is `hasEnabledDomainRules`
+ *  below — a chat-less row has no chat to put in a chat-keyed Set. */
 export async function loadEnabledChatIds(db: Db): Promise<ChatId[]> {
   const rows = await db.selectDistinct({ chatId: automationRules.chatId }).from(automationRules).where(eq(automationRules.enabled, true));
   return rows.flatMap((r): ChatId[] => (r.chatId === null ? [] : [r.chatId]));

@@ -4,12 +4,13 @@
 
 import type { DeleteRuleParams } from "../contract/params.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
-import { requireRuleHost } from "../guard.ts";
+import { requireRuleAuthority } from "../guard.ts";
 import { deleteRuleRow } from "../persistence/rules.ts";
+import { notifyRulesChanged } from "../substrate/rule-feed.ts";
 
 export function createDeleteRule(ctx: AutomationContext): AutomationService["deleteRule"] {
   return async ({ principal, ruleId }: DeleteRuleParams): Promise<void> => {
-    const rule = await requireRuleHost(ctx, principal, ruleId);
+    const rule = await requireRuleAuthority(ctx, principal, ruleId);
     await deleteRuleRow(ctx.db, ruleId);
     // S4 — the rule is gone, so its pending asks are unanswerable (the confirm's own re-check would refuse
     // them); drop them with it. The in-RAM store has no FK to cascade for it.
@@ -21,6 +22,6 @@ export function createDeleteRule(ctx: AutomationContext): AutomationService["del
     // The roster announces itself (survey H2/F5). D50 rules out per-entity DELETION events, and this is not
     // one: `rulesChanged` is the coarse "this chat's rule set moved" member — the same event a create sends.
     // `chatId` is read off the guard-loaded row BEFORE the delete; the row is gone by the time this fires.
-    ctx.notify({ type: "rulesChanged", chatId: rule.chatId });
+    notifyRulesChanged(ctx, rule.chatId);
   };
 }

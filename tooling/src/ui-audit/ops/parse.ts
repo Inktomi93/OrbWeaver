@@ -18,6 +18,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Severity } from "../contract/findings.ts";
 import type { Args } from "../contract/types.ts";
 import { isValidSeverity } from "../lib/severity.ts";
+import { stageArgErrors } from "../lib/stage-request.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
@@ -70,6 +71,25 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--base": (a, rest) => {
     a.base = rest.shift() ?? DEFAULT_BASE;
+    a.baseExplicit = true;
+  },
+  // The isolated-stage family (#678) — the same four source flags snap carries, with the same implication
+  // (naming a ref / forcing a rebuild / staging the working tree is meaningless against the live stack).
+  // Stage ADMIN stays on snap: one band, one lifecycle owner.
+  "--isolated": (a) => {
+    a.isolated = true;
+  },
+  "--ref": (a, rest) => {
+    a.ref = rest.shift() ?? null;
+    a.isolated = true;
+  },
+  "--dirty": (a) => {
+    a.dirty = true;
+    a.isolated = true;
+  },
+  "--fresh": (a) => {
+    a.fresh = true;
+    a.isolated = true;
   },
   "--viewport": (a, rest) => {
     const raw = rest.shift() ?? "";
@@ -120,6 +140,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--wait",
   "--out",
   "--base",
+  "--ref",
   "--viewport",
   "--fail-on",
   ...APPEARANCE_VALUE_FLAGS,
@@ -144,6 +165,23 @@ Environment:
   --viewport <WxH>          default 1280x800
   --mobile                  iPhone 14 Pro Max — touch + pointer:coarse (the 44px tap floor)
   --desktop                 explicit 1280x800
+
+Where it audits (default: ${DEFAULT_BASE} — the dev stack, which serves MAIN, never a worktree):
+  --base <url>              audit an already-running origin (a stage, a file:// dir) — conflicts with the
+                            stage flags below; two answers to "where" is refused, never defaulted
+  --isolated                boot/reuse snap's ISOLATED STAGE (a second dev stack on offset ports, serving a
+                            DETACHED worktree at a commit) and audit THAT — how a lane audits its own branch
+  --ref <sha|branch|tag>    the commit the stage serves (implies --isolated; default HEAD). A ref this
+                            checkout cannot resolve is CLI misuse — it never falls back to the dev stack
+  --dirty                   stage the WORKING TREE instead of a commit (implies --isolated)
+  --fresh                   rebuild the stage instead of reusing the warm one (implies --isolated)
+
+  STAGE DB: the stage serves its OWN db — a FRESH stage sha copies the dev db at boot; a stage dir that
+  already exists KEEPS the db it had (possibly older/thinner than dev). A corpus-dependent finding, or its
+  absence, is a claim about THAT db. A run that BOOTS the stage REFUSES (exit 2) rather than judging a
+  cold surface — vite's dep-optimizer is still churning and the walk would census a fraction of the page and
+  call it clean — so the first invocation warms the stage and the second one measures it. Stage admin is
+  snap's: pnpm snap --stage-status|--stage-down|--stage-sweep.
 
 ${appearanceHelpBlock()}
 
@@ -192,6 +230,12 @@ export function parseAuditArgs(argv: string[]): Args {
   const args: Args = {
     route: "/",
     base: DEFAULT_BASE,
+    baseExplicit: false,
+    isolated: false,
+    ref: null,
+    dirty: false,
+    fresh: false,
+    stageShortSha: null,
     actions: [],
     waitMs: DEFAULT_WAIT_MS,
     out: null,
@@ -212,5 +256,8 @@ export function parseAuditArgs(argv: string[]): Args {
       args.route = tok;
     }
   }
+  // Combination misuse is judged AFTER the whole argv is known (flag order must not change the verdict) —
+  // still before anything runs, so a conflicting pair never boots a stage or a browser.
+  args.errors.push(...stageArgErrors(args));
   return args;
 }

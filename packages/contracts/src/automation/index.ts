@@ -38,11 +38,23 @@ export const CHAT_TRIGGER_TYPES = [
 export type ChatTriggerType = (typeof CHAT_TRIGGER_TYPES)[number];
 
 /** `DomainEvent` types automation may trigger on. The agents/rpg members are reserved — they enter
- *  service when their domains land their domain-event mirrors. */
+ *  service when their domains land their domain-event mirrors.
+ *
+ *  IT CARRIES ALL FOUR LIVE DOMAIN EVENTS (S7, landed with C5). It carried two until then, while the source
+ *  bus had four — `persona.updated` and `world-info.updated` grew it on 2026-08-14 for the entity→room
+ *  freshness bridge and the trigger tuple never caught up, so the vocabulary was two members BEHIND its own
+ *  source union. The catch-up is BATCHED into the owner-global lane's merge window rather than landed alone,
+ *  because every member of this tuple is paired with the `automation_rules` bus↔type CHECK, which is
+ *  tuple-DERIVED DDL — so any widening here is a generated-baseline edit (`db/schema/automation.ts`). An
+ *  event that exists on no bus is NOT vocabulary: the `crew.*`/`rpg.*` mirrors stay documented in
+ *  `@orb/contracts/events`'s own header, never tupled here. */
 export const DOMAIN_TRIGGER_TYPES = [
   // v1 (wired)
   "character.updated",
   "asset.created",
+  // S7 (wired with C5) — the entity→room freshness bridge's two events, now trigger vocabulary.
+  "persona.updated",
+  "world-info.updated",
 ] as const satisfies readonly DomainEventType[];
 export type DomainTriggerType = (typeof DOMAIN_TRIGGER_TYPES)[number];
 
@@ -53,6 +65,22 @@ export const automationTriggerSchema = z.discriminatedUnion("bus", [
   z.object({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }),
 ]);
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
+
+/** The `AutomationTrigger` for one trigger TYPE — the bus DERIVED from which tuple the member belongs to.
+ *
+ *  ONE HOME FOR THE PAIRING (C5). The db binds `trigger_bus` to `trigger_type` with a CHECK generated from
+ *  these same two tuples, so any producer that spells the pair by hand can spell it wrong and only discover
+ *  it at the insert. Preset defs name a TYPE and let this answer for the bus, which makes a cross-bus pair
+ *  unrepresentable rather than merely refused.
+ *
+ *  The chat tuple is checked FIRST and the two are disjoint by construction — a domain member is
+ *  dot-namespaced (`character.updated`) and a chat member never is, which is the same tell the fact resolver
+ *  and the watcher front door use to route an event. */
+export function automationTriggerFor(type: ChatTriggerType | DomainTriggerType): AutomationTrigger {
+  return (CHAT_TRIGGER_TYPES as readonly string[]).includes(type)
+    ? { bus: "chat", type: type as ChatTriggerType }
+    : { bus: "domain", type: type as DomainTriggerType };
+}
 
 /** The two source buses — tied to the trigger union's discriminant. */
 export const AUTOMATION_TRIGGER_BUSES = ["chat", "domain"] as const satisfies readonly AutomationTrigger["bus"][];
@@ -120,6 +148,39 @@ export interface BudgetView {
   readonly maxFiresPerHour: number;
 }
 
+// ── C5: the per-OWNER rate-cap plane (the owner-global lane's loop-safety belt) ────────────────────
+// The chat-scoped belt above cannot express a global rule's ceiling, and that is a schema fact rather
+// than an oversight: `automation_budgets`'s primary key IS `chat_id`, so a NULL-scope row is
+// unrepresentable (SQLite PKs cannot be NULL, and a synthetic sentinel key is the D24 class the ledger
+// forbids). A global rule therefore counts against a SIBLING owner-keyed table
+// (`automation_owner_budgets`), and the dispatch reads whichever belt matches the rule's own scope.
+//
+// WHY A GLOBAL RULE NEEDS ITS OWN BELT AT ALL: the per-rule/hour cap still applies to it, but the SECOND
+// belt — the one that bounds a whole scope rather than one rule — has no chat to key on. Without this
+// table a runaway global rule multiplies by the owner's entire library instead of by one room, which is
+// exactly the hammering the belt exists to bound. It is a runaway-loop belt and NOT a spend ceiling: the
+// per-day $ ceilings were stripped 2026-07-24 and nothing here re-introduces them.
+
+/** The per-OWNER fire-rate ceiling default — the value the write path stamps on a fresh
+ *  `automation_owner_budgets` row (mirrored by that table's DDL column default, the
+ *  `AUTOMATION_CHAT_BUDGET_DEFAULTS` posture: ONE app-side home, the DDL derives it).
+ *
+ *  It is the SAME 120 as the per-chat cap, and that is a decision rather than a copy: an owner-global rule
+ *  fires on DOMAIN events (a card import, a book edit) — bursty but human-paced — so the honest starting
+ *  ceiling is the one the per-chat belt already proved liveable, and the host raises it from the pane. */
+export const AUTOMATION_OWNER_BUDGET_DEFAULTS = {
+  maxFiresPerHour: 120,
+} as const;
+
+/** The owner-global rate-cap read model (`getOwnerBudgets`) — the caller's own ceiling. Carries no
+ *  `ownerId`: the plane is single-owned, so a view is always the caller's own (the `GlobalVariableView`
+ *  posture). Structurally identical to {@link BudgetView} today and DELIBERATELY NOT an alias of it: the
+ *  two are different planes with different write gates (a chat's HOST edits one, the OWNER edits the
+ *  other), and collapsing them would make the next field added to either silently appear on both. */
+export interface OwnerBudgetView {
+  readonly maxFiresPerHour: number;
+}
+
 // ── trigger liveness ───────────────────────────────────────────────────────────────────────────
 /** Which tuple members are LIVE (wired to a handler). `createRule`/`updateRule` refuse a reserved
  *  trigger with `AutomationReservedTriggerError` (a typed, user-visible refusal — not a silent no-op).
@@ -146,6 +207,10 @@ export const LIVE_TRIGGERS = {
   // domain bus — v1 wired
   "character.updated": true,
   "asset.created": true,
+  // domain bus — S7 (wired with C5): both are LIVE on the domain bus and both resolve a fact
+  // (`substrate/fact-resolver.ts`), so neither is reserved.
+  "persona.updated": true,
+  "world-info.updated": true,
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, boolean>;
 
 // ── the action union ─────────────────────────────────────────────────────────────────────────────
@@ -163,6 +228,23 @@ export const LIVE_TRIGGERS = {
  *  `tsc`-forced like every other member; the open-world contributor name rides INSIDE its payload
  *  (`run_tool.name`). Adding an open arm — a `type: string` escape, a `plugin_*` wildcard member — is the
  *  banned move: it defeats every exhaustive dispatch downstream (core/AGENTS.md §5.5). */
+/** C5 — the SCOPE an arm needs from the rule that carries it. A rule is `chatId: ChatId | null` and NULL
+ *  means owner-global (`db/schema/automation.ts`), so half the arm surface has no room to act in. */
+export const AUTOMATION_ARM_SCOPES = ["chat-required", "chat-independent"] as const;
+export type AutomationArmScope = (typeof AUTOMATION_ARM_SCOPES)[number];
+
+/** THE VARIABLE PLANE an arm writes: the room's own runtime fold, or the AUTHOR's per-user globals. Two arms
+ *  name it (`set_variable.scope`, `run_tool.resultScope`) and both must mean the same thing by it.
+ *
+ *  IT IS A DIFFERENT AXIS FROM `RULE_PRESET_SCOPES`, which happens to share its members, and homing it
+ *  separately is the point rather than an accident: one answers "which KV store does this write land in", the
+ *  other "which lane does this rule live on". They are equal today by coincidence — a third variable plane
+ *  would grow this tuple and must NOT grow that one — so deriving either from the other would couple two
+ *  unrelated vocabularies through their current spelling. (Homed at C5 because the collision only became
+ *  visible once the preset-scope tuple existed to collide with.) */
+export const AUTOMATION_VARIABLE_SCOPES = ["chat", "global"] as const;
+export type AutomationVariableScope = (typeof AUTOMATION_VARIABLE_SCOPES)[number];
+
 export const AUTOMATION_ACTION_TYPES = [
   "set_variable",
   "transform_draft",
@@ -179,6 +261,49 @@ export const AUTOMATION_ACTION_TYPES = [
   "run_tool",
 ] as const;
 export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
+
+/** C5 — WHICH ARMS NEED A ROOM. The exhaustive `Record<AutomationActionType, AutomationArmScope>` the scope
+ *  axis is decided by: a new arm fails `tsc` here until it declares, so "can this act happen with no chat?"
+ *  can never be answered by omission. The domain's mint validation reads THIS and nothing else for the
+ *  per-TYPE half of the question (`domain/automation/substrate/validate.ts`).
+ *
+ *  EVERY `chat-required` ROW IS A CODE FACT, not a judgment call — each names the thing that would be
+ *  `undefined` without a chat:
+ *   • `surface_quick_reply` — the chips ride the per-CHAT automation bus (`quickReplySurfaced.chatId`).
+ *   • `trigger_turn` — a turn happens IN a room (`AutomationTurnRequest.chatId`).
+ *   • `set_chat_background` — the written background is the CHAT's carried one (BG-C/BG-F).
+ *   • `transform_draft` — it rewrites a turn's draft, and a turn is a room's.
+ *   • `post_notification` — the `automation-notice` wire member's `chatId` is REQUIRED
+ *     (`@orb/contracts/notifications`) AND its recipients are resolved over the chat's present members.
+ *   • `run_analysis` — every read window it thinks over is a chat-scoped canon read.
+ *  The last two are NOT in the interaction-direction spec §3-S3's enumerated list; that list is a subset of
+ *  what the built code requires, and this Record is the corrected home (both rows carry their receipt above).
+ *
+ *  `generate_image` IS `chat-independent`, and that is C5's own flip rather than an as-built reading: the
+ *  request's `chatId` widened to nullable with this landing so the owner-global lane's living-library preset
+ *  is admissible at all. It is admissible NARROWLY — a global `generate_image` must be `quiet` (a non-quiet
+ *  generation POSTS into a chat) and must ride a caption mode (the text-EXTRACTION modes read a chat's recent
+ *  canon through the quiet shaper). Both refinements are the domain's, beside the two per-arm PLANE
+ *  refinements this per-TYPE Record structurally cannot express: `set_variable.scope` and
+ *  `run_tool.resultScope` may name the `chat` plane, which is a room's variable fold.
+ *
+ *  THE KEYS ARE BRACKETED (`["set_variable"]:`) for the reason `IMAGERY_CAPTION_SLOT_IDS` is
+ *  (`@orb/contracts/imagery`): the arm vocabulary is snake_case WIRE data, and a bare snake_case PROPERTY
+ *  name trips `useNamingConvention` — a computed string key is DATA and does not, so this Record needs no
+ *  suppression. The `Record<…>` ANNOTATION (not `satisfies`) is the exhaustiveness pin: a missing arm and an
+ *  unknown arm are both `tsc` errors, which is the whole enforcement this axis claims. */
+export const AUTOMATION_ARM_SCOPE: Record<AutomationActionType, AutomationArmScope> = {
+  ["set_variable"]: "chat-independent",
+  ["transform_draft"]: "chat-required",
+  ["insert_world_info_entry"]: "chat-independent",
+  ["surface_quick_reply"]: "chat-required",
+  ["post_notification"]: "chat-required",
+  ["trigger_turn"]: "chat-required",
+  ["generate_image"]: "chat-independent",
+  ["set_chat_background"]: "chat-required",
+  ["run_analysis"]: "chat-required",
+  ["run_tool"]: "chat-independent",
+};
 
 // Rendered/stored bounds (named — `noMagicNumbers`).
 const VAR_KEY_MAX = 128;
@@ -301,7 +426,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // 1.1 set a chat/global variable (free — no model call).
   z.object({
     type: z.literal("set_variable"),
-    scope: z.enum(["chat", "global"]),
+    scope: z.enum(AUTOMATION_VARIABLE_SCOPES),
     key: z.string().min(1).max(VAR_KEY_MAX),
     op: z.enum(["set", "inc", "dec", "delete"]),
     value: z.string().max(AUTOMATION_VARIABLE_VALUE_MAX).optional(),
@@ -439,7 +564,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     resultVar: z.string().min(1).max(VAR_KEY_MAX).optional(),
     /** Which variable plane `resultVar` writes — the SAME vocabulary `set_variable.scope` uses (one axis, one
      *  spelling). `chat` (the default) writes the room's runtime fold; `global` writes the AUTHOR's own plane. */
-    resultScope: z.enum(["chat", "global"]).default("chat"),
+    resultScope: z.enum(AUTOMATION_VARIABLE_SCOPES).default("chat"),
   }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
@@ -524,11 +649,25 @@ export const triggerFactSchema = z.object({
     .optional(),
   // worldInfoActivated
   worldInfo: z.object({ entryIds: z.array(z.string()).readonly() }).optional(),
-  // personaSwitched
+  // personaSwitched (the CHAT-bus member — a seat changed face mid-room). Distinct from the domain-bus
+  // `personaId` below, which reports that a persona's own CONTENT was edited; two events, two shapes.
   persona: z.object({ from: z.string().nullable(), to: z.string().nullable() }).optional(),
   // domain-bus members
-  characterId: z.string().optional(), // character.updated
+  /** character.updated. NESTED because it carries TWO fields, which is the same reason `message`/`turn`/
+   *  `worldInfo` nest and `assetId` does not.
+   *
+   *  `contentChanged` is the source event's own discriminator (`@orb/contracts/events`'s
+   *  `CharacterUpdatedEvent`) and the resolver used to DROP it, which made the domain-bus character trigger
+   *  fire identically on a real card edit and on a star/archive toggle. A rule that reacts to library
+   *  content — the living-library preset is the catalogue's own case — then degenerated into an edit-burst
+   *  chore, firing on flags nobody thinks of as an edit. Carrying it is what lets a predicate say
+   *  `event.character.contentChanged` and mean it. The field is REQUIRED inside the object (the source
+   *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
+   *  demands. */
+  character: z.object({ id: z.string(), contentChanged: z.boolean() }).optional(),
   assetId: z.string().optional(), // asset.created
+  personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
+  worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
 });
 export type TriggerFact = z.infer<typeof triggerFactSchema>;
 
@@ -712,6 +851,7 @@ export type {
   RulePresetKnobValueOf,
   RulePresetKnobView,
   RulePresetNumberKnobDescriptor,
+  RulePresetScope,
   RulePresetTextKnobDescriptor,
   RulePresetTextListKnobDescriptor,
   RulePresetView,
@@ -722,8 +862,10 @@ export {
   RULE_PRESET_ENTITY_REF_SCHEMAS,
   RULE_PRESET_IDS,
   RULE_PRESET_KNOB_KINDS,
+  RULE_PRESET_SCOPES,
   rulePresetIdSchema,
   rulePresetKnobValuesSchema,
+  rulePresetScopeSchema,
 } from "./presets.ts";
 
 // The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.

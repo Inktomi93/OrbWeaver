@@ -5,7 +5,7 @@
 
 import type { Can, Principal } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { Handle } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { z } from "zod";
 import type { ToolDefinition, ToolExecutionContext, ToolHandler, ToolUseContext } from "../../../../packages/server/src/domain/tool-use/index.ts";
@@ -21,6 +21,11 @@ export interface ToolUseHarness {
   /** Actions the `can` stub denies (everything else allows). */
   readonly denied: Set<string>;
 }
+
+/** The driver a builtin-only test resolves as. `resolveTools` is DRIVER-SCOPED (#677) but a first-party entry
+ *  lives on the ownerless shelf every driver falls back to, so which user this is cannot matter — that
+ *  invariant is itself pinned in `resolve-tools.test.ts`. */
+export const ANY_DRIVER = castId<UserId>("user_any_driver");
 
 export function makeHarness(): ToolUseHarness {
   let at = FROZEN_AT;

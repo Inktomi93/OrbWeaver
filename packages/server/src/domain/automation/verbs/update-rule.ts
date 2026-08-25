@@ -6,26 +6,35 @@
 import type { UpdateRuleParams } from "../contract/params.ts";
 import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
-import { requireRuleHost } from "../guard.ts";
+import { requireRuleAuthority } from "../guard.ts";
 import { applyRuleUpdate, selectRuleRow, toRuleView } from "../persistence/rules.ts";
+import { notifyRulesChanged } from "../substrate/rule-feed.ts";
 import { RULE_MAX_FIRES_DEFAULT, validateRuleInput } from "../substrate/validate.ts";
 
 export function createUpdateRule(ctx: AutomationContext): AutomationService["updateRule"] {
   return async (params: UpdateRuleParams): Promise<RuleView> => {
-    const rule = await requireRuleHost(ctx, params.principal, params.ruleId);
+    const rule = await requireRuleAuthority(ctx, params.principal, params.ruleId);
     const cooldownSeconds = params.cooldownSeconds ?? 0;
     const maxFiresPerHour = params.maxFiresPerHour ?? RULE_MAX_FIRES_DEFAULT;
-    const { actions } = await validateRuleInput(ctx, rule.chatId, {
-      trigger: params.trigger,
-      predicateCel: params.predicateCel,
-      actions: params.actions,
-      cooldownSeconds,
-      maxFiresPerHour,
-      // THE RULE'S OWNER, not the editing caller. `requireRuleHost` admits any host of the rule's chat, and an
-      // edited rule still dispatches as its original author — so a co-host must not be able to point it at a
-      // tool that author cannot drive. Reachability is a question about who ACTS, never about who typed.
-      authorUserId: rule.ownerId,
-    });
+    // The SCOPE is the rule's OWN and is immutable here — an edit can move a rule's trigger, arms and caps,
+    // never the lane it lives in. Passing the stored `chatId` (rather than anything the caller sent) is what
+    // makes that true: there is no field on this verb that could move a room's rule onto the owner-global
+    // lane, where its arms would face a different admission matrix.
+    const { actions } = await validateRuleInput(
+      ctx,
+      { chatId: rule.chatId, authorUserId: rule.ownerId },
+      {
+        trigger: params.trigger,
+        predicateCel: params.predicateCel,
+        actions: params.actions,
+        cooldownSeconds,
+        maxFiresPerHour,
+        // THE RULE'S OWNER, not the editing caller. `requireRuleAuthority` admits any host of the rule's chat, and an
+        // edited rule still dispatches as its original author — so a co-host must not be able to point it at a
+        // tool that author cannot drive. Reachability is a question about who ACTS, never about who typed.
+        authorUserId: rule.ownerId,
+      },
+    );
     await applyRuleUpdate(ctx.db, params.ruleId, {
       name: params.name,
       description: params.description ?? null,
@@ -49,7 +58,7 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     // The roster announces itself AFTER the write AND after both in-process indexes reconcile (survey H2/F5):
     // a subscriber that re-reads on this event must not observe a rule whose transform registration is still
     // the pre-edit one. `chatId` comes off the guard-loaded row (the rule's chat is immutable here).
-    ctx.notify({ type: "rulesChanged", chatId: rule.chatId });
+    notifyRulesChanged(ctx, rule.chatId);
     return toRuleView(row);
   };
 }

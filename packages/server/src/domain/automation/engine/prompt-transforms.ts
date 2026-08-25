@@ -76,10 +76,17 @@ function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec:
         return draft;
       }
       const celEnv = await buildTransformEnv(deps, spec.chatId, rule.ownerId, env.vars);
-      if (evaluatePredicate(rule.predicateCel, celEnv) !== true) {
+      if (evaluatePredicate(rule.predicateCel, celEnv, true) !== true) {
         return draft;
       }
-      const rendered = renderArmTemplate({ env: celEnv, nowMs: deps.now(), prng: deps.prng, template: spec.template, macroEnv: { [DRAFT_MACRO_KEY]: draft } });
+      const rendered = renderArmTemplate({
+        env: celEnv,
+        chatScoped: true,
+        nowMs: deps.now(),
+        prng: deps.prng,
+        template: spec.template,
+        macroEnv: { [DRAFT_MACRO_KEY]: draft },
+      });
       return rendered.error === undefined ? rendered.text : draft;
     },
   };
@@ -91,7 +98,10 @@ function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec:
  *  `transform_draft` arm is turnStarted + all-transform, so this only ever fires for genuine transform rules. */
 function ruleTransforms(deps: PromptTransformIndexDeps, rule: RuleRow): PromptTransform[] {
   if (rule.chatId === null) {
-    return []; // v1 has no chat-less rule; a transform needs its chat for the self-guard.
+    // A `transform_draft` rule is CHAT-REQUIRED (`AUTOMATION_ARM_SCOPE`), so the mint refuses one on the
+    // owner-global lane and a chat-less row here can only be a rule whose arms are something else. The
+    // self-guard below needs a chat to compare the turn against, so there is nothing to register either way.
+    return [];
   }
   const parsed = automationActionsSchema.safeParse(rule.actions);
   if (!parsed.success) {

@@ -48,11 +48,11 @@ describe("automation_rules persistence", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const chatId = await seedHostChat(db, owner);
-    await expect(maxPosition(db, chatId)).resolves.toBe(-1);
+    await expect(maxPosition(db, chatId, owner)).resolves.toBe(-1);
     const id = await seedRule(db, { ownerId: owner, chatId, name: "a", position: 0 });
     const row = await selectRuleRow(db, id);
     expect(row?.enabled).toBe(false);
-    await expect(maxPosition(db, chatId)).resolves.toBe(0);
+    await expect(maxPosition(db, chatId, owner)).resolves.toBe(0);
   });
 
   test("applyReorder rewrites position as a total order; listRuleRowsForChat reads it", async () => {
