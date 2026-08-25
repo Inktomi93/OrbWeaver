@@ -19,6 +19,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { sha256Hex } from "@orb/server/kit/content-hash";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
@@ -1306,5 +1307,121 @@ describe("edit verbs — the §3.6 caller-role RETURN belt", () => {
     const emittedView = event !== undefined && "view" in event ? event.view : undefined;
     expect(emittedView?.reasoning).toBe(spill);
     expect(emittedView?.content).toBe(body);
+  });
+});
+
+describe("applyProseRewrite — C3's variant-pinned, hash-guarded rewrite door", () => {
+  /** Seed a room with ONE assistant reply and hand back everything the pins need to name it. */
+  async function seedAudited(content: string): Promise<{
+    host: UserId;
+    member: UserId;
+    chatId: ChatId;
+    messageId: MessageId;
+    variantId: MessageVariantId;
+    hash: string;
+    edit: ReturnType<typeof createEdit>;
+  }> {
+    const { host, member, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    return { host, member, chatId, messageId, variantId, hash: sha256Hex(content), edit };
+  }
+
+  test("a confirmed rewrite lands as a NEW selected variant and the audited one SURVIVES — that is the revert", async () => {
+    const { host, chatId, messageId, variantId, hash, edit } = await seedAudited("The door was open.");
+
+    const view = await edit.applyProseRewrite({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      expectedContentHash: hash,
+      content: "The door was already locked.",
+    });
+
+    expect(view.content).toBe("The door was already locked.");
+    // The REVERT OBLIGATION, stated as a fact about the row set rather than a promise: the slot now carries
+    // two variants, the audited one still holds its original bytes, and a plain `selectVariant` back onto it
+    // restores the reply. No snapshot column, no expiry, no new affordance to teach.
+    expect(view.variantCount).toBe(2);
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId)).orderBy(asc(messageVariants.idx));
+    expect(variants.map((v) => v.content)).toEqual(["The door was open.", "The door was already locked."]);
+    const restored = await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId });
+    expect(restored.content).toBe("The door was open.");
+  });
+
+  test("SWIPE-BETWEEN refuses typed and touches nothing — the host swiped after the ask", async () => {
+    const { host, chatId, messageId, variantId, hash, edit } = await seedAudited("The door was open.");
+    // A second variant, selected — exactly what a swipe between the card and the confirm produces.
+    const otherId = await addVariant(db, messageId, 1, "The door creaked.");
+    await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: otherId });
+    emitted.length = 0;
+
+    const err = await edit
+      .applyProseRewrite({ principal: principal(host), chatId, messageId, variantId, expectedContentHash: hash, content: "fixed" })
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("rewrite_superseded");
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
+    expect(variants).toHaveLength(2); // nothing appended
+    expect(variants.map((v) => v.content).toSorted()).toEqual(["The door creaked.", "The door was open."]); // nothing rewritten
+    expect(emitted).toEqual([]);
+  });
+
+  test("STALE HASH refuses typed and touches nothing — the audited text changed under the card", async () => {
+    const { host, chatId, messageId, variantId, hash, edit } = await seedAudited("The door was open.");
+    // The pinned variant is still SELECTED — only its bytes moved, which is the second, independent failure
+    // the two codes exist to tell apart.
+    await edit.editMessage({ principal: principal(host), chatId, messageId, content: "The door was ajar." });
+    emitted.length = 0;
+
+    const err = await edit
+      .applyProseRewrite({ principal: principal(host), chatId, messageId, variantId, expectedContentHash: hash, content: "fixed" })
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("rewrite_stale");
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
+    expect(variants).toHaveLength(1);
+    expect(variants[0]?.content).toBe("The door was ajar."); // the host's own edit stands, unrewritten
+    expect(emitted).toEqual([]);
+  });
+
+  test("a MEMBER is refused not_host — a member has no standing to accept a machine's rewrite of the room", async () => {
+    const { member, chatId, messageId, variantId, hash, edit } = await seedAudited("The door was open.");
+    const err = await edit
+      .applyProseRewrite({ principal: principal(member), chatId, messageId, variantId, expectedContentHash: hash, content: "fixed" })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+  });
+
+  test("the STATS mirror agrees with a rebuild from canon after the rewrite (the three-part swap)", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "The door was open." });
+    const deltas: StatsDelta[] = [];
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
+    const clock = { now: (): number => FROZEN_AT };
+
+    // Baseline: reconcile the PRE-rewrite canon (reconcile is a per-owner REPLACE, so the live path has to be
+    // applied ON TOP of a baseline for the comparison to mean anything).
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    await edit.applyProseRewrite({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      expectedContentHash: sha256Hex("The door was open."),
+      content: "The door was already locked.",
+    });
+
+    // THREE deltas, not four: unlike a swipe between two EXISTING variants, an append has no incoming swipe
+    // to subtract — the old variant leaves the message bucket and re-enters as a swipe, and the new one
+    // enters as the message.
+    expect(deltas).toHaveLength(3);
+    const live = await snapshotRollups(db, host);
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    expect(live).toEqual(await snapshotRollups(db, host));
   });
 });

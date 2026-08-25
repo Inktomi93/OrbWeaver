@@ -133,11 +133,16 @@ async function assertAnalysisAdmissible(db: Db, chatId: ChatId, actions: readonl
   }
   for (const arm of analyses) {
     const routes = arm.routes;
-    const enabled = [routes.steer, routes.lore, routes.suggest, routes.vars].filter((r) => r !== undefined).length;
+    const enabled = [routes.steer, routes.lore, routes.suggest, routes.rewrite, routes.vars].filter((r) => r !== undefined).length;
     if (enabled === 0) {
       throw new RuleValidationError("analysis_no_routes", "a run_analysis arm must enable at least one output route");
     }
-    const confirmClass = [routes.steer?.apply === "confirm", routes.lore?.apply === "confirm", routes.suggest !== undefined].filter(Boolean).length;
+    const confirmClass = [
+      routes.steer?.apply === "confirm",
+      routes.lore?.apply === "confirm",
+      routes.suggest !== undefined,
+      routes.rewrite !== undefined,
+    ].filter(Boolean).length;
     if (confirmClass > 1) {
       throw new RuleValidationError(
         "analysis_confirm_slots",

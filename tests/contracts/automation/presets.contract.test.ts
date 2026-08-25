@@ -5,6 +5,7 @@
 
 import type { RulePresetEntityKind, RulePresetId, RulePresetKnobDescriptor, RulePresetKnobKind, RulePresetView } from "@orb/contracts/automation";
 import {
+  NEEDLE_TENSION_VAR_KEY,
   RULE_PRESET_ENTITY_KINDS,
   RULE_PRESET_ENTITY_NOUNS,
   RULE_PRESET_ENTITY_REF_SCHEMAS,
@@ -16,7 +17,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("RULE_PRESET_IDS is the pinned 14-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers), in §4 build order", () => {
+test("RULE_PRESET_IDS is the pinned 18-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers + #16 the needle + C3's prose audit + C6's two), in §4 build order", () => {
   expect(RULE_PRESET_IDS).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -34,14 +35,29 @@ test("RULE_PRESET_IDS is the pinned 14-member catalogue (A3's seven + A4's four 
     // §4 #11 — C2's confirm-first lore distillers, both riding the run_analysis → upsertLoreEntry route.
     "distillLore",
     "rumorMill",
+    // §4 #16 — the needle: the analysis pass's tension SCORE published into the member-visible vars plane
+    // (F6's single ruled exception) plus the backdrop reaction. RULED 2026-08-24 — ships, off by default.
+    "theNeedle",
+    // §4 #15 — C3's confirm-first prose audit, riding the run_analysis → suggestRewrite route.
+    "proseAudit",
+    // §4 #2 + #14 — C6's pair: the async table nudge (the actor-excluding recipient's consumer) and the
+    // spotlight-balance analysis. Appended, never re-ordered: the tuple is the catalogue's build order.
+    "asyncTableNudge",
+    "spotlightBalance",
   ]);
   expect(rulePresetIdSchema.options).toEqual(RULE_PRESET_IDS);
-  // The rows riding LATER phases stay unspellable: #2 (C6's actor-excluding notification recipient),
-  // #14 spotlight balance, and #16 the needle (the HELD juice-presets lane — its vars route + read proc
-  // shipped with C1, OFF by default per the ruling). #11's rumour mill is now BUILT (C2).
-  expect(rulePresetIdSchema.safeParse("asyncTableNudge").success).toBe(false);
-  expect(rulePresetIdSchema.safeParse("spotlightBalance").success).toBe(false);
-  expect(rulePresetIdSchema.safeParse("theNeedle").success).toBe(false);
+  // The one row still riding a later phase stays unspellable: #20 the owner-global living library
+  // (C5's lane — the global rules surface mints it). Every other catalogue row is BUILT: the ids that
+  // once proved unspellable (#16, #15, #2, #14) parse above.
+  expect(rulePresetIdSchema.safeParse("livingLibrary").success).toBe(false);
+});
+
+test("#16: the needle's variable key is a CONTRACTS constant — the one name the preset writes and the meter reads", () => {
+  // It lives in contracts because two packages must agree on it: the server preset authors
+  // `routes.vars.key` with it and the client meter reads `getRuntimeVariables()[key]` with it. A
+  // server-side literal would make the client's own literal the second home of one name — and it is not a
+  // knob, because a knob-supplied key lands in a CEL identifier position and the meter could never learn it.
+  expect(NEEDLE_TENSION_VAR_KEY).toBe("tension");
 });
 
 test("RULE_PRESET_KNOB_KINDS is the pinned editor axis — four scalars plus the reference kind", () => {
@@ -84,6 +100,10 @@ const PRESET_SEEN: Record<RulePresetId, true> = {
   storyPacing: true,
   distillLore: true,
   rumorMill: true,
+  theNeedle: true,
+  proseAudit: true,
+  asyncTableNudge: true,
+  spotlightBalance: true,
 };
 const KIND_SEEN: Record<RulePresetKnobKind, true> = { number: true, text: true, textList: true, choice: true, entityRef: true };
 const ENTITY_SEEN: Record<RulePresetEntityKind, true> = { worldInfoBook: true };

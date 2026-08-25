@@ -9,7 +9,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { GenerateImageActionArgs } from "#imagery";
-import type { NotificationRecipient } from "#notifications";
+import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginMessageView, PluginWorldEntryUpsert } from "./host-v1.ts";
 import type { PluginSuggestedAct } from "./suggestion.ts";
 
@@ -70,9 +70,11 @@ export interface PluginBridge {
    *  selector + the (host-capped) message; the domain builder closes over the `pluginId` (the notice source) +
    *  installer, resolves the recipient set DOMAIN-side (host = the installer; all_members = the present human
    *  roster — a plugin can never notify a non-participant), and emits through the SAME durable inbox path a
-   *  `post_notification` arm uses. */
+   *  `post_notification` arm uses. The selector is the PLUGIN SUBSET of the recipient axis — the
+   *  actor-excluding member needs a triggering fact this call does not have
+   *  (`PLUGIN_NOTIFICATION_RECIPIENTS`). */
   readonly notifications: {
-    readonly post: (chatId: ChatId, recipient: NotificationRecipient, message: string) => Promise<void>;
+    readonly post: (chatId: ChatId, recipient: PluginNotificationRecipient, message: string) => Promise<void>;
   };
   /** ONE bounded non-canon generation on the INSTALLER's own resolved `summarize`-role connection
    *  (`llm.quiet`, SPEND). The domain builder closes the installer over it — a guest supplies ONLY the prompt

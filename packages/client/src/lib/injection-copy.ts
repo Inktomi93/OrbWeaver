@@ -3,6 +3,7 @@
 // form, persona-editor) and had already drifted ("pick depth ≥ 1" vs "Use depth ≥ 1").
 
 import type { ChatUnavailableCause } from "@orb/contracts/connection";
+import type { ChatControlMode } from "./contribution-contracts.ts";
 
 export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill — unsupported across providers. Use depth ≥ 1, or role system/user.";
 
@@ -51,6 +52,20 @@ export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
 
 /** An `execute` control whose OWN verb call is already in flight (never a turn — it re-enables on settle). */
 export const CONTROL_ACTION_RUNNING = "Already running — wait for it to finish";
+
+/** The ENABLED control's `title` — the mode's CONSEQUENCE, in the enabled-row helper idiom
+ *  (`REGENERATE_PLAIN_HELPER` above, `IMAGE_GEN_SPENDS_NOW` below: an operable affordance may still owe a
+ *  hover sentence). side-eye 2026-08-24 P3 (#674): `title` was set ONLY when a control was DISABLED, so an
+ *  operable chip named its consequence nowhere on the pointer path — the glyph and the accessible-name
+ *  prefix say WHICH mode, neither says what the click COSTS, and `send` posts a turn with no confirm step.
+ *  A disabled control's REASON still wins the attribute (a blocked affordance owes its unlock first).
+ *  Exhaustive over the mode axis: a new `CHAT_CONTROL_MODES` member fails `tsc` here until it declares
+ *  what its click does (§5.5 string-union dispatch discipline). */
+export const CONTROL_MODE_CONSEQUENCE: Record<ChatControlMode, string> = {
+  send: "Sends as your line",
+  compose: "Drafts into your composer",
+  execute: "Runs now — nothing is sent",
+};
 
 /** The undisclosed remainder, in the ONE grammar both stacks use: the cards' "+N pending" (only the newest
  *  card is shown — the attention budget) and the chips row's overflow past its display cap. */

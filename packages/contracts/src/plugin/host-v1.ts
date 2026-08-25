@@ -13,7 +13,7 @@ import type { EntryPosition } from "@orb/kit/world-info";
 import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "#automation";
 import type { PromptTransformPoint } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
-import type { NotificationRecipient } from "#notifications";
+import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest.ts";
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
@@ -121,8 +121,10 @@ export interface PluginHostV1 {
 
   readonly notifications: {
     /** capability: notify — the automation-notice path with recipient rules (participants only,
-     *  200-char cap, cooldown floor). */
-    post: (chat: ChatHandle, recipient: NotificationRecipient, message: string) => Promise<void>;
+     *  200-char cap, cooldown floor). The selector is the PLUGIN SUBSET of the recipient axis: a guest call
+     *  carries no triggering fact, so the actor-excluding member has no actor to exclude and is
+     *  unrepresentable here rather than silently downgraded (`PLUGIN_NOTIFICATION_RECIPIENTS`). */
+    post: (chat: ChatHandle, recipient: PluginNotificationRecipient, message: string) => Promise<void>;
   };
 
   readonly imagery: {
