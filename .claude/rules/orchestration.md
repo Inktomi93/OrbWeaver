@@ -205,6 +205,12 @@ linked Project issue — no lane touches `work:item`.
 - **The whole-tree single-pass runs after EVERY merge train, not only at drain** — one corpus train
   left 9 findings that every scoped lane floor structurally missed; the single-pass caught them 30 min
   after merge instead of at the barrier.
+- **A ROUTER-TOUCHING merge's floor includes the cross-tenant sweep suite** (paid 2026-08-24: C5
+  added three procs, its lane floor and the orchestrator's merge floor both omitted
+  `tests/server/transport/cross-tenant-sweep.suite.int.test.ts`, and main sat red on the
+  completeness guard until a sibling lane hit it). The `new-router-needs-sweep-classification`
+  memory existed — the failure was the FLOOR not naming the suite. Any merge whose diff touches
+  `transport/trpc/routers/**` runs the sweep before the ff.
 - **Worktree lifecycle rides the CUSTOM hook pair** (`WorktreeCreate`/`WorktreeRemove` →
   `.claude/hooks/worktree-setup.sh` / `worktree-remove.sh`): `isolation: "worktree"` dispatches get a
   WORKING tree for free — never add "run pnpm install" to those briefs. **A MANUAL `git worktree add`
