@@ -476,6 +476,8 @@ test("a fresh console's shipped starter is code that can actually run — no top
   // real run, not the parse-error path this issue exists to catch.
   const output = page.getByRole("status", { name: "Snippet output" });
   await expect(output).toContainText("5 messages");
+  // ONESHOT-OK: the toContainText barrier above only passes once the stubbed runSnippet response has
+  // RENDERED, so the recorder's last input is settled — no later call can race this read.
   expect(recorder.lastInput("plugin.runSnippet")).toEqual({ chatId: CHAT, code: starter });
 });
 

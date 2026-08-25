@@ -10,7 +10,10 @@
 // WHAT THE DERIVATION IS (clamp.ts owns the CSS spelling; this file owns the meaning):
 //   • a FOREGROUND is never picked, only derived — its lightness flips light↔dark around `fgPivotL` with a
 //     steep step, so any surface lighter than the pivot gets near-black text and darker gets near-white;
-//   • the neutral surface RAMP is the base with only L shifted (hue + chroma held);
+//   • the neutral surface RAMP is the base with only L shifted (hue + chroma held) — by a delta from the
+//     TWO-ARM `ramp` block, selected off the same pivot (#682): a dark base's chrome rises off it, a
+//     light base's recedes, because above L ≈ 0.95 "lighter" has no headroom left and the whole family
+//     collapses into one white;
 //   • `color-scheme` derives from the base's L against the SAME pivot, so text polarity and scheme polarity
 //     can never disagree.
 //
@@ -21,9 +24,12 @@
 // low-contrast for any sub-maximal tone, and no real palette uses one"). A hand-authored orb palette never
 // lands there; a FOREIGN palette can, which is exactly why the importer needs to ask.
 // The band is MEASURED, not declared: `isDerivableBaseSurface` runs the real pairings, and the boundary that
-// falls out is L ∈ [0.45, 0.63] (pinned in this module's test). That suite's "~0.28–0.62" is a deliberately
+// falls out is L ∈ [0.443, 0.686] (pinned in this module's test). That suite's "~0.28–0.62" is a deliberately
 // generous exclusion range for a sweep — a prose approximation, not the boundary — so nothing here derives
-// from it.
+// from it. The UPPER edge was 0.63 until #682 (2026-08-24) gave the surface ramp its polarity arm: above the
+// pivot the chrome now recedes from the base instead of saturating toward white, so a base just over the
+// pivot derives a sidebar-accent its own near-black text reads at 3.56:1. The widened slice is measurement,
+// not regression — those palettes were never legible, they were clamped out of view.
 
 /** The numeric derivation constants — the ONE declaration. `@orb/ui`'s clamp re-exports these as
  *  `THEME_DERIVATION` (its own consumers' name) and spells them into CSS; nothing re-derives them.
@@ -52,7 +58,19 @@
  *  inset are light-from-above (white alpha) and the drop is near-black; on a light surface a white ring
  *  is a 1.00:1 ghost, the inset paints nothing at all (α 0), and a near-black drop reads as a torn-out
  *  sticker — so the ring inverts to a dark hairline and the drop lifts to L 0.35 at a third of the alpha.
- *  Only `l`/`c`/`alpha` live here: the HUE is the palette's own (see the function). */
+ *  Only `l`/`c`/`alpha` live here: the HUE is the palette's own (see the function).
+ *
+ *  `ramp` is the neutral SURFACE ramp, and it is two-armed for the same reason and off the same pivot
+ *  (#682, the #243 move applied to the surfaces): the arms are lightness DELTAS off the picked base that
+ *  {@link rampDeltas} selects between. Neither arm is invented — `dark` is the pre-#682 single additive
+ *  block digit-for-digit, and `light` is the shipped Light seed's own measured block promoted from a
+ *  hand-authored per-seed value-set into the derivation a CUSTOM theme gets too (base 0.98 → sidebar
+ *  0.955, surface-raised 0.965, card/popover 0.995, secondary 0.94, muted 0.95, accent 0.93,
+ *  sidebar-accent 0.90). A single additive block cannot serve both polarities: on a near-white base every
+ *  positive member saturates at L 1.0, so card = popover = secondary = muted = accent = sidebar-accent =
+ *  white and `muted`-on-`card` renders at 1.0000:1 — the arc meter's track, a card skeleton and a track
+ *  bar all disappear. On a light surface a raised tone is not a lighter one (there is no headroom); it is
+ *  a RECESSED one, which is exactly what the Light seed always spelled by hand. */
 export const THEME_DERIVATION = {
   fgPivotL: 0.62,
   fgSteepness: 1000,
@@ -80,14 +98,26 @@ export const THEME_DERIVATION = {
     },
   },
   ramp: {
-    sidebar: -0.026,
-    surfaceRaised: 0.027,
-    card: 0.047,
-    popover: 0.087,
-    accent: 0.127,
-    sidebarAccent: 0.077,
-    secondary: 0.097,
-    muted: 0.097,
+    dark: {
+      sidebar: -0.026,
+      surfaceRaised: 0.027,
+      card: 0.047,
+      popover: 0.087,
+      accent: 0.127,
+      sidebarAccent: 0.077,
+      secondary: 0.097,
+      muted: 0.097,
+    },
+    light: {
+      sidebar: -0.025,
+      surfaceRaised: -0.015,
+      card: 0.015,
+      popover: 0.015,
+      accent: -0.05,
+      sidebarAccent: -0.08,
+      secondary: -0.04,
+      muted: -0.03,
+    },
   },
 } as const;
 
@@ -398,7 +428,7 @@ export const READING_BAND_ALPHA = 1;
  * {@link READING_BAND_ALPHA} (#241, owner-ruled off #223).
  *
  * WHY IT IS THE PLATE AND NOT A RAMP MEMBER. The band shipped as the `card` ramp surface
- * (`base + ramp.card`, +0.047) while the prose under it rides the plate (`base + readingPlate.deltaL`,
+ * (`base + ramp.dark.card`, +0.047) while the prose under it rides the plate (`base + readingPlate.deltaL`,
  * −0.038): two backings on ONE column, a constant ΔL ≈ 0.085 apart, which the owner filed as an
  * unintentional-looking step ("two stacked whites of different opacity per message"). Deriving the band
  * FROM the plate makes the step disappear BY CONSTRUCTION rather than by matching two numbers that can
@@ -472,6 +502,57 @@ export function shadowIngredients(base: Oklch): ShadowIngredients {
   };
 }
 
+/** The eight neutral-surface lightness deltas one picked base derives its chrome from — the ramp. */
+export interface RampDeltas {
+  /** The rail: the one member that RECEDES on both polarities. */
+  readonly sidebar: number;
+  /** The elevation-ramp mid panel (`shell-grid[data-elevation=ramp]`). */
+  readonly surfaceRaised: number;
+  readonly card: number;
+  readonly popover: number;
+  /** The hover/selected row fill. */
+  readonly accent: number;
+  readonly sidebarAccent: number;
+  readonly secondary: number;
+  /** The low-emphasis fill graphics are painted in (meter tracks, skeletons, track bars). */
+  readonly muted: number;
+}
+
+/**
+ * THE NEUTRAL SURFACE RAMP for a base surface — polarity-derived, so a near-white palette stops
+ * collapsing its whole chrome family into one white (#682, the #243 move applied to the surfaces).
+ *
+ * THE DEFECT THIS CLOSES: the ramp was ONE additive block, every member but `sidebar` positive. Above
+ * L ≈ 0.95 the positive members saturate at 1.0 and stop being different colours — measured on the
+ * pre-fix derivation at base `oklch(0.98 0.004 75)`: card = popover = secondary = muted = accent =
+ * sidebar-accent = surface-raised = L 1.000, i.e. `muted` on `card` at 1.0000:1. Every low-emphasis
+ * GRAPHIC is that pairing (the arc meter's track over a card, a skeleton, a track bar), so on a
+ * near-white carried palette they rendered as nothing at all.
+ *
+ * WHY A SECOND ARM AND NOT A SMALLER STEP: the additive form is not merely too big near white, it is the
+ * wrong DIRECTION. On a light surface "raised" cannot mean lighter — there is no headroom — it means
+ * recessed, which is what the shipped Light seed has always spelled by hand. The light arm IS that
+ * block, promoted; the dark arm IS the pre-#682 block. Neither is invented, exactly as #243 did for
+ * elevation.
+ *
+ * THE POLARITY PIVOT IS `fgPivotL`, the same one the foreground flip, `color-scheme` and the elevation
+ * arm ride, so a palette can never get light-arm surfaces with dark-arm text. Strictly ABOVE the pivot is
+ * light, matching `colorSchemeFor`'s boundary exactly.
+ *
+ * THE DARK ARM DOES NOT MOVE: for any base at or below the pivot this returns the pre-#682 numbers
+ * unchanged, and a base whose polarity is not statically knowable keeps the dark arm too (the caller's
+ * `base === null` fail-open — `@orb/ui` `derive-vars.ts`), so every dark room and every unjudgeable
+ * palette emits the identical CSS byte-for-byte.
+ *
+ * THE MEASURED CONSEQUENCE, stated rather than hidden: because the light arm derives DOWN, a base just
+ * above the pivot now produces sub-AA chrome, so {@link isDerivableBaseSurface}'s refused band widens at
+ * the top (its test pins the new boundary). That is the predicate doing its job — those palettes really
+ * cannot carry legible chrome — not a regression it papers over.
+ */
+export function rampDeltas(base: Oklch): RampDeltas {
+  return base.l > THEME_DERIVATION.fgPivotL ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+}
+
 /**
  * Can orb DERIVE an acceptable palette from this base surface? False inside the pivot mid-band, where the
  * step flip produces a mid-tone foreground and the pair is inherently low-contrast (see the module header).
@@ -481,13 +562,14 @@ export function shadowIngredients(base: Oklch): ShadowIngredients {
  */
 export function isDerivableBaseSurface(base: Oklch): boolean {
   const foreground = oklchToSrgb(derivedForeground(base));
+  const deltas = rampDeltas(base);
   const surfaces = [
     base,
-    rampSurface(base, THEME_DERIVATION.ramp.card),
-    rampSurface(base, THEME_DERIVATION.ramp.popover),
-    rampSurface(base, THEME_DERIVATION.ramp.sidebar),
-    rampSurface(base, THEME_DERIVATION.ramp.secondary),
-    rampSurface(base, THEME_DERIVATION.ramp.sidebarAccent),
+    rampSurface(base, deltas.card),
+    rampSurface(base, deltas.popover),
+    rampSurface(base, deltas.sidebar),
+    rampSurface(base, deltas.secondary),
+    rampSurface(base, deltas.sidebarAccent),
   ];
   return surfaces.every((surface) => wcagContrastRatio(foreground, oklchToSrgb(surface)) >= AA_NORMAL_RATIO);
 }

@@ -150,8 +150,15 @@ export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-d
 // corners; a block that floats in one must). It names NO ink, and that is deliberate rather than an
 // omission of the #204 pairing: a skeleton is `aria-hidden` decoration carrying its own `bg-muted` fill
 // (@orb/ui skeleton variants) — there is no text on this plate for an ink to pair with, and `bg-muted`
-// is `base + ramp.muted` (+0.097) against a plate at `base + readingPlate.deltaL` (−0.038), so the bars
-// clear their own backing by a derived ΔL 0.135 in every palette rather than by a hand-picked value.
+// is `base + ramp.<arm>.muted` against a plate at `base + readingPlate.deltaL` (−0.038), so the bars
+// clear their own backing by a DERIVED ΔL rather than by a hand-picked value.
+//
+// THAT ΔL IS PER-POLARITY, and the "0.135 in every palette" this line used to claim was never true of the
+// LIGHT palettes (truth-repaired 2026-08-24 with #682): on a dark base it is 0.097 − (−0.038) = 0.135, but
+// the shipped Light seed has always spelled muted 0.95 against a plate at 0.942 — ΔL 0.008 — and since
+// #682 gave the ramp its polarity arm (muted −0.03 on a light base) a CUSTOM light theme derives the same
+// 0.008 the seed ships. Whether a light-palette skeleton is legible on its own plate is therefore a real,
+// PRE-EXISTING question about the light arm's muted step, not a property this file can assert.
 //
 // Self-gated on `in-data-[has-bg-image]` like its three siblings, so a plain-background room is
 // byte-identical to before. Static (no transition) ⇒ reduced-motion-safe.
