@@ -24,8 +24,8 @@
 // (`loadMessageSeqs`) and the activity plane (`loadVariableDeltas`) carry no transcript bytes.
 //
 // TWO DISCHARGES, in this order:
-//  1. STRUCTURAL — the same reachable body also calls `isBelowHistoryFloor` (the ONE per-event verdict). A
-//     verb that reads room-plane canon and visibly clamps it before egress is correct by construction
+//  1. STRUCTURAL — the reader's own result is filtered through `isBelowHistoryFloor` (the ONE per-event
+//     verdict). A verb that reads room-plane canon and visibly clamps those rows before egress is correct
 //     (`replayChatEvents` is exactly this shape). Preferred: it survives renames and needs no bookkeeping.
 //  2. ALLOWLIST — a `verb:reader` pair whose product provably leaves the viewer plane (numbers, not bytes) or
 //     is room-plane machinery a member merely TRIGGERS (a turn is one shared utterance; the prompt is the
@@ -178,7 +178,6 @@ function calleeName(call: Node): string | undefined {
 
 interface Reach {
   readerCalls: Node[];
-  clamped: boolean;
   readonly seen: Set<Node>;
   readonly queue: Node[];
 }
@@ -191,7 +190,6 @@ function scanBody(fn: Node, locals: ReadonlyMap<string, Node>, acc: Reach): void
     if (BULK_CANON_READERS.has(name)) {
       acc.readerCalls.push(call);
     }
-    acc.clamped = acc.clamped || name === CLAMP_FN;
     const local = locals.get(name);
     if (local !== undefined && !acc.seen.has(local)) {
       acc.seen.add(local);
@@ -203,11 +201,39 @@ function scanBody(fn: Node, locals: ReadonlyMap<string, Node>, acc: Reach): void
 /** Every banned-reader call reachable from `root` through module-local helper calls, plus whether the same
  *  reachable body applies the clamp. Cycle-guarded by the visited-function set. */
 function reachFrom(root: Node, locals: ReadonlyMap<string, Node>): Reach {
-  const acc: Reach = { readerCalls: [], clamped: false, seen: new Set<Node>([root]), queue: [root] };
+  const acc: Reach = { readerCalls: [], seen: new Set<Node>([root]), queue: [root] };
   for (let fn = acc.queue.pop(); fn !== undefined; fn = acc.queue.pop()) {
     scanBody(fn, locals, acc);
   }
   return acc;
+}
+
+/** A floorless reader is discharged only when ITS result is the receiver of a `.filter(…)` whose callback
+ *  applies the canonical floor verdict. A clamp over any other reachable collection proves nothing about
+ *  this read. The receiver may contain the call inline or reference the same local result binding. */
+function readerResultIsClamped(readerCall: Node): boolean {
+  const fn = readerCall.getFirstAncestor(
+    (ancestor) =>
+      ancestor.isKind(SyntaxKind.FunctionDeclaration) || ancestor.isKind(SyntaxKind.ArrowFunction) || ancestor.isKind(SyntaxKind.FunctionExpression),
+  );
+  if (fn === undefined) {
+    return false;
+  }
+  const resultDecl = readerCall.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  return fn.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+    const callee = call.getExpression();
+    if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === "filter")) {
+      return false;
+    }
+    const receiver = callee.getExpression();
+    const inline = receiver === readerCall || receiver.getDescendants().includes(readerCall);
+    const bound =
+      resultDecl !== undefined &&
+      [receiver, ...receiver.getDescendantsOfKind(SyntaxKind.Identifier)].some(
+        (part) => part.isKind(SyntaxKind.Identifier) && part.getDefinitionNodes().includes(resultDecl),
+      );
+    return (inline || bound) && call.getDescendantsOfKind(SyntaxKind.CallExpression).some((nested) => calleeName(nested) === CLAMP_FN);
+  });
 }
 
 // ── the pass ───────────────────────────────────────────────────────────────────────────────────────────
@@ -259,12 +285,12 @@ function checkReaderRot(ctx: GateRunCtx, files: readonly SourceFile[]): void {
 
 /** Judge ONE viewer-plane verb implementation; returns the allowlist keys it consumed. */
 function checkImpl(ctx: GateRunCtx, impl: VerbImpl, locals: ReadonlyMap<string, Node>): readonly string[] {
-  const { readerCalls, clamped } = reachFrom(impl.node, locals);
-  if (clamped) {
-    return []; // structural discharge: the body applies the one per-event verdict before egress
-  }
+  const { readerCalls } = reachFrom(impl.node, locals);
   const used: string[] = [];
   for (const call of readerCalls) {
+    if (readerResultIsClamped(call)) {
+      continue;
+    }
     const reader = calleeName(call) ?? "";
     const key = `${impl.verb}:${reader}`;
     if (ALLOWLIST.has(key)) {
@@ -342,6 +368,18 @@ export const gate: GateDescriptor = {
     checkStaleAllowlist(ctx, covered, usedAllowlist);
   },
   mustFlag: [
+    {
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => {\n    const rows = await loadChatEventReplay();\n    const unrelated = otherRows.filter((e) => !isBelowHistoryFloor(e, 1));\n    return rows.concat(unrelated);\n  };\n}\nexport const x = createReplayChatEvents;\n',
+      },
+      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      why: "a clamp over unrelated rows reachable from the same verb cannot discharge the floorless canon read",
+    },
     {
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":

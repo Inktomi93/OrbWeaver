@@ -141,11 +141,23 @@ function emittedCodes(project: { getSourceFiles: () => SourceFile[] }, channel: 
 function channelViolations(project: { getSourceFiles: () => SourceFile[] }, channel: WarningChannel): Violation[] {
   const home = project.getSourceFiles().find((sf) => channel.homeFile.test(sf.getFilePath()));
   if (home === undefined) {
-    return [{ file: "tooling/src/verify/gates/warning-code-coverage.ts", line: 1, message: `canonical warning tuple home is missing for ${channel.tuple}` }];
+    return [
+      {
+        file: "tooling/src/verify/gates/warning-code-coverage.ts",
+        line: 1,
+        message: `canonical warning tuple home is missing for ${channel.tuple}. Retarget the channel home in tooling/src/verify/gates/warning-code-coverage.ts.`,
+      },
+    ];
   }
   const members = tupleMembers(home, channel.tuple);
   if (members.length === 0) {
-    return [{ file: home.getFilePath().replace(PKG_PREFIX_RE, "packages/"), line: 1, message: `canonical warning tuple ${channel.tuple} is missing or empty` }];
+    return [
+      {
+        file: home.getFilePath().replace(PKG_PREFIX_RE, "packages/"),
+        line: 1,
+        message: `canonical warning tuple ${channel.tuple} is missing or empty. Restore the tuple declared by tooling/src/verify/gates/warning-code-coverage.ts.`,
+      },
+    ];
   }
   const emittedSet = emittedCodes(project, channel);
   const file = home.getFilePath().replace(PKG_PREFIX_RE, "packages/");
