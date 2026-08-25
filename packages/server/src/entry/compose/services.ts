@@ -49,6 +49,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
+import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryRecallRecorder } from "#domain/chat";
 import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
@@ -713,10 +714,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveRegexSources: regexCompose.resolveRegexSources,
     // The FOREIGN S2 teaching contributions (D145's registry). tool-use's contribution attaches the turn
     // HOST's own plugin tools — the second door D146 governs, the first being automation's `run_tool` arm.
+    // Automation's contribution (C1/S5) delivers the chat's standing ANALYSIS GUIDANCE — one verbatim,
+    // macro-inert authors-note-register line whose read self-gates on enabled + author-is-the-turn-host
+    // (a handoff or disable makes the very next turn read nothing). It takes only `db` — the read exists
+    // before the automation service composes, which is why registering it here creates no ordering knot.
     // Assembled HERE, at the composition root, because that is the only place a contribution may be
     // registered: the `domain-teaching-contribution-compose-only` cruiser stanza makes the owning domain's
     // front door the sole legal importer, so no verb can reach the factory and call it inline.
-    teaching: createToolUseTeachingContributions({ listDrivableToolNames: (userId) => toolUse.listDrivableToolNames(userId) }),
+    teaching: [
+      ...createToolUseTeachingContributions({ listDrivableToolNames: (userId) => toolUse.listDrivableToolNames(userId) }),
+      ...createAutomationTeachingContributions({ db }),
+    ],
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
