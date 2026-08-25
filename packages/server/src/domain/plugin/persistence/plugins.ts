@@ -1,8 +1,11 @@
 // domain/plugin/persistence/plugins — all `plugins`-row db access. Owner-scoped by construction: every
 // read filters `ownerId` (the single-owner partition key), so a foreign/missing id is indistinguishable
-// (leak-free). The row's FULL manifest json is the provenance source `PluginView.builtAgainst` lifts from
-// (no denormalized column). Queries only: authority (`can`), grant math, and CAS ordering live in the
-// verbs.
+// (leak-free). **That predicate IS the domain's whole authority model since D147** — plugins are user-scoped,
+// anyone installs for themselves, and no verb consults a global role — so there is deliberately NO
+// un-owner-scoped read here for an "admin may manage any row" branch to reach for. Adding one would run one
+// user's untrusted bundle under another user's identity at `setEnabled`. The row's FULL manifest json is the
+// provenance source `PluginView.builtAgainst` lifts from (no denormalized column). Queries only: grant math
+// and CAS ordering live in the verbs.
 
 import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";

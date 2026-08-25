@@ -577,7 +577,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     db,
     now,
     newPluginId: minter(ID_PREFIX.plugin),
-    can,
+    // No `can` — plugin authority is OWNERSHIP, not a global role (D147). Every management verb decides on
+    // the owner-scoped row load alone, so there is nothing here for the privilege kernel to answer.
     assets: {
       store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
       // The owner-scoped `plugins` row was already loaded (getById) before activation reads its bundle, so the

@@ -9,9 +9,13 @@
 // stub would hide the one screen a person must be able to find. An app-tier pane beside Connections (the
 // other "credentials and reach" screen) is where a reader already looks for this class of thing.
 //
-// ADMIN-GATED: every `plugin.*` management verb runs `can(caller,"admin",{kind:"global"})`, so for a
-// non-admin this pane is not a smaller screen, it is a screen where every control throws. `when` consumes
-// the state-owned `SettingsViewerView` projection, the same declarative gate the admin pane uses.
+// UNGATED — every user has this pane, and that is the ruling, not an oversight (D147). Plugins are
+// USER-SCOPED: anyone installs for themselves and the plugin runs under them, so `plugin.list` returns the
+// CALLER's own rows and every control on this screen acts on a row they own. There is deliberately no `when`
+// here. Do NOT re-add `when: (viewer) => viewer.isAdmin` — the pane used to carry it because every management
+// verb was admin-gated on the server, and both halves moved together when that gate came off. A future
+// SERVER-WIDE install (admin-only) would be a separate section or pane, never a gate on this one: hiding a
+// person's own installed plugins from them is the failure this line exists to prevent.
 
 import { Blocks } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
@@ -24,7 +28,6 @@ export const pluginsPane: SettingsPaneDefinition = {
   label: "Plugins",
   icon: Blocks,
   description: "Sandboxed scripts that can extend chats — each one runs only with the permissions you grant it.",
-  when: (viewer) => viewer.isAdmin,
   subcategories: [
     {
       id: PLUGINS_SUBCATEGORY_IDS.installed,

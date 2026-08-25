@@ -1,4 +1,5 @@
-// verb: uninstall — remove an installed plugin. Authority = install authority (owner ∪ admin). Order:
+// verb: uninstall — remove an installed plugin. Authority = OWNERSHIP (D147): the owner-scoped row load IS
+// the gate (a foreign row is a leak-free NotFound); no admin any-row branch. Order:
 // deactivate (dispose the resident instance + deregister its tools/transforms/subs — no ghost registrations)
 // → delete the row (`plugin_kv` CASCADEs off the FK) → reap the now-unreferenced bundle asset. The
 // bundle FK is ON DELETE RESTRICT, so the row MUST go before the asset can be reaped (`reapIfOrphan` re-checks
@@ -11,8 +12,6 @@ import { deletePlugin, getById } from "../persistence/plugins.ts";
 
 export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "deactivate">): PluginService["uninstall"] {
   return async ({ caller, pluginId }: UninstallPluginParams): Promise<void> => {
-    ctx.can(caller, "admin", { kind: "global" });
-
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);
