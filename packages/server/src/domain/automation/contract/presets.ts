@@ -40,6 +40,7 @@ import type {
   RulePresetKnobValue,
   RulePresetKnobValueOf,
 } from "@orb/contracts/automation";
+import { ANALYSIS_SCORE_MAX, NEEDLE_TENSION_VAR_KEY } from "@orb/contracts/automation";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 
 /** A caller's PARTIAL knob overrides for a mint — an absent key takes its descriptor's default. Validated
@@ -213,6 +214,11 @@ const DEBT_VAR_KEY = "debt";
 const DEBT_BEAT_VAR_KEY = "debtBeat";
 /** #1's beat stamp — the wall-clock of the last committed message, written by R1 and read by R2. */
 const LAST_BEAT_VAR_KEY = "lastBeatMs";
+/** #16's threshold floor. 0 would mean "re-dress on every read", which is the knob saying nothing. */
+const NEEDLE_THRESHOLD_MIN = 1;
+/** `set_chat_background`'s own `instruction` cap (`automationActionSchema`) — the bias is one sentence about
+ *  what the pick should look like, not the 4 KiB guided-template class. */
+const BACKDROP_INSTRUCTION_MAX = 512;
 
 /** The illustration modes a scene-cadence preset may pick: the two SCENE modes, and ONLY those. The
  *  character/face/multimodal modes need a subject + an avatar and are the `/imagine` surface's, not a
@@ -237,7 +243,8 @@ const ILLUSTRATE_MODE_LABELS = {
 
 // ── the catalogue ─────────────────────────────────────────────────────────────────────────────────────
 // §4 rows #1/#3/#10 (confirm-first + suggestion riders) are A4's; #8 rides A2's per-choice `mode` field;
-// #2/#11/#14/#15/#16/#20 ride later phases. Only the A3-riding committed rows land here.
+// #11/#15/#16 ride C1's `run_analysis` arm (#16 also rides the vars read proc its meter renders through);
+// #2/#14/#20 ride later phases. Everything else here is A3-riding.
 
 /** §4 #1 — welcome-back recap (class 1; the CONFIRM-FIRST card). TWO rules, and the pair is the point:
  *  R1 stamps the wall-clock of every beat into a chat var (a per-beat counter, hence law 4's explicit high
@@ -798,7 +805,87 @@ const RUMOR_MILL = defineRulePreset({
   ],
 });
 
-/** §4 #14 — the PROSE AUDIT (class 1; C3 — RULED F7: CONFIRM-FIRST). ONE rule riding the S5 `run_analysis`
+/** §4 #16 — THE NEEDLE (class 1; RULED 2026-08-24: it SHIPS, OFF BY DEFAULT). TWO rules, and the pair is the
+ *  whole feature: R1 is a `run_analysis` pass carrying ONLY the `vars` route, so every N beats the quiet
+ *  analyst scores the scene's tension 0..`ANALYSIS_SCORE_MAX` into the one chat variable the client meter
+ *  reads; R2 fires on the SAME beat, past a threshold, and re-dresses the room's backdrop.
+ *
+ *  WHY THIS PRESET IS THE ONE THAT CROSSES F6's WALL, stated where an editor will read it: the ruling is
+ *  "scores may cross into the member-visible vars plane; arcs, twists and guidance NEVER do", and the arm
+ *  enforces it in three tiers the preset does not get to weaken (`engine/analysis-arm.ts` header) — the route's
+ *  absence removes `score` from both the model's enforced schema and the server-side zod, the applier is gated
+ *  on the authored route, and the write is `String(clamp(int(score)))`. This def's part of the wall is simply
+ *  that its arm authors `routes.vars` AND NOTHING ELSE: no steer route, so a pass has no guidance to store or
+ *  deliver, and the private arc/twist bank the pass always maintains stays in the rule-state row, which has no
+ *  member read surface at all.
+ *
+ *  OFF BY DEFAULT, mechanically rather than by a knob: `createRule` mints every rule DISABLED and enabling is
+ *  the consent act (`verbs/create-rule-from-preset.ts`), and no room is born with this preset. So a host opts
+ *  a ROOM in twice — by adding the preset and by enabling its rules — which is exactly the "host opts in per
+ *  room, no room is born with it enabled" the ruling asks for. A third "publish the score?" knob would mint a
+ *  preset that does nothing at all in its default configuration, which is a worse shape, not a safer one.
+ *
+ *  R2 CARRIES THE CADENCE TOO, and that is a rate belt rather than a copy-paste: the score only MOVES on a
+ *  cadence beat, so reacting on any other beat would re-run the backdrop's quiet model pick against a value
+ *  that had not changed — once per cadence is both the honest frequency and the cheap one. It reads R1's
+ *  fresh score in the SAME batch through the dispatch's shared-env write-through (the clock preset's
+ *  mechanism; `engine/analysis-arm.ts` writes `frame.env.vars` after the durable write), and law 1's `has()`
+ *  guard is load-bearing on every beat before the first pass lands. */
+const THE_NEEDLE = defineRulePreset({
+  id: "theNeedle",
+  title: "The needle",
+  summary: "Every few beats, a quiet analyst rates the scene's tension on a dial — and when it runs high, the room's backdrop changes to match.",
+  ruleCount: 2,
+  knobs: {
+    everyN: {
+      kind: "number",
+      label: "Read the room every N beats",
+      help: "How often the analyst re-scores the tension. Each read costs a model call.",
+      default: 8,
+      min: CADENCE_MIN,
+      max: CADENCE_MAX,
+    },
+    threshold: {
+      kind: "number",
+      label: "Change the backdrop at",
+      help: `Tension score, 0-${ANALYSIS_SCORE_MAX}, at or above which the room re-dresses itself.`,
+      default: 7,
+      min: NEEDLE_THRESHOLD_MIN,
+      max: ANALYSIS_SCORE_MAX,
+    },
+    backdrop: {
+      kind: "text",
+      label: "How it should look",
+      help: "Biases the pick over your own backgrounds — it never invents one.",
+      default: "Choose the most charged, high-stakes backdrop that still fits where the scene is taking place.",
+      maxLength: BACKDROP_INSTRUCTION_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "turnCompleted",
+      predicate: analysisBeatPredicate(knobs.everyN),
+      arms: [
+        {
+          type: "run_analysis",
+          brief:
+            "Read how much pressure the scene is under right now — what is at stake, how close it is to breaking, " +
+            "and whether the last beats tightened or released it. Judge the scene as it STANDS, not what might happen next.",
+          routes: { vars: { key: NEEDLE_TENSION_VAR_KEY } },
+        },
+      ],
+    },
+    {
+      triggerType: "turnCompleted",
+      // Law 1 — the score does not exist until the first pass lands (and a refused/failed pass leaves it
+      // unset), so the unguarded `int(vars.tension)` would THROW "No such key" on every beat until then.
+      predicate: `${analysisBeatPredicate(knobs.everyN)} && has(vars.${NEEDLE_TENSION_VAR_KEY}) && int(vars.${NEEDLE_TENSION_VAR_KEY}) >= ${celInt(knobs.threshold)}`,
+      arms: [{ type: "set_chat_background", instruction: knobs.backdrop }],
+    },
+  ],
+});
+
+/** §4 #15 — the PROSE AUDIT (class 1; C3 — RULED F7: CONFIRM-FIRST). ONE rule riding the S5 `run_analysis`
  *  arm with only the `rewrite` route: a quiet pass reads the newest reply, and when it finds a real flaw it
  *  offers a conservative repair on a card that PINS the audited variant and HASHES its bytes. The host's yes
  *  writes the rewrite as a NEW VARIANT of that slot — the audited text stays as a swipe, which is the revert.
@@ -868,5 +955,6 @@ export const RULE_PRESETS = {
   storyPacing: STORY_PACING,
   distillLore: DISTILL_LORE,
   rumorMill: RUMOR_MILL,
+  theNeedle: THE_NEEDLE,
   proseAudit: PROSE_AUDIT,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;

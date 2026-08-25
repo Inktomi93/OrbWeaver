@@ -94,6 +94,11 @@ const TRACKED_KEYS = [
   // `charactersChanged` row), so another human's card edit was invisible until the dialog was reopened
   // outside its gcTime window.
   "getMemberCard",
+  // The room's RUNTIME VARIABLE FOLD (`chat.getRuntimeVariables`) — #16's needle meter is its first client
+  // consumer. Three writers land on the terminals it rides (a turn's `{{setvar}}` delta, a `set_variable`
+  // arm, the analysis arm's gated score write), it re-folds along the SELECTED lineage (hence the swipe),
+  // and `clearVariables` empties it on the `chatUpdated` catch-all.
+  "runtimeVariables",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
@@ -109,7 +114,10 @@ const CHAT_CANON_READS: readonly TrackedKey[] = ["listMessages", "listMessageVar
 // and the non-terminal canon mutations — never `turnCompleted`. A generated turn emits `messageCommitted`
 // (the body write) and `turnCompleted` immediately after with no further body change, so carrying it on both
 // was a duplicate wire fetch on every turn (and an invalidate CANCELS an in-flight fetch and restarts it).
-const CANON_BODY_WRITE_READS: readonly TrackedKey[] = [...CHAT_CANON_READS, "revealHidden"];
+// …plus the room's RUNTIME VARIABLE FOLD: a turn's `{{setvar}}` delta and every automation
+// `set_variable`/analysis-score write land with the commit, and the edit/delete/reorder/swipe family
+// RE-FOLDS the remaining chain (`chat/verbs/edit.ts`), so the fold rides both this set and `chatReads`.
+const CANON_BODY_WRITE_READS: readonly TrackedKey[] = [...CHAT_CANON_READS, "revealHidden", "runtimeVariables"];
 
 // The full canon+list refetch (`chatReads` = canon + `listChats`) — the NON-terminal canon events that fire no
 // server `chatsChanged` (edit/hide/reorder/delete/select/abort) keep `listChats` as their same-device driver.
@@ -139,7 +147,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   messagesReordered: CHAT_READS,
   reasoningEdited: CHAT_READS,
   reasoningCleared: CHAT_READS,
-  turnCompleted: CHAT_CANON_READS,
+  turnCompleted: [...CHAT_CANON_READS, "runtimeVariables"],
   turnAborted: CHAT_READS,
   // The room is GONE — the canon+list refetch plus the room read itself (the open room's `getChat` must
   // re-resolve, not sit on a detail for a chat that no longer exists).
@@ -215,6 +223,7 @@ describe("invalidation — the bus half (invalidate)", () => {
         rpgJournal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID, limit: 50 }),
         listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
         getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+        runtimeVariables: trpc.chat.getRuntimeVariables.queryKey({ chatId: CHAT_ID }),
       };
       seedReads(queryClient, Object.values(keys));
 

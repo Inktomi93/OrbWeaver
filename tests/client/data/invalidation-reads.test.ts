@@ -18,7 +18,14 @@ import { describe } from "vitest";
 // Deep-imported, not through `@orb/client/data`: the package's export map is directory-barrel only
 // (`./*` → `./src/*/index.ts`), and re-exporting these seam-internal helpers from the barrel would widen the
 // package's public surface for a test's convenience (the `route-pending.ct.tsx` deep-import precedent).
-import { chatCanonReads, chatReads, hiddenRevealRead, promptPreviewReads, ROOM_ENTITY_FILTERS } from "../../../packages/client/src/data/invalidation-reads.ts";
+import {
+  chatCanonReads,
+  chatReads,
+  hiddenRevealRead,
+  promptPreviewReads,
+  ROOM_ENTITY_FILTERS,
+  runtimeVariablesRead,
+} from "../../../packages/client/src/data/invalidation-reads.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationreads");
@@ -53,9 +60,24 @@ describe("the named read sets", () => {
     expect(got).not.toContain("chat.listChats");
   });
 
-  test("chatReads = canon + the host-reveal derivation + the chat list", () => {
+  test("chatReads = canon + the host-reveal derivation + the RUNTIME VARIABLE FOLD + the chat list", () => {
     const trpc = trpcProxy();
-    expect(paths(chatReads(trpc))).toEqual([...paths(chatCanonReads(trpc)), ...paths(hiddenRevealRead(trpc)), "chat.listChats"]);
+    expect(paths(chatReads(trpc))).toEqual([
+      ...paths(chatCanonReads(trpc)),
+      ...paths(hiddenRevealRead(trpc)),
+      ...paths(runtimeVariablesRead(trpc)),
+      "chat.listChats",
+    ]);
+  });
+
+  test("runtimeVariablesRead is the room's variable FOLD alone — never the picks pane's declarations read", () => {
+    // Two different reads over two different columns: `getVariablePicks` is the host's authored picks
+    // (`chats.variableValues`), `getRuntimeVariables` is the LIVE fold (`chats.runtimeVariables`) that a
+    // turn's `{{setvar}}`, a `set_variable` arm and #16's gated score write all land in. The meter reads the
+    // fold, so a set that carried the picks read instead would leave the dial with no driver at all.
+    const got = paths(runtimeVariablesRead(trpcProxy()));
+    expect(got).toEqual(["chat.getRuntimeVariables"]);
+    expect(got).not.toContain("chat.getVariablePicks");
   });
 
   test("promptPreviewReads is the Preview tab's THREE reads, which must move together", () => {

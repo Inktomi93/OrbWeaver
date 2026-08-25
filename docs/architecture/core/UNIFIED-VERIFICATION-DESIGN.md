@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-22
+updated: 2026-08-24
 ---
 
 <!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
@@ -206,7 +206,16 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   single-thread constraint; merging it means the green-to-commit ritual (`pnpm check` + `pnpm test`)
   exercises the CT suite too, and the visible `--retries=2` makes parallelism flakes RETRY instead of blocking (the CT\_GATE env it replaced retired 2026-07-17). At
   `changed` scope: vitest's own related-test graph over the unit+integration lanes (serial + contract are
-  whole-tree-shaped, deferred to push).
+  whole-tree-shaped, deferred to push). **The vitest run is wrapped by `scripts/vitest-supervised.mjs`
+  (#345):** vitest 4.1.11's `forks` pool can leave the parent process wedged in `ep_poll` after the run,
+  holding a dead worker's IPC Pipe (upstream vitest #10162/#10057, unfixed in 4.x) — its own 10s
+  `teardownTimeout` backstop only fires when the run finalizes, so a mid-shutdown worker-exit race hangs
+  the parent indefinitely and made `pnpm verify --push` unrunnable. The supervisor tees vitest's output and
+  SIGKILLs the whole process group after an inactivity window (default 5 min; **override with
+  `ORB_TEST_HANG_TIMEOUT_MS`** — raise it if a genuinely slow suite under co-hosted-homelab load ever trips
+  a false kill; a false RED there is safe, a false GREEN is not). On a wedge it reads the fresh
+  `reports/test-report.json` and exits 0 ONLY for a COMPLETE pass — a missing report or a vanished test (the
+  crashed-worker signature) is exit 1, never a false green. Guard: `tests/tooling/vitest-supervised.test.ts`.
 - **`browser:ct`** (tiers `changed`/`manual`) — at `manual` it is the CT-ONLY whole-suite iteration lane
   (`pnpm test:ct`, `retries:0`), kept as a named stage so it surfaces in `verify --list` and satisfies
   parity arm 1; a `push`/`full` row would run the suite TWICE (it already rides `tests:node`). At `changed`
