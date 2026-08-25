@@ -80,6 +80,15 @@ export const RULE_PRESET_IDS = [
    *  and quietly generates a fresh portrait of them — so an import lands with art and no room ever has to
    *  be open. It is the only preset whose mint takes no chat. */
   "livingLibrary",
+  /** §4 #17 — illustrate on lore reveal (OPTIONAL, owner 2026-08-24 "everything optional gets included"):
+   *  when a lore reveal surfaces on `worldInfoActivated`, illustrate the current scene. Rides A3. */
+  "illustrateOnLoreReveal",
+  /** §4 #18 — react to lore activation (OPTIONAL): a `worldInfoActivated` reveal steers a guided narrator
+   *  turn. Rides A3. */
+  "reactToLoreActivation",
+  /** §4 #19 — auto-set scene background (OPTIONAL): as the scene moves, quietly re-dress the room's
+   *  backdrop over the author's own library (the `set_chat_background` autobg pick). Rides A3. */
+  "autoSetSceneBackground",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);

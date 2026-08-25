@@ -187,6 +187,15 @@ function messageContainsAny(needles: readonly string[]): string {
   return `has(event.message) && (${disjuncts.join(" || ")})`;
 }
 
+/** §4 #17 — the lore-reveal significance gate. Law 1's `has()` on the fact's `worldInfo` projection (a
+ *  non-activation event carries none, and the short-circuit keeps the `.size()` read from throwing there),
+ *  then law 2's `int()` over the entry count — `event.worldInfo.entryIds.size()` is a `dyn` in the shipped
+ *  dialect, so the coercion is the same requirement every count comparison has. Both forms — list membership
+ *  (`x in event.worldInfo.entryIds`) and `size()` — are pinned in `tests/kit/cel/cel-goldens.json`. */
+function loreRevealPredicate(minEntries: number): string {
+  return `has(event.worldInfo) && int(event.worldInfo.entryIds.size()) >= ${celInt(minEntries)}`;
+}
+
 // ── named bounds (noMagicNumbers) ─────────────────────────────────────────────────────────────────────
 /** Law 4's explicit high cap for a per-beat COUNTER rule. Equals `substrate/validate.ts`'s
  *  `RULE_MAX_FIRES_CAP` ceiling — the per-preset int tests mint against the real verb, so a drift below this
@@ -269,6 +278,31 @@ const NEEDLE_THRESHOLD_MIN = 1;
 /** `set_chat_background`'s own `instruction` cap (`automationActionSchema`) — the bias is one sentence about
  *  what the pick should look like, not the 4 KiB guided-template class. */
 const BACKDROP_INSTRUCTION_MAX = 512;
+
+/** §4 #17's "entry filter" — the MINIMUM number of lore entries that must fire at once for the reveal to be
+ *  worth an illustration. It is a COUNT, not an identity filter, because the `worldInfoActivated` fact
+ *  carries only `entryIds` (opaque `WorldEntryId` strings, no keys — `substrate/fact-resolver.ts`,
+ *  `contracts/automation`'s `triggerFactSchema.worldInfo`), so no host could author "illustrate entry X" from
+ *  memory — the same problem the `entityRef` knob exists for, and there is no entity kind for a lore ENTRY.
+ *  A count is the one filter the fact can honestly express, and it doubles as the reveal's significance gate:
+ *  a single-keyword ping fires lore on nearly every turn, so `1` = every reveal and a higher floor = only the
+ *  substantial ones. The floor of 1 is "any reveal"; the ceiling is generous — a reveal of 20 entries at once
+ *  is already the whole book. */
+const LORE_ENTRIES_MIN = 1;
+const LORE_ENTRIES_MAX = 20;
+/** §4 #18's rate belt. A `worldInfoActivated` reaction TURN is a heavy autonomous interjection, and its own
+ *  reply re-runs assembly and can re-activate the same lore — a self-chain the engine's cascade-depth guard
+ *  does NOT bound, because `worldInfoActivated` resolves at a hardcoded `automationDepth: 0`
+ *  (`substrate/fact-resolver.ts`) so the depth never escalates toward the hard cap. A wall-clock cooldown
+ *  (`engine/budget-gate.ts` reads `last_fired_at`) is therefore the load-bearing belt: it breaks the chain
+ *  (the immediate re-activation lands inside the window and is refused) AND keeps the reaction from dominating
+ *  the room. Conservative by law 5 — a few minutes between narrator interjections, not per-beat. */
+const REACTIVE_TURN_COOLDOWN_SECONDS = 180;
+/** §4 #19's rate belt. `set_chat_background` re-picks over the author's library on a QUIET model call, and a
+ *  backdrop that flipped on every message would be both jarring and a needless spend. A cooldown spaces the
+ *  re-dress to the pace scenes actually shift at; the message that fires after the window supplies the fresh
+ *  scene text the pick reads (`engine/arm-executors.ts::runSetChatBackground` reads `fact.message.content`). */
+const SCENE_BACKGROUND_COOLDOWN_SECONDS = 300;
 
 /** The illustration modes a scene-cadence preset may pick: the two SCENE modes, and ONLY those. The
  *  character/face/multimodal modes need a subject + an avatar and are the `/imagine` surface's, not a
@@ -1170,6 +1204,129 @@ const LIVING_LIBRARY = defineRulePreset({
   ],
 });
 
+/** §4 #17 — ILLUSTRATE ON LORE REVEAL (class 1; OPTIONAL — owner 2026-08-24, "everything optional gets
+ *  included"). When a lore reveal surfaces on `worldInfoActivated`, illustrate the current scene: a
+ *  non-quiet `generate_image` in `scenario` mode, posted into the room.
+ *
+ *  ONE KNOB, the spec's "entry filter", and it is a COUNT rather than an identity chooser — the deliberate
+ *  shape, not a shortcut. The `worldInfoActivated` fact carries only opaque `entryIds` (no keys — the
+ *  resolver reads the projection listed in `triggerFactSchema`), so "illustrate when entry X fires" is
+ *  un-authorable from the picker, and there is no `entityRef` entity kind for a lore ENTRY (the one that
+ *  ships is `worldInfoBook`). A minimum-entry-count filter is what the fact can honestly express, and it is
+ *  also the reveal's significance gate: lore fires on nearly every turn, so `1` illustrates every reveal and
+ *  a higher floor keeps it to the substantial ones. MODE IS FIXED to `scenario` (draw the moment that just
+ *  played): the arm cannot read WHAT lore fired, only that it did, so illustrating the current scene is the
+ *  honest response — the two SCENE modes are the standing-rule set (`ILLUSTRATE_MODES`), and `character`/
+ *  face modes need a subject the reveal does not name.
+ *
+ *  The per-rule 30/hr default cap is the spend belt (the house norm for the image presets — `illustrateScenes`
+ *  rides the same), so no explicit `maxFiresPerHour`; the count filter narrows WHICH reveals qualify, the cap
+ *  bounds how often. */
+const ILLUSTRATE_ON_LORE_REVEAL = defineRulePreset({
+  id: "illustrateOnLoreReveal",
+  title: "Illustrate on lore reveal",
+  summary: "When the story surfaces new lore, generate a picture of the current scene and post it into the room.",
+  ruleCount: 1,
+  knobs: {
+    minEntries: {
+      kind: "number",
+      label: "Only when at least this many entries fire",
+      help: "Lore surfaces constantly, so 1 illustrates every reveal; a higher number keeps it to the bigger, scene-shifting ones.",
+      default: 2,
+      min: LORE_ENTRIES_MIN,
+      max: LORE_ENTRIES_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "worldInfoActivated",
+      predicate: loreRevealPredicate(knobs.minEntries),
+      arms: [{ type: "generate_image", mode: "scenario", n: IMAGES_PER_FIRE, useAvatarReference: false, reuse: "prefer", quiet: false }],
+    },
+  ],
+});
+
+/** §4 #18 — REACT TO LORE ACTIVATION (class 1; OPTIONAL — owner 2026-08-24). A lore reveal on
+ *  `worldInfoActivated` steers a guided narrator turn, so the fiction acknowledges what just surfaced.
+ *
+ *  ONE KNOB, the spec's "guided text" — the standing direction the narrator's reaction rides. The predicate
+ *  is law 1's `has()` on the fact projection and nothing more: any reveal is a reaction cue, and the
+ *  significance filtering that #17 does by count is left off here on purpose — a reaction is cheap attention
+ *  compared with an image, and the COOLDOWN, not a count, is what keeps it from dominating.
+ *
+ *  THE COOLDOWN IS LOAD-BEARING, not decoration, and this is the one worldInfoActivated preset where it must
+ *  be spelled: a reaction TURN re-runs assembly and can re-activate the very lore that triggered it, and the
+ *  engine's cascade-depth guard does NOT catch that loop because `worldInfoActivated` resolves at a hardcoded
+ *  `automationDepth: 0` (`substrate/fact-resolver.ts`) — the depth never escalates toward the hard cap. A
+ *  wall-clock cooldown (`engine/budget-gate.ts`) breaks the chain (the immediate re-activation lands inside
+ *  the window and is refused) and, with the 30/hr cap and requestTurn's own per-member turn budget, bounds
+ *  the reaction to a conservative pace. */
+const REACT_TO_LORE_ACTIVATION = defineRulePreset({
+  id: "reactToLoreActivation",
+  title: "React to lore activation",
+  summary: "When the story surfaces new lore, quietly steer the narrator to weave it into the next beat.",
+  ruleCount: 1,
+  knobs: {
+    steer: {
+      kind: "text",
+      label: "How to react",
+      help: "Rides every reaction — e.g. “have a character notice it”, “let it change the mood”.",
+      default: "New lore has just come into play. Weave it into the next beat naturally — let a character notice or react to it. Do not explain it outright.",
+      maxLength: STEER_TEXT_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "worldInfoActivated",
+      // Law 1 — a non-activation dispatch (a synthesized fact) carries no `worldInfo`; the guard reads false there.
+      predicate: "has(event.worldInfo)",
+      arms: [{ type: "trigger_turn", guidedTemplate: knobs.steer }],
+      cooldownSeconds: REACTIVE_TURN_COOLDOWN_SECONDS,
+    },
+  ],
+});
+
+/** §4 #19 — AUTO-SET SCENE BACKGROUND (class 1; OPTIONAL — owner 2026-08-24). As the scene moves, quietly
+ *  re-dress the room's backdrop over the author's own library — the `set_chat_background` autobg pick, a
+ *  QUIET model choice among owned backgrounds, biased by the one knob.
+ *
+ *  ONE KNOB, the spec's "instruction bias" — a sentence that leans the pick without inventing a background
+ *  (the arm only ever chooses an owned one). TRIGGER IS `messageCommitted`, deliberately: the pick reads the
+ *  triggering message's prose as its scene hint (`engine/arm-executors.ts::runSetChatBackground` slices
+ *  `fact.message.content`), and only a message-shaped fact carries that. Law 1's `has(event.message)` guards
+ *  it — on this trigger it is effectively always true, but it is the honest "there is a scene to read" gate
+ *  and it keeps the rule off the counter path (a null predicate would demand a law-4 high cap, wrong for a
+ *  spend-shaped arm).
+ *
+ *  THE COOLDOWN is what makes it a re-DRESS rather than a per-message flicker: without it the pick would run
+ *  on every committed message. `set_chat_background` is NOT `SPEND_ARM_TYPES` (the quiet pick is cheap, ruled
+ *  at #16), so this preset reads as FREE in the picker — but a re-pick every message is still noise, and the
+ *  cooldown spaces it to the pace scenes actually shift at. */
+const AUTO_SET_SCENE_BACKGROUND = defineRulePreset({
+  id: "autoSetSceneBackground",
+  title: "Auto-set scene background",
+  summary: "As the scene moves, quietly change the room's background to one of yours that fits — no room posts, no cost.",
+  ruleCount: 1,
+  knobs: {
+    instruction: {
+      kind: "text",
+      label: "What to lean toward",
+      help: "Biases the pick over your own backgrounds — it never invents one.",
+      default: "Choose the background that best matches where the scene is now taking place.",
+      maxLength: BACKDROP_INSTRUCTION_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "messageCommitted",
+      // Law 1 — the pick reads `event.message.content`; guard that the fact carries a message before firing.
+      predicate: "has(event.message)",
+      arms: [{ type: "set_chat_background", instruction: knobs.instruction }],
+      cooldownSeconds: SCENE_BACKGROUND_COOLDOWN_SECONDS,
+    },
+  ],
+});
+
 /** THE REGISTRY — exhaustive over `RulePresetId` (a new id without a def, or a def without an id, fails
  *  `tsc`). This is the S3 enforcer the spec names. */
 export const RULE_PRESETS = {
@@ -1192,4 +1349,7 @@ export const RULE_PRESETS = {
   asyncTableNudge: ASYNC_TABLE_NUDGE,
   spotlightBalance: SPOTLIGHT_BALANCE,
   livingLibrary: LIVING_LIBRARY,
+  illustrateOnLoreReveal: ILLUSTRATE_ON_LORE_REVEAL,
+  reactToLoreActivation: REACT_TO_LORE_ACTIVATION,
+  autoSetSceneBackground: AUTO_SET_SCENE_BACKGROUND,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;
