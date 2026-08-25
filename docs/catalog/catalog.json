@@ -444,9 +444,9 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "397a1bc1138182b058791c8dceb2771674c805b1907345f5b79041b478fe9e09",
-        "verifiedCommit": "35da5e0d0e61ab2bd4b7377455d6e295b1558e77",
-        "verifiedAt": "2026-08-24",
+        "verifiedSha256": "5c622a92c6c5bba0f5d05f113d4d41b579a4cf035bba66e72efc63efef977481",
+        "verifiedCommit": "386c43f501633847f272b3bddbf54cee46396833",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -489,7 +489,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -613,8 +613,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 507,
-      "bytes": 263558,
-      "sha256": "3756f7f1627bffe7266efa0fd8f0ff4bee14b722561289dffc71a9a252bc6fa6",
+      "bytes": 266054,
+      "sha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -627,14 +627,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
+        "assignedSha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
-        "verifiedCommit": "4bf95cf8d6f22b3b153f6e899b3a76ce564b6eb3",
-        "verifiedAt": "2026-08-24",
+        "verifiedSha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
+        "verifiedCommit": "0a2789a00834abe892bfa92839e8dec3c30a97af",
+        "verifiedAt": "2026-08-25",
         "evidence": [
+          "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
           "D61 B5a safeFetch clause truth-repaired 2026-08-23 (examine-media-forms lane receipt: infra/network/egress.ts self-enforcing pin built + no-raw-egress gate armed + three live consumer classes; the not-yet-built clause was false on the tree)",
           "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
@@ -678,7 +679,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -1744,9 +1745,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c7748c024cc536f699ffd6185dfb12c2106541f910badb97418cbc034c90f1a1",
-        "verifiedCommit": "0ae0cb4f18731043a26e379c6d5924a8be838ae7",
-        "verifiedAt": "2026-08-23",
+        "verifiedSha256": "dd76cc97b1d5f9d236b7718db1e12f34f021552823b71ffae27d0da0b43d31c6",
+        "verifiedCommit": "288451dc680b9a9b9e71005f13bda5962d140e96",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1768,7 +1769,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
@@ -4291,15 +4292,15 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 37,
-      "bytes": 2348,
-      "sha256": "0620191bf117f1beedad1381768ee3453542f976718c59d6da31ec91031747ed",
+      "bytes": 2356,
+      "sha256": "0aa60694d006d9a7109ff495246622ca6387822f7fb202fb0c6d6669c7f2b1fb",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "index",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-25"
         },
         "errors": []
       },
@@ -4309,9 +4310,9 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "0620191bf117f1beedad1381768ee3453542f976718c59d6da31ec91031747ed",
-        "verifiedCommit": "8b750ac2c3d9c2a72a281c0189ed2790e62e53b6",
-        "verifiedAt": "2026-08-23",
+        "verifiedSha256": "0aa60694d006d9a7109ff495246622ca6387822f7fb202fb0c6d6669c7f2b1fb",
+        "verifiedCommit": "5e00b582d6ab78d0cdaeebc5e90350cf4280acaf",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
           "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
@@ -8371,9 +8372,9 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "af7fa059b8ca7f38987f0b981482ffbfa33892aac18ddcc28c05f41973df03cc",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "766ed206a1e59b1807c04b12345398a38986db9e99a45ca2dac036ff4e465958",
+        "verifiedCommit": "ecbe2f16a7c8864d6119ec9f4146c0ce8ab20949",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md:1 (full read; lifecycle/frontmatter evaluated)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -8417,7 +8418,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md",
@@ -8442,9 +8443,9 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "5bbd0bbaf769edc1721cb0611042f53b330a3ac9b674ae07d6d4bada78f532dd",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
+        "verifiedCommit": "8340b7f876501aefbd82841b3c6ac37838c66ee7",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md:1 (full read; lifecycle/frontmatter evaluated)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -8488,7 +8489,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/proposed/plugin-design/03-execution-model.md",
@@ -8584,9 +8585,9 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "7b4ea391de15333e4274e4e7dc7264309fa84fffe6f454550b4d3583fa4f43e0",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
+        "verifiedCommit": "8340b7f876501aefbd82841b3c6ac37838c66ee7",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/proposed/plugin-design/04-build-plan.md:1 (full read; lifecycle/frontmatter evaluated)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -8630,7 +8631,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/proposed/plugin-design/README.md",
@@ -11489,16 +11490,16 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 624,
-      "bytes": 63811,
-      "sha256": "e5ce5fede83586380b659e78f97045e0c9d0bb3464b490e1426055aa4b6442e2",
+      "lines": 631,
+      "bytes": 64484,
+      "sha256": "75f9d89296bf0238608546489d611bdb7d428bfd111e83e0bab8d1bb54b4e8d1",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-24"
+          "updated": "2026-08-25"
         },
         "errors": []
       },
@@ -11508,9 +11509,9 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "bf2bb2a366cecbca13ca5274bbf8a6c09a100adda7b18db4fe583a78436f4bb4",
-        "verifiedCommit": "9bc1cd142070e2a925caac67eeddbc6c75ae2c28",
-        "verifiedAt": "2026-08-24",
+        "verifiedSha256": "75f9d89296bf0238608546489d611bdb7d428bfd111e83e0bab8d1bb54b4e8d1",
+        "verifiedCommit": "1587bbc97af2643f09413d38c0b69b4eff94bc82",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
           "consolidation of five sources into one: the panel-verified RULED spec + the IA placement table + the platform-axes audit + the juice catalogue + the real adversarial A-round (16 findings, 12 of 15 survivors changed)",
@@ -11532,7 +11533,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/interaction-substrate-spec.md",
@@ -25027,9 +25028,9 @@
         "disposition": "superseded",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
-        "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
-        "verifiedAt": "2026-08-24",
+        "verifiedSha256": "13118c158824683d33a56ddd59c5cfe502a119a085fe748f4d1aa4fb4a24f174",
+        "verifiedCommit": "79e89d2555dc2847e495a72160d807bf6cb886bd",
+        "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/design/interaction-direction-spec.md:579-581 (§10) names plugin-automation-juice.md and its round counts",
           "docs/design/interaction-direction-spec.md:439-444 (the graveyard) points at this doc for full arguments",
@@ -25037,7 +25038,55 @@
         ],
         "summary": "Provenance: the preset-catalogue ideation corpus (three fable generations, two fun-honesty passes, a completed two-lens law/cost round — 16 findings, twelve survivors changed) behind the spec §4 catalogue and its graveyard."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-25-correctness-investigation-three-findings.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 276,
+      "bytes": 19103,
+      "sha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-25"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-25-correctness-investigation-three-findings.md",
+        "assignedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
+        "verifiedCommit": "5e00b582d6ab78d0cdaeebc5e90350cf4280acaf",
+        "verifiedAt": "2026-08-25",
+        "evidence": [
+          "cb-correctinvest investigation lane (2026-08-24/25, commit 5e00b582d): confirms three handed-down findings against the tree. #700 client card never retires on suggestion take/dismiss. #701 lying test-presence-client gate clause, FIXED same session (commit 4ef58f4888d). #702 image-edit resolve-step swallow."
+        ],
+        "summary": "cb-correctinvest confirms three handed-down findings: #700 P1 suggestion card never retires (no bus event, no invalidation), #701 lying test-presence-client gate clause fixed in-session, #702 P2 image-edit resolve-step error swallow.",
+        "claims": [
+          {
+            "claim": "All three handed-down findings are CONFIRMED against the tree; #701 (the lying gate) was fixed in-session.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/automation/components/suggestion-card-mount.tsx:80"
+              },
+              {
+                "kind": "issue",
+                "target": "#700"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",

@@ -598,9 +598,9 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "bf2bb2a366cecbca13ca5274bbf8a6c09a100adda7b18db4fe583a78436f4bb4",
-      "verifiedCommit": "9bc1cd142070e2a925caac67eeddbc6c75ae2c28",
-      "verifiedAt": "2026-08-24",
+      "verifiedSha256": "75f9d89296bf0238608546489d611bdb7d428bfd111e83e0bab8d1bb54b4e8d1",
+      "verifiedCommit": "1587bbc97af2643f09413d38c0b69b4eff94bc82",
+      "verifiedAt": "2026-08-25",
       "evidence": [
         "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
         "consolidation of five sources into one: the panel-verified RULED spec + the IA placement table + the platform-axes audit + the juice catalogue + the real adversarial A-round (16 findings, 12 of 15 survivors changed)",
