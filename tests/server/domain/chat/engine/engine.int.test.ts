@@ -400,8 +400,29 @@ describe("createTurnEngine — happy path", () => {
       }),
     );
 
+    // A human-plane turn (default prep) threads automationDepth 0 — the normal path stays depth 0 (#704).
     const wi = h.events.find((e) => e.type === "worldInfoActivated");
-    expect(wi).toMatchObject({ type: "worldInfoActivated", chatId, entryIds: [firedId] });
+    expect(wi).toMatchObject({ type: "worldInfoActivated", chatId, entryIds: [firedId], automationDepth: 0 });
+  });
+
+  test("#704: an automation reaction turn (depth 2) emits worldInfoActivated carrying its OWN depth — the fact-resolver reads it (no reply slot to read back), so the cascade cap bounds a re-activation self-chain", async () => {
+    const chatId = await seedChat(db, "wi-cascade");
+    const firedId = castId<WorldEntryId>("world_entry_dragon");
+    const h = harness(db);
+
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        initiator: "automation",
+        automationDepth: 2,
+        assembleContext: {
+          ...ASSEMBLE_CTX,
+          wiTrace: { included: 1, dropped: [], matchedKeys: [], activated: [{ id: firedId, keys: ["dragon"] }] },
+        },
+      }),
+    );
+
+    const wi = h.events.find((e) => e.type === "worldInfoActivated");
+    expect(wi).toMatchObject({ type: "worldInfoActivated", chatId, entryIds: [firedId], automationDepth: 2 });
   });
 
   test("D50 pt-2: a turn with an empty WI pool never emits worldInfoActivated", async () => {

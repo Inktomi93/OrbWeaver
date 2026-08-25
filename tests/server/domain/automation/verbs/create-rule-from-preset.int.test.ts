@@ -262,9 +262,10 @@ function messageCommitted(chatId: ChatId): ChatBusEvent {
 }
 
 /** A lore-activation event carrying `n` freshly-minted entry ids — the fact the resolver projects as
- *  `event.worldInfo.entryIds` (opaque strings; #17 filters on their COUNT). */
-function worldInfoActivated(chatId: ChatId, entryCount: number): ChatBusEvent {
-  return { type: "worldInfoActivated", chatId, entryIds: Array.from({ length: entryCount }, () => mintTypeId(ID_PREFIX.worldEntry)) };
+ *  `event.worldInfo.entryIds` (opaque strings; #17 filters on their COUNT). `automationDepth` is the
+ *  generating turn's cascade depth (0 = a human-plane turn), threaded onto the event by chat's engine. */
+function worldInfoActivated(chatId: ChatId, entryCount: number, automationDepth = 0): ChatBusEvent {
+  return { type: "worldInfoActivated", chatId, entryIds: Array.from({ length: entryCount }, () => mintTypeId(ID_PREFIX.worldEntry)), automationDepth };
 }
 
 /** Every outcome the rule logged, oldest first. */
@@ -1264,11 +1265,13 @@ describe("§4 #17 illustrate on lore reveal", () => {
 });
 
 describe("§4 #18 react to lore activation", () => {
-  test("a lore reveal steers a guided turn, and the cooldown belt refuses the immediate re-fire (the depth-blind self-chain guard)", async () => {
+  test("a lore reveal steers a guided turn, and the cooldown belt refuses the immediate re-fire (the cooldown self-chain belt)", async () => {
     const f = await setup();
     const views = await mintAndEnable(f, "reactToLoreActivation", { steer: "Have a character notice it." });
-    // The cooldown is the belt: worldInfoActivated resolves at a hardcoded automationDepth 0, so the engine's
-    // cascade guard can't bound a reaction turn's own re-activation — only this wall-clock cooldown can.
+    // The cooldown is a COMPLEMENTARY belt to the engine's cascade-depth cap (the cap now bounds a reaction
+    // turn's own re-activation — `worldInfoActivated` carries the generating turn's depth; #704). This case
+    // feeds two human-plane reveals (depth 0) at the SAME fixed instant, isolating the wall-clock cooldown:
+    // the second lands inside the 180s window and is refused before any depth check.
     expect(nth(views, 0).cooldownSeconds).toBe(180);
 
     await f.svc.handleEvent(worldInfoActivated(f.chatId, 1));

@@ -1,9 +1,11 @@
 // domain/automation/substrate/fact-resolver — the taxonomy filter + `TriggerFact` builder. CEL never
 // reads raw bus payloads: before predicate evaluation the watcher resolves an event into a typed fact by
 // re-reading canon through the injected chat ops (the D38 discipline). The resolve happens ONCE per event
-// (shared across every matching rule of that chat). It ALSO computes the event's cascade DEPTH — read
+// (shared across every matching rule of that chat). It ALSO computes the event's cascade DEPTH — usually read
 // off the committed reply slot through `getTurnOrigin` — which the dispatch depth gate + child-write origin
-// consume (the fact carries it only for turn events; message/other events surface it here).
+// consume. Two events have NO committed slot to read back from and carry the depth ON THE EVENT instead:
+// `turnAborted` (the abort commits nothing) and `worldInfoActivated` (raised mid-assembly, before the reply
+// commits) — both are the generating turn's own depth, threaded by chat's engine.
 //
 // `FACT_SHAPE` is the taxonomy filter: a mapped-type `Record` over BOTH trigger tuples (exhaustive-dispatch —
 // a new tuple member without a shape entry fails tsc). A non-taxonomy event (delta/warning/…) is not a key ⇒
@@ -114,7 +116,13 @@ async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<Resolve
 function resolveScalar(event: BusEvent): ResolvedTrigger {
   const base = baseFact(event);
   if (event.type === "worldInfoActivated") {
-    return { fact: { ...base, worldInfo: { entryIds: event.entryIds } }, automationDepth: 0 };
+    // The activation is raised DURING the generating turn's assembly, BEFORE its reply slot commits — so its
+    // depth cannot be read via `getTurnOrigin` (the sibling paths' way; there is no message yet). It rides the
+    // event instead (chat's engine threads the generating turn's own depth — the `turnAborted` mechanism). A
+    // depth ≥ 1 activation (raised by an automation reaction turn) yields a depth ≥ 1 fact, so the cascade guard
+    // bounds a turn-generating rule on this trigger. Hardcoding 0 let a reactToLoreActivation rule self-chain,
+    // escalating no depth (leaning entirely on a per-preset `cooldownSeconds` belt).
+    return { fact: { ...base, worldInfo: { entryIds: event.entryIds } }, automationDepth: event.automationDepth };
   }
   if (event.type === "personaSwitched") {
     return { fact: { ...base, persona: { from: event.from, to: event.to } }, automationDepth: 0 };
