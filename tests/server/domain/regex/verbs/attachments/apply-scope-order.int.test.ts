@@ -2,12 +2,16 @@
 // `executeRegexScripts` its list in `position` order and the executor applies it in order, so this verb is
 // how a user says "strip the tags BEFORE the rename runs".
 //
-// Load-bearing: stale/foreign ids are DROPPED (they match no row), an omitted attachment KEEPS its slot,
-// and the chat arm is HOST-gated while the owner arms gate on ownership.
+// Load-bearing: an omitted attachment KEEPS its slot; the chat arm is HOST-gated and the character/preset
+// arms gate on scope ownership, dropping foreign/stale ids that match no owned-scope junction row. The GLOBAL
+// arm is different — its tier has no scope row, so it PRE-GATES ownership of every id and a foreign/absent id
+// is RegexNotFoundError, never a silent cross-tenant reorder (#708).
 
+import { globalRegexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRegexService } from "@orb/server/domain/regex";
+import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
+import { asc } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
@@ -47,6 +51,63 @@ describe("applyScopeOrder", () => {
 
     await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [b, a] });
 
+    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["b", "a"]);
+  });
+
+  // #708 (HIGH IDOR) — the global tier has NO owner column (its scope IS the script's), so a bare
+  // `WHERE regexScriptId = id` position write would touch ANY owner's row. A stranger who names owner A's
+  // globally-attached script ids must be REFUSED (RegexNotFoundError) BEFORE any write — never a silent
+  // cross-tenant reorder. Owner A attaches two scripts in a known order; owner B attempts a REVERSAL of A's
+  // ids. Teeth: (1) the call must throw RegexNotFoundError, (2) A's `global_regex_scripts.position` rows are
+  // byte-for-byte unchanged (RED on the unfixed source: the reversal lands, no throw).
+  test("a stranger cannot REORDER owner A's global tier (#708)", async () => {
+    const db = await freshDb();
+    const svc = createRegexService(makeHarness(db).ctx);
+    const ownerA = await seedUser(db, { handle: castId<Handle>("ownerA") });
+    const ownerB = await seedUser(db, { id: "user_ownerB", handle: castId<Handle>("ownerB") });
+    const a1 = await seedScript(db, { ownerId: ownerA, id: "regex_script_a1", name: "a1" });
+    const a2 = await seedScript(db, { ownerId: ownerA, id: "regex_script_a2", name: "a2" });
+    await svc.attachGlobal({ principal: principal(ownerA), scriptId: a1 }); // position 0
+    await svc.attachGlobal({ principal: principal(ownerA), scriptId: a2 }); // position 1
+
+    const positions = async (): Promise<{ id: string; position: number }[]> =>
+      db
+        .select({ id: globalRegexScripts.regexScriptId, position: globalRegexScripts.position })
+        .from(globalRegexScripts)
+        .orderBy(asc(globalRegexScripts.position));
+    const before = await positions();
+    expect(before).toEqual([
+      { id: a1, position: 0 },
+      { id: a2, position: 1 },
+    ]);
+
+    // (1) B naming A's ids is REFUSED — not silently dropped, not written.
+    await expect(svc.applyScopeOrder({ principal: principal(ownerB), scope: { kind: "global" }, orderedScriptIds: [a2, a1] })).rejects.toBeInstanceOf(
+      RegexNotFoundError,
+    );
+
+    // (2) A's position rows are exactly as seeded — the stranger's reversal never landed.
+    expect(await positions()).toEqual(before);
+    // …and one absent id in the list is equally refused (no partial write of the owned prefix).
+    await expect(
+      svc.applyScopeOrder({ principal: principal(ownerB), scope: { kind: "global" }, orderedScriptIds: [castId<typeof a1>("regex_script_absent")] }),
+    ).rejects.toBeInstanceOf(RegexNotFoundError);
+  });
+
+  // The owner's OWN reorder still passes the ownership pre-gate cleanly — the fix refuses foreign ids, never
+  // the owner's legitimate reorder (regression guard for the #708 gate).
+  test("owner A's OWN global reorder is unaffected by the ownership pre-gate (#708)", async () => {
+    const db = await freshDb();
+    const svc = createRegexService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
+    const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
+    await svc.attachGlobal({ principal: principal(owner), scriptId: a });
+    await svc.attachGlobal({ principal: principal(owner), scriptId: b });
+
+    const result = await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [b, a] });
+
+    expect(result.reordered).toBe(2);
     expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["b", "a"]);
   });
 
