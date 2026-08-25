@@ -120,8 +120,10 @@ function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]):
 
 function validatePairFlagValue(flag: string, raw: string, errors: string[]): void {
   const split = splitLastEq(raw);
-  if (flag === "--fill" && (!raw.includes("=") || split.head === "")) {
-    errors.push(`--fill expects selector=value with a non-empty selector, got ${JSON.stringify(raw)}`);
+  // --fill splits on the FIRST '=' — its value is a JS literal that often contains '=' itself
+  // (`--fill 'input=const a = 1;'`); LAST-'=' would misparse the selector and refuse.
+  if (flag === "--fill" && splitFirstEq(raw) === null) {
+    errors.push(`--fill expects sel=value with a non-empty selector, got ${JSON.stringify(raw)}`);
   }
   // `--key Tab` (no '=') is the BARE-KEY form — a key name, not a selector. Only the pair form owes a
   // non-empty selector.

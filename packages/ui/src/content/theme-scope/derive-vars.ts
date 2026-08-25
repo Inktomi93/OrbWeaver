@@ -6,29 +6,23 @@
 // and any legal base format works — the numbers are `@orb/kit/theme-derivation`'s (the ONE home; the ST
 // theme importer predicts the same math in node). Two values cannot be spelled for the browser and are
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
-import type { ShadowIngredients } from "@orb/kit/theme-derivation";
-import { READING_BAND_ALPHA, readingPlateAlpha, shadowIngredients, THEME_DERIVATION } from "@orb/kit/theme-derivation";
+import type { RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
+import { READING_BAND_ALPHA, rampDeltas, readingPlateAlpha, shadowIngredients, THEME_DERIVATION } from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
 
-// OKLCH lightness deltas of the neutral surface ramp relative to the base `background`, applied via
-// CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma held).
-const RAMP_DL_SIDEBAR = THEME_DERIVATION.ramp.sidebar;
-const RAMP_DL_SURFACE_RAISED = THEME_DERIVATION.ramp.surfaceRaised;
-const RAMP_DL_CARD = THEME_DERIVATION.ramp.card;
-const RAMP_DL_POPOVER = THEME_DERIVATION.ramp.popover;
-const RAMP_DL_ACCENT = THEME_DERIVATION.ramp.accent;
-const RAMP_DL_SIDEBAR_ACCENT = THEME_DERIVATION.ramp.sidebarAccent;
-const RAMP_DL_SECONDARY = THEME_DERIVATION.ramp.secondary;
-const RAMP_DL_MUTED = THEME_DERIVATION.ramp.muted;
-const SURFACE_RAMP_DELTAS: ReadonlyArray<readonly [name: string, deltaL: number]> = [
-  ["--color-sidebar", RAMP_DL_SIDEBAR],
-  ["--color-surface-raised", RAMP_DL_SURFACE_RAISED],
-  ["--color-card", RAMP_DL_CARD],
-  ["--color-popover", RAMP_DL_POPOVER],
-  ["--color-accent", RAMP_DL_ACCENT],
-  ["--color-sidebar-accent", RAMP_DL_SIDEBAR_ACCENT],
-  ["--color-secondary", RAMP_DL_SECONDARY],
-  ["--color-muted", RAMP_DL_MUTED],
+// The neutral surface ramp: each `--color-*` paired with the RampDeltas member that names its L shift,
+// applied via CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma
+// held). WHICH ARM those deltas come from is `rampDeltas(base)`'s decision (#682) — a light base's chrome
+// recedes rather than saturating at white — so the deltas are read per call, not frozen at module load.
+const SURFACE_RAMP_VARS: ReadonlyArray<readonly [name: string, role: keyof RampDeltas]> = [
+  ["--color-sidebar", "sidebar"],
+  ["--color-surface-raised", "surfaceRaised"],
+  ["--color-card", "card"],
+  ["--color-popover", "popover"],
+  ["--color-accent", "accent"],
+  ["--color-sidebar-accent", "sidebarAccent"],
+  ["--color-secondary", "secondary"],
+  ["--color-muted", "muted"],
 ];
 
 // Contrast-safe foreground derivation: L flips light↔dark around a pivot with a steep step, so any
@@ -156,13 +150,21 @@ function shadowVarsOn(background: string, base: ParsedOklch): Readonly<Record<st
  * AMBIENT base (#236): this runs only when a background IS carried, and these must answer THIS surface.
  */
 export function surfaceVarsOn(background: string, base: ParsedOklch | null): Readonly<Record<string, string>> {
+  // The ramp's POLARITY ARM (#682). An unjudgeable base keeps the DARK arm rather than emitting nothing:
+  // unlike the plate's alpha and the elevation ingredients, the ramp IS the chrome — a scope that carried
+  // a background but no surfaces would paint the app theme's panels inside a custom room. Failing open to
+  // the pre-#682 block is the one choice that leaves such a scope byte-identical to what it emitted
+  // before, and polarity is exactly as unknowable here as it is for `colorSchemeFor`.
+  const deltas = base === null ? THEME_DERIVATION.ramp.dark : rampDeltas({ l: base.l, c: base.c, h: base.h });
   const vars: Record<string, string> = { "--color-background": background };
-  for (const [name, deltaL] of SURFACE_RAMP_DELTAS) {
-    vars[name] = `oklch(from ${background} calc(l + ${deltaL}) c h)`;
+  for (const [name, role] of SURFACE_RAMP_VARS) {
+    vars[name] = `oklch(from ${background} calc(l + ${deltas[role]}) c h)`;
   }
   vars["--color-reading-plate"] = readingPlateOn(background, base);
   vars["--color-reading-band"] = readingBandOn(background);
-  vars["--color-accent-foreground"] = foregroundOnShifted(background, RAMP_DL_ACCENT);
+  // The accent's foreground reads the SAME arm's accent delta — a foreground derived off a shift the
+  // surface no longer takes is the polarity divorce this whole file exists to prevent.
+  vars["--color-accent-foreground"] = foregroundOnShifted(background, deltas.accent);
   const fg = foregroundOn(background);
   vars["--color-foreground"] = fg;
   vars["--color-card-foreground"] = fg;

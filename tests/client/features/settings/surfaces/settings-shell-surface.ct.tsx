@@ -28,6 +28,10 @@ const USER_SETTINGS_VIEW = {
   updatedAt: 0,
 };
 
+/** The search option for the Plugins category — a prefix match, since the option's accessible name carries
+ *  the category beside the section it jumps to. Top-level so the regex is compiled once (biome). */
+const PLUGINS_OPTION = /Plugins/u;
+
 /** A resolved EffectiveAppConfig + owner viewer — every `admin`-anchored AppSettings section suspends on
  *  these (eight of them since SET-SEAMS stage 4 merged the System pane in). */
 const APP_CONFIG = {
@@ -304,6 +308,31 @@ test("a plain user never sees the Admin category (nav row + search entry hidden)
   // The search index hides the admin entries too.
   await component.getByRole("combobox", { name: "Search settings" }).fill("create user");
   await expect(component.getByRole("option", { name: "Create user" })).toHaveCount(0);
+});
+
+// D147 — the OTHER side of the same gate, and the reason this pair sits together: the Plugins pane used to
+// carry `when: (viewer) => viewer.isAdmin` beside Admin's, because every `plugin.*` management verb was
+// admin-gated on the server. Plugins are user-scoped now (anyone installs for themselves; `plugin.list` is
+// the caller's OWN rows), so a plain user must REACH this pane — a viewer gate here would hide a person's own
+// installed plugins from them. Asserted on the RENDERED pane, not on the nav row alone: the row existing
+// while the body refused would be the same failure one screen further in.
+test("a plain user DOES see the Plugins category, and it mounts the real per-user pane", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "sessions.me": () => ({ userId: "user_plain", handle: "plain", globalRole: "user" }),
+  });
+  const component = await mount(<SettingsShellStory />);
+
+  await component.getByRole("button", { name: "Plugins" }).click();
+  // The real surface, not a placeholder: its two anchored sections plus the empty state, which is written
+  // for the PERSON asking ("nothing YOU installed"), never for an operator surveying the box.
+  await expect(component.getByRole("heading", { name: "Installed" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Add a plugin" })).toBeVisible();
+  await expect(component.getByText("Nothing installed yet.", { exact: false })).toBeVisible();
+  // …and it is searchable for them too — a gate left on the nav would also have cut the search index.
+  await component.getByRole("combobox", { name: "Search settings" }).fill("plugin");
+  await expect(component.getByRole("option", { name: PLUGINS_OPTION }).first()).toBeVisible();
 });
 
 test("an admin viewer sees the Admin category and it mounts the REAL pane", async ({ mount, page }) => {

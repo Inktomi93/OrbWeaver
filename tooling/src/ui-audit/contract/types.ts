@@ -32,6 +32,25 @@ export interface Args {
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
    *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
+  /** True once `--base` was passed explicitly — the tell that the caller named WHERE, which conflicts with
+   *  the stage flags below (two answers to one question is a lie about what was audited, never a default). */
+  baseExplicit: boolean;
+  /** `--isolated`/`--ref`/`--dirty`/`--fresh` (#678): audit the ISOLATED STAGE — the second, offset-port dev
+   *  stack snap owns (a detached worktree at a commit, or an rsync of the working tree), instead of whatever
+   *  `--base` serves. `:5173` serves MAIN (AGENTS.md §L.6), so this is the only way a LANE can audit its own
+   *  branch. `--ref`/`--dirty`/`--fresh` each imply `--isolated`. Stage admin stays on snap
+   *  (`--stage-status`/`--stage-down`/`--stage-sweep`) — one home for the band's lifecycle. */
+  isolated: boolean;
+  /** The commit the stage serves; null = HEAD of this checkout. Unresolvable ⇒ EXIT.misuse, never a
+   *  fallback audit of the dev stack. */
+  ref: string | null;
+  /** Stage the WORKING TREE (rsync) instead of a commit — mutually exclusive with `--ref`. */
+  dirty: boolean;
+  /** Force a stage rebuild rather than reusing the warm one. */
+  fresh: boolean;
+  /** The booted stage's short sha (or the dirty key), filled by ops/stage.ts — what the RESULT line and the
+   *  JSON report publish as `stage=`, so a receipt states WHICH tree it measured. null = the live base. */
+  stageShortSha: string | null;
   /** CLI misuse collected without side effects; any entry means EXIT.misuse before a browser boots. */
   errors: string[];
 }
@@ -39,6 +58,10 @@ export interface Args {
 export interface CaptureOutcome {
   navError: string | null;
   actionsFailed: number;
+  /** Did the page publish `html[data-app-ready]` within the wait? False on a `file://` fixture (expected —
+   *  no app runs there) and on an app origin whose app never mounted, which is an INSTRUMENT gap, not a
+   *  clean surface (lib/evidence.ts `readinessGap`, #678). */
+  appReady: boolean;
   samples: RawSamples | null;
 }
 

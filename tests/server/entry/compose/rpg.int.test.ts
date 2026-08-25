@@ -146,7 +146,9 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
 
   // Execute the REAL registered `update_scene` tool through the ONE tool-use registry (stages into the real
   // accumulator) — proving the compose tool-registration is LIVE (not a stub of it).
-  const set = app.toolUse.resolveTools(["update_scene"]);
+  // Driver-scoped since #677; `update_scene` is a BUILTIN, so it lives on the ownerless shelf every driver
+  // falls back to — the host resolves it exactly as anyone else would.
+  const set = app.toolUse.resolveTools(hostId, ["update_scene"]);
   const records = await app.toolUse.executeToolCalls(
     set,
     [{ toolCallId: "call_1", name: "update_scene", arguments: JSON.stringify({ location: "the cave mouth", recentEvent: "entered the cave" }) }],

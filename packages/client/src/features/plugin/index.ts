@@ -1,7 +1,8 @@
 // features/plugin — the D46 sandbox's client face (interaction-direction-spec §7-C7/§7-C7a). Two surfaces,
 // two homes, because they have two scopes: the PLUGINS settings pane (install · grant · enable · update ·
-// remove · log — admin-gated, matching every `plugin.*` management verb's own `can(caller,"admin")`), and
-// the per-room SNIPPET console contributed into chat's "This chat" tab (`runSnippet` is chat-scoped).
+// remove · log — PER-USER and ungated, matching the server's user-scoped verbs, D147: `plugin.list` is the
+// caller's own rows and every control acts on a row they own), and the per-room SNIPPET console contributed
+// into chat's "This chat" tab (`runSnippet` is chat-scoped).
 //
 // The front door exports only what the composition root assembles: the pane def and the section def. Every
 // component below them is internal — a consumer that wants a plugin surface takes it through the registry

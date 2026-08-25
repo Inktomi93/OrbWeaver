@@ -10,7 +10,8 @@ import type { ChatId, PluginId } from "@orb/kit/ids";
 
 /** `installPlugin` — unzip+validate the bundle, store its bytes in the CAS, insert a `disabled` row.
  *  `grant` is the confirmed capability subset (⊆ the manifest's declared set — `CapabilityNotGrantedError`
- *  otherwise). Install authority is `can(caller,"admin",{kind:"global"})` — owner ∪ admin in v1. */
+ *  otherwise). Install authority is SELF (D147): any authenticated principal, and the row is stamped
+ *  `ownerId: caller.userId` — which is also what every later verb gates on. */
 export interface InstallPluginParams {
   readonly caller: Principal;
   readonly bundle: Uint8Array;

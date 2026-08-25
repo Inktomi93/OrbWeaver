@@ -5,7 +5,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
+import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("lists only the caller's plugins, newest-installed first", async () => {
   const db = await freshDb();
@@ -46,4 +46,22 @@ test("an owner with no plugins gets an empty list", async () => {
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+});
+
+// D147 — `list` is the read the per-user pane suspends on, so the scoping has to hold for the PRINCIPAL CLASS
+// that pane is now open to. Two things at once: a plain user sees their OWN row (the pane is not empty for
+// them), and the box owner's rows are absent from it (a global role does not widen a fetchOwned read — the
+// verb takes no id, so `WHERE owner_id = caller.userId` is the whole query).
+test("a plain user (role:'user') lists their own rows, and the box owner's are not among them", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
+  const boss = await seedUser(db, { handle: castId<Handle>("boss") });
+
+  const mine = await h.service.install({ caller: principalFor(user), bundle: makeBundle({ id: "mine" }), grant: [] });
+  const theirs = await h.service.install({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "theirs" }), grant: [] });
+
+  expect((await h.service.list({ caller: principalFor(user) })).map((p) => p.id)).toEqual([mine.id]);
+  // …and symmetrically: the apex role's list is ITS OWN rows, not the deployment's.
+  expect((await h.service.list({ caller: ownerPrincipalFor(boss) })).map((p) => p.id)).toEqual([theirs.id]);
 });

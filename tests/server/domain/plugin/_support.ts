@@ -1,6 +1,7 @@
 // Shared test harness for the domain/plugin slice (NOT a test file — no `.test` suffix). Builds a real-db
-// `PluginContext` with fakes at the edges per "fake at the edges, inject at the root": the REAL `can()` seam
-// (admin/guard — install authority is a real decision), a real assets fake that writes an `assets` row so the
+// `PluginContext` with fakes at the edges per "fake at the edges, inject at the root". There is no `can()`
+// seam to inject: plugin authority is the OWNER-SCOPED ROW LOAD against the real db (D147), so the authority
+// decision is exercised for real by every test here rather than mocked. Also: a real assets fake that writes an `assets` row so the
 // `plugins.bundle_asset_id` FK resolves + a reference-aware `reapOrphans` (mirrors `reapIfOrphan` — never reaps
 // a still-referenced bundle), the frozen clock + seeded ids, and a scriptable `PluginHostPort` fake. A separate
 // `makeSandboxPort` wires the REAL P1 `infra/plugin-host` `Sandbox` for the determinism-floor round-trip.
@@ -11,7 +12,6 @@ import type { Db } from "@orb/db";
 import { assets, plugins } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
 import { and, eq, inArray } from "drizzle-orm";
@@ -41,12 +41,16 @@ export { seedUser } from "../embeddings/_support.ts";
 /** Parse a `[level] message` host.log line back into a structured `PluginLogView`. */
 const LOG_LINE_RE = /^\[(info|warn|error)\]\s(.*)$/su;
 
-/** A resolved `Principal` for `userId` — role `user` (a non-admin: install/upgrade/uninstall are REFUSED). */
+/** A resolved `Principal` for `userId` — role `user`. Under D147 this is the COMMON plugin caller: a plain
+ *  user installs for themselves and manages their own rows exactly like anyone else. (It used to be the
+ *  refused case — every management verb was admin-gated; that gate is gone.) */
 export function principalFor(userId: UserId): Principal {
   return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "fallback" };
 }
 
-/** The box-owner `Principal` for `userId` — satisfies the `can(_,"admin",{kind:"global"})` install gate. */
+/** The box-owner `Principal` for `userId` — the APEX global role. It buys nothing extra on the plugin
+ *  surface (D147: authority is the owner-scoped row load, not a role), which is exactly why the cross-user
+ *  refusal tests aim it at ANOTHER user's row: the apex role must be refused there too. */
 export function ownerPrincipalFor(userId: UserId): Principal {
   return { userId, role: "owner", handle: castId<Handle>(userId), externalId: null, via: "fallback" };
 }
@@ -83,6 +87,10 @@ function makeFakePort(): FakePort {
       }
       return Promise.resolve(outcome);
     },
+    // TRUTH-REPAIR 2026-08-24: this is a statement about THIS FAKE, not about the tree. The real invoke path
+    // is live (`infra/plugin-host/port.ts:200-241`), and `tests/server/entry/boot/seed-example-plugins.int.test.ts`
+    // drives real registrations through it. A reader who took this line as a tree fact concluded, wrongly,
+    // that plugin tools and event handlers cannot run.
     invoke: (): Promise<string> => Promise.reject(new Error("plugin invoke is not exercised by the fake port (see the composed-real int test)")),
     runSnippet: (): Promise<{ logLines: readonly string[] }> => Promise.resolve({ logLines: [] }),
     readLog: (instance: PluginInstance): readonly DomainPluginLogView[] => logs.get(instance) ?? [],
@@ -93,9 +101,16 @@ function makeFakePort(): FakePort {
 }
 
 /** A `PluginHostPort` over the REAL P1 `Sandbox` — createInstance runs `main.js` through `evalGuest` under the
- *  injected determinism seams (the round-trip's determinism-floor depth). No registrations are collectible at
- *  the P1 realm (the gated namespaces are P4), so `tools/transforms/events` are empty; the activation-run log
- *  lines are captured for `readLog`. `invoke` is P4. */
+ *  injected determinism seams (the round-trip's determinism-floor depth). This port builds the sandbox WITHOUT
+ *  a membrane, so the guest sees only the determinism floor and `tools/transforms/events` are necessarily
+ *  empty; the activation-run log lines are captured for `readLog`.
+ *
+ *  TRUTH-REPAIR 2026-08-24: that emptiness is a property of THIS PORT's own wiring, not of the tree. The
+ *  earlier spelling ("the gated namespaces are P4", "`invoke` is P4") read as a statement about the product
+ *  and cost at least one reader a wrong conclusion. The gated namespaces are live (`membrane.ts:557-645`
+ *  attaches `tools.register`, `transforms.register` and `events.on`; `port.ts:186-193` collects what they
+ *  registered) — a port built with `createPluginHost` gets all of it, which is what
+ *  `tests/server/entry/boot/seed-example-plugins.int.test.ts` uses. */
 export function makeSandboxPort(seams: HostSeams): PluginHostPort {
   const logs = new Map<PluginInstance, readonly DomainPluginLogView[]>();
   const sandboxes = new Map<PluginInstance, Sandbox>();
@@ -119,6 +134,8 @@ export function makeSandboxPort(seams: HostSeams): PluginHostPort {
       logs.set(instance, toLog(outcome.logs));
       return { ok: true, instance };
     },
+    // Same repair as the fake port above: this port mints no handlers (no membrane ⇒ nothing to invoke), which
+    // is a fact about this wiring, never about the product's invoke path.
     invoke: (): Promise<string> => Promise.reject(new Error("plugin invoke is not exercised by the sandbox-floor port")),
     runSnippet: (): Promise<{ logLines: readonly string[] }> => Promise.resolve({ logLines: [] }),
     readLog: (instance: PluginInstance): readonly DomainPluginLogView[] => logs.get(instance) ?? [],
@@ -191,7 +208,6 @@ export function makePluginHarness(
     db,
     now: () => clock.now(),
     newPluginId: () => castId<PluginId>(ids.next("plugin")),
-    can,
     assets: { store, readBytes, reapOrphans },
     host: overrides.port ?? fakePort,
     ops: overrides.ops ?? makeInertOps(),
