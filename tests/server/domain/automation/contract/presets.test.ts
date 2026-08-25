@@ -273,6 +273,9 @@ test("the two-rule presets order the COUNTER above the THRESHOLD (position order
   // must be minted first or the threshold reads the pre-increment value for a whole batch.
   const clock = buildWithDefaults("clockFires");
   expect(clock[0]?.arms[0]).toMatchObject({ type: "set_variable", key: "clock", op: "inc" });
+  // B9: R1 also PUBLISHES the threshold into the vars plane so the flank widget can render `filled/segments`
+  // (the max is otherwise only a CEL literal in R2's predicate). Substituted from the `n` knob (default 4).
+  expect(clock[0]?.arms[1]).toMatchObject({ type: "set_variable", key: "clockMax", op: "set", value: "4" });
   expect(clock[1]?.predicate).toContain("has(vars.clock)");
 
   const callback = buildWithDefaults("callback");

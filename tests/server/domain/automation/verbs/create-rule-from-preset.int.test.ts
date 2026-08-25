@@ -391,6 +391,8 @@ describe("§4 #7 clock fires when full (two rules, ONE batch)", () => {
 
     await f.svc.handleEvent(turnCompleted(f.chatId)); // tick 1
     expect(f.vars["clock"]).toBe("1");
+    // B9: R1 publishes the threshold into the member-visible vars plane every beat — the flank widget's max.
+    expect(f.vars["clockMax"]).toBe("2");
     expect(f.turns).toHaveLength(0);
 
     // Tick 2: R1 increments to 2 and writes THROUGH onto the shared cached env; R2 — same batch, same env —
@@ -401,6 +403,7 @@ describe("§4 #7 clock fires when full (two rules, ONE batch)", () => {
     expect(f.turns).toHaveLength(1);
     expect(f.turns[0]?.guided).toContain("The pressure that has been building");
     expect(f.vars["clock"]).toBeUndefined(); // the reset arm ran
+    expect(f.vars["clockMax"]).toBe("2"); // …but the threshold survives the reset — the widget's honest 0/N state
     expect(await outcomes(f, counter)).toEqual(["fired", "fired"]);
     expect(await outcomes(f, threshold)).toEqual(["fired"]); // the tick-1 miss logs nothing (pre-first-fire)
 
