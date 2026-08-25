@@ -24,7 +24,7 @@
 //   • ruleFired / ruleErrored / rulesChanged — host FIRE-LOG signal. B2's rules panel is their consumer;
 //                          neither moves a pending ask.
 
-import type { AutomationBusEvent, AutomationEmitSource, AutomationSuggestionKind } from "@orb/contracts/automation";
+import type { AutomationBusEvent, AutomationEmitSource, AutomationSuggestionKind, SuggestionCardDetail } from "@orb/contracts/automation";
 import type { AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 
 /** One pending ask as the card renders it — the bus payload, kept whole. There is no fuller shape to fetch:
@@ -39,6 +39,8 @@ export interface PendingAsk {
   readonly kind: AutomationSuggestionKind;
   readonly summary: string;
   readonly expiresAt: number;
+  /** The optional structured body (C3's rewrite before/after). Absent ⇒ the card is title + actions. */
+  readonly detail?: SuggestionCardDetail;
 }
 
 /** The replace-per-kind key, MIRRORING the server's `slotKey`: one live card per origin. The prefix keeps the
@@ -60,7 +62,15 @@ type AutomationEventArms = {
 const AUTOMATION_EVENT_ARMS: AutomationEventArms = {
   suggestionRaised: (asks, event) => [
     ...asks.filter((ask) => sourceKey(ask.source) !== sourceKey(event.source)),
-    { id: event.suggestionId, source: event.source, chatId: event.chatId, kind: event.kind, summary: event.summary, expiresAt: event.expiresAt },
+    {
+      id: event.suggestionId,
+      source: event.source,
+      chatId: event.chatId,
+      kind: event.kind,
+      summary: event.summary,
+      expiresAt: event.expiresAt,
+      ...(event.detail === undefined ? {} : { detail: event.detail }),
+    },
   ],
   // A rule that auto-disabled had its asks VOIDED server-side; drop the same ones here. Plugin-origin asks are
   // untouched by a rule's death — their own void rides the plugin's deactivate/uninstall.

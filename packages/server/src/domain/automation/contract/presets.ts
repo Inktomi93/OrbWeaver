@@ -191,6 +191,20 @@ const LORE_NOTE_MAX = 2000;
  *  trigger that fires rarely, which would still fire eventually and surprise the room. */
 const NEVER_ON_ITS_OWN = "false";
 
+/** Laws 1+2 — "this reply came from a human's turn". The `has()` guard keeps a manual/odd dispatch from
+ *  throwing on an unpopulated `event.turn`, and the `int()` coercion is the shipped dialect's requirement; the
+ *  depth clause is belt-and-suspenders over the engine's own cascade suppression, so an automation-triggered
+ *  reply is never itself audited (an audit of a rewrite of an audit is the loop this closes). */
+const HUMAN_TURN_ONLY = "!has(event.turn) || int(event.turn.automationDepth) == 0";
+
+/** C3's cadence axis — the catalogue's "every-turn vs on-demand" knob, as wire values + host labels (the
+ *  `ILLUSTRATE_MODES` pair-shape: a mapped-type label Record, so an option without a label fails `tsc`). */
+const AUDIT_CADENCES = ["onDemand", "everyReply"] as const;
+const AUDIT_CADENCE_LABELS = {
+  onDemand: "Only when I ask",
+  everyReply: "Every reply",
+} as const satisfies { readonly [TWhen in (typeof AUDIT_CADENCES)[number]]: string };
+
 /** The clock's chat variable. FIXED, not a knob — B9's `SegmentedClock` widget reads this one key, and a
  *  knob-supplied key would land in a CEL identifier position. */
 const CLOCK_VAR_KEY = "clock";
@@ -784,6 +798,59 @@ const RUMOR_MILL = defineRulePreset({
   ],
 });
 
+/** §4 #14 — the PROSE AUDIT (class 1; C3 — RULED F7: CONFIRM-FIRST). ONE rule riding the S5 `run_analysis`
+ *  arm with only the `rewrite` route: a quiet pass reads the newest reply, and when it finds a real flaw it
+ *  offers a conservative repair on a card that PINS the audited variant and HASHES its bytes. The host's yes
+ *  writes the rewrite as a NEW VARIANT of that slot — the audited text stays as a swipe, which is the revert.
+ *
+ *  THE `when` KNOB IS THE CATALOGUE'S "every-turn vs on-demand", and its default is `onDemand` under law 5
+ *  (conservative defaults) for a reason bigger than taste: `run_analysis` is SPEND-classed, so the every-turn
+ *  arm funds one structured model call per reply, forever, on the author's own connection. On demand, the
+ *  host presses Run now on the reply that bothered them (R7 — the predicate is the whether-to-fire-BY-ITSELF
+ *  gate, so a manual run skips it) and the verb's synchronous outcome carries the verdict: `suggested` = a
+ *  card is waiting, `fired` = the pass ran and found the reply CLEAN. A clean reply draws nothing, and that
+ *  silence is legible instead of ambiguous — the legacy transient-clean lesson, carried without a row.
+ *
+ *  Law 4: the every-turn arm fires once per beat, so it carries the explicit high cap; the on-demand arm
+ *  never fires by itself and needs none. Law 7 (`neutralizeMacros` on the model's bytes) and the variant-pin +
+ *  hash guards are the ARM's, not this def's — one home, in `engine/analysis-arm.ts`. Mint REFUSES on an
+ *  active-game chat (D109), inherited from the arm's own admission rows. */
+const PROSE_AUDIT = defineRulePreset({
+  id: "proseAudit",
+  title: "Prose audit",
+  summary: "A quiet editor checks the reply for contradictions and slips, and offers a careful fix you approve before it lands.",
+  ruleCount: 1,
+  confirmFirst: true,
+  knobs: {
+    when: {
+      kind: "choice",
+      label: "When to audit",
+      help: "On demand costs nothing until you ask. Every reply audits each new reply automatically — one model call per reply.",
+      options: AUDIT_CADENCES,
+      optionLabels: AUDIT_CADENCE_LABELS,
+      default: "onDemand",
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "turnCompleted",
+      predicate: knobs.when === "onDemand" ? NEVER_ON_ITS_OWN : HUMAN_TURN_ONLY,
+      arms: [
+        {
+          type: "run_analysis",
+          brief:
+            "Audit the newest reply for prose faults only — contradictions with what the transcript established, " +
+            "speaking or acting for a human's character, broken point of view or tense, and lines that repeat themselves. " +
+            "Most replies are clean; say so. When one is not, repair exactly the fault and change nothing else — same voice, " +
+            "same length, same events.",
+          routes: { rewrite: {} },
+        },
+      ],
+      ...(knobs.when === "onDemand" ? {} : { maxFiresPerHour: COUNTER_RULE_MAX_FIRES_PER_HOUR }),
+    },
+  ],
+});
+
 /** THE REGISTRY — exhaustive over `RulePresetId` (a new id without a def, or a def without an id, fails
  *  `tsc`). This is the S3 enforcer the spec names. */
 export const RULE_PRESETS = {
@@ -801,4 +868,5 @@ export const RULE_PRESETS = {
   storyPacing: STORY_PACING,
   distillLore: DISTILL_LORE,
   rumorMill: RUMOR_MILL,
+  proseAudit: PROSE_AUDIT,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;
